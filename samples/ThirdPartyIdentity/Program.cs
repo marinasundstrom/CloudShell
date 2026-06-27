@@ -129,6 +129,10 @@ builder.Services.AddSingleton<
     IThirdPartyIdentityGraphIdentityProvisioningSetupBridge,
     ThirdPartyIdentityGraphResourceManagerIdentitySetupBridge>();
 builder.Services.AddSingleton<IIdentityProvisioningSetupHandler, GraphIdentityProvisioningSetupHandler>();
+builder.Services.TryAddEnumerable(
+    ServiceDescriptor.Singleton<
+        IAspNetCoreProjectRuntimeEnvironmentProvider,
+        GraphAspNetCoreProjectIdentityEnvironmentProvider>());
 
 cloudShell.Resources(resources =>
 {

@@ -22,6 +22,13 @@ public interface IAspNetCoreProjectRuntimeOutputReader
         DateTimeOffset? before = null);
 }
 
+public interface IAspNetCoreProjectRuntimeEnvironmentProvider
+{
+    ValueTask<IReadOnlyDictionary<string, string>> ResolveAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed record AspNetCoreProjectRuntimeOutputEntry(
     DateTimeOffset Timestamp,
     string Message,
@@ -46,12 +53,22 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
     private readonly ConcurrentDictionary<string, BoundedRuntimeOutputBuffer> _output = new(
         StringComparer.OrdinalIgnoreCase);
     private readonly AspNetCoreProjectProcessCommandFactory _commands = new();
-    private readonly AspNetCoreProjectServiceDiscoveryEnvironmentResolver _serviceDiscovery;
+    private readonly IReadOnlyList<IAspNetCoreProjectRuntimeEnvironmentProvider> _environmentProviders;
 
     public AspNetCoreProjectProcessRuntimeController(
-        ResourceGraphModel? graphModel = null)
+        ResourceGraphModel? graphModel = null,
+        IEnumerable<IAspNetCoreProjectRuntimeEnvironmentProvider>? environmentProviders = null)
     {
-        _serviceDiscovery = new AspNetCoreProjectServiceDiscoveryEnvironmentResolver(graphModel);
+        var providers = (environmentProviders ?? []).ToList();
+        if (graphModel is not null &&
+            !providers.OfType<AspNetCoreProjectServiceDiscoveryEnvironmentResolver>().Any())
+        {
+            providers.Insert(
+                0,
+                new AspNetCoreProjectServiceDiscoveryEnvironmentResolver(graphModel));
+        }
+
+        _environmentProviders = providers;
     }
 
     public AspNetCoreProjectRuntimeStatus GetStatus(Resource resource)
@@ -135,12 +152,12 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             _ => new BoundedRuntimeOutputBuffer());
         output.Clear();
 
-        var serviceDiscoveryEnvironmentVariables =
-            await _serviceDiscovery.ResolveAsync(resource, cancellationToken);
+        var derivedEnvironmentVariables =
+            await ResolveRuntimeEnvironmentVariablesAsync(resource, cancellationToken);
         var startInfo = _commands.CreateStartInfo(
             resource,
             fullProjectPath,
-            serviceDiscoveryEnvironmentVariables);
+            derivedEnvironmentVariables);
         var process = new Process
         {
             StartInfo = startInfo,
@@ -198,6 +215,33 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
         }
 
         await StopProcessAsync(process, cancellationToken);
+    }
+
+    private async ValueTask<IReadOnlyDictionary<string, string>> ResolveRuntimeEnvironmentVariablesAsync(
+        Resource resource,
+        CancellationToken cancellationToken)
+    {
+        if (_environmentProviders.Count == 0)
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var provider in _environmentProviders)
+        {
+            var resolved = await provider.ResolveAsync(resource, cancellationToken);
+            foreach (var (name, value) in resolved)
+            {
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    continue;
+                }
+
+                variables[name.Trim()] = value;
+            }
+        }
+
+        return variables;
     }
 
     public async ValueTask DisposeAsync()

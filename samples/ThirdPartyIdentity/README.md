@@ -105,6 +105,12 @@ provider-owned configuration reference, and the Resource Manager-declared
 identity attached to the graph API. The old Configuration and Application
 providers still own the runnable workload path until the graph-backed runtime
 and identity provisioning flow is ported for this sample.
+The graph ASP.NET Core runtime also has a sample-local environment adapter
+that resolves the graph API identity declaration from Resource Manager and
+delegates credential environment creation to the existing Keycloak integration.
+That keeps identity credential materialization in the runtime/Control Plane
+boundary while the graph resource continues to store only declarative project,
+endpoint, reference, and identity attachment information.
 
 The sample registers `KeycloakResourceIdentityProvisioner` as the resource
 identity provisioner, provider setup handler, and runtime credential

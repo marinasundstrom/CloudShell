@@ -1,7 +1,7 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
 public sealed class AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
-    ResourceGraphModel? graphModel = null)
+    ResourceGraphModel? graphModel = null) : IAspNetCoreProjectRuntimeEnvironmentProvider
 {
     private readonly ResourceGraphModel? _graphModel = graphModel;
 

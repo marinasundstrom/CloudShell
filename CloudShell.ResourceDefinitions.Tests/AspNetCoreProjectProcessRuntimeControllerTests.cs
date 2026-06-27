@@ -370,7 +370,16 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
                     Exposure: "Local")
             ]);
 
-        await using var controller = new AspNetCoreProjectProcessRuntimeController();
+        await using var controller = new AspNetCoreProjectProcessRuntimeController(
+            environmentProviders:
+            [
+                new FixedAspNetCoreProjectRuntimeEnvironmentProvider(
+                    new Dictionary<string, string>
+                    {
+                        ["CLOUDSHELL_PROJECT_REFERENCE_ENVIRONMENT_TAG"] =
+                            "graph-runtime-provider"
+                    })
+            ]);
 
         var diagnostics = await controller.ExecuteAsync(
             resource,
@@ -390,6 +399,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("\"status\":\"ok\"", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Project Reference API", body, StringComparison.Ordinal);
+        Assert.Contains("graph-runtime-provider", body, StringComparison.Ordinal);
         var output = await WaitForOutputAsync(controller, resource.EffectiveResourceId);
         Assert.NotEmpty(output);
 
@@ -587,5 +597,14 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         {
             listener.Stop();
         }
+    }
+
+    private sealed class FixedAspNetCoreProjectRuntimeEnvironmentProvider(
+        IReadOnlyDictionary<string, string> variables) : IAspNetCoreProjectRuntimeEnvironmentProvider
+    {
+        public ValueTask<IReadOnlyDictionary<string, string>> ResolveAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(variables);
     }
 }

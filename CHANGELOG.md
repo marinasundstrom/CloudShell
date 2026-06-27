@@ -23,6 +23,11 @@ on `git blame --follow`, and then by the broad type of change.
   typed dependency, provider-owned configuration reference, and Resource
   Manager-declared graph API identity while runtime execution remains on the
   old provider path.
+- ASP.NET Core graph project startup now composes provider-local runtime
+  environment providers before launching a project. Service discovery is the
+  default provider, and the ThirdPartyIdentity sample adds a sample-local
+  adapter that derives graph API identity credential variables from Resource
+  Manager declarations and the existing Keycloak credential provider.
 
 ### 2026-06-26
 
