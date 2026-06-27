@@ -4,7 +4,6 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
-using CloudShell.ResourceDefinitions.ResourceManager;
 using Microsoft.Extensions.Hosting;
 using GraphResource = CloudShell.ResourceDefinitions.Resource;
 
@@ -12,7 +11,7 @@ namespace CloudShell.ContainerHost;
 
 public sealed class ContainerHostGraphSqlServerDockerBridge(
     IContainerHostDockerCommandRunner docker,
-    ResourceModelGraphResourceResolver graphResolver,
+    IServiceScopeFactory scopeFactory,
     IHostEnvironment hostEnvironment,
     IConfiguration configuration) : IContainerHostGraphSqlServerRuntimeBridge
 {
@@ -84,7 +83,7 @@ public sealed class ContainerHostGraphSqlServerDockerBridge(
         var volumeMount = await ResolveSqlDataMountAsync(resource, cancellationToken);
         Directory.CreateDirectory(volumeMount.SourcePath);
 
-        await docker.RunAsync(
+        await RunSqlServerContainerAsync(
             [
                 "run",
                 "-d",
@@ -103,13 +102,54 @@ public sealed class ContainerHostGraphSqlServerDockerBridge(
             cancellationToken);
     }
 
+    private async Task RunSqlServerContainerAsync(
+        IReadOnlyList<string> arguments,
+        CancellationToken cancellationToken)
+    {
+        var result = await docker.RunAsync(
+            arguments,
+            cancellationToken,
+            throwOnError: false);
+        if (result.ExitCode == 0)
+        {
+            return;
+        }
+
+        await RemoveAsync(cancellationToken);
+        if (IsTransientMountSourceFailure(result))
+        {
+            await Task.Delay(500, cancellationToken);
+            result = await docker.RunAsync(
+                arguments,
+                cancellationToken,
+                throwOnError: false);
+            if (result.ExitCode == 0)
+            {
+                return;
+            }
+
+            await RemoveAsync(cancellationToken);
+        }
+
+        throw new InvalidOperationException(
+            $"Docker command 'docker {string.Join(' ', arguments)}' failed with exit code {result.ExitCode.ToString(CultureInfo.InvariantCulture)}: {result.Error}");
+    }
+
+    private static bool IsTransientMountSourceFailure(ContainerHostDockerCommandResult result) =>
+        result.Error.Contains("creating mount source path", StringComparison.OrdinalIgnoreCase) &&
+        result.Error.Contains("no such file or directory", StringComparison.OrdinalIgnoreCase);
+
     private async Task<ResolvedSqlVolumeMount> ResolveSqlDataMountAsync(
         GraphResource resource,
         CancellationToken cancellationToken)
     {
-        var graphResolution = await graphResolver.ResolveWithDependenciesAsync(
-            resource.EffectiveResourceId,
-            cancellationToken: cancellationToken);
+        using var scope = scopeFactory.CreateScope();
+        var graphModel = scope.ServiceProvider.GetRequiredService<ResourceGraphModel>();
+        var graphResolver = scope.ServiceProvider.GetRequiredService<ResourceGraphResolver>();
+        var snapshot = await graphModel.GetSnapshotAsync(cancellationToken);
+        var graphResolution = graphResolver.ResolveResourceAndDependencies(
+            snapshot,
+            resource.EffectiveResourceId);
         if (graphResolution.HasErrors)
         {
             throw new InvalidOperationException(string.Join(

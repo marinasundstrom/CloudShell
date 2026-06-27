@@ -19,6 +19,7 @@ const string graphResourceGroupId = "container-host-graph-poc";
 const string graphStorageResourceId = "cloudshell.storage:graph-local";
 const string graphVolumeResourceId = "cloudshell.volume:graph-sql-data";
 const string graphSqlServerResourceId = "application.sql-server:graph-sql-server";
+var graphSqlServerPort = builder.Configuration.GetValue<int?>("ContainerHost:GraphSqlServer:Port") ?? 14334;
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
@@ -50,7 +51,7 @@ cloudShell.DefineResources(resources =>
             "tcp",
             targetPort: 1433,
             host: "localhost",
-            port: 14334,
+            port: graphSqlServerPort,
             exposure: "Local")
         .MountVolume(graphVolume, "/var/opt/mssql");
 });

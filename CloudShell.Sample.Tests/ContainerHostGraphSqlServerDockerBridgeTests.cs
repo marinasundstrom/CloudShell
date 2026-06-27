@@ -74,6 +74,42 @@ public sealed class ContainerHostGraphSqlServerDockerBridgeTests
     }
 
     [Fact]
+    public async Task ExecuteStart_RemovesFailedCreatedContainerAndRetriesTransientMountFailure()
+    {
+        using var fixture = new ContainerHostGraphFixture();
+        var runner = new RecordingContainerHostDockerCommandRunner();
+        runner.Enqueue(new(1, string.Empty, "No such container"));
+        runner.Enqueue(new(
+            127,
+            string.Empty,
+            "error while creating mount source path '/host_mnt/tmp/cloudshell/sql-server': no such file or directory"));
+        runner.Enqueue(new(0, string.Empty, string.Empty));
+        runner.Enqueue(new(0, "container-id", string.Empty));
+        var bridge = fixture.CreateBridge(runner);
+
+        var diagnostics = await bridge.ExecuteLifecycleAsync(
+            await fixture.ResolveGraphSqlServerAsync(),
+            SqlServerResourceTypeProvider.Operations.Start);
+
+        Assert.Empty(diagnostics);
+        var expectedVolumePath = Path.Combine(fixture.ContentRootPath, "Data", "storage", "sql-server");
+        Assert.Collection(
+            runner.Commands,
+            command => Assert.Equal(
+                "container inspect --format {{.State.Status}} cloudshell-container-host-graph-sql-server",
+                command.JoinedArguments),
+            command => Assert.Equal(
+                $"run -d --name cloudshell-container-host-graph-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=CloudShell-Passw0rd! -p 127.0.0.1:15434:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
+                command.JoinedArguments),
+            command => Assert.Equal(
+                "rm -f cloudshell-container-host-graph-sql-server",
+                command.JoinedArguments),
+            command => Assert.Equal(
+                $"run -d --name cloudshell-container-host-graph-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=CloudShell-Passw0rd! -p 127.0.0.1:15434:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
+                command.JoinedArguments));
+    }
+
+    [Fact]
     public async Task RuntimeHandler_IgnoresUnmappedSqlServerResource()
     {
         using var fixture = new ContainerHostGraphFixture();
@@ -181,7 +217,7 @@ public sealed class ContainerHostGraphSqlServerDockerBridgeTests
             IReadOnlyDictionary<string, string?>? configuration = null) =>
             new(
                 runner,
-                _serviceProvider.GetRequiredService<ResourceModelGraphResourceResolver>(),
+                _serviceProvider.GetRequiredService<IServiceScopeFactory>(),
                 _serviceProvider.GetRequiredService<IHostEnvironment>(),
                 new ConfigurationBuilder()
                     .AddInMemoryCollection(configuration ?? new Dictionary<string, string?>())

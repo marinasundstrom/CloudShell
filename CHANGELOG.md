@@ -35,6 +35,11 @@ on `git blame --follow`, and then by the broad type of change.
   CloudShell volume and storage parent from the graph, creates the
   storage-backed host directory, and starts/restarts SQL Server with the bind
   mount while leaving generalized storage/runtime materialization deferred.
+- CloudShell.ContainerHost graph SQL runtime now has Docker smoke coverage for
+  start, restart, stop, storage-backed volume directory creation, and container
+  cleanup through Resource Manager. The sample-local Docker bridge also removes
+  Docker's failed-created container and retries once when a newly-created bind
+  mount path is not immediately visible to the Docker daemon.
 - The Resource Graph proposal now records the builder direction: keep the core
   programmatic declaration API aligned with CloudShell's old builder pattern
   for migration, and add Aspire-like extension methods only as compatibility

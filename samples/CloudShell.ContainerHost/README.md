@@ -73,6 +73,11 @@ resource.
 The graph SQL Server lifecycle operations now use a sample-local Docker bridge.
 That bridge resolves the mounted CloudShell volume and its storage parent from
 the graph, creates the storage-backed host directory, and starts the SQL Server
-container with a bind mount. This is intentionally a ContainerHost sample seam:
-durable provider-backed storage materialization, usage tracking, and generalized
-Docker host placement remain deferred until the provider ports need them.
+container with a bind mount. Focused Docker smoke coverage starts, restarts,
+and stops the graph SQL resource through Resource Manager and verifies the
+storage-backed volume directory is created. The bridge also removes Docker's
+failed-created container and retries once when a newly-created bind-mount path
+is not immediately visible to the Docker daemon. This is intentionally a
+ContainerHost sample seam: durable provider-backed storage materialization,
+usage tracking, and generalized Docker host placement remain deferred until the
+provider ports need them.
