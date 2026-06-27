@@ -77,12 +77,14 @@ the API container image, starts/removes the graph-owned replica containers, and
 restarts those replicas when graph image or replica attributes are applied.
 The same bridge removes a bounded range of graph-owned replica containers
 during cleanup so scale-down does not leave stale higher-ordinal replicas
-running, and it projects basic running/stopped state by inspecting the
-graph-owned replica containers. Docker smoke coverage now verifies graph-only
-image update, replica update, stale replica removal, and direct graph-declared
-HTTP health/liveness refresh without the old provider records. Runtime-scope
-health aggregation, logs, traces, and metrics still need to be owned by the
-graph-backed runtime path before this sample is fully switched over.
+running, projects basic running/stopped state by inspecting the graph-owned
+replica containers, and contributes provider-projected replica container log
+sources for the graph container app. Docker smoke coverage now verifies
+graph-only image update, replica update, stale replica removal, direct
+graph-declared HTTP health/liveness refresh, and log source discovery without
+the old provider records. Docker log reading, runtime-scope health
+aggregation, traces, and metrics still need to be owned by the graph-backed
+runtime path before this sample is fully switched over.
 
 ### Temporary switch seams
 
@@ -103,6 +105,9 @@ sample runs successfully through the new providers:
 - Graph-only lifecycle and update cleanup removes a bounded replica range so
   stale graph-owned containers are swept after scale-down; this is sample
   switch scaffolding, not a shared orchestration abstraction.
+- `ReplicatedContainerHealthGraphOnlyLogProvider` contributes graph-owned
+  replica container log sources for discovery. Docker log reading is still a
+  follow-up seam.
 - The sample-local graph image update endpoint exists to exercise
   `ResourceDefinition` overlay apply plus graph operation delegation. It should
   be replaced by the eventual Resource Manager/control-plane API surface for

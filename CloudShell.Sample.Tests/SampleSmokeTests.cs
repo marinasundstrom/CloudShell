@@ -3845,6 +3845,7 @@ public sealed class SampleSmokeTests
                 bearerToken: null,
                 graphOnlySmokeTimeout);
             await AssertGraphResourceHealthChecksHealthyAsync(host, graphApiResourceId, apiPort);
+            await AssertGraphReplicaLogSourcesAsync(host, graphApiResourceId, expectedReplicas: 3);
             foreach (var containerName in containerNames)
             {
                 Assert.True(
@@ -3916,6 +3917,7 @@ public sealed class SampleSmokeTests
                 bearerToken: null,
                 graphOnlySmokeTimeout);
             await AssertGraphResourceHealthChecksHealthyAsync(host, graphApiResourceId, apiPort);
+            await AssertGraphReplicaLogSourcesAsync(host, graphApiResourceId, expectedReplicas: 2);
             foreach (var containerName in scaledContainerNames)
             {
                 Assert.True(
@@ -4841,6 +4843,41 @@ public sealed class SampleSmokeTests
         return uri is not null &&
             uri.StartsWith($"http://localhost:{endpointPort.ToString(CultureInfo.InvariantCulture)}", StringComparison.OrdinalIgnoreCase) &&
             uri.EndsWith(path, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task AssertGraphReplicaLogSourcesAsync(
+        SampleProcess host,
+        string resourceId,
+        int expectedReplicas)
+    {
+        var logSourcesJson = await host.GetStringAsync(
+            $"/api/control-plane/v1/log-sources?resourceId={Uri.EscapeDataString(resourceId)}");
+        using var logSourcesDocument = JsonDocument.Parse(logSourcesJson);
+        var sources = logSourcesDocument.RootElement
+            .EnumerateArray()
+            .Where(source =>
+                source.TryGetProperty("producerResourceId", out var producer) &&
+                string.Equals(producer.GetString(), resourceId, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(source => source.GetProperty("name").GetString(), StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Assert.Equal(expectedReplicas, sources.Length);
+        for (var replica = 1; replica <= expectedReplicas; replica++)
+        {
+            var source = sources[replica - 1];
+            Assert.Equal(
+                $"{resourceId}:replica-{replica.ToString(CultureInfo.InvariantCulture)}:logs",
+                source.GetProperty("id").GetString());
+            Assert.Equal(
+                $"Replica {replica.ToString(CultureInfo.InvariantCulture)} logs",
+                source.GetProperty("name").GetString());
+            Assert.Equal(resourceId, source.GetProperty("resourceId").GetString());
+            Assert.Equal((int)LogSourceKind.Resource, source.GetProperty("sourceKind").GetInt32());
+            Assert.Equal((int)ResourceLogSourceKind.Container, source.GetProperty("kind").GetInt32());
+            Assert.Equal((int)LogFormat.JsonConsole, source.GetProperty("format").GetInt32());
+            Assert.Equal((int)ResourceLogSourceOrigin.ProviderProjected, source.GetProperty("origin").GetInt32());
+            Assert.Equal((int)LogSourceAvailability.ProducerRunning, source.GetProperty("availability").GetInt32());
+        }
     }
 
     private static async Task<string> RunResourceIdentityCredentialSampleAsync(

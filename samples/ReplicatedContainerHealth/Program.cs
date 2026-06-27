@@ -81,6 +81,10 @@ builder.Services
     .AddResourceModelGraphProcedureProvider(
         ResourceModelResourceProvider.DefaultProviderId,
         "Resource model");
+if (graphOnly)
+{
+    builder.Services.AddScoped<ILogProvider, ReplicatedContainerHealthGraphOnlyLogProvider>();
+}
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
