@@ -20,6 +20,8 @@ public sealed class LoadBalancerResourceTypeProvider :
         public static readonly ResourceAttributeId HttpRouteCount = "loadBalancer.routes.http";
         public static readonly ResourceAttributeId TcpRouteCount = "loadBalancer.routes.tcp";
         public static readonly ResourceAttributeId EndpointCount = "endpoints.count";
+        public static readonly ResourceAttributeId Entrypoints = "loadBalancer.entrypointDefinitions";
+        public static readonly ResourceAttributeId Routes = "loadBalancer.routeDefinitions";
     }
 
     public static class Capabilities
@@ -74,7 +76,13 @@ public sealed class LoadBalancerResourceTypeProvider :
                 DefaultValue: 0,
                 ValueType: ResourceAttributeValueType.Integer,
                 ReadOnly: true,
-                Mutability: ResourceAttributeMutability.ProviderManaged)
+                Mutability: ResourceAttributeMutability.ProviderManaged),
+            [Attributes.Entrypoints] = ResourceAttributeDefinition.Collection(
+                itemType: ResourceAttributeValueType.ComplexType,
+                itemShapeId: LoadBalancerShapeIds.Entrypoint),
+            [Attributes.Routes] = ResourceAttributeDefinition.Collection(
+                itemType: ResourceAttributeValueType.ComplexType,
+                itemShapeId: LoadBalancerShapeIds.Route)
         },
         Capabilities:
         [

@@ -32,6 +32,7 @@ public sealed class ResourceOrchestrationService(
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly IReadOnlyList<IResourceOrchestrator> orchestrators = orchestrators.ToArray();
+    private const string ResourceModelBridgeProviderIdAttribute = "resourceModel.bridgeProviderId";
     private readonly IReadOnlyList<IResourceOrchestrationDescriptorProvider> descriptorProviders =
         descriptorProviders.ToArray();
     private readonly IReadOnlyList<IResourceActionAvailabilityProvider> actionAvailabilityProviders =
@@ -1280,6 +1281,29 @@ public sealed class ResourceOrchestrationService(
         ResourceAction action,
         CancellationToken cancellationToken)
     {
+        if (context.Resource.ResourceAttributes.TryGetValue(
+                ResourceModelBridgeProviderIdAttribute,
+                out var bridgeProviderId) &&
+            !string.IsNullOrWhiteSpace(bridgeProviderId))
+        {
+            foreach (var provider in actionAvailabilityProviders)
+            {
+                if (provider is not IResourceProvider resourceProvider ||
+                    !string.Equals(resourceProvider.Id, bridgeProviderId, StringComparison.OrdinalIgnoreCase) ||
+                    !provider.CanEvaluateAction(context.Resource, action))
+                {
+                    continue;
+                }
+
+                return await provider.GetActionUnavailableReasonAsync(
+                    CreateProcedureContext(context),
+                    action,
+                    cancellationToken);
+            }
+
+            return null;
+        }
+
         foreach (var provider in actionAvailabilityProviders)
         {
             if (!provider.CanEvaluateAction(context.Resource, action))

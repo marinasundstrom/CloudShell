@@ -66,8 +66,11 @@ Resource Definitions bridge:
 - `application.container-app:graph-api`: graph-backed replicated API target.
 - `application.container-app:graph-postgres`: graph-backed TCP target.
 - `load-balancer:graph-public`: graph-backed load balancer with typed startup
-  dependencies on the graph host and target resources.
+  dependencies on the graph host and target resources plus graph-declared
+  entrypoints and host/path/TCP routes.
 
-Those resources prove projection, dependency, count-summary, and operation
-shape while the existing Traefik provider path remains responsible for runtime
-container management and dynamic configuration materialization.
+Those resources prove projection, dependency, count-summary, route payload,
+and operation shape. The graph **Apply load balancer configuration** action
+uses a sample-local Traefik adapter to write the dynamic configuration from
+the graph-declared routes, while provider-owned Traefik runtime container
+management remains on the existing load-balancer provider path.

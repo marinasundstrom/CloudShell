@@ -4468,6 +4468,29 @@ public sealed class SampleSmokeTests
         Assert.Contains("url: \"http://cloudshell-application-api-replica-3:80\"", config);
         Assert.Contains("HostSNI(`*`)", config);
         Assert.Contains("address: \"cloudshell-application-postgres:5432\"", config);
+
+        var graphApplyAction = graphLoadBalancer
+            .GetProperty("resourceActions")
+            .GetProperty("applyLoadBalancerConfiguration");
+        var graphApplyHref = graphApplyAction.GetProperty("href").GetString() ??
+            throw new InvalidOperationException("The graph load balancer apply action did not include an href.");
+
+        var graphApplyJson = await host.SendAsync(HttpMethod.Post, graphApplyHref);
+        using var graphApplyDocument = JsonDocument.Parse(graphApplyJson);
+        Assert.Contains(
+            "Applied Traefik graph configuration for 3 route(s)",
+            graphApplyDocument.RootElement.GetProperty("message").GetString());
+
+        var graphConfigPath = Path.Combine(dataDirectory, "traefik", "load-balancer-graph-public.dynamic.yml");
+        var graphConfig = await File.ReadAllTextAsync(graphConfigPath);
+        Assert.Contains("Host(`app.cloudshell.local`)", graphConfig);
+        Assert.Contains("Host(`api.cloudshell.local`) && PathPrefix(`/v1`)", graphConfig);
+        Assert.Contains("url: \"http://cloudshell-application-container-app-graph-web:80\"", graphConfig);
+        Assert.Contains("url: \"http://cloudshell-application-container-app-graph-api-replica-1:80\"", graphConfig);
+        Assert.Contains("url: \"http://cloudshell-application-container-app-graph-api-replica-2:80\"", graphConfig);
+        Assert.Contains("url: \"http://cloudshell-application-container-app-graph-api-replica-3:80\"", graphConfig);
+        Assert.Contains("HostSNI(`*`)", graphConfig);
+        Assert.Contains("address: \"cloudshell-application-container-app-graph-postgres:5432\"", graphConfig);
     }
 
     private static async Task<int> GetFreePortAsync()

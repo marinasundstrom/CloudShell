@@ -73,7 +73,7 @@ public sealed class ResourceModelGraphResourceResolver(
         ResourceDefinitionResolutionContext? context = null,
         CancellationToken cancellationToken = default)
     {
-        var resourceResolution = await ResolveAsync(
+        var resourceResolution = await ResolveWithDependenciesAsync(
             resourceId,
             context,
             cancellationToken);
@@ -121,7 +121,7 @@ public sealed class ResourceModelGraphResourceResolver(
         ResourceDefinitionResolutionContext? context = null,
         CancellationToken cancellationToken = default)
     {
-        var resourceResolution = await ResolveAsync(
+        var resourceResolution = await ResolveWithDependenciesAsync(
             resourceId,
             context,
             cancellationToken);

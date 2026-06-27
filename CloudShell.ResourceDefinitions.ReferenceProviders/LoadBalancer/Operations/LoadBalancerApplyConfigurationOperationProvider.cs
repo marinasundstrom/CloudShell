@@ -92,6 +92,7 @@ public sealed class LoadBalancerApplyConfigurationOperation(
 
         var diagnostics = await _configurationApplier.ApplyConfigurationAsync(
             Resource,
+            Context,
             cancellationToken);
 
         return new ResourceOperationExecutionResult(

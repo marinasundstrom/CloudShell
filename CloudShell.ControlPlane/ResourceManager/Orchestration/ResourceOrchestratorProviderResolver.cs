@@ -4,6 +4,8 @@ namespace CloudShell.ControlPlane.ResourceManager.Orchestration;
 
 internal static class ResourceOrchestratorProviderResolver
 {
+    private const string ResourceModelBridgeProviderIdAttribute = "resourceModel.bridgeProviderId";
+
     public static ResourceProcedureContext CreateProcedureContext(
         ResourceOrchestrationContext context) =>
         new(
@@ -20,6 +22,20 @@ internal static class ResourceOrchestratorProviderResolver
     public static IResourceProcedureProvider? GetProcedureProvider(
         ResourceOrchestrationContext context)
     {
+        if (context.Resource.ResourceAttributes.TryGetValue(
+                ResourceModelBridgeProviderIdAttribute,
+                out var bridgeProviderId) &&
+            !string.IsNullOrWhiteSpace(bridgeProviderId))
+        {
+            var bridgeProvider = context.ResourceManager.Providers.FirstOrDefault(provider =>
+                string.Equals(provider.Id, bridgeProviderId, StringComparison.OrdinalIgnoreCase))
+                as IResourceProcedureProvider;
+            if (bridgeProvider is not null)
+            {
+                return bridgeProvider;
+            }
+        }
+
         if (context.Registration is not null)
         {
             return context.ResourceManager.Providers.FirstOrDefault(provider =>

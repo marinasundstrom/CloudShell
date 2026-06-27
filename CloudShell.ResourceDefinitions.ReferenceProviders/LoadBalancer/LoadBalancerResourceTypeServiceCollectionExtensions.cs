@@ -11,6 +11,8 @@ public static class LoadBalancerResourceTypeServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddNetworkingEndpointGraphShapes();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceAttributeValueShapeProvider, LoadBalancerShapeProvider>());
 
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&

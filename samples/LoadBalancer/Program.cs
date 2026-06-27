@@ -6,6 +6,7 @@ using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
+using CloudShell.LoadBalancer;
 using CloudShell.Providers.Applications;
 using CloudShell.Providers.Docker;
 using CloudShell.Providers.Traefik;
@@ -13,6 +14,7 @@ using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
@@ -67,13 +69,12 @@ cloudShell.DefineResources(resources =>
         .WithDisplayName("Graph Public Load Balancer")
         .WithProvider("traefik")
         .UseHost(graphDockerHost)
-        .AddBackendTarget(graphWeb, ContainerApplicationResourceTypeProvider.ResourceTypeId)
-        .AddBackendTarget(graphApi, ContainerApplicationResourceTypeProvider.ResourceTypeId)
-        .AddBackendTarget(graphPostgres, ContainerApplicationResourceTypeProvider.ResourceTypeId)
-        .WithEntrypointCount(3)
-        .WithRouteCount(3)
-        .WithHttpRouteCount(2)
-        .WithTcpRouteCount(1);
+        .ExposeHttp()
+        .ExposeHttps()
+        .ExposeTcp(5432)
+        .MapHost("app.cloudshell.local", graphWeb, port: 80)
+        .MapPath("api.cloudshell.local", "/v1", graphApi, port: 80)
+        .MapTcp(5432, graphPostgres, targetPort: 5432);
 });
 builder.Services
     .AddDockerHostResourceType()
@@ -84,6 +85,8 @@ builder.Services
     .AddResourceModelGraphProcedureProvider(
         ResourceModelResourceProvider.DefaultProviderId,
         "Resource model");
+builder.Services.Replace(
+    ServiceDescriptor.Singleton<ILoadBalancerConfigurationApplier, LoadBalancerGraphTraefikConfigurationApplier>());
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

@@ -115,6 +115,13 @@ on `git blame --follow`, and then by the broad type of change.
   and provider-owned builders instead of manually registering raw graph state.
   Provider-managed read-only count summaries are projected into graph state
   instead of authored into `ResourceDefinition` values.
+- LoadBalancer graph resources now declare entrypoint and route payloads
+  through provider-owned complex shapes and builder methods. The LoadBalancer
+  sample wires the graph `applyLoadBalancerConfiguration` operation to a
+  sample-local Traefik adapter that writes dynamic configuration from the
+  graph-declared routes, and Resource Manager action dispatch now prefers the
+  graph bridge provider for resources carrying bridge-provider metadata so
+  legacy providers do not intercept overlapping operation IDs.
 
 ### 2026-06-26
 

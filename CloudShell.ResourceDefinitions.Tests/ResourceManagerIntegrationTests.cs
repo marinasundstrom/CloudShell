@@ -4885,6 +4885,7 @@ public sealed class ResourceManagerIntegrationTests
 
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyConfigurationAsync(
             Resource resource,
+            ResourceProjectionExecutionContext context,
             CancellationToken cancellationToken = default)
         {
             _appliedResourceIds.Add(resource.EffectiveResourceId);
