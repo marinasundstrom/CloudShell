@@ -13,7 +13,6 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
     IConfiguration configuration,
     IHostEnvironment? hostEnvironment = null) : IReplicatedContainerHealthGraphContainerAppRuntimeBridge
 {
-    private const string ResourceId = "application.container-app:graph-api";
     private const string DefaultProjectPath = "samples/ReplicatedContainerHealth/Api/CloudShell.ReplicatedContainerHealth.Api.csproj";
     private readonly string _projectPath = hostEnvironment is null
         ? DefaultProjectPath
@@ -61,7 +60,13 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
         {
             var result = commandRunner.Run(
                 "docker",
-                ["container", "inspect", "--format", "{{.State.Status}}", CreateReplicaContainerName(replica)],
+                [
+                    "container",
+                    "inspect",
+                    "--format",
+                    "{{.State.Status}}",
+                    ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaContainerName(replica)
+                ],
                 throwOnError: false,
                 timeout: _statusProbeTimeout);
             if (result.ExitCode == ReplicatedContainerHealthCommandResult.TimeoutExitCode)
@@ -232,7 +237,11 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
         CancellationToken cancellationToken) =>
         commandRunner.RunAsync(
             "docker",
-            ["rm", "-f", CreateReplicaContainerName(replica)],
+            [
+                "rm",
+                "-f",
+                ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaContainerName(replica)
+            ],
             cancellationToken,
             throwOnError: false);
 
@@ -246,7 +255,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
             "run",
             "-d",
             "--name",
-            CreateReplicaContainerName(replica)
+            ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaContainerName(replica)
         };
 
         if (replica == 1 && TryResolveHttpEndpoint(resource, out var endpoint))
@@ -255,8 +264,15 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
             arguments.Add($"127.0.0.1:{endpoint.Port!.Value.ToString(CultureInfo.InvariantCulture)}:{(endpoint.TargetPort ?? endpoint.Port.Value).ToString(CultureInfo.InvariantCulture)}");
         }
 
+        if (TryResolveHttpEndpoint(resource, out endpoint))
+        {
+            arguments.Add("-p");
+            arguments.Add(
+                $"127.0.0.1:{ReplicatedContainerHealthGraphOnlyRuntimeConventions.ResolveReplicaProbePort(configuration, replica, endpoint.Port!.Value).ToString(CultureInfo.InvariantCulture)}:{(endpoint.TargetPort ?? endpoint.Port.Value).ToString(CultureInfo.InvariantCulture)}");
+        }
+
         arguments.Add("-e");
-        arguments.Add($"CLOUDSHELL_RESOURCE_ID={ResourceId}");
+        arguments.Add($"CLOUDSHELL_RESOURCE_ID={ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId}");
         arguments.Add("-e");
         arguments.Add($"CLOUDSHELL_REPLICA_ORDINAL={replica.ToString(CultureInfo.InvariantCulture)}");
         AddEnvironment(arguments, "CLOUDSHELL_TRACE_INGEST_ENDPOINT", "Observability:TraceIngestEndpoint");
@@ -320,9 +336,6 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
 
         return (image[..separator], image[(separator + 1)..]);
     }
-
-    private static string CreateReplicaContainerName(int replica) =>
-        $"cloudshell-replicated-health-graph-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}";
 
     private static ResourceDefinitionDiagnostic RuntimeFailed(
         GraphResource resource,

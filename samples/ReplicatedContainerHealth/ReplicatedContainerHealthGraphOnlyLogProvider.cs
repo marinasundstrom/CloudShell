@@ -7,7 +7,6 @@ internal sealed class ReplicatedContainerHealthGraphOnlyLogProvider(
     IReplicatedContainerHealthCommandRunner commandRunner,
     IResourceManagerStore resourceManager) : ILogProvider
 {
-    private const string GraphApiResourceId = "application.container-app:graph-api";
     private const string ContainerReplicasAttribute = "container.replicas";
 
     public string Id => "replicated-container-health.graph-only";
@@ -16,7 +15,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyLogProvider(
 
     public IReadOnlyList<LogSource> GetLogSources()
     {
-        var resource = resourceManager.GetResource(GraphApiResourceId);
+        var resource = resourceManager.GetResource(ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId);
         if (resource is null)
         {
             return [];
@@ -34,8 +33,8 @@ internal sealed class ReplicatedContainerHealthGraphOnlyLogProvider(
                 Kind: ResourceLogSourceKind.Container,
                 Format: LogFormat.JsonConsole,
                 Capabilities: LogSourceCapabilities.Read,
-                ResourceId: GraphApiResourceId,
-                ProducerResourceId: GraphApiResourceId,
+                ResourceId: ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId,
+                ProducerResourceId: ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId,
                 Description: "Graph-only replica container logs.",
                 Origin: ResourceLogSourceOrigin.ProviderProjected,
                 Purpose: ResourceLogSourcePurpose.Default,
@@ -45,7 +44,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyLogProvider(
 
     public bool CanOpenLogSource(LogSource source) =>
         string.Equals(source.Provider, DisplayName, StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(source.ResourceId, GraphApiResourceId, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(source.ResourceId, ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId, StringComparison.OrdinalIgnoreCase) &&
         TryGetReplicaFromLogSourceId(source.Id, out _);
 
     public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
@@ -63,7 +62,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyLogProvider(
     }
 
     internal static string GetLogSourceId(int replica) =>
-        $"{GraphApiResourceId}:replica-{replica.ToString(CultureInfo.InvariantCulture)}:logs";
+        $"{ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId}:replica-{replica.ToString(CultureInfo.InvariantCulture)}:logs";
 
     private async Task<IReadOnlyList<LogEntry>> ReadReplicaLogsAsync(
         int replica,
@@ -84,7 +83,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyLogProvider(
             arguments.Add(before.Value.AddTicks(-1).UtcDateTime.ToString("O", CultureInfo.InvariantCulture));
         }
 
-        var containerName = CreateReplicaContainerName(replica);
+        var containerName = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaContainerName(replica);
         arguments.Add(containerName);
 
         var result = await commandRunner.RunAsync(
@@ -335,7 +334,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyLogProvider(
         out int replica)
     {
         replica = 0;
-        var prefix = $"{GraphApiResourceId}:replica-";
+        var prefix = $"{ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId}:replica-";
         const string suffix = ":logs";
         if (!logSourceId.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
             !logSourceId.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
@@ -346,7 +345,4 @@ internal sealed class ReplicatedContainerHealthGraphOnlyLogProvider(
         var value = logSourceId[prefix.Length..^suffix.Length];
         return int.TryParse(value, out replica) && replica > 0;
     }
-
-    private static string CreateReplicaContainerName(int replica) =>
-        $"cloudshell-replicated-health-graph-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}";
 }

@@ -3849,6 +3849,7 @@ public sealed class SampleSmokeTests
                 bearerToken: null,
                 graphOnlySmokeTimeout);
             await AssertGraphResourceHealthChecksHealthyAsync(host, graphApiResourceId, apiPort);
+            await AssertGraphResourceRuntimeHealthAggregatesAsync(host, graphApiResourceId, expectedReplicas: 3);
             await AssertGraphReplicaLogSourcesAsync(host, graphApiResourceId, expectedReplicas: 3);
             var graphReplicaLogEntries = await WaitForLogEntriesAsync(
                 host,
@@ -3927,6 +3928,7 @@ public sealed class SampleSmokeTests
                 bearerToken: null,
                 graphOnlySmokeTimeout);
             await AssertGraphResourceHealthChecksHealthyAsync(host, graphApiResourceId, apiPort);
+            await AssertGraphResourceRuntimeHealthAggregatesAsync(host, graphApiResourceId, expectedReplicas: 2);
             await AssertGraphReplicaLogSourcesAsync(host, graphApiResourceId, expectedReplicas: 2);
             foreach (var containerName in scaledContainerNames)
             {
@@ -4853,6 +4855,67 @@ public sealed class SampleSmokeTests
         return uri is not null &&
             uri.StartsWith($"http://localhost:{endpointPort.ToString(CultureInfo.InvariantCulture)}", StringComparison.OrdinalIgnoreCase) &&
             uri.EndsWith(path, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task AssertGraphResourceRuntimeHealthAggregatesAsync(
+        SampleProcess host,
+        string resourceId,
+        int expectedReplicas)
+    {
+        var summariesJson = await host.SendAsync(
+            HttpMethod.Post,
+            "/api/control-plane/v1/resource-health/refresh");
+        using var summariesDocument = JsonDocument.Parse(summariesJson);
+        Assert.True(
+            summariesDocument.RootElement.TryGetProperty(resourceId, out var summary),
+            $"Expected full health refresh to include '{resourceId}'. Response: {summariesJson}");
+        Assert.Equal(resourceId, summary.GetProperty("resourceId").GetString());
+        Assert.Equal((int)ResourceHealthStatus.Healthy, summary.GetProperty("status").GetInt32());
+
+        var checks = summary.GetProperty("checks").EnumerateArray().ToArray();
+        Assert.Contains(
+            checks,
+            check => HasRuntimeReplicaObservations(check, ResourceProbeType.Health, "health", expectedReplicas));
+        Assert.Contains(
+            checks,
+            check => HasRuntimeReplicaObservations(check, ResourceProbeType.Liveness, "alive", expectedReplicas));
+    }
+
+    private static bool HasRuntimeReplicaObservations(
+        JsonElement check,
+        ResourceProbeType probeType,
+        string name,
+        int expectedReplicas)
+    {
+        if (check.GetProperty("check").GetProperty("type").GetInt32() != (int)probeType ||
+            !string.Equals(check.GetProperty("check").GetProperty("name").GetString(), name, StringComparison.OrdinalIgnoreCase) ||
+            check.GetProperty("status").GetInt32() != (int)ResourceHealthStatus.Healthy)
+        {
+            return false;
+        }
+
+        var observations = check.GetProperty("observations").EnumerateArray().ToArray();
+        if (observations.Length != expectedReplicas)
+        {
+            return false;
+        }
+
+        for (var replica = 1; replica <= expectedReplicas; replica++)
+        {
+            var replicaOrdinal = replica.ToString(CultureInfo.InvariantCulture);
+            if (!observations.Any(observation =>
+                    string.Equals(observation.GetProperty("scopeKind").GetString(), "runtime", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(
+                        observation.GetProperty("resourceId").GetString(),
+                        ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(replica),
+                        StringComparison.OrdinalIgnoreCase) &&
+                    observation.GetProperty("attributes").GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString() == replicaOrdinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static async Task AssertGraphReplicaLogSourcesAsync(

@@ -4,9 +4,11 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceDefinitions.ResourceManager;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System.Globalization;
+using System.Text.Json;
 using GraphResource = CloudShell.ResourceDefinitions.Resource;
 
 namespace CloudShell.Sample.Tests;
@@ -98,7 +100,10 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         var bridge = new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
             commandRunner,
             CreateConfiguration(replicaCleanupLimit: 2));
-        var resource = await CreateGraphAppResourceAsync(replicas: 2, endpointPort: 5092);
+        var resource = await CreateGraphAppResourceAsync(
+            replicas: 2,
+            endpointPort: 5092,
+            includeHealthChecks: true);
 
         var diagnostics = await bridge.ExecuteLifecycleAsync(
             resource,
@@ -117,8 +122,48 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
             },
             command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-1"),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-2"),
-            command => AssertDockerRun(command, "cloudshell-replicated-health-graph-api-replica-1", replica: 1, expectPublishedEndpoint: true),
-            command => AssertDockerRun(command, "cloudshell-replicated-health-graph-api-replica-2", replica: 2, expectPublishedEndpoint: false));
+            command => AssertDockerRun(
+                command,
+                "cloudshell-replicated-health-graph-api-replica-1",
+                replica: 1,
+                expectPublishedEndpoint: true,
+                expectedProbePort: 5192),
+            command => AssertDockerRun(
+                command,
+                "cloudshell-replicated-health-graph-api-replica-2",
+                replica: 2,
+                expectPublishedEndpoint: false,
+                expectedProbePort: 5193));
+    }
+
+    [Fact]
+    public async Task GraphOnlyRuntimeProvider_ProjectsHiddenReplicaResourcesFromGraphState()
+    {
+        var resource = await CreateGraphAppResourceAsync(
+            replicas: 2,
+            endpointPort: 5092,
+            includeHealthChecks: true);
+        var resolver = CreateResourceResolver();
+        var resolved = resolver.Resolve(resource.State);
+        var parentProjection = ResourceModelResourceManagerMapper.ToResourceManagerResource(resolved);
+
+        Assert.Equal(2, parentProjection.ResourceHealthChecks.Count);
+        Assert.NotNull(resolved.Attributes.GetObject<NetworkingEndpointRequestValue[]>(
+            ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests));
+
+        var graph = new ResourceGraphModel(new InMemoryResourceStateProvider([resource.State]));
+        var provider = new ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider(
+            graph,
+            resolver,
+            new RecordingGraphContainerAppRuntimeBridge(ContainerApplicationRuntimeStatus.Running),
+            CreateConfiguration());
+
+        var replicas = provider.GetResources();
+
+        Assert.Collection(
+            replicas,
+            replica => AssertGraphReplicaResource(replica, ordinal: 1, port: 5192),
+            replica => AssertGraphReplicaResource(replica, ordinal: 2, port: 5193));
     }
 
     [Fact]
@@ -391,16 +436,10 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         string resourceId = "application.container-app:graph-api",
         string image = "cloudshell-application-api:20260622.2",
         int replicas = 3,
-        int? endpointPort = null)
+        int? endpointPort = null,
+        bool includeHealthChecks = false)
     {
-        IResourceOperationProvider[] operationProviders =
-        [
-            new ContainerApplicationStartOperationProvider(),
-            new ContainerApplicationStopOperationProvider(),
-            new ContainerApplicationRestartOperationProvider(),
-            new ContainerApplicationImageUpdateOperationProvider(),
-            new ContainerApplicationReplicasUpdateOperationProvider()
-        ];
+        var operationProviders = CreateContainerApplicationOperationProviders();
         var pipeline = new ResourceDefinitionValidationPipeline(
             [ContainerApplicationResourceTypeProvider.ClassDefinition],
             [new ContainerApplicationResourceTypeProvider()],
@@ -431,7 +470,18 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
                 name,
                 ContainerApplicationResourceTypeProvider.ResourceTypeId,
                 ResourceId: resourceId,
-                Attributes: attributes),
+                Attributes: attributes,
+                Capabilities: includeHealthChecks
+                    ? new Dictionary<ResourceCapabilityId, JsonElement>
+                    {
+                        [ResourceHealthCheckCapabilityIds.HealthChecks] =
+                            ResourceDefinitionJson.FromValue(new ResourceHealthCheckDefinitionSet(
+                            [
+                                ResourceHealthCheckDefinition.Http("/health", endpointName: "http"),
+                                ResourceHealthCheckDefinition.HttpLiveness("/alive", endpointName: "http", name: "alive")
+                            ]))
+                    }
+                    : null),
             new ResourceDefinitionValidationContext("local", "developer"));
 
         Assert.False(
@@ -442,6 +492,23 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
                     $"{diagnostic.Severity}: {diagnostic.Code}: {diagnostic.Message}")));
         return result.Resource;
     }
+
+    private static ResourceResolver CreateResourceResolver()
+    {
+        return new ResourceResolver(
+            [ContainerApplicationResourceTypeProvider.ClassDefinition],
+            [new ContainerApplicationResourceTypeProvider().TypeDefinition],
+            attributeValueShapeProviders: [new NetworkingEndpointShapeProvider()]);
+    }
+
+    private static IResourceOperationProvider[] CreateContainerApplicationOperationProviders() =>
+    [
+        new ContainerApplicationStartOperationProvider(),
+        new ContainerApplicationStopOperationProvider(),
+        new ContainerApplicationRestartOperationProvider(),
+        new ContainerApplicationImageUpdateOperationProvider(),
+        new ContainerApplicationReplicasUpdateOperationProvider()
+    ];
 
     private static CloudShell.Abstractions.ResourceManager.Resource CreateResourceManagerGraphAppResource(
         int replicas) =>
@@ -503,7 +570,8 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         RecordingCommand command,
         string containerName,
         int replica,
-        bool expectPublishedEndpoint)
+        bool expectPublishedEndpoint,
+        int? expectedProbePort = null)
     {
         Assert.Equal("docker", command.FileName);
         Assert.Equal("run", command.Arguments[0]);
@@ -521,6 +589,39 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         {
             Assert.DoesNotContain("127.0.0.1:5092:8080", command.Arguments);
         }
+
+        if (expectedProbePort is not null)
+        {
+            Assert.Contains(
+                $"127.0.0.1:{expectedProbePort.Value.ToString(CultureInfo.InvariantCulture)}:8080",
+                command.Arguments);
+        }
+    }
+
+    private static void AssertGraphReplicaResource(
+        CloudShell.Abstractions.ResourceManager.Resource replica,
+        int ordinal,
+        int port)
+    {
+        Assert.Equal(
+            ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(ordinal),
+            replica.Id);
+        Assert.Equal(ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId, replica.ParentResourceId);
+        Assert.Equal(ResourceManagementMode.RuntimeManaged, replica.ManagementMode);
+        Assert.Equal(ResourceVisibility.Hidden, replica.Visibility);
+        Assert.Equal(CloudShell.Abstractions.ResourceManager.ResourceState.Running, replica.State);
+        Assert.Equal("runtime.container", replica.TypeId);
+        Assert.Equal("containerReplica", replica.ResourceAttributes[ResourceAttributeNames.RuntimeKind]);
+        Assert.Equal(
+            ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaContainerName(ordinal),
+            replica.ResourceAttributes[ResourceAttributeNames.RuntimeContainerName]);
+        Assert.Equal(ordinal.ToString(CultureInfo.InvariantCulture), replica.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal]);
+        Assert.Equal("2", replica.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaCount]);
+        Assert.Equal(2, replica.ResourceHealthChecks.Count);
+        Assert.Contains(replica.ResourceHealthChecks, check => check.Type == ResourceProbeType.Health);
+        Assert.Contains(replica.ResourceHealthChecks, check => check.Type == ResourceProbeType.Liveness);
+        var mapping = Assert.Single(replica.ResourceEndpointNetworkMappings);
+        Assert.Equal($"http://localhost:{port.ToString(CultureInfo.InvariantCulture)}", mapping.Address);
     }
 
     private sealed class RecordingRunningState : IApplicationResourceRunningStateOperations

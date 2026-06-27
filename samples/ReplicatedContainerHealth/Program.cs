@@ -83,6 +83,7 @@ builder.Services
         "Resource model");
 if (graphOnly)
 {
+    builder.Services.AddScoped<IResourceProvider, ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider>();
     builder.Services.AddScoped<ILogProvider, ReplicatedContainerHealthGraphOnlyLogProvider>();
 }
 

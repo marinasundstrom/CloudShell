@@ -79,13 +79,17 @@ The same bridge removes a bounded range of graph-owned replica containers
 during cleanup so scale-down does not leave stale higher-ordinal replicas
 running, projects basic running/stopped state by inspecting the graph-owned
 replica containers, and contributes provider-projected replica container log
-sources for the graph container app. Docker smoke coverage now verifies
+sources for the graph container app. A graph-only runtime resource provider
+also projects hidden runtime-managed replica resources from the accepted graph
+state and sample runtime convention so the existing Control Plane health
+aggregation path can evaluate runtime-scope health/liveness without writing
+runtime observations back into the graph. Docker smoke coverage now verifies
 graph-only image update, replica update, stale replica removal, direct
-graph-declared HTTP health/liveness refresh, log source discovery, and Docker
-log reading without the old provider records. Runtime-scope health
-aggregation, traces, metrics, and richer Resource Manager state projection
-still need to be owned by the graph-backed runtime path before this sample is
-fully switched over.
+graph-declared HTTP health/liveness refresh, runtime-scope health aggregation,
+log source discovery, and Docker log reading without the old provider records.
+Traces, metrics, and richer Resource Manager state projection still need to be
+owned by the graph-backed runtime path before this sample is fully switched
+over.
 
 ### Temporary switch seams
 
@@ -106,6 +110,12 @@ sample runs successfully through the new providers:
 - Graph-only lifecycle and update cleanup removes a bounded replica range so
   stale graph-owned containers are swept after scale-down; this is sample
   switch scaffolding, not a shared orchestration abstraction.
+- `ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider` projects hidden
+  runtime-managed replica resources through the existing flat
+  `IResourceProvider` adapter. This is intentionally not a new graph provider
+  abstraction; the future provider contract should distinguish top-level
+  resource enumeration from optional sub-resource/runtime projection after the
+  switch succeeds.
 - `ReplicatedContainerHealthGraphOnlyLogProvider` contributes graph-owned
   replica container log sources and reads Docker logs through the sample
   command runner. It intentionally does not bridge back into the old
