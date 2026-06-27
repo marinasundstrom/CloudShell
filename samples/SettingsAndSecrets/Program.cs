@@ -44,7 +44,7 @@ var graphSecretsServiceEndpoint = builder.Configuration["Samples:SettingsAndSecr
     $"http://localhost:{secretsServiceBasePort}";
 var graphApiEndpoint = builder.Configuration["Samples:SettingsAndSecrets:GraphApiEndpoint"] ??
     "http://localhost:5228";
-var graphOnly = builder.Configuration.GetValue("Samples:SettingsAndSecrets:GraphOnly", false);
+var graphOnly = builder.Configuration.GetValue("Samples:SettingsAndSecrets:GraphOnly", true);
 var graphApiEndpointUri = new Uri(graphApiEndpoint);
 const string graphSettingsResourceId = "configuration.store:graph-sample-app";
 const string graphSecretsResourceId = "secrets.vault:graph-sample-app";

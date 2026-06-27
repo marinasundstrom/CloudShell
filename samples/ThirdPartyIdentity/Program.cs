@@ -33,7 +33,7 @@ var clientId = builder.Configuration["Authentication:OpenIdConnect:ClientId"] ??
     "cloudshell-ui";
 var apiEndpoint = builder.Configuration["Samples:ThirdPartyIdentity:ApiEndpoint"] ??
     "http://localhost:5234";
-var graphOnly = builder.Configuration.GetValue("Samples:ThirdPartyIdentity:GraphOnly", false);
+var graphOnly = builder.Configuration.GetValue("Samples:ThirdPartyIdentity:GraphOnly", true);
 var configurationServiceBasePort = builder.Configuration.GetValue<int?>(
     "Samples:ThirdPartyIdentity:ConfigurationServiceBasePort") ?? 5138;
 var graphConfigurationServiceEndpoint =

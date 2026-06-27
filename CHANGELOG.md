@@ -127,6 +127,10 @@ on `git blame --follow`, and then by the broad type of change.
   Docker-backed graph-only smoke tests now rely on the sample appsettings
   defaults instead of forcing `GraphOnly=true`, so those heavier switch gates
   validate the same default path used by local sample runs.
+- Sample hosts that now default to graph-only also use `true` as the code
+  fallback for their `GraphOnly` configuration setting, keeping explicit
+  `GraphOnly=false` as the old-provider comparison path instead of making the
+  old path the implicit fallback when configuration is absent.
 - SettingsAndSecrets now defaults to graph-only mode for the sample host.
   Side-by-side smoke coverage explicitly opts back into the old
   application/configuration/secrets provider path so the graph Configuration

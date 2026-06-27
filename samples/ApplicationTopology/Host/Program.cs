@@ -53,7 +53,7 @@ var graphApiEndpoint = builder.Configuration["ApplicationTopology:GraphApiEndpoi
     ?? apiEndpoint;
 var graphFrontendEndpoint = builder.Configuration["ApplicationTopology:GraphFrontendEndpoint"]
     ?? frontendEndpoint;
-var graphOnly = builder.Configuration.GetValue("ApplicationTopology:GraphOnly", false);
+var graphOnly = builder.Configuration.GetValue("ApplicationTopology:GraphOnly", true);
 var graphConfigurationEndpoint = builder.Configuration["ApplicationTopology:GraphConfigurationServiceEndpoint"]
     ?? $"http://localhost:{builder.Configuration.GetValue<int?>("ApplicationTopology:GraphConfigurationServiceBasePort") ?? 5139}";
 var graphSecretsEndpoint = builder.Configuration["ApplicationTopology:GraphSecretsServiceEndpoint"]

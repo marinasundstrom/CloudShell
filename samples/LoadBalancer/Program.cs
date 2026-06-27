@@ -27,7 +27,7 @@ const string graphDnsZoneResourceId = "dns:graph-cloudshell-local";
 const string graphAppNameMappingResourceId = "dns:graph-cloudshell-local:name:app-cloudshell-local";
 const string graphApiNameMappingResourceId = "dns:graph-cloudshell-local:name:api-cloudshell-local";
 const string graphResourceGroupId = "load-balancer-graph-poc";
-var graphOnly = builder.Configuration.GetValue("LoadBalancer:GraphOnly", false);
+var graphOnly = builder.Configuration.GetValue("LoadBalancer:GraphOnly", true);
 var dynamicConfigurationDirectory = Path.Combine(
     builder.Environment.ContentRootPath,
     "Data",

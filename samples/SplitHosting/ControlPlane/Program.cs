@@ -9,7 +9,7 @@ using Microsoft.Extensions.Configuration;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
-var graphOnly = builder.Configuration.GetValue("SplitHosting:GraphOnly", false);
+var graphOnly = builder.Configuration.GetValue("SplitHosting:GraphOnly", true);
 const string graphResourceGroupId = "split-hosting-graph-poc";
 const string graphNetworkResourceId = "network:graph-split-sample";
 

@@ -20,7 +20,7 @@ const string graphStorageResourceId = "cloudshell.storage:graph-local";
 const string graphVolumeResourceId = "cloudshell.volume:graph-sql-data";
 const string graphSqlServerResourceId = "application.sql-server:graph-sql-server";
 var graphSqlServerPort = builder.Configuration.GetValue<int?>("ContainerHost:GraphSqlServer:Port") ?? 14334;
-var graphOnly = builder.Configuration.GetValue("ContainerHost:GraphOnly", false);
+var graphOnly = builder.Configuration.GetValue("ContainerHost:GraphOnly", true);
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();

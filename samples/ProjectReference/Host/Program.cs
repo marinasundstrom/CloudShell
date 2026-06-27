@@ -31,7 +31,7 @@ var graphApiEndpointUri = new Uri(graphApiEndpoint);
 var graphFrontendEndpointUri = new Uri(graphFrontendEndpoint);
 var graphApiResourceId = "application.aspnet-core-project:graph-project-reference-api";
 var graphFrontendResourceId = "application.aspnet-core-project:graph-project-reference-frontend";
-var graphOnly = builder.Configuration.GetValue("ProjectReference:GraphOnly", false);
+var graphOnly = builder.Configuration.GetValue("ProjectReference:GraphOnly", true);
 var graphApiProjectPath = Path.GetFullPath(
     "../Api/CloudShell.ProjectReferenceApi.csproj",
     builder.Environment.ContentRootPath);

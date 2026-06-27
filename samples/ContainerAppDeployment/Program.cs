@@ -24,7 +24,7 @@ const string graphResourceGroupId = "container-app-deployment-graph-poc";
 const string graphDockerResourceId = "docker:graph-sample";
 const string graphRegistryResourceId = "docker.container:graph-sample-registry";
 const string graphContainerAppResourceId = "application.container-app:graph-sample-api";
-var graphOnly = builder.Configuration.GetValue("ContainerAppDeployment:GraphOnly", false);
+var graphOnly = builder.Configuration.GetValue("ContainerAppDeployment:GraphOnly", true);
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();

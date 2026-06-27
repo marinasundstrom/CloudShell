@@ -31,7 +31,7 @@ var traceIngestEndpoint = builder.Configuration["Observability:TraceIngestEndpoi
     ?? $"{runtimeControlPlaneEndpoint}/api/control-plane/v1/traces/ingest";
 var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndpoint"]
     ?? $"{runtimeControlPlaneEndpoint}/api/control-plane/v1/metrics/ingest";
-var graphOnly = builder.Configuration.GetValue("ReplicatedContainerHealth:GraphOnly", false);
+var graphOnly = builder.Configuration.GetValue("ReplicatedContainerHealth:GraphOnly", true);
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
