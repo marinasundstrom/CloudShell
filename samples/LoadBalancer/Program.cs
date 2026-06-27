@@ -27,6 +27,7 @@ const string graphDnsZoneResourceId = "dns:graph-cloudshell-local";
 const string graphAppNameMappingResourceId = "dns:graph-cloudshell-local:name:app-cloudshell-local";
 const string graphApiNameMappingResourceId = "dns:graph-cloudshell-local:name:api-cloudshell-local";
 const string graphResourceGroupId = "load-balancer-graph-poc";
+var graphOnly = builder.Configuration.GetValue("LoadBalancer:GraphOnly", false);
 var dynamicConfigurationDirectory = Path.Combine(
     builder.Environment.ContentRootPath,
     "Data",
@@ -120,9 +121,16 @@ builder.Services.Replace(
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>()
-    .AddApplicationProvider()
-    .AddDockerProvider()
+    .AddExtension<ObservabilityExtension>();
+
+if (!graphOnly)
+{
+    cloudShell
+        .AddApplicationProvider()
+        .AddDockerProvider();
+}
+
+cloudShell
     .AddTraefikProvider(options =>
     {
         options.DynamicConfigurationDirectory = dynamicConfigurationDirectory;
@@ -138,55 +146,6 @@ cloudShell.Resources(resources =>
         graphResourceGroupId,
         "Load Balancer graph POC",
         "Side-by-side graph-backed resources used while porting the LoadBalancer sample.");
-
-    var dockerHost = resources
-        .AddDocker("sample-host")
-        .Persist(overwrite: true);
-
-    var webApp = resources
-        .AddContainerApplication(
-            "web",
-            "nginx:1.27-alpine")
-        .WithEndpoint(
-            "http",
-            targetPort: 80,
-            port: 5080,
-            protocol: "http",
-            exposure: ResourceExposureScope.Local)
-        .WithContainerHost(dockerHost)
-        .WithAutoStart(false)
-        .Persist(overwrite: true);
-
-    var apiService = resources
-        .AddContainerApplication(
-            "api",
-            "traefik/whoami:v1.10")
-        .WithEndpoint(
-            "http",
-            targetPort: 80,
-            port: 5081,
-            protocol: "http",
-            exposure: ResourceExposureScope.Local)
-        .WithReplicas(3)
-        .WithContainerHost(dockerHost)
-        .WithAutoStart(false)
-        .Persist(overwrite: true);
-
-    var postgres = resources
-        .AddContainerApplication(
-            "postgres",
-            "postgres:16-alpine")
-        .WithEndpoint(
-            "postgres",
-            targetPort: 5432,
-            port: 55432,
-            protocol: "tcp",
-            exposure: ResourceExposureScope.Local)
-        .WithEnvironment("POSTGRES_PASSWORD", "cloudshell")
-        .WithEnvironment("POSTGRES_DB", "cloudshell")
-        .WithContainerHost(dockerHost)
-        .WithAutoStart(false)
-        .Persist(overwrite: true);
 
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphDockerHostResourceId)
@@ -213,23 +172,75 @@ cloudShell.Resources(resources =>
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphApiNameMappingResourceId)
         .WithResourceGroup(graphResourceGroupId);
 
-    var lb = resources
-        .AddLoadBalancer("public")
-        .UseProvider("traefik")
-        .UseContainerHost(dockerHost)
-        .ExposeHttp(80)
-        .ExposeHttps(443)
-        .ExposeTcp(5432);
+    if (!graphOnly)
+    {
+        var dockerHost = resources
+            .AddDocker("sample-host")
+            .Persist(overwrite: true);
 
-    lb.MapHost("app.cloudshell.local", webApp, port: 80);
-    lb.MapPath("api.cloudshell.local", "/v1", apiService, port: 80);
-    lb.MapTcp(5432, postgres, targetPort: 5432);
+        var webApp = resources
+            .AddContainerApplication(
+                "web",
+                "nginx:1.27-alpine")
+            .WithEndpoint(
+                "http",
+                targetPort: 80,
+                port: 5080,
+                protocol: "http",
+                exposure: ResourceExposureScope.Local)
+            .WithContainerHost(dockerHost)
+            .WithAutoStart(false)
+            .Persist(overwrite: true);
 
-    resources
-        .AddDnsZone("cloudshell-local", zoneName: "cloudshell.local")
-        .UseLocalHostNames()
-        .MapHost("app.cloudshell.local", lb, "http")
-        .MapHost("api.cloudshell.local", lb, "http");
+        var apiService = resources
+            .AddContainerApplication(
+                "api",
+                "traefik/whoami:v1.10")
+            .WithEndpoint(
+                "http",
+                targetPort: 80,
+                port: 5081,
+                protocol: "http",
+                exposure: ResourceExposureScope.Local)
+            .WithReplicas(3)
+            .WithContainerHost(dockerHost)
+            .WithAutoStart(false)
+            .Persist(overwrite: true);
+
+        var postgres = resources
+            .AddContainerApplication(
+                "postgres",
+                "postgres:16-alpine")
+            .WithEndpoint(
+                "postgres",
+                targetPort: 5432,
+                port: 55432,
+                protocol: "tcp",
+                exposure: ResourceExposureScope.Local)
+            .WithEnvironment("POSTGRES_PASSWORD", "cloudshell")
+            .WithEnvironment("POSTGRES_DB", "cloudshell")
+            .WithContainerHost(dockerHost)
+            .WithAutoStart(false)
+            .Persist(overwrite: true);
+
+        var lb = resources
+            .AddLoadBalancer("public")
+            .UseProvider("traefik")
+            .UseContainerHost(dockerHost)
+            .ExposeHttp(80)
+            .ExposeHttps(443)
+            .ExposeTcp(5432);
+
+        lb.MapHost("app.cloudshell.local", webApp, port: 80);
+        lb.MapPath("api.cloudshell.local", "/v1", apiService, port: 80);
+        lb.MapTcp(5432, postgres, targetPort: 5432);
+
+        resources
+            .AddDnsZone("cloudshell-local", zoneName: "cloudshell.local")
+            .UseLocalHostNames()
+            .MapHost("app.cloudshell.local", lb, "http")
+            .MapHost("api.cloudshell.local", lb, "http");
+    }
 });
 
 var app = builder.Build();

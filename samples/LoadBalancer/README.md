@@ -79,10 +79,15 @@ frontend endpoint projection, declarative name-mapping shape, and operation
 shape. The graph **Apply load balancer configuration** action uses a
 sample-local Traefik adapter to translate graph-declared routes into the
 existing Traefik provider context. The provider-owned Traefik writer then
-materializes dynamic configuration, while Traefik runtime container
 materializes dynamic configuration. The graph **Reconcile name mappings**
 action uses a sample-local DNS adapter to translate graph DNS/name-mapping
 resources into the existing `INamePublishingProvider` contract, allowing the
 local-hostnames publisher to write the graph host names to the configured
-hosts file. Traefik runtime container management remains on the existing
-provider path.
+hosts file.
+
+Set `LoadBalancer:GraphOnly` to `true` to omit the old Docker, container-app,
+load-balancer, DNS-zone, and name-mapping resource records and provider
+registrations. This is a switch-readiness gate for the graph-backed
+load-balancer path: graph apply and DNS reconcile still execute through the
+sample-local runtime bridges, while Traefik runtime container management
+remains on the existing Traefik provider path.

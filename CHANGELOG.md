@@ -140,6 +140,10 @@ on `git blame --follow`, and then by the broad type of change.
   into the existing `INamePublishingProvider` contract. Smoke coverage writes
   graph-backed `app.cloudshell.local` and `api.cloudshell.local` entries to a
   temporary hosts file through the Control Plane action path.
+- The LoadBalancer sample now has an opt-in graph-only mode that omits the old
+  Docker, application, load-balancer, DNS-zone, and name-mapping resource
+  records while keeping graph Traefik configuration and graph DNS publishing
+  smoke coverage active through the sample-local runtime bridges.
 - Virtual network graph resources can now carry endpoint contracts, endpoint
   address mappings, and source-to-target endpoint mapping payloads. The
   HostVirtualNetwork sample declares the graph public ingress mapping through

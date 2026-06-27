@@ -4662,6 +4662,93 @@ public sealed class SampleSmokeTests
         Assert.Contains("127.0.0.1 api.cloudshell.local", hostsFile);
     }
 
+    [Fact]
+    public async Task LoadBalancerSample_GraphOnlyModeRunsGraphLoadBalancerAndDnsPaths()
+    {
+        var root = SampleProcess.FindRepositoryRoot();
+        var dataDirectory = Path.Combine(root, "samples", "LoadBalancer", "Data");
+        if (Directory.Exists(dataDirectory))
+        {
+            Directory.Delete(dataDirectory, recursive: true);
+        }
+
+        var hostsFilePath = Path.Combine(dataDirectory, "cloudshell.graph-only.hosts");
+        using var host = await SampleProcess.StartAsync(
+            "samples/LoadBalancer/CloudShell.LoadBalancer.csproj",
+            await GetFreePortAsync(),
+            [
+                ("LoadBalancer__GraphOnly", "true"),
+                ("CLOUDSHELL_LOADBALANCER_SKIP_TRAEFIK_RUNTIME", "true"),
+                ("CLOUDSHELL_LOCAL_HOSTS_FILE", hostsFilePath)
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "docker:sample-host");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:web");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:api");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:postgres");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "load-balancer:public");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "dns:cloudshell-local");
+
+        var graphLoadBalancer = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "load-balancer:graph-public");
+        var graphDnsZone = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "dns:graph-cloudshell-local");
+        Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.container-app:graph-web");
+        Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.container-app:graph-api");
+        Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.container-app:graph-postgres");
+
+        var graphApplyAction = graphLoadBalancer
+            .GetProperty("resourceActions")
+            .GetProperty("applyLoadBalancerConfiguration");
+        var graphApplyHref = graphApplyAction.GetProperty("href").GetString() ??
+            throw new InvalidOperationException("The graph load balancer apply action did not include an href.");
+        var graphApplyJson = await host.SendAsync(HttpMethod.Post, graphApplyHref);
+        using var graphApplyDocument = JsonDocument.Parse(graphApplyJson);
+        Assert.Contains(
+            "Applied Traefik configuration for 3 route(s)",
+            graphApplyDocument.RootElement.GetProperty("message").GetString());
+
+        var graphConfigPath = Path.Combine(dataDirectory, "traefik", "load-balancer-graph-public.dynamic.yml");
+        var graphConfig = await File.ReadAllTextAsync(graphConfigPath);
+        Assert.Contains("Host(`app.cloudshell.local`)", graphConfig);
+        Assert.Contains("Host(`api.cloudshell.local`) && PathPrefix(`/v1`)", graphConfig);
+        Assert.Contains("url: \"http://cloudshell-application-container-app-graph-web:80\"", graphConfig);
+        Assert.Contains("url: \"http://cloudshell-application-container-app-graph-api-replica-1:80\"", graphConfig);
+        Assert.Contains("HostSNI(`*`)", graphConfig);
+        Assert.Contains("address: \"cloudshell-application-container-app-graph-postgres:5432\"", graphConfig);
+
+        var graphDnsReconcileAction = graphDnsZone
+            .GetProperty("resourceActions")
+            .GetProperty("reconcileNameMappings");
+        var graphDnsReconcileHref = graphDnsReconcileAction.GetProperty("href").GetString() ??
+            throw new InvalidOperationException("The graph DNS zone reconcile action did not include an href.");
+        var graphDnsReconcileJson = await host.SendAsync(HttpMethod.Post, graphDnsReconcileHref);
+        using var graphDnsReconcileDocument = JsonDocument.Parse(graphDnsReconcileJson);
+        var graphDnsReconcileMessage =
+            graphDnsReconcileDocument.RootElement.GetProperty("message").GetString();
+        Assert.Contains(
+            "Published 2 local host name mapping(s)",
+            graphDnsReconcileMessage);
+
+        var hostsFile = await File.ReadAllTextAsync(hostsFilePath);
+        Assert.Contains("127.0.0.1 app.cloudshell.local", hostsFile);
+        Assert.Contains("127.0.0.1 api.cloudshell.local", hostsFile);
+    }
+
     private static async Task<int> GetFreePortAsync()
     {
         var listener = new TcpListener(IPAddress.Loopback, 0);
