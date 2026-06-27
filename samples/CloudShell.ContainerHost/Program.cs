@@ -45,9 +45,19 @@ cloudShell.DefineResources(resources =>
         .AddSqlServer("graph-sql-server")
         .WithResourceId(graphSqlServerResourceId)
         .WithDisplayName("Graph SQL Server")
+        .AddEndpointRequest(
+            "tds",
+            "tcp",
+            targetPort: 1433,
+            host: "localhost",
+            port: 14334,
+            exposure: "Local")
         .MountVolume(graphVolume, "/var/opt/mssql");
 });
 builder.Services
+    .AddSingleton<IContainerHostDockerCommandRunner, ProcessContainerHostDockerCommandRunner>()
+    .AddSingleton<IContainerHostGraphSqlServerRuntimeBridge, ContainerHostGraphSqlServerDockerBridge>()
+    .AddSingleton<ISqlServerRuntimeHandler, ContainerHostGraphSqlServerRuntimeHandler>()
     .AddStorageResourceType()
     .AddCloudShellVolumeResourceType()
     .AddSqlServerResourceType()

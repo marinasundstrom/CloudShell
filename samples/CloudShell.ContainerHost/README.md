@@ -62,9 +62,17 @@ Resource Definitions bridge:
 - `cloudshell.volume:graph-sql-data`: graph-backed SQL data volume with a
   typed startup dependency on the graph storage resource.
 - `application.sql-server:graph-sql-server`: graph-backed SQL Server resource
-  with a volume-consumer capability for `/var/opt/mssql`.
+  with an explicit local `tds` endpoint and a volume-consumer capability for
+  `/var/opt/mssql`.
 
 Those resources prove projection, storage/volume attributes, typed storage
 dependency, and volume-consumer capability shape while the existing
-application/Docker provider path remains responsible for local SQL Server
-runtime materialization.
+application/Docker provider path remains responsible for the old side-by-side
+resource.
+
+The graph SQL Server lifecycle operations now use a sample-local Docker bridge.
+That bridge resolves the mounted CloudShell volume and its storage parent from
+the graph, creates the storage-backed host directory, and starts the SQL Server
+container with a bind mount. This is intentionally a ContainerHost sample seam:
+durable provider-backed storage materialization, usage tracking, and generalized
+Docker host placement remain deferred until the provider ports need them.

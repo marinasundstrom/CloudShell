@@ -30,6 +30,11 @@ on `git blame --follow`, and then by the broad type of change.
   application/configuration provider registrations and old workload resource
   records while keeping Resource Manager-owned identity provider declarations
   and graph runtime integrations.
+- CloudShell.ContainerHost now wires its graph-backed SQL Server resource to a
+  sample-local Docker runtime bridge. The bridge resolves the mounted
+  CloudShell volume and storage parent from the graph, creates the
+  storage-backed host directory, and starts/restarts SQL Server with the bind
+  mount while leaving generalized storage/runtime materialization deferred.
 - The Resource Graph proposal now records the builder direction: keep the core
   programmatic declaration API aligned with CloudShell's old builder pattern
   for migration, and add Aspire-like extension methods only as compatibility
