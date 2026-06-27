@@ -184,7 +184,16 @@ public sealed class ResourceDefinitionGraphBuilder
 {
     private readonly List<IResourceDefinitionBuilder> _resources = [];
 
-    public IReadOnlyList<IResourceDefinitionBuilder> Resources => _resources;
+    public IReadOnlyList<IResourceDefinitionBuilder> ResourceBuilders => _resources;
+
+    public ResourceDefinitionGraphBuilder DefineResources(
+        Action<ResourceDefinitionGraphBuilder> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+
+        configure(this);
+        return this;
+    }
 
     public ResourceDefinitionGraphBuilder Add(IResourceDefinitionBuilder resource)
     {

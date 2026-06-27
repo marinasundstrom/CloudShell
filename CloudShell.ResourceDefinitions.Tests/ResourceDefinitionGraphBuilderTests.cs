@@ -7,6 +7,31 @@ namespace CloudShell.ResourceDefinitions.Tests;
 public sealed class ResourceDefinitionGraphBuilderTests
 {
     [Fact]
+    public void ResourceDefinitionGraphBuilder_DefineResourcesGroupsResourceDeclarations()
+    {
+        var graph = new ResourceDefinitionGraphBuilder()
+            .DefineResources(resources =>
+            {
+                resources
+                    .AddNetwork("app")
+                    .WithDisplayName("App Network");
+                resources
+                    .AddConfigurationStore("settings")
+                    .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/entries");
+            });
+
+        var deployment = graph.BuildDeployment("grouped", environmentId: "local");
+
+        Assert.Equal(2, deployment.Resources.Count);
+        Assert.Contains(deployment.Resources, resource =>
+            resource.TypeId == NetworkResourceTypeProvider.ResourceTypeId &&
+            resource.DisplayName == "App Network");
+        Assert.Contains(deployment.Resources, resource =>
+            resource.TypeId == ConfigurationStoreResourceTypeProvider.ResourceTypeId &&
+            resource.EffectiveResourceId == "configuration.store:settings");
+    }
+
+    [Fact]
     public void ResourceDefinitionGraphBuilder_BuildsManualNetworkDefinition()
     {
         var graph = new ResourceDefinitionGraphBuilder();

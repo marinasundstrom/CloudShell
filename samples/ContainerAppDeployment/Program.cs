@@ -27,25 +27,29 @@ const string graphRegistryResourceId = "docker.container:graph-sample-registry";
 const string graphContainerAppResourceId = "application.container-app:graph-sample-api";
 
 var graph = new ResourceDefinitionGraphBuilder();
-var graphDocker = graph
-    .AddDockerHost("graph-sample")
-    .WithResourceId(graphDockerResourceId)
-    .WithRegistry(registryAddress);
-var graphRegistry = graph
-    .AddDockerContainer("graph-sample-registry")
-    .WithResourceId(graphRegistryResourceId)
-    .WithDisplayName("Graph Sample Registry")
-    .UseDockerHost(graphDocker)
-    .WithImage("registry:2")
-    .WithRegistry(registryAddress);
 graph
-    .AddContainerApplication("graph-sample-api")
-    .WithResourceId(graphContainerAppResourceId)
-    .WithDisplayName("Graph Sample API")
-    .UseDockerHost(graphDocker)
-    .DependsOn(graphRegistry)
-    .WithImage(sampleImage)
-    .WithRegistry(registryAddress);
+    .DefineResources(resources =>
+    {
+        var graphDocker = resources
+            .AddDockerHost("graph-sample")
+            .WithResourceId(graphDockerResourceId)
+            .WithRegistry(registryAddress);
+        var graphRegistry = resources
+            .AddDockerContainer("graph-sample-registry")
+            .WithResourceId(graphRegistryResourceId)
+            .WithDisplayName("Graph Sample Registry")
+            .UseDockerHost(graphDocker)
+            .WithImage("registry:2")
+            .WithRegistry(registryAddress);
+        resources
+            .AddContainerApplication("graph-sample-api")
+            .WithResourceId(graphContainerAppResourceId)
+            .WithDisplayName("Graph Sample API")
+            .UseDockerHost(graphDocker)
+            .DependsOn(graphRegistry)
+            .WithImage(sampleImage)
+            .WithRegistry(registryAddress);
+    });
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
