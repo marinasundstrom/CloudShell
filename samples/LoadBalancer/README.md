@@ -70,8 +70,9 @@ Resource Definitions bridge:
   entrypoints and host/path/TCP routes.
 
 Those resources prove projection, dependency, count-summary, route payload,
-and operation shape. The graph **Apply load balancer configuration** action
-uses a sample-local Traefik adapter to translate graph-declared routes into
-the existing Traefik provider context. The provider-owned Traefik writer then
-materializes dynamic configuration, while Traefik runtime container management
-remains on the existing load-balancer provider path.
+frontend endpoint projection, and operation shape. The graph **Apply load
+balancer configuration** action uses a sample-local Traefik adapter to
+translate graph-declared routes into the existing Traefik provider context.
+The provider-owned Traefik writer then materializes dynamic configuration,
+while Traefik runtime container management remains on the existing
+load-balancer provider path.

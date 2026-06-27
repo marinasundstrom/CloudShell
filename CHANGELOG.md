@@ -120,9 +120,11 @@ on `git blame --follow`, and then by the broad type of change.
   sample wires the graph `applyLoadBalancerConfiguration` operation to a
   sample-local Traefik adapter that translates graph-declared routes into the
   existing Traefik provider context before delegating to the provider-owned
-  configuration writer, and Resource Manager action dispatch now prefers the
-  graph bridge provider for resources carrying bridge-provider metadata so
-  legacy providers do not intercept overlapping operation IDs.
+  configuration writer. Resource Manager graph projections now expose
+  load-balancer frontends, endpoint mappings, and route collections from those
+  graph payloads, and action dispatch now prefers the graph bridge provider
+  for resources carrying bridge-provider metadata so legacy providers do not
+  intercept overlapping operation IDs.
 
 ### 2026-06-26
 

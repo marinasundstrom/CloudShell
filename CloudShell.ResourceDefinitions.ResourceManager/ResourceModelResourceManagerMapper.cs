@@ -28,7 +28,8 @@ public delegate ResourceObservability? ResourceModelResourceManagerObservability
 public sealed record ResourceModelResourceManagerEndpointProjection(
     IReadOnlyList<ResourceEndpoint>? Endpoints = null,
     IReadOnlyList<ResourceEndpointMappingDefinition>? EndpointMappings = null,
-    IReadOnlyList<ResourceEndpointNetworkMapping>? EndpointNetworkMappings = null)
+    IReadOnlyList<ResourceEndpointNetworkMapping>? EndpointNetworkMappings = null,
+    IReadOnlyList<LoadBalancerRoute>? LoadBalancerRoutes = null)
 {
     public static ResourceModelResourceManagerEndpointProjection Empty { get; } = new();
 
@@ -39,6 +40,9 @@ public sealed record ResourceModelResourceManagerEndpointProjection(
 
     public IReadOnlyList<ResourceEndpointNetworkMapping> ResourceEndpointNetworkMappings =>
         EndpointNetworkMappings ?? [];
+
+    public IReadOnlyList<LoadBalancerRoute> ResourceLoadBalancerRoutes =>
+        LoadBalancerRoutes ?? [];
 }
 
 public static class ResourceModelResourceManagerAttributeNames
@@ -89,6 +93,7 @@ public static class ResourceModelResourceManagerMapper
             DisplayName: resource.State.DisplayName,
             EndpointMappings: endpointProjection.ResourceEndpointMappings,
             EndpointNetworkMappings: endpointProjection.ResourceEndpointNetworkMappings,
+            LoadBalancerRoutes: endpointProjection.ResourceLoadBalancerRoutes,
             LogSources: logSources);
     }
 

@@ -23,11 +23,13 @@
   through Resource Manager, translates graph-declared routes into the
   existing Traefik provider context, and lets the provider-owned writer
   materialize dynamic configuration.
+- Resource Manager projection of graph-declared entrypoints as frontends and
+  endpoint mappings, plus graph-declared routes as `loadBalancerRoutes`.
 
 ## Remaining
 
 - Provider-specific reference modeling if needed.
-- Runtime container materialization, endpoint mappings, and UI registration/update flow.
+- Runtime container materialization and UI registration/update flow.
 
 ## Resource Definition Example
 

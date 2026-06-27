@@ -4427,6 +4427,38 @@ public sealed class SampleSmokeTests
         Assert.Equal("3", graphLoadBalancerAttributes.GetProperty("loadBalancer.routes").GetString());
         Assert.Equal("2", graphLoadBalancerAttributes.GetProperty("loadBalancer.routes.http").GetString());
         Assert.Equal("1", graphLoadBalancerAttributes.GetProperty("loadBalancer.routes.tcp").GetString());
+        var graphLoadBalancerRoutes = graphLoadBalancer.GetProperty("loadBalancerRoutes").EnumerateArray().ToArray();
+        Assert.Equal(3, graphLoadBalancerRoutes.Length);
+        Assert.Contains(graphLoadBalancerRoutes, route =>
+            route.GetProperty("match").GetProperty("host").GetString() == "app.cloudshell.local" &&
+            route.GetProperty("target").GetProperty("resourceId").GetString() == "application.container-app:graph-web");
+        Assert.Contains(graphLoadBalancerRoutes, route =>
+            route.GetProperty("match").GetProperty("host").GetString() == "api.cloudshell.local" &&
+            route.GetProperty("match").GetProperty("pathPrefix").GetString() == "/v1" &&
+            route.GetProperty("target").GetProperty("resourceId").GetString() == "application.container-app:graph-api");
+        Assert.Contains(graphLoadBalancerRoutes, route =>
+            route.GetProperty("kind").GetInt32() == (int)LoadBalancerRouteKind.Tcp &&
+            route.GetProperty("match").GetProperty("port").GetInt32() == 5432 &&
+            route.GetProperty("target").GetProperty("resourceId").GetString() == "application.container-app:graph-postgres");
+        var graphLoadBalancerEndpoints = graphLoadBalancer.GetProperty("endpoints").EnumerateArray().ToArray();
+        Assert.Contains(graphLoadBalancerEndpoints, endpoint =>
+            endpoint.GetProperty("name").GetString() == "http" &&
+            endpoint.GetProperty("protocol").GetString() == "http" &&
+            endpoint.GetProperty("targetPort").GetInt32() == 80);
+        Assert.Contains(graphLoadBalancerEndpoints, endpoint =>
+            endpoint.GetProperty("name").GetString() == "tcp-5432" &&
+            endpoint.GetProperty("protocol").GetString() == "tcp" &&
+            endpoint.GetProperty("targetPort").GetInt32() == 5432);
+        var graphLoadBalancerEndpointMappings = graphLoadBalancer
+            .GetProperty("endpointNetworkMappings")
+            .EnumerateArray()
+            .ToArray();
+        Assert.Contains(graphLoadBalancerEndpointMappings, mapping =>
+            mapping.GetProperty("address").GetString() == "http://localhost:80" &&
+            mapping.GetProperty("target").GetProperty("endpointName").GetString() == "http");
+        Assert.Contains(graphLoadBalancerEndpointMappings, mapping =>
+            mapping.GetProperty("address").GetString() == "tcp://localhost:5432" &&
+            mapping.GetProperty("target").GetProperty("endpointName").GetString() == "tcp-5432");
         Assert.Contains(
             "docker:graph-sample-host",
             graphLoadBalancer.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
