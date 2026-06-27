@@ -4,14 +4,15 @@ This sample models a container app deployed next to a local registry resource.
 It is intended to show the Control Plane deployment flow without requiring a
 real build server.
 
-The resource graph declares:
+By default the sample runs with the new Resource Graph provider path. The
+graph declares:
 
-- `docker:sample`: the local Docker environment.
-- `docker:container:sample-registry`: a local registry instance at
+- `docker:graph-sample`: the local Docker environment.
+- `docker.container:graph-sample-registry`: a local registry instance at
   `localhost:5023`.
-- `application:sample-api`: a container app that depends on the registry for
-  lifecycle ordering, references it for service discovery, and starts from the
-  mock image tag `cloudshell/mock-api:20260608.1`.
+- `application.container-app:graph-sample-api`: a container app that depends
+  on the registry for lifecycle ordering and starts from the mock image tag
+  `cloudshell/mock-api:20260608.1`.
 
 > We use port `5023` instead of the common local registry default `5000`
 > because macOS commonly reserves `5000` for host services such as AirPlay
@@ -52,21 +53,12 @@ startup declarations.
 
 ## Resource Graph POC coverage
 
-The sample also declares side-by-side graph-backed resources through the
-Resource Definitions bridge and provider-owned graph builders:
-
-- `docker:graph-sample`: graph-backed Docker host with the configured registry
-  address.
-- `docker.container:graph-sample-registry`: graph-backed registry container
-  projection.
-- `application.container-app:graph-sample-api`: graph-backed container app
-  projection with typed startup dependencies on the graph Docker host and
-  registry container.
-
-Those resources prove projection, registry attribute mapping, and dependency
-shape while the existing application/Docker provider path remains responsible
-for deployment requests, registry runtime behavior, image updates, and
-container materialization.
+For side-by-side comparison, set `ContainerAppDeployment:GraphOnly` to `false`.
+That also declares the old `docker:sample`,
+`docker:container:sample-registry`, and `application:sample-api`
+application/Docker provider records next to the graph-backed resources. Those
+comparison resources prove projection, registry attribute mapping, and
+dependency shape against the existing application/Docker provider path.
 
 The graph container-app lifecycle, image-update, replica-update, and state
 projection path now goes through an explicit sample-local bridge contract. The
@@ -75,14 +67,13 @@ while durable graph container-app materialization is being refined, but the
 graph handler itself is no longer coupled directly to old application-provider
 services.
 
-Set `ContainerAppDeployment:GraphOnly` to `true` to omit the old Docker,
-registry-container, and application resource records plus the old application
-and Docker provider registrations. In that mode the graph-backed deployment
-and replica APIs still update the Resource Graph and execute a sample-local
-graph-only bridge that accepts the graph state change without touching the old
-application-provider runtime. This is a switch-readiness gate for the API and
-graph apply path; real graph container-app materialization remains a provider
-runtime follow-up.
+The default graph-only mode omits the old Docker, registry-container, and
+application resource records plus the old application and Docker provider
+registrations. In that mode the graph-backed deployment and replica APIs still
+update the Resource Graph and execute a sample-local graph-only bridge that
+accepts the graph state change without touching the old application-provider
+runtime. This is a switch-readiness gate for the API and graph apply path; real
+graph container-app materialization remains a provider runtime follow-up.
 
 The sample also includes an opt-in graph registry runtime materializer behind:
 

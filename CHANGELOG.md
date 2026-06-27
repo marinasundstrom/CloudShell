@@ -194,10 +194,11 @@ on `git blame --follow`, and then by the broad type of change.
   Docker, application, load-balancer, DNS-zone, and name-mapping resource
   records while keeping graph Traefik configuration and graph DNS publishing
   smoke coverage active through the sample-local runtime bridges.
-- The ContainerAppDeployment sample now has an opt-in graph-only mode that
-  omits the old Docker, registry-container, and application resource records
-  plus old provider registrations while keeping graph image and replica update
-  API coverage active through a sample-local graph-state bridge.
+- The ContainerAppDeployment sample now defaults to graph-only mode, omitting
+  the old Docker, registry-container, and application resource records plus
+  old provider registrations while keeping graph image and replica update API
+  coverage active through a sample-local graph-state bridge. The side-by-side
+  comparison smoke test explicitly opts back into the old provider path.
 - ContainerAppDeployment graph-only Docker smoke coverage now enables the
   sample-local graph registry materializer, starts the graph registry
   container, verifies the registry `/v2/` endpoint, stops the graph resource,

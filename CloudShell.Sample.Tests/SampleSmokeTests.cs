@@ -3758,6 +3758,7 @@ public sealed class SampleSmokeTests
             "samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj",
             await GetFreePortAsync(),
             [
+                ("ContainerAppDeployment__GraphOnly", "false"),
                 ("ContainerAppDeployment__RegistryPort", registryPort.ToString(CultureInfo.InvariantCulture))
             ]);
 
@@ -3924,7 +3925,6 @@ public sealed class SampleSmokeTests
             "samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj",
             await GetFreePortAsync(),
             [
-                ("ContainerAppDeployment__GraphOnly", "true"),
                 ("ContainerAppDeployment__RegistryPort", registryPort.ToString(CultureInfo.InvariantCulture))
             ]);
 
@@ -4033,7 +4033,6 @@ public sealed class SampleSmokeTests
             "samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj",
             await GetFreePortAsync(),
             [
-                ("ContainerAppDeployment__GraphOnly", "true"),
                 ("ContainerAppDeployment__EnableGraphDockerRuntime", "true"),
                 ("ContainerAppDeployment__RegistryPort", registryPort.ToString(CultureInfo.InvariantCulture))
             ]);
