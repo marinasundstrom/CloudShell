@@ -119,7 +119,11 @@ application/configuration provider registrations and the old
 `application:keycloak-provisioned-api` resource records. Graph-only mode still
 uses Resource Manager-owned identity provider declarations and the sample-local
 graph identity credential adapter; those are runtime/Control Plane concerns,
-not graph state.
+not graph state. Docker-backed smoke coverage now runs the protected graph
+Configuration Store and graph ASP.NET Core API in this mode, executes graph
+identity-provider setup, and verifies the graph API can read protected graph
+configuration with a Keycloak-issued resource identity token without old
+provider records.
 
 The sample registers `KeycloakResourceIdentityProvisioner` as the resource
 identity provisioner, provider setup handler, and runtime credential
@@ -188,4 +192,6 @@ CloudShell host, verify that `identity-provisioning:keycloak` and
 execute graph provider setup, confirm provisioning status for the old and graph
 workload identities, start the dependent old and graph Configuration Store/API
 resources, and assert both APIs can read protected configuration entries with a
-Keycloak-issued token.
+Keycloak-issued token. A separate graph-only smoke path starts only the graph
+resources and verifies the same protected configuration read without old
+application/configuration provider records.

@@ -3382,6 +3382,98 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    [Trait("Category", "DockerIntegration")]
+    public async Task ThirdPartyIdentitySample_GraphOnlyKeycloakProvisionedWorkloadReadsConfiguration()
+    {
+        if (!await DockerComposeStack.IsAvailableAsync())
+        {
+            return;
+        }
+
+        var keycloakPort = await GetFreePortAsync();
+        var graphApiPort = await GetFreePortAsync();
+        var graphConfigurationServiceBasePort = await GetServiceBasePortAsync(
+            "configuration.store:graph-third-party-identity");
+        var graphConfigurationEndpoint =
+            $"http://localhost:{graphConfigurationServiceBasePort.ToString(CultureInfo.InvariantCulture)}";
+        var root = SampleProcess.FindRepositoryRoot();
+        var projectName = $"cloudshell-third-party-identity-graph-test-{Guid.NewGuid():N}";
+        using var keycloak = await DockerComposeStack.StartAsync(
+            root,
+            "samples/ThirdPartyIdentity/docker-compose.yml",
+            projectName,
+            [("KEYCLOAK_PORT", keycloakPort.ToString(CultureInfo.InvariantCulture))]);
+
+        var authority = $"http://localhost:{keycloakPort}/realms/cloudshell";
+        await WaitForHttpSuccessAsync(
+            $"{authority}/.well-known/openid-configuration",
+            TimeSpan.FromMinutes(2));
+
+        using var host = await SampleProcess.StartAsync(
+            "samples/ThirdPartyIdentity/CloudShell.ThirdPartyIdentity.csproj",
+            await GetFreePortAsync(),
+            [
+                ("Authentication__Enabled", "false"),
+                ("Authentication__OpenIdConnect__Authority", authority),
+                ("Authentication__OpenIdConnect__RequireHttpsMetadata", "false"),
+                ("Keycloak__AdminBaseAddress", $"http://localhost:{keycloakPort}"),
+                ("Keycloak__TokenEndpoint", $"{authority}/protocol/openid-connect/token"),
+                ("Samples__ThirdPartyIdentity__GraphOnly", "true"),
+                ("Samples__ThirdPartyIdentity__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
+                ("Samples__ThirdPartyIdentity__GraphConfigurationServiceEndpoint", graphConfigurationEndpoint)
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var graphProvisioning = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "identity-provisioning:graph-keycloak");
+        var graphSettings = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration.store:graph-third-party-identity");
+        var graphApi = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-keycloak-provisioned-api");
+
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "identity-provisioning:keycloak");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration:third-party-identity");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:keycloak-provisioned-api");
+
+        var graphSetupHref = graphProvisioning
+            .GetProperty("resourceActions")
+            .GetProperty("identity.provisioning.setup")
+            .GetProperty("href")
+            .GetString() ?? throw new InvalidOperationException(
+                "The graph identity provisioning setup action did not include an href.");
+        var graphSetupJson = await host.SendAsync(HttpMethod.Post, graphSetupHref);
+        using var graphSetupDocument = JsonDocument.Parse(graphSetupJson);
+        Assert.Contains(
+            "Executed Identity Provisioning Setup",
+            graphSetupDocument.RootElement.GetProperty("message").GetString());
+
+        await StartGraphResourceIfAvailableAsync(host, graphSettings, "ThirdPartyIdentity graph-only settings");
+        await StartGraphResourceIfAvailableAsync(host, graphApi, "ThirdPartyIdentity graph-only API");
+
+        var graphConfigurationJson = await WaitForJsonStatusAsync(
+            $"http://localhost:{graphApiPort.ToString(CultureInfo.InvariantCulture)}/configuration",
+            "connected",
+            TimeSpan.FromMinutes(1));
+        using var graphConfigurationDocument = JsonDocument.Parse(graphConfigurationJson);
+        var graphConfigurationRoot = graphConfigurationDocument.RootElement;
+
+        Assert.Equal("connected", graphConfigurationRoot.GetProperty("status").GetString());
+        Assert.Equal("graph-keycloak-provisioned-api", graphConfigurationRoot.GetProperty("clientId").GetString());
+        Assert.Contains(
+            graphConfigurationRoot.GetProperty("entries").EnumerateArray(),
+            entry =>
+                entry.GetProperty("name").GetString() == "Sample:Message" &&
+                entry.GetProperty("value").GetString() == "Hello from a graph Keycloak-provisioned resource identity");
+    }
+
+    [Fact]
     public async Task SplitHostingSample_GraphOnlyModeRendersUiThroughRemoteControlPlane()
     {
         var controlPlanePort = await GetFreePortAsync();

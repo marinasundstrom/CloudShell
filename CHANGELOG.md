@@ -30,6 +30,12 @@ on `git blame --follow`, and then by the broad type of change.
   application/configuration provider registrations and old workload resource
   records while keeping Resource Manager-owned identity provider declarations
   and graph runtime integrations.
+- ThirdPartyIdentity graph-only mode now has Docker smoke coverage for the
+  Keycloak-protected runtime path. The test executes graph identity-provider
+  setup, starts only the graph Configuration Store and graph ASP.NET Core API,
+  verifies the old identity/application/configuration resource records are
+  absent, and confirms the graph API can read protected graph configuration
+  with a Keycloak-issued resource identity token.
 - CloudShell.ContainerHost now wires its graph-backed SQL Server resource to a
   sample-local Docker runtime bridge. The bridge resolves the mounted
   CloudShell volume and storage parent from the graph, creates the
