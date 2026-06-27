@@ -75,6 +75,15 @@ while durable graph container-app materialization is being refined, but the
 graph handler itself is no longer coupled directly to old application-provider
 services.
 
+Set `ContainerAppDeployment:GraphOnly` to `true` to omit the old Docker,
+registry-container, and application resource records plus the old application
+and Docker provider registrations. In that mode the graph-backed deployment
+and replica APIs still update the Resource Graph and execute a sample-local
+graph-only bridge that accepts the graph state change without touching the old
+application-provider runtime. This is a switch-readiness gate for the API and
+graph apply path; real graph container-app materialization remains a provider
+runtime follow-up.
+
 The sample also includes an opt-in graph registry runtime materializer behind:
 
 ```bash

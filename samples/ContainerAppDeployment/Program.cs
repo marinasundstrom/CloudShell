@@ -24,6 +24,7 @@ const string graphResourceGroupId = "container-app-deployment-graph-poc";
 const string graphDockerResourceId = "docker:graph-sample";
 const string graphRegistryResourceId = "docker.container:graph-sample-registry";
 const string graphContainerAppResourceId = "application.container-app:graph-sample-api";
+var graphOnly = builder.Configuration.GetValue("ContainerAppDeployment:GraphOnly", false);
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
@@ -57,8 +58,11 @@ if (builder.Configuration.GetValue("ContainerAppDeployment:EnableGraphDockerRunt
 
 builder.Services
     .AddSingleton<
-        IContainerAppDeploymentGraphContainerApplicationRuntimeBridge,
-        ContainerAppDeploymentGraphResourceManagerContainerApplicationBridge>()
+        IContainerAppDeploymentGraphContainerApplicationRuntimeBridge>(
+        serviceProvider => graphOnly
+            ? new ContainerAppDeploymentGraphOnlyContainerApplicationRuntimeBridge()
+            : new ContainerAppDeploymentGraphResourceManagerContainerApplicationBridge(
+                serviceProvider.GetRequiredService<IServiceScopeFactory>()))
     .AddSingleton<IContainerApplicationRuntimeHandler, ContainerAppDeploymentGraphContainerApplicationRuntimeHandler>();
 
 builder.Services
@@ -73,13 +77,18 @@ builder.Services
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>()
-    .AddApplicationProvider()
-    .AddDockerProvider()
-    .UseLocalDevelopmentDefaults(options =>
-    {
-        options.Registry = registryAddress;
-    });
+    .AddExtension<ObservabilityExtension>();
+
+if (!graphOnly)
+{
+    cloudShell
+        .AddApplicationProvider()
+        .AddDockerProvider()
+        .UseLocalDevelopmentDefaults(options =>
+        {
+            options.Registry = registryAddress;
+        });
+}
 
 cloudShell.Resources(resources =>
 {
@@ -87,25 +96,6 @@ cloudShell.Resources(resources =>
         graphResourceGroupId,
         "Container App Deployment graph POC",
         "Side-by-side graph-backed resources used while porting the ContainerAppDeployment sample.");
-
-    var docker = resources
-        .AddDocker("sample")
-        .WithRegistry(registryAddress)
-        .Persist(overwrite: true);
-
-    var registry = docker
-        .AddDockerContainer(
-            registryResourceId,
-            "registry:2")
-        .WithEndpoint(
-            "http",
-            targetPort: 5000,
-            port: registryPort,
-            protocol: "http",
-            exposure: ResourceExposureScope.Public)
-        .WithHttpHealthCheck("/v2/", "http")
-        .WithAutoStart(false)
-        .Persist(overwrite: true);
 
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphDockerResourceId)
@@ -120,24 +110,46 @@ cloudShell.Resources(resources =>
         .WithResourceGroup(graphResourceGroupId)
         .WithAutoStart(false);
 
-    resources
-        .AddContainerApplication(
-            containerAppResourceId,
-            sampleImage,
-            registry: registryAddress)
-        .WithEndpoint(
-            "http",
-            targetPort: 80,
-            port: 5088,
-            protocol: "http",
-            exposure: ResourceExposureScope.Public)
-        .WithContainerHost(docker)
-        .DependsOn(registry)
-        .WithReference(registry)
-        .WithServiceDiscovery()
-        .WithEnvironment("SAMPLE_REGISTRY", registryAddress)
-        .WithAutoStart(false)
-        .Persist(overwrite: true);
+    if (!graphOnly)
+    {
+        var docker = resources
+            .AddDocker("sample")
+            .WithRegistry(registryAddress)
+            .Persist(overwrite: true);
+
+        var registry = docker
+            .AddDockerContainer(
+                registryResourceId,
+                "registry:2")
+            .WithEndpoint(
+                "http",
+                targetPort: 5000,
+                port: registryPort,
+                protocol: "http",
+                exposure: ResourceExposureScope.Public)
+            .WithHttpHealthCheck("/v2/", "http")
+            .WithAutoStart(false)
+            .Persist(overwrite: true);
+
+        resources
+            .AddContainerApplication(
+                containerAppResourceId,
+                sampleImage,
+                registry: registryAddress)
+            .WithEndpoint(
+                "http",
+                targetPort: 80,
+                port: 5088,
+                protocol: "http",
+                exposure: ResourceExposureScope.Public)
+            .WithContainerHost(docker)
+            .DependsOn(registry)
+            .WithReference(registry)
+            .WithServiceDiscovery()
+            .WithEnvironment("SAMPLE_REGISTRY", registryAddress)
+            .WithAutoStart(false)
+            .Persist(overwrite: true);
+    }
 });
 
 var app = builder.Build();

@@ -256,3 +256,47 @@ internal sealed class ContainerAppDeploymentGraphResourceManagerContainerApplica
                 signal.Message,
                 target);
 }
+
+internal sealed class ContainerAppDeploymentGraphOnlyContainerApplicationRuntimeBridge :
+    IContainerAppDeploymentGraphContainerApplicationRuntimeBridge
+{
+    public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource) =>
+        ContainerApplicationRuntimeStatus.Stopped;
+
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
+        GraphResource resource,
+        ResourceOperationId operationId,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            new(
+                ResourceDefinitionDiagnosticSeverity.Information,
+                "containerAppDeployment.containerApp.graphOnlyRuntimeDeferred",
+                $"Graph-only container app operation '{operationId}' was accepted without runtime materialization.",
+                resource.EffectiveResourceId)
+        ]);
+
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyImageAsync(
+        GraphResource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            new(
+                ResourceDefinitionDiagnosticSeverity.Information,
+                "containerAppDeployment.containerApp.graphOnlyImageAccepted",
+                "Graph-only container app image state was accepted without updating the old application provider runtime.",
+                resource.EffectiveResourceId)
+        ]);
+
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyReplicasAsync(
+        GraphResource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            new(
+                ResourceDefinitionDiagnosticSeverity.Information,
+                "containerAppDeployment.containerApp.graphOnlyReplicasAccepted",
+                "Graph-only container app replica state was accepted without updating the old application provider runtime.",
+                resource.EffectiveResourceId)
+        ]);
+}

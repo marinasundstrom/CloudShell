@@ -144,6 +144,10 @@ on `git blame --follow`, and then by the broad type of change.
   Docker, application, load-balancer, DNS-zone, and name-mapping resource
   records while keeping graph Traefik configuration and graph DNS publishing
   smoke coverage active through the sample-local runtime bridges.
+- The ContainerAppDeployment sample now has an opt-in graph-only mode that
+  omits the old Docker, registry-container, and application resource records
+  plus old provider registrations while keeping graph image and replica update
+  API coverage active through a sample-local graph-state bridge.
 - Virtual network graph resources can now carry endpoint contracts, endpoint
   address mappings, and source-to-target endpoint mapping payloads. The
   HostVirtualNetwork sample declares the graph public ingress mapping through
