@@ -1923,10 +1923,6 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-application-topology-api");
         var graphFrontend = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-application-topology-frontend");
-        var graphNetwork = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "network:graph-application-topology-local");
-        var graphApiService = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "cloudshell.service:graph-application-topology-api-service");
         var graphHostConfiguration = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "configuration.host:graph-application-topology-host-settings");
         var nameMapping = Assert.Single(resources, resource =>
@@ -1960,21 +1956,6 @@ public sealed class SampleSmokeTests
             nameMapping.GetProperty("attributes")
                 .GetProperty(ResourceAttributeNames.NameMappingTargetResourceId)
                 .GetString());
-        Assert.Equal("cloudshell.network", graphNetwork.GetProperty("typeId").GetString());
-        Assert.Equal("Logical", graphNetwork.GetProperty("attributes").GetProperty("network.kind").GetString());
-        Assert.Equal("logicalOnly", graphNetwork.GetProperty("attributes").GetProperty("network.hostReadiness").GetString());
-        Assert.Equal("cloudshell.service", graphApiService.GetProperty("typeId").GetString());
-        Assert.Equal("service", graphApiService.GetProperty("attributes").GetProperty("service.kind").GetString());
-        Assert.Equal("logical", graphApiService.GetProperty("attributes").GetProperty("service.routingMode").GetString());
-        Assert.Contains(
-            "application.aspnet-core-project:graph-application-topology-api",
-            graphApiService.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.Contains(
-            "network:graph-application-topology-local",
-            graphApiService.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.True(
-            graphApiService.GetProperty("resourceActions")
-                .TryGetProperty(ServiceResourceTypeProvider.Operations.Reconcile.ToString(), out _));
         Assert.Equal("configuration.host", graphHostConfiguration.GetProperty("typeId").GetString());
         Assert.Equal(
             "host",

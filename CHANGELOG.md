@@ -138,10 +138,6 @@ on `git blame --follow`, and then by the broad type of change.
 - SplitHosting now has an opt-in Control Plane graph-only mode that omits the
   old persisted network record while keeping the remote UI and Control Plane
   API graph resource projection path covered.
-- ApplicationTopology now declares a graph logical network and graph API
-  service boundary, giving the `cloudshell.service` provider sample coverage
-  for Resource Manager projection, typed target/network dependencies, and the
-  reconcile action shape without adding runtime routing behavior.
 - ApplicationTopology now declares a graph host-configuration source, giving
   the `configuration.host` provider sample coverage for source metadata,
   provider-managed entry-count projection, and inspect action shape without

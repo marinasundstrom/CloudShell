@@ -37,22 +37,17 @@ service discovery, separate configurable graph endpoints
 (`ApplicationTopology:GraphApiEndpoint` and
 `ApplicationTopology:GraphFrontendEndpoint`), and absolute project paths so the
 new ASP.NET Core graph runtime controller can start them without relying on the
-old application provider. The graph declaration also includes a logical
-`network:graph-application-topology-local` resource and a
-`cloudshell.service:graph-application-topology-api-service` boundary that
-depends on the graph API and graph network. That service resource is
-declarative POC coverage for the service provider shape; it does not yet own
-runtime routing or endpoint materialization. The graph also declares
+old application provider. The graph also declares
 `configuration.host:graph-application-topology-host-settings` as host
 configuration source metadata without exposing host configuration values in the
 graph.
 
 Current graph smoke coverage starts the graph-backed Configuration Store and
 Secrets Vault through the new provider runtime controllers, verifies
-authenticated reads from their service APIs, verifies the graph service
-boundary and host-configuration source projections, starts the graph API,
-verifies that `/settings` is loaded from the graph-backed Configuration Store
-and Secrets Vault client integrations, starts the graph frontend, and exercises
+authenticated reads from their service APIs, verifies the graph
+host-configuration source projection, starts the graph API, verifies that
+`/settings` is loaded from the graph-backed Configuration Store and Secrets
+Vault client integrations, starts the graph frontend, and exercises
 frontend-to-API discovery through `/upstream/failure`. Docker-backed smoke
 coverage also starts the graph API and frontend against the existing SQL
 Server runtime and verifies the graph frontend `/upstream` path through graph

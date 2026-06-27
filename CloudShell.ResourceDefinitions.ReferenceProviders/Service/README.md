@@ -17,15 +17,12 @@
 - Manual `ResourceDefinitionGraphBuilder.AddService(...)` builder for
   code-first service definition authoring with typed target and network
   dependencies.
-- ApplicationTopology graph-only sample coverage declares
-  `cloudshell.service:graph-application-topology-api-service` as a logical API
-  service boundary with typed references to the graph API project and graph
-  logical network. The sample verifies Resource Manager projection,
-  `service.kind`, `service.routingMode`, `dependsOn`, and the
-  `service.reconcile` action shape.
 
 ## Remaining
 
+- A clear product/runtime use case. A `cloudshell.service` resource is a
+  potential service boundary that may later map to an orchestration service,
+  but it is not used by current samples.
 - Port, endpoint, and health-check payloads.
 - Provider-specific reference modeling if needed.
 - Endpoint projection through Resource Manager, runtime routing/materialization,
