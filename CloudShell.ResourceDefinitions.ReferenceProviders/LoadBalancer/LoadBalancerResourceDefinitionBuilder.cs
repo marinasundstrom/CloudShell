@@ -12,6 +12,18 @@ public sealed class LoadBalancerResourceDefinitionBuilder(string name) :
     public LoadBalancerResourceDefinitionBuilder WithProvider(string provider) =>
         SetScalarAttribute(LoadBalancerResourceTypeProvider.Attributes.Provider, provider);
 
+    public LoadBalancerResourceDefinitionBuilder WithEntrypointCount(long count) =>
+        SetScalarAttribute(LoadBalancerResourceTypeProvider.Attributes.EntrypointCount, count);
+
+    public LoadBalancerResourceDefinitionBuilder WithRouteCount(long count) =>
+        SetScalarAttribute(LoadBalancerResourceTypeProvider.Attributes.RouteCount, count);
+
+    public LoadBalancerResourceDefinitionBuilder WithHttpRouteCount(long count) =>
+        SetScalarAttribute(LoadBalancerResourceTypeProvider.Attributes.HttpRouteCount, count);
+
+    public LoadBalancerResourceDefinitionBuilder WithTcpRouteCount(long count) =>
+        SetScalarAttribute(LoadBalancerResourceTypeProvider.Attributes.TcpRouteCount, count);
+
     public LoadBalancerResourceDefinitionBuilder UseHost(
         IResourceDefinitionBuilder host,
         ResourceTypeId? typeId = null)

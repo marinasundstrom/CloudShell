@@ -80,12 +80,12 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public async Task Host_DefineDeploymentRegistersDeploymentInitialGraph()
+    public async Task Host_DefineInitialDeploymentRegistersDeploymentInitialGraph()
     {
         var services = new ServiceCollection();
         services
             .AddCloudShellControlPlane()
-            .DefineDeployment(
+            .DefineInitialDeployment(
                 "grouped",
                 resources =>
                 {
@@ -333,6 +333,13 @@ public sealed class ResourceDefinitionGraphBuilderTests
             .AddSqlServer("sql")
             .WithVersion("2022")
             .WithEdition("Developer")
+            .AddEndpointRequest(
+                "tds",
+                "tcp",
+                targetPort: 1433,
+                host: "localhost",
+                port: 14334,
+                exposure: "Local")
             .MountVolume(volume, "/var/opt/mssql")
             .DeclareDatabase("appdb", "Application DB", ensureCreated: true);
 
@@ -351,6 +358,11 @@ public sealed class ResourceDefinitionGraphBuilderTests
         Assert.Equal("application.sql-server:sql", sqlServer.EffectiveResourceId);
         Assert.Equal("2022", sqlServer.ResourceAttributeValues[
             SqlServerResourceTypeProvider.Attributes.Version].StringValue);
+        var endpoint = Assert.Single(sqlServer.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+            SqlServerResourceTypeProvider.Attributes.EndpointRequests) ?? []);
+        Assert.Equal("tds", endpoint.Name);
+        Assert.Equal(1433, endpoint.TargetPort);
+        Assert.Equal(14334, endpoint.Port);
         var sqlConfiguration = sqlServer.GetConfiguration<SqlServerConfiguration>(
             SqlServerResourceTypeProvider.ConfigurationSection);
         var databaseConfiguration = Assert.Single(sqlConfiguration!.Databases);
@@ -421,6 +433,9 @@ public sealed class ResourceDefinitionGraphBuilderTests
                 host: "localhost",
                 port: 5092,
                 exposure: "Local")
+            .AddHealthCheck(ResourceHealthCheckDefinition.Http(
+                "/health",
+                endpointName: "http"))
             .MountVolume(volume, "/data");
 
         var deployment = graph.BuildDeployment("container-app", environmentId: "local");
@@ -450,6 +465,10 @@ public sealed class ResourceDefinitionGraphBuilderTests
         Assert.Equal("http", endpoint.Name);
         Assert.Equal(8080, endpoint.TargetPort);
         Assert.Equal(5092, endpoint.Port);
+        var healthChecks = appDefinition.GetCapability<ResourceHealthCheckDefinitionSet>(
+            ResourceHealthCheckCapabilityIds.HealthChecks);
+        var healthCheck = Assert.Single(healthChecks?.Checks ?? []);
+        Assert.Equal("/health", healthCheck.Source.Http?.Path);
         var dependency = Assert.Single(appDefinition.StartupDependencies);
         Assert.True(dependency.TryGetDependsOnResourceId(out var dependencyId));
         Assert.Equal(host.EffectiveResourceId, dependencyId);
@@ -786,6 +805,68 @@ public sealed class ResourceDefinitionGraphBuilderTests
                 new ResourceGraphCommitContext(
                     PrincipalId: "developer",
                     Timestamp: new DateTimeOffset(2026, 6, 26, 21, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(result.IsCommitted);
+    }
+
+    [Fact]
+    public async Task ResourceDefinitionGraphBuilder_BuildsHostNetworkingDefinitions()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddLocalHostNetworkResourceType();
+        services.AddVirtualNetworkResourceType();
+        services.AddAspNetCoreProjectResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var graph = new ResourceDefinitionGraphBuilder();
+        var hostNetwork = graph
+            .AddLocalHostNetwork("host-local")
+            .WithHostReadiness("ready")
+            .WithNetworkingMode("localProxy");
+        var api = graph
+            .AddAspNetCoreProject("api", "src/Api/Api.csproj")
+            .UseLaunchSettings(false);
+
+        graph
+            .AddVirtualNetwork("app")
+            .DependsOn(hostNetwork, LocalHostNetworkResourceTypeProvider.ResourceTypeId)
+            .DependsOn(api, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+            .AsDefault()
+            .WithHostReadiness("providerRequired")
+            .WithMappingProviders(hostNetwork.EffectiveResourceId);
+
+        var deployment = graph.BuildDeployment("host-network", environmentId: "local");
+
+        Assert.Equal(3, deployment.Resources.Count);
+        var localHost = Assert.Single(deployment.Resources, resource =>
+            resource.TypeId == LocalHostNetworkResourceTypeProvider.ResourceTypeId);
+        var network = Assert.Single(deployment.Resources, resource =>
+            resource.TypeId == VirtualNetworkResourceTypeProvider.ResourceTypeId);
+        Assert.Equal("cloudshell.hostNetworking.local:host-local", localHost.EffectiveResourceId);
+        Assert.Equal("ready", localHost.ResourceAttributeValues[
+            LocalHostNetworkResourceTypeProvider.Attributes.HostReadiness].StringValue);
+        Assert.Equal("localProxy", localHost.ResourceAttributeValues[
+            LocalHostNetworkResourceTypeProvider.Attributes.NetworkingMode].StringValue);
+        Assert.Equal("cloudshell.virtualNetwork:app", network.EffectiveResourceId);
+        Assert.True(network.ResourceAttributeValues[
+            VirtualNetworkResourceTypeProvider.Attributes.IsDefault].BooleanValue);
+        Assert.Equal("providerRequired", network.ResourceAttributeValues[
+            VirtualNetworkResourceTypeProvider.Attributes.HostReadiness].StringValue);
+        Assert.Equal(hostNetwork.EffectiveResourceId, network.ResourceAttributeValues[
+            VirtualNetworkResourceTypeProvider.Attributes.MappingProviders].StringValue);
+        Assert.Equal(
+            [hostNetwork.EffectiveResourceId, api.EffectiveResourceId],
+            network.StartupDependencies.Select(reference => reference.Value));
+
+        var result = await serviceProvider
+            .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
+            .ApplyDeploymentAsync(
+                deployment,
+                new ResourceGraphCommitContext(
+                    PrincipalId: "developer",
+                    Timestamp: new DateTimeOffset(2026, 6, 27, 10, 0, 0, TimeSpan.Zero)));
 
         Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
         Assert.True(result.IsCommitted);

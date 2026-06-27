@@ -12,8 +12,6 @@ using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
-using System.Text.Json;
-using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
@@ -37,6 +35,34 @@ var graphOnly = builder.Configuration.GetValue("ReplicatedContainerHealth:GraphO
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+cloudShell.DefineResources(resources =>
+{
+    var graphDocker = resources
+        .AddDockerHost("graph-sample")
+        .WithResourceId(graphDockerResourceId);
+
+    resources
+        .AddContainerApplication("graph-api")
+        .WithResourceId(graphApiResourceId)
+        .WithDisplayName("Graph Replicated API")
+        .UseDockerHost(graphDocker)
+        .WithImage($"cloudshell-application-api:{sampleImageTag}")
+        .WithReplicas(3)
+        .AddEndpointRequest(
+            "http",
+            "http",
+            targetPort: 8080,
+            host: "localhost",
+            port: apiEndpointPort,
+            exposure: "Local")
+        .AddHealthCheck(ResourceHealthCheckDefinition.Http(
+            "/health",
+            endpointName: "http"))
+        .AddHealthCheck(ResourceHealthCheckDefinition.HttpLiveness(
+            "/alive",
+            endpointName: "http",
+            name: "alive"));
+});
 builder.Services
     .AddSingleton<IReplicatedContainerHealthCommandRunner, ProcessReplicatedContainerHealthCommandRunner>()
     .AddSingleton<IReplicatedContainerHealthGraphContainerAppRuntimeBridge>(
@@ -47,58 +73,6 @@ builder.Services
                 : new ReplicatedContainerHealthGraphResourceManagerBridge(
                     serviceProvider.GetRequiredService<IServiceScopeFactory>()))
     .AddSingleton<IContainerApplicationRuntimeHandler, ReplicatedContainerHealthGraphRuntimeHandler>()
-    .AddInMemoryResourceModelGraph(
-    [
-        new ResourceGraphState(
-            "graph-sample",
-            DockerHostResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphDockerResourceId,
-            ProviderId: DockerHostResourceTypeProvider.ProviderId),
-        new ResourceGraphState(
-            "graph-api",
-            ContainerApplicationResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphApiResourceId,
-            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
-            DisplayName: "Graph Replicated API",
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    graphDockerResourceId,
-                    typeId: DockerHostResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] =
-                    $"cloudshell-application-api:{sampleImageTag}",
-                [ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas] =
-                    3,
-                [ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        new NetworkingEndpointRequestValue(
-                            "http",
-                            "http",
-                            TargetPort: 8080,
-                            Host: "localhost",
-                            Port: apiEndpointPort,
-                            Exposure: "Local")
-                    })
-            },
-            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
-            {
-                [ResourceHealthCheckCapabilityIds.HealthChecks] =
-                    ResourceDefinitionJson.FromValue(new ResourceHealthCheckDefinitionSet(
-                    [
-                        ResourceHealthCheckDefinition.Http(
-                            "/health",
-                            endpointName: "http"),
-                        ResourceHealthCheckDefinition.HttpLiveness(
-                            "/alive",
-                            endpointName: "http",
-                            name: "alive")
-                    ]))
-            })
-    ])
     .AddDockerHostResourceType()
     .AddContainerApplicationResourceType()
     .AddResourceModelGraphServices()

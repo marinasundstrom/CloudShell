@@ -59,11 +59,33 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
         return Self;
     }
 
+    public TBuilder DependsOn(
+        string resourceId,
+        ResourceTypeId? typeId,
+        string? providerId = null)
+    {
+        _dependencies.Add(ResourceReference.DependsOnResourceId(
+            resourceId,
+            typeId,
+            providerId));
+        return Self;
+    }
+
     public TBuilder DependsOn(IResourceDefinitionBuilder resource)
     {
         ArgumentNullException.ThrowIfNull(resource);
 
         return DependsOn(resource.EffectiveResourceId);
+    }
+
+    public TBuilder DependsOn(
+        IResourceDefinitionBuilder resource,
+        ResourceTypeId? typeId,
+        string? providerId = null)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+
+        return DependsOn(resource.EffectiveResourceId, typeId, providerId);
     }
 
     public TBuilder DependsOn(ResourceDefinition definition)

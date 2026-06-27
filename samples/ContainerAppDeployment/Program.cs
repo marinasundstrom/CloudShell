@@ -27,9 +27,7 @@ const string graphContainerAppResourceId = "application.container-app:graph-samp
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
-cloudShell.DefineDeployment(
-    "container-app-deployment",
-    resources =>
+cloudShell.DefineResources(resources =>
     {
         var graphDocker = resources
             .AddDockerHost("graph-sample")
@@ -50,8 +48,7 @@ cloudShell.DefineDeployment(
             .DependsOn(graphRegistry)
             .WithImage(sampleImage)
             .WithRegistry(registryAddress);
-    },
-    environmentId: "local");
+    });
 if (builder.Configuration.GetValue("ContainerAppDeployment:EnableGraphDockerRuntime", false))
 {
     builder.Services

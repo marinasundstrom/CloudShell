@@ -13,7 +13,6 @@ using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
-using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
@@ -37,99 +36,46 @@ if (!string.IsNullOrWhiteSpace(localHostsFilePath))
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+cloudShell.DefineResources(resources =>
+{
+    var graphDockerHost = resources
+        .AddDockerHost("graph-sample-host")
+        .WithResourceId(graphDockerHostResourceId);
+    var graphWeb = resources
+        .AddContainerApplication("graph-web")
+        .WithResourceId(graphWebResourceId)
+        .WithDisplayName("Graph Web App")
+        .UseDockerHost(graphDockerHost)
+        .WithImage("nginx:1.27-alpine");
+    var graphApi = resources
+        .AddContainerApplication("graph-api")
+        .WithResourceId(graphApiResourceId)
+        .WithDisplayName("Graph API Service")
+        .UseDockerHost(graphDockerHost)
+        .WithImage("traefik/whoami:v1.10")
+        .WithReplicas(3);
+    var graphPostgres = resources
+        .AddContainerApplication("graph-postgres")
+        .WithResourceId(graphPostgresResourceId)
+        .WithDisplayName("Graph Postgres Replica Set")
+        .UseDockerHost(graphDockerHost)
+        .WithImage("postgres:16-alpine");
+
+    resources
+        .AddLoadBalancer("graph-public")
+        .WithResourceId(graphLoadBalancerResourceId)
+        .WithDisplayName("Graph Public Load Balancer")
+        .WithProvider("traefik")
+        .UseHost(graphDockerHost)
+        .AddBackendTarget(graphWeb, ContainerApplicationResourceTypeProvider.ResourceTypeId)
+        .AddBackendTarget(graphApi, ContainerApplicationResourceTypeProvider.ResourceTypeId)
+        .AddBackendTarget(graphPostgres, ContainerApplicationResourceTypeProvider.ResourceTypeId)
+        .WithEntrypointCount(3)
+        .WithRouteCount(3)
+        .WithHttpRouteCount(2)
+        .WithTcpRouteCount(1);
+});
 builder.Services
-    .AddInMemoryResourceModelGraph(
-    [
-        new ResourceGraphState(
-            "graph-sample-host",
-            DockerHostResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphDockerHostResourceId,
-            ProviderId: DockerHostResourceTypeProvider.ProviderId),
-        new ResourceGraphState(
-            "graph-web",
-            ContainerApplicationResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphWebResourceId,
-            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
-            DisplayName: "Graph Web App",
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    graphDockerHostResourceId,
-                    typeId: DockerHostResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] =
-                    "nginx:1.27-alpine"
-            }),
-        new ResourceGraphState(
-            "graph-api",
-            ContainerApplicationResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphApiResourceId,
-            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
-            DisplayName: "Graph API Service",
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    graphDockerHostResourceId,
-                    typeId: DockerHostResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] =
-                    "traefik/whoami:v1.10",
-                [ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas] =
-                    3
-            }),
-        new ResourceGraphState(
-            "graph-postgres",
-            ContainerApplicationResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphPostgresResourceId,
-            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
-            DisplayName: "Graph Postgres Replica Set",
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    graphDockerHostResourceId,
-                    typeId: DockerHostResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] =
-                    "postgres:16-alpine"
-            }),
-        new ResourceGraphState(
-            "graph-public",
-            LoadBalancerResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphLoadBalancerResourceId,
-            ProviderId: LoadBalancerResourceTypeProvider.ProviderId,
-            DisplayName: "Graph Public Load Balancer",
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    graphDockerHostResourceId,
-                    typeId: DockerHostResourceTypeProvider.ResourceTypeId),
-                ResourceReference.DependsOnResourceId(
-                    graphWebResourceId,
-                    typeId: ContainerApplicationResourceTypeProvider.ResourceTypeId),
-                ResourceReference.DependsOnResourceId(
-                    graphApiResourceId,
-                    typeId: ContainerApplicationResourceTypeProvider.ResourceTypeId),
-                ResourceReference.DependsOnResourceId(
-                    graphPostgresResourceId,
-                    typeId: ContainerApplicationResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [LoadBalancerResourceTypeProvider.Attributes.Provider] = "traefik",
-                [LoadBalancerResourceTypeProvider.Attributes.HostResourceId] =
-                    graphDockerHostResourceId,
-                [LoadBalancerResourceTypeProvider.Attributes.EntrypointCount] = 3,
-                [LoadBalancerResourceTypeProvider.Attributes.RouteCount] = 3,
-                [LoadBalancerResourceTypeProvider.Attributes.HttpRouteCount] = 2,
-                [LoadBalancerResourceTypeProvider.Attributes.TcpRouteCount] = 1
-            })
-    ])
     .AddDockerHostResourceType()
     .AddContainerApplicationResourceType()
     .AddLoadBalancerResourceType()

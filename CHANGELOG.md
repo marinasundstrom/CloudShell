@@ -44,10 +44,19 @@ on `git blame --follow`, and then by the broad type of change.
   graph-only state projection uses bounded, cached Docker inspection so normal
   Resource Manager rendering does not depend on a responsive Docker daemon.
 - The Resource Manager host integration now exposes `DefineResources(...)` for
-  implicit initial graph declarations and deployment-centered
-  `DefineDeployment(...)` for name/environment/metadata-aware declarations,
-  both backed by `ResourceDefinitionGraphBuilder`; ContainerAppDeployment and
-  ThirdPartyIdentity now use the host seam for their graph-backed resources.
+  Aspire-compatible in-memory resource declarations and
+  `DefineInitialDeployment(...)` for seed-like deployment declarations with
+  name, environment, and metadata, both backed by
+  `ResourceDefinitionGraphBuilder`; samples use `DefineResources(...)` for
+  programmatic in-memory graph declarations while deployment-ready hosts can
+  switch the same builder block to `DefineInitialDeployment(...)`.
+- SplitHosting, ProjectReference, ContainerAppDeployment, ThirdPartyIdentity,
+  ReplicatedContainerHealth, LoadBalancer, SettingsAndSecrets,
+  ApplicationTopology, HostVirtualNetwork, and CloudShell.ContainerHost now
+  define their graph-backed sample resources through `DefineResources(...)`
+  and provider-owned builders instead of manually registering raw graph state.
+  Provider-managed read-only count summaries are projected into graph state
+  instead of authored into `ResourceDefinition` values.
 
 ### 2026-06-26
 

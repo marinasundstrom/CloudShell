@@ -47,8 +47,7 @@ const string graphApiResourceId = "application.aspnet-core-project:graph-keycloa
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
-cloudShell.DefineDeployment(
-    "third-party-identity",
+cloudShell.DefineResources(
     resources =>
     {
         resources
@@ -84,7 +83,6 @@ cloudShell.DefineDeployment(
                 "CLOUDSHELL_CONFIGURATION_SERVICE_NAME",
                 "graph-third-party-identity");
     },
-    environmentId: "local",
     projectState: AddGraphProjectionState);
 builder.Services
     .AddIdentityProvisioningResourceType()

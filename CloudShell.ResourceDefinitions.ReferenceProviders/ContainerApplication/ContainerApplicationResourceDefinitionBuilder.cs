@@ -5,6 +5,7 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
 {
     private readonly List<NetworkingEndpointRequestValue> _endpointRequests = [];
     private readonly List<VolumeMountDefinition> _volumeMounts = [];
+    private readonly List<ResourceHealthCheckDefinition> _healthChecks = [];
 
     protected override ResourceTypeId TypeId =>
         ContainerApplicationResourceTypeProvider.ResourceTypeId;
@@ -96,6 +97,17 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
         return SetObjectAttribute(
             ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests,
             _endpointRequests.ToArray());
+    }
+
+    public ContainerApplicationResourceDefinitionBuilder AddHealthCheck(
+        ResourceHealthCheckDefinition check)
+    {
+        ArgumentNullException.ThrowIfNull(check);
+
+        _healthChecks.Add(check);
+        return SetCapability(
+            ResourceHealthCheckCapabilityIds.HealthChecks,
+            new ResourceHealthCheckDefinitionSet(_healthChecks.ToArray()));
     }
 }
 

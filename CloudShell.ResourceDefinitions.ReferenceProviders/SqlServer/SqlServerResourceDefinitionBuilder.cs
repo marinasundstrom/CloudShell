@@ -4,6 +4,7 @@ public sealed class SqlServerResourceDefinitionBuilder(string name) :
     ResourceDefinitionBuilder<SqlServerResourceDefinitionBuilder>(name)
 {
     private readonly List<SqlServerDatabaseDefinition> _databases = [];
+    private readonly List<NetworkingEndpointRequestValue> _endpointRequests = [];
     private readonly List<VolumeMountDefinition> _volumeMounts = [];
 
     protected override ResourceTypeId TypeId =>
@@ -17,6 +18,29 @@ public sealed class SqlServerResourceDefinitionBuilder(string name) :
 
     public SqlServerResourceDefinitionBuilder WithEdition(string edition) =>
         SetScalarAttribute(SqlServerResourceTypeProvider.Attributes.Edition, edition);
+
+    public SqlServerResourceDefinitionBuilder AddEndpointRequest(
+        string name,
+        string protocol,
+        int? targetPort = null,
+        string? host = null,
+        int? port = null,
+        string? exposure = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(protocol);
+
+        _endpointRequests.Add(new NetworkingEndpointRequestValue(
+            name.Trim(),
+            protocol.Trim(),
+            TargetPort: targetPort,
+            Host: string.IsNullOrWhiteSpace(host) ? null : host.Trim(),
+            Port: port,
+            Exposure: string.IsNullOrWhiteSpace(exposure) ? null : exposure.Trim()));
+        return SetObjectAttribute(
+            SqlServerResourceTypeProvider.Attributes.EndpointRequests,
+            _endpointRequests.ToArray());
+    }
 
     public SqlServerResourceDefinitionBuilder UseContainerHost(
         IResourceDefinitionBuilder containerHost,

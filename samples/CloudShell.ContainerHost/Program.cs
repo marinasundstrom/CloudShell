@@ -12,8 +12,6 @@ using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
-using System.Text.Json;
-using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
@@ -24,55 +22,32 @@ const string graphSqlServerResourceId = "application.sql-server:graph-sql-server
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+cloudShell.DefineResources(resources =>
+{
+    var graphStorage = resources
+        .AddStorage("graph-local")
+        .WithResourceId(graphStorageResourceId)
+        .WithProvider("local")
+        .WithMedium("FileSystem")
+        .WithLocation("./Data/storage");
+    var graphVolume = resources
+        .AddCloudShellVolume("graph-sql-data")
+        .WithResourceId(graphVolumeResourceId)
+        .WithDisplayName("Graph SQL Server Data")
+        .UseStorage(graphStorage)
+        .WithProvider("local")
+        .WithStorageMedium("FileSystem")
+        .WithSubPath("sql-server")
+        .WithAccessMode("ReadWriteOnce")
+        .WithPersistent();
+
+    resources
+        .AddSqlServer("graph-sql-server")
+        .WithResourceId(graphSqlServerResourceId)
+        .WithDisplayName("Graph SQL Server")
+        .MountVolume(graphVolume, "/var/opt/mssql");
+});
 builder.Services
-    .AddInMemoryResourceModelGraph(
-    [
-        new ResourceGraphState(
-            "graph-local",
-            StorageResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphStorageResourceId,
-            ProviderId: StorageResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [StorageResourceTypeProvider.Attributes.Provider] = "local",
-                [StorageResourceTypeProvider.Attributes.Medium] = "FileSystem",
-                [StorageResourceTypeProvider.Attributes.Location] = "./Data/storage"
-            }),
-        new ResourceGraphState(
-            "graph-sql-data",
-            CloudShellVolumeResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphVolumeResourceId,
-            ProviderId: CloudShellVolumeResourceTypeProvider.ProviderId,
-            DisplayName: "Graph SQL Server Data",
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    graphStorageResourceId,
-                    typeId: StorageResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [CloudShellVolumeResourceTypeProvider.Attributes.Provider] = "local",
-                [CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium] = "FileSystem",
-                [CloudShellVolumeResourceTypeProvider.Attributes.SubPath] = "sql-server",
-                [CloudShellVolumeResourceTypeProvider.Attributes.AccessMode] = "ReadWriteOnce",
-                [CloudShellVolumeResourceTypeProvider.Attributes.Persistent] = true
-            }),
-        new ResourceGraphState(
-            "graph-sql-server",
-            SqlServerResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphSqlServerResourceId,
-            ProviderId: SqlServerResourceTypeProvider.ProviderId,
-            DisplayName: "Graph SQL Server",
-            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
-            {
-                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
-                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
-                    [
-                        new(graphVolumeResourceId, "/var/opt/mssql")
-                    ]))
-            })
-    ])
     .AddStorageResourceType()
     .AddCloudShellVolumeResourceType()
     .AddSqlServerResourceType()

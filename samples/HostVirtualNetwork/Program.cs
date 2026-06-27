@@ -11,7 +11,6 @@ using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
-using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
@@ -23,61 +22,36 @@ const string graphNetworkResourceId = "network:graph-sample-vnet";
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
-builder.Services
-    .AddInMemoryResourceModelGraph(
-    [
-        new ResourceGraphState(
-            "graph-host-local",
-            LocalHostNetworkResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphHostNetworkingResourceId,
-            ProviderId: LocalHostNetworkResourceTypeProvider.ProviderId),
-        new ResourceGraphState(
+cloudShell.DefineResources(resources =>
+{
+    var graphHostNetwork = resources
+        .AddLocalHostNetwork("graph-host-local")
+        .WithResourceId(graphHostNetworkingResourceId);
+    var graphApi = resources
+        .AddAspNetCoreProject(
             "graph-vnet-api",
-            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphApiResourceId,
-            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
-            DisplayName: "Graph VNet API",
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
-                    "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
-                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] =
-                    $"--urls http://localhost:{targetPort}",
-                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
-                    false,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        new NetworkingEndpointRequestValue(
-                            "http",
-                            "http",
-                            Host: "localhost",
-                            Port: targetPort,
-                            Exposure: "Local")
-                    })
-            }),
-        new ResourceGraphState(
-            "graph-sample-vnet",
-            VirtualNetworkResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphNetworkResourceId,
-            ProviderId: VirtualNetworkResourceTypeProvider.ProviderId,
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    graphHostNetworkingResourceId,
-                    typeId: LocalHostNetworkResourceTypeProvider.ResourceTypeId),
-                ResourceReference.DependsOnResourceId(
-                    graphApiResourceId,
-                    typeId: AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [VirtualNetworkResourceTypeProvider.Attributes.IsDefault] = true,
-                [VirtualNetworkResourceTypeProvider.Attributes.HostReadiness] = "providerRequired",
-                [VirtualNetworkResourceTypeProvider.Attributes.MappingProviders] =
-                    graphHostNetworkingResourceId
-            })
-    ])
+            "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
+        .WithResourceId(graphApiResourceId)
+        .WithDisplayName("Graph VNet API")
+        .WithArguments($"--urls http://localhost:{targetPort}")
+        .UseLaunchSettings(false)
+        .AddEndpointRequest(
+            "http",
+            "http",
+            host: "localhost",
+            port: targetPort,
+            exposure: "Local");
+
+    resources
+        .AddVirtualNetwork("graph-sample-vnet")
+        .WithResourceId(graphNetworkResourceId)
+        .DependsOn(graphHostNetwork, LocalHostNetworkResourceTypeProvider.ResourceTypeId)
+        .DependsOn(graphApi, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+        .AsDefault()
+        .WithHostReadiness("providerRequired")
+        .WithMappingProviders(graphHostNetworkingResourceId);
+});
+builder.Services
     .AddLocalHostNetworkResourceType()
     .AddVirtualNetworkResourceType()
     .AddAspNetCoreProjectResourceType()

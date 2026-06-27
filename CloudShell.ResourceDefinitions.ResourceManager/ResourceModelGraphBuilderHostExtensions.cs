@@ -23,7 +23,7 @@ public static class ResourceModelGraphBuilderHostExtensions
         return builder;
     }
 
-    public static IControlPlaneBuilder DefineDeployment(
+    public static IControlPlaneBuilder DefineInitialDeployment(
         this IControlPlaneBuilder builder,
         string name,
         Action<ResourceDefinitionGraphBuilder> configure,

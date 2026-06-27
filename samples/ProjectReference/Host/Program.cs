@@ -1,4 +1,3 @@
-using System.Text.Json;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Hosting;
@@ -11,7 +10,6 @@ using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
-using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
@@ -42,122 +40,70 @@ var graphFrontendProjectPath = Path.GetFullPath(
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+cloudShell.DefineResources(resources =>
+{
+    resources
+        .AddAspNetCoreProject("graph-project-reference-api", graphApiProjectPath)
+        .WithDisplayName("Graph Project Reference API")
+        .WithHotReload(false)
+        .UseLaunchSettings(false)
+        .WithServiceDiscoveryName("project-reference-api")
+        .AddEndpointRequest(
+            "http",
+            graphApiEndpointUri.Scheme,
+            host: graphApiEndpointUri.Host,
+            port: graphApiEndpointUri.Port,
+            exposure: "Local")
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
+            traceIngestEndpoint ?? string.Empty)
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
+            metricIngestEndpoint ?? string.Empty)
+        .WithEnvironmentVariable(
+            "OTEL_SERVICE_NAME",
+            "graph-project-reference-api")
+        .AddHealthCheck(ResourceHealthCheckDefinition.Http(
+            "/health",
+            endpointName: "http"))
+        .AddHealthCheck(ResourceHealthCheckDefinition.HttpLiveness(
+            "/alive",
+            endpointName: "http",
+            name: "alive"));
+
+    resources
+        .AddAspNetCoreProject("graph-project-reference-frontend", graphFrontendProjectPath)
+        .WithResourceId(graphFrontendResourceId)
+        .WithDisplayName("Graph Project Reference Frontend")
+        .WithHotReload(false)
+        .UseLaunchSettings(false)
+        .WithReference(
+            graphApiResourceId,
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+        .AddEndpointRequest(
+            "http",
+            graphFrontendEndpointUri.Scheme,
+            host: graphFrontendEndpointUri.Host,
+            port: graphFrontendEndpointUri.Port,
+            exposure: "Local")
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
+            traceIngestEndpoint ?? string.Empty)
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
+            metricIngestEndpoint ?? string.Empty)
+        .WithEnvironmentVariable(
+            "OTEL_SERVICE_NAME",
+            "graph-project-reference-frontend")
+        .AddHealthCheck(ResourceHealthCheckDefinition.Http(
+            "/healthz",
+            endpointName: "http"))
+        .AddHealthCheck(ResourceHealthCheckDefinition.HttpLiveness(
+            "/alive",
+            endpointName: "http",
+            name: "alive"));
+});
 builder.Services
-    .AddInMemoryResourceModelGraph(
-    [
-        new ResourceGraphState(
-            "graph-project-reference-api",
-            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
-            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
-            DisplayName: "Graph Project Reference API",
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
-                    graphApiProjectPath,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
-                    false,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
-                    false,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.ServiceDiscoveryName] =
-                    "project-reference-api",
-                [AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        new NetworkingEndpointRequestValue(
-                            "http",
-                            graphApiEndpointUri.Scheme,
-                            Host: graphApiEndpointUri.Host,
-                            Port: graphApiEndpointUri.Port,
-                            Exposure: "Local")
-                    }),
-                [AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
-                            traceIngestEndpoint ?? string.Empty),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
-                            metricIngestEndpoint ?? string.Empty),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "OTEL_SERVICE_NAME",
-                            "graph-project-reference-api")
-                    })
-            },
-            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
-            {
-                [ResourceHealthCheckCapabilityIds.HealthChecks] =
-                    ResourceDefinitionJson.FromValue(new ResourceHealthCheckDefinitionSet(
-                    [
-                        ResourceHealthCheckDefinition.Http(
-                            "/health",
-                            endpointName: "http"),
-                        ResourceHealthCheckDefinition.HttpLiveness(
-                            "/alive",
-                            endpointName: "http",
-                            name: "alive")
-                    ]))
-            }),
-        new ResourceGraphState(
-            "graph-project-reference-frontend",
-            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphFrontendResourceId,
-            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
-            DisplayName: "Graph Project Reference Frontend",
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
-                    graphFrontendProjectPath,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
-                    false,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
-                    false,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.References] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        ResourceReference.ReferenceResourceId(
-                            graphApiResourceId,
-                            typeId: AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
-                    }),
-                [AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        new NetworkingEndpointRequestValue(
-                            "http",
-                            graphFrontendEndpointUri.Scheme,
-                            Host: graphFrontendEndpointUri.Host,
-                            Port: graphFrontendEndpointUri.Port,
-                            Exposure: "Local")
-                    }),
-                [AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
-                            traceIngestEndpoint ?? string.Empty),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
-                            metricIngestEndpoint ?? string.Empty),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "OTEL_SERVICE_NAME",
-                            "graph-project-reference-frontend")
-                    })
-            },
-            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
-            {
-                [ResourceHealthCheckCapabilityIds.HealthChecks] =
-                    ResourceDefinitionJson.FromValue(new ResourceHealthCheckDefinitionSet(
-                    [
-                        ResourceHealthCheckDefinition.Http(
-                            "/healthz",
-                            endpointName: "http"),
-                        ResourceHealthCheckDefinition.HttpLiveness(
-                            "/alive",
-                            endpointName: "http",
-                            name: "alive")
-                    ]))
-            })
-    ])
     .AddAspNetCoreProjectResourceType()
     .AddResourceModelGraphServices()
     .AddReferenceProviderResourceManagerProjections()

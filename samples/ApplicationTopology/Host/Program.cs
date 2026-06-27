@@ -17,8 +17,6 @@ using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
 using System.Security.Cryptography;
-using System.Text.Json;
-using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 var repositoryRootPath = Path.GetFullPath("../../..", builder.Environment.ContentRootPath);
@@ -92,6 +90,136 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+cloudShell.DefineResources(resources =>
+{
+    var graphSqlVolume = resources
+        .AddLocalVolume("graph-application-topology-sql-data")
+        .WithResourceId(graphSqlVolumeResourceId);
+    var graphSqlServer = resources
+        .AddSqlServer("graph-application-topology-sql-server")
+        .WithResourceId(graphSqlServerResourceId)
+        .WithDisplayName("Graph Application Topology SQL Server")
+        .AddEndpointRequest(
+            "tds",
+            "tcp",
+            targetPort: 1433,
+            host: "localhost",
+            port: sqlPort,
+            exposure: "Local")
+        .MountVolume(graphSqlVolume, "/var/opt/mssql");
+    var graphDatabase = resources
+        .AddSqlDatabase("graph-application-topology-db")
+        .WithResourceId(graphDatabaseResourceId)
+        .BelongsToServer(graphSqlServer)
+        .WithDatabaseName("application_topology")
+        .EnsureCreated();
+    var graphSettings = resources
+        .AddConfigurationStore("graph-application-topology-settings")
+        .WithResourceId(graphSettingsResourceId)
+        .WithDisplayName("Graph Application Topology Settings")
+        .WithEndpoint(graphConfigurationEndpoint);
+    var graphSecrets = resources
+        .AddSecretsVault("graph-application-topology-secrets")
+        .WithResourceId(graphSecretsResourceId)
+        .WithDisplayName("Graph Application Topology Secrets")
+        .WithEndpoint(graphSecretsEndpoint);
+    var graphApi = resources
+        .AddAspNetCoreProject("graph-application-topology-api", graphApiProjectPath)
+        .WithResourceId(graphApiResourceId)
+        .WithDisplayName("Graph Application Topology API")
+        .DependsOn(graphDatabase, SqlDatabaseResourceTypeProvider.ResourceTypeId)
+        .DependsOn(graphSettings, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
+        .DependsOn(graphSecrets, SecretsVaultResourceTypeProvider.ResourceTypeId)
+        .WithHotReload(false)
+        .UseLaunchSettings(false)
+        .WithServiceDiscoveryName("application-topology-api")
+        .AddEndpointRequest(
+            "http",
+            graphApiEndpointUri.Scheme,
+            host: graphApiEndpointUri.Host,
+            port: graphApiEndpointUri.Port,
+            exposure: "Local")
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
+            traceIngestEndpoint ?? string.Empty)
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
+            metricIngestEndpoint ?? string.Empty)
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT",
+            $"{cloudShellEndpoint}/api/application-topology/sql-server/v1/credentials")
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT",
+            identityTokenEndpoint)
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_IDENTITY_CLIENT_ID",
+            graphApiIdentityClientId)
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_IDENTITY_CLIENT_SECRET",
+            "local-development-application-topology-api-secret")
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_IDENTITY_SCOPE",
+            "ControlPlane.Access")
+        .WithEnvironmentVariable(
+            "ApplicationTopology__SqlServer__Authentication",
+            "CloudShell")
+        .WithEnvironmentVariable(
+            "ApplicationTopology__SqlServer__ResourceName",
+            "graph-application-topology-sql-server")
+        .WithEnvironmentVariable(
+            "ApplicationTopology__SqlServer__User",
+            "sa")
+        .WithEnvironmentVariable(
+            "ApplicationTopology__SqlServer__Password",
+            sqlPassword)
+        .WithEnvironmentVariable(
+            "ApplicationTopology__SqlServer__Database",
+            "application_topology")
+        .WithEnvironmentVariable(
+            "OTEL_SERVICE_NAME",
+            "graph-application-topology-api")
+        .WithReference(graphSqlServer, SqlServerResourceTypeProvider.ResourceTypeId)
+        .WithReference(graphSettings, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
+        .WithReference(graphSecrets, SecretsVaultResourceTypeProvider.ResourceTypeId)
+        .AddHealthCheck(ResourceHealthCheckDefinition.Http(
+            "/health",
+            endpointName: "http"))
+        .AddHealthCheck(ResourceHealthCheckDefinition.HttpLiveness(
+            "/alive",
+            endpointName: "http",
+            name: "alive"));
+
+    resources
+        .AddAspNetCoreProject("graph-application-topology-frontend", graphFrontendProjectPath)
+        .WithResourceId(graphFrontendResourceId)
+        .WithDisplayName("Graph Application Topology Frontend")
+        .DependsOn(graphApi, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+        .WithHotReload(false)
+        .UseLaunchSettings(false)
+        .AddEndpointRequest(
+            "http",
+            graphFrontendEndpointUri.Scheme,
+            host: graphFrontendEndpointUri.Host,
+            port: graphFrontendEndpointUri.Port,
+            exposure: "Local")
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
+            traceIngestEndpoint ?? string.Empty)
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
+            metricIngestEndpoint ?? string.Empty)
+        .WithEnvironmentVariable(
+            "OTEL_SERVICE_NAME",
+            "graph-application-topology-frontend")
+        .WithReference(graphApi, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+        .AddHealthCheck(ResourceHealthCheckDefinition.Http(
+            "/healthz",
+            endpointName: "http"))
+        .AddHealthCheck(ResourceHealthCheckDefinition.HttpLiveness(
+            "/alive",
+            endpointName: "http",
+            name: "alive"));
+}, AddGraphProjectionState);
 builder.Services
     .AddSingleton<ISqlDatabaseCreationHandler, GraphSqlDatabaseCreationHandler>();
 if (graphOnly)
@@ -108,258 +236,6 @@ else
 
 builder.Services
     .AddSingleton<ISqlServerRuntimeHandler, ApplicationTopologyGraphSqlServerRuntimeHandler>()
-    .AddInMemoryResourceModelGraph(
-    [
-        new ResourceGraphState(
-            "graph-application-topology-sql-data",
-            LocalVolumeResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphSqlVolumeResourceId,
-            ProviderId: LocalVolumeResourceTypeProvider.ProviderId),
-        new ResourceGraphState(
-            "graph-application-topology-sql-server",
-            SqlServerResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphSqlServerResourceId,
-            ProviderId: SqlServerResourceTypeProvider.ProviderId,
-            DisplayName: "Graph Application Topology SQL Server",
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [SqlServerResourceTypeProvider.Attributes.EndpointRequests] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        new NetworkingEndpointRequestValue(
-                            "tds",
-                            "tcp",
-                            TargetPort: 1433,
-                            Host: "localhost",
-                            Port: sqlPort,
-                            Exposure: "Local")
-                    })
-            },
-            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
-            {
-                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
-                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
-                    [
-                        new(graphSqlVolumeResourceId, "/var/opt/mssql")
-                    ]))
-            }),
-        new ResourceGraphState(
-            "graph-application-topology-db",
-            SqlDatabaseResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphDatabaseResourceId,
-            ProviderId: SqlDatabaseResourceTypeProvider.ProviderId,
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    graphSqlServerResourceId,
-                    typeId: SqlServerResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [SqlDatabaseResourceTypeProvider.Attributes.DatabaseName] = "application_topology",
-                [SqlDatabaseResourceTypeProvider.Attributes.EnsureCreated] = true
-            }),
-        new ResourceGraphState(
-            "graph-application-topology-settings",
-            ConfigurationStoreResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphSettingsResourceId,
-            ProviderId: ConfigurationStoreResourceTypeProvider.ProviderId,
-            DisplayName: "Graph Application Topology Settings",
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [ConfigurationStoreResourceTypeProvider.Attributes.Endpoint] =
-                    graphConfigurationEndpoint,
-                [ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] =
-                    2
-            }),
-        new ResourceGraphState(
-            "graph-application-topology-secrets",
-            SecretsVaultResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphSecretsResourceId,
-            ProviderId: SecretsVaultResourceTypeProvider.ProviderId,
-            DisplayName: "Graph Application Topology Secrets",
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [SecretsVaultResourceTypeProvider.Attributes.Endpoint] =
-                    graphSecretsEndpoint,
-                [SecretsVaultResourceTypeProvider.Attributes.SecretCount] =
-                    1
-            }),
-        new ResourceGraphState(
-            "graph-application-topology-api",
-            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphApiResourceId,
-            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
-            DisplayName: "Graph Application Topology API",
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    graphDatabaseResourceId,
-                    typeId: SqlDatabaseResourceTypeProvider.ResourceTypeId),
-                ResourceReference.DependsOnResourceId(
-                    graphSettingsResourceId,
-                    typeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId),
-                ResourceReference.DependsOnResourceId(
-                    graphSecretsResourceId,
-                    typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
-                    graphApiProjectPath,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
-                    false,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
-                    false,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.ServiceDiscoveryName] =
-                    "application-topology-api",
-                [AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        new NetworkingEndpointRequestValue(
-                            "http",
-                            graphApiEndpointUri.Scheme,
-                            Host: graphApiEndpointUri.Host,
-                            Port: graphApiEndpointUri.Port,
-                            Exposure: "Local")
-                    }),
-                [AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
-                            traceIngestEndpoint ?? string.Empty),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
-                            metricIngestEndpoint ?? string.Empty),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT",
-                            $"{cloudShellEndpoint}/api/application-topology/sql-server/v1/credentials"),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT",
-                            identityTokenEndpoint),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_IDENTITY_CLIENT_ID",
-                            graphApiIdentityClientId),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_IDENTITY_CLIENT_SECRET",
-                            "local-development-application-topology-api-secret"),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_IDENTITY_SCOPE",
-                            "ControlPlane.Access"),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "ApplicationTopology__SqlServer__Authentication",
-                            "CloudShell"),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "ApplicationTopology__SqlServer__ResourceName",
-                            "graph-application-topology-sql-server"),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "ApplicationTopology__SqlServer__User",
-                            "sa"),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "ApplicationTopology__SqlServer__Password",
-                            sqlPassword),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "ApplicationTopology__SqlServer__Database",
-                            "application_topology"),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "OTEL_SERVICE_NAME",
-                            "graph-application-topology-api")
-                    }),
-                [AspNetCoreProjectResourceTypeProvider.Attributes.References] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        ResourceReference.ReferenceResourceId(
-                            graphSqlServerResourceId,
-                            typeId: SqlServerResourceTypeProvider.ResourceTypeId),
-                        ResourceReference.ReferenceResourceId(
-                            graphSettingsResourceId,
-                            typeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId),
-                        ResourceReference.ReferenceResourceId(
-                            graphSecretsResourceId,
-                            typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
-                    })
-            },
-            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
-            {
-                [ResourceHealthCheckCapabilityIds.HealthChecks] =
-                    ResourceDefinitionJson.FromValue(new ResourceHealthCheckDefinitionSet(
-                    [
-                        ResourceHealthCheckDefinition.Http(
-                            "/health",
-                            endpointName: "http"),
-                        ResourceHealthCheckDefinition.HttpLiveness(
-                            "/alive",
-                            endpointName: "http",
-                            name: "alive")
-                    ]))
-            }),
-        new ResourceGraphState(
-            "graph-application-topology-frontend",
-            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphFrontendResourceId,
-            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
-            DisplayName: "Graph Application Topology Frontend",
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    graphApiResourceId,
-                    typeId: AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
-                    graphFrontendProjectPath,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
-                    false,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
-                    false,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        new NetworkingEndpointRequestValue(
-                            "http",
-                            graphFrontendEndpointUri.Scheme,
-                            Host: graphFrontendEndpointUri.Host,
-                            Port: graphFrontendEndpointUri.Port,
-                            Exposure: "Local")
-                    }),
-                [AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
-                            traceIngestEndpoint ?? string.Empty),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
-                            metricIngestEndpoint ?? string.Empty),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "OTEL_SERVICE_NAME",
-                            "graph-application-topology-frontend")
-                    }),
-                [AspNetCoreProjectResourceTypeProvider.Attributes.References] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        ResourceReference.ReferenceResourceId(
-                            graphApiResourceId,
-                            typeId: AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
-                    })
-            },
-            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
-            {
-                [ResourceHealthCheckCapabilityIds.HealthChecks] =
-                    ResourceDefinitionJson.FromValue(new ResourceHealthCheckDefinitionSet(
-                    [
-                        ResourceHealthCheckDefinition.Http(
-                            "/healthz",
-                            endpointName: "http"),
-                        ResourceHealthCheckDefinition.HttpLiveness(
-                            "/alive",
-                            endpointName: "http",
-                            name: "alive")
-                    ]))
-            })
-    ])
     .AddLocalVolumeResourceType()
     .AddSqlServerResourceType()
     .AddSqlDatabaseResourceType()
@@ -625,6 +501,28 @@ app.MapApplicationTopologyGraphSqlCredentialApi();
 app.MapCloudShell<App>();
 
 app.Run();
+
+CloudShell.ResourceDefinitions.ResourceState AddGraphProjectionState(
+    CloudShell.ResourceDefinitions.ResourceState state)
+{
+    if (state.EffectiveResourceId != graphSettingsResourceId &&
+        state.EffectiveResourceId != graphSecretsResourceId)
+    {
+        return state;
+    }
+
+    var attributes = state.ResourceAttributeValues.ToDictionary();
+    if (state.EffectiveResourceId == graphSettingsResourceId)
+    {
+        attributes[ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] = 2;
+    }
+    else
+    {
+        attributes[SecretsVaultResourceTypeProvider.Attributes.SecretCount] = 1;
+    }
+
+    return state with { Attributes = new ResourceAttributeValueMap(attributes) };
+}
 
 static string ResolveCloudShellEndpoint(IConfiguration configuration)
 {

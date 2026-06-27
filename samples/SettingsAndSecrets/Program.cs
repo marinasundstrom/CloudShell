@@ -14,8 +14,6 @@ using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
 using System.Security.Cryptography;
-using System.Text.Json;
-using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 var repositoryRootPath = Path.GetFullPath("../..", builder.Environment.ContentRootPath);
@@ -72,109 +70,55 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+cloudShell.DefineResources(resources =>
+{
+    var graphSettings = resources
+        .AddConfigurationStore("graph-sample-app")
+        .WithResourceId(graphSettingsResourceId)
+        .WithDisplayName("Graph Sample App Settings")
+        .WithEndpoint(graphConfigurationServiceEndpoint);
+    var graphSecrets = resources
+        .AddSecretsVault("graph-sample-app")
+        .WithResourceId(graphSecretsResourceId)
+        .WithDisplayName("Graph Sample App Secrets")
+        .WithEndpoint(graphSecretsServiceEndpoint);
+
+    resources
+        .AddAspNetCoreProject("graph-settings-secrets-api", graphApiProjectPath)
+        .WithResourceId(graphApiResourceId)
+        .WithDisplayName("Graph Settings and Secrets API")
+        .DependsOn(graphSettings, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
+        .DependsOn(graphSecrets, SecretsVaultResourceTypeProvider.ResourceTypeId)
+        .WithHotReload(false)
+        .UseLaunchSettings(false)
+        .AddEndpointRequest(
+            "http",
+            graphApiEndpointUri.Scheme,
+            host: graphApiEndpointUri.Host,
+            port: graphApiEndpointUri.Port,
+            exposure: "Local")
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_APPLICATION",
+            "Graph Settings and Secrets API")
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT",
+            identityTokenEndpoint)
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_IDENTITY_CLIENT_ID",
+            graphApiIdentityClientId)
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_IDENTITY_CLIENT_SECRET",
+            resourceIdentityClientSecret)
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_IDENTITY_SCOPE",
+            "ControlPlane.Access")
+        .WithReference(graphSettings, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
+        .WithReference(graphSecrets, SecretsVaultResourceTypeProvider.ResourceTypeId)
+        .AddHealthCheck(ResourceHealthCheckDefinition.Http(
+            "/health",
+            endpointName: "http"));
+}, AddGraphProjectionState);
 builder.Services
-    .AddInMemoryResourceModelGraph(
-    [
-        new ResourceGraphState(
-            "graph-sample-app",
-            ConfigurationStoreResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphSettingsResourceId,
-            ProviderId: ConfigurationStoreResourceTypeProvider.ProviderId,
-            DisplayName: "Graph Sample App Settings",
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [ConfigurationStoreResourceTypeProvider.Attributes.Endpoint] =
-                    graphConfigurationServiceEndpoint,
-                [ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] =
-                    2
-            }),
-        new ResourceGraphState(
-            "graph-sample-app",
-            SecretsVaultResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphSecretsResourceId,
-            ProviderId: SecretsVaultResourceTypeProvider.ProviderId,
-            DisplayName: "Graph Sample App Secrets",
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [SecretsVaultResourceTypeProvider.Attributes.Endpoint] =
-                    graphSecretsServiceEndpoint,
-                [SecretsVaultResourceTypeProvider.Attributes.SecretCount] =
-                    1
-            }),
-        new ResourceGraphState(
-            "graph-settings-secrets-api",
-            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
-            ResourceId: graphApiResourceId,
-            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
-            DisplayName: "Graph Settings and Secrets API",
-            DependsOn:
-            [
-                ResourceReference.DependsOnResourceId(
-                    graphSettingsResourceId,
-                    typeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId),
-                ResourceReference.DependsOnResourceId(
-                    graphSecretsResourceId,
-                    typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
-            ],
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
-                    graphApiProjectPath,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
-                    false,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings] =
-                    false,
-                [AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        new NetworkingEndpointRequestValue(
-                            "http",
-                            graphApiEndpointUri.Scheme,
-                            Host: graphApiEndpointUri.Host,
-                            Port: graphApiEndpointUri.Port,
-                            Exposure: "Local")
-                    }),
-                [AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_APPLICATION",
-                            "Graph Settings and Secrets API"),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT",
-                            identityTokenEndpoint),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_IDENTITY_CLIENT_ID",
-                            graphApiIdentityClientId),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_IDENTITY_CLIENT_SECRET",
-                            resourceIdentityClientSecret),
-                        new AspNetCoreProjectEnvironmentVariableValue(
-                            "CLOUDSHELL_IDENTITY_SCOPE",
-                            "ControlPlane.Access")
-                    }),
-                [AspNetCoreProjectResourceTypeProvider.Attributes.References] =
-                    ResourceAttributeValue.FromObject(new[]
-                    {
-                        ResourceReference.ReferenceResourceId(
-                            graphSettingsResourceId,
-                            typeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId),
-                        ResourceReference.ReferenceResourceId(
-                            graphSecretsResourceId,
-                            typeId: SecretsVaultResourceTypeProvider.ResourceTypeId)
-                    })
-            },
-            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
-            {
-                [ResourceHealthCheckCapabilityIds.HealthChecks] =
-                    ResourceDefinitionJson.FromValue(new ResourceHealthCheckDefinitionSet(
-                    [
-                        ResourceHealthCheckDefinition.Http(
-                            "/health",
-                            endpointName: "http")
-                    ]))
-            })
-    ])
     .AddConfigurationStoreResourceType(options =>
     {
         options.ServiceProjectPath = configurationStoreServiceProjectPath;
@@ -306,6 +250,28 @@ app.MapCloudShellControlPlane();
 app.MapCloudShell<App>();
 
 app.Run();
+
+CloudShell.ResourceDefinitions.ResourceState AddGraphProjectionState(
+    CloudShell.ResourceDefinitions.ResourceState state)
+{
+    if (state.EffectiveResourceId != graphSettingsResourceId &&
+        state.EffectiveResourceId != graphSecretsResourceId)
+    {
+        return state;
+    }
+
+    var attributes = state.ResourceAttributeValues.ToDictionary();
+    if (state.EffectiveResourceId == graphSettingsResourceId)
+    {
+        attributes[ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] = 2;
+    }
+    else
+    {
+        attributes[SecretsVaultResourceTypeProvider.Attributes.SecretCount] = 1;
+    }
+
+    return state with { Attributes = new ResourceAttributeValueMap(attributes) };
+}
 
 static string CreateDevelopmentSigningKeyPem()
 {
