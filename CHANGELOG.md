@@ -63,6 +63,10 @@ on `git blame --follow`, and then by the broad type of change.
   process semantics for non-interactive `dotnet watch`, rude-edit restart
   environment, and non-hot-reload build-before-run with `dotnet run
   --no-build`.
+- Executable application graph startup now honors provider command
+  configuration for process arguments and working directory, and can fall back
+  to the configured executable path when the path is supplied through the
+  interchange configuration payload.
 - ReplicatedContainerHealth now has an opt-in graph-only declaration mode that
   skips old application/Docker provider registrations and omits
   `application:api` plus `docker:sample`, proving the graph-backed Docker host

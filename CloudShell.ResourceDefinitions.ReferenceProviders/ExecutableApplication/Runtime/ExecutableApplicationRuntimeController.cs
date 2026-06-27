@@ -32,8 +32,11 @@ public sealed class ExecutableApplicationProcessRuntimeController :
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
 
-        var executablePath = resource.Attributes.GetString(
-            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath);
+        var configuration = resource.GetConfiguration<ExecutableApplicationConfiguration>(
+            ExecutableApplicationResourceTypeProvider.ConfigurationSection);
+        var executablePath = FirstNonEmpty(
+            resource.Attributes.GetString(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath),
+            configuration?.Path);
         if (string.IsNullOrWhiteSpace(executablePath))
         {
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
@@ -47,7 +50,7 @@ public sealed class ExecutableApplicationProcessRuntimeController :
 
         var process = new Process
         {
-            StartInfo = CreateStartInfo(resource, executablePath),
+            StartInfo = CreateStartInfo(resource, executablePath, configuration),
             EnableRaisingEvents = true
         };
         process.OutputDataReceived += (_, _) => { };
@@ -95,15 +98,22 @@ public sealed class ExecutableApplicationProcessRuntimeController :
 
     internal static ProcessStartInfo CreateStartInfo(
         Resource resource,
-        string executablePath)
+        string executablePath,
+        ExecutableApplicationConfiguration? configuration = null)
     {
         var startInfo = new ProcessStartInfo
         {
             FileName = executablePath.Trim(),
+            Arguments = configuration?.Arguments?.Trim() ?? string.Empty,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
+        if (!string.IsNullOrWhiteSpace(configuration?.WorkingDirectory))
+        {
+            startInfo.WorkingDirectory = configuration.WorkingDirectory.Trim();
+        }
+
         startInfo.Environment[ExecutableApplicationEnvironmentNames.ResourceId] =
             resource.EffectiveResourceId;
         startInfo.Environment[ExecutableApplicationEnvironmentNames.ResourceName] =
@@ -189,6 +199,19 @@ public sealed class ExecutableApplicationProcessRuntimeController :
     private static void DisposeProcess(Process process)
     {
         process.Dispose();
+    }
+
+    private static string? FirstNonEmpty(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+        }
+
+        return null;
     }
 }
 
