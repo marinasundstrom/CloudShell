@@ -28,6 +28,11 @@ on `git blame --follow`, and then by the broad type of change.
   default provider, and the ThirdPartyIdentity sample adds a sample-local
   adapter that derives graph API identity credential variables from Resource
   Manager declarations and the existing Keycloak credential provider.
+- ReplicatedContainerHealth now has an opt-in graph-only declaration mode that
+  skips old application/Docker provider registrations and omits
+  `application:api` plus `docker:sample`, proving the graph-backed Docker host
+  and container-app projection without old provider records while graph-only
+  container runtime materialization remains deferred.
 
 ### 2026-06-26
 

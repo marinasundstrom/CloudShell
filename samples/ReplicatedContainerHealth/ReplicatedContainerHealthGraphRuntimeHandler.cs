@@ -256,3 +256,41 @@ internal sealed class ReplicatedContainerHealthGraphResourceManagerBridge(
                 signal.Message,
                 target);
 }
+
+internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge :
+    IReplicatedContainerHealthGraphContainerAppRuntimeBridge
+{
+    public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource) =>
+        ContainerApplicationRuntimeStatus.Unknown;
+
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
+        GraphResource resource,
+        ResourceOperationId operationId,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            RuntimeNotPorted(resource)
+        ]);
+
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyImageAsync(
+        GraphResource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            RuntimeNotPorted(resource)
+        ]);
+
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyReplicasAsync(
+        GraphResource resource,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            RuntimeNotPorted(resource)
+        ]);
+
+    private static ResourceDefinitionDiagnostic RuntimeNotPorted(GraphResource resource) =>
+        ResourceDefinitionDiagnostic.Warning(
+            "replicatedContainerHealth.graphOnlyRuntimeDeferred",
+            "ReplicatedContainerHealth graph-only mode declares the container app through the Resource Graph, but graph-only container runtime materialization is not ported yet.",
+            resource.EffectiveResourceId);
+}

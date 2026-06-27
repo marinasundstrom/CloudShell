@@ -33,13 +33,16 @@ var traceIngestEndpoint = builder.Configuration["Observability:TraceIngestEndpoi
     ?? $"{runtimeControlPlaneEndpoint}/api/control-plane/v1/traces/ingest";
 var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndpoint"]
     ?? $"{runtimeControlPlaneEndpoint}/api/control-plane/v1/metrics/ingest";
+var graphOnly = builder.Configuration.GetValue("ReplicatedContainerHealth:GraphOnly", false);
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 builder.Services
-    .AddSingleton<
-        IReplicatedContainerHealthGraphContainerAppRuntimeBridge,
-        ReplicatedContainerHealthGraphResourceManagerBridge>()
+    .AddSingleton<IReplicatedContainerHealthGraphContainerAppRuntimeBridge>(
+            serviceProvider => graphOnly
+                ? new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge()
+                : new ReplicatedContainerHealthGraphResourceManagerBridge(
+                    serviceProvider.GetRequiredService<IServiceScopeFactory>()))
     .AddSingleton<IContainerApplicationRuntimeHandler, ReplicatedContainerHealthGraphRuntimeHandler>()
     .AddInMemoryResourceModelGraph(
     [
@@ -103,13 +106,18 @@ builder.Services
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>()
-    .AddApplicationProvider(options =>
-    {
-        options.OtlpEndpoint = otlpEndpoint;
-        options.OtlpProtocol = otlpProtocol;
-    })
-    .AddDockerProvider();
+    .AddExtension<ObservabilityExtension>();
+
+if (!graphOnly)
+{
+    cloudShell
+        .AddApplicationProvider(options =>
+        {
+            options.OtlpEndpoint = otlpEndpoint;
+            options.OtlpProtocol = otlpProtocol;
+        })
+        .AddDockerProvider();
+}
 
 cloudShell.Resources(resources =>
 {
@@ -118,9 +126,33 @@ cloudShell.Resources(resources =>
         "Replicated Container Health graph POC",
         "Side-by-side graph-backed resources used while porting the ReplicatedContainerHealth sample.");
 
-    var docker = resources
-        .AddDocker("sample")
-        .Persist(overwrite: true);
+    if (!graphOnly)
+    {
+        var docker = resources
+            .AddDocker("sample")
+            .Persist(overwrite: true);
+
+        resources
+            .AddAspNetCoreProject(
+                "api",
+                "Api/CloudShell.ReplicatedContainerHealth.Api.csproj")
+            .AsContainer(replicas: 3, tag: sampleImageTag)
+            .WithEndpointPort(
+                "http",
+                targetPort: 8080,
+                port: apiEndpointPort,
+                protocol: "http",
+                exposure: ResourceExposureScope.Local)
+            .WithHttpHealthCheck("/health", "http")
+            .WithHttpProbe(ResourceProbeType.Liveness, "/alive", "http", "alive")
+            .WithLogFormat(LogFormat.JsonConsole)
+            .WithOtlpExporter(otlpEndpoint, otlpProtocol)
+            .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
+            .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty)
+            .WithContainerHost(docker)
+            .WithAutoStart(false)
+            .Persist(overwrite: true);
+    }
 
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphDockerResourceId)
@@ -128,27 +160,6 @@ cloudShell.Resources(resources =>
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphApiResourceId)
         .WithResourceGroup(graphResourceGroupId);
-
-    resources
-        .AddAspNetCoreProject(
-            "api",
-            "Api/CloudShell.ReplicatedContainerHealth.Api.csproj")
-        .AsContainer(replicas: 3, tag: sampleImageTag)
-        .WithEndpointPort(
-            "http",
-            targetPort: 8080,
-            port: apiEndpointPort,
-            protocol: "http",
-            exposure: ResourceExposureScope.Local)
-        .WithHttpHealthCheck("/health", "http")
-        .WithHttpProbe(ResourceProbeType.Liveness, "/alive", "http", "alive")
-        .WithLogFormat(LogFormat.JsonConsole)
-        .WithOtlpExporter(otlpEndpoint, otlpProtocol)
-        .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
-        .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty)
-        .WithContainerHost(docker)
-        .WithAutoStart(false)
-        .Persist(overwrite: true);
 });
 
 var app = builder.Build();

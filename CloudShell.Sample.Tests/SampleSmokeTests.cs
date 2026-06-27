@@ -3654,6 +3654,53 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    public async Task ReplicatedContainerHealthSample_GraphOnlyModeDeclaresGraphResourcesWithoutOldProviderResources()
+    {
+        var apiPort = await GetFreePortAsync();
+        using var host = await SampleProcess.StartAsync(
+            "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ReplicatedContainerHealth__GraphOnly", "true"),
+                ("ReplicatedContainerHealth__ApiPort", apiPort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var graphDocker = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "docker:graph-sample");
+        var graphApp = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.container-app:graph-api");
+        var graphAppAttributes = graphApp.GetProperty("attributes");
+
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:api");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "docker:sample");
+        Assert.Equal("docker.host", graphDocker.GetProperty("typeId").GetString());
+        Assert.Equal("application.container-app", graphApp.GetProperty("typeId").GetString());
+        Assert.Equal(
+            "cloudshell-application-api:20260622.2",
+            graphAppAttributes.GetProperty("container.image").GetString());
+        Assert.Equal("3", graphAppAttributes.GetProperty("container.replicas").GetString());
+        Assert.Equal(
+            $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}",
+            GetPrimaryEndpointAddress(graphApp));
+        Assert.Contains(
+            "docker:graph-sample",
+            graphApp.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Contains(
+            graphApp.GetProperty("capabilities").EnumerateArray(),
+            capability => capability.GetProperty("id").GetString() == ResourceHealthCheckCapabilityIds.HealthChecks.ToString());
+        Assert.Contains(
+            graphApp.GetProperty("capabilities").EnumerateArray(),
+            capability => capability.GetProperty("id").GetString() == ResourceHealthCheckCapabilityIds.Liveness.ToString());
+    }
+
+    [Fact]
     public async Task ReplicatedContainerHealthSample_GraphImageUpdateDelegatesToRuntimeAppConfiguration()
     {
         const string graphApiResourceId = "application.container-app:graph-api";

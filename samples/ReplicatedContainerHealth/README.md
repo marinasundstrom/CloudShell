@@ -67,6 +67,14 @@ image update endpoint used by smoke coverage to apply a `ResourceDefinition`
 overlay and then delegate the graph `container.image.update` operation into the
 existing runtime app configuration.
 
+Set `ReplicatedContainerHealth:GraphOnly` to `true` to declare only the
+graph-backed Docker host and container-app resources. In this mode the sample
+does not register the old application or Docker provider path and does not
+declare `application:api` or `docker:sample`. This is a switch-readiness gate:
+it proves the graph resource shape without the old provider records, while
+graph-only container runtime materialization remains deferred to the next
+runtime bridge slice.
+
 When running the replica health path against Docker, start the `api` resource.
 The app start builds the project container image into the local Docker image
 store before creating the replicas.
