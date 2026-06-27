@@ -820,6 +820,10 @@ listed here before pulling in broader proposal work.
   combined hosting, split hosting, container host, settings and secrets, host
   virtual networking, load balancer, project references, third-party identity,
   application topology, and container app deployment.
+- Treat the Resource Graph path as the default path for the supported
+  switch-readiness samples. `GraphOnly=false` remains useful as old-provider
+  comparison coverage while the remaining provider seams are stabilized, but
+  MVP sample confidence should come from the graph-backed defaults.
 - Use the forked Application Topology sample as the broad MVP composition
   sample. ProjectReference remains the focused ASP.NET Core project dependency,
   service discovery, log, and trace baseline; ApplicationTopology is where SQL
