@@ -1927,6 +1927,8 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "network:graph-application-topology-local");
         var graphApiService = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "cloudshell.service:graph-application-topology-api-service");
+        var graphHostConfiguration = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration.host:graph-application-topology-host-settings");
         var nameMapping = Assert.Single(resources, resource =>
             resource.GetProperty("typeId").GetString() == PlatformResourceProvider.NameMappingResourceType
             && resource.GetProperty("attributes")
@@ -1973,6 +1975,19 @@ public sealed class SampleSmokeTests
         Assert.True(
             graphApiService.GetProperty("resourceActions")
                 .TryGetProperty(ServiceResourceTypeProvider.Operations.Reconcile.ToString(), out _));
+        Assert.Equal("configuration.host", graphHostConfiguration.GetProperty("typeId").GetString());
+        Assert.Equal(
+            "host",
+            graphHostConfiguration.GetProperty("attributes").GetProperty("configuration.kind").GetString());
+        Assert.Equal(
+            "application-topology",
+            graphHostConfiguration.GetProperty("attributes").GetProperty("configuration.source").GetString());
+        Assert.Equal(
+            "0",
+            graphHostConfiguration.GetProperty("attributes").GetProperty("configuration.entries.count").GetString());
+        Assert.True(
+            graphHostConfiguration.GetProperty("resourceActions")
+                .TryGetProperty(HostConfigurationSourceResourceTypeProvider.Operations.Inspect.ToString(), out _));
 
         await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology graph-only settings");
         await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology graph-only secrets");

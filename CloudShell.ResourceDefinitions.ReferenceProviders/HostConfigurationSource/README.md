@@ -14,6 +14,12 @@
 - Typed wrapper plus Resource Manager bridge projection and execution.
 - Manual `ResourceDefinitionGraphBuilder.AddHostConfigurationSource(...)`
   builder for code-first host configuration source definition authoring.
+- ApplicationTopology graph-only sample coverage declares
+  `configuration.host:graph-application-topology-host-settings` as host
+  configuration source metadata. The sample verifies Resource Manager
+  projection, `configuration.kind`, `configuration.source`, provider-managed
+  `configuration.entries.count`, and the `configuration.host.inspect` action
+  shape without exposing host configuration values in graph state.
 
 ## Remaining
 

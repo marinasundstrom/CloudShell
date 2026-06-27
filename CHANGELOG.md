@@ -142,6 +142,10 @@ on `git blame --follow`, and then by the broad type of change.
   service boundary, giving the `cloudshell.service` provider sample coverage
   for Resource Manager projection, typed target/network dependencies, and the
   reconcile action shape without adding runtime routing behavior.
+- ApplicationTopology now declares a graph host-configuration source, giving
+  the `configuration.host` provider sample coverage for source metadata,
+  provider-managed entry-count projection, and inspect action shape without
+  exposing host configuration values in graph state.
 - The LoadBalancer sample now declares side-by-side graph-backed DNS zone and
   name-mapping resources that target the graph-backed load balancer frontend,
   extending the networking POC coverage from route projection into declarative

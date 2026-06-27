@@ -42,15 +42,18 @@ old application provider. The graph declaration also includes a logical
 `cloudshell.service:graph-application-topology-api-service` boundary that
 depends on the graph API and graph network. That service resource is
 declarative POC coverage for the service provider shape; it does not yet own
-runtime routing or endpoint materialization.
+runtime routing or endpoint materialization. The graph also declares
+`configuration.host:graph-application-topology-host-settings` as host
+configuration source metadata without exposing host configuration values in the
+graph.
 
 Current graph smoke coverage starts the graph-backed Configuration Store and
 Secrets Vault through the new provider runtime controllers, verifies
 authenticated reads from their service APIs, verifies the graph service
-boundary projection, starts the graph API, verifies that `/settings` is loaded
-from the graph-backed Configuration Store and Secrets Vault client
-integrations, starts the graph frontend, and exercises frontend-to-API
-discovery through `/upstream/failure`. Docker-backed smoke
+boundary and host-configuration source projections, starts the graph API,
+verifies that `/settings` is loaded from the graph-backed Configuration Store
+and Secrets Vault client integrations, starts the graph frontend, and exercises
+frontend-to-API discovery through `/upstream/failure`. Docker-backed smoke
 coverage also starts the graph API and frontend against the existing SQL
 Server runtime and verifies the graph frontend `/upstream` path through graph
 settings and graph SQL credentials. The host registers a sample-local graph SQL

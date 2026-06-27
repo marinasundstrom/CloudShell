@@ -80,6 +80,7 @@ const string graphApiResourceId = "application.aspnet-core-project:graph-applica
 const string graphFrontendResourceId = "application.aspnet-core-project:graph-application-topology-frontend";
 const string graphNetworkResourceId = "network:graph-application-topology-local";
 const string graphApiServiceResourceId = "cloudshell.service:graph-application-topology-api-service";
+const string graphHostConfigurationResourceId = "configuration.host:graph-application-topology-host-settings";
 const string graphApiIdentityName = "graph-application-topology-api";
 var graphApiIdentityClientId = $"{graphApiResourceId}/{graphApiIdentityName}";
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
@@ -125,6 +126,11 @@ cloudShell.DefineResources(resources =>
         .WithResourceId(graphSecretsResourceId)
         .WithDisplayName("Graph Application Topology Secrets")
         .WithEndpoint(graphSecretsEndpoint);
+    resources
+        .AddHostConfigurationSource("graph-application-topology-host-settings")
+        .WithResourceId(graphHostConfigurationResourceId)
+        .WithDisplayName("Graph Application Topology Host Settings")
+        .WithSource("application-topology");
     var graphNetwork = resources
         .AddNetwork("graph-application-topology-local")
         .WithResourceId(graphNetworkResourceId)
@@ -275,6 +281,7 @@ builder.Services
     })
     .AddNetworkResourceType()
     .AddServiceResourceType()
+    .AddHostConfigurationSourceResourceType()
     .AddAspNetCoreProjectResourceType()
     .AddResourceModelGraphServices()
     .AddReferenceProviderResourceManagerProjections()
@@ -471,6 +478,10 @@ cloudShell.Resources(resources =>
         .WithResourceGroup(groupId);
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphApiServiceResourceId)
+        .WithResourceGroup(groupId)
+        .WithAutoStart(false);
+    resources
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphHostConfigurationResourceId)
         .WithResourceGroup(groupId)
         .WithAutoStart(false);
 
