@@ -1515,6 +1515,26 @@ not mean the existing operational provider can be turned off yet.
 | Secrets Vault (`secrets.vault`) | Modeled as a narrow reference provider | Secrets Vault class/type defaults, endpoint and read-only secret-count summary attributes, `/healthz` health/liveness declarations, start/stop/restart operations backed by a provider-local process controller, provider-owned runtime secret seed data, inspect operation with an injected provider-owned inspector seam and default runtime-backed secret-count diagnostics without exposing values, typed wrapper, Resource Manager bridge projection/execution without storing secret values in graph attributes, optional Resource Manager endpoint projection through a companion provider-bridge package, and SettingsAndSecrets smoke coverage for endpoint, inspect-action projection/execution, authorized secret reads, and API consumption through the graph-backed endpoint | Durable secret storage, logs, templates, and UI registration/update flow |
 | Identity provisioning (`cloudshell.identity-provisioning`) | Modeled as a narrow reference provider | Infrastructure class/type defaults, provider/provider-id/provider-kind attributes, passive identity-provisioning capability marker, setup operation with an injected provider-owned setup handler seam, typed wrapper, apply planning, Resource Manager bridge projection/execution, ThirdPartyIdentity sample bridge coverage that delegates graph setup to the Resource Manager identity setup service for the attached provider, Docker-backed sample execution against the Keycloak setup handler, and graph-only Keycloak setup coverage without old identity/application/configuration provider records | Directory/client materialization, credential issuance, grant reconciliation, authorization, provider-owned diagnostics, and UI registration/update flow beyond the setup seam |
 
+Current switch-readiness smoke coverage has exercised the graph-only paths for
+the priority samples and supporting provider samples:
+
+| Sample path | Verified graph-only behavior |
+| --- | --- |
+| ApplicationTopology | Graph-backed SQL Server runtime, SQL credential materialization, API database access, and frontend/API graph projection. |
+| ReplicatedContainerHealth | Graph-backed container app image/replica updates, app-owned ingress, health/liveness refresh, hidden runtime replica projection, logs, traces, metrics, and cleanup. |
+| ThirdPartyIdentity | Graph-backed identity provisioning, Keycloak setup, graph-backed configuration service, and protected API configuration reads without old provider records. |
+| SettingsAndSecrets | Graph-backed Configuration Store and Secrets Vault runtime services, authorized entry/secret reads, and graph API consumption. |
+| ProjectReference | Graph-backed ASP.NET Core project startup and graph-to-graph service discovery without old provider records. |
+| HostVirtualNetwork | Graph endpoint-mapping reconciliation through the sample runtime bridge and public ingress reachability. |
+| LoadBalancer | Graph load-balancer, DNS/name-mapping, and Traefik-backed routing paths. |
+| ContainerHost and ContainerAppDeployment | Graph-backed storage/SQL container-host path, registry runtime, and container-app state/update flows. |
+
+This status means the samples are functionally switch-ready at the POC level,
+not that the temporary sample-local bridges are final provider architecture.
+The next porting work should continue comparing each switched provider against
+the old implementation and moving runtime behavior into the intended provider
+runtime boundary without widening the Resource graph model.
+
 Host infrastructure registration is a separate concern from provider
 registration. A host may compose the generic graph services once from whatever
 class definitions, type providers, validators, capability providers, operation
