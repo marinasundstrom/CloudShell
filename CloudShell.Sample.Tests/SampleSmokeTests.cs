@@ -196,7 +196,7 @@ public sealed class SampleSmokeTests
 
     [Fact]
     [Trait("Category", "DockerIntegration")]
-    public async Task ContainerHostSample_GraphSqlRuntimeStartsWithStorageBackedVolume()
+    public async Task ContainerHostSample_GraphOnlySqlRuntimeStartsWithStorageBackedVolume()
     {
         const string graphSqlServerResourceId = "application.sql-server:graph-sql-server";
         var sqlContainerName = ContainerHostGraphSqlServerDockerBridge.GraphSqlServerContainerName;
@@ -213,6 +213,7 @@ public sealed class SampleSmokeTests
             "samples/CloudShell.ContainerHost/CloudShell.ContainerHost.csproj",
             await GetFreePortAsync(),
             [
+                ("ContainerHost__GraphOnly", "true"),
                 ("ContainerHost__GraphSqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture))
             ]);
 
@@ -222,10 +223,17 @@ public sealed class SampleSmokeTests
 
             var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
             using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
             var graphSqlServer = Assert.Single(
-                resourcesDocument.RootElement.EnumerateArray(),
+                resources,
                 resource => resource.GetProperty("id").GetString() == graphSqlServerResourceId);
 
+            Assert.DoesNotContain(resources, resource =>
+                resource.GetProperty("id").GetString() == "storage:local");
+            Assert.DoesNotContain(resources, resource =>
+                resource.GetProperty("id").GetString() == "volume:sql-data");
+            Assert.DoesNotContain(resources, resource =>
+                resource.GetProperty("id").GetString() == "application:sql-server");
             Assert.Equal($"localhost:{sqlPort}", GetEndpointAddress(graphSqlServer, "tds"));
             await StartGraphResourceIfAvailableAsync(host, graphSqlServer, "ContainerHost graph SQL Server");
             await WaitForResourceStateAsync(

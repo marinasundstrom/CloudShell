@@ -20,6 +20,7 @@ const string graphStorageResourceId = "cloudshell.storage:graph-local";
 const string graphVolumeResourceId = "cloudshell.volume:graph-sql-data";
 const string graphSqlServerResourceId = "application.sql-server:graph-sql-server";
 var graphSqlServerPort = builder.Configuration.GetValue<int?>("ContainerHost:GraphSqlServer:Port") ?? 14334;
+var graphOnly = builder.Configuration.GetValue("ContainerHost:GraphOnly", false);
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
@@ -70,9 +71,14 @@ builder.Services
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>()
-    .AddApplicationProvider()
-    .UseLocalDevelopmentDefaults();
+    .AddExtension<ObservabilityExtension>();
+
+if (!graphOnly)
+{
+    cloudShell
+        .AddApplicationProvider()
+        .UseLocalDevelopmentDefaults();
+}
 
 cloudShell.Resources(resources =>
 {
@@ -81,7 +87,10 @@ cloudShell.Resources(resources =>
         "Container Host graph POC",
         "Side-by-side graph-backed resources used while porting the ContainerHost sample.");
 
-    ContainerHostSampleResources.AddResources(resources);
+    if (!graphOnly)
+    {
+        ContainerHostSampleResources.AddResources(resources);
+    }
 
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphStorageResourceId)

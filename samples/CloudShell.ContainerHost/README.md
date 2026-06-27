@@ -81,3 +81,10 @@ is not immediately visible to the Docker daemon. This is intentionally a
 ContainerHost sample seam: durable provider-backed storage materialization,
 usage tracking, and generalized Docker host placement remain deferred until the
 provider ports need them.
+
+Set `ContainerHost:GraphOnly` to `true` to omit the old application-provider
+storage, volume, and SQL Server resource records plus the old application
+provider registration. In graph-only mode the sample still declares the graph
+storage, volume, and SQL Server resources and uses the sample-local graph SQL
+Docker bridge for lifecycle operations. Docker smoke coverage runs this mode so
+the SQL runtime path is exercised without old provider records.
