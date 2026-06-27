@@ -306,6 +306,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
             "-d",
             "--name",
             replicaContainerName,
+            "--rm",
             "--network",
             DefaultContainerNetworkName,
             "--network-alias",

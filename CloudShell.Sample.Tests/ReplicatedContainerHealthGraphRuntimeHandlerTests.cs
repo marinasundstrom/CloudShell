@@ -662,6 +662,7 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         Assert.Equal("run", command.Arguments[0]);
         Assert.Contains("--name", command.Arguments);
         Assert.Contains(containerName, command.Arguments);
+        Assert.Contains("--rm", command.Arguments);
         Assert.Contains("--network", command.Arguments);
         Assert.Contains("cloudshell", command.Arguments);
         Assert.Contains("--network-alias", command.Arguments);
@@ -699,6 +700,7 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         Assert.Equal("run", command.Arguments[0]);
         Assert.Contains("--name", command.Arguments);
         Assert.Contains(ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateIngressContainerName(), command.Arguments);
+        Assert.DoesNotContain("--rm", command.Arguments);
         Assert.Contains("--network", command.Arguments);
         Assert.Contains("cloudshell", command.Arguments);
         Assert.Contains(

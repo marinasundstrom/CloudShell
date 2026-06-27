@@ -100,6 +100,9 @@ on `git blame --follow`, and then by the broad type of change.
   app-owned ingress container and graph-owned replicas when replica or ingress
   creation fails, keeping failed starts from leaving partially materialized
   runtime containers behind.
+- ReplicatedContainerHealth graph-only replica containers now run with Docker
+  `--rm`, matching the old control-plane-scoped container app runtime behavior
+  while retaining explicit cleanup for running graph-owned containers.
 - Control Plane API routes now disable antiforgery at the API group boundary so
   non-browser clients and sample runtime containers can POST health refresh and
   runtime ingestion requests without browser antiforgery tokens.

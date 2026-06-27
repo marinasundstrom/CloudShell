@@ -87,14 +87,16 @@ during cleanup so scale-down does not leave stale higher-ordinal replicas
 running, sweeps graph-owned ingress and replicas after a failed start attempt,
 projects basic running/stopped state by inspecting the graph-owned replica
 containers, and contributes provider-projected replica container log sources for
-the graph container app. A graph-only runtime resource provider also projects
-hidden runtime-managed replica resources from the accepted graph state and
-sample runtime convention so the existing Control Plane health aggregation path
-can evaluate runtime-scope health/liveness without writing runtime observations
-back into the graph. The graph-only Docker bridge also assigns each replica
-container the projected runtime replica resource ID, OpenTelemetry service name,
-and telemetry scope attributes so runtime observability can be correlated with
-the hidden replica resource projection.
+the graph container app. Graph-owned replicas use Docker `--rm`, matching the
+old control-plane-scoped container app runtime behavior while explicit cleanup
+still removes running graph-owned containers. A graph-only runtime resource
+provider also projects hidden runtime-managed replica resources from the
+accepted graph state and sample runtime convention so the existing Control Plane
+health aggregation path can evaluate runtime-scope health/liveness without
+writing runtime observations back into the graph. The graph-only Docker bridge
+also assigns each replica container the projected runtime replica resource ID,
+OpenTelemetry service name, and telemetry scope attributes so runtime
+observability can be correlated with the hidden replica resource projection.
 Docker smoke coverage now verifies graph-only image update, replica update,
 stale replica removal, ingress-routed graph-declared HTTP health/liveness
 refresh, runtime-scope health aggregation, log source discovery, Docker log
