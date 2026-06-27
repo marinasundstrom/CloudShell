@@ -102,9 +102,11 @@ The sample now also declares side-by-side graph-backed
 Those declarations prove the graph shape for the protected configuration store,
 the API project, the API endpoint, the graph startup dependency, the
 provider-owned configuration reference, and the Resource Manager-declared
-identity attached to the graph API. The old Configuration and Application
-providers still own the runnable workload path until the graph-backed runtime
-and identity provisioning flow is ported for this sample.
+identity attached to the graph API. The graph-backed Configuration Store can
+also run with Keycloak `Authentication:ServiceBearer` settings, and the
+graph-backed API can start through the ASP.NET Core project runtime, receive
+the graph API identity credentials, and read the protected graph-backed
+configuration entry.
 The graph ASP.NET Core runtime also has a sample-local environment adapter
 that resolves the graph API identity declaration from Resource Manager and
 delegates credential environment creation to the existing Keycloak integration.
@@ -142,25 +144,29 @@ This is intentionally still a reference integration. The provisioned Keycloak
 client secret is deterministic for sample-created resource clients so the
 application provider can inject it into a running workload.
 
-The sample configures the Configuration Store backing service with
-`Authentication:ServiceBearer` settings derived from the Keycloak authority.
-That lets the service validate Keycloak-issued JWT bearer tokens before it
-checks the `cloudshell.resource-permission` claim. Audience validation is not
-set by default because the sample uses Keycloak's local-development token
-shape; production-style hosts should register protected API audiences and set
-`Authentication:ServiceBearer:Audience`.
+The sample configures both the old and graph-backed Configuration Store
+backing services with `Authentication:ServiceBearer` settings derived from the
+Keycloak authority. That lets each service validate Keycloak-issued JWT bearer
+tokens before it checks the `cloudshell.resource-permission` claim. Audience
+validation is not set by default because the sample uses Keycloak's
+local-development token shape; production-style hosts should register protected
+API audiences and set `Authentication:ServiceBearer:Audience`.
 
 ## Workload validation
 
-The sample declares `application:keycloak-provisioned-api` as an ASP.NET Core
-project resource. It is not autostarted. After Keycloak and the CloudShell host
-are running, start `Keycloak Provisioned API` from Resource Manager with its
-dependencies. The API listens on `http://localhost:5234` by default.
+The sample declares `application:keycloak-provisioned-api` as the old ASP.NET
+Core project resource and `application.aspnet-core-project:graph-keycloak-provisioned-api`
+as the graph-backed ASP.NET Core project resource. They are not autostarted.
+After Keycloak and the CloudShell host are running, start either API from
+Resource Manager with its dependencies. The old API listens on
+`http://localhost:5234` by default, and the graph API listens on
+`http://localhost:5235` by default.
 
 Open:
 
 ```text
 http://localhost:5234/configuration
+http://localhost:5235/configuration
 ```
 
 The endpoint uses `DefaultCloudShellResourceCredential`, reads the injected
@@ -170,7 +176,9 @@ The expected response has `status` set to `connected` and includes
 `Sample:Message`.
 
 The sample smoke tests can start Keycloak with Docker Compose, run the
-CloudShell host, verify that `identity-provisioning:keycloak` is projected as
-a resource boundary, confirm provisioning status for the workload identity,
-start the dependent Configuration Store and API resources, and assert the API
-can read the protected configuration entry with a Keycloak-issued token.
+CloudShell host, verify that `identity-provisioning:keycloak` and
+`identity-provisioning:graph-keycloak` are projected as resource boundaries,
+execute graph provider setup, confirm provisioning status for the old and graph
+workload identities, start the dependent old and graph Configuration Store/API
+resources, and assert both APIs can read protected configuration entries with a
+Keycloak-issued token.

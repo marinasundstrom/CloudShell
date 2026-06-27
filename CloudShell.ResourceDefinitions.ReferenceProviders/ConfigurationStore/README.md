@@ -12,12 +12,17 @@
 - Health and liveness declarations for the `/healthz` endpoint.
 - Start, stop, and restart operations backed by a provider-local process controller that runs the existing service web app.
 - Provider-owned runtime entry seed options.
+- Optional provider-owned runtime authentication options for external
+  `Authentication:ServiceBearer` validation when a host wants the graph-backed
+  service to accept tokens from a non-built-in identity provider.
 - Inspect operation with a runtime-backed inspector that reports configured counts without exposing values.
 - Typed wrapper plus Resource Manager bridge projection and execution.
 - Manual `ResourceDefinitionGraphBuilder.AddConfigurationStore(...)` builder
   for code-first resource and endpoint declaration. Entry values remain
   provider/runtime data and are not authored as graph attributes.
 - SettingsAndSecrets smoke coverage for endpoint projection, inspect execution, authorized entry reads, and API consumption through the graph-backed endpoint.
+- ThirdPartyIdentity Docker smoke coverage for a Keycloak-protected
+  graph-backed Configuration Store consumed by a graph-backed ASP.NET Core API.
 
 ## Remaining
 

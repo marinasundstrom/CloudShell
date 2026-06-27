@@ -21,8 +21,13 @@ on `git blame --follow`, and then by the broad type of change.
   Core project resources for its protected workload shape. Projection coverage
   verifies the graph settings endpoint/count summary, graph API endpoint,
   typed dependency, provider-owned configuration reference, and Resource
-  Manager-declared graph API identity while runtime execution remains on the
-  old provider path.
+  Manager-declared graph API identity, and Docker smoke coverage now starts
+  the graph Configuration Store plus graph API and verifies the graph API can
+  read protected configuration with a Keycloak-issued resource identity token.
+- Configuration Store graph runtime options now support external
+  `Authentication:ServiceBearer` settings so provider-owned runtime services
+  can validate non-built-in bearer tokens without using the old configuration
+  provider aggregate.
 - ASP.NET Core graph project startup now composes provider-local runtime
   environment providers before launching a project. Service discovery is the
   default provider, and the ThirdPartyIdentity sample adds a sample-local

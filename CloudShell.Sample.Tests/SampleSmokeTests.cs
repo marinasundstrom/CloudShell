@@ -2893,7 +2893,12 @@ public sealed class SampleSmokeTests
 
         var keycloakPort = await GetFreePortAsync();
         var apiPort = await GetFreePortAsync();
+        var graphApiPort = await GetFreePortAsync();
         var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:third-party-identity");
+        var graphConfigurationServiceBasePort = await GetServiceBasePortAsync(
+            "configuration.store:graph-third-party-identity");
+        var graphConfigurationEndpoint =
+            $"http://localhost:{graphConfigurationServiceBasePort.ToString(CultureInfo.InvariantCulture)}";
         var root = SampleProcess.FindRepositoryRoot();
         var projectName = $"cloudshell-third-party-identity-test-{Guid.NewGuid():N}";
         using var keycloak = await DockerComposeStack.StartAsync(
@@ -2917,6 +2922,8 @@ public sealed class SampleSmokeTests
                 ("Keycloak__AdminBaseAddress", $"http://localhost:{keycloakPort}"),
                 ("Keycloak__TokenEndpoint", $"{authority}/protocol/openid-connect/token"),
                 ("Samples__ThirdPartyIdentity__ApiEndpoint", $"http://localhost:{apiPort}"),
+                ("Samples__ThirdPartyIdentity__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
+                ("Samples__ThirdPartyIdentity__GraphConfigurationServiceEndpoint", graphConfigurationEndpoint),
                 ("Samples__ThirdPartyIdentity__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture))
             ]);
 
@@ -2933,7 +2940,12 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "configuration:third-party-identity");
         var api = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application:keycloak-provisioned-api");
+        var graphSettings = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration.store:graph-third-party-identity");
+        var graphApi = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-keycloak-provisioned-api");
         var identity = api.GetProperty("identity");
+        var graphIdentity = graphApi.GetProperty("identity");
 
         Assert.Equal(ResourceIdentityProvisioningResources.ResourceType, provisioning.GetProperty("typeId").GetString());
         Assert.Equal("cloudshell.identity-provisioning", graphProvisioning.GetProperty("typeId").GetString());
@@ -2943,9 +2955,16 @@ public sealed class SampleSmokeTests
         Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
         Assert.Equal("identity:keycloak", identity.GetProperty("providerId").GetString());
         Assert.Equal("keycloak-provisioned-api", identity.GetProperty("name").GetString());
+        Assert.Equal("configuration.store", graphSettings.GetProperty("typeId").GetString());
+        Assert.Equal(graphConfigurationEndpoint, graphSettings.GetProperty("attributes").GetProperty("configuration.endpoint").GetString());
+        Assert.Equal("identity:keycloak", graphIdentity.GetProperty("providerId").GetString());
+        Assert.Equal("graph-keycloak-provisioned-api", graphIdentity.GetProperty("name").GetString());
         Assert.Contains(
             "configuration:third-party-identity",
             api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Contains(
+            "configuration.store:graph-third-party-identity",
+            graphApi.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
 
         var graphSetupAction = graphProvisioning
             .GetProperty("resourceActions")
@@ -2997,6 +3016,42 @@ public sealed class SampleSmokeTests
             entry =>
                 entry.GetProperty("name").GetString() == "Sample:Message" &&
                 entry.GetProperty("value").GetString() == "Hello from a Keycloak-provisioned resource identity");
+
+        var graphProvisioningStatusJson = await host.GetStringAsync(
+            "/api/control-plane/v1/resources/application.aspnet-core-project%3Agraph-keycloak-provisioned-api/identity/provisioning-status");
+        using var graphProvisioningStatusDocument = JsonDocument.Parse(graphProvisioningStatusJson);
+        Assert.Equal(
+            "identity:keycloak",
+            graphProvisioningStatusDocument.RootElement.GetProperty("providerId").GetString());
+        var graphProvisioningStatus = Assert.Single(
+            graphProvisioningStatusDocument.RootElement.GetProperty("statuses").EnumerateArray());
+        var graphProvisioningState = graphProvisioningStatus.GetProperty("state");
+        if (graphProvisioningState.ValueKind == JsonValueKind.String)
+        {
+            Assert.Equal("provisioned", graphProvisioningState.GetString()?.ToLowerInvariant());
+        }
+        else
+        {
+            Assert.Equal((int)ResourceIdentityProvisioningState.Provisioned, graphProvisioningState.GetInt32());
+        }
+
+        await StartGraphResourceIfAvailableAsync(host, graphSettings, "ThirdPartyIdentity graph settings");
+        await StartGraphResourceIfAvailableAsync(host, graphApi, "ThirdPartyIdentity graph API");
+
+        var graphConfigurationJson = await WaitForJsonStatusAsync(
+            $"http://localhost:{graphApiPort.ToString(CultureInfo.InvariantCulture)}/configuration",
+            "connected",
+            TimeSpan.FromMinutes(1));
+        using var graphConfigurationDocument = JsonDocument.Parse(graphConfigurationJson);
+        var graphConfigurationRoot = graphConfigurationDocument.RootElement;
+
+        Assert.Equal("connected", graphConfigurationRoot.GetProperty("status").GetString());
+        Assert.Equal("graph-keycloak-provisioned-api", graphConfigurationRoot.GetProperty("clientId").GetString());
+        Assert.Contains(
+            graphConfigurationRoot.GetProperty("entries").EnumerateArray(),
+            entry =>
+                entry.GetProperty("name").GetString() == "Sample:Message" &&
+                entry.GetProperty("value").GetString() == "Hello from a graph Keycloak-provisioned resource identity");
     }
 
     [Fact]

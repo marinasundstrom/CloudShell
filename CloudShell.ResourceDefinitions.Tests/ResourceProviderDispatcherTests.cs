@@ -731,6 +731,9 @@ public sealed class ResourceProviderDispatcherTests
         {
             options.ServiceProjectPath = "services/configuration-store.csproj";
             options.ServiceWorkingDirectory = "/repo";
+            options.ServiceBearerAuthority = "http://identity.local/realms/cloudshell";
+            options.ServiceBearerIssuer = "http://identity.local/realms/cloudshell";
+            options.ServiceBearerRequireHttpsMetadata = false;
             options.Entries.Add(new("Sample:Message", "Hello from graph"));
         });
         using var serviceProvider = services.BuildServiceProvider();
@@ -739,6 +742,9 @@ public sealed class ResourceProviderDispatcherTests
 
         Assert.Equal("services/configuration-store.csproj", options.ServiceProjectPath);
         Assert.Equal("/repo", options.ServiceWorkingDirectory);
+        Assert.Equal("http://identity.local/realms/cloudshell", options.ServiceBearerAuthority);
+        Assert.Equal("http://identity.local/realms/cloudshell", options.ServiceBearerIssuer);
+        Assert.False(options.ServiceBearerRequireHttpsMetadata);
         var entry = Assert.Single(options.Entries);
         Assert.Equal("Sample:Message", entry.Name);
         Assert.Equal("Hello from graph", entry.Value);

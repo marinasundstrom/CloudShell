@@ -21,6 +21,18 @@ public sealed class ConfigurationStoreRuntimeOptions
     public string? ServiceAuthenticationAudience { get; set; }
 
     public string? ServiceAuthenticationSigningKeyPem { get; set; }
+
+    public string? ServiceBearerAuthority { get; set; }
+
+    public string? ServiceBearerMetadataAddress { get; set; }
+
+    public string? ServiceBearerIssuer { get; set; }
+
+    public string? ServiceBearerAudience { get; set; }
+
+    public bool ServiceBearerRequireHttpsMetadata { get; set; } = true;
+
+    public string? ServiceBearerSigningKeyPem { get; set; }
 }
 
 public sealed record ConfigurationStoreRuntimeEntry(
@@ -119,8 +131,45 @@ public sealed class ConfigurationStoreProcessRuntimeController(
             variables,
             "Authentication__BuiltInAuthority__SigningKeyPem",
             options.ServiceAuthenticationSigningKeyPem);
+        AddServiceBearerEnvironment(variables, options);
 
         return variables;
+    }
+
+    private static void AddServiceBearerEnvironment(
+        IDictionary<string, string> variables,
+        ConfigurationStoreRuntimeOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(options.ServiceBearerAuthority) &&
+            string.IsNullOrWhiteSpace(options.ServiceBearerMetadataAddress) &&
+            string.IsNullOrWhiteSpace(options.ServiceBearerSigningKeyPem))
+        {
+            return;
+        }
+
+        variables["Authentication__ServiceBearer__Enabled"] = "true";
+        AddIfNotWhiteSpace(
+            variables,
+            "Authentication__ServiceBearer__Authority",
+            options.ServiceBearerAuthority);
+        AddIfNotWhiteSpace(
+            variables,
+            "Authentication__ServiceBearer__MetadataAddress",
+            options.ServiceBearerMetadataAddress);
+        AddIfNotWhiteSpace(
+            variables,
+            "Authentication__ServiceBearer__Issuer",
+            options.ServiceBearerIssuer);
+        AddIfNotWhiteSpace(
+            variables,
+            "Authentication__ServiceBearer__Audience",
+            options.ServiceBearerAudience);
+        variables["Authentication__ServiceBearer__RequireHttpsMetadata"] =
+            options.ServiceBearerRequireHttpsMetadata ? "true" : "false";
+        AddIfNotWhiteSpace(
+            variables,
+            "Authentication__ServiceBearer__SigningKeyPem",
+            options.ServiceBearerSigningKeyPem);
     }
 
     private static void AddIfNotWhiteSpace(

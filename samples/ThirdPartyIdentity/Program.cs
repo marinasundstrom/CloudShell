@@ -90,6 +90,10 @@ builder.Services
     {
         options.ServiceProjectPath = configurationStoreServiceProjectPath;
         options.ServiceWorkingDirectory = repositoryRootPath;
+        options.ServiceBearerAuthority = authority;
+        options.ServiceBearerIssuer = authority;
+        options.ServiceBearerRequireHttpsMetadata =
+            builder.Configuration.GetValue("Authentication:OpenIdConnect:RequireHttpsMetadata", true);
         options.Entries.Add(new(
             "Sample:Message",
             "Hello from a graph Keycloak-provisioned resource identity"));
@@ -213,7 +217,10 @@ cloudShell.Resources(resources =>
 
     var graphApi = resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphApiResourceId)
-        .WithIdentity(identityProvider, name: "graph-keycloak-provisioned-api")
+        .WithIdentity(
+            identityProvider,
+            scopes: [builder.Configuration["Keycloak:ResourceIdentityScope"] ?? "openid"],
+            name: "graph-keycloak-provisioned-api")
         .ProvisionIdentityOnStartup();
     graphSettings.Allow(graphApi.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
 });
