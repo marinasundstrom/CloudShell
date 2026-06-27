@@ -96,6 +96,10 @@ on `git blame --follow`, and then by the broad type of change.
   also registered as a Control Plane-scoped runtime workload so host shutdown
   dispatches its Stop action and removes graph-owned ingress and replica
   containers.
+- ReplicatedContainerHealth graph-only container app startup now sweeps the
+  app-owned ingress container and graph-owned replicas when replica or ingress
+  creation fails, keeping failed starts from leaving partially materialized
+  runtime containers behind.
 - Control Plane API routes now disable antiforgery at the API group boundary so
   non-browser clients and sample runtime containers can POST health refresh and
   runtime ingestion requests without browser antiforgery tokens.

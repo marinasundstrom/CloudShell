@@ -4611,6 +4611,7 @@ public sealed class SampleSmokeTests
                 "cloudshell-replicated-health-graph-api-replica-1",
                 replica: 1);
             await AssertGraphReplicaTelemetryAsync(host, replica: 1, graphOnlySmokeTimeout);
+            await AssertAnyGraphReplicaWorkTraceAsync(host, expectedReplicas: 3, graphOnlySmokeTimeout);
             await AssertGraphReplicaResourceObservabilityAsync(host, replica: 1);
             foreach (var containerName in containerNames)
             {
@@ -6194,13 +6195,42 @@ public sealed class SampleSmokeTests
                 attributes.TryGetProperty("telemetry.scope.resourceId", out var scopeResourceId) &&
                 scopeResourceId.GetString() == ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId));
         Assert.NotEmpty(metrics);
+    }
 
-        var spans = await WaitForTraceSpansByResourceAsync(
-            host,
-            replicaResourceId,
-            timeout,
-            spans => spans.Any(span => IsGraphReplicaWorkSpan(span, replicaResourceId, replica)));
-        Assert.NotEmpty(spans);
+    private static async Task AssertAnyGraphReplicaWorkTraceAsync(
+        SampleProcess host,
+        int expectedReplicas,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        var lastErrors = new List<string>();
+        do
+        {
+            lastErrors.Clear();
+            for (var replica = 1; replica <= expectedReplicas; replica++)
+            {
+                var replicaResourceId = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(replica);
+                try
+                {
+                    var spans = await WaitForTraceSpansByResourceAsync(
+                        host,
+                        replicaResourceId,
+                        TimeSpan.FromMilliseconds(250),
+                        spans => spans.Any(span => IsGraphReplicaWorkSpan(span, replicaResourceId, replica)));
+                    Assert.NotEmpty(spans);
+                    return;
+                }
+                catch (TimeoutException exception)
+                {
+                    lastErrors.Add(exception.Message);
+                }
+            }
+        }
+        while (DateTimeOffset.UtcNow < deadline);
+
+        throw new TimeoutException(
+            $"Graph replica work trace was not ingested by any of {expectedReplicas.ToString(CultureInfo.InvariantCulture)} replica(s)." +
+            $"{Environment.NewLine}{string.Join(Environment.NewLine, lastErrors)}");
     }
 
     private static bool IsGraphReplicaWorkSpan(

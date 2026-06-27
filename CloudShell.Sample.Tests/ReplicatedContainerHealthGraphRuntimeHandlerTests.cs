@@ -139,6 +139,49 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
     }
 
     [Fact]
+    public async Task GraphOnlyBridge_StartCleansGraphContainersWhenReplicaStartFails()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        commandRunner.EnqueueSuccess(6);
+        commandRunner.Enqueue(new(1, string.Empty, "replica failed"));
+        var bridge = new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
+            commandRunner,
+            CreateConfiguration(replicaCleanupLimit: 2));
+        var resource = await CreateGraphAppResourceAsync(
+            replicas: 2,
+            endpointPort: 5092,
+            includeHealthChecks: true);
+
+        var diagnostics = await bridge.ExecuteLifecycleAsync(
+            resource,
+            ContainerApplicationResourceTypeProvider.Operations.Start);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("replicatedContainerHealth.graphOnlyRuntimeFailed", diagnostic.Code);
+        Assert.Contains("replica failed", diagnostic.Message);
+        Assert.Collection(
+            commandRunner.Commands,
+            command => Assert.Equal("dotnet", command.FileName),
+            command => AssertDockerRemove(command, ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateIngressContainerName()),
+            command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-1"),
+            command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-2"),
+            AssertDockerNetworkCreate,
+            command => AssertDockerRun(
+                command,
+                "cloudshell-replicated-health-graph-api-replica-1",
+                replica: 1,
+                expectedProbePort: 5192),
+            command => AssertDockerRun(
+                command,
+                "cloudshell-replicated-health-graph-api-replica-2",
+                replica: 2,
+                expectedProbePort: 5193),
+            command => AssertDockerRemove(command, ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateIngressContainerName()),
+            command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-1"),
+            command => AssertDockerRemove(command, "cloudshell-replicated-health-graph-api-replica-2"));
+    }
+
+    [Fact]
     public async Task GraphOnlyRuntimeProvider_ProjectsHiddenReplicaResourcesFromGraphState()
     {
         var resource = await CreateGraphAppResourceAsync(
@@ -808,6 +851,14 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
 
         public void Enqueue(ReplicatedContainerHealthCommandResult result) =>
             _results.Enqueue(result);
+
+        public void EnqueueSuccess(int count)
+        {
+            for (var index = 0; index < count; index++)
+            {
+                Enqueue(new(0, string.Empty, string.Empty));
+            }
+        }
 
         public ReplicatedContainerHealthCommandResult Run(
             string fileName,

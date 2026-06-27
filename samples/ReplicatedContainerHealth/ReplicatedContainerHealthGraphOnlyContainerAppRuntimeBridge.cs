@@ -215,23 +215,31 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
             ],
             cancellationToken);
 
-        var replicas = ResolveReplicas(resource);
-        if (cleanExistingReplicas)
+        try
         {
-            await RemoveIngressAsync(cancellationToken);
-            await RemoveReplicasAsync(ResolveReplicaCleanupLimit(resource), cancellationToken);
-        }
+            var replicas = ResolveReplicas(resource);
+            if (cleanExistingReplicas)
+            {
+                await RemoveIngressAsync(cancellationToken);
+                await RemoveReplicasAsync(ResolveReplicaCleanupLimit(resource), cancellationToken);
+            }
 
-        await EnsureContainerNetworkAsync(cancellationToken);
-        for (var replica = 1; replica <= replicas; replica++)
+            await EnsureContainerNetworkAsync(cancellationToken);
+            for (var replica = 1; replica <= replicas; replica++)
+            {
+                await commandRunner.RunAsync(
+                    "docker",
+                    CreateRunArguments(resource, image, replica),
+                    cancellationToken);
+            }
+
+            await StartIngressAsync(resource, cancellationToken);
+        }
+        catch
         {
-            await commandRunner.RunAsync(
-                "docker",
-                CreateRunArguments(resource, image, replica),
-                cancellationToken);
+            await RemoveAsync(resource, cancellationToken);
+            throw;
         }
-
-        await StartIngressAsync(resource, cancellationToken);
     }
 
     private async Task RemoveAsync(
