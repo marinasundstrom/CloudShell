@@ -173,9 +173,9 @@ on `git blame --follow`, and then by the broad type of change.
   and virtual-network resource records while keeping the graph endpoint-mapping
   runtime bridge active through the Control Plane local-host endpoint
   provisioner.
-- SplitHosting now has an opt-in Control Plane graph-only mode that omits the
-  old persisted network record while keeping the remote UI and Control Plane
-  API graph resource projection path covered.
+- SplitHosting now defaults its Control Plane host to graph-only mode, omitting
+  the old persisted network record while keeping the remote UI and Control
+  Plane API graph resource projection path covered.
 - ApplicationTopology now declares a graph host-configuration source, giving
   the `configuration.host` provider sample coverage for source metadata,
   provider-managed entry-count projection, and inspect action shape without

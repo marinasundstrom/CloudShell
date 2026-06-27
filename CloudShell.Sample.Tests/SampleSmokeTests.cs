@@ -3491,8 +3491,7 @@ public sealed class SampleSmokeTests
             controlPlanePort,
             environment:
             [
-                ("Authentication__BuiltInAuthority__Issuer", $"http://localhost:{controlPlanePort}"),
-                ("SplitHosting__GraphOnly", "true")
+                ("Authentication__BuiltInAuthority__Issuer", $"http://localhost:{controlPlanePort}")
             ]);
         await controlPlane.WaitForHttpOkAsync("/openapi/control-plane-v1.json", StartupTimeout);
 

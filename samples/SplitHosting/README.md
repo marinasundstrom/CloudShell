@@ -36,15 +36,17 @@ represented by the UI's Control Plane credential.
 
 ## Resource Graph POC coverage
 
-The split Control Plane also exposes `network:graph-split-sample`, a
-graph-backed network resource projected through the Resource Definitions
-bridge. The separate UI host renders it through the remote Control Plane
-client, which keeps this sample useful for validating graph-backed Resource
-Manager projections before changing public API or client contracts.
+The split Control Plane exposes `network:graph-split-sample`, a graph-backed
+network resource projected through the Resource Definitions bridge. The
+separate UI host renders it through the remote Control Plane client, which
+keeps this sample useful for validating graph-backed Resource Manager
+projections before changing public API or client contracts.
 
-Set `SplitHosting:GraphOnly` to `true` on the Control Plane host to omit the
-old persisted `network:split-sample` record and expose only the graph-backed
-network resource. The smoke test uses this mode as a remote-client
-switch-readiness gate: the UI must render the graph resource through the remote
-adapter, and the Control Plane API must not need a legacy Resource Manager
-network record for the graph projection to appear.
+By default the Control Plane runs in graph-only mode, omitting the old
+persisted `network:split-sample` record and exposing only the graph-backed
+network resource. Set `SplitHosting:GraphOnly` to `false` for side-by-side
+comparison with the old persisted network record. The smoke test uses the
+default mode as a remote-client switch-readiness gate: the UI must render the
+graph resource through the remote adapter, and the Control Plane API must not
+need a legacy Resource Manager network record for the graph projection to
+appear.
