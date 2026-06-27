@@ -123,6 +123,10 @@ on `git blame --follow`, and then by the broad type of change.
   Side-by-side identity/configuration/application smoke coverage explicitly
   opts back into the old provider path so the Keycloak-protected graph
   Configuration Store and graph ASP.NET Core API path is the default.
+- SettingsAndSecrets now defaults to graph-only mode for the sample host.
+  Side-by-side smoke coverage explicitly opts back into the old
+  application/configuration/secrets provider path so the graph Configuration
+  Store, graph Secrets Vault, and graph ASP.NET Core API path is the default.
 - The Resource Manager host integration now exposes `DefineResources(...)` for
   Aspire-compatible in-memory resource declarations and
   `DefineInitialDeployment(...)` for seed-like deployment declarations with

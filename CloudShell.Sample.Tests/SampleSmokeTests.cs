@@ -2487,6 +2487,7 @@ public sealed class SampleSmokeTests
             "samples/SettingsAndSecrets/CloudShell.SettingsAndSecrets.csproj",
             await GetFreePortAsync(),
             [
+                ("Samples__SettingsAndSecrets__GraphOnly", "false"),
                 ("Samples__SettingsAndSecrets__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("Samples__SettingsAndSecrets__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
                 ("Samples__SettingsAndSecrets__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture)),
@@ -2975,7 +2976,6 @@ public sealed class SampleSmokeTests
             "samples/SettingsAndSecrets/CloudShell.SettingsAndSecrets.csproj",
             await GetFreePortAsync(),
             [
-                ("Samples__SettingsAndSecrets__GraphOnly", "true"),
                 ("Samples__SettingsAndSecrets__GraphConfigurationServiceEndpoint", graphConfigurationEndpoint),
                 ("Samples__SettingsAndSecrets__GraphSecretsServiceEndpoint", graphSecretsEndpoint),
                 ("Samples__SettingsAndSecrets__GraphApiEndpoint", graphApiEndpoint)

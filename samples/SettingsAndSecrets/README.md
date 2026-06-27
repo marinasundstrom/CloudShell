@@ -55,23 +55,25 @@ credential acquisition environment when it starts the Web API resource. The
 configuration store and vault are protected target resources; they do not need
 their own identities unless they later call another resource or provider.
 
-The sample also declares graph-backed Configuration Store and Secrets Vault
-resources side-by-side with the existing runtime-backed resources. These graph
-resources project endpoint and `*.entries.count` summary attributes through the
-Resource Manager bridge, but the actual configuration entries, secrets, grants,
-and backing services remain owned by the existing Control Plane providers.
-Those existing providers currently start local C# service projects; a future
-provider implementation can back the same graph resource shapes with
-containers.
+The sample declares graph-backed Configuration Store and Secrets Vault
+resources. These graph resources project endpoint and `*.entries.count`
+summary attributes through the Resource Manager bridge, but the actual
+configuration entries, secrets, grants, and backing services remain owned by
+the existing Control Plane providers. Those existing providers currently start
+local C# service projects; a future provider implementation can back the same
+graph resource shapes with containers.
 
-Set `Samples:SettingsAndSecrets:GraphOnly` to `true` to omit the old
-application, configuration, and secrets provider registrations plus the old
+`Samples:SettingsAndSecrets:GraphOnly` defaults to `true` so the sample omits
+the old application, configuration, and secrets provider registrations plus the
+old
 `configuration:sample-app`, `secrets-vault:sample-app`, and
 `application:settings-secrets-api` resource records. In graph-only mode the
 sample still declares the built-in identity provider, graph Configuration
 Store, graph Secrets Vault, and graph ASP.NET Core API. Smoke coverage starts
 the graph services and API, then verifies the graph API reads graph-backed
 configuration and secrets through graph service-discovery references.
+Set `Samples:SettingsAndSecrets:GraphOnly` to `false` only when running the
+side-by-side comparison path against the old providers.
 
 Run the sample host:
 
