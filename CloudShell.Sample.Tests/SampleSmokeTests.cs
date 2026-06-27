@@ -4719,7 +4719,7 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
-    public async Task HostVirtualNetworkSample_ReconcilesGraphEndpointMappingThroughRuntimeBridge()
+    public async Task HostVirtualNetworkSample_GraphOnlyModeReconcilesGraphEndpointMappingThroughRuntimeBridge()
     {
         const string graphApiResourceId = "application.aspnet-core-project:graph-vnet-api";
         const string graphNetworkResourceId = "network:graph-sample-vnet";
@@ -4732,13 +4732,20 @@ public sealed class SampleSmokeTests
             [
                 ("HostVirtualNetwork__TargetPort", targetPort.ToString(CultureInfo.InvariantCulture)),
                 ("HostVirtualNetwork__VirtualNetworkPort", virtualNetworkPort.ToString(CultureInfo.InvariantCulture)),
-                ("HostVirtualNetwork__GraphVirtualNetworkPort", graphVirtualNetworkPort.ToString(CultureInfo.InvariantCulture))
+                ("HostVirtualNetwork__GraphVirtualNetworkPort", graphVirtualNetworkPort.ToString(CultureInfo.InvariantCulture)),
+                ("HostVirtualNetwork__GraphOnly", "true")
             ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
         var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "networking:host-local");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:vnet-api");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "network:sample-vnet");
         var graphApi = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == graphApiResourceId);
         var graphNetwork = Assert.Single(resources, resource =>

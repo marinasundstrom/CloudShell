@@ -26,6 +26,9 @@ Optional endpoint-port settings:
   endpoint port. Defaults to `5290`.
 - `HostVirtualNetwork:GraphVirtualNetworkPort`: graph virtual-network public
   endpoint port. Defaults to `5292`.
+- `HostVirtualNetwork:GraphOnly`: when `true`, omits the old application
+  provider registration and old `networking:host-local`, `application:vnet-api`,
+  and `network:sample-vnet` records. Defaults to `false`.
 
 `networking:host-local` is projected as an active host networking resource on
 macOS, Linux, and Windows. Use the virtual network's
@@ -50,6 +53,12 @@ delegates to the local host networking provisioner. This is the runtime glue
 for the sample; the graph providers still only declare and project networking
 configuration.
 
+Graph-only mode keeps that bridge active while removing the legacy sample
+resource records. It is the switch-readiness path for validating that
+`networking:graph-host-local`, `application.aspnet-core-project:graph-vnet-api`,
+and `network:graph-sample-vnet` can start the graph-backed API and materialize
+the graph public ingress without the old application-provider aggregate.
+
 This provider is the portable MVP baseline. It does not create OS-native
 virtual adapters, firewall rules, NAT rules, or network isolation. Future
 OS-specific providers can materialize the same endpoint mapping model through
@@ -60,10 +69,11 @@ available.
 
 - Ported: graph local host networking, graph ASP.NET Core target API, graph
   virtual-network endpoint/mapping declaration, Resource Manager projection,
-  and graph reconcile handoff to the existing local host endpoint-mapping
-  provisioner. Smoke coverage starts the graph API, executes the graph
-  reconcile action through the Control Plane API, and verifies the graph public
-  ingress reaches the API health endpoint.
+  graph-only declaration mode, and graph reconcile handoff to the existing
+  local host endpoint-mapping provisioner. Smoke coverage starts the graph API,
+  executes the graph reconcile action through the Control Plane API in
+  graph-only mode, and verifies the graph public ingress reaches the API health
+  endpoint without old provider records.
 - Remaining: full provider switch, UI registration/update flow, live mapping
   count projection, runtime diagnostics, and later isolation of OS-specific
   networking behavior behind Resource Manager/runtime boundaries.

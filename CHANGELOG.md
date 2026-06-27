@@ -130,6 +130,11 @@ on `git blame --follow`, and then by the broad type of change.
   provider-owned reconciler implementations to inspect sibling graph resources
   such as declared name mappings without putting name-publishing behavior in
   the graph model itself.
+- HostVirtualNetwork now has an opt-in graph-only mode that omits the old
+  application-provider registration plus old local-host networking, target API,
+  and virtual-network resource records while keeping the graph endpoint-mapping
+  runtime bridge active through the Control Plane local-host endpoint
+  provisioner.
 - The LoadBalancer sample now declares side-by-side graph-backed DNS zone and
   name-mapping resources that target the graph-backed load balancer frontend,
   extending the networking POC coverage from route projection into declarative
