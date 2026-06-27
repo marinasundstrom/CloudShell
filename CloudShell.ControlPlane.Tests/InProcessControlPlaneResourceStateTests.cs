@@ -1680,6 +1680,32 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ExecuteResourceActionAsync_TreatsLifecycleLessDependencyAsAlreadyAvailable()
+    {
+        var provider = new TestResourceProvider();
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource("api", ResourceState.Stopped, dependsOn: ["graph-sample"]),
+                CreateResource("graph-sample", ResourceState.Stopped, actions: []) with
+                {
+                    State = null
+                }
+            ],
+            provider);
+
+        var result = await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                "api",
+                ResourceActionIds.Start,
+                StartDependencies: true,
+                TriggeredBy: "operator"));
+
+        Assert.Equal(["api:start"], provider.ExecutedActions);
+        Assert.Contains("Executed start.", result.Message, StringComparison.Ordinal);
+        Assert.Empty(result.Signals);
+    }
+
+    [Fact]
     public async Task ExecuteResourceActionAsync_WarnsWhenTransitiveDependencyOfRunningDependencyFails()
     {
         var provider = new TestResourceProvider
@@ -1959,21 +1985,54 @@ public sealed class InProcessControlPlaneResourceStateTests
     [Fact]
     public async Task ListResourcesAsync_KeepsStoppedResourceStoppedWhenLivenessIsUnhealthy()
     {
+        var evaluator = new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Not alive");
         var resource = CreateResource("target", ResourceState.Stopped) with
         {
             HealthChecks = [CreateLivenessCheck()]
         };
         var controlPlane = CreateControlPlane(
             [resource],
-            probeEvaluators: [new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Not alive")]);
+            probeEvaluators: [evaluator]);
 
-        await controlPlane.RefreshResourceHealthAsync("target");
-        await controlPlane.RefreshResourceHealthAsync("target");
-        await controlPlane.RefreshResourceHealthAsync("target");
+        Assert.Null(await controlPlane.RefreshResourceHealthAsync("target"));
+        Assert.Empty(await controlPlane.RefreshResourceHealthAsync());
+
+        var projected = Assert.Single(await controlPlane.ListResourcesAsync());
+        var health = await controlPlane.ListResourceHealthAsync();
+
+        Assert.Equal(ResourceState.Stopped, projected.State);
+        Assert.Equal(0, evaluator.CallCount);
+        Assert.Empty(health);
+        Assert.Null(await controlPlane.GetResourceHealthAsync("target"));
+    }
+
+    [Fact]
+    public async Task ListResourceHealthAsync_DoesNotProbeUnknownLifecycleResource()
+    {
+        var evaluator = new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Not healthy");
+        var resource = CreateResource("target", ResourceState.Unknown) with
+        {
+            HealthChecks =
+            [
+                new ResourceHealthCheck(
+                    new ResourceProbeSource("test"),
+                    ResourceProbeType.Health,
+                    "health"),
+                CreateLivenessCheck()
+            ]
+        };
+        var controlPlane = CreateControlPlane(
+            [resource],
+            probeEvaluators: [evaluator]);
+
+        Assert.Empty(await controlPlane.RefreshResourceHealthAsync());
+        Assert.Empty(await controlPlane.ListResourceHealthAsync());
 
         var projected = Assert.Single(await controlPlane.ListResourcesAsync());
 
-        Assert.Equal(ResourceState.Stopped, projected.State);
+        Assert.Equal(ResourceState.Unknown, projected.State);
+        Assert.Equal(0, evaluator.CallCount);
+        Assert.Null(await controlPlane.GetResourceHealthAsync("target"));
     }
 
     [Fact]

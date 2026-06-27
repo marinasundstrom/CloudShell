@@ -159,6 +159,7 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
                 .GetRequiredService<ResourceGraphModel>()
                 .GetSnapshotAsync()
                 .AsTask()
+                .ConfigureAwait(false)
                 .GetAwaiter()
                 .GetResult(),
             resolutionContext,
@@ -206,6 +207,7 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
                 .GetRequiredService<ResourceGraphModel>()
                 .GetSnapshotAsync()
                 .AsTask()
+                .ConfigureAwait(false)
                 .GetAwaiter()
                 .GetResult(),
             resolutionContext,

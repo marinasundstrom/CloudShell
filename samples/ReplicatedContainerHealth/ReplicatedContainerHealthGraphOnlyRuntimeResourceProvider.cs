@@ -25,6 +25,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider(
         var snapshot = graph
             .GetSnapshotAsync()
             .AsTask()
+            .ConfigureAwait(false)
             .GetAwaiter()
             .GetResult();
         var state = snapshot.Resources.FirstOrDefault(resource => string.Equals(

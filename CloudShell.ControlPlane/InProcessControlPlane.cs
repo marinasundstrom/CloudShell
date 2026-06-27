@@ -1310,7 +1310,7 @@ public sealed class InProcessControlPlane(
             return null;
         }
 
-        if (resource.ResourceHealthChecks.Count > 0)
+        if (IsHealthProbeResource(resource))
         {
             await RefreshStaleResourceHealthAsync([resource], cancellationToken);
             return resourceHealth.GetLatest(resource.Id) ?? CreateUnknownHealthSummary(resource);
@@ -1361,7 +1361,7 @@ public sealed class InProcessControlPlane(
             return null;
         }
 
-        if (resource.ResourceHealthChecks.Count > 0)
+        if (IsHealthProbeResource(resource))
         {
             await RefreshResourceHealthCoreAsync([resource], cancellationToken);
             return resourceHealth.GetLatest(resource.Id);
@@ -1764,8 +1764,12 @@ public sealed class InProcessControlPlane(
 
     private static IReadOnlyList<Resource> GetProbeHealthResources(IReadOnlyList<Resource> resources) =>
         resources
-            .Where(resource => resource.ResourceHealthChecks.Count > 0)
+            .Where(IsHealthProbeResource)
             .ToArray();
+
+    private static bool IsHealthProbeResource(Resource resource) =>
+        resource.ResourceHealthChecks.Count > 0 &&
+        resource.State is null or ResourceState.Running or ResourceState.Degraded;
 
     private IReadOnlyList<Resource> GetHealthSummaryResources(IReadOnlyList<Resource> resources) =>
         GetProbeHealthResources(resources)

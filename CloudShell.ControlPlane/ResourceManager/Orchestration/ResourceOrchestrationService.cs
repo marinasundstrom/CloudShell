@@ -639,6 +639,12 @@ public sealed class ResourceOrchestrationService(
                         continue;
                     }
 
+                    if (dependency.State is null)
+                    {
+                        completed.Add(dependency.Id);
+                        continue;
+                    }
+
                     var runAction = dependency.ResourceActions.FirstOrDefault(action =>
                         action.Kind == ResourceActionKind.Start);
                     if (runAction is null)
