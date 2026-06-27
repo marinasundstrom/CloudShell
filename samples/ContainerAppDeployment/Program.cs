@@ -11,7 +11,6 @@ using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
-using GraphResourceState = CloudShell.ResourceDefinitions.ResourceState;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
@@ -26,9 +25,11 @@ const string graphDockerResourceId = "docker:graph-sample";
 const string graphRegistryResourceId = "docker.container:graph-sample-registry";
 const string graphContainerAppResourceId = "application.container-app:graph-sample-api";
 
-var graph = new ResourceDefinitionGraphBuilder();
-graph
-    .DefineResources(resources =>
+var cloudShell = builder.AddCloudShellControlPlane();
+builder.AddCloudShell();
+cloudShell.DefineDeployment(
+    "container-app-deployment",
+    resources =>
     {
         var graphDocker = resources
             .AddDockerHost("graph-sample")
@@ -49,10 +50,8 @@ graph
             .DependsOn(graphRegistry)
             .WithImage(sampleImage)
             .WithRegistry(registryAddress);
-    });
-
-var cloudShell = builder.AddCloudShellControlPlane();
-builder.AddCloudShell();
+    },
+    environmentId: "local");
 if (builder.Configuration.GetValue("ContainerAppDeployment:EnableGraphDockerRuntime", false))
 {
     builder.Services
@@ -66,10 +65,6 @@ builder.Services
     .AddSingleton<IContainerApplicationRuntimeHandler, ContainerAppDeploymentGraphContainerApplicationRuntimeHandler>();
 
 builder.Services
-    .AddInMemoryResourceModelGraph(
-        graph.BuildDeployment("container-app-deployment", environmentId: "local")
-            .Resources
-            .Select(GraphResourceState.FromDefinition))
     .AddDockerHostResourceType()
     .AddDockerContainerResourceType()
     .AddContainerApplicationResourceType()

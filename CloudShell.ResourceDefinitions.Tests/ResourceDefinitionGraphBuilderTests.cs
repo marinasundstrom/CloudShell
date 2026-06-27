@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Hosting;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,15 +21,90 @@ public sealed class ResourceDefinitionGraphBuilderTests
                     .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/entries");
             });
 
-        var deployment = graph.BuildDeployment("grouped", environmentId: "local");
+        var graphDefinition = graph.BuildGraph();
 
-        Assert.Equal(2, deployment.Resources.Count);
-        Assert.Contains(deployment.Resources, resource =>
+        Assert.Equal(2, graphDefinition.Resources.Count);
+        Assert.Contains(graphDefinition.Resources, resource =>
             resource.TypeId == NetworkResourceTypeProvider.ResourceTypeId &&
             resource.DisplayName == "App Network");
-        Assert.Contains(deployment.Resources, resource =>
+        Assert.Contains(graphDefinition.Resources, resource =>
             resource.TypeId == ConfigurationStoreResourceTypeProvider.ResourceTypeId &&
             resource.EffectiveResourceId == "configuration.store:settings");
+    }
+
+    [Fact]
+    public void ResourceDefinitionGraphBuilder_BuildDeploymentProjectsGraphIntoDeploymentEnvelope()
+    {
+        var graph = new ResourceDefinitionGraphBuilder()
+            .DefineResources(resources =>
+            {
+                resources.AddNetwork("app");
+            });
+
+        var deployment = graph.BuildDeployment(
+            "grouped",
+            environmentId: "local",
+            metadata: new Dictionary<string, string>
+            {
+                ["source"] = "test"
+            });
+        var definition = Assert.Single(deployment.Resources);
+
+        Assert.Equal("grouped", deployment.Name);
+        Assert.Equal("local", deployment.EnvironmentId);
+        Assert.NotNull(deployment.Metadata);
+        Assert.Equal("test", deployment.Metadata["source"]);
+        Assert.Equal(NetworkResourceTypeProvider.ResourceTypeId, definition.TypeId);
+        Assert.Equal("cloudshell.network:app", definition.EffectiveResourceId);
+    }
+
+    [Fact]
+    public async Task Host_DefineResourcesRegistersImplicitInitialGraph()
+    {
+        var services = new ServiceCollection();
+        services
+            .AddCloudShellControlPlane()
+            .DefineResources(resources =>
+            {
+                resources.AddNetwork("app");
+            });
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var snapshot = await serviceProvider
+            .GetRequiredService<ResourceGraphModel>()
+            .GetSnapshotAsync();
+        var resource = Assert.Single(snapshot.Resources);
+
+        Assert.Equal(NetworkResourceTypeProvider.ResourceTypeId, resource.TypeId);
+        Assert.Equal("cloudshell.network:app", resource.EffectiveResourceId);
+    }
+
+    [Fact]
+    public async Task Host_DefineDeploymentRegistersDeploymentInitialGraph()
+    {
+        var services = new ServiceCollection();
+        services
+            .AddCloudShellControlPlane()
+            .DefineDeployment(
+                "grouped",
+                resources =>
+                {
+                    resources.AddNetwork("app");
+                },
+                environmentId: "local",
+                metadata: new Dictionary<string, string>
+                {
+                    ["source"] = "test"
+                });
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var snapshot = await serviceProvider
+            .GetRequiredService<ResourceGraphModel>()
+            .GetSnapshotAsync();
+        var resource = Assert.Single(snapshot.Resources);
+
+        Assert.Equal(NetworkResourceTypeProvider.ResourceTypeId, resource.TypeId);
+        Assert.Equal("cloudshell.network:app", resource.EffectiveResourceId);
     }
 
     [Fact]
