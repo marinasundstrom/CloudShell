@@ -19,6 +19,14 @@ Run the sample:
 dotnet run --project samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj -- --urls http://localhost:5011
 ```
 
+Optional endpoint-port settings:
+
+- `HostVirtualNetwork:TargetPort`: target API port. Defaults to `5291`.
+- `HostVirtualNetwork:VirtualNetworkPort`: legacy virtual-network public
+  endpoint port. Defaults to `5290`.
+- `HostVirtualNetwork:GraphVirtualNetworkPort`: graph virtual-network public
+  endpoint port. Defaults to `5292`.
+
 `networking:host-local` is projected as an active host networking resource on
 macOS, Linux, and Windows. Use the virtual network's
 `Reconcile endpoint mappings` action to start a local TCP proxy from
@@ -53,7 +61,9 @@ available.
 - Ported: graph local host networking, graph ASP.NET Core target API, graph
   virtual-network endpoint/mapping declaration, Resource Manager projection,
   and graph reconcile handoff to the existing local host endpoint-mapping
-  provisioner.
+  provisioner. Smoke coverage starts the graph API, executes the graph
+  reconcile action through the Control Plane API, and verifies the graph public
+  ingress reaches the API health endpoint.
 - Remaining: full provider switch, UI registration/update flow, live mapping
   count projection, runtime diagnostics, and later isolation of OS-specific
   networking behavior behind Resource Manager/runtime boundaries.

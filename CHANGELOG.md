@@ -151,6 +151,11 @@ on `git blame --follow`, and then by the broad type of change.
   projection providers, adapts the graph local-host provider identity to the
   existing local-host networking provisioner contract, and verifies the
   handoff with a recording provisioner so normal tests do not bind host ports.
+- HostVirtualNetwork sample ports are configurable for smoke tests, and the
+  graph runtime bridge is now covered end to end by starting the graph ASP.NET
+  Core API, executing the graph virtual-network reconcile action through the
+  Control Plane API, and reaching the API health endpoint through the graph
+  public ingress.
 
 ### 2026-06-26
 

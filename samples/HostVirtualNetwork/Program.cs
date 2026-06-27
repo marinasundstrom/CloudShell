@@ -12,12 +12,13 @@ using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
+using Microsoft.Extensions.Configuration;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
-const int targetPort = 5291;
-const int virtualNetworkPort = 5290;
-const int graphVirtualNetworkPort = 5292;
+var targetPort = builder.Configuration.GetValue<int?>("HostVirtualNetwork:TargetPort") ?? 5291;
+var virtualNetworkPort = builder.Configuration.GetValue<int?>("HostVirtualNetwork:VirtualNetworkPort") ?? 5290;
+var graphVirtualNetworkPort = builder.Configuration.GetValue<int?>("HostVirtualNetwork:GraphVirtualNetworkPort") ?? 5292;
 const string graphHostNetworkingResourceId = "networking:graph-host-local";
 const string graphApiResourceId = "application.aspnet-core-project:graph-vnet-api";
 const string graphNetworkResourceId = "network:graph-sample-vnet";

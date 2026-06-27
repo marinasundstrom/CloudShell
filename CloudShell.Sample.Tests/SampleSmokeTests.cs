@@ -4270,12 +4270,17 @@ public sealed class SampleSmokeTests
     [Fact]
     public async Task HostVirtualNetworkSample_ProjectsVirtualNetworkAndHostProvider()
     {
-        const int targetPort = 5291;
-        const int virtualNetworkPort = 5290;
-        const int graphVirtualNetworkPort = 5292;
+        var targetPort = await GetFreePortAsync();
+        var virtualNetworkPort = await GetFreePortAsync();
+        var graphVirtualNetworkPort = await GetFreePortAsync();
         using var host = await SampleProcess.StartAsync(
             "samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj",
-            await GetFreePortAsync());
+            await GetFreePortAsync(),
+            [
+                ("HostVirtualNetwork__TargetPort", targetPort.ToString(CultureInfo.InvariantCulture)),
+                ("HostVirtualNetwork__VirtualNetworkPort", virtualNetworkPort.ToString(CultureInfo.InvariantCulture)),
+                ("HostVirtualNetwork__GraphVirtualNetworkPort", graphVirtualNetworkPort.ToString(CultureInfo.InvariantCulture))
+            ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
 
@@ -4368,6 +4373,59 @@ public sealed class SampleSmokeTests
 
         Assert.True(reconcileCapability.GetProperty("canExecute").GetBoolean());
         Assert.Equal(JsonValueKind.Null, reconcileCapability.GetProperty("reason").ValueKind);
+    }
+
+    [Fact]
+    public async Task HostVirtualNetworkSample_ReconcilesGraphEndpointMappingThroughRuntimeBridge()
+    {
+        const string graphApiResourceId = "application.aspnet-core-project:graph-vnet-api";
+        const string graphNetworkResourceId = "network:graph-sample-vnet";
+        var targetPort = await GetFreePortAsync();
+        var virtualNetworkPort = await GetFreePortAsync();
+        var graphVirtualNetworkPort = await GetFreePortAsync();
+        using var host = await SampleProcess.StartAsync(
+            "samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj",
+            await GetFreePortAsync(),
+            [
+                ("HostVirtualNetwork__TargetPort", targetPort.ToString(CultureInfo.InvariantCulture)),
+                ("HostVirtualNetwork__VirtualNetworkPort", virtualNetworkPort.ToString(CultureInfo.InvariantCulture)),
+                ("HostVirtualNetwork__GraphVirtualNetworkPort", graphVirtualNetworkPort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var graphApi = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == graphApiResourceId);
+        var graphNetwork = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == graphNetworkResourceId);
+
+        try
+        {
+            await StartGraphResourceIfAvailableAsync(host, graphApi, "HostVirtualNetwork graph API");
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{targetPort.ToString(CultureInfo.InvariantCulture)}/health",
+                null,
+                StartupTimeout);
+
+            var reconcile = graphNetwork
+                .GetProperty("resourceActions")
+                .GetProperty("reconcileEndpointMappings");
+            var href = reconcile.GetProperty("href").GetString() ??
+                throw new InvalidOperationException("The graph virtual network reconcile action did not include an href.");
+            await host.SendAsync(HttpMethod.Post, href);
+
+            var healthJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
+                $"http://localhost:{graphVirtualNetworkPort.ToString(CultureInfo.InvariantCulture)}/health",
+                StartupTimeout);
+            using var healthDocument = JsonDocument.Parse(healthJson);
+            Assert.Equal("ok", healthDocument.RootElement.GetProperty("status").GetString());
+        }
+        finally
+        {
+            await StopResourceIfRunningAsync(host, graphApiResourceId);
+        }
     }
 
     [Fact]
