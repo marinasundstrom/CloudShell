@@ -2934,6 +2934,7 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.Equal("Executed ReconcileNameMappings for local.", procedureResult.Message);
         Assert.Equal([zone.EffectiveResourceId], reconciler.ReconciledResourceIds);
+        Assert.Equal([zone.EffectiveResourceId], reconciler.ContextResourceIds);
     }
 
     [Fact]
@@ -4898,14 +4899,19 @@ public sealed class ResourceManagerIntegrationTests
         IDnsZoneNameMappingReconciler
     {
         private readonly List<string> _reconciledResourceIds = [];
+        private readonly List<string> _contextResourceIds = [];
 
         public IReadOnlyList<string> ReconciledResourceIds => _reconciledResourceIds;
 
+        public IReadOnlyList<string> ContextResourceIds => _contextResourceIds;
+
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileNameMappingsAsync(
             Resource resource,
+            ResourceProjectionExecutionContext context,
             CancellationToken cancellationToken = default)
         {
             _reconciledResourceIds.Add(resource.EffectiveResourceId);
+            _contextResourceIds.Add(context.Resource.EffectiveResourceId);
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }

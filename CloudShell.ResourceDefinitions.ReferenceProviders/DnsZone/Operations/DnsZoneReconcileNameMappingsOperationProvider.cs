@@ -98,6 +98,7 @@ public sealed class DnsZoneReconcileNameMappingsOperation(
 
         var diagnostics = await _nameMappingReconciler.ReconcileNameMappingsAsync(
             Resource,
+            Context,
             cancellationToken);
 
         return new ResourceOperationExecutionResult(

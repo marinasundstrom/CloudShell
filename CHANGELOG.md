@@ -125,6 +125,11 @@ on `git blame --follow`, and then by the broad type of change.
   graph payloads, and action dispatch now prefers the graph bridge provider
   for resources carrying bridge-provider metadata so legacy providers do not
   intercept overlapping operation IDs.
+- DNS zone graph reconcile integrations now receive the same
+  `ResourceProjectionExecutionContext` used to resolve the operation, allowing
+  provider-owned reconciler implementations to inspect sibling graph resources
+  such as declared name mappings without putting name-publishing behavior in
+  the graph model itself.
 
 ### 2026-06-26
 

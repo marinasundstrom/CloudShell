@@ -11,7 +11,7 @@
 - Network class/type defaults.
 - Zone and provider attributes.
 - Passive DNS-zone capability marker.
-- Reconcile name mappings operation.
+- Reconcile name mappings operation with a context-aware injected reconciler seam.
 - Typed wrapper plus Resource Manager bridge projection and execution.
 - Manual `ResourceDefinitionGraphBuilder.AddDnsZone(...)` builder for
   code-first DNS zone definition authoring.
