@@ -135,6 +135,11 @@ on `git blame --follow`, and then by the broad type of change.
   extending the networking POC coverage from route projection into declarative
   host-name mapping shape while leaving DNS publishing runtime integration
   deferred.
+- Virtual network graph resources can now carry endpoint contracts, endpoint
+  address mappings, and source-to-target endpoint mapping payloads. The
+  HostVirtualNetwork sample declares the graph public ingress mapping through
+  provider-owned builder methods and verifies the Resource Manager projection
+  beside the legacy virtual-network resource.
 
 ### 2026-06-26
 

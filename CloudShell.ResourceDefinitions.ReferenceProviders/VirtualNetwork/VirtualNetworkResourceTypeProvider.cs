@@ -17,6 +17,9 @@ public sealed class VirtualNetworkResourceTypeProvider :
         public static readonly ResourceAttributeId IsDefault = "network.default";
         public static readonly ResourceAttributeId HostReadiness = "network.hostReadiness";
         public static readonly ResourceAttributeId MappingProviders = "network.mappingProviders";
+        public static readonly ResourceAttributeId Endpoints = "network.endpoints";
+        public static readonly ResourceAttributeId EndpointNetworkMappings = "network.endpointNetworkMappings";
+        public static readonly ResourceAttributeId EndpointMappings = "network.endpointMappings";
     }
 
     public static class Capabilities
@@ -51,7 +54,16 @@ public sealed class VirtualNetworkResourceTypeProvider :
                 DefaultValue: "logicalOnly",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.MappingProviders] = new(
-                ValueType: ResourceAttributeValueType.String)
+                ValueType: ResourceAttributeValueType.String),
+            [Attributes.Endpoints] = ResourceAttributeDefinition.Collection(
+                itemType: ResourceAttributeValueType.ComplexType,
+                itemShapeId: NetworkingEndpointShapeIds.Endpoint),
+            [Attributes.EndpointNetworkMappings] = ResourceAttributeDefinition.Collection(
+                itemType: ResourceAttributeValueType.ComplexType,
+                itemShapeId: NetworkingEndpointShapeIds.EndpointNetworkMapping),
+            [Attributes.EndpointMappings] = ResourceAttributeDefinition.Collection(
+                itemType: ResourceAttributeValueType.ComplexType,
+                itemShapeId: NetworkingEndpointShapeIds.EndpointMapping)
         },
         Capabilities:
         [

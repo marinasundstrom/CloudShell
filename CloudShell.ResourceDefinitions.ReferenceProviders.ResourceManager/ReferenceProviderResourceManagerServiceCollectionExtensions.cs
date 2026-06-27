@@ -38,6 +38,10 @@ public static class ReferenceProviderResourceManagerServiceCollectionExtensions
                 LoadBalancerResourceManagerEndpointProjectionProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerEndpointProjectionProvider,
+                VirtualNetworkResourceManagerEndpointProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerStateProvider,
                 AspNetCoreProjectResourceManagerStateProvider>());
         services.TryAddEnumerable(

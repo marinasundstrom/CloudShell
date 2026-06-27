@@ -49,7 +49,24 @@ cloudShell.DefineResources(resources =>
         .DependsOn(graphApi, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
         .AsDefault()
         .WithHostReadiness("providerRequired")
-        .WithMappingProviders(graphHostNetworkingResourceId);
+        .WithMappingProviders(graphHostNetworkingResourceId)
+        .AddEndpoint(
+            "api-public",
+            "http",
+            virtualNetworkPort,
+            "Public")
+        .AddEndpointNetworkMapping(
+            "api-public",
+            $"http://localhost:{virtualNetworkPort}",
+            name: "Graph API public ingress",
+            provider: graphHostNetwork)
+        .MapEndpoint(
+            "api-public",
+            graphApi,
+            "http",
+            graphHostNetwork,
+            "mapping:graph-api-public",
+            "Graph API public ingress");
 });
 builder.Services
     .AddLocalHostNetworkResourceType()

@@ -31,7 +31,9 @@ Resource Definitions bridge:
 - `application.aspnet-core-project:graph-vnet-api`: graph-backed ASP.NET Core
   target API projection for the same project and local endpoint.
 - `network:graph-sample-vnet`: graph-backed virtual network with typed startup
-  dependencies on the graph host-networking and API resources.
+  dependencies on the graph host-networking and API resources, plus the same
+  public endpoint, endpoint address mapping, and source-to-target endpoint
+  mapping shape as the legacy virtual network.
 
 Those graph-backed resources are comparison/projection coverage while the
 sample still runs through the existing provider path.
