@@ -400,6 +400,60 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    [Trait("Category", "DockerIntegration")]
+    public async Task ContainerHostSample_GraphOnlySqlRuntimeStopsOnGracefulHostShutdown()
+    {
+        const string graphSqlServerResourceId = "application.sql-server:graph-sql-server";
+        var sqlContainerName = ContainerHostGraphSqlServerDockerBridge.GraphSqlServerContainerName;
+        if (!await DockerComposeStack.IsAvailableAsync() ||
+            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.DefaultSqlServerImage))
+        {
+            return;
+        }
+
+        await DockerComposeStack.RemoveContainerIfExistsAsync(sqlContainerName);
+
+        var sqlPort = await GetFreePortAsync();
+        var host = await SampleProcess.StartAsync(
+            "samples/CloudShell.ContainerHost/CloudShell.ContainerHost.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ContainerHost__GraphSqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        try
+        {
+            await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var graphSqlServer = Assert.Single(
+                resourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() == graphSqlServerResourceId);
+
+            await StartGraphResourceIfAvailableAsync(host, graphSqlServer, "ContainerHost graph SQL Server");
+            await WaitForResourceStateAsync(
+                host,
+                graphSqlServerResourceId,
+                ResourceState.Running,
+                StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerExistsAsync(sqlContainerName, StartupTimeout),
+                $"Expected Docker container '{sqlContainerName}' to be created.");
+
+            await host.StopAsync(StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerRemovedAsync(sqlContainerName, StartupTimeout),
+                $"Expected Docker container '{sqlContainerName}' to be removed during graceful host shutdown.");
+        }
+        finally
+        {
+            host.Dispose();
+            await DockerComposeStack.RemoveContainerIfExistsAsync(sqlContainerName);
+        }
+    }
+
+    [Fact]
     public async Task ProjectReferenceHost_RendersResourcesAndServesControlPlaneApi()
     {
         var frontendPort = await GetFreePortAsync();

@@ -13,6 +13,17 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-06-28
+
+#### Changed
+
+- CloudShell.ContainerHost now projects its graph-backed SQL Server resource
+  into the Resource Manager orchestration catalog with control-plane-scoped
+  lifetime metadata. A Docker smoke test verifies that a graceful host
+  shutdown removes the graph SQL container through the existing host-scoped
+  shutdown service, matching the old provider model for programmatically
+  declared resources.
+
 ### 2026-06-27
 
 #### Changed

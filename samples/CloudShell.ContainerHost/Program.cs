@@ -60,6 +60,7 @@ builder.Services
     .AddSingleton<IContainerHostDockerCommandRunner, ProcessContainerHostDockerCommandRunner>()
     .AddSingleton<IContainerHostGraphSqlServerRuntimeBridge, ContainerHostGraphSqlServerDockerBridge>()
     .AddSingleton<ISqlServerRuntimeHandler, ContainerHostGraphSqlServerRuntimeHandler>()
+    .AddSingleton<IResourceOrchestrationDescriptorProvider, ContainerHostGraphSqlServerOrchestrationDescriptorProvider>()
     .AddStorageResourceType()
     .AddCloudShellVolumeResourceType()
     .AddSqlServerResourceType()
