@@ -108,10 +108,10 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
                 Scopes: ["openid"],
                 Name: "graph-keycloak-provisioned-api"));
         var environmentProvider = new GraphAspNetCoreProjectIdentityEnvironmentProvider(
-            new ApplicationProviderOptions(),
             declarations,
             new ResourceIdentityProviderCatalog(),
-            [new RecordingCredentialEnvironmentProvider()]);
+            [new RecordingCredentialEnvironmentProvider()],
+            new ApplicationProviderOptions());
 
         var variables = await environmentProvider.ResolveAsync(CreateGraphAspNetCoreProjectResource());
 

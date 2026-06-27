@@ -33,6 +33,7 @@ var clientId = builder.Configuration["Authentication:OpenIdConnect:ClientId"] ??
     "cloudshell-ui";
 var apiEndpoint = builder.Configuration["Samples:ThirdPartyIdentity:ApiEndpoint"] ??
     "http://localhost:5234";
+var graphOnly = builder.Configuration.GetValue("Samples:ThirdPartyIdentity:GraphOnly", false);
 var configurationServiceBasePort = builder.Configuration.GetValue<int?>(
     "Samples:ThirdPartyIdentity:ConfigurationServiceBasePort") ?? 5138;
 var graphConfigurationServiceEndpoint =
@@ -107,18 +108,22 @@ builder.Services
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>()
-    .AddApplicationProvider()
-    .AddConfigurationProvider(options =>
-    {
-        options.ServiceProjectPath = configurationStoreServiceProjectPath;
-        options.ServiceWorkingDirectory = repositoryRootPath;
-        options.ServiceBasePort = configurationServiceBasePort;
-        options.ServiceBearerAuthority = authority;
-        options.ServiceBearerIssuer = authority;
-        options.ServiceBearerRequireHttpsMetadata =
-            builder.Configuration.GetValue("Authentication:OpenIdConnect:RequireHttpsMetadata", true);
-    });
+    .AddExtension<ObservabilityExtension>();
+if (!graphOnly)
+{
+    cloudShell
+        .AddApplicationProvider()
+        .AddConfigurationProvider(options =>
+        {
+            options.ServiceProjectPath = configurationStoreServiceProjectPath;
+            options.ServiceWorkingDirectory = repositoryRootPath;
+            options.ServiceBasePort = configurationServiceBasePort;
+            options.ServiceBearerAuthority = authority;
+            options.ServiceBearerIssuer = authority;
+            options.ServiceBearerRequireHttpsMetadata =
+                builder.Configuration.GetValue("Authentication:OpenIdConnect:RequireHttpsMetadata", true);
+        });
+}
 builder.Services.TryAddEnumerable(
     ServiceDescriptor.Singleton<IResourceIdentityProvisioner, KeycloakResourceIdentityProvisioner>());
 builder.Services.TryAddEnumerable(
@@ -143,77 +148,58 @@ cloudShell.Resources(resources =>
     var graphSettings = resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphConfigurationResourceId);
 
-    var provisioningResource = resources
-        .Declare(ResourceIdentityProvisioningResources.ProviderId, "identity-provisioning:keycloak")
-        .WithResourceClass(CloudShell.Abstractions.ResourceManager.ResourceClass.Infrastructure)
-        .WithResourceAttribute(ResourceAttributeNames.InfrastructureKind, "identity-provisioning")
-        .WithResourceAttribute("identity.provider", "Keycloak")
-        .WithResourceAttribute("identity.authority", authority)
-        .WithResourceAttribute("identity.clientId", clientId)
-        .WithResourceAttribute("identity.provisioning.mode", "external");
-    var identityProvider = resources.AddIdentityProvider(
-        "identity:keycloak",
-        "Keycloak",
-        ResourceIdentityProviderKind.Oidc,
-        new Dictionary<string, string>
-        {
-            ["Provider"] = "Keycloak",
-            ["Authority"] = authority,
-            ["ClientId"] = clientId,
-            ["RoleClaimType"] = builder.Configuration["Authentication:RoleClaimType"] ?? "roles",
-            ["TokenEndpoint"] = builder.Configuration["Keycloak:TokenEndpoint"] ??
-                $"{authority.TrimEnd('/')}/protocol/openid-connect/token",
-            ["Realm"] = builder.Configuration["Keycloak:Realm"] ?? "cloudshell",
-            ["AdminBaseAddress"] = builder.Configuration["Keycloak:AdminBaseAddress"] ??
-                "http://localhost:8080"
-        },
-        provisioningResourceId: provisioningResource.ResourceId,
-        useAsDefault: true);
-    var graphIdentityProvider = AddIdentityProviderDefinition(resources, new ResourceIdentityProviderDefinition(
+    var graphIdentityProvider = AddIdentityProviderDefinition(resources, CreateKeycloakIdentityProviderDefinition(
         "identity:graph-keycloak",
         "Graph Keycloak",
-        ResourceIdentityProviderKind.Oidc,
-        new Dictionary<string, string>
-        {
-            ["Provider"] = "Keycloak",
-            ["Authority"] = authority,
-            ["ClientId"] = clientId,
-            ["RoleClaimType"] = builder.Configuration["Authentication:RoleClaimType"] ?? "roles",
-            ["TokenEndpoint"] = builder.Configuration["Keycloak:TokenEndpoint"] ??
-                $"{authority.TrimEnd('/')}/protocol/openid-connect/token",
-            ["Realm"] = builder.Configuration["Keycloak:Realm"] ?? "cloudshell",
-            ["AdminBaseAddress"] = builder.Configuration["Keycloak:AdminBaseAddress"] ??
-                "http://localhost:8080"
-        }));
-    var settings = resources
-        .AddConfigurationStore("third-party-identity")
-        .WithDisplayName("Third-party Identity Settings")
-        .WithEntries(
-        [
-            new("Authority", authority),
-            new("RoleClaimType", builder.Configuration["Authentication:RoleClaimType"] ?? string.Empty),
-            new("Sample:Message", "Hello from a Keycloak-provisioned resource identity")
-        ]);
+        graphIdentityProvisioningResourceId));
 
-    var api = resources
-        .AddAspNetCoreProject(
-            "keycloak-provisioned-api",
-            apiProjectPath,
-            endpoint: apiEndpoint)
-        .WithIdentity(identityProvider, identity =>
-        {
-            identity.Name = "keycloak-provisioned-api";
-            identity.Subject = "client:cloudshell-keycloak-provisioned-api";
-            identity.Scopes.Add(builder.Configuration["Keycloak:ResourceIdentityScope"] ?? "openid");
-            identity.Claims["resource"] = "application:keycloak-provisioned-api";
-        })
-        .WithReference(settings)
-        .WithServiceDiscovery()
-        .DependsOn(settings)
-        .WithAutoStart(false)
-        .ProvisionIdentityOnStartup();
+    if (!graphOnly)
+    {
+        var provisioningResource = resources
+            .Declare(ResourceIdentityProvisioningResources.ProviderId, "identity-provisioning:keycloak")
+            .WithResourceClass(CloudShell.Abstractions.ResourceManager.ResourceClass.Infrastructure)
+            .WithResourceAttribute(ResourceAttributeNames.InfrastructureKind, "identity-provisioning")
+            .WithResourceAttribute("identity.provider", "Keycloak")
+            .WithResourceAttribute("identity.authority", authority)
+            .WithResourceAttribute("identity.clientId", clientId)
+            .WithResourceAttribute("identity.provisioning.mode", "external");
+        var identityProvider = resources.AddIdentityProvider(
+            "identity:keycloak",
+            "Keycloak",
+            ResourceIdentityProviderKind.Oidc,
+            CreateKeycloakIdentityProviderSettings(),
+            provisioningResourceId: provisioningResource.ResourceId,
+            useAsDefault: true);
+        var settings = resources
+            .AddConfigurationStore("third-party-identity")
+            .WithDisplayName("Third-party Identity Settings")
+            .WithEntries(
+            [
+                new("Authority", authority),
+                new("RoleClaimType", builder.Configuration["Authentication:RoleClaimType"] ?? string.Empty),
+                new("Sample:Message", "Hello from a Keycloak-provisioned resource identity")
+            ]);
 
-    settings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+        var api = resources
+            .AddAspNetCoreProject(
+                "keycloak-provisioned-api",
+                apiProjectPath,
+                endpoint: apiEndpoint)
+            .WithIdentity(identityProvider, identity =>
+            {
+                identity.Name = "keycloak-provisioned-api";
+                identity.Subject = "client:cloudshell-keycloak-provisioned-api";
+                identity.Scopes.Add(builder.Configuration["Keycloak:ResourceIdentityScope"] ?? "openid");
+                identity.Claims["resource"] = "application:keycloak-provisioned-api";
+            })
+            .WithReference(settings)
+            .WithServiceDiscovery()
+            .DependsOn(settings)
+            .WithAutoStart(false)
+            .ProvisionIdentityOnStartup();
+
+        settings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+    }
 
     var graphApi = resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphApiResourceId)
@@ -262,6 +248,31 @@ static ResourceIdentityProviderDefinition AddIdentityProviderDefinition(
             "The resource declaration store is not registered.");
     return declarations.AddIdentityProvider(provider);
 }
+
+ResourceIdentityProviderDefinition CreateKeycloakIdentityProviderDefinition(
+    string id,
+    string name,
+    string? provisioningResourceId = null) =>
+    new(
+        id,
+        name,
+        ResourceIdentityProviderKind.Oidc,
+        CreateKeycloakIdentityProviderSettings(),
+        provisioningResourceId);
+
+Dictionary<string, string> CreateKeycloakIdentityProviderSettings() =>
+    new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Provider"] = "Keycloak",
+        ["Authority"] = authority,
+        ["ClientId"] = clientId,
+        ["RoleClaimType"] = builder.Configuration["Authentication:RoleClaimType"] ?? "roles",
+        ["TokenEndpoint"] = builder.Configuration["Keycloak:TokenEndpoint"] ??
+            $"{authority.TrimEnd('/')}/protocol/openid-connect/token",
+        ["Realm"] = builder.Configuration["Keycloak:Realm"] ?? "cloudshell",
+        ["AdminBaseAddress"] = builder.Configuration["Keycloak:AdminBaseAddress"] ??
+            "http://localhost:8080"
+    };
 
 GraphResourceState AddGraphProjectionState(GraphResourceState state)
 {

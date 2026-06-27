@@ -26,6 +26,14 @@ on `git blame --follow`, and then by the broad type of change.
   and Docker smoke coverage now starts the graph Configuration Store plus
   graph API and verifies the graph API can read protected configuration with a
   Keycloak-issued resource identity token.
+- ThirdPartyIdentity now has an opt-in graph-only mode that omits the old
+  application/configuration provider registrations and old workload resource
+  records while keeping Resource Manager-owned identity provider declarations
+  and graph runtime integrations.
+- The Resource Graph proposal now records the builder direction: keep the core
+  programmatic declaration API aligned with CloudShell's old builder pattern
+  for migration, and add Aspire-like extension methods only as compatibility
+  conveniences over CloudShell Resource Graph semantics.
 - Configuration Store graph runtime options now support external
   `Authentication:ServiceBearer` settings so provider-owned runtime services
   can validate non-built-in bearer tokens without using the old configuration

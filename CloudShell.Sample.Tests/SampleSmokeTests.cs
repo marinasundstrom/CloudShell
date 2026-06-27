@@ -2883,6 +2883,51 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    public async Task ThirdPartyIdentitySample_GraphOnlyModeOmitsOldProviderResources()
+    {
+        var graphConfigurationPort = await GetFreePortAsync();
+        var graphApiPort = await GetFreePortAsync();
+        using var host = await SampleProcess.StartAsync(
+            "samples/ThirdPartyIdentity/CloudShell.ThirdPartyIdentity.csproj",
+            await GetFreePortAsync(),
+            [
+                ("Authentication__Enabled", "false"),
+                ("Authentication__OpenIdConnect__RequireHttpsMetadata", "false"),
+                ("Samples__ThirdPartyIdentity__GraphOnly", "true"),
+                ("Samples__ThirdPartyIdentity__GraphConfigurationServiceEndpoint", $"http://localhost:{graphConfigurationPort.ToString(CultureInfo.InvariantCulture)}"),
+                ("Samples__ThirdPartyIdentity__GraphApiEndpoint", $"http://localhost:{graphApiPort.ToString(CultureInfo.InvariantCulture)}")
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var graphProvisioning = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "identity-provisioning:graph-keycloak");
+        var graphSettings = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration.store:graph-third-party-identity");
+        var graphApi = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-keycloak-provisioned-api");
+
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "identity-provisioning:keycloak");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration:third-party-identity");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:keycloak-provisioned-api");
+        Assert.Equal("cloudshell.identity-provisioning", graphProvisioning.GetProperty("typeId").GetString());
+        Assert.Equal("configuration.store", graphSettings.GetProperty("typeId").GetString());
+        Assert.Equal("application.aspnet-core-project", graphApi.GetProperty("typeId").GetString());
+        Assert.Equal(
+            "identity:graph-keycloak",
+            graphApi.GetProperty("identity").GetProperty("providerId").GetString());
+        Assert.Contains(
+            "configuration.store:graph-third-party-identity",
+            graphApi.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+    }
+
+    [Fact]
     [Trait("Category", "DockerIntegration")]
     public async Task ThirdPartyIdentitySample_KeycloakProvisionedWorkloadReadsConfiguration()
     {

@@ -113,6 +113,13 @@ delegates credential environment creation to the existing Keycloak integration.
 That keeps identity credential materialization in the runtime/Control Plane
 boundary while the graph resource continues to store only declarative project,
 endpoint, reference, and identity attachment information.
+Set `Samples:ThirdPartyIdentity:GraphOnly` to `true` to omit the old
+application/configuration provider registrations and the old
+`identity-provisioning:keycloak`, `configuration:third-party-identity`, and
+`application:keycloak-provisioned-api` resource records. Graph-only mode still
+uses Resource Manager-owned identity provider declarations and the sample-local
+graph identity credential adapter; those are runtime/Control Plane concerns,
+not graph state.
 
 The sample registers `KeycloakResourceIdentityProvisioner` as the resource
 identity provisioner, provider setup handler, and runtime credential
