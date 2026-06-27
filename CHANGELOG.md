@@ -115,6 +115,10 @@ on `git blame --follow`, and then by the broad type of change.
   host. Side-by-side smoke coverage explicitly opts back into the old
   application/Docker provider path so it remains a comparison baseline rather
   than the default runtime path.
+- ApplicationTopology now defaults to graph-only mode for the sample host.
+  Side-by-side and old SQL runtime smoke coverage explicitly opts back into the
+  old application/configuration/secrets provider path so it remains comparison
+  coverage while the graph-backed workload becomes the default path.
 - The Resource Manager host integration now exposes `DefineResources(...)` for
   Aspire-compatible in-memory resource declarations and
   `DefineInitialDeployment(...)` for seed-like deployment declarations with

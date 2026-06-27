@@ -889,6 +889,7 @@ public sealed class SampleSmokeTests
             "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
             await GetFreePortAsync(),
             [
+                ("ApplicationTopology__GraphOnly", "false"),
                 ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
                 ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
@@ -1674,6 +1675,7 @@ public sealed class SampleSmokeTests
             "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
             await GetFreePortAsync(),
             [
+                ("ApplicationTopology__GraphOnly", "false"),
                 ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
                 ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
@@ -1898,7 +1900,6 @@ public sealed class SampleSmokeTests
             "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
             await GetFreePortAsync(),
             [
-                ("ApplicationTopology__GraphOnly", "true"),
                 ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
                 ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
@@ -2174,6 +2175,7 @@ public sealed class SampleSmokeTests
             "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
             await GetFreePortAsync(),
             [
+                ("ApplicationTopology__GraphOnly", "false"),
                 ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
                 ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
@@ -2439,6 +2441,7 @@ public sealed class SampleSmokeTests
                 "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
                 await GetFreePortAsync(),
                 [
+                    ("ApplicationTopology__GraphOnly", "false"),
                     ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                     ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
                     ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),

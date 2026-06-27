@@ -116,17 +116,19 @@ so endpoint code does not construct the broker resolver directly.
 
 ## Graph-only declaration mode
 
-Set `ApplicationTopology:GraphOnly` to `true` to declare the workload through
-the Resource Model bridge instead of declaring the old application,
-configuration, secrets, storage, volume, and SQL resource records side by side.
-In this mode, the host skips the old application, configuration, and secrets
-provider registrations. The local DNS mapping targets
+`ApplicationTopology:GraphOnly` defaults to `true` so the sample declares the
+workload through the Resource Model bridge instead of declaring the old
+application, configuration, secrets, storage, volume, and SQL resource records
+side by side. In this mode, the host skips the old application, configuration,
+and secrets provider registrations. The local DNS mapping targets
 `application.aspnet-core-project:graph-application-topology-frontend`.
+Set `ApplicationTopology:GraphOnly` to `false` only when running the
+side-by-side comparison path against the old providers.
 
 ```json
 {
   "ApplicationTopology": {
-    "GraphOnly": true
+    "GraphOnly": false
   }
 }
 ```
