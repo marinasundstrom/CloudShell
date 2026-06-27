@@ -20,7 +20,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
 
         Assert.Equal("dotnet", command.FileName);
         Assert.Equal(
-            "run --project \"/repo/src/Api/Api.csproj\" --no-launch-profile -- --urls http://localhost:5229",
+            "run --project \"/repo/src/Api/Api.csproj\" --no-build --no-launch-profile -- --urls http://localhost:5229",
             command.Arguments);
         Assert.Equal("/repo/src/Api", command.WorkingDirectory);
         Assert.False(command.UseShellExecute);
@@ -41,8 +41,11 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             .CreateStartInfo(resource, "/repo/src/Api/Api.csproj");
 
         Assert.Equal(
-            "watch --project \"/repo/src/Api/Api.csproj\" run --no-launch-profile",
+            "watch --non-interactive --project \"/repo/src/Api/Api.csproj\" run --no-launch-profile",
             command.Arguments);
+        Assert.Equal(
+            "true",
+            command.Environment[AspNetCoreProjectEnvironmentNames.DotNetWatchRestartOnRudeEdit]);
     }
 
     [Fact]
@@ -65,7 +68,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             .CreateStartInfo(resource, "/repo/src/Api/Api.csproj");
 
         Assert.Equal(
-            "run --project \"/repo/src/Api/Api.csproj\" --no-launch-profile -- --urls http://127.0.0.1:5229",
+            "run --project \"/repo/src/Api/Api.csproj\" --no-build --no-launch-profile -- --urls http://127.0.0.1:5229",
             command.Arguments);
     }
 
@@ -303,7 +306,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             .CreateStartInfo(resource, "/repo/src/Api/Api.csproj");
 
         Assert.Equal(
-            "run --project \"/repo/src/Api/Api.csproj\" --no-launch-profile -- --urls http://localhost:5010",
+            "run --project \"/repo/src/Api/Api.csproj\" --no-build --no-launch-profile -- --urls http://localhost:5010",
             command.Arguments);
     }
 

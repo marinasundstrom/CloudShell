@@ -59,6 +59,10 @@ on `git blame --follow`, and then by the broad type of change.
   default provider, and the ThirdPartyIdentity sample adds a sample-local
   adapter that derives graph API identity credential variables from Resource
   Manager declarations and the existing Keycloak credential provider.
+- ASP.NET Core graph project startup now matches the old provider's local
+  process semantics for non-interactive `dotnet watch`, rude-edit restart
+  environment, and non-hot-reload build-before-run with `dotnet run
+  --no-build`.
 - ReplicatedContainerHealth now has an opt-in graph-only declaration mode that
   skips old application/Docker provider registrations and omits
   `application:api` plus `docker:sample`, proving the graph-backed Docker host

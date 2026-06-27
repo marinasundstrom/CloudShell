@@ -48,6 +48,8 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
     IDisposable,
     IAsyncDisposable
 {
+    private static readonly SemaphoreSlim BuildLock = new(1, 1);
+
     private readonly ConcurrentDictionary<string, Process> _processes = new(
         StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, BoundedRuntimeOutputBuffer> _output = new(
@@ -152,6 +154,22 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             _ => new BoundedRuntimeOutputBuffer());
         output.Clear();
 
+        if (!GetBoolean(
+                resource,
+                AspNetCoreProjectResourceTypeProvider.Attributes.HotReload,
+                defaultValue: true))
+        {
+            var buildDiagnostics = await BuildProjectAsync(
+                resource,
+                fullProjectPath,
+                output,
+                cancellationToken);
+            if (buildDiagnostics.Count > 0)
+            {
+                return buildDiagnostics;
+            }
+        }
+
         var derivedEnvironmentVariables =
             await ResolveRuntimeEnvironmentVariablesAsync(resource, cancellationToken);
         var startInfo = _commands.CreateStartInfo(
@@ -191,6 +209,72 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             });
 
         return [];
+    }
+
+    private static async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> BuildProjectAsync(
+        Resource resource,
+        string fullProjectPath,
+        BoundedRuntimeOutputBuffer output,
+        CancellationToken cancellationToken)
+    {
+        await BuildLock.WaitAsync(cancellationToken);
+        try
+        {
+            var startInfo = new ProcessStartInfo("dotnet")
+            {
+                WorkingDirectory = Path.GetDirectoryName(fullProjectPath) ?? Directory.GetCurrentDirectory(),
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+            startInfo.ArgumentList.Add("build");
+            startInfo.ArgumentList.Add(fullProjectPath);
+            startInfo.ArgumentList.Add("--nologo");
+            startInfo.ArgumentList.Add("--disable-build-servers");
+
+            using var process = new Process
+            {
+                StartInfo = startInfo,
+                EnableRaisingEvents = true
+            };
+            process.OutputDataReceived += (_, data) =>
+                AppendOutput(output, data.Data, "build", "Information");
+            process.ErrorDataReceived += (_, data) =>
+                AppendOutput(output, data.Data, "build", "Error");
+
+            if (!process.Start())
+            {
+                return
+                [
+                    ResourceDefinitionDiagnostic.Error(
+                        "application.aspNetCoreProject.buildStartFailed",
+                        $"ASP.NET Core project build for '{resource.EffectiveResourceId}' did not start.",
+                        resource.EffectiveResourceId)
+                ];
+            }
+
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+            await process.WaitForExitAsync(cancellationToken);
+
+            if (process.ExitCode != 0)
+            {
+                return
+                [
+                    ResourceDefinitionDiagnostic.Error(
+                        "application.aspNetCoreProject.buildFailed",
+                        $"ASP.NET Core project '{fullProjectPath}' failed to build before starting '{resource.Name}'.",
+                        resource.EffectiveResourceId)
+                ];
+            }
+
+            return [];
+        }
+        finally
+        {
+            BuildLock.Release();
+        }
     }
 
     public IReadOnlyList<AspNetCoreProjectRuntimeOutputEntry> ReadOutput(
@@ -243,6 +327,14 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
 
         return variables;
     }
+
+    private static bool GetBoolean(
+        Resource resource,
+        ResourceAttributeId attributeId,
+        bool defaultValue) =>
+        bool.TryParse(resource.Attributes.GetString(attributeId), out var value)
+            ? value
+            : defaultValue;
 
     public async ValueTask DisposeAsync()
     {
@@ -410,4 +502,5 @@ public static class AspNetCoreProjectEnvironmentNames
 {
     public const string ResourceId = "CLOUDSHELL_RESOURCE_ID";
     public const string ResourceName = "CLOUDSHELL_RESOURCE_NAME";
+    public const string DotNetWatchRestartOnRudeEdit = "DOTNET_WATCH_RESTART_ON_RUDE_EDIT";
 }

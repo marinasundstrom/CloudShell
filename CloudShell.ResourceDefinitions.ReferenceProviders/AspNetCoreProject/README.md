@@ -11,6 +11,9 @@
 - Project path, arguments, hot reload, launch-settings, endpoint request, environment variable, service-discovery name, and graph reference attributes.
 - Shared volume-consumer capability and default console log-source declaration.
 - Start, stop, and restart operations backed by the provider-local process runtime controller.
+- Process startup parity with the old ASP.NET Core application provider for
+  non-interactive `dotnet watch`, `DOTNET_WATCH_RESTART_ON_RUDE_EDIT`,
+  build-before-run when hot reload is disabled, and `dotnet run --no-build`.
 - Service-discovery environment projection from explicit `project.references`, including project, configuration store, Secrets Vault, and SQL Server graph resources.
 - CloudShell Configuration Store and Secrets Vault client environment projection from explicit graph references, using the same name/id alias conventions as the existing configuration providers.
 - Resource Manager bridge projection for state, endpoints, observability links, and process-output logs.

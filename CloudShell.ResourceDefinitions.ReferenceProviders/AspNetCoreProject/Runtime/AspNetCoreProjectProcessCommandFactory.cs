@@ -19,7 +19,7 @@ public sealed class AspNetCoreProjectProcessCommandFactory
                 AspNetCoreProjectResourceTypeProvider.Attributes.HotReload,
                 defaultValue: true))
         {
-            arguments.Append("watch --project ");
+            arguments.Append("watch --non-interactive --project ");
             arguments.Append(Quote(fullProjectPath));
             arguments.Append(" run");
             AppendLaunchSettings(arguments, resource);
@@ -28,6 +28,7 @@ public sealed class AspNetCoreProjectProcessCommandFactory
         {
             arguments.Append("run --project ");
             arguments.Append(Quote(fullProjectPath));
+            arguments.Append(" --no-build");
             AppendLaunchSettings(arguments, resource);
         }
 
@@ -54,6 +55,15 @@ public sealed class AspNetCoreProjectProcessCommandFactory
             resource.EffectiveResourceId;
         startInfo.Environment[AspNetCoreProjectEnvironmentNames.ResourceName] =
             resource.Name;
+        if (GetBoolean(
+                resource,
+                AspNetCoreProjectResourceTypeProvider.Attributes.HotReload,
+                defaultValue: true))
+        {
+            startInfo.Environment[AspNetCoreProjectEnvironmentNames.DotNetWatchRestartOnRudeEdit] =
+                "true";
+        }
+
         ApplyDerivedEnvironmentVariables(derivedEnvironmentVariables, startInfo);
         ApplyEnvironmentVariables(resource, startInfo);
 
