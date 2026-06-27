@@ -79,10 +79,10 @@ The same bridge removes a bounded range of graph-owned replica containers
 during cleanup so scale-down does not leave stale higher-ordinal replicas
 running, and it projects basic running/stopped state by inspecting the
 graph-owned replica containers. Docker smoke coverage now verifies graph-only
-image update, replica update, and stale replica removal without the old
-provider records. Health aggregation, logs, traces, and metrics still need to
-be owned by the graph-backed runtime path before this sample is fully switched
-over.
+image update, replica update, stale replica removal, and direct graph-declared
+HTTP health/liveness refresh without the old provider records. Runtime-scope
+health aggregation, logs, traces, and metrics still need to be owned by the
+graph-backed runtime path before this sample is fully switched over.
 
 ### Temporary switch seams
 

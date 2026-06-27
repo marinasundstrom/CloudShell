@@ -3844,6 +3844,7 @@ public sealed class SampleSmokeTests
                 $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
                 bearerToken: null,
                 graphOnlySmokeTimeout);
+            await AssertGraphResourceHealthChecksHealthyAsync(host, graphApiResourceId, apiPort);
             foreach (var containerName in containerNames)
             {
                 Assert.True(
@@ -3914,6 +3915,7 @@ public sealed class SampleSmokeTests
                 $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
                 bearerToken: null,
                 graphOnlySmokeTimeout);
+            await AssertGraphResourceHealthChecksHealthyAsync(host, graphApiResourceId, apiPort);
             foreach (var containerName in scaledContainerNames)
             {
                 Assert.True(
@@ -4791,6 +4793,54 @@ public sealed class SampleSmokeTests
         {
             // Cleanup should not hide the original test failure.
         }
+    }
+
+    private static async Task AssertGraphResourceHealthChecksHealthyAsync(
+        SampleProcess host,
+        string resourceId,
+        int endpointPort)
+    {
+        var summaryJson = await host.SendAsync(
+            HttpMethod.Post,
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(resourceId)}/health/refresh");
+        using var summaryDocument = JsonDocument.Parse(summaryJson);
+        var summary = summaryDocument.RootElement;
+        var checks = summary.GetProperty("checks").EnumerateArray().ToArray();
+
+        Assert.Equal(resourceId, summary.GetProperty("resourceId").GetString());
+        Assert.Equal((int)ResourceHealthStatus.Healthy, summary.GetProperty("status").GetInt32());
+        Assert.Contains(
+            checks,
+            check => IsHealthyHttpCheck(check, ResourceProbeType.Health, "health", endpointPort, "/health"));
+        Assert.Contains(
+            checks,
+            check => IsHealthyHttpCheck(check, ResourceProbeType.Liveness, "alive", endpointPort, "/alive"));
+    }
+
+    private static bool IsHealthyHttpCheck(
+        JsonElement check,
+        ResourceProbeType probeType,
+        string name,
+        int endpointPort,
+        string path)
+    {
+        if (check.GetProperty("status").GetInt32() != (int)ResourceHealthStatus.Healthy ||
+            check.GetProperty("outcome").GetInt32() != (int)ResourceHealthCheckOutcome.Responded)
+        {
+            return false;
+        }
+
+        var definition = check.GetProperty("check");
+        if (definition.GetProperty("type").GetInt32() != (int)probeType ||
+            !string.Equals(definition.GetProperty("name").GetString(), name, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var uri = check.GetProperty("uri").GetString();
+        return uri is not null &&
+            uri.StartsWith($"http://localhost:{endpointPort.ToString(CultureInfo.InvariantCulture)}", StringComparison.OrdinalIgnoreCase) &&
+            uri.EndsWith(path, StringComparison.OrdinalIgnoreCase);
     }
 
     private static async Task<string> RunResourceIdentityCredentialSampleAsync(
