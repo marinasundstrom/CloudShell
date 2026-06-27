@@ -4497,7 +4497,11 @@ public sealed class SampleSmokeTests
                 message => message.Contains("handled demo work", StringComparison.OrdinalIgnoreCase));
             Assert.NotEmpty(graphReplicaLogEntries);
             await AssertGraphResourceHealthChecksHealthyAsync(host, graphApiResourceId, apiPort, graphOnlySmokeTimeout);
-            await AssertGraphResourceRuntimeHealthAggregatesAsync(host, graphApiResourceId, expectedReplicas: 3);
+            await AssertGraphResourceRuntimeHealthAggregatesAsync(
+                host,
+                graphApiResourceId,
+                expectedReplicas: 3,
+                graphOnlySmokeTimeout);
             await AssertGraphReplicaRuntimeEnvironmentAsync(
                 "cloudshell-replicated-health-graph-api-replica-1",
                 replica: 1);
@@ -4574,7 +4578,11 @@ public sealed class SampleSmokeTests
                 bearerToken: null,
                 graphOnlySmokeTimeout);
             await AssertGraphResourceHealthChecksHealthyAsync(host, graphApiResourceId, apiPort, graphOnlySmokeTimeout);
-            await AssertGraphResourceRuntimeHealthAggregatesAsync(host, graphApiResourceId, expectedReplicas: 2);
+            await AssertGraphResourceRuntimeHealthAggregatesAsync(
+                host,
+                graphApiResourceId,
+                expectedReplicas: 2,
+                graphOnlySmokeTimeout);
             await AssertGraphReplicaLogSourcesAsync(host, graphApiResourceId, expectedReplicas: 2);
             foreach (var containerName in scaledContainerNames)
             {
@@ -5805,25 +5813,38 @@ public sealed class SampleSmokeTests
     private static async Task AssertGraphResourceRuntimeHealthAggregatesAsync(
         SampleProcess host,
         string resourceId,
-        int expectedReplicas)
+        int expectedReplicas,
+        TimeSpan? timeout = null)
     {
-        var summariesJson = await host.SendAsync(
-            HttpMethod.Post,
-            "/api/control-plane/v1/resource-health/refresh");
-        using var summariesDocument = JsonDocument.Parse(summariesJson);
-        Assert.True(
-            summariesDocument.RootElement.TryGetProperty(resourceId, out var summary),
-            $"Expected full health refresh to include '{resourceId}'. Response: {summariesJson}");
-        Assert.Equal(resourceId, summary.GetProperty("resourceId").GetString());
-        Assert.Equal((int)ResourceHealthStatus.Healthy, summary.GetProperty("status").GetInt32());
+        var deadline = DateTimeOffset.UtcNow.Add(timeout ?? TimeSpan.FromSeconds(30));
+        string? lastSummariesJson = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            lastSummariesJson = await host.SendAsync(
+                HttpMethod.Post,
+                "/api/control-plane/v1/resource-health/refresh");
+            using var summariesDocument = JsonDocument.Parse(lastSummariesJson);
+            if (!summariesDocument.RootElement.TryGetProperty(resourceId, out var summary))
+            {
+                await Task.Delay(250);
+                continue;
+            }
 
-        var checks = summary.GetProperty("checks").EnumerateArray().ToArray();
-        Assert.Contains(
-            checks,
-            check => HasRuntimeReplicaObservations(check, ResourceProbeType.Health, "health", expectedReplicas));
-        Assert.Contains(
-            checks,
-            check => HasRuntimeReplicaObservations(check, ResourceProbeType.Liveness, "alive", expectedReplicas));
+            var checks = summary.GetProperty("checks").EnumerateArray().ToArray();
+            if (summary.GetProperty("resourceId").GetString() == resourceId &&
+                summary.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy &&
+                checks.Any(check => HasRuntimeReplicaObservations(check, ResourceProbeType.Health, "health", expectedReplicas)) &&
+                checks.Any(check => HasRuntimeReplicaObservations(check, ResourceProbeType.Liveness, "alive", expectedReplicas)))
+            {
+                return;
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"Graph resource '{resourceId}' runtime-scope health did not aggregate as healthy within {timeout ?? TimeSpan.FromSeconds(30)}." +
+            $"{Environment.NewLine}{lastSummariesJson}");
     }
 
     private static bool HasRuntimeReplicaObservations(
@@ -6444,15 +6465,29 @@ public sealed class SampleSmokeTests
                 request.Headers.Authorization = new("Bearer", bearerToken);
             }
 
-            using var response = await client.SendAsync(request);
-            var content = await response.Content.ReadAsStringAsync();
-            if (!response.IsSuccessStatusCode)
+            HttpResponseMessage response;
+            try
             {
-                throw new HttpRequestException(
-                    $"Response status code does not indicate success: {(int)response.StatusCode} ({response.ReasonPhrase}).{Environment.NewLine}{content}");
+                response = await client.SendAsync(request);
+            }
+            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+            {
+                throw new InvalidOperationException(
+                    $"GET {path} failed before a response was received.{Environment.NewLine}{GetOutput()}",
+                    exception);
             }
 
-            return content;
+            using (response)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new HttpRequestException(
+                        $"Response status code does not indicate success: {(int)response.StatusCode} ({response.ReasonPhrase}).{Environment.NewLine}{content}");
+                }
+
+                return content;
+            }
         }
 
         public async Task WaitForAbsoluteHttpOkAsync(

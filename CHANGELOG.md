@@ -107,6 +107,10 @@ on `git blame --follow`, and then by the broad type of change.
 - ReplicatedContainerHealth now documents its temporary switch seams, and
   graph-only state projection uses bounded, cached Docker inspection so normal
   Resource Manager rendering does not depend on a responsive Docker daemon.
+- ReplicatedContainerHealth graph-only Docker smoke coverage now waits for
+  runtime-scope health aggregation to converge instead of treating the first
+  full health refresh as final, and sample GET timeout diagnostics now include
+  captured host output for runtime-route failures.
 - The Resource Manager host integration now exposes `DefineResources(...)` for
   Aspire-compatible in-memory resource declarations and
   `DefineInitialDeployment(...)` for seed-like deployment declarations with
