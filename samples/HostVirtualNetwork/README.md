@@ -31,15 +31,29 @@ Resource Definitions bridge:
 - `application.aspnet-core-project:graph-vnet-api`: graph-backed ASP.NET Core
   target API projection for the same project and local endpoint.
 - `network:graph-sample-vnet`: graph-backed virtual network with typed startup
-  dependencies on the graph host-networking and API resources, plus the same
-  public endpoint, endpoint address mapping, and source-to-target endpoint
-  mapping shape as the legacy virtual network.
+  dependencies on the graph host-networking and API resources, plus a public
+  endpoint at `http://localhost:5292`, endpoint address mapping, and
+  source-to-target endpoint mapping shape like the legacy virtual network.
 
-Those graph-backed resources are comparison/projection coverage while the
-sample still runs through the existing provider path.
+The graph virtual network's `Reconcile endpoint mappings` action is wired to a
+sample-local runtime bridge. The bridge projects the resolved graph resources
+into the existing Resource Manager endpoint-mapping provisioner contract, then
+delegates to the local host networking provisioner. This is the runtime glue
+for the sample; the graph providers still only declare and project networking
+configuration.
 
 This provider is the portable MVP baseline. It does not create OS-native
 virtual adapters, firewall rules, NAT rules, or network isolation. Future
 OS-specific providers can materialize the same endpoint mapping model through
 native Linux or Windows networking facilities when those capabilities are
 available.
+
+## Porting Status
+
+- Ported: graph local host networking, graph ASP.NET Core target API, graph
+  virtual-network endpoint/mapping declaration, Resource Manager projection,
+  and graph reconcile handoff to the existing local host endpoint-mapping
+  provisioner.
+- Remaining: full provider switch, UI registration/update flow, live mapping
+  count projection, runtime diagnostics, and later isolation of OS-specific
+  networking behavior behind Resource Manager/runtime boundaries.

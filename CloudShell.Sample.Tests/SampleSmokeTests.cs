@@ -4272,6 +4272,7 @@ public sealed class SampleSmokeTests
     {
         const int targetPort = 5291;
         const int virtualNetworkPort = 5290;
+        const int graphVirtualNetworkPort = 5292;
         using var host = await SampleProcess.StartAsync(
             "samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj",
             await GetFreePortAsync());
@@ -4297,7 +4298,7 @@ public sealed class SampleSmokeTests
 
         var endpoint = Assert.Single(network.GetProperty("endpoints").EnumerateArray());
         Assert.Equal("api-public", endpoint.GetProperty("name").GetString());
-        Assert.Equal("http://localhost:5290", GetEndpointAddress(network, "api-public"));
+        Assert.Equal($"http://localhost:{virtualNetworkPort}", GetEndpointAddress(network, "api-public"));
         Assert.True(endpoint.GetProperty("isExternal").GetBoolean());
 
         var mapping = Assert.Single(network.GetProperty("endpointMappings").EnumerateArray());
@@ -4342,8 +4343,8 @@ public sealed class SampleSmokeTests
         var graphNetworkEndpoint = Assert.Single(graphNetwork.GetProperty("endpoints").EnumerateArray());
         Assert.Equal("api-public", graphNetworkEndpoint.GetProperty("name").GetString());
         Assert.Equal("http", graphNetworkEndpoint.GetProperty("protocol").GetString());
-        Assert.Equal(virtualNetworkPort, graphNetworkEndpoint.GetProperty("targetPort").GetInt32());
-        Assert.Equal($"http://localhost:{virtualNetworkPort}", GetEndpointAddress(graphNetwork, "api-public"));
+        Assert.Equal(graphVirtualNetworkPort, graphNetworkEndpoint.GetProperty("targetPort").GetInt32());
+        Assert.Equal($"http://localhost:{graphVirtualNetworkPort}", GetEndpointAddress(graphNetwork, "api-public"));
         Assert.True(graphNetworkEndpoint.GetProperty("isExternal").GetBoolean());
         var graphNetworkMapping = Assert.Single(graphNetwork.GetProperty("endpointMappings").EnumerateArray());
         Assert.Equal("mapping:graph-api-public", graphNetworkMapping.GetProperty("id").GetString());

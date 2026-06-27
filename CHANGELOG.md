@@ -145,6 +145,12 @@ on `git blame --follow`, and then by the broad type of change.
   the DNS reconcile seam and giving future runtime implementations access to
   graph-scoped endpoint mapping targets without putting runtime behavior into
   the graph model.
+- The HostVirtualNetwork sample now wires the graph virtual-network
+  `reconcileEndpointMappings` operation to a sample-local runtime bridge. The
+  bridge projects graph resources through the Resource Manager endpoint
+  projection providers, adapts the graph local-host provider identity to the
+  existing local-host networking provisioner contract, and verifies the
+  handoff with a recording provisioner so normal tests do not bind host ports.
 
 ### 2026-06-26
 

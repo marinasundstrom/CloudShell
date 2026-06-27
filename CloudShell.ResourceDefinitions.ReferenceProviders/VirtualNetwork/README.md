@@ -15,8 +15,9 @@
 - Type-specific reconcile endpoint mappings operation provider with a context-aware injected provider-owned reconciler seam.
 - Typed wrapper plus apply planning and Resource Manager bridge projection/execution.
 - HostVirtualNetwork sample graph public-ingress mapping projection coverage.
+- HostVirtualNetwork sample-local runtime bridge coverage that delegates graph endpoint mappings to the existing Resource Manager endpoint-mapping provisioner contract.
 
 ## Remaining
 
 - Observed mapping state as capability members or operation plans.
-- Endpoint mapping provisioner integration and UI registration/update flow.
+- Generalized endpoint mapping provisioner integration outside the sample bridge and UI registration/update flow.

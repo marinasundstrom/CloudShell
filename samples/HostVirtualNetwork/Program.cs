@@ -2,6 +2,7 @@ using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.HostVirtualNetwork;
 using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
@@ -16,6 +17,7 @@ var builder = CloudShellApplication.CreateBuilder(args);
 
 const int targetPort = 5291;
 const int virtualNetworkPort = 5290;
+const int graphVirtualNetworkPort = 5292;
 const string graphHostNetworkingResourceId = "networking:graph-host-local";
 const string graphApiResourceId = "application.aspnet-core-project:graph-vnet-api";
 const string graphNetworkResourceId = "network:graph-sample-vnet";
@@ -53,11 +55,11 @@ cloudShell.DefineResources(resources =>
         .AddEndpoint(
             "api-public",
             "http",
-            virtualNetworkPort,
+            graphVirtualNetworkPort,
             "Public")
         .AddEndpointNetworkMapping(
             "api-public",
-            $"http://localhost:{virtualNetworkPort}",
+            $"http://localhost:{graphVirtualNetworkPort}",
             name: "Graph API public ingress",
             provider: graphHostNetwork)
         .MapEndpoint(
@@ -77,6 +79,9 @@ builder.Services
     .AddResourceModelGraphProcedureProvider(
         ResourceModelResourceProvider.DefaultProviderId,
         "Resource model");
+builder.Services.AddSingleton<
+    IVirtualNetworkEndpointMappingReconciler,
+    HostVirtualNetworkGraphEndpointMappingReconciler>();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
