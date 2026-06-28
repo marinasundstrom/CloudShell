@@ -892,7 +892,7 @@ public sealed class SampleSmokeTests
     [Trait("Category", "DockerIntegration")]
     public async Task ApplicationTopologyHost_RunsSqlBackedWorkload()
     {
-        var sqlContainerName = ApplicationTopologyGraphSqlServerDockerBridge.GraphSqlServerContainerName;
+        var sqlContainerName = ApplicationTopologyResourceModelSqlServerDockerBridge.ResourceModelSqlServerContainerName;
         if (!await DockerComposeStack.IsAvailableAsync() ||
             !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.ContainerImage) ||
             await DockerComposeStack.ContainerExistsAsync(sqlContainerName))
@@ -1061,7 +1061,7 @@ public sealed class SampleSmokeTests
     public async Task ApplicationTopologyHost_SqlRuntimeStopsOnGracefulHostShutdown()
     {
         const string graphSqlServerResourceId = "application.sql-server:application-topology-sql-server";
-        var sqlContainerName = ApplicationTopologyGraphSqlServerDockerBridge.GraphSqlServerContainerName;
+        var sqlContainerName = ApplicationTopologyResourceModelSqlServerDockerBridge.ResourceModelSqlServerContainerName;
         if (!await DockerComposeStack.IsAvailableAsync() ||
             !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.ContainerImage))
         {
@@ -2627,7 +2627,7 @@ public sealed class SampleSmokeTests
         else if (sampleName == "ApplicationTopology")
         {
             await DockerComposeStack.RemoveContainerIfExistsAsync(
-                ApplicationTopologyGraphSqlServerDockerBridge.GraphSqlServerContainerName);
+                ApplicationTopologyResourceModelSqlServerDockerBridge.ResourceModelSqlServerContainerName);
         }
         else if (sampleName == "LoadBalancer")
         {

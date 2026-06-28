@@ -285,11 +285,11 @@ cloudShell.DefineResources(resources =>
         .MapsTarget(frontendResource);
 }, AddGraphProjectionState);
 builder.Services
-    .AddSingleton<ISqlDatabaseCreationHandler, GraphSqlDatabaseCreationHandler>()
+    .AddSingleton<ISqlDatabaseCreationHandler, ResourceModelSqlDatabaseCreationHandler>()
     .AddSingleton<IApplicationTopologyDockerCommandRunner, ProcessApplicationTopologyDockerCommandRunner>()
-    .AddSingleton<IApplicationTopologyGraphSqlServerRuntimeBridge, ApplicationTopologyGraphSqlServerDockerBridge>()
-    .AddSingleton<IResourceOrchestrationDescriptorProvider, ApplicationTopologyGraphSqlServerOrchestrationDescriptorProvider>()
-    .AddSingleton<ISqlServerRuntimeHandler, ApplicationTopologyGraphSqlServerRuntimeHandler>()
+    .AddSingleton<IApplicationTopologyResourceModelSqlServerRuntimeBridge, ApplicationTopologyResourceModelSqlServerDockerBridge>()
+    .AddSingleton<IResourceOrchestrationDescriptorProvider, ApplicationTopologyResourceModelSqlServerOrchestrationDescriptorProvider>()
+    .AddSingleton<ISqlServerRuntimeHandler, ApplicationTopologyResourceModelSqlServerRuntimeHandler>()
     .AddStorageBackedSqlServerResourceTypes()
     .AddSqlDatabaseResourceType()
     .AddConfigurationStoreResourceType(options =>
@@ -330,7 +330,7 @@ var app = builder.Build();
 await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
 app.MapCloudShellControlPlane();
-app.MapApplicationTopologyGraphSqlCredentialApi();
+app.MapApplicationTopologyResourceModelSqlCredentialApi();
 app.MapCloudShell<App>();
 
 app.Run();

@@ -6,7 +6,7 @@ using System.Globalization;
 
 namespace CloudShell.ApplicationTopologyHost;
 
-internal static class GraphSqlServerConnectionSupport
+internal static class ResourceModelSqlServerConnectionSupport
 {
     private static readonly TimeSpan ConnectionRetryTimeout = TimeSpan.FromSeconds(90);
     private static readonly TimeSpan ConnectionRetryDelay = TimeSpan.FromSeconds(1);

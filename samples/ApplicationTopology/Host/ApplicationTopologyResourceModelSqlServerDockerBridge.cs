@@ -5,24 +5,24 @@ using CloudShell.ResourceDefinitions.ReferenceProviders;
 using System.Diagnostics;
 using System.Globalization;
 using Microsoft.Extensions.Hosting;
-using GraphResource = CloudShell.ResourceDefinitions.Resource;
+using ResourceModelResource = CloudShell.ResourceDefinitions.Resource;
 
 namespace CloudShell.ApplicationTopologyHost;
 
-public sealed class ApplicationTopologyGraphSqlServerDockerBridge(
+public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
     IApplicationTopologyDockerCommandRunner docker,
     IServiceScopeFactory scopeFactory,
     IHostEnvironment hostEnvironment,
-    IConfiguration configuration) : IApplicationTopologyGraphSqlServerRuntimeBridge
+    IConfiguration configuration) : IApplicationTopologyResourceModelSqlServerRuntimeBridge
 {
-    public const string GraphSqlServerContainerName = "cloudshell-application-topology-sql-server";
+    public const string ResourceModelSqlServerContainerName = "cloudshell-application-topology-sql-server";
     private const string SqlServerDataPath = SqlServerResourceDefaults.DataPath;
     private SqlServerRuntimeStatus _status = SqlServerRuntimeStatus.Unknown;
 
-    public SqlServerRuntimeStatus GetStatus(GraphResource resource) => _status;
+    public SqlServerRuntimeStatus GetStatus(ResourceModelResource resource) => _status;
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
-        GraphResource resource,
+        ResourceModelResource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default)
     {
@@ -45,7 +45,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridge(
                     break;
                 default:
                     throw new NotSupportedException(
-                        $"The ApplicationTopology sample does not map graph SQL operation '{operationId}' to the Docker SQL runtime.");
+                        $"The ApplicationTopology sample does not map Resource model SQL operation '{operationId}' to the Docker SQL runtime.");
             }
 
             return [];
@@ -63,11 +63,11 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridge(
     }
 
     private async Task StartAsync(
-        GraphResource resource,
+        ResourceModelResource resource,
         CancellationToken cancellationToken)
     {
         var status = docker.Run(
-            ["container", "inspect", "--format", "{{.State.Status}}", GraphSqlServerContainerName],
+            ["container", "inspect", "--format", "{{.State.Status}}", ResourceModelSqlServerContainerName],
             throwOnError: false);
         if (status.ExitCode == 0)
         {
@@ -76,7 +76,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridge(
                 return;
             }
 
-            await docker.RunAsync(["start", GraphSqlServerContainerName], cancellationToken);
+            await docker.RunAsync(["start", ResourceModelSqlServerContainerName], cancellationToken);
             return;
         }
 
@@ -88,7 +88,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridge(
                 "run",
                 "-d",
                 "--name",
-                GraphSqlServerContainerName,
+                ResourceModelSqlServerContainerName,
                 "-e",
                 "ACCEPT_EULA=Y",
                 "-e",
@@ -140,7 +140,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridge(
         result.Error.Contains("no such file or directory", StringComparison.OrdinalIgnoreCase);
 
     private async Task<ResolvedSqlVolumeMount> ResolveSqlDataMountAsync(
-        GraphResource resource,
+        ResourceModelResource resource,
         CancellationToken cancellationToken)
     {
         using var scope = scopeFactory.CreateScope();
@@ -163,7 +163,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridge(
         var mount = volumeConsumer?.Mounts.FirstOrDefault(mount =>
             string.Equals(mount.TargetPath, SqlServerDataPath, StringComparison.OrdinalIgnoreCase)) ??
             throw new InvalidOperationException(
-                $"The graph SQL Server resource must mount a volume at '{SqlServerDataPath}'.");
+                $"The Resource model SQL Server resource must mount a volume at '{SqlServerDataPath}'.");
 
         var volume = FindResolvedResource(graphResolution.Resources, mount.Volume);
         if (volume.Type.TypeId != CloudShellVolumeResourceTypeProvider.ResourceTypeId)
@@ -196,8 +196,8 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridge(
             mount.ReadOnly);
     }
 
-    private static GraphResource FindResolvedResource(
-        IReadOnlyList<GraphResource> resources,
+    private static ResourceModelResource FindResolvedResource(
+        IReadOnlyList<ResourceModelResource> resources,
         string resourceId) =>
         resources.FirstOrDefault(resource =>
             string.Equals(
@@ -208,7 +208,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridge(
             $"Resource graph state '{resourceId}' was not resolved.");
 
     private async Task RemoveAsync(CancellationToken cancellationToken) =>
-        await docker.RunAsync(["rm", "-f", GraphSqlServerContainerName], cancellationToken, throwOnError: false);
+        await docker.RunAsync(["rm", "-f", ResourceModelSqlServerContainerName], cancellationToken, throwOnError: false);
 
     private string ResolveAdministratorPassword() =>
         configuration["ApplicationTopology:SqlServer:Password"] ??
@@ -227,7 +227,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridge(
         return Path.GetFullPath(path);
     }
 
-    private static int ResolveTdsPort(GraphResource resource)
+    private static int ResolveTdsPort(ResourceModelResource resource)
     {
         var endpoint = resource.Attributes
             .GetObject<NetworkingEndpointRequestValue[]>(
@@ -239,7 +239,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridge(
         return endpoint?.Port is > 0
             ? endpoint.Port.Value
             : throw new InvalidOperationException(
-                "The graph SQL Server resource must declare a tds endpoint request with a host port before it can be started.");
+                "The Resource model SQL Server resource must declare a tds endpoint request with a host port before it can be started.");
     }
 
     private sealed record ResolvedSqlVolumeMount(

@@ -4,7 +4,7 @@ using Microsoft.Data.SqlClient;
 
 namespace CloudShell.ApplicationTopologyHost;
 
-internal sealed class GraphSqlDatabaseCreationHandler(
+internal sealed class ResourceModelSqlDatabaseCreationHandler(
     IConfiguration configuration) : ISqlDatabaseCreationHandler
 {
     private readonly IConfiguration _configuration =
@@ -26,7 +26,7 @@ internal sealed class GraphSqlDatabaseCreationHandler(
                 [
                     ResourceDefinitionDiagnostic.Error(
                         "applicationTopology.sqlDatabase.nameRequired",
-                        "The graph SQL database name is required.",
+                        "The Resource model SQL database name is required.",
                         context.Database.EffectiveResourceId)
                 ];
             }
@@ -37,12 +37,12 @@ internal sealed class GraphSqlDatabaseCreationHandler(
                 [
                     ResourceDefinitionDiagnostic.Error(
                         "applicationTopology.sqlDatabase.nameTooLong",
-                        "The graph SQL database name cannot be longer than 128 characters.",
+                        "The Resource model SQL database name cannot be longer than 128 characters.",
                         context.Database.EffectiveResourceId)
                 ];
             }
 
-            if (!GraphSqlServerConnectionSupport.TryCreateAdministratorConnectionString(
+            if (!ResourceModelSqlServerConnectionSupport.TryCreateAdministratorConnectionString(
                     context.Server,
                     _configuration,
                     "master",
@@ -52,12 +52,12 @@ internal sealed class GraphSqlDatabaseCreationHandler(
                 [
                     ResourceDefinitionDiagnostic.Error(
                         "applicationTopology.sqlServer.connectionUnavailable",
-                        "The graph SQL Server endpoint or administrator password is not available.",
+                        "The Resource model SQL Server endpoint or administrator password is not available.",
                         context.Server.EffectiveResourceId)
                 ];
             }
 
-            await using var connection = await GraphSqlServerConnectionSupport.OpenWithRetryAsync(
+            await using var connection = await ResourceModelSqlServerConnectionSupport.OpenWithRetryAsync(
                 context.Server,
                 connectionString,
                 cancellationToken);

@@ -3,7 +3,7 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ApplicationTopologyHost;
 
-internal sealed class ApplicationTopologyGraphSqlServerOrchestrationDescriptorProvider :
+internal sealed class ApplicationTopologyResourceModelSqlServerOrchestrationDescriptorProvider :
     IResourceOrchestrationDescriptorProvider
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
@@ -11,7 +11,7 @@ internal sealed class ApplicationTopologyGraphSqlServerOrchestrationDescriptorPr
     public bool CanDescribe(Resource resource) =>
         string.Equals(
             resource.Id,
-            ApplicationTopologyGraphSqlServerRuntimeHandler.GraphSqlServerResourceId,
+            ApplicationTopologyResourceModelSqlServerRuntimeHandler.ResourceModelSqlServerResourceId,
             StringComparison.OrdinalIgnoreCase);
 
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(
@@ -30,7 +30,7 @@ internal sealed class ApplicationTopologyGraphSqlServerOrchestrationDescriptorPr
             resource.DependsOn,
             [],
             resource.Endpoints,
-            "application-topology.graph-sql-runtime.v1",
+            "application-topology.resource-model-sql-runtime.v1",
             JsonSerializer.SerializeToElement(workload, SerializerOptions)));
     }
 }

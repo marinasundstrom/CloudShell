@@ -46,10 +46,10 @@ service-discovery mechanism. `DependsOn` remains startup ordering intent.
 The sample still carries focused runtime seams while provider runtime behavior
 is being moved into the new provider structure:
 
-- `ApplicationTopologyGraphSqlServerDockerBridge` starts the SQL Server Docker
+- `ApplicationTopologyResourceModelSqlServerDockerBridge` starts the SQL Server Docker
   container for the `application.sql-server` resource and resolves the
   storage-backed volume declaration into a bind mount.
-- `GraphSqlCredentialApiExtensions` exposes the sample-local SQL credential
+- `ResourceModelSqlCredentialApiExtensions` exposes the sample-local SQL credential
   endpoint used by the API.
 - Configuration Store and Secrets Vault start through provider-owned runtime
   controllers with seeded sample data.

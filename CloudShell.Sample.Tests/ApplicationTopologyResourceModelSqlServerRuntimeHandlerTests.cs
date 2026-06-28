@@ -1,19 +1,19 @@
 using CloudShell.ApplicationTopologyHost;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
-using GraphResource = CloudShell.ResourceDefinitions.Resource;
-using GraphResourceState = CloudShell.ResourceDefinitions.ResourceState;
+using ResourceModelResource = CloudShell.ResourceDefinitions.Resource;
+using ResourceModelResourceState = CloudShell.ResourceDefinitions.ResourceState;
 
 namespace CloudShell.Sample.Tests;
 
-public sealed class ApplicationTopologyGraphSqlServerRuntimeHandlerTests
+public sealed class ApplicationTopologyResourceModelSqlServerRuntimeHandlerTests
 {
     [Fact]
     public async Task ExecuteLifecycle_DelegatesMappedSqlServerResourceToBridge()
     {
-        var bridge = new RecordingGraphSqlServerRuntimeBridge(SqlServerRuntimeStatus.Running);
-        var handler = new ApplicationTopologyGraphSqlServerRuntimeHandler(bridge);
-        var resource = CreateGraphSqlServerResource();
+        var bridge = new RecordingResourceModelSqlServerRuntimeBridge(SqlServerRuntimeStatus.Running);
+        var handler = new ApplicationTopologyResourceModelSqlServerRuntimeHandler(bridge);
+        var resource = CreateResourceModelSqlServerResource();
 
         Assert.Equal(SqlServerRuntimeStatus.Running, handler.GetStatus(resource));
 
@@ -32,9 +32,9 @@ public sealed class ApplicationTopologyGraphSqlServerRuntimeHandlerTests
     [Fact]
     public async Task ExecuteLifecycle_IgnoresUnmappedSqlServerResourceWithoutCallingBridge()
     {
-        var bridge = new RecordingGraphSqlServerRuntimeBridge(SqlServerRuntimeStatus.Running);
-        var handler = new ApplicationTopologyGraphSqlServerRuntimeHandler(bridge);
-        var resource = CreateGraphSqlServerResource(
+        var bridge = new RecordingResourceModelSqlServerRuntimeBridge(SqlServerRuntimeStatus.Running);
+        var handler = new ApplicationTopologyResourceModelSqlServerRuntimeHandler(bridge);
+        var resource = CreateResourceModelSqlServerResource(
             "other-sql",
             "application.sql-server:other-sql");
 
@@ -47,7 +47,7 @@ public sealed class ApplicationTopologyGraphSqlServerRuntimeHandlerTests
         Assert.Equal(SqlServerRuntimeStatus.Unknown, handler.GetStatus(resource));
     }
 
-    private static GraphResource CreateGraphSqlServerResource(
+    private static ResourceModelResource CreateResourceModelSqlServerResource(
         string name = "application-topology-sql-server",
         string resourceId = "application.sql-server:application-topology-sql-server")
     {
@@ -55,22 +55,22 @@ public sealed class ApplicationTopologyGraphSqlServerRuntimeHandlerTests
             [SqlServerResourceTypeProvider.ClassDefinition],
             [new SqlServerResourceTypeProvider().TypeDefinition]);
 
-        return resolver.Resolve(new GraphResourceState(
+        return resolver.Resolve(new ResourceModelResourceState(
             name,
             SqlServerResourceTypeProvider.ResourceTypeId,
             ResourceId: resourceId,
             ProviderId: SqlServerResourceTypeProvider.ProviderId));
     }
 
-    private sealed class RecordingGraphSqlServerRuntimeBridge(
-        SqlServerRuntimeStatus status) : IApplicationTopologyGraphSqlServerRuntimeBridge
+    private sealed class RecordingResourceModelSqlServerRuntimeBridge(
+        SqlServerRuntimeStatus status) : IApplicationTopologyResourceModelSqlServerRuntimeBridge
     {
         public List<LifecycleCommand> LifecycleCommands { get; } = [];
 
-        public SqlServerRuntimeStatus GetStatus(GraphResource resource) => status;
+        public SqlServerRuntimeStatus GetStatus(ResourceModelResource resource) => status;
 
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
-            GraphResource resource,
+            ResourceModelResource resource,
             ResourceOperationId operationId,
             CancellationToken cancellationToken = default)
         {
@@ -80,6 +80,6 @@ public sealed class ApplicationTopologyGraphSqlServerRuntimeHandlerTests
     }
 
     private sealed record LifecycleCommand(
-        GraphResource Resource,
+        ResourceModelResource Resource,
         ResourceOperationId OperationId);
 }

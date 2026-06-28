@@ -1,27 +1,27 @@
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
-using GraphResource = CloudShell.ResourceDefinitions.Resource;
+using ResourceModelResource = CloudShell.ResourceDefinitions.Resource;
 
 namespace CloudShell.ApplicationTopologyHost;
 
-public sealed class ApplicationTopologyGraphSqlServerRuntimeHandler(
-    IApplicationTopologyGraphSqlServerRuntimeBridge bridge) : ISqlServerRuntimeHandler
+public sealed class ApplicationTopologyResourceModelSqlServerRuntimeHandler(
+    IApplicationTopologyResourceModelSqlServerRuntimeBridge bridge) : ISqlServerRuntimeHandler
 {
-    public const string GraphSqlServerResourceId =
+    public const string ResourceModelSqlServerResourceId =
         "application.sql-server:application-topology-sql-server";
 
-    public SqlServerRuntimeStatus GetStatus(GraphResource resource) =>
-        IsGraphSqlServer(resource)
+    public SqlServerRuntimeStatus GetStatus(ResourceModelResource resource) =>
+        IsResourceModelSqlServer(resource)
             ? bridge.GetStatus(resource)
             : SqlServerRuntimeStatus.Unknown;
 
     public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
-        GraphResource resource,
+        ResourceModelResource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default)
     {
-        if (!IsGraphSqlServer(resource))
+        if (!IsResourceModelSqlServer(resource))
         {
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
@@ -29,9 +29,9 @@ public sealed class ApplicationTopologyGraphSqlServerRuntimeHandler(
         return bridge.ExecuteLifecycleAsync(resource, operationId, cancellationToken);
     }
 
-    private static bool IsGraphSqlServer(GraphResource resource) =>
+    private static bool IsResourceModelSqlServer(ResourceModelResource resource) =>
         string.Equals(
             resource.EffectiveResourceId,
-            GraphSqlServerResourceId,
+            ResourceModelSqlServerResourceId,
             StringComparison.OrdinalIgnoreCase);
 }

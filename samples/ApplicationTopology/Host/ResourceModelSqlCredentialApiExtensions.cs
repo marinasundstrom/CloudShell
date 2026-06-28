@@ -8,14 +8,14 @@ using Microsoft.Data.SqlClient;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using GraphResource = CloudShell.ResourceDefinitions.Resource;
-using GraphResourceState = CloudShell.ResourceDefinitions.ResourceState;
+using ResourceModelResource = CloudShell.ResourceDefinitions.Resource;
+using ResourceModelResourceState = CloudShell.ResourceDefinitions.ResourceState;
 
 namespace CloudShell.ApplicationTopologyHost;
 
-internal static class GraphSqlCredentialApiExtensions
+internal static class ResourceModelSqlCredentialApiExtensions
 {
-    public static RouteGroupBuilder MapApplicationTopologyGraphSqlCredentialApi(
+    public static RouteGroupBuilder MapApplicationTopologyResourceModelSqlCredentialApi(
         this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
@@ -25,7 +25,7 @@ internal static class GraphSqlCredentialApiExtensions
             .WithTags("ApplicationTopology SQL Server");
 
         api.MapPost("/credentials", ResolveCredential)
-            .WithName("ApplicationTopologyGraphSqlServer_ResolveCredential")
+            .WithName("ApplicationTopologyResourceModelSqlServer_ResolveCredential")
             .Accepts<ResolveSqlServerCredentialRequest>("application/json")
             .Produces<ResolveSqlServerCredentialResponse>(StatusCodes.Status200OK)
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
@@ -152,10 +152,10 @@ internal static class GraphSqlCredentialApiExtensions
                 subject,
                 ResourceSignalSeverity.Warning);
             throw new UnauthorizedAccessException(
-                $"The current CloudShell principal cannot resolve graph SQL credentials for resource '{server.Name}'.");
+                $"The current CloudShell principal cannot resolve Resource model SQL credentials for resource '{server.Name}'.");
         }
 
-        if (!GraphSqlServerConnectionSupport.TryCreateAdministratorConnectionString(
+        if (!ResourceModelSqlServerConnectionSupport.TryCreateAdministratorConnectionString(
                 server,
                 configuration,
                 "master",
@@ -165,7 +165,7 @@ internal static class GraphSqlCredentialApiExtensions
                 resourceEvents,
                 server,
                 "credential.request.failed",
-                $"Credential request for database '{databaseName}' failed because the graph SQL Server endpoint or administrator password is not available.",
+                $"Credential request for database '{databaseName}' failed because the Resource model SQL Server endpoint or administrator password is not available.",
                 subject,
                 ResourceSignalSeverity.Warning);
             throw new InvalidOperationException(
@@ -189,7 +189,7 @@ internal static class GraphSqlCredentialApiExtensions
             userName,
             cancellationToken);
 
-        if (!GraphSqlServerConnectionSupport.TryCreateCredentialConnectionString(
+        if (!ResourceModelSqlServerConnectionSupport.TryCreateCredentialConnectionString(
                 server,
                 databaseName,
                 userName,
@@ -212,7 +212,7 @@ internal static class GraphSqlCredentialApiExtensions
     }
 
     private static bool HasDeclaredDatabase(
-        IReadOnlyList<GraphResourceState> resources,
+        IReadOnlyList<ResourceModelResourceState> resources,
         string serverResourceId,
         string databaseName) =>
         resources.Any(resource =>
@@ -225,7 +225,7 @@ internal static class GraphSqlCredentialApiExtensions
             string.Equals(declaredServerResourceId, serverResourceId, StringComparison.OrdinalIgnoreCase));
 
     private static bool TryGetDatabaseName(
-        GraphResourceState resource,
+        ResourceModelResourceState resource,
         out string databaseName)
     {
         databaseName = string.Empty;
@@ -236,13 +236,13 @@ internal static class GraphSqlCredentialApiExtensions
     }
 
     private static async Task EnsureLoginAsync(
-        GraphResource server,
+        ResourceModelResource server,
         string masterConnectionString,
         string loginName,
         string password,
         CancellationToken cancellationToken)
     {
-        await using var connection = await GraphSqlServerConnectionSupport.OpenWithRetryAsync(
+        await using var connection = await ResourceModelSqlServerConnectionSupport.OpenWithRetryAsync(
             server,
             masterConnectionString,
             cancellationToken);
@@ -272,13 +272,13 @@ internal static class GraphSqlCredentialApiExtensions
     }
 
     private static async Task EnsureDatabaseUserAsync(
-        GraphResource server,
+        ResourceModelResource server,
         IConfiguration configuration,
         string databaseName,
         string userName,
         CancellationToken cancellationToken)
     {
-        if (!GraphSqlServerConnectionSupport.TryCreateAdministratorConnectionString(
+        if (!ResourceModelSqlServerConnectionSupport.TryCreateAdministratorConnectionString(
                 server,
                 configuration,
                 databaseName,
@@ -379,7 +379,7 @@ internal static class GraphSqlCredentialApiExtensions
 
     private static void AppendCredentialEvent(
         IResourceEventSink? resourceEvents,
-        GraphResource server,
+        ResourceModelResource server,
         string eventName,
         string message,
         string? triggeredBy,

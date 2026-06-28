@@ -7,20 +7,20 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
-using GraphResource = CloudShell.ResourceDefinitions.Resource;
+using ResourceModelResource = CloudShell.ResourceDefinitions.Resource;
 
 namespace CloudShell.Sample.Tests;
 
-public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
+public sealed class ApplicationTopologyResourceModelSqlServerDockerBridgeTests
 {
     [Fact]
     public void GetStatus_ReturnsUnknownBeforeLifecycleOperation()
     {
-        using var fixture = new ApplicationTopologyGraphFixture();
+        using var fixture = new ApplicationTopologyResourceModelFixture();
         var runner = new RecordingApplicationTopologyDockerCommandRunner();
         var bridge = fixture.CreateBridge(runner);
 
-        var status = bridge.GetStatus(fixture.ResolveUnresolvedGraphSqlServer());
+        var status = bridge.GetStatus(fixture.ResolveUnresolvedResourceModelSqlServer());
 
         Assert.Equal(SqlServerRuntimeStatus.Unknown, status);
         Assert.Empty(runner.Commands);
@@ -29,7 +29,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
     [Fact]
     public async Task ExecuteStart_CreatesSqlServerContainerWhenMissing()
     {
-        using var fixture = new ApplicationTopologyGraphFixture(port: 15433);
+        using var fixture = new ApplicationTopologyResourceModelFixture(port: 15433);
         var runner = new RecordingApplicationTopologyDockerCommandRunner();
         runner.Enqueue(new(1, string.Empty, "No such container"));
         var bridge = fixture.CreateBridge(
@@ -40,11 +40,11 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
             });
 
         var diagnostics = await bridge.ExecuteLifecycleAsync(
-            await fixture.ResolveGraphSqlServerAsync(),
+            await fixture.ResolveResourceModelSqlServerAsync(),
             SqlServerResourceTypeProvider.Operations.Start);
 
         Assert.Empty(diagnostics);
-        Assert.Equal(SqlServerRuntimeStatus.Running, bridge.GetStatus(await fixture.ResolveGraphSqlServerAsync()));
+        Assert.Equal(SqlServerRuntimeStatus.Running, bridge.GetStatus(await fixture.ResolveResourceModelSqlServerAsync()));
         var expectedVolumePath = Path.Combine(fixture.ContentRootPath, "Data", "storage", "sql-server");
         Assert.Collection(
             runner.Commands,
@@ -60,17 +60,17 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
     [Fact]
     public async Task ExecuteStart_StartsExistingStoppedContainer()
     {
-        using var fixture = new ApplicationTopologyGraphFixture();
+        using var fixture = new ApplicationTopologyResourceModelFixture();
         var runner = new RecordingApplicationTopologyDockerCommandRunner();
         runner.Enqueue(new(0, "exited", string.Empty));
         var bridge = fixture.CreateBridge(runner);
 
         var diagnostics = await bridge.ExecuteLifecycleAsync(
-            await fixture.ResolveGraphSqlServerAsync(),
+            await fixture.ResolveResourceModelSqlServerAsync(),
             SqlServerResourceTypeProvider.Operations.Start);
 
         Assert.Empty(diagnostics);
-        Assert.Equal(SqlServerRuntimeStatus.Running, bridge.GetStatus(await fixture.ResolveGraphSqlServerAsync()));
+        Assert.Equal(SqlServerRuntimeStatus.Running, bridge.GetStatus(await fixture.ResolveResourceModelSqlServerAsync()));
         Assert.Collection(
             runner.Commands,
             command => Assert.Equal(
@@ -84,18 +84,18 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
     [Fact]
     public async Task ExecuteRestart_RemovesAndRecreatesContainer()
     {
-        using var fixture = new ApplicationTopologyGraphFixture(port: 16433);
+        using var fixture = new ApplicationTopologyResourceModelFixture(port: 16433);
         var runner = new RecordingApplicationTopologyDockerCommandRunner();
         runner.Enqueue(new(0, string.Empty, string.Empty));
         runner.Enqueue(new(1, string.Empty, "No such container"));
         var bridge = fixture.CreateBridge(runner);
 
         var diagnostics = await bridge.ExecuteLifecycleAsync(
-            await fixture.ResolveGraphSqlServerAsync(),
+            await fixture.ResolveResourceModelSqlServerAsync(),
             SqlServerResourceTypeProvider.Operations.Restart);
 
         Assert.Empty(diagnostics);
-        Assert.Equal(SqlServerRuntimeStatus.Running, bridge.GetStatus(await fixture.ResolveGraphSqlServerAsync()));
+        Assert.Equal(SqlServerRuntimeStatus.Running, bridge.GetStatus(await fixture.ResolveResourceModelSqlServerAsync()));
         var expectedVolumePath = Path.Combine(fixture.ContentRootPath, "Data", "storage", "sql-server");
         Assert.Collection(
             runner.Commands,
@@ -113,7 +113,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
     [Fact]
     public async Task ExecuteStart_RemovesFailedCreatedContainerAndRetriesTransientMountFailure()
     {
-        using var fixture = new ApplicationTopologyGraphFixture();
+        using var fixture = new ApplicationTopologyResourceModelFixture();
         var runner = new RecordingApplicationTopologyDockerCommandRunner();
         runner.Enqueue(new(1, string.Empty, "No such container"));
         runner.Enqueue(new(
@@ -125,7 +125,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
         var bridge = fixture.CreateBridge(runner);
 
         var diagnostics = await bridge.ExecuteLifecycleAsync(
-            await fixture.ResolveGraphSqlServerAsync(),
+            await fixture.ResolveResourceModelSqlServerAsync(),
             SqlServerResourceTypeProvider.Operations.Start);
 
         Assert.Empty(diagnostics);
@@ -149,16 +149,16 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
     [Fact]
     public async Task ExecuteStop_RemovesContainer()
     {
-        using var fixture = new ApplicationTopologyGraphFixture();
+        using var fixture = new ApplicationTopologyResourceModelFixture();
         var runner = new RecordingApplicationTopologyDockerCommandRunner();
         var bridge = fixture.CreateBridge(runner);
 
         var diagnostics = await bridge.ExecuteLifecycleAsync(
-            await fixture.ResolveGraphSqlServerAsync(),
+            await fixture.ResolveResourceModelSqlServerAsync(),
             SqlServerResourceTypeProvider.Operations.Stop);
 
         Assert.Empty(diagnostics);
-        Assert.Equal(SqlServerRuntimeStatus.Stopped, bridge.GetStatus(await fixture.ResolveGraphSqlServerAsync()));
+        Assert.Equal(SqlServerRuntimeStatus.Stopped, bridge.GetStatus(await fixture.ResolveResourceModelSqlServerAsync()));
         Assert.Collection(
             runner.Commands,
             command => Assert.Equal(
@@ -166,14 +166,14 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
                 command.JoinedArguments));
     }
 
-    private sealed class ApplicationTopologyGraphFixture : IDisposable
+    private sealed class ApplicationTopologyResourceModelFixture : IDisposable
     {
-        private const string GraphStorageResourceId = "cloudshell.storage:application-topology-local";
-        private const string GraphVolumeResourceId = "cloudshell.volume:application-topology-sql-data";
-        private const string GraphSqlServerResourceId = ApplicationTopologyGraphSqlServerRuntimeHandler.GraphSqlServerResourceId;
+        private const string StorageResourceId = "cloudshell.storage:application-topology-local";
+        private const string VolumeResourceId = "cloudshell.volume:application-topology-sql-data";
+        private const string ResourceModelSqlServerResourceId = ApplicationTopologyResourceModelSqlServerRuntimeHandler.ResourceModelSqlServerResourceId;
         private readonly ServiceProvider _serviceProvider;
 
-        public ApplicationTopologyGraphFixture(int port = 14334)
+        public ApplicationTopologyResourceModelFixture(int port = 14334)
         {
             ContentRootPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(ContentRootPath);
@@ -185,7 +185,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
                     new ResourceState(
                         "application-topology-local",
                         StorageResourceTypeProvider.ResourceTypeId,
-                        ResourceId: GraphStorageResourceId,
+                        ResourceId: StorageResourceId,
                         ProviderId: StorageResourceTypeProvider.ProviderId,
                         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
                         {
@@ -196,13 +196,13 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
                     new ResourceState(
                         "application-topology-sql-data",
                         CloudShellVolumeResourceTypeProvider.ResourceTypeId,
-                        ResourceId: GraphVolumeResourceId,
+                        ResourceId: VolumeResourceId,
                         ProviderId: CloudShellVolumeResourceTypeProvider.ProviderId,
                         DisplayName: "Application Topology SQL Data",
                         DependsOn:
                         [
                             ResourceReference.DependsOnResourceId(
-                                GraphStorageResourceId,
+                                StorageResourceId,
                                 typeId: StorageResourceTypeProvider.ResourceTypeId)
                         ],
                         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
@@ -216,7 +216,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
                     new ResourceState(
                         "application-topology-sql-server",
                         SqlServerResourceTypeProvider.ResourceTypeId,
-                        ResourceId: GraphSqlServerResourceId,
+                        ResourceId: ResourceModelSqlServerResourceId,
                         ProviderId: SqlServerResourceTypeProvider.ProviderId,
                         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
                         {
@@ -237,7 +237,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
                             [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
                                 ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
                                 [
-                                    new(GraphVolumeResourceId, "/var/opt/mssql")
+                                    new(VolumeResourceId, "/var/opt/mssql")
                                 ]))
                         })
                 ])
@@ -250,7 +250,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
 
         public string ContentRootPath { get; }
 
-        public ApplicationTopologyGraphSqlServerDockerBridge CreateBridge(
+        public ApplicationTopologyResourceModelSqlServerDockerBridge CreateBridge(
             RecordingApplicationTopologyDockerCommandRunner runner,
             IReadOnlyDictionary<string, string?>? configuration = null) =>
             new(
@@ -261,15 +261,15 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
                     .AddInMemoryCollection(configuration ?? new Dictionary<string, string?>())
                     .Build());
 
-        public async ValueTask<GraphResource> ResolveGraphSqlServerAsync()
+        public async ValueTask<ResourceModelResource> ResolveResourceModelSqlServerAsync()
         {
             var resolution = await _serviceProvider
                 .GetRequiredService<ResourceModelGraphResourceResolver>()
-                .ResolveAsync(GraphSqlServerResourceId);
-            return resolution.Target ?? throw new InvalidOperationException("Graph SQL Server was not resolved.");
+                .ResolveAsync(ResourceModelSqlServerResourceId);
+            return resolution.Target ?? throw new InvalidOperationException("Resource model SQL Server was not resolved.");
         }
 
-        public GraphResource ResolveUnresolvedGraphSqlServer()
+        public ResourceModelResource ResolveUnresolvedResourceModelSqlServer()
         {
             var resolver = new ResourceResolver(
                 [SqlServerResourceTypeProvider.ClassDefinition],
@@ -278,7 +278,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
             return resolver.Resolve(new ResourceState(
                 "application-topology-sql-server",
                 SqlServerResourceTypeProvider.ResourceTypeId,
-                ResourceId: GraphSqlServerResourceId,
+                ResourceId: ResourceModelSqlServerResourceId,
                 ProviderId: SqlServerResourceTypeProvider.ProviderId,
                 Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
                 {
