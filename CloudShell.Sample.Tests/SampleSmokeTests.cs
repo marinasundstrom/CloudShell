@@ -5779,6 +5779,22 @@ public sealed class SampleSmokeTests
             await DockerComposeStack.RemoveContainerIfExistsAsync(
                 ApplicationTopologyGraphSqlServerDockerBridge.GraphSqlServerContainerName);
         }
+        else if (projectPath.Contains("/LoadBalancer/", StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var path in Directory.EnumerateFiles(
+                Path.GetTempPath(),
+                "cloudshell-load-balancer-*.hosts"))
+            {
+                try
+                {
+                    File.Delete(path);
+                }
+                catch
+                {
+                    // Test cleanup should not hide the original test failure.
+                }
+            }
+        }
         else if (projectPath.Contains("/ReplicatedContainerHealth/", StringComparison.OrdinalIgnoreCase))
         {
             await DockerComposeStack.RemoveContainerIfExistsAsync(
