@@ -1,4 +1,3 @@
-using CloudShell.Providers.Applications;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using Microsoft.Data.SqlClient;

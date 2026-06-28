@@ -1,7 +1,6 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.Providers.Applications;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using Microsoft.AspNetCore.Mvc;
@@ -395,3 +394,12 @@ internal static class GraphSqlCredentialApiExtensions
             Severity: severity));
     }
 }
+
+public sealed record ResolveSqlServerCredentialRequest(
+    string SqlServerResourceName,
+    string DatabaseName,
+    string? Permission = null);
+
+public sealed record ResolveSqlServerCredentialResponse(
+    string ConnectionString,
+    DateTimeOffset? ExpiresOn = null);

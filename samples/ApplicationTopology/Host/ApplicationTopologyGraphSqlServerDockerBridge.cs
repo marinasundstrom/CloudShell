@@ -1,6 +1,5 @@
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.Providers.Applications;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using System.Diagnostics;
@@ -17,7 +16,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridge(
     IConfiguration configuration) : IApplicationTopologyGraphSqlServerRuntimeBridge
 {
     public const string GraphSqlServerContainerName = "cloudshell-application-topology-sql-server";
-    private const string SqlServerDataPath = ApplicationProviderServiceCollectionExtensions.DefaultSqlServerDataPath;
+    private const string SqlServerDataPath = SqlServerResourceDefaults.DataPath;
     private SqlServerRuntimeStatus _status = SqlServerRuntimeStatus.Unknown;
 
     public SqlServerRuntimeStatus GetStatus(GraphResource resource) => _status;
@@ -98,7 +97,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridge(
                 $"127.0.0.1:{ResolveTdsPort(resource).ToString(CultureInfo.InvariantCulture)}:1433",
                 "-v",
                 $"{volumeMount.SourcePath}:{volumeMount.TargetPath}{(volumeMount.ReadOnly ? ":ro" : string.Empty)}",
-                ApplicationProviderServiceCollectionExtensions.DefaultSqlServerImage
+                SqlServerResourceDefaults.ContainerImage
             ],
             cancellationToken);
     }
@@ -213,7 +212,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridge(
 
     private string ResolveAdministratorPassword() =>
         configuration["ApplicationTopology:SqlServer:Password"] ??
-        ApplicationProviderServiceCollectionExtensions.DefaultSqlServerAdministratorPassword;
+        SqlServerResourceDefaults.AdministratorPassword;
 
     private string ResolvePath(
         string storageLocation,

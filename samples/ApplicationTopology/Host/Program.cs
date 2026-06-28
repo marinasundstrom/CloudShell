@@ -75,7 +75,7 @@ var frontendProjectPath = Path.Combine(
     "Frontend",
     "CloudShell.ApplicationTopologyFrontend.csproj");
 var sqlPassword = builder.Configuration["ApplicationTopology:SqlServer:Password"]
-    ?? ApplicationProviderServiceCollectionExtensions.DefaultSqlServerAdministratorPassword;
+    ?? SqlServerResourceDefaults.AdministratorPassword;
 var sqlPort = builder.Configuration.GetValue("ApplicationTopology:SqlServer:Port", 14334);
 const string identityProviderId = "identity:development";
 const string apiIdentityName = "application-topology-api";

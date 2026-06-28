@@ -27,7 +27,7 @@ using ResourceDefinitionJson = CloudShell.ResourceDefinitions.ResourceDefinition
 using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
 using ResourceHealthCheckCapabilityIds = CloudShell.ResourceDefinitions.ResourceHealthCheckCapabilityIds;
 using ResourceReference = CloudShell.ResourceDefinitions.ResourceReference;
-using SqlServerResources = CloudShell.Providers.Applications.ApplicationProviderServiceCollectionExtensions;
+using SqlServerResources = CloudShell.ResourceDefinitions.ReferenceProviders.SqlServerResourceDefaults;
 
 namespace CloudShell.Sample.Tests;
 
@@ -251,7 +251,7 @@ public sealed class SampleSmokeTests
         const string sqlServerResourceId = "application.sql-server:sql-server";
         var sqlContainerName = ContainerHostSqlServerDockerBridge.SqlServerContainerName;
         if (!await DockerComposeStack.IsAvailableAsync() ||
-            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.DefaultSqlServerImage) ||
+            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.ContainerImage) ||
             await DockerComposeStack.ContainerExistsAsync(sqlContainerName))
         {
             return;
@@ -350,7 +350,7 @@ public sealed class SampleSmokeTests
         const string sqlServerResourceId = "application.sql-server:sql-server";
         var sqlContainerName = ContainerHostSqlServerDockerBridge.SqlServerContainerName;
         if (!await DockerComposeStack.IsAvailableAsync() ||
-            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.DefaultSqlServerImage))
+            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.ContainerImage))
         {
             return;
         }
@@ -860,7 +860,7 @@ public sealed class SampleSmokeTests
     {
         var sqlContainerName = ApplicationTopologyGraphSqlServerDockerBridge.GraphSqlServerContainerName;
         if (!await DockerComposeStack.IsAvailableAsync() ||
-            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.DefaultSqlServerImage) ||
+            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.ContainerImage) ||
             await DockerComposeStack.ContainerExistsAsync(sqlContainerName))
         {
             return;
@@ -1029,7 +1029,7 @@ public sealed class SampleSmokeTests
         const string graphSqlServerResourceId = "application.sql-server:application-topology-sql-server";
         var sqlContainerName = ApplicationTopologyGraphSqlServerDockerBridge.GraphSqlServerContainerName;
         if (!await DockerComposeStack.IsAvailableAsync() ||
-            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.DefaultSqlServerImage))
+            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.ContainerImage))
         {
             return;
         }

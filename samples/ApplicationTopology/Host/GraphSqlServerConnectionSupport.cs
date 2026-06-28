@@ -1,4 +1,3 @@
-using CloudShell.Providers.Applications;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using Microsoft.Data.SqlClient;
@@ -28,7 +27,7 @@ internal static class GraphSqlServerConnectionSupport
         }
 
         var password = configuration["ApplicationTopology:SqlServer:Password"] ??
-            ApplicationProviderServiceCollectionExtensions.DefaultSqlServerAdministratorPassword;
+            SqlServerResourceDefaults.AdministratorPassword;
         if (string.IsNullOrWhiteSpace(password))
         {
             return false;

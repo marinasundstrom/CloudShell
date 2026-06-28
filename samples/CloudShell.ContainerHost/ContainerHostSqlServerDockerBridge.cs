@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.Providers.Applications;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using Microsoft.Extensions.Hosting;
@@ -16,7 +15,7 @@ public sealed class ContainerHostSqlServerDockerBridge(
     IConfiguration configuration) : IContainerHostSqlServerRuntimeBridge
 {
     public const string SqlServerContainerName = "cloudshell-container-host-sql-server";
-    private const string SqlServerDataPath = ApplicationProviderServiceCollectionExtensions.DefaultSqlServerDataPath;
+    private const string SqlServerDataPath = SqlServerResourceDefaults.DataPath;
     private SqlServerRuntimeStatus _status = SqlServerRuntimeStatus.Unknown;
 
     public SqlServerRuntimeStatus GetStatus(ResourceModelResource resource) => _status;
@@ -97,7 +96,7 @@ public sealed class ContainerHostSqlServerDockerBridge(
                 $"127.0.0.1:{ResolveTdsPort(resource).ToString(CultureInfo.InvariantCulture)}:1433",
                 "-v",
                 $"{volumeMount.SourcePath}:{volumeMount.TargetPath}{(volumeMount.ReadOnly ? ":ro" : string.Empty)}",
-                ApplicationProviderServiceCollectionExtensions.DefaultSqlServerImage
+                SqlServerResourceDefaults.ContainerImage
             ],
             cancellationToken);
     }
@@ -212,7 +211,7 @@ public sealed class ContainerHostSqlServerDockerBridge(
 
     private string ResolveAdministratorPassword() =>
         configuration["ContainerHost:SqlServer:Password"] ??
-        ApplicationProviderServiceCollectionExtensions.DefaultSqlServerAdministratorPassword;
+        SqlServerResourceDefaults.AdministratorPassword;
 
     private string ResolvePath(
         string storageLocation,

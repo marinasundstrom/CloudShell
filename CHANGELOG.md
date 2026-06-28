@@ -48,6 +48,9 @@ on `git blame --follow`, and then by the broad type of change.
   binding and provision-on-startup intent directly on their Resource graph
   builders, leaving Resource Manager declarations focused on provider
   registration and permission grants.
+- SQL Server sample runtime bridges and smoke-test guards now use defaults
+  owned by the SQL reference provider boundary instead of reading SQL runtime
+  constants from the old application provider extension class.
 - Resource graph builder overloads that accept another resource builder now
   infer typed `ResourceReference` metadata from the target builder for
   startup dependencies, project references, service/name-mapping targets, and
