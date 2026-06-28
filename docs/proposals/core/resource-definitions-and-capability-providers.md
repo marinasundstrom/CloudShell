@@ -1537,7 +1537,8 @@ runtime boundary without widening the Resource graph model.
 
 The supported sample-host launch matrix is also a switch-readiness gate. It
 starts every graph-default sample host and checks the Resource Manager/API
-readiness paths, then removes known graph runtime artifacts from samples whose
+readiness paths, verifies the resources API projects at least one Resource
+Manager resource, then removes known graph runtime artifacts from samples whose
 normal process-kill test harness cannot rely on graceful hosted shutdown.
 
 Host infrastructure registration is a separate concern from provider
