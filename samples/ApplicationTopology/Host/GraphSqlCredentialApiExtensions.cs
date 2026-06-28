@@ -65,7 +65,7 @@ internal static class GraphSqlCredentialApiExtensions
         catch (UnauthorizedAccessException exception)
         {
             return Results.Problem(
-                title: "Graph SQL Server credential access denied",
+                title: "SQL Server credential access denied",
                 detail: exception.Message,
                 statusCode: httpContext.User.Identity?.IsAuthenticated == true
                     ? StatusCodes.Status403Forbidden
@@ -74,14 +74,14 @@ internal static class GraphSqlCredentialApiExtensions
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
         {
             return Results.Problem(
-                title: "Graph SQL Server credential request invalid",
+                title: "SQL Server credential request invalid",
                 detail: exception.Message,
                 statusCode: StatusCodes.Status400BadRequest);
         }
         catch (SqlException exception)
         {
             return Results.Problem(
-                title: "Graph SQL Server credential resolution failed",
+                title: "SQL Server credential resolution failed",
                 detail: exception.Message,
                 statusCode: StatusCodes.Status500InternalServerError);
         }
@@ -114,14 +114,14 @@ internal static class GraphSqlCredentialApiExtensions
         if (serverState is null)
         {
             throw new InvalidOperationException(
-                $"Graph SQL Server resource '{request.SqlServerResourceName}' could not be found.");
+                $"SQL Server resource '{request.SqlServerResourceName}' could not be found.");
         }
 
         var resolution = graphResolver.ResolveResource(snapshot, serverState.EffectiveResourceId);
         if (resolution.HasErrors || resolution.Resource is null)
         {
             throw new InvalidOperationException(
-                $"Graph SQL Server resource '{serverState.EffectiveResourceId}' could not be resolved.");
+                $"SQL Server resource '{serverState.EffectiveResourceId}' could not be resolved.");
         }
 
         var server = resolution.Resource;
@@ -137,7 +137,7 @@ internal static class GraphSqlCredentialApiExtensions
                 subject,
                 ResourceSignalSeverity.Warning);
             throw new InvalidOperationException(
-                $"Graph SQL Server resource '{server.Name}' does not declare database '{databaseName}'.");
+                $"SQL Server resource '{server.Name}' does not declare database '{databaseName}'.");
         }
 
         if (!ResourcePermissionClaimAuthorization.HasResourcePermission(
@@ -170,7 +170,7 @@ internal static class GraphSqlCredentialApiExtensions
                 subject,
                 ResourceSignalSeverity.Warning);
             throw new InvalidOperationException(
-                $"Graph SQL Server resource '{server.Name}' cannot resolve credentials because its TDS endpoint or administrator password is not available.");
+                $"SQL Server resource '{server.Name}' cannot resolve credentials because its TDS endpoint or administrator password is not available.");
         }
 
         var userName = CreateManagedUserName(subject, server.EffectiveResourceId, permission);
@@ -198,7 +198,7 @@ internal static class GraphSqlCredentialApiExtensions
                 out var connectionString))
         {
             throw new InvalidOperationException(
-                $"Graph SQL Server resource '{server.Name}' cannot create a credential connection string.");
+                $"SQL Server resource '{server.Name}' cannot create a credential connection string.");
         }
 
         AppendCredentialEvent(
@@ -286,7 +286,7 @@ internal static class GraphSqlCredentialApiExtensions
                 out var connectionString))
         {
             throw new InvalidOperationException(
-                $"Graph SQL Server resource '{server.Name}' cannot map database access for '{databaseName}' because its TDS endpoint or administrator password is not available.");
+                $"SQL Server resource '{server.Name}' cannot map database access for '{databaseName}' because its TDS endpoint or administrator password is not available.");
         }
 
         await using var connection = new SqlConnection(connectionString);

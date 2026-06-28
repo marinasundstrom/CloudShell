@@ -616,8 +616,8 @@ public sealed class SampleSmokeTests
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
                 ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
                 ("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{graphFrontendPort}"),
-                ("ApplicationTopology__GraphConfigurationServiceEndpoint", graphConfigurationEndpoint),
-                ("ApplicationTopology__GraphSecretsServiceEndpoint", graphSecretsEndpoint),
+                ("ApplicationTopology__ConfigurationServiceEndpoint", graphConfigurationEndpoint),
+                ("ApplicationTopology__SecretsServiceEndpoint", graphSecretsEndpoint),
                 ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
@@ -676,19 +676,19 @@ public sealed class SampleSmokeTests
             graphSettingsDocument.RootElement.EnumerateArray(),
             entry =>
                 entry.GetProperty("name").GetString() == "ApplicationTopology:Message" &&
-                entry.GetProperty("value").GetString() == "Hello from CloudShell graph configuration.");
+                entry.GetProperty("value").GetString() == "Hello from CloudShell resource configuration.");
         Assert.Contains(
             graphSettingsDocument.RootElement.EnumerateArray(),
             entry =>
                 entry.GetProperty("name").GetString() == "ApplicationTopology:Mode" &&
-                entry.GetProperty("value").GetString() == "Graph");
+                entry.GetProperty("value").GetString() == "Resource model");
 
         var graphSecretJson = await host.GetAbsoluteStringAsync(
             $"{graphSecretsEndpointAddress.TrimEnd('/')}/ApplicationTopology--ExternalApiKey",
             graphResourceToken);
         using var graphSecretDocument = JsonDocument.Parse(graphSecretJson);
         Assert.Equal(
-            "graph-local-development-api-key",
+            "local-development-application-topology-api-key",
             graphSecretDocument.RootElement.GetProperty("value").GetString());
 
         await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology API");
@@ -700,8 +700,8 @@ public sealed class SampleSmokeTests
             $"http://localhost:{graphApiPort}/settings");
         using var graphApiSettingsDocument = JsonDocument.Parse(graphApiSettingsJson);
         var graphApiSettings = graphApiSettingsDocument.RootElement;
-        Assert.Equal("Hello from CloudShell graph configuration.", graphApiSettings.GetProperty("message").GetString());
-        Assert.Equal("Graph", graphApiSettings.GetProperty("mode").GetString());
+        Assert.Equal("Hello from CloudShell resource configuration.", graphApiSettings.GetProperty("message").GetString());
+        Assert.Equal("Resource model", graphApiSettings.GetProperty("mode").GetString());
         Assert.True(graphApiSettings.GetProperty("externalApiKeyConfigured").GetBoolean());
     }
 
@@ -725,8 +725,8 @@ public sealed class SampleSmokeTests
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
                 ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
                 ("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{graphFrontendPort}"),
-                ("ApplicationTopology__GraphConfigurationServiceEndpoint", graphConfigurationEndpoint),
-                ("ApplicationTopology__GraphSecretsServiceEndpoint", graphSecretsEndpoint),
+                ("ApplicationTopology__ConfigurationServiceEndpoint", graphConfigurationEndpoint),
+                ("ApplicationTopology__SecretsServiceEndpoint", graphSecretsEndpoint),
                 ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
@@ -851,8 +851,8 @@ public sealed class SampleSmokeTests
             $"http://localhost:{graphApiPort}/settings");
         using var graphApiSettingsDocument = JsonDocument.Parse(graphApiSettingsJson);
         var graphApiSettings = graphApiSettingsDocument.RootElement;
-        Assert.Equal("Hello from CloudShell graph configuration.", graphApiSettings.GetProperty("message").GetString());
-        Assert.Equal("Graph", graphApiSettings.GetProperty("mode").GetString());
+        Assert.Equal("Hello from CloudShell resource configuration.", graphApiSettings.GetProperty("message").GetString());
+        Assert.Equal("Resource model", graphApiSettings.GetProperty("mode").GetString());
         Assert.True(graphApiSettings.GetProperty("externalApiKeyConfigured").GetBoolean());
 
         await StartGraphResourceIfAvailableAsync(host, graphFrontend, "ApplicationTopology frontend");
@@ -892,8 +892,8 @@ public sealed class SampleSmokeTests
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
                 ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
                 ("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{graphFrontendPort}"),
-                ("ApplicationTopology__GraphConfigurationServiceEndpoint", graphConfigurationEndpoint),
-                ("ApplicationTopology__GraphSecretsServiceEndpoint", graphSecretsEndpoint),
+                ("ApplicationTopology__ConfigurationServiceEndpoint", graphConfigurationEndpoint),
+                ("ApplicationTopology__SecretsServiceEndpoint", graphSecretsEndpoint),
                 ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
@@ -1003,7 +1003,7 @@ public sealed class SampleSmokeTests
             Assert.Equal("Application Topology Frontend", graphUpstream.GetProperty("frontend").GetString());
             Assert.Equal("https+http://application-topology-api", graphUpstream.GetProperty("logicalApiEndpoint").GetString());
             Assert.Equal("Hello from the referenced API project.", graphUpstream.GetProperty("upstream").GetProperty("message").GetString());
-            Assert.Equal("Graph", graphUpstream.GetProperty("settings").GetProperty("mode").GetString());
+            Assert.Equal("Resource model", graphUpstream.GetProperty("settings").GetProperty("mode").GetString());
             Assert.True(graphUpstream.GetProperty("settings").GetProperty("externalApiKeyConfigured").GetBoolean());
             Assert.Equal("ok", graphUpstream.GetProperty("database").GetProperty("status").GetString());
             Assert.Equal("mssql", graphUpstream.GetProperty("database").GetProperty("provider").GetString());
@@ -1065,8 +1065,8 @@ public sealed class SampleSmokeTests
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
                 ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
                 ("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{graphFrontendPort}"),
-                ("ApplicationTopology__GraphConfigurationServiceEndpoint", graphConfigurationEndpoint),
-                ("ApplicationTopology__GraphSecretsServiceEndpoint", graphSecretsEndpoint),
+                ("ApplicationTopology__ConfigurationServiceEndpoint", graphConfigurationEndpoint),
+                ("ApplicationTopology__SecretsServiceEndpoint", graphSecretsEndpoint),
                 ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
@@ -2384,8 +2384,8 @@ public sealed class SampleSmokeTests
             environment.Add(("ApplicationTopology__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
-            environment.Add(("ApplicationTopology__GraphConfigurationServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
-            environment.Add(("ApplicationTopology__GraphSecretsServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ApplicationTopology__ConfigurationServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ApplicationTopology__SecretsServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("ApplicationTopology__SqlServer__Port", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
         }
         else if (sampleName == "CloudShell.ContainerHost")

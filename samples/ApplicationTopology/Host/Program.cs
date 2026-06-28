@@ -50,10 +50,20 @@ var graphApiEndpoint = builder.Configuration["ApplicationTopology:GraphApiEndpoi
     ?? apiEndpoint;
 var graphFrontendEndpoint = builder.Configuration["ApplicationTopology:GraphFrontendEndpoint"]
     ?? frontendEndpoint;
-var graphConfigurationEndpoint = builder.Configuration["ApplicationTopology:GraphConfigurationServiceEndpoint"]
-    ?? $"http://localhost:{builder.Configuration.GetValue<int?>("ApplicationTopology:GraphConfigurationServiceBasePort") ?? 5139}";
-var graphSecretsEndpoint = builder.Configuration["ApplicationTopology:GraphSecretsServiceEndpoint"]
-    ?? $"http://localhost:{builder.Configuration.GetValue<int?>("ApplicationTopology:GraphSecretsServiceBasePort") ?? 6139}";
+var configurationServiceBasePort =
+    builder.Configuration.GetValue<int?>("ApplicationTopology:ConfigurationServiceBasePort") ??
+    builder.Configuration.GetValue<int?>("ApplicationTopology:GraphConfigurationServiceBasePort") ??
+    5139;
+var secretsServiceBasePort =
+    builder.Configuration.GetValue<int?>("ApplicationTopology:SecretsServiceBasePort") ??
+    builder.Configuration.GetValue<int?>("ApplicationTopology:GraphSecretsServiceBasePort") ??
+    6139;
+var graphConfigurationEndpoint = builder.Configuration["ApplicationTopology:ConfigurationServiceEndpoint"]
+    ?? builder.Configuration["ApplicationTopology:GraphConfigurationServiceEndpoint"]
+    ?? $"http://localhost:{configurationServiceBasePort}";
+var graphSecretsEndpoint = builder.Configuration["ApplicationTopology:SecretsServiceEndpoint"]
+    ?? builder.Configuration["ApplicationTopology:GraphSecretsServiceEndpoint"]
+    ?? $"http://localhost:{secretsServiceBasePort}";
 var graphApiEndpointUri = new Uri(graphApiEndpoint);
 var graphFrontendEndpointUri = new Uri(graphFrontendEndpoint);
 var graphApiProjectPath = Path.Combine(
@@ -234,8 +244,8 @@ builder.Services
         options.ServiceAuthenticationIssuer = identityIssuer;
         options.ServiceAuthenticationAudience = identityAudience;
         options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
-        options.Entries.Add(new("ApplicationTopology:Message", "Hello from CloudShell graph configuration."));
-        options.Entries.Add(new("ApplicationTopology:Mode", "Graph"));
+        options.Entries.Add(new("ApplicationTopology:Message", "Hello from CloudShell resource configuration."));
+        options.Entries.Add(new("ApplicationTopology:Mode", "Resource model"));
     })
     .AddSecretsVaultResourceType(options =>
     {
@@ -244,7 +254,7 @@ builder.Services
         options.ServiceAuthenticationIssuer = identityIssuer;
         options.ServiceAuthenticationAudience = identityAudience;
         options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
-        options.Secrets.Add(new("ApplicationTopology--ExternalApiKey", "graph-local-development-api-key"));
+        options.Secrets.Add(new("ApplicationTopology--ExternalApiKey", "local-development-application-topology-api-key"));
     })
     .AddHostConfigurationSourceResourceType()
     .AddAspNetCoreProjectResourceType();

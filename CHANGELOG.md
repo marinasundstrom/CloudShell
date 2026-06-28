@@ -21,6 +21,10 @@ on `git blame --follow`, and then by the broad type of change.
   Docker inspect timeout and keeps the last stable container-app lifecycle
   state across transient probe timeouts, while still reporting mixed replica
   states as unknown.
+- ApplicationTopology sample runtime values and primary endpoint settings now
+  use Resource model terminology instead of graph-only labels, while keeping
+  the old `Graph*` endpoint settings as compatibility fallbacks during the
+  switch.
 - Resource graph builder overloads that accept another resource builder now
   infer typed `ResourceReference` metadata from the target builder for
   startup dependencies, project references, service/name-mapping targets, and

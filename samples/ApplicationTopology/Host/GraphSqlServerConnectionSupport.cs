@@ -103,7 +103,7 @@ internal static class GraphSqlServerConnectionSupport
         }
 
         throw new InvalidOperationException(
-            $"Graph SQL Server resource '{server.Name}' did not accept connections within {ConnectionRetryTimeout.TotalSeconds.ToString(CultureInfo.InvariantCulture)} seconds.",
+            $"SQL Server resource '{server.Name}' did not accept connections within {ConnectionRetryTimeout.TotalSeconds.ToString(CultureInfo.InvariantCulture)} seconds.",
             lastError);
     }
 
