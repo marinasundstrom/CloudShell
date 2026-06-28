@@ -66,8 +66,9 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
         ResourceModelResource resource,
         CancellationToken cancellationToken)
     {
-        var status = docker.Run(
+        var status = await docker.RunAsync(
             ["container", "inspect", "--format", "{{.State.Status}}", ResourceModelSqlServerContainerName],
+            cancellationToken,
             throwOnError: false);
         if (status.ExitCode == 0)
         {

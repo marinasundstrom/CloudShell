@@ -1609,7 +1609,7 @@ resourceGroups) =>
             }
 
             CollectStoppedDependencies(dependency, dependencies, visited);
-            if (dependency.State != ResourceState.Running &&
+            if (dependency.State is not null and not ResourceState.Running &&
                 dependencies.All(item => !string.Equals(item.Id, dependency.Id, StringComparison.OrdinalIgnoreCase)))
             {
                 dependencies.Add(dependency);
