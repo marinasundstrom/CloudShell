@@ -14,28 +14,22 @@ using CloudShell.ResourceDefinitions.ResourceManager;
 var builder = CloudShellApplication.CreateBuilder(args);
 
 var cloudShellEndpoint = ResolveCloudShellEndpoint(builder.Configuration);
-var otlpEndpoint = builder.Configuration["Observability:OtlpEndpoint"]
-    ?? cloudShellEndpoint;
-var otlpProtocol = builder.Configuration["Observability:OtlpProtocol"];
 var traceIngestEndpoint = builder.Configuration["Observability:TraceIngestEndpoint"]
     ?? $"{cloudShellEndpoint}/api/control-plane/v1/traces/ingest";
 var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndpoint"]
     ?? $"{cloudShellEndpoint}/api/control-plane/v1/metrics/ingest";
-var frontendEndpoint = builder.Configuration["ProjectReference:FrontendEndpoint"]
-    ?? "http://localhost:5218";
-var graphApiEndpoint = builder.Configuration["ProjectReference:GraphApiEndpoint"]
+var apiEndpoint = builder.Configuration["ProjectReference:ApiEndpoint"]
     ?? "http://localhost:5229";
-var graphFrontendEndpoint = builder.Configuration["ProjectReference:GraphFrontendEndpoint"]
+var frontendEndpoint = builder.Configuration["ProjectReference:FrontendEndpoint"]
     ?? "http://localhost:5230";
-var graphApiEndpointUri = new Uri(graphApiEndpoint);
-var graphFrontendEndpointUri = new Uri(graphFrontendEndpoint);
-var graphApiResourceId = "application.aspnet-core-project:graph-project-reference-api";
-var graphFrontendResourceId = "application.aspnet-core-project:graph-project-reference-frontend";
-var graphOnly = builder.Configuration.GetValue("ProjectReference:GraphOnly", true);
-var graphApiProjectPath = Path.GetFullPath(
+var apiEndpointUri = new Uri(apiEndpoint);
+var frontendEndpointUri = new Uri(frontendEndpoint);
+var apiResourceId = "application.aspnet-core-project:project-reference-api";
+var frontendResourceId = "application.aspnet-core-project:project-reference-frontend";
+var apiProjectPath = Path.GetFullPath(
     "../Api/CloudShell.ProjectReferenceApi.csproj",
     builder.Environment.ContentRootPath);
-var graphFrontendProjectPath = Path.GetFullPath(
+var frontendProjectPath = Path.GetFullPath(
     "../Frontend/CloudShell.ProjectReferenceFrontend.csproj",
     builder.Environment.ContentRootPath);
 
@@ -44,16 +38,17 @@ builder.AddCloudShell();
 cloudShell.DefineResources(resources =>
 {
     resources
-        .AddAspNetCoreProject("graph-project-reference-api", graphApiProjectPath)
-        .WithDisplayName("Graph Project Reference API")
+        .AddAspNetCoreProject("project-reference-api", apiProjectPath)
+        .WithResourceId(apiResourceId)
+        .WithDisplayName("Project Reference API")
         .WithHotReload(false)
         .UseLaunchSettings(false)
         .WithServiceDiscoveryName("project-reference-api")
         .AddEndpointRequest(
             "http",
-            graphApiEndpointUri.Scheme,
-            host: graphApiEndpointUri.Host,
-            port: graphApiEndpointUri.Port,
+            apiEndpointUri.Scheme,
+            host: apiEndpointUri.Host,
+            port: apiEndpointUri.Port,
             exposure: "Local")
         .WithEnvironmentVariable(
             "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
@@ -63,7 +58,7 @@ cloudShell.DefineResources(resources =>
             metricIngestEndpoint ?? string.Empty)
         .WithEnvironmentVariable(
             "OTEL_SERVICE_NAME",
-            "graph-project-reference-api")
+            "project-reference-api")
         .AddHealthCheck(ResourceHealthCheckDefinition.Http(
             "/health",
             endpointName: "http"))
@@ -73,19 +68,19 @@ cloudShell.DefineResources(resources =>
             name: "alive"));
 
     resources
-        .AddAspNetCoreProject("graph-project-reference-frontend", graphFrontendProjectPath)
-        .WithResourceId(graphFrontendResourceId)
-        .WithDisplayName("Graph Project Reference Frontend")
+        .AddAspNetCoreProject("project-reference-frontend", frontendProjectPath)
+        .WithResourceId(frontendResourceId)
+        .WithDisplayName("Project Reference Frontend")
         .WithHotReload(false)
         .UseLaunchSettings(false)
         .WithReference(
-            graphApiResourceId,
+            apiResourceId,
             AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
         .AddEndpointRequest(
             "http",
-            graphFrontendEndpointUri.Scheme,
-            host: graphFrontendEndpointUri.Host,
-            port: graphFrontendEndpointUri.Port,
+            frontendEndpointUri.Scheme,
+            host: frontendEndpointUri.Host,
+            port: frontendEndpointUri.Port,
             exposure: "Local")
         .WithEnvironmentVariable(
             "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
@@ -95,7 +90,7 @@ cloudShell.DefineResources(resources =>
             metricIngestEndpoint ?? string.Empty)
         .WithEnvironmentVariable(
             "OTEL_SERVICE_NAME",
-            "graph-project-reference-frontend")
+            "project-reference-frontend")
         .AddHealthCheck(ResourceHealthCheckDefinition.Http(
             "/healthz",
             endpointName: "http"))
@@ -111,56 +106,16 @@ cloudShell.UseResourceGraphIntegration();
 cloudShell
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>();
-
-if (!graphOnly)
-{
-    cloudShell.AddApplicationProvider(options =>
-    {
-        options.OtlpEndpoint = otlpEndpoint;
-        options.OtlpProtocol = otlpProtocol;
-    });
-}
-else
-{
-    cloudShell.AddApplicationResourceManagerUi();
-}
+cloudShell.AddApplicationResourceManagerUi();
 
 cloudShell.Resources(resources =>
 {
-    if (!graphOnly)
-    {
-        var api = resources.AddAspNetCoreProject(
-            "project-reference-api",
-            "../Api/CloudShell.ProjectReferenceApi.csproj")
-            .WithDisplayName("Project Reference API")
-            .WithHttpHealthCheck("/health")
-            .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
-            .WithOtlpExporter(otlpEndpoint, otlpProtocol)
-            .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
-            .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty);
-
-        resources
-            .AddAspNetCoreProject(
-            "project-reference-frontend",
-            "../Frontend/CloudShell.ProjectReferenceFrontend.csproj",
-            endpoint: frontendEndpoint)
-            .WithDisplayName("Project Reference Frontend")
-            .WithHttpHealthCheck("/healthz")
-            .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
-            .WithOtlpExporter(otlpEndpoint, otlpProtocol)
-            .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
-            .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty)
-            .WithServiceDiscovery()
-            .WithReference(api)
-            .DependsOn(api);
-    }
-
     resources.Declare(
         ResourceModelResourceProvider.DefaultProviderId,
-        graphApiResourceId);
+        apiResourceId);
     resources.Declare(
         ResourceModelResourceProvider.DefaultProviderId,
-        graphFrontendResourceId);
+        frontendResourceId);
 });
 
 var app = builder.Build();
@@ -173,11 +128,11 @@ app.MapPost(
     "/project-reference/resource-graph/resources/{resourceId}/environment-variables",
     async (
         string resourceId,
-        ProjectReferenceGraphEnvironmentVariableUpdate update,
+        ProjectReferenceEnvironmentVariableUpdate update,
         ResourceModelGraphDefinitionApplyService applyService,
         CancellationToken cancellationToken) =>
     {
-        if (!string.Equals(resourceId, graphApiResourceId, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(resourceId, apiResourceId, StringComparison.OrdinalIgnoreCase))
         {
             return Results.NotFound();
         }
@@ -187,9 +142,9 @@ app.MapPost(
             return Results.BadRequest("Environment variable name is required.");
         }
 
-        var definition = CreateGraphApiDefinition(
-            graphApiEndpointUri,
-            graphApiProjectPath,
+        var definition = CreateApiDefinition(
+            apiEndpointUri,
+            apiProjectPath,
             traceIngestEndpoint,
             metricIngestEndpoint,
             new AspNetCoreProjectEnvironmentVariableValue(update.Name.Trim(), update.Value));
@@ -201,12 +156,12 @@ app.MapPost(
                 Timestamp: DateTimeOffset.UtcNow),
             cancellationToken);
 
-        return Results.Ok(ProjectReferenceGraphApplyResponse.FromResult(result));
+        return Results.Ok(ProjectReferenceApplyResponse.FromResult(result));
     });
 
 app.Run();
 
-static ResourceDefinition CreateGraphApiDefinition(
+static ResourceDefinition CreateApiDefinition(
     Uri endpoint,
     string projectPath,
     string? traceIngestEndpoint,
@@ -217,16 +172,16 @@ static ResourceDefinition CreateGraphApiDefinition(
     {
         ["CLOUDSHELL_TRACE_INGEST_ENDPOINT"] = traceIngestEndpoint ?? string.Empty,
         ["CLOUDSHELL_METRIC_INGEST_ENDPOINT"] = metricIngestEndpoint ?? string.Empty,
-        ["OTEL_SERVICE_NAME"] = "graph-project-reference-api",
+        ["OTEL_SERVICE_NAME"] = "project-reference-api",
         [changedEnvironmentVariable.Name] = changedEnvironmentVariable.Value ?? string.Empty
     };
 
     return new ResourceDefinition(
-        "graph-project-reference-api",
+        "project-reference-api",
         AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
-        ResourceId: "application.aspnet-core-project:graph-project-reference-api",
+        ResourceId: "application.aspnet-core-project:project-reference-api",
         ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
-        DisplayName: "Graph Project Reference API",
+        DisplayName: "Project Reference API",
         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
         {
             [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
@@ -303,19 +258,19 @@ static string? FirstHttpEndpoint(string? value)
     return null;
 }
 
-internal sealed record ProjectReferenceGraphEnvironmentVariableUpdate(
+internal sealed record ProjectReferenceEnvironmentVariableUpdate(
     string Name,
     string Value);
 
-internal sealed record ProjectReferenceGraphApplyResponse(
+internal sealed record ProjectReferenceApplyResponse(
     bool Committed,
     bool HasErrors,
     long BaseVersion,
     long ResultVersion,
     string Status,
-    IReadOnlyList<ProjectReferenceGraphApplyDiagnosticResponse> Diagnostics)
+    IReadOnlyList<ProjectReferenceApplyDiagnosticResponse> Diagnostics)
 {
-    public static ProjectReferenceGraphApplyResponse FromResult(
+    public static ProjectReferenceApplyResponse FromResult(
         ResourceModelGraphDefinitionApplyResult result) =>
         new(
             result.IsCommitted,
@@ -324,7 +279,7 @@ internal sealed record ProjectReferenceGraphApplyResponse(
             result.Commit.Version.Value,
             result.Commit.Summary.Status.ToString(),
             result.Diagnostics
-                .Select(diagnostic => new ProjectReferenceGraphApplyDiagnosticResponse(
+                .Select(diagnostic => new ProjectReferenceApplyDiagnosticResponse(
                     diagnostic.Severity.ToString(),
                     diagnostic.Code,
                     diagnostic.Message,
@@ -332,7 +287,7 @@ internal sealed record ProjectReferenceGraphApplyResponse(
                 .ToArray());
 }
 
-internal sealed record ProjectReferenceGraphApplyDiagnosticResponse(
+internal sealed record ProjectReferenceApplyDiagnosticResponse(
     string Severity,
     string Code,
     string Message,

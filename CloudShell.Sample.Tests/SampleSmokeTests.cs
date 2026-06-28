@@ -59,7 +59,6 @@ public sealed class SampleSmokeTests
     {
         yield return ("ApplicationTopology", "samples/ApplicationTopology/Host/appsettings.json", "ApplicationTopology:GraphOnly");
         yield return ("LoadBalancer", "samples/LoadBalancer/appsettings.json", "LoadBalancer:GraphOnly");
-        yield return ("ProjectReference", "samples/ProjectReference/Host/appsettings.json", "ProjectReference:GraphOnly");
         yield return ("ReplicatedContainerHealth", "samples/ReplicatedContainerHealth/appsettings.json", "ReplicatedContainerHealth:GraphOnly");
         yield return ("SettingsAndSecrets", "samples/SettingsAndSecrets/appsettings.json", "Samples:SettingsAndSecrets:GraphOnly");
         yield return ("ThirdPartyIdentity", "samples/ThirdPartyIdentity/appsettings.json", "Samples:ThirdPartyIdentity:GraphOnly");
@@ -419,24 +418,20 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
-    public async Task ProjectReferenceHost_RendersResourcesAndServesControlPlaneApi()
+    public async Task ProjectReferenceHost_RunsProjectsWithoutOldProviderRecords()
     {
+        var apiPort = await GetFreePortAsync();
         var frontendPort = await GetFreePortAsync();
-        var graphApiPort = await GetFreePortAsync();
-        var graphFrontendPort = await GetFreePortAsync();
+        var apiEndpoint = $"http://127.0.0.1:{apiPort}";
         var frontendEndpoint = $"http://127.0.0.1:{frontendPort}";
-        var graphApiEndpoint = $"http://127.0.0.1:{graphApiPort}";
-        var graphFrontendEndpoint = $"http://127.0.0.1:{graphFrontendPort}";
-        const string graphApiResourceId = "application.aspnet-core-project:graph-project-reference-api";
-        const string graphFrontendResourceId = "application.aspnet-core-project:graph-project-reference-frontend";
+        const string apiResourceId = "application.aspnet-core-project:project-reference-api";
+        const string frontendResourceId = "application.aspnet-core-project:project-reference-frontend";
         using var host = await SampleProcess.StartAsync(
             "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
             await GetFreePortAsync(),
             [
-                ("ProjectReference__GraphOnly", "false"),
-                ("ProjectReference__FrontendEndpoint", frontendEndpoint),
-                ("ProjectReference__GraphApiEndpoint", graphApiEndpoint),
-                ("ProjectReference__GraphFrontendEndpoint", graphFrontendEndpoint)
+                ("ProjectReference__ApiEndpoint", apiEndpoint),
+                ("ProjectReference__FrontendEndpoint", frontendEndpoint)
             ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
@@ -450,497 +445,42 @@ public sealed class SampleSmokeTests
         Assert.Contains("Resource graph", resourceGraphHtml);
         Assert.Contains("resource-dependency-graph-canvas", resourceGraphHtml);
 
-        var healthHtml = await host.GetStringAsync("/health");
-        Assert.Contains("Graph Project Reference API", healthHtml);
-        Assert.Contains("/health", healthHtml);
-        Assert.Contains("/alive", healthHtml);
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var api = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == apiResourceId);
+        var frontend = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == frontendResourceId);
 
-        var apiJson = await host.GetStringAsync("/api/control-plane/v1/resources");
-        using var document = JsonDocument.Parse(apiJson);
-        var resources = document.RootElement.EnumerateArray().ToArray();
-        Assert.Contains(resources, resource =>
+        Assert.DoesNotContain(resources, resource =>
             resource.GetProperty("id").GetString() == "application:project-reference-api");
-        Assert.Contains(resources, resource =>
+        Assert.DoesNotContain(resources, resource =>
             resource.GetProperty("id").GetString() == "application:project-reference-frontend");
-        var graphApi = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == graphApiResourceId);
-        var graphFrontend = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == graphFrontendResourceId);
-        var graphApiEndpointElement = Assert.Single(graphApi.GetProperty("endpoints").EnumerateArray());
-        Assert.Equal("http", graphApiEndpointElement.GetProperty("name").GetString());
-        Assert.Equal("http", graphApiEndpointElement.GetProperty("protocol").GetString());
-        Assert.Equal(graphApiPort, graphApiEndpointElement.GetProperty("targetPort").GetInt32());
-        Assert.Equal(graphApiEndpoint, graphApi.GetProperty("primaryEndpoint").GetString());
-        var graphApiEndpointMapping = Assert.Single(
-            graphApi.GetProperty("endpointNetworkMappings").EnumerateArray());
-        Assert.Equal(graphApiEndpoint, graphApiEndpointMapping.GetProperty("address").GetString());
-        Assert.Equal(
-            "http",
-            graphApiEndpointMapping.GetProperty("target").GetProperty("endpointName").GetString());
-        var graphFrontendEndpointElement = Assert.Single(graphFrontend.GetProperty("endpoints").EnumerateArray());
-        Assert.Equal("http", graphFrontendEndpointElement.GetProperty("name").GetString());
-        Assert.Equal("http", graphFrontendEndpointElement.GetProperty("protocol").GetString());
-        Assert.Equal(graphFrontendPort, graphFrontendEndpointElement.GetProperty("targetPort").GetInt32());
-        Assert.Equal(graphFrontendEndpoint, graphFrontend.GetProperty("primaryEndpoint").GetString());
-        Assert.Empty(graphFrontend.GetProperty("dependsOn").EnumerateArray());
+        Assert.Equal(apiEndpoint, api.GetProperty("primaryEndpoint").GetString());
+        Assert.Equal(frontendEndpoint, frontend.GetProperty("primaryEndpoint").GetString());
 
-        if (!HasResourceState(graphApi, ResourceState.Running))
-        {
-            await host.SendAsync(
-                HttpMethod.Post,
-                $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphApiResourceId)}/actions/start?startDependencies=false&ignoreDependentWarning=true");
-        }
-        if (!HasResourceState(graphFrontend, ResourceState.Running))
-        {
-            await host.SendAsync(
-                HttpMethod.Post,
-                $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphFrontendResourceId)}/actions/start?startDependencies=false&ignoreDependentWarning=true");
-        }
-
+        await StartGraphResourceIfAvailableAsync(host, api, "ProjectReference API");
         await host.WaitForAbsoluteHttpOkAsync(
-            $"{graphApiEndpoint}/health",
+            $"{apiEndpoint}/health",
             bearerToken: null,
             StartupTimeout);
-        await host.WaitForAbsoluteHttpOkAsync(
-            $"{graphFrontendEndpoint}/healthz",
-            bearerToken: null,
+        var startedApi = await WaitForResourceStateAsync(
+            host,
+            apiResourceId,
+            ResourceState.Running,
             StartupTimeout);
-        await host.WaitForAbsoluteHttpOkAsync(
-            $"{graphFrontendEndpoint}/upstream",
-            bearerToken: null,
-            StartupTimeout);
-        var graphFrontendUpstreamJson = await host.GetAbsoluteStringAsync($"{graphFrontendEndpoint}/upstream");
-        using var graphFrontendUpstreamDocument = JsonDocument.Parse(graphFrontendUpstreamJson);
-        Assert.Contains(
-            "Project Reference Frontend",
-            graphFrontendUpstreamJson);
-        var graphFrontendResolvedApiEndpoint = graphFrontendUpstreamDocument.RootElement
-            .GetProperty("resolvedApiEndpoint")
-            .GetString() ?? string.Empty;
-        Assert.StartsWith(
-            graphApiEndpoint,
-            graphFrontendResolvedApiEndpoint,
-            StringComparison.Ordinal);
-        Assert.Equal(
-            "Hello from the referenced API project.",
-            graphFrontendUpstreamDocument.RootElement
-                .GetProperty("upstream")
-                .GetProperty("message")
-                .GetString());
-        var graphApiLogSourceId = await WaitForLogSourceAsync(host, graphApiResourceId);
-        var graphApiLogEntries = await WaitForLogEntriesAsync(host, graphApiLogSourceId);
-        Assert.NotEmpty(graphApiLogEntries);
-        var graphFrontendLogSourceId = await WaitForLogSourceAsync(host, graphFrontendResourceId);
-        var graphFrontendLogEntries = await WaitForLogEntriesAsync(host, graphFrontendLogSourceId);
-        Assert.NotEmpty(graphFrontendLogEntries);
-        var graphApiMetricPoints = await WaitForMetricPointsAsync(
-            host,
-            graphApiResourceId,
-            StartupTimeout,
-            points => points.Any(point =>
-                point.GetProperty("name").GetString() == "http.server.requests" &&
-                point.GetProperty("resourceId").GetString() == graphApiResourceId));
-        Assert.NotEmpty(graphApiMetricPoints);
-        var graphApiMessageJson = await host.GetAbsoluteStringAsync($"{graphApiEndpoint}/message");
-        using var graphApiMessageDocument = JsonDocument.Parse(graphApiMessageJson);
-        Assert.Equal(
-            "Hello from the referenced API project.",
-            graphApiMessageDocument.RootElement.GetProperty("message").GetString());
-        var graphApiTraceSpans = await WaitForTraceSpansByResourceAsync(
-            host,
-            graphApiResourceId,
-            StartupTimeout,
-            spans => spans.Any(span =>
-                span.GetProperty("name").GetString() == "api.prepare-message" &&
-                span.GetProperty("resourceId").GetString() == graphApiResourceId));
-        Assert.NotEmpty(graphApiTraceSpans);
-        var graphFrontendTraceSpans = await WaitForTraceSpansByResourceAsync(
-            host,
-            graphFrontendResourceId,
-            StartupTimeout,
-            spans => spans.Any(span =>
-                span.GetProperty("name").GetString() == "frontend.call-project-reference-api" &&
-                span.GetProperty("resourceId").GetString() == graphFrontendResourceId));
-        Assert.NotEmpty(graphFrontendTraceSpans);
-        var graphApiHealthJson = await host.SendAsync(
-            HttpMethod.Post,
-            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphApiResourceId)}/health/refresh");
-        using var graphApiHealthDocument = JsonDocument.Parse(graphApiHealthJson);
-        var graphApiHealth = graphApiHealthDocument.RootElement;
-        var graphApiHealthChecks = graphApiHealth.GetProperty("checks").EnumerateArray().ToArray();
-        Assert.Equal(graphApiResourceId, graphApiHealth.GetProperty("resourceId").GetString());
-        Assert.Equal((int)ResourceHealthStatus.Healthy, graphApiHealth.GetProperty("status").GetInt32());
-        Assert.Contains(graphApiHealthChecks, check =>
-            check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Health &&
-            check.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy);
-        Assert.Contains(graphApiHealthChecks, check =>
-            check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Liveness &&
-            check.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy);
-        var graphFrontendHealthJson = await host.SendAsync(
-            HttpMethod.Post,
-            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphFrontendResourceId)}/health/refresh");
-        using var graphFrontendHealthDocument = JsonDocument.Parse(graphFrontendHealthJson);
-        var graphFrontendHealth = graphFrontendHealthDocument.RootElement;
-        var graphFrontendHealthChecks = graphFrontendHealth.GetProperty("checks").EnumerateArray().ToArray();
-        Assert.Equal(graphFrontendResourceId, graphFrontendHealth.GetProperty("resourceId").GetString());
-        Assert.Equal((int)ResourceHealthStatus.Healthy, graphFrontendHealth.GetProperty("status").GetInt32());
-        Assert.Contains(graphFrontendHealthChecks, check =>
-            check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Health &&
-            check.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy);
-        Assert.Contains(graphFrontendHealthChecks, check =>
-            check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Liveness &&
-            check.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy);
+        Assert.True(HasResourceState(startedApi, ResourceState.Running));
 
-        var graphApplyJson = await host.SendJsonAsync(
-            HttpMethod.Post,
-            $"/project-reference/resource-graph/resources/{Uri.EscapeDataString(graphApiResourceId)}/environment-variables",
-            """
-            {
-              "name": "POC_GRAPH_UPDATE_MARKER",
-              "value": "applied"
-            }
-            """);
-        using var graphApplyDocument = JsonDocument.Parse(graphApplyJson);
-        var graphApply = graphApplyDocument.RootElement;
-        Assert.True(graphApply.GetProperty("committed").GetBoolean());
-        Assert.False(graphApply.GetProperty("hasErrors").GetBoolean());
-        Assert.Equal("Committed", graphApply.GetProperty("status").GetString());
-        Assert.True(graphApply.GetProperty("resultVersion").GetInt64() >
-            graphApply.GetProperty("baseVersion").GetInt64());
-        Assert.Contains(
-            graphApply.GetProperty("diagnostics").EnumerateArray(),
-            diagnostic =>
-                diagnostic.GetProperty("severity").GetString() == "Warning" &&
-                diagnostic.GetProperty("code").GetString() ==
-                    "application.aspNetCoreProject.restartRequired");
-
-        var graphApiDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString(graphApiResourceId)}/details");
-        Assert.Contains("Graph Project Reference API", graphApiDetailsHtml);
-        Assert.Contains("graph-project-reference-api", graphApiDetailsHtml);
-
-        var graphApiLogsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString(graphApiResourceId)}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}");
-        Assert.Contains("Telemetry", graphApiLogsHtml);
-        Assert.Contains("Console logs", graphApiLogsHtml);
-
-        var graphApiTracesHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString(graphApiResourceId)}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Traces.Value)}");
-        Assert.Contains("Telemetry", graphApiTracesHtml);
-        Assert.Contains("graph-project-reference-api", graphApiTracesHtml);
-
-        var graphApiMetricsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString(graphApiResourceId)}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}");
-        Assert.Contains("Telemetry", graphApiMetricsHtml);
-        Assert.Contains("http.server.requests", graphApiMetricsHtml);
-        Assert.Contains("graph-project-reference-api", graphApiMetricsHtml);
-
-        var graphApiHealthHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString(graphApiResourceId)}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Health.Value)}");
-        Assert.Contains("Health", graphApiHealthHtml);
-        Assert.Contains("Graph Project Reference API", graphApiHealthHtml);
-
+        await StartGraphResourceIfAvailableAsync(host, frontend, "ProjectReference frontend");
         await host.WaitForAbsoluteHttpOkAsync(
             $"{frontendEndpoint}/upstream",
             bearerToken: null,
             StartupTimeout);
         var upstreamJson = await host.GetAbsoluteStringAsync($"{frontendEndpoint}/upstream");
-        Assert.Contains("Project Reference Frontend", upstreamJson);
-        Assert.Contains("Hello from the referenced API project.", upstreamJson);
-
-        const string traceId = "4bf92f3577b34da6a3ce929d0e0e4736";
-        await host.SendJsonAsync(
-            HttpMethod.Post,
-            "/api/control-plane/v1/traces/ingest",
-            $$"""
-            {
-              "spans": [
-                {
-                  "traceId": "{{traceId}}",
-                  "spanId": "00f067aa0ba902b7",
-                  "parentSpanId": null,
-                  "name": "GET /upstream",
-                  "resourceId": "application:project-reference-frontend",
-                  "serviceName": "project-reference-frontend",
-                  "kind": "Server",
-                  "status": "Unset",
-                  "startTime": "2026-06-16T00:00:00Z",
-                  "duration": "00:00:00.1250000",
-                  "attributes": {
-                    "http.route": "/upstream"
-                  }
-                },
-                {
-                  "traceId": "{{traceId}}",
-                  "spanId": "00f067aa0ba902b8",
-                  "parentSpanId": "00f067aa0ba902b7",
-                  "name": "GET /failure",
-                  "resourceId": "application:project-reference-api",
-                  "serviceName": "project-reference-api",
-                  "kind": "Server",
-                  "status": "Error",
-                  "startTime": "2026-06-16T00:00:00.025Z",
-                  "duration": "00:00:00.0500000",
-                  "attributes": {
-                    "http.route": "/failure",
-                    "error.type": "500"
-                  }
-                }
-              ]
-            }
-            """);
-
-        await host.SendJsonAsync(
-            HttpMethod.Post,
-            "/api/control-plane/v1/metrics/ingest",
-            """
-            {
-              "points": [
-                {
-                  "name": "http.server.requests",
-                  "resourceId": "application:project-reference-frontend",
-                  "serviceName": "project-reference-frontend",
-                  "value": 1,
-                  "timestamp": "2026-06-16T00:00:01Z",
-                  "unit": "count",
-                  "attributes": {
-                    "http.method": "GET",
-                    "http.route": "/upstream",
-                    "http.status_code": "200"
-                  }
-                },
-                {
-                  "name": "http.server.duration",
-                  "resourceId": "application:project-reference-frontend",
-                  "serviceName": "project-reference-frontend",
-                  "value": 125,
-                  "timestamp": "2026-06-16T00:00:01Z",
-                  "unit": "ms",
-                  "attributes": {
-                    "http.method": "GET",
-                    "http.route": "/upstream",
-                    "http.status_code": "200"
-                  }
-                }
-              ]
-            }
-            """);
-
-        var frontendOverviewHtml = await host.GetStringAsync(
-            "/resources/application%3Aproject-reference-frontend/details");
-        Assert.Contains("Dependency graph", frontendOverviewHtml);
-        Assert.Contains("Project Reference API", frontendOverviewHtml);
-        Assert.Contains(
-            "href=\"/resources/application%3Aproject-reference-api/activity\"",
-            frontendOverviewHtml);
-        Assert.Contains(
-            "href=\"/resources/application%3Aproject-reference-api/traces\"",
-            frontendOverviewHtml);
-
-        var traceHtml = await host.GetStringAsync(
-            $"/observability/traces?resourceId=application%3Aproject-reference-frontend&traceId={traceId}");
-        Assert.Contains("Trace chart", traceHtml);
-        Assert.Contains("id=\"trace-source-filter\"", traceHtml);
-        Assert.Contains("Project Reference Frontend", traceHtml);
-        Assert.Contains("Related logs", traceHtml);
-        Assert.Contains("Related activity", traceHtml);
-        Assert.Contains("Open resource", traceHtml);
-        Assert.Contains("<fluent-anchor", traceHtml);
-        Assert.Contains(">Project Reference Frontend</a>", traceHtml);
-        Assert.DoesNotContain(">application:project-reference-frontend</a>", traceHtml);
-        Assert.DoesNotContain("id=\"trace-sort-mode\"", traceHtml);
-        Assert.Contains("Error spans", traceHtml);
-        Assert.Contains("trace-span-row selected attention", traceHtml);
-        Assert.Contains("trace-attention-pill", traceHtml);
-        Assert.Contains("Needs attention", traceHtml);
-        Assert.Contains("trace-span-row error", traceHtml);
-        Assert.Contains("trace-error-pill", traceHtml);
-        Assert.Contains(
-            "href=\"/resources/application%3Aproject-reference-frontend/logs?traceId=4bf92f3577b34da6a3ce929d0e0e4736\"",
-            traceHtml);
-        Assert.Contains(
-            "href=\"/resources/application%3Aproject-reference-frontend/activity?traceId=4bf92f3577b34da6a3ce929d0e0e4736&amp;spanId=00f067aa0ba902b7\"",
-            traceHtml);
-        Assert.Contains("href=\"/resources/application%3Aproject-reference-frontend\"", traceHtml);
-
-        var traceListHtml = await host.GetStringAsync(
-            "/observability/traces?resourceId=application%3Aproject-reference-api");
-        Assert.Contains("id=\"trace-sort-mode\"", traceListHtml);
-        Assert.Contains("<dt>Resource name</dt>", traceListHtml);
-        Assert.Contains("<dd>project-reference-api</dd>", traceListHtml);
-        Assert.Contains("<dt>Canonical resource ID</dt>", traceListHtml);
-        Assert.Contains("<dd>application:project-reference-api</dd>", traceListHtml);
-        Assert.Contains("Newest", traceListHtml);
-        Assert.Contains("Longest duration", traceListHtml);
-        Assert.Contains("Errors first", traceListHtml);
-        Assert.Contains("recent-trace-item error", traceListHtml);
-        Assert.Contains("1 error span(s)", traceListHtml);
-
-        var allTraceListHtml = await host.GetStringAsync("/observability/traces");
-        Assert.Contains("All sources", allTraceListHtml);
-        Assert.Contains("4 trace resources", allTraceListHtml);
-        Assert.Contains("GET /upstream", allTraceListHtml);
-        Assert.Contains("project-reference-frontend", allTraceListHtml);
-        Assert.Contains("project-reference-api", allTraceListHtml);
-        Assert.Contains("graph-project-reference-api", allTraceListHtml);
-        Assert.Contains("graph-project-reference-frontend", allTraceListHtml);
-        Assert.Contains(
-            $"href=\"/observability/traces?resourceId=application%3Aproject-reference-frontend&amp;traceId={traceId}\"",
-            allTraceListHtml);
-
-        var serviceMapHtml = await host.GetStringAsync("/observability/service-map");
-        Assert.Contains("Service map", serviceMapHtml);
-        Assert.Contains("Project Reference Frontend", serviceMapHtml);
-
-        var missingTraceResourceHtml = await host.GetStringAsync(
-            "/observability/traces?resourceId=application%3Aproject-reference-missing");
-        Assert.Contains("Trace resource not found", missingTraceResourceHtml);
-        Assert.Contains("project-reference-missing", missingTraceResourceHtml);
-        Assert.DoesNotContain("application:project-reference-missing", missingTraceResourceHtml);
-        Assert.Contains("All trace resources", missingTraceResourceHtml);
-
-        var missingTraceScopeHtml = await host.GetStringAsync(
-            "/observability/traces?resourceId=application%3Aproject-reference-frontend&scopeResourceId=application%3Aproject-reference-missing-scope");
-        Assert.Contains("Trace scope not found", missingTraceScopeHtml);
-        Assert.Contains("project-reference-missing-scope", missingTraceScopeHtml);
-        Assert.DoesNotContain("application:project-reference-missing-scope", missingTraceScopeHtml);
-        Assert.Contains("Show all scopes", missingTraceScopeHtml);
-
-        var relatedLogsHtml = await host.GetStringAsync(
-            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}&traceId={traceId}");
-        Assert.Contains("Telemetry", relatedLogsHtml);
-        Assert.DoesNotContain("Resource telemetry", relatedLogsHtml);
-        Assert.Contains("Project Reference Frontend", relatedLogsHtml);
-        Assert.Contains("Console logs", relatedLogsHtml);
-        Assert.Contains("id=\"log-source-filter\"", relatedLogsHtml);
-        Assert.Contains("Showing entries correlated with trace", relatedLogsHtml);
-        Assert.Contains("Clear trace filter", relatedLogsHtml);
-
-        var relatedTracesHtml = await host.GetStringAsync(
-            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Traces.Value)}&traceId={traceId}");
-        Assert.Contains("Telemetry", relatedTracesHtml);
-        Assert.DoesNotContain("Resource telemetry", relatedTracesHtml);
-        Assert.Contains("Trace chart", relatedTracesHtml);
-        Assert.DoesNotContain("id=\"trace-source-filter\"", relatedTracesHtml);
-        Assert.Contains("Related logs", relatedTracesHtml);
-        Assert.Contains("Related activity", relatedTracesHtml);
-        Assert.Contains(">Project Reference Frontend</a>", relatedTracesHtml);
-        Assert.DoesNotContain(">application:project-reference-frontend</a>", relatedTracesHtml);
-        Assert.Contains("Clear trace filter", relatedTracesHtml);
-        Assert.Contains(
-            "href=\"/resources/application%3Aproject-reference-frontend/logs?traceId=4bf92f3577b34da6a3ce929d0e0e4736\"",
-            relatedTracesHtml);
-
-        var missingInlineTraceScopeHtml = await host.GetStringAsync(
-            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Traces.Value)}&scopeResourceId=application%3Aproject-reference-missing-scope");
-        Assert.Contains("Trace scope not found", missingInlineTraceScopeHtml);
-        Assert.Contains("project-reference-missing-scope", missingInlineTraceScopeHtml);
-        Assert.DoesNotContain("application:project-reference-missing-scope", missingInlineTraceScopeHtml);
-
-        var relatedMetricsHtml = await host.GetStringAsync(
-            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}");
-        Assert.Contains("Telemetry", relatedMetricsHtml);
-        Assert.DoesNotContain("Resource telemetry", relatedMetricsHtml);
-        Assert.DoesNotContain("Metric source", relatedMetricsHtml);
-        Assert.DoesNotContain("id=\"metric-source-filter\"", relatedMetricsHtml);
-        Assert.Contains("http.server.requests", relatedMetricsHtml);
-        Assert.Contains("http.server.duration", relatedMetricsHtml);
-        Assert.Contains("project-reference-frontend", relatedMetricsHtml);
-
-        var missingMetricResourceHtml = await host.GetStringAsync(
-            "/observability/metrics?resourceId=application%3Aproject-reference-missing");
-        Assert.Contains("Metric resource not found", missingMetricResourceHtml);
-        Assert.Contains("project-reference-missing", missingMetricResourceHtml);
-        Assert.DoesNotContain("application:project-reference-missing", missingMetricResourceHtml);
-        Assert.Contains("All metric resources", missingMetricResourceHtml);
-
-        var missingMetricScopeHtml = await host.GetStringAsync(
-            "/observability/metrics?resourceId=application%3Aproject-reference-frontend&scopeResourceId=application%3Aproject-reference-missing-scope");
-        Assert.Contains("Metric scope not found", missingMetricScopeHtml);
-        Assert.Contains("project-reference-missing-scope", missingMetricScopeHtml);
-        Assert.DoesNotContain("application:project-reference-missing-scope", missingMetricScopeHtml);
-        Assert.Contains("Project Reference Frontend", missingMetricScopeHtml);
-        Assert.Contains("Show all scopes", missingMetricScopeHtml);
-
-        var missingInlineMetricScopeHtml = await host.GetStringAsync(
-            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}&scopeResourceId=application%3Aproject-reference-missing-scope");
-        Assert.Contains("Metric scope not found", missingInlineMetricScopeHtml);
-        Assert.Contains("project-reference-missing-scope", missingInlineMetricScopeHtml);
-        Assert.DoesNotContain("application:project-reference-missing-scope", missingInlineMetricScopeHtml);
-
-        var relatedActivityHtml = await host.GetStringAsync(
-            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Activity.Value)}&traceId={traceId}&spanId=00f067aa0ba902b7");
-        Assert.Contains("Activity", relatedActivityHtml);
-        Assert.Contains("Showing activity correlated with trace", relatedActivityHtml);
-        Assert.Contains("Showing activity correlated with span", relatedActivityHtml);
-        Assert.Contains("Clear", relatedActivityHtml);
-
-        await host.SendAsync(
-            HttpMethod.Post,
-            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphApiResourceId)}/actions/stop?ignoreDependentWarning=true");
-        var stoppedGraphApi = await WaitForResourceStateAsync(
-            host,
-            graphApiResourceId,
-            ResourceState.Stopped,
-            StartupTimeout);
-        Assert.True(HasResourceState(stoppedGraphApi, ResourceState.Stopped));
-    }
-
-    [Fact]
-    public async Task ProjectReferenceHost_GraphOnlyModeRunsGraphProjectsWithoutOldProviderRecords()
-    {
-        var graphApiPort = await GetFreePortAsync();
-        var graphFrontendPort = await GetFreePortAsync();
-        var graphApiEndpoint = $"http://127.0.0.1:{graphApiPort}";
-        var graphFrontendEndpoint = $"http://127.0.0.1:{graphFrontendPort}";
-        const string graphApiResourceId = "application.aspnet-core-project:graph-project-reference-api";
-        const string graphFrontendResourceId = "application.aspnet-core-project:graph-project-reference-frontend";
-        using var host = await SampleProcess.StartAsync(
-            "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
-            await GetFreePortAsync(),
-            [
-                ("ProjectReference__GraphApiEndpoint", graphApiEndpoint),
-                ("ProjectReference__GraphFrontendEndpoint", graphFrontendEndpoint)
-            ]);
-
-        await host.WaitForHttpOkAsync("/", StartupTimeout);
-
-        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
-        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
-        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
-        var graphApi = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == graphApiResourceId);
-        var graphFrontend = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == graphFrontendResourceId);
-
-        Assert.DoesNotContain(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:project-reference-api");
-        Assert.DoesNotContain(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:project-reference-frontend");
-        Assert.Equal(graphApiEndpoint, graphApi.GetProperty("primaryEndpoint").GetString());
-        Assert.Equal(graphFrontendEndpoint, graphFrontend.GetProperty("primaryEndpoint").GetString());
-
-        await StartGraphResourceIfAvailableAsync(host, graphApi, "ProjectReference graph API");
-        await host.WaitForAbsoluteHttpOkAsync(
-            $"{graphApiEndpoint}/health",
-            bearerToken: null,
-            StartupTimeout);
-        var startedGraphApi = await WaitForResourceStateAsync(
-            host,
-            graphApiResourceId,
-            ResourceState.Running,
-            StartupTimeout);
-        Assert.True(HasResourceState(startedGraphApi, ResourceState.Running));
-
-        await StartGraphResourceIfAvailableAsync(host, graphFrontend, "ProjectReference graph frontend");
-        await host.WaitForAbsoluteHttpOkAsync(
-            $"{graphFrontendEndpoint}/upstream",
-            bearerToken: null,
-            StartupTimeout);
-        var upstreamJson = await host.GetAbsoluteStringAsync($"{graphFrontendEndpoint}/upstream");
         using var upstreamDocument = JsonDocument.Parse(upstreamJson);
         Assert.StartsWith(
-            graphApiEndpoint,
+            apiEndpoint,
             upstreamDocument.RootElement.GetProperty("resolvedApiEndpoint").GetString(),
             StringComparison.Ordinal);
         Assert.Equal(
@@ -949,6 +489,88 @@ public sealed class SampleSmokeTests
                 .GetProperty("upstream")
                 .GetProperty("message")
                 .GetString());
+
+        var apiLogSourceId = await WaitForLogSourceAsync(host, apiResourceId);
+        Assert.NotEmpty(await WaitForLogEntriesAsync(host, apiLogSourceId));
+        var frontendLogSourceId = await WaitForLogSourceAsync(host, frontendResourceId);
+        Assert.NotEmpty(await WaitForLogEntriesAsync(host, frontendLogSourceId));
+        Assert.NotEmpty(await WaitForMetricPointsAsync(
+            host,
+            apiResourceId,
+            StartupTimeout,
+            points => points.Any(point =>
+                point.GetProperty("name").GetString() == "http.server.requests" &&
+                point.GetProperty("resourceId").GetString() == apiResourceId)));
+        Assert.NotEmpty(await WaitForTraceSpansByResourceAsync(
+            host,
+            apiResourceId,
+            StartupTimeout,
+            spans => spans.Any(span =>
+                span.GetProperty("name").GetString() == "api.prepare-message" &&
+                span.GetProperty("resourceId").GetString() == apiResourceId)));
+        Assert.NotEmpty(await WaitForTraceSpansByResourceAsync(
+            host,
+            frontendResourceId,
+            StartupTimeout,
+            spans => spans.Any(span =>
+                span.GetProperty("name").GetString() == "frontend.call-project-reference-api" &&
+                span.GetProperty("resourceId").GetString() == frontendResourceId)));
+
+        var apiHealthJson = await host.SendAsync(
+            HttpMethod.Post,
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(apiResourceId)}/health/refresh");
+        using var apiHealthDocument = JsonDocument.Parse(apiHealthJson);
+        AssertGraphHealthRefreshSucceeded(apiHealthDocument.RootElement, apiResourceId);
+
+        var frontendHealthJson = await host.SendAsync(
+            HttpMethod.Post,
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(frontendResourceId)}/health/refresh");
+        using var frontendHealthDocument = JsonDocument.Parse(frontendHealthJson);
+        AssertGraphHealthRefreshSucceeded(frontendHealthDocument.RootElement, frontendResourceId);
+
+        var applyJson = await host.SendJsonAsync(
+            HttpMethod.Post,
+            $"/project-reference/resource-graph/resources/{Uri.EscapeDataString(apiResourceId)}/environment-variables",
+            """
+            {
+              "name": "POC_UPDATE_MARKER",
+              "value": "applied"
+            }
+            """);
+        using var applyDocument = JsonDocument.Parse(applyJson);
+        var apply = applyDocument.RootElement;
+        Assert.True(apply.GetProperty("committed").GetBoolean());
+        Assert.False(apply.GetProperty("hasErrors").GetBoolean());
+        Assert.Equal("Committed", apply.GetProperty("status").GetString());
+        Assert.True(apply.GetProperty("resultVersion").GetInt64() >
+            apply.GetProperty("baseVersion").GetInt64());
+        Assert.Contains(
+            apply.GetProperty("diagnostics").EnumerateArray(),
+            diagnostic =>
+                diagnostic.GetProperty("severity").GetString() == "Warning" &&
+                diagnostic.GetProperty("code").GetString() ==
+                    "application.aspNetCoreProject.restartRequired");
+
+        var apiDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString(apiResourceId)}/details");
+        Assert.Contains("Project Reference API", apiDetailsHtml);
+        Assert.Contains("project-reference-api", apiDetailsHtml);
+
+        var apiMetricsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString(apiResourceId)}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}");
+        Assert.Contains("Telemetry", apiMetricsHtml);
+        Assert.Contains("http.server.requests", apiMetricsHtml);
+        Assert.Contains("project-reference-api", apiMetricsHtml);
+
+        await host.SendAsync(
+            HttpMethod.Post,
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(apiResourceId)}/actions/stop?ignoreDependentWarning=true");
+        var stoppedApi = await WaitForResourceStateAsync(
+            host,
+            apiResourceId,
+            ResourceState.Stopped,
+            StartupTimeout);
+        Assert.True(HasResourceState(stoppedApi, ResourceState.Stopped));
     }
 
     [Fact]
@@ -958,7 +580,6 @@ public sealed class SampleSmokeTests
             "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
             await GetFreePortAsync(),
             [
-                ("ProjectReference__GraphOnly", "false"),
                 ("ResourceManager__ReadOnly", "true")
             ]);
 
@@ -969,37 +590,13 @@ public sealed class SampleSmokeTests
         Assert.DoesNotContain(">Add resource<", resourcesHtml);
         Assert.DoesNotContain(">Create group<", resourcesHtml);
 
-        var resourceDetailsHtml = await host.GetStringAsync("/resources/application%3Aproject-reference-api/details");
+        var resourceDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:project-reference-api")}/details");
         Assert.Contains("Stop unavailable. Resource Manager is in read-only mode.", resourceDetailsHtml);
 
         var addResourceHtml = await host.GetStringAsync("/resources/add");
         Assert.Contains("Resource registration is disabled", addResourceHtml);
         Assert.DoesNotContain("Create a resource group", addResourceHtml);
-    }
-
-    [Fact]
-    public async Task ProjectReferenceHost_AddResourceUsesNameWithoutDisplayNameInput()
-    {
-        using var host = await SampleProcess.StartAsync(
-            "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
-            await GetFreePortAsync(),
-            [
-                ("ProjectReference__GraphOnly", "false")
-            ]);
-
-        await host.WaitForHttpOkAsync("/", StartupTimeout);
-
-        var addResourceHtml = await host.GetStringAsync(
-            "/resources/add?type=application.aspnet-core-project");
-        Assert.Contains("Name", addResourceHtml);
-        Assert.DoesNotContain("Display name", addResourceHtml);
-        Assert.DoesNotContain("web-application-display-name", addResourceHtml);
-
-        var missingTypeHtml = await host.GetStringAsync(
-            "/resources/add?type=application.does-not-exist");
-        Assert.Contains("Resource type not found", missingTypeHtml);
-        Assert.Contains("application.does-not-exist", missingTypeHtml);
-        Assert.Contains("Show resource types", missingTypeHtml);
     }
 
     [Fact]

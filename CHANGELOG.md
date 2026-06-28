@@ -34,6 +34,11 @@ on `git blame --follow`, and then by the broad type of change.
   `application.container-app:sample-api`), removes the old `GraphOnly`
   comparison seam, and renames its opt-in registry runtime toggle to
   `ContainerAppDeployment:EnableDockerRuntime`.
+- ProjectReference now uses only Resource Definitions-backed ASP.NET Core
+  project resources with stable sample identities
+  (`application.aspnet-core-project:project-reference-api` and
+  `application.aspnet-core-project:project-reference-frontend`) and removes
+  the old `GraphOnly` comparison seam plus old application-provider records.
 - Local container application graph samples now use
   `AddLocalContainerApplicationResourceTypes(...)` to register the paired
   container app and Docker host resource types while keeping runtime handlers

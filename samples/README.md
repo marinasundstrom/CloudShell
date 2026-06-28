@@ -4,13 +4,14 @@ This directory contains sample projects used to verify and demonstrate different
 
 ## Supported sample status
 
-The current Resource Graph POC switch-readiness samples default to the new
-graph-backed provider path. Use each sample's `GraphOnly=false` setting only
-when intentionally running the old-provider comparison path.
+The current Resource model switch-readiness samples run through the new
+provider path. Some samples still expose `GraphOnly=false` while their
+old-provider comparison seam is being removed; switched samples no longer
+expose that toggle.
 
 | Sample | Primary scenario | Current graph-provider status |
 | --- | --- | --- |
-| `ProjectReference` | ASP.NET Core project-to-project service discovery, logs, health, traces, and ResourceDefinition apply flow. | Defaults to graph-only; old application-provider project records are comparison-only. |
+| `ProjectReference` | ASP.NET Core project-to-project service discovery, logs, health, traces, and ResourceDefinition apply flow. | Switched to the Resource model provider path; old application-provider project records are no longer declared. |
 | `SettingsAndSecrets` | Graph-backed Configuration Store and Secrets Vault consumed by an ASP.NET Core project. | Defaults to graph-only; runtime backing services are provider-owned sample seams. |
 | `ThirdPartyIdentity` | Keycloak-backed identity setup and protected graph Configuration Store access. | Defaults to graph-only; Keycloak setup and graph API identity environment are sample-local runtime seams. |
 | `ApplicationTopology` | Multi-resource app topology across storage, SQL, configuration, secrets, identity, DNS, and project resources. | Defaults to graph-only; this remains the broad switch-readiness proof for common provider interactions. |
