@@ -78,10 +78,7 @@ builder.Services
     .AddVirtualNetworkResourceType()
     .AddAspNetCoreProjectResourceType()
     .AddResourceModelGraphServices()
-    .AddReferenceProviderResourceManagerProjections()
-    .AddResourceModelGraphProcedureProvider(
-        ResourceModelResourceProvider.DefaultProviderId,
-        "Resource model");
+    .AddReferenceProviderResourceManagerIntegration();
 builder.Services.AddSingleton<
     IVirtualNetworkEndpointMappingReconciler,
     HostVirtualNetworkGraphEndpointMappingReconciler>();

@@ -26,6 +26,14 @@
 - Resource Manager projection of graph-declared entrypoints as frontends and
   endpoint mappings, plus graph-declared routes as `loadBalancerRoutes`.
 
+## Switch-over status
+
+Ready to integrate for the graph-backed LoadBalancer sample path. The graph
+path projects frontends, routes, DNS/name-mapping dependencies, and delegates
+configuration apply through the sample bridge to the existing Traefik writer
+without old load-balancer/DNS resource records. Runtime container
+materialization and provider-specific reference modeling remain deferred.
+
 ## Remaining
 
 - Provider-specific reference modeling if needed.

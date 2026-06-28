@@ -65,10 +65,7 @@ builder.Services
     .AddCloudShellVolumeResourceType()
     .AddSqlServerResourceType()
     .AddResourceModelGraphServices()
-    .AddReferenceProviderResourceManagerProjections()
-    .AddResourceModelGraphProcedureProvider(
-        ResourceModelResourceProvider.DefaultProviderId,
-        "Resource model");
+    .AddReferenceProviderResourceManagerIntegration();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

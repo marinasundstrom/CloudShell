@@ -22,6 +22,14 @@
   provider/runtime data and are not authored as graph attributes.
 - SettingsAndSecrets smoke coverage for endpoint projection, inspect execution, authorized secret reads, and API consumption through the graph-backed endpoint.
 
+## Switch-over status
+
+Ready to integrate for graph-declared Secrets Vault resources in the selected
+samples. The graph path starts the backing service, projects endpoint/count,
+supports inspect, monitoring, health/liveness, and authorized reads without
+placing secret values in graph attributes. Durable secret storage, log
+streaming, templates, and editable UI remain outside the switch gate.
+
 ## Remaining
 
 - Durable secret storage.

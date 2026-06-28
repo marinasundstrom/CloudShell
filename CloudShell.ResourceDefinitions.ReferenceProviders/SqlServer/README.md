@@ -40,6 +40,15 @@
   code-first SQL Server definition authoring, declared database configuration,
   and volume mount capability setup.
 
+## Switch-over status
+
+Ready to integrate for sample-local graph SQL workloads where the host wires a
+runtime handler. ApplicationTopology and ContainerHost prove graph SQL startup,
+storage-backed volume materialization, endpoint projection, service-discovery
+environment projection, database creation, and cleanup without old SQL
+resource records. A provider-owned durable SQL runtime and reusable
+credential/grant reconciliation remain post-switch work.
+
 ## Remaining
 
 - Real SQL runtime integration behind the lifecycle runtime handler.

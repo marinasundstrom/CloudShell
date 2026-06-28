@@ -283,10 +283,7 @@ builder.Services
     .AddHostConfigurationSourceResourceType()
     .AddAspNetCoreProjectResourceType()
     .AddResourceModelGraphServices()
-    .AddReferenceProviderResourceManagerProjections()
-    .AddResourceModelGraphProcedureProvider(
-        ResourceModelResourceProvider.DefaultProviderId,
-        "Resource model");
+    .AddReferenceProviderResourceManagerIntegration();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

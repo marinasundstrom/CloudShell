@@ -71,10 +71,7 @@ builder.Services
     .AddDockerContainerResourceType()
     .AddContainerApplicationResourceType()
     .AddResourceModelGraphServices()
-    .AddReferenceProviderResourceManagerProjections()
-    .AddResourceModelGraphProcedureProvider(
-        ResourceModelResourceProvider.DefaultProviderId,
-        "Resource model");
+    .AddReferenceProviderResourceManagerIntegration();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

@@ -26,10 +26,7 @@ controlPlane.DefineResources(resources =>
 builder.Services
     .AddNetworkResourceType()
     .AddResourceModelGraphServices()
-    .AddReferenceProviderResourceManagerProjections()
-    .AddResourceModelGraphProcedureProvider(
-        ResourceModelResourceProvider.DefaultProviderId,
-        "Resource model");
+    .AddReferenceProviderResourceManagerIntegration();
 
 controlPlane.Resources(resources =>
 {

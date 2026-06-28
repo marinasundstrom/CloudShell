@@ -16,6 +16,14 @@
 - Manual `ResourceDefinitionGraphBuilder.AddNetwork(...)` builder for
   code-first `ResourceDefinition` and deployment authoring.
 
+## Switch-over status
+
+Ready as a generic graph modeling type, but not a direct switch target for the
+current samples. Use specialized VirtualNetwork/HostNetworking paths when a
+sample needs endpoint-mapping behavior. Endpoint payloads, observed mapping
+state, provisioner integration, specialization boundaries, and UI flows remain
+deferred.
+
 ## Remaining
 
 - Endpoint and mapping payloads.

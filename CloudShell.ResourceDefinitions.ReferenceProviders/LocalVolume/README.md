@@ -15,6 +15,13 @@
 - Manual `ResourceDefinitionGraphBuilder.AddLocalVolume(...)` builder for
   code-first local volume definition authoring.
 
+## Switch-over status
+
+Ready only as a simple graph/storage modeling support type. It is not a current
+sample switch root; the main storage-backed sample paths use
+`cloudshell.volume` with runtime handler materialization. Provider-backed local
+volume materialization, usage, health, and monitoring remain deferred.
+
 ## Remaining
 
 - Provider-backed storage materialization.

@@ -21,6 +21,13 @@
   `configuration.entries.count`, and the `configuration.host.inspect` action
   shape without exposing host configuration values in graph state.
 
+## Switch-over status
+
+Ready as a supporting graph resource in ApplicationTopology. The switch gate is
+limited to safe metadata projection and inspect action shape; runtime lookup of
+host configuration values, entry-name payloads, authorization, and UI flows are
+deferred because the graph must not become a host-configuration value store.
+
 ## Remaining
 
 - Runtime host configuration lookup.

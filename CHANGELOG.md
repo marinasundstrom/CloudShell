@@ -17,6 +17,11 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Graph-default samples now use a shared
+  `AddReferenceProviderResourceManagerIntegration(...)` seam to compose
+  reference-provider Resource Manager projections with the graph procedure
+  provider. Individual resource type registrations and runtime handlers remain
+  explicit so provider-specific switch discrepancies stay visible.
 - CloudShell.ContainerHost now projects its graph-backed SQL Server resource
   into the Resource Manager orchestration catalog with control-plane-scoped
   lifetime metadata. A Docker smoke test verifies that a graceful host

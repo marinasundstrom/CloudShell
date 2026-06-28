@@ -1219,6 +1219,18 @@ inside whichever provider used them first. The same applies to dependency
 providers that are owned by a shared capability rather than by one resource
 type.
 
+The longer-term packaging goal is to group each provider feature with the
+code that belongs to that feature: graph/type definitions, runtime/control
+plane integration, and CloudShell UI integration should live next to each
+other under a shared feature/provider folder, with separate projects for the
+separate runtime and UI surfaces. Shared infrastructure, such as graph model
+primitives, common capability IDs, Resource Manager graph bridge services,
+and reusable UI composition pieces, stays outside those provider folders in
+its own projects. The POC is not reshuffling projects yet because the switch
+needs to expose the real seams first; until then, the known discrepancy is
+that runtime handlers, Resource Manager projection bridges, UI metadata, and
+sample-local adapters still sit in mixed or transitional locations.
+
 Each ported resource provider should keep a provider-local `README.md`. The
 README should identify the resource type and provider id, summarize what the
 provider owns, list the POC behavior that has been ported, and list what remains
@@ -1602,6 +1614,38 @@ The next porting work should continue comparing each switched provider against
 the old implementation and moving runtime behavior into the intended provider
 runtime boundary without widening the Resource graph model.
 
+The switch should start as soon as the graph-backed path is runnable and the
+remaining differences are documented. Full parity is not the entry criterion.
+The entry criterion is that a sample or provider family can run through the
+new graph-backed providers for its main workflow, the old provider records can
+be omitted for that path, and any behavior that is weaker, missing, or
+intentionally different is recorded in the proposal or provider README before
+the switch happens.
+
+This gives the migration a practical integration-first rule:
+
+- Switch one sample or provider family at a time, starting with paths that
+  already default to graph-only mode.
+- Keep temporary adapters when they are needed to preserve the runtime path,
+  but document each adapter as switch scaffolding with an owner and removal
+  direction.
+- Do not block the switch on editable UI pages, rich revision history,
+  provider-specific diagnostics, or final runtime-service placement when the
+  sample's main workflow is covered and the gap is documented.
+- Do block the switch when the graph path cannot start, stop, inspect, or
+  operate the resources that the sample depends on for its primary scenario,
+  or when a missing behavior would make Resource Manager misleading.
+- After each switch, sweep the exposed seams by moving runtime behavior into
+  the intended provider/runtime boundary and deleting old-provider comparison
+  paths that no longer provide useful coverage.
+
+Known acceptable non-parity during this phase includes graph-safe metadata
+standing in for old registration/update pages, empty container-app revision
+history, sample-local runtime bridges, limited startup-state projection, and
+provider bridge packages that still exist to connect the Resource graph to the
+current Resource Manager APIs. These are acceptable only while they are
+visible in docs and covered by focused switch-readiness tests.
+
 The supported sample-host launch matrix is also a switch-readiness gate. It
 starts every graph-default sample host and checks the Resource Manager/API
 readiness paths, verifies the resources API projects at least one Resource
@@ -1610,6 +1654,30 @@ Plane resources API, then removes known graph runtime artifacts from samples
 whose normal process-kill test harness cannot rely on graceful hosted
 shutdown.
 
+The switch-readiness verification set is intentionally sample-centered while
+the port still uses temporary runtime seams. It should be run before turning
+off the old provider registrations for a sample or provider family:
+
+| Verification slice | Purpose |
+| --- | --- |
+| `SupportedSwitchReadinessSampleHosts_StartAndRenderResources` | Starts every graph-default sample host and proves the Control Plane resources API renders graph resources. |
+| `ProjectReferenceHost_GraphOnlyModeRunsGraphProjectsWithoutOldProviderRecords` | Proves graph ASP.NET Core project startup and graph-to-graph project service discovery without old application records. |
+| `SettingsAndSecretsSample_GraphOnlyModeRunsGraphServicesAndApi` | Proves graph Configuration Store, Secrets Vault, API startup, authorized reads, and client environment projection. |
+| `ThirdPartyIdentitySample_GraphOnlyKeycloakProvisionedWorkloadReadsConfiguration` | Proves graph identity provisioning, graph configuration service bearer validation, graph API identity environment, and Keycloak cleanup. |
+| `ApplicationTopologyHost_GraphOnlyModeRunsSqlBackedWorkload` | Proves the multi-provider graph workload: storage-backed SQL, database materialization, settings/secrets, API, frontend, and graph service discovery. |
+| `ReplicatedContainerHealthSample_GraphOnlyImageAndReplicaUpdatesRestartGraphContainers` | Proves graph container-app runtime behavior, image/replica updates, ingress cleanup, health/liveness, hidden runtime replica resources, logs, traces, and metrics. |
+| `ContainerHostSample_GraphOnlySqlRuntimeStartsWithStorageBackedVolume` | Proves the graph ContainerHost storage/volume/SQL runtime bridge and storage-backed bind-mount materialization. |
+| `ContainerAppDeploymentSample_GraphOnlyModeUpdatesGraphContainerAppState` | Proves the existing image and replica update APIs can apply changes to graph-backed container apps. |
+| `ContainerAppDeploymentSample_GraphOnlyModeStartsGraphRegistryRuntime` | Proves the opt-in graph registry runtime seam and cleanup path. |
+| `HostVirtualNetworkSample_GraphOnlyModeReconcilesGraphEndpointMappingThroughRuntimeBridge` | Proves graph endpoint mapping reconciliation through the sample runtime bridge. |
+| `LoadBalancerSample_GraphOnlyModeRunsGraphLoadBalancerAndDnsPaths` | Proves graph load-balancer, route generation, DNS zone, and name-mapping paths without old DNS/name-mapping records. |
+
+Passing this set means the current POC has enough runnable graph-backed
+coverage to attempt a controlled switch. It does not mean the seams are final:
+sample-local runtime bridges, old provider comparison paths, graph-safe UI
+metadata, and provider bridge packages are still expected to be swept after
+the switch exposes the remaining runtime and UI boundaries.
+
 Host infrastructure registration is a separate concern from provider
 registration. A host may compose the generic graph services once from whatever
 class definitions, type providers, validators, capability providers, operation
@@ -1617,6 +1685,23 @@ providers, projection providers, and apply/change handlers are registered. The
 generic graph-service helper should not own provider identity or decide which
 resource types belong together; each resource type provider package keeps that
 boundary.
+
+The first switch-over integration seam is
+`AddReferenceProviderResourceManagerIntegration(...)`. It composes the
+reference-provider Resource Manager projections with the graph procedure
+provider using the default graph bridge provider identity. This does not make
+the reference providers a single provider package; it only removes repeated
+sample registration boilerplate while the individual provider type
+registrations and runtime handlers remain explicit.
+
+The old provider implementations are reference and compatibility surfaces
+during this phase. They should stay decoupled and isolated from the new graph
+provider path. When a migration blocker appears, fix the graph provider or
+runtime seam directly if that preserves the target boundary. If the issue does
+not affect migration or sample switch readiness, record it as deferred work
+instead of adding new dependencies on the old provider concepts. Temporary
+adapters may call into old services only when they are explicitly marked as
+switch scaffolding and have a removal direction.
 
 For the integration POC, hosts can also register an in-memory Resource model
 graph and expose it through the existing Resource Manager provider composition

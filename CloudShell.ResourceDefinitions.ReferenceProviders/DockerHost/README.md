@@ -40,6 +40,14 @@ flows rather than only being convenient for provider implementation code.
 }
 ```
 
+## Switch-over status
+
+Ready as a supporting graph resource for Docker-backed sample declarations.
+The current switch scope covers graph declaration, Resource Manager projection,
+inspect operation shape, and use as a target reference for runtime handlers.
+Real Docker runtime integration, child container discovery, credentials,
+health, logs, and UI flows remain outside the initial switch gate.
+
 ## Remaining
 
 - Real Docker runtime integration.

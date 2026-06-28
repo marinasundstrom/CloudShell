@@ -14,6 +14,14 @@
 - Type-specific reconcile endpoint mappings operation providers with context-aware injected provider-owned reconciler seams.
 - Typed wrappers plus apply planning and Resource Manager bridge projection/execution.
 
+## Switch-over status
+
+Ready as supporting graph infrastructure for endpoint-mapping experiments, but
+not a direct switch root for the current samples. Current switch work should use
+VirtualNetwork and LoadBalancer sample bridges first. Platform support checks,
+live mapping counts, host proxy state, macOS runtime isolation, and provider
+diagnostics remain post-switch seams.
+
 ## Remaining
 
 - Platform support checks.

@@ -19,6 +19,14 @@
 - Manual `ResourceDefinitionGraphBuilder.AddSqlDatabase(...)` builder for
   code-first SQL database definition authoring with typed server dependencies.
 
+## Switch-over status
+
+Ready to integrate as a graph-declared SQL database child for the
+ApplicationTopology flow. The current path validates the owning graph SQL
+Server reference and delegates creation through an injected handler. Provider
+projection of materialized database children, reusable credential/grant
+reconciliation, and richer SQL UI tabs remain deferred.
+
 ## Remaining
 
 - Provider projection of `database.server` when SQL database children are materialized by the SQL provider.

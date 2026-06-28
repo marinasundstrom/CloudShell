@@ -17,6 +17,14 @@
 - HostVirtualNetwork sample graph public-ingress mapping projection coverage.
 - HostVirtualNetwork sample-local runtime bridge coverage that delegates graph endpoint mappings to the existing Resource Manager endpoint-mapping provisioner contract.
 
+## Switch-over status
+
+Ready to integrate for the HostVirtualNetwork graph-default sample path. The
+current switch scope covers graph endpoint-mapping declarations, Resource
+Manager projection, and sample-local reconciliation through the runtime bridge.
+General endpoint-mapping provisioner ownership, observed mapping state,
+provider diagnostics, and UI edit flows remain post-switch work.
+
 ## Remaining
 
 - Observed mapping state as capability members or operation plans.

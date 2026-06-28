@@ -8,6 +8,27 @@ namespace CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 
 public static class ReferenceProviderResourceManagerServiceCollectionExtensions
 {
+    public static IServiceCollection AddReferenceProviderResourceManagerIntegration(
+        this IServiceCollection services,
+        string id = "resource-model",
+        string displayName = "Resource model",
+        ResourceDefinitionResolutionContext? resolutionContext = null,
+        ResourceModelResourceManagerProjectionOptions? projectionOptions = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+
+        services.AddReferenceProviderResourceManagerProjections();
+        services.AddResourceModelGraphProcedureProvider(
+            id,
+            displayName,
+            resolutionContext,
+            projectionOptions);
+
+        return services;
+    }
+
     public static IServiceCollection AddReferenceProviderResourceManagerProjections(
         this IServiceCollection services)
     {

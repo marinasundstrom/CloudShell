@@ -50,6 +50,16 @@ The same sample now uses the Docker host, Docker container, and container app
 builders for its side-by-side graph declarations instead of raw graph state
 dictionaries.
 
+## Switch-over status
+
+Partially ready behind the opt-in ContainerAppDeployment graph Docker runtime
+seam. It is useful for validating the runtime boundary for standalone Docker
+containers, but it should not block the broader provider switch because normal
+container-app sample workflows are covered by `application.container-app`.
+Durable Docker API integration, runtime discovery, endpoint projection, log
+streaming, hidden/runtime-managed Resource Manager behavior, and lifecycle
+smoke coverage remain post-switch work.
+
 ## Remaining
 
 - Real Docker API integration behind the runtime handler.

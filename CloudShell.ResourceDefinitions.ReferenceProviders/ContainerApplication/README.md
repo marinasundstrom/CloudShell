@@ -41,6 +41,17 @@
   log-source capabilities directly because they are derived runtime resources,
   not authored graph definitions.
 
+## Switch-over status
+
+Ready to start integration for the graph-backed container app scenarios covered
+by ContainerAppDeployment and ReplicatedContainerHealth. The graph path can
+start, stop, restart, update image/replica intent, project endpoints, drive the
+container-app UI tabs by type id, and expose runtime replica logs, health,
+traces, metrics, and monitoring through the sample bridges. Full old-provider
+parity is not expected yet: rich revision history, final container-host
+runtime ownership, richer startup-state projection, and old edit surfaces are
+explicitly deferred.
+
 ## Runtime Integration
 
 The provider declares container app operations in the graph, but does not own

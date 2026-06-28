@@ -463,6 +463,28 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public void ReferenceProviderResourceManagerIntegration_RegistersProjectionsAndGraphProcedureBridge()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+
+        services.AddReferenceProviderResourceManagerIntegration();
+        using var serviceProvider = services.BuildServiceProvider();
+
+        Assert.Contains(
+            serviceProvider.GetServices<IResourceMonitoringProvider>(),
+            provider => provider.GetType() == typeof(AspNetCoreProjectResourceManagerMonitoringProvider));
+        var provider = Assert.IsType<ResourceModelGraphProcedureProvider>(
+            Assert.Single(serviceProvider.GetServices<IResourceProvider>()));
+        var availabilityProvider = Assert.IsType<ResourceModelGraphProcedureProvider>(
+            Assert.Single(serviceProvider.GetServices<IResourceActionAvailabilityProvider>()));
+
+        Assert.Same(provider, availabilityProvider);
+    }
+
+    [Fact]
     public void ResourceModelGraphResourceProvider_DoesNotProjectInvalidTypedDependency()
     {
         var worker = CreateExecutableState(

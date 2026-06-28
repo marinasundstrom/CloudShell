@@ -16,6 +16,15 @@
 - Manual `ResourceDefinitionGraphBuilder.AddStorage(...)` builder for
   code-first storage definition authoring and test setup.
 
+## Switch-over status
+
+Ready as a supporting graph resource for sample paths that need local storage
+metadata and storage-backed volume declarations. The current switch gate covers
+declaration, projection, inspect wiring, and volume/materialization behavior
+performed by the runtime handler using graph state. Provider-backed storage
+materialization, richer usage payloads, health, monitoring, and UI flows remain
+deferred.
+
 ## Remaining
 
 - Volume collection payloads.

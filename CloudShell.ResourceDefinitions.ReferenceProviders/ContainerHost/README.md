@@ -16,6 +16,14 @@
 - Manual `ResourceDefinitionGraphBuilder.AddContainerHost(...)` builder for
   code-first generic container-host definition authoring.
 
+## Switch-over status
+
+Ready as a supporting graph resource for samples that need a generic container
+host boundary. It is not a standalone switch target yet; current runtime
+behavior is still supplied by sample/control-plane bridges and Docker-specific
+providers. Host resolution, credentials, placement, diagnostics, and durable
+runtime ownership remain post-switch seams.
+
 ## Remaining
 
 - Real container host runtime integration.

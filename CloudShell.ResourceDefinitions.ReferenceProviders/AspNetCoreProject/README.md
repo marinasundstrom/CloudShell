@@ -37,6 +37,15 @@
   environment variables, service-discovery references, volume mounts, and
   health-check capability payloads.
 
+## Switch-over status
+
+Ready to integrate for graph-declared ASP.NET Core project resources in the
+selected samples. The graph path starts, stops, restarts, projects endpoints,
+projects logs/monitoring/observability, and resolves explicit graph
+`project.references` without old application-provider records. Full editable
+registration/update UI parity is not required before switching; it remains a
+documented post-switch cleanup item.
+
 ## Remaining
 
 - Launch settings parsing and richer process diagnostics.

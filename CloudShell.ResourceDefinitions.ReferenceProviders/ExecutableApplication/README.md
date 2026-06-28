@@ -22,6 +22,15 @@
   configuration, volume mount capability setup, and runtime monitoring
   capability activation.
 
+## Switch-over status
+
+Partially ready for integration where a sample needs a graph-declared local
+executable. The current path proves start execution, command configuration,
+Resource Manager projection, and process monitoring snapshots through a
+provider-owned runtime seam. Stop/restart lifecycle parity, log read/stream
+integration, endpoints, templates, and UI flows remain outside the first switch
+gate.
+
 ## Remaining
 
 - Control Plane log read/stream integration.

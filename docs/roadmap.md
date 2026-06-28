@@ -824,6 +824,12 @@ listed here before pulling in broader proposal work.
   switch-readiness samples. `GraphOnly=false` remains useful as old-provider
   comparison coverage while the remaining provider seams are stabilized, but
   MVP sample confidence should come from the graph-backed defaults.
+- Start controlled provider switch-over from those graph-default samples once
+  their main workflow runs and documented non-parity is acceptable. Full
+  old-provider parity is not required before integration starts; missing UI
+  pages, richer diagnostics, revision history, and final runtime placement
+  should stay visible in provider READMEs or the Resource Graph proposal and
+  be cleaned up after the switch exposes the real seams.
 - Use the forked Application Topology sample as the broad MVP composition
   sample. ProjectReference remains the focused ASP.NET Core project dependency,
   service discovery, log, and trace baseline; ApplicationTopology is where SQL

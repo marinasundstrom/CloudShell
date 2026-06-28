@@ -22,6 +22,15 @@
 - LoadBalancer sample-local runtime bridge coverage that materializes graph
   name mappings through the existing local-hostnames publisher contract.
 
+## Switch-over status
+
+Ready as a supporting graph resource for the LoadBalancer graph-default sample
+path. The switch scope covers declared host/name mappings, target references,
+Resource Manager projection, and sample-local materialization through the
+existing local-hostnames publisher contract. General publisher ownership,
+conflict/materialization views, target endpoint validation, and UI flows remain
+post-switch work.
+
 ## Remaining
 
 - Provider-specific reference modeling if needed.

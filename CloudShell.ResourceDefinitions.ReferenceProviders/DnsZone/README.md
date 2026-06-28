@@ -20,6 +20,14 @@
 - LoadBalancer sample-local runtime bridge coverage that delegates graph name
   mappings to the existing Resource Manager name-publishing provider contract.
 
+## Switch-over status
+
+Ready as a supporting graph resource for the LoadBalancer graph-default sample
+path. The switch scope covers DNS zone declaration, graph name-mapping
+reconciliation through the sample bridge, and Resource Manager projection
+without old DNS zone records. General DNS publisher ownership, materialization
+views, conflict diagnostics, and UI flows remain post-switch work.
+
 ## Remaining
 
 - Generalized name-mapping child resource runtime integration outside the

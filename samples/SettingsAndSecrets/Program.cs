@@ -141,10 +141,7 @@ builder.Services
     })
     .AddAspNetCoreProjectResourceType()
     .AddResourceModelGraphServices()
-    .AddReferenceProviderResourceManagerProjections()
-    .AddResourceModelGraphProcedureProvider(
-        ResourceModelResourceProvider.DefaultProviderId,
-        "Resource model");
+    .AddReferenceProviderResourceManagerIntegration();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

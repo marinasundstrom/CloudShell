@@ -18,6 +18,13 @@
   code-first service definition authoring with typed target and network
   dependencies.
 
+## Switch-over status
+
+Not a switch target for the current POC. `cloudshell.service` remains a future
+logical service-boundary shape and is not required by the selected samples.
+Keep the provider available for graph/model experimentation, but do not use it
+to block or justify the provider switch.
+
 ## Remaining
 
 - A clear product/runtime use case. A `cloudshell.service` resource is a

@@ -27,6 +27,14 @@
 - ThirdPartyIdentity Docker smoke coverage for a Keycloak-protected
   graph-backed Configuration Store consumed by a graph-backed ASP.NET Core API.
 
+## Switch-over status
+
+Ready to integrate for graph-declared configuration stores in the selected
+samples. The graph path starts the backing service, projects endpoint/count,
+supports inspect, monitoring, health/liveness, built-in authorization, and
+external bearer validation for the Keycloak sample. Durable entry storage,
+log streaming, templates, and editable UI remain outside the switch gate.
+
 ## Remaining
 
 - Durable entry storage.

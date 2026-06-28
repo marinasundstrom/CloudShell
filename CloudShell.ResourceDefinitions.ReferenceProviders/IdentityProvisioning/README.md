@@ -23,6 +23,15 @@
   builder for code-first identity provisioning definition authoring, now used
   by the ThirdPartyIdentity sample graph provisioning declaration.
 
+## Switch-over status
+
+Ready to integrate for the ThirdPartyIdentity graph-default sample path. The
+current switch scope covers graph declaration, setup operation execution through
+the runtime seam, Resource Manager action diagnostics, Keycloak setup, and
+sample workload credential consumption. Full identity-provider materialization,
+directory/client lifecycle, credential issuance, grant reconciliation,
+authorization, richer diagnostics, and UI flows remain post-switch work.
+
 ## Remaining
 
 - Full identity provider setup/materialization belongs to the runtime integration
