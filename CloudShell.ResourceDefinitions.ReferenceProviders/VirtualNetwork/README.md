@@ -14,6 +14,9 @@
 - Passive virtual-network and ingress capability markers.
 - Type-specific reconcile endpoint mappings operation provider with a context-aware injected provider-owned reconciler seam.
 - Typed wrapper plus apply planning and Resource Manager bridge projection/execution.
+- Programmatic builder conveniences for `AddVirtualNetwork(..., isDefault)`,
+  `AddHttpEndpoint(...)`, `AddTcpEndpoint(...)`, `RequestHttpEndpoint(...)`,
+  `RequestTcpEndpoint(...)`, and endpoint-reference based `MapEndpoint(...)`.
 - HostVirtualNetwork sample graph public-ingress mapping projection coverage.
 - HostVirtualNetwork sample-local runtime bridge coverage that delegates graph endpoint mappings to the existing Resource Manager endpoint-mapping provisioner contract.
 

@@ -129,7 +129,38 @@ public sealed record NetworkingEndpointRequestValue(
 
 public sealed record NetworkingEndpointReferenceValue(
     ResourceReference Resource,
-    string EndpointName);
+    string EndpointName)
+{
+    public static NetworkingEndpointReferenceValue ForResource(
+        string resourceId,
+        string endpointName,
+        ResourceTypeId? typeId = null,
+        string? providerId = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(endpointName);
+
+        return new(
+            ResourceReference.ReferenceResourceId(
+                resourceId,
+                typeId,
+                providerId),
+            endpointName.Trim());
+    }
+
+    public static NetworkingEndpointReferenceValue ForResource(
+        IResourceDefinitionBuilder resource,
+        string endpointName)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+
+        return ForResource(
+            resource.EffectiveResourceId,
+            endpointName,
+            resource.ResourceTypeId,
+            resource.ResourceProviderId);
+    }
+}
 
 public sealed record NetworkingEndpointNetworkMappingValue(
     string Id,

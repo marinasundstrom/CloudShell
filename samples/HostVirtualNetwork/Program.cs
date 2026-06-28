@@ -45,31 +45,26 @@ cloudShell.DefineResources(resources =>
             host: "localhost",
             port: targetPort);
 
-    resources
-        .AddVirtualNetwork("sample-vnet")
+    var virtualNetwork = resources
+        .AddVirtualNetwork("sample-vnet", isDefault: true)
         .WithResourceGroup(resourceGroupId)
         .DependsOn(hostNetworkingResource)
         .DependsOn(apiResource)
-        .AsDefault()
         .WithHostReadiness("providerRequired")
-        .WithMappingProviders(hostNetworkingResource.EffectiveResourceId)
-        .AddEndpoint(
-            "api-public",
-            "http",
+        .WithMappingProviders(hostNetworkingResource);
+    var publicEndpoint = virtualNetwork
+        .AddHttpEndpoint(
+            "localhost",
             virtualNetworkPort,
-            "Public")
-        .AddEndpointNetworkMapping(
-            "api-public",
-            $"http://localhost:{virtualNetworkPort}",
-            name: "API public ingress",
-            provider: hostNetworkingResource)
-        .MapEndpoint(
-            "api-public",
-            apiResource,
-            "http",
-            hostNetworkingResource,
-            "mapping:api-public",
-            "API public ingress");
+            name: "api-public",
+            exposure: "Public");
+    virtualNetwork.MapEndpoint(
+        publicEndpoint,
+        apiResource,
+        "http",
+        hostNetworkingResource,
+        "mapping:api-public",
+        "API public ingress");
 });
 builder.Services
     .AddLocalHostNetworkResourceType()

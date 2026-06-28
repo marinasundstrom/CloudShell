@@ -1050,13 +1050,24 @@ public sealed class ResourceDefinitionGraphBuilderTests
             .AddAspNetCoreProject("api", "src/Api/Api.csproj")
             .UseLaunchSettings(false);
 
-        graph
-            .AddVirtualNetwork("app")
+        var networkBuilder = graph
+            .AddVirtualNetwork("app", isDefault: true)
             .DependsOn(hostNetwork)
             .DependsOn(api)
-            .AsDefault()
             .WithHostReadiness("providerRequired")
-            .WithMappingProviders(hostNetwork.EffectiveResourceId);
+            .WithMappingProviders(hostNetwork);
+        var publicEndpoint = networkBuilder.AddHttpEndpoint(
+            "localhost",
+            port: 5292,
+            name: "api-public",
+            exposure: "Public");
+        networkBuilder.MapEndpoint(
+            publicEndpoint,
+            api,
+            "http",
+            hostNetwork,
+            id: "mapping:api-public",
+            name: "API public ingress");
 
         var deployment = graph.BuildDeployment("host-network", environmentId: "local");
 
@@ -1077,6 +1088,24 @@ public sealed class ResourceDefinitionGraphBuilderTests
             VirtualNetworkResourceTypeProvider.Attributes.HostReadiness].StringValue);
         Assert.Equal(hostNetwork.EffectiveResourceId, network.ResourceAttributeValues[
             VirtualNetworkResourceTypeProvider.Attributes.MappingProviders].StringValue);
+        var endpoint = Assert.Single(network.ResourceAttributeValues.GetObject<NetworkingEndpointValue[]>(
+            VirtualNetworkResourceTypeProvider.Attributes.Endpoints) ?? []);
+        Assert.Equal("api-public", endpoint.Name);
+        Assert.Equal("Http", endpoint.Protocol);
+        Assert.Equal(5292, endpoint.TargetPort);
+        Assert.Equal("Public", endpoint.Exposure);
+        var endpointNetworkMapping = Assert.Single(
+            network.ResourceAttributeValues.GetObject<NetworkingEndpointNetworkMappingValue[]>(
+                VirtualNetworkResourceTypeProvider.Attributes.EndpointNetworkMappings) ?? []);
+        Assert.Equal("http://localhost:5292", endpointNetworkMapping.Address);
+        Assert.Equal("api-public", endpointNetworkMapping.SourceEndpointName);
+        Assert.Equal("api-public", endpointNetworkMapping.Target.EndpointName);
+        var endpointMapping = Assert.Single(
+            network.ResourceAttributeValues.GetObject<NetworkingEndpointMappingValue[]>(
+                VirtualNetworkResourceTypeProvider.Attributes.EndpointMappings) ?? []);
+        Assert.Equal("mapping:api-public", endpointMapping.Id);
+        Assert.Equal("api-public", endpointMapping.Source.EndpointName);
+        Assert.Equal("http", endpointMapping.Target.EndpointName);
         Assert.Equal(
             [hostNetwork.EffectiveResourceId, api.EffectiveResourceId],
             network.StartupDependencies.Select(reference => reference.Value));
