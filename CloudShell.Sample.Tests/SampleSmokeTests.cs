@@ -131,6 +131,7 @@ public sealed class SampleSmokeTests
         string[] readinessPaths)
     {
         var port = await GetFreePortAsync();
+        await CleanupSwitchReadinessRuntimeArtifactsAsync(projectPath);
         var host = await SampleProcess.StartAsync(
             projectPath,
             port,

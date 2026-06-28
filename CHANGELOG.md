@@ -32,6 +32,10 @@ on `git blame --follow`, and then by the broad type of change.
   with Traefik runtime management disabled and a temporary local-hosts file so
   the generic graph projection gate does not require Docker or host-file
   writes.
+- The supported sample host launch matrix now cleans known graph runtime
+  artifacts before launching each graph-default sample as well as after it
+  exits, so interrupted runs do not leave stale containers that affect the
+  next switch-readiness run.
 - Graph-default samples now use the builder-level
   `UseResourceGraphIntegration(...)` seam to register generic graph
   services, current graph-provider Resource Manager projections, and the
