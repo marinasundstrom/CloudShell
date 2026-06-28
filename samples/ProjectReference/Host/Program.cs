@@ -49,13 +49,13 @@ cloudShell.DefineResources(resources =>
             host: apiEndpointUri.Host,
             port: apiEndpointUri.Port,
             exposure: "Local")
-        .WithEnvironment(
+        .WithEnvironmentVariable(
             "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
             traceIngestEndpoint ?? string.Empty)
-        .WithEnvironment(
+        .WithEnvironmentVariable(
             "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
             metricIngestEndpoint ?? string.Empty)
-        .WithEnvironment(
+        .WithEnvironmentVariable(
             "OTEL_SERVICE_NAME",
             "project-reference-api")
         .WithHttpHealthCheck(
@@ -79,13 +79,13 @@ cloudShell.DefineResources(resources =>
             host: frontendEndpointUri.Host,
             port: frontendEndpointUri.Port,
             exposure: "Local")
-        .WithEnvironment(
+        .WithEnvironmentVariable(
             "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
             traceIngestEndpoint ?? string.Empty)
-        .WithEnvironment(
+        .WithEnvironmentVariable(
             "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
             metricIngestEndpoint ?? string.Empty)
-        .WithEnvironment(
+        .WithEnvironmentVariable(
             "OTEL_SERVICE_NAME",
             "project-reference-frontend")
         .WithHttpHealthCheck(

@@ -642,7 +642,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
                 host: "localhost",
                 port: 5010,
                 exposure: "Local")
-            .WithEnvironment(
+            .WithEnvironmentVariable(
                 "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
                 "http://localhost:5104/api/control-plane/v1/traces/ingest")
             .WithReference(settings, ConfigurationStoreResourceTypeProvider.ResourceTypeId)

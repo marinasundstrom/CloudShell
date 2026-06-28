@@ -958,13 +958,14 @@ declarations in the Resource Manager seam for now.
 Provider-owned builders should expose native authoring methods for their
 resource shape and may add convenience methods where those methods still map
 clearly to CloudShell concepts. The ASP.NET Core project builder now has native
-`WithEnvironment(...)` overloads for literal values, configuration-entry
-references, and secret references. It also has provider-owned convenience
-methods such as `WithServiceDiscovery()`, `WithHttpHealthCheck(...)`, and
-`WithHttpLivenessCheck(...)` over the service-discovery-name and health-check
-resource attributes/capabilities. All resource definition builders also expose
-native `WithConfiguration(sectionName, value)` authoring for the
-ResourceDefinition `configuration` channel.
+`WithEnvironmentVariable(...)` overloads for literal values,
+configuration-entry references, and secret references. It also has
+provider-owned convenience methods such as `WithServiceDiscovery()`,
+`WithHttpHealthCheck(...)`, and `WithHttpLivenessCheck(...)` over the
+service-discovery-name and health-check resource attributes/capabilities. All
+resource definition builders also expose native
+`WithConfiguration(sectionName, value)` authoring for the ResourceDefinition
+`configuration` channel.
 `environmentVariables` and `configuration` are separate authoring channels.
 Both may use the same kinds of value sources, such as literal values,
 configuration-entry references, or secret references, but they are resolved for
@@ -1002,9 +1003,9 @@ ResourceDefinition format therefore uses a human-authored
 
 The ResourceDefinition declares the source; the Resource Manager/runtime bridge
 resolves referenced values when it starts the resource. This mirrors the old
-programmatic API shape (`WithEnvironment("NAME", value)`,
-`WithEnvironment("NAME", settings.Entry(...))`, and
-`WithEnvironment("NAME", secrets.Secret(...))`) while keeping
+programmatic API shape (`WithEnvironmentVariable("NAME", value)`,
+`WithEnvironmentVariable("NAME", settings.Entry(...))`, and
+`WithEnvironmentVariable("NAME", secrets.Secret(...))`) while keeping
 ResourceDefinition readable and authorable.
 Resource authoring should normally use resource names as the stable
 human-authored identifiers. Resource ids are assigned by platform conventions

@@ -24,7 +24,7 @@ on `git blame --follow`, and then by the broad type of change.
   starts, while `configuration` remains a separate general resource
   configuration channel.
 - Added native ASP.NET Core project graph-builder environment variable
-  authoring through `WithEnvironment(...)`, plus provider-owned convenience
+  authoring through `WithEnvironmentVariable(...)`, plus provider-owned convenience
   methods for service discovery, HTTP health checks, and HTTP liveness/probe
   declarations, and moved ProjectReference plus SettingsAndSecrets sample
   declarations onto those APIs.

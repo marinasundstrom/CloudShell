@@ -174,7 +174,7 @@ var settings = resources
 
 resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
     .WithAppSetting("Database:Host", settings.Entry("database-host"))
-    .WithEnvironment("DB_PASSWORD", vault.Secret("db-password"));
+    .WithEnvironmentVariable("DB_PASSWORD", vault.Secret("db-password"));
 ```
 
 The provider owns how the target platform receives those values. A local
@@ -223,7 +223,7 @@ optional version.
 var vault = resources.AddSecretsVault("secrets-vault:app");
 
 resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
-    .WithEnvironment("DB_PASSWORD", vault.Secret("db-password"));
+    .WithEnvironmentVariable("DB_PASSWORD", vault.Secret("db-password"));
 ```
 
 The built-in Secrets Vault implementation can reuse lessons from the existing
@@ -294,7 +294,7 @@ var settings = resources
 
 resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
     .WithAppSetting("Database:Host", settings.Entry("database-host"))
-    .WithEnvironment("DB_PASSWORD", vault.Secret("db-password"));
+    .WithEnvironmentVariable("DB_PASSWORD", vault.Secret("db-password"));
 ```
 
 The `settings.Entry(...)` helper creates a `ConfigurationEntryReference`; it

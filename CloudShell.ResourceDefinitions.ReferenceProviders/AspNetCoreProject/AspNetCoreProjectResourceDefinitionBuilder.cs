@@ -165,36 +165,6 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
 
 public static class AspNetCoreProjectResourceDefinitionBuilderExtensions
 {
-    public static AspNetCoreProjectResourceDefinitionBuilder WithEnvironment(
-        this AspNetCoreProjectResourceDefinitionBuilder builder,
-        string name,
-        string? value = null)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        return builder.WithEnvironmentVariable(name, value);
-    }
-
-    public static AspNetCoreProjectResourceDefinitionBuilder WithEnvironment(
-        this AspNetCoreProjectResourceDefinitionBuilder builder,
-        string name,
-        ResourceConfigurationEntryReference configurationEntry)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        return builder.WithEnvironmentVariable(name, configurationEntry);
-    }
-
-    public static AspNetCoreProjectResourceDefinitionBuilder WithEnvironment(
-        this AspNetCoreProjectResourceDefinitionBuilder builder,
-        string name,
-        ResourceSecretReference secret)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        return builder.WithEnvironmentVariable(name, secret);
-    }
-
     public static AspNetCoreProjectResourceDefinitionBuilder WithServiceDiscovery(
         this AspNetCoreProjectResourceDefinitionBuilder builder,
         bool enabled = true)

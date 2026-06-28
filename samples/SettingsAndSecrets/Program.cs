@@ -89,28 +89,28 @@ cloudShell.DefineResources(resources =>
             host: apiEndpointUri.Host,
             port: apiEndpointUri.Port,
             exposure: "Local")
-        .WithEnvironment(
+        .WithEnvironmentVariable(
             "CLOUDSHELL_APPLICATION",
             "Settings and Secrets API")
-        .WithEnvironment(
+        .WithEnvironmentVariable(
             "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT",
             identityTokenEndpoint)
-        .WithEnvironment(
+        .WithEnvironmentVariable(
             "CLOUDSHELL_IDENTITY_CLIENT_ID",
             apiIdentityClientId)
-        .WithEnvironment(
+        .WithEnvironmentVariable(
             "CLOUDSHELL_IDENTITY_CLIENT_SECRET",
             resourceIdentityClientSecret)
-        .WithEnvironment(
+        .WithEnvironmentVariable(
             "CLOUDSHELL_IDENTITY_SCOPE",
             "ControlPlane.Access")
-        .WithEnvironment(
+        .WithEnvironmentVariable(
             "SAMPLE_MESSAGE",
             settingsResource.Entry("Sample:Message"))
-        .WithEnvironment(
+        .WithEnvironmentVariable(
             "SAMPLE_MODE",
             settingsResource.Entry("Sample:Mode"))
-        .WithEnvironment(
+        .WithEnvironmentVariable(
             "SAMPLE_API_KEY",
             secretsResource.Secret("sample-api-key"))
         .WithReference(settingsResource, ConfigurationStoreResourceTypeProvider.ResourceTypeId)

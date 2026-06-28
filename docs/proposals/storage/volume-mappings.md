@@ -321,7 +321,7 @@ var postgres = resources
     .AddContainerApplication("application:postgres", "postgres:16")
     .WithDisplayName("Postgres")
     .WithVolume(data, "/var/lib/postgresql/data")
-    .WithEnvironment("POSTGRES_DB", "cloudshell");
+    .WithEnvironmentVariable("POSTGRES_DB", "cloudshell");
 ```
 
 Explicit host directory:
