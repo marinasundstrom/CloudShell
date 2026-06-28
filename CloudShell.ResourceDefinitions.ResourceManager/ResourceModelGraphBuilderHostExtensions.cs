@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -20,6 +21,7 @@ public static class ResourceModelGraphBuilderHostExtensions
 
         var graph = new ResourceDefinitionGraphBuilder(convention);
         graph.DefineResources(configure);
+        RegisterDeclarations(builder, graph);
         builder.Services.AddInMemoryResourceModelGraph(
             ProjectStates(
                 graph.BuildGraph().Resources.Select(ResourceState.FromDefinition),
@@ -46,6 +48,7 @@ public static class ResourceModelGraphBuilderHostExtensions
 
         var graph = new ResourceDefinitionGraphBuilder(convention);
         graph.DefineResources(configure);
+        RegisterDeclarations(builder, graph);
         var deployment = graph.BuildDeployment(
             name,
             environmentId,
@@ -56,6 +59,34 @@ public static class ResourceModelGraphBuilderHostExtensions
                 projectState));
 
         return builder;
+    }
+
+    private static void RegisterDeclarations(
+        IControlPlaneBuilder builder,
+        ResourceDefinitionGraphBuilder graph)
+    {
+        var declarations = ResourceModelResourceDefinitionBuilderExtensions
+            .GetOrAddDeclarationStore(builder.Services);
+
+        foreach (var resource in graph.ResourceBuilders)
+        {
+            var metadata = ResourceModelResourceDefinitionBuilderExtensions.GetDeclarationMetadata(resource);
+            var declaration = declarations.Declare(
+                builder,
+                ResourceModelResourceProvider.DefaultProviderId,
+                resource.EffectiveResourceId,
+                resourceGroupId: metadata.ResourceGroupId);
+
+            if (metadata.AutoStart is { } autoStart)
+            {
+                declaration.WithAutoStart(autoStart);
+            }
+
+            if (metadata.DependencyAutoStart is { } dependencyAutoStart)
+            {
+                declaration.WithDependencyAutoStart(dependencyAutoStart);
+            }
+        }
     }
 
     private static IEnumerable<ResourceState> ProjectStates(

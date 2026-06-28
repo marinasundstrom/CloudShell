@@ -29,16 +29,24 @@ var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndp
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+cloudShell.AddResourceGroup(
+    resourceGroupId,
+    "Replicated Container Health POC",
+    "Resource model resources used by the ReplicatedContainerHealth sample.");
 IResourceDefinitionBuilder dockerResource = null!;
 IResourceDefinitionBuilder apiResource = null!;
 cloudShell.DefineResources(resources =>
 {
     dockerResource = resources
-        .AddDockerHost("sample");
+        .AddDockerHost("sample")
+        .WithResourceGroup(resourceGroupId)
+        .WithAutoStart(false);
 
     apiResource = resources
         .AddContainerApplication("api")
         .WithDisplayName("Replicated API")
+        .WithResourceGroup(resourceGroupId)
+        .WithAutoStart(false)
         .UseDockerHost(dockerResource)
         .WithImage($"cloudshell-application-api:{sampleImageTag}")
         .WithReplicas(3)
@@ -76,23 +84,6 @@ cloudShell
     .AddExtension<ObservabilityExtension>();
 
 cloudShell.AddApplicationResourceManagerUi();
-
-cloudShell.Resources(resources =>
-{
-    resources.AddResourceGroup(
-        resourceGroupId,
-        "Replicated Container Health POC",
-        "Resource model resources used by the ReplicatedContainerHealth sample.");
-
-    resources
-        .Declare(dockerResource)
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false);
-    resources
-        .Declare(apiResource)
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false);
-});
 
 var app = builder.Build();
 

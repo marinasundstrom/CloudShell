@@ -146,6 +146,34 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
+    public void Host_DefineResourcesRegistersResourceManagerDeclarations()
+    {
+        var services = new ServiceCollection();
+        services
+            .AddCloudShellControlPlane()
+            .AddResourceGroup("group:sample", "Sample")
+            .DefineResources(resources =>
+            {
+                resources
+                    .AddNetwork("app")
+                    .WithResourceGroup("group:sample")
+                    .WithAutoStart(false)
+                    .WithDependencyAutoStart(false);
+            });
+        using var serviceProvider = services.BuildServiceProvider();
+        var declarations = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(declarations.GetDeclarations());
+        var group = Assert.Single(declarations.GetResourceGroups());
+
+        Assert.Equal("group:sample", group.Id);
+        Assert.Equal(ResourceModelResourceProvider.DefaultProviderId, declaration.ProviderId);
+        Assert.Equal("cloudshell.network:app", declaration.ResourceId);
+        Assert.Equal("group:sample", declaration.ResourceGroupId);
+        Assert.False(declarations.ShouldAutoStart(declaration.ResourceId));
+        Assert.False(declarations.ShouldAutoStartAsDependency(declaration.ResourceId));
+    }
+
+    [Fact]
     public async Task Host_DefineResourcesUsesConfiguredResourceIdConvention()
     {
         var services = new ServiceCollection();

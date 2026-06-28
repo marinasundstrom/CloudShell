@@ -919,9 +919,18 @@ should not change the meaning of the graph declaration.
 `DefineResources(...)` is the host-friendly programmatic path for declaring
 in-memory resources, which keeps compatibility with the Aspire-style host
 model where resources are declared in code and exist for the lifetime of that
-host. `DefineInitialDeployment(...)` is the deployment seed path: it can use
-the same builder but represents an initial deployment that should only be
-applied when the host is fresh and there are no accepted deployments yet.
+host. The Resource Manager integration now automatically creates Resource
+Manager declarations for graph resources defined through `DefineResources(...)`
+and `DefineInitialDeployment(...)`, so samples no longer need to re-declare
+each graph resource through `cloudShell.Resources(...).Declare(...)` just to
+make it visible to Resource Manager. Host-facing declaration metadata, such as
+resource group assignment and autostart policy, is carried by Resource Manager
+builder extensions like `WithResourceGroup(...)`, `WithAutoStart(...)`, and
+`WithDependencyAutoStart(...)`; it is intentionally not part of the
+`ResourceDefinition` interchange format. `DefineInitialDeployment(...)` is the
+deployment seed path: it can use the same builder but represents an initial
+deployment that should only be applied when the host is fresh and there are no
+accepted deployments yet.
 Later, the host may add an in-memory declared-deployment mode for tests that
 need to exercise deployment semantics on top of the implicit graph created by
 `DefineResources(...)`. That is intentionally deferred; samples use

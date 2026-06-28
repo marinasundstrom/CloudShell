@@ -1,5 +1,4 @@
 using CloudShell.Abstractions.Hosting;
-using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.HostVirtualNetwork;
@@ -22,26 +21,33 @@ const string resourceGroupId = "host-virtual-network-poc";
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+cloudShell.AddResourceGroup(
+    resourceGroupId,
+    "Host Virtual Network POC",
+    "Resources used by the HostVirtualNetwork sample.");
 IResourceDefinitionBuilder hostNetworkingResource = null!;
 IResourceDefinitionBuilder apiResource = null!;
-IResourceDefinitionBuilder networkResource = null!;
 cloudShell.DefineResources(resources =>
 {
     hostNetworkingResource = resources
-        .AddLocalHostNetwork("host-local");
+        .AddLocalHostNetwork("host-local")
+        .WithResourceGroup(resourceGroupId);
     apiResource = resources
         .AddAspNetCoreProject(
             "vnet-api",
             "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
         .WithDisplayName("VNet API")
+        .WithResourceGroup(resourceGroupId)
+        .WithAutoStart(false)
         .WithArguments($"--urls http://localhost:{targetPort}")
         .UseLaunchSettings(false)
         .WithHttpEndpoint(
             host: "localhost",
             port: targetPort);
 
-    networkResource = resources
+    resources
         .AddVirtualNetwork("sample-vnet")
+        .WithResourceGroup(resourceGroupId)
         .DependsOn(hostNetworkingResource, LocalHostNetworkResourceTypeProvider.ResourceTypeId)
         .DependsOn(apiResource, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
         .AsDefault()
@@ -78,25 +84,6 @@ cloudShell
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>();
 cloudShell.AddApplicationResourceManagerUi();
-
-cloudShell.Resources(resources =>
-{
-    resources.AddResourceGroup(
-        resourceGroupId,
-        "Host Virtual Network POC",
-        "Resources used by the HostVirtualNetwork sample.");
-
-    resources
-        .Declare(hostNetworkingResource)
-        .WithResourceGroup(resourceGroupId);
-    resources
-        .Declare(apiResource)
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false);
-    resources
-        .Declare(networkResource)
-        .WithResourceGroup(resourceGroupId);
-});
 
 var app = builder.Build();
 

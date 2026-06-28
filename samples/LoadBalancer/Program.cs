@@ -1,5 +1,4 @@
 using CloudShell.Abstractions.Hosting;
-using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Hosting;
@@ -32,38 +31,45 @@ if (!string.IsNullOrWhiteSpace(localHostsFilePath))
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+cloudShell.AddResourceGroup(
+    resourceGroupId,
+    "Load Balancer POC",
+    "Resource model resources used by the LoadBalancer sample.");
 IResourceDefinitionBuilder dockerHostResource = null!;
 IResourceDefinitionBuilder webResource = null!;
 IResourceDefinitionBuilder apiResource = null!;
 IResourceDefinitionBuilder postgresResource = null!;
 IResourceDefinitionBuilder loadBalancerResource = null!;
 IResourceDefinitionBuilder dnsZoneResource = null!;
-IResourceDefinitionBuilder appNameMappingResource = null!;
-IResourceDefinitionBuilder apiNameMappingResource = null!;
 cloudShell.DefineResources(resources =>
 {
     dockerHostResource = resources
-        .AddDockerHost("sample-host");
+        .AddDockerHost("sample-host")
+        .WithResourceGroup(resourceGroupId);
     webResource = resources
         .AddContainerApplication("web")
         .WithDisplayName("Web App")
+        .WithResourceGroup(resourceGroupId)
         .UseDockerHost(dockerHostResource)
         .WithImage("nginx:1.27-alpine");
     apiResource = resources
         .AddContainerApplication("api")
         .WithDisplayName("API Service")
+        .WithResourceGroup(resourceGroupId)
         .UseDockerHost(dockerHostResource)
         .WithImage("traefik/whoami:v1.10")
         .WithReplicas(3);
     postgresResource = resources
         .AddContainerApplication("postgres")
         .WithDisplayName("Postgres Replica Set")
+        .WithResourceGroup(resourceGroupId)
         .UseDockerHost(dockerHostResource)
         .WithImage("postgres:16-alpine");
 
     loadBalancerResource = resources
         .AddLoadBalancer("public")
         .WithDisplayName("Public Load Balancer")
+        .WithResourceGroup(resourceGroupId)
         .WithProvider("traefik")
         .UseHost(dockerHostResource)
         .ExposeHttp()
@@ -76,18 +82,21 @@ cloudShell.DefineResources(resources =>
     dnsZoneResource = resources
         .AddDnsZone("cloudshell-local")
         .WithDisplayName("CloudShell Local DNS")
+        .WithResourceGroup(resourceGroupId)
         .WithZoneName("cloudshell.local")
         .WithProvider("local-hostnames");
-    appNameMappingResource = resources
+    resources
         .AddNameMapping("app-cloudshell-local")
         .WithDisplayName("app.cloudshell.local")
+        .WithResourceGroup(resourceGroupId)
         .WithHostName("app.cloudshell.local")
         .WithTargetEndpointName("http")
         .InDnsZone(dnsZoneResource)
         .MapsTarget(loadBalancerResource, LoadBalancerResourceTypeProvider.ResourceTypeId);
-    apiNameMappingResource = resources
+    resources
         .AddNameMapping("api-cloudshell-local")
         .WithDisplayName("api.cloudshell.local")
+        .WithResourceGroup(resourceGroupId)
         .WithHostName("api.cloudshell.local")
         .WithTargetEndpointName("http")
         .InDnsZone(dnsZoneResource)
@@ -119,39 +128,6 @@ cloudShell
             "true",
             StringComparison.OrdinalIgnoreCase);
     });
-
-cloudShell.Resources(resources =>
-{
-    resources.AddResourceGroup(
-        resourceGroupId,
-        "Load Balancer POC",
-        "Resource model resources used by the LoadBalancer sample.");
-
-    resources
-        .Declare(dockerHostResource)
-        .WithResourceGroup(resourceGroupId);
-    resources
-        .Declare(webResource)
-        .WithResourceGroup(resourceGroupId);
-    resources
-        .Declare(apiResource)
-        .WithResourceGroup(resourceGroupId);
-    resources
-        .Declare(postgresResource)
-        .WithResourceGroup(resourceGroupId);
-    resources
-        .Declare(loadBalancerResource)
-        .WithResourceGroup(resourceGroupId);
-    resources
-        .Declare(dnsZoneResource)
-        .WithResourceGroup(resourceGroupId);
-    resources
-        .Declare(appNameMappingResource)
-        .WithResourceGroup(resourceGroupId);
-    resources
-        .Declare(apiNameMappingResource)
-        .WithResourceGroup(resourceGroupId);
-});
 
 var app = builder.Build();
 

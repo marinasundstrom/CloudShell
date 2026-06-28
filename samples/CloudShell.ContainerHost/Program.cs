@@ -20,19 +20,24 @@ var sqlServerPort = builder.Configuration.GetValue<int?>("ContainerHost:SqlServe
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+cloudShell.AddResourceGroup(
+    resourceGroupId,
+    "Container Host POC",
+    "Resources used by the ContainerHost sample.");
 IResourceDefinitionBuilder storageResource = null!;
 IResourceDefinitionBuilder volumeResource = null!;
-IResourceDefinitionBuilder sqlServerResource = null!;
 cloudShell.DefineResources(resources =>
 {
     storageResource = resources
         .AddStorage("local")
+        .WithResourceGroup(resourceGroupId)
         .WithProvider("local")
         .WithMedium("FileSystem")
         .WithLocation("./Data/storage");
     volumeResource = resources
         .AddCloudShellVolume("sql-data")
         .WithDisplayName("SQL Server Data")
+        .WithResourceGroup(resourceGroupId)
         .UseStorage(storageResource)
         .WithProvider("local")
         .WithStorageMedium("FileSystem")
@@ -40,9 +45,10 @@ cloudShell.DefineResources(resources =>
         .WithAccessMode("ReadWriteOnce")
         .WithPersistent();
 
-    sqlServerResource = resources
+    resources
         .AddSqlServer("sql-server")
         .WithDisplayName("SQL Server")
+        .WithResourceGroup(resourceGroupId)
         .WithTcpEndpoint(
             host: "localhost",
             port: sqlServerPort)
@@ -60,24 +66,6 @@ cloudShell
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>();
 cloudShell.AddApplicationResourceManagerUi();
-
-cloudShell.Resources(resources =>
-{
-    resources.AddResourceGroup(
-        resourceGroupId,
-        "Container Host POC",
-        "Resources used by the ContainerHost sample.");
-
-    resources
-        .Declare(storageResource)
-        .WithResourceGroup(resourceGroupId);
-    resources
-        .Declare(volumeResource)
-        .WithResourceGroup(resourceGroupId);
-    resources
-        .Declare(sqlServerResource)
-        .WithResourceGroup(resourceGroupId);
-});
 
 var app = builder.Build();
 

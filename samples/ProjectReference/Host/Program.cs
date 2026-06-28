@@ -1,5 +1,4 @@
 using CloudShell.Abstractions.Hosting;
-using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
@@ -34,7 +33,6 @@ var frontendProjectPath = Path.GetFullPath(
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 IResourceDefinitionBuilder apiResource = null!;
-IResourceDefinitionBuilder frontendResource = null!;
 cloudShell.DefineResources(resources =>
 {
     apiResource = resources
@@ -62,7 +60,7 @@ cloudShell.DefineResources(resources =>
             "/alive",
             endpointName: "http");
 
-    frontendResource = resources
+    resources
         .AddAspNetCoreProject("project-reference-frontend", frontendProjectPath)
         .WithDisplayName("Project Reference Frontend")
         .WithHotReload(false)
@@ -97,12 +95,6 @@ cloudShell
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>();
 cloudShell.AddApplicationResourceManagerUi();
-
-cloudShell.Resources(resources =>
-{
-    resources.Declare(apiResource);
-    resources.Declare(frontendResource);
-});
 
 var app = builder.Build();
 

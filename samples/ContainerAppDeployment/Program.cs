@@ -21,23 +21,32 @@ const string resourceGroupId = "container-app-deployment-poc";
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+cloudShell.AddResourceGroup(
+    resourceGroupId,
+    "Container App Deployment POC",
+    "Resources used by the ContainerAppDeployment sample.");
 IResourceDefinitionBuilder dockerResource = null!;
 IResourceDefinitionBuilder registryResource = null!;
-IResourceDefinitionBuilder containerAppResource = null!;
 cloudShell.DefineResources(resources =>
     {
         dockerResource = resources
             .AddDockerHost("sample")
+            .WithResourceGroup(resourceGroupId)
+            .WithAutoStart(false)
             .WithRegistry(registryAddress);
         registryResource = resources
             .AddDockerContainer("sample-registry")
             .WithDisplayName("Sample Registry")
+            .WithResourceGroup(resourceGroupId)
+            .WithAutoStart(false)
             .UseDockerHost(dockerResource)
             .WithImage("registry:2")
             .WithRegistry(registryAddress);
-        containerAppResource = resources
+        resources
             .AddContainerApplication("sample-api")
             .WithDisplayName("Sample API")
+            .WithResourceGroup(resourceGroupId)
+            .WithAutoStart(false)
             .UseDockerHost(dockerResource)
             .DependsOn(registryResource)
             .WithImage(sampleImage)
@@ -63,27 +72,6 @@ cloudShell
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>();
 cloudShell.AddApplicationResourceManagerUi();
-
-cloudShell.Resources(resources =>
-{
-    resources.AddResourceGroup(
-        resourceGroupId,
-        "Container App Deployment POC",
-        "Resources used by the ContainerAppDeployment sample.");
-
-    resources
-        .Declare(dockerResource)
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false);
-    resources
-        .Declare(registryResource)
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false);
-    resources
-        .Declare(containerAppResource)
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false);
-});
 
 var app = builder.Build();
 

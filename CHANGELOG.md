@@ -32,6 +32,13 @@ on `git blame --follow`, and then by the broad type of change.
   ASP.NET Core projects, container applications, and SQL Server resources so
   common HTTP, HTTPS, TCP, and health-check declarations no longer need to
   hand-author raw endpoint request or health-check payloads.
+- Resource Manager graph host integration now automatically declares resources
+  defined through `DefineResources(...)` and `DefineInitialDeployment(...)`,
+  with graph-builder metadata helpers for resource groups and autostart policy.
+  ProjectReference, ReplicatedContainerHealth, HostVirtualNetwork,
+  CloudShell.ContainerHost, ContainerAppDeployment, LoadBalancer, and
+  SplitHosting no longer need redundant `cloudShell.Resources(...).Declare(...)`
+  blocks for graph resources.
 - Added native resource graph builder configuration authoring through
   `WithConfiguration(sectionName, value)`, writing to the ResourceDefinition
   `configuration` channel separately from resource environment variables.
