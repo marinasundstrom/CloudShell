@@ -39,6 +39,12 @@ on `git blame --follow`, and then by the broad type of change.
   (`application.aspnet-core-project:project-reference-api` and
   `application.aspnet-core-project:project-reference-frontend`) and removes
   the old `GraphOnly` comparison seam plus old application-provider records.
+- SettingsAndSecrets now uses only Resource Definitions-backed Configuration
+  Store, Secrets Vault, and ASP.NET Core project resources with stable sample
+  identities (`configuration.store:sample-app`, `secrets.vault:sample-app`,
+  and `application.aspnet-core-project:settings-secrets-api`) and removes the
+  old `GraphOnly` comparison seam plus old application/configuration/secrets
+  provider records.
 - Local container application graph samples now use
   `AddLocalContainerApplicationResourceTypes(...)` to register the paired
   container app and Docker host resource types while keeping runtime handlers

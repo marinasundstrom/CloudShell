@@ -12,7 +12,7 @@ expose that toggle.
 | Sample | Primary scenario | Current graph-provider status |
 | --- | --- | --- |
 | `ProjectReference` | ASP.NET Core project-to-project service discovery, logs, health, traces, and ResourceDefinition apply flow. | Switched to the Resource model provider path; old application-provider project records are no longer declared. |
-| `SettingsAndSecrets` | Graph-backed Configuration Store and Secrets Vault consumed by an ASP.NET Core project. | Defaults to graph-only; runtime backing services are provider-owned sample seams. |
+| `SettingsAndSecrets` | Resource model Configuration Store and Secrets Vault consumed by an ASP.NET Core project. | Switched to the Resource model provider path; old application/configuration/secrets provider records are no longer declared. |
 | `ThirdPartyIdentity` | Keycloak-backed identity setup and protected graph Configuration Store access. | Defaults to graph-only; Keycloak setup and graph API identity environment are sample-local runtime seams. |
 | `ApplicationTopology` | Multi-resource app topology across storage, SQL, configuration, secrets, identity, DNS, and project resources. | Defaults to graph-only; this remains the broad switch-readiness proof for common provider interactions. |
 | `ReplicatedContainerHealth` | Replicated container app runtime, health/liveness, logs, traces, metrics, and hidden runtime replica projection. | Defaults to graph-only; Docker-backed runtime/log/resource seams remain sample-local until the provider boundary is stabilized. |

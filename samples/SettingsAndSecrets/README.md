@@ -26,11 +26,10 @@ current service discovery path end to end. That endpoint calls the Configuration
 Store through the logical URI `https+http://configuration-sample-app`, using the Web
 API resource identity token for authorization.
 
-The graph-backed Web API also exposes
-`/service-discovery/graph-configuration` and
-`/service-discovery/graph-secrets/{name}`. Those paths call the graph-backed
+The Web API also exposes `/service-discovery/configuration-store` and
+`/service-discovery/secrets-vault/{name}`. Those paths call the
 Configuration Store and Secrets Vault through logical service-discovery URIs
-derived from `project.references` on the graph ASP.NET Core project resource.
+derived from `project.references` on the ASP.NET Core project resource.
 The endpoints still use the Web API resource identity token for authorization;
 service discovery only locates the referenced services.
 
@@ -55,25 +54,20 @@ credential acquisition environment when it starts the Web API resource. The
 configuration store and vault are protected target resources; they do not need
 their own identities unless they later call another resource or provider.
 
-The sample declares graph-backed Configuration Store and Secrets Vault
-resources. These graph resources project endpoint and `*.entries.count`
+The sample declares Resource model Configuration Store and Secrets Vault
+resources. These resources project endpoint and `*.entries.count`
 summary attributes through the Resource Manager bridge, but the actual
 configuration entries, secrets, grants, and backing services remain owned by
-the existing Control Plane providers. Those existing providers currently start
-local C# service projects; a future provider implementation can back the same
-graph resource shapes with containers.
+the provider-owned runtime integrations. The runtime integrations currently
+start local C# service projects; a future provider implementation can back the
+same resource shapes with containers.
 
-`Samples:SettingsAndSecrets:GraphOnly` defaults to `true` so the sample omits
-the old application, configuration, and secrets provider registrations plus the
-old
-`configuration:sample-app`, `secrets-vault:sample-app`, and
-`application:settings-secrets-api` resource records. In graph-only mode the
-sample still declares the built-in identity provider, graph Configuration
-Store, graph Secrets Vault, and graph ASP.NET Core API. Smoke coverage starts
-the graph services and API, then verifies the graph API reads graph-backed
-configuration and secrets through graph service-discovery references.
-Set `Samples:SettingsAndSecrets:GraphOnly` to `false` only when running the
-side-by-side comparison path against the old providers.
+The sample no longer declares the old `configuration:sample-app`,
+`secrets-vault:sample-app`, or `application:settings-secrets-api` provider
+records. It declares the built-in identity provider, Resource model
+Configuration Store, Secrets Vault, and ASP.NET Core API resources, then smoke
+coverage starts the services and API and verifies the API reads configuration
+and secrets through provider-owned service references.
 
 Run the sample host:
 
@@ -81,11 +75,11 @@ Run the sample host:
 dotnet run --project samples/SettingsAndSecrets/CloudShell.SettingsAndSecrets.csproj -- --urls http://localhost:5011
 ```
 
-The Web API resource listens on `http://localhost:5227` by default. Override
+The Web API resource listens on `http://localhost:5228` by default. Override
 `Samples:SettingsAndSecrets:ApiEndpoint` when that port is already in use.
 Smoke tests can also override
-`Samples:SettingsAndSecrets:ConfigurationServiceBasePort` and
-`Samples:SettingsAndSecrets:SecretsServiceBasePort` so provider-owned backing
+`Samples:SettingsAndSecrets:ConfigurationServiceEndpoint` and
+`Samples:SettingsAndSecrets:SecretsServiceEndpoint` so provider-owned backing
 services do not collide with detached processes from another run.
 
 The Web API resource declaration calls `ProvisionIdentityOnStartup()`, so the
@@ -93,7 +87,7 @@ built-in identity client is registered before the API resource is started. You
 can inspect provider-owned provisioning status with:
 
 ```bash
-curl http://localhost:5011/api/control-plane/v1/resources/application%3Asettings-secrets-api/identity/provisioning-status
+curl http://localhost:5011/api/control-plane/v1/resources/application.aspnet-core-project%3Asettings-secrets-api/identity/provisioning-status
 ```
 
 Then start the Web API resource and open `/configuration`. If the API was already
