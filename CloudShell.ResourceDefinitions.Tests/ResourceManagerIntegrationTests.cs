@@ -3270,9 +3270,8 @@ public sealed class ResourceManagerIntegrationTests
             LocalVolumeResourceTypeProvider.ResourceTypeId,
             ProviderId: LocalVolumeResourceTypeProvider.ProviderId);
         graph.Add(target);
-        var mapping = graph
+        var mapping = zone
             .AddNameMapping("api-local")
-            .InDnsZone(zone)
             .MapsTarget(target.EffectiveResourceId)
             .WithHostName("api.local")
             .WithTargetEndpointName("http")
@@ -3404,9 +3403,8 @@ public sealed class ResourceManagerIntegrationTests
             .AddDnsZone("application-topology-local")
             .WithZoneName("application-topology.cloudshell.local")
             .WithProvider("hosts-file");
-        var mapping = graph
+        var mapping = zone
             .AddNameMapping("application-topology-api-local")
-            .InDnsZone(zone)
             .MapsTarget(apiService)
             .WithHostName("api.application-topology.cloudshell.local")
             .WithTargetEndpointName("http")

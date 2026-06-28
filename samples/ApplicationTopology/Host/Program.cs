@@ -258,19 +258,18 @@ cloudShell.DefineResources(resources =>
     secretsResource.Allow(apiResource, SecretsVaultResourceOperationPermissions.ReadSecrets);
 
     var dnsZoneResource = resources
-        .AddDnsZone("application-topology-local")
+        .AddDnsZone(
+            "application-topology-local",
+            zoneName: "application-topology.cloudshell.local")
         .WithDisplayName("Local DNS")
         .WithResourceGroup(resourceGroupId)
-        .WithZoneName("application-topology.cloudshell.local")
-        .WithProvider("local-hostnames");
-    resources
-        .AddNameMapping("application-topology-app-local")
-        .WithDisplayName("app.application-topology.cloudshell.local")
-        .WithResourceGroup(resourceGroupId)
-        .WithHostName("app.application-topology.cloudshell.local")
-        .WithTargetEndpointName("http")
-        .InDnsZone(dnsZoneResource)
-        .MapsTarget(frontendResource);
+        .UseLocalHostNames()
+        .MapHost(
+            "app.application-topology.cloudshell.local",
+            frontendResource,
+            endpointName: "http",
+            name: "application-topology-app-local",
+            configure: mapping => mapping.WithResourceGroup(resourceGroupId));
 }, AddGraphProjectionState);
 builder.Services
     .AddSingleton<ISqlDatabaseCreationHandler, ResourceModelSqlDatabaseCreationHandler>()

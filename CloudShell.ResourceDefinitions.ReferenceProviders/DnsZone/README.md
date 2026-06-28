@@ -15,6 +15,9 @@
 - Typed wrapper plus Resource Manager bridge projection and execution.
 - Manual `ResourceDefinitionGraphBuilder.AddDnsZone(...)` builder for
   code-first DNS zone definition authoring.
+- `UseLocalHostNames()`, child `AddNameMapping(...)`, and `MapHost(...)`
+  convenience builders. Name mappings remain explicit graph resources but are
+  authored through the DNS zone when they are zone-owned entries.
 - LoadBalancer sample graph DNS zone coverage beside the legacy
   local-hostnames zone.
 - LoadBalancer sample-local runtime bridge coverage that delegates graph name

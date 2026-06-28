@@ -80,27 +80,22 @@ cloudShell.DefineResources(resources =>
         .MapTcp(5432, postgresResource, targetPort: 5432);
 
     dnsZoneResource = resources
-        .AddDnsZone("cloudshell-local")
+        .AddDnsZone("cloudshell-local", zoneName: "cloudshell.local")
         .WithDisplayName("CloudShell Local DNS")
         .WithResourceGroup(resourceGroupId)
-        .WithZoneName("cloudshell.local")
-        .WithProvider("local-hostnames");
-    resources
-        .AddNameMapping("app-cloudshell-local")
-        .WithDisplayName("app.cloudshell.local")
-        .WithResourceGroup(resourceGroupId)
-        .WithHostName("app.cloudshell.local")
-        .WithTargetEndpointName("http")
-        .InDnsZone(dnsZoneResource)
-        .MapsTarget(loadBalancerResource);
-    resources
-        .AddNameMapping("api-cloudshell-local")
-        .WithDisplayName("api.cloudshell.local")
-        .WithResourceGroup(resourceGroupId)
-        .WithHostName("api.cloudshell.local")
-        .WithTargetEndpointName("http")
-        .InDnsZone(dnsZoneResource)
-        .MapsTarget(loadBalancerResource);
+        .UseLocalHostNames()
+        .MapHost(
+            "app.cloudshell.local",
+            loadBalancerResource,
+            endpointName: "http",
+            name: "app-cloudshell-local",
+            configure: mapping => mapping.WithResourceGroup(resourceGroupId))
+        .MapHost(
+            "api.cloudshell.local",
+            loadBalancerResource,
+            endpointName: "http",
+            name: "api-cloudshell-local",
+            configure: mapping => mapping.WithResourceGroup(resourceGroupId));
 });
 builder.Services
     .AddLocalContainerApplicationResourceTypes()

@@ -882,13 +882,11 @@ public sealed class ResourceDefinitionGraphBuilderTests
             .WithZoneName("application-topology.cloudshell.local")
             .WithProvider("hosts-file");
 
-        graph
-            .AddNameMapping("application-topology-api-local")
-            .InDnsZone(zone)
-            .MapsTarget(apiService)
-            .WithHostName("api.application-topology.cloudshell.local")
-            .WithTargetEndpointName("http")
-            .WithExposure("Public");
+        zone.MapHost(
+            "api.application-topology.cloudshell.local",
+            apiService,
+            endpointName: "http",
+            name: "application-topology-api-local");
 
         var deployment = graph.BuildDeployment("application-exposure", environmentId: "local");
 

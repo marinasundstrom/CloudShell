@@ -22,6 +22,11 @@ public sealed class DnsZoneResourceTypeProvider :
         public static readonly ResourceCapabilityId NetworkingDnsZone = "networking.dnsZone";
     }
 
+    public static class Providers
+    {
+        public const string LocalHostNames = "local-hostnames";
+    }
+
     public static class Operations
     {
         public static readonly ResourceOperationId ReconcileNameMappings = "reconcileNameMappings";

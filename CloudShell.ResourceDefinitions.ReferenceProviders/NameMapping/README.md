@@ -15,8 +15,9 @@
 - Temporary `ResourceReference` DNS-zone and target dependencies.
 - Typed wrapper, apply planning, graph validation, and Resource Manager bridge projection.
 - Manual `ResourceDefinitionGraphBuilder.AddNameMapping(...)` builder for
-  code-first name mapping definition authoring with typed DNS-zone and target
-  dependencies.
+  lower-level code-first name mapping definition authoring, plus preferred
+  DNS-zone-owned `dnsZone.AddNameMapping(...)` and `dnsZone.MapHost(...)`
+  convenience APIs.
 - LoadBalancer sample graph name-mapping coverage targeting the graph-backed
   load balancer frontend.
 - LoadBalancer sample-local runtime bridge coverage that materializes graph
