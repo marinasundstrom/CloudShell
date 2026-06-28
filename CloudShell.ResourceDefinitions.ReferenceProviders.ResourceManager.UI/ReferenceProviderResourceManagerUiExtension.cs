@@ -3,9 +3,9 @@ using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using GraphContainerAppPages = CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI.ContainerApplication.Pages;
-using GraphSharedPages = CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI.Shared.Pages;
-using GraphSqlServerPages = CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI.SqlServer.Pages;
+using ContainerAppPages = CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI.ContainerApplication.Pages;
+using SharedPages = CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI.Shared.Pages;
+using SqlServerPages = CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI.SqlServer.Pages;
 using ResourceManagerResourceClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
 
 namespace CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI;
@@ -30,14 +30,14 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
         builder.Services.TryAddSingleton<IContainerApplicationHistoryOperations, EmptyContainerApplicationHistoryOperations>();
 
         builder
-            .AddResourceType<GraphSharedPages.RegisterGraphApplicationResource>(
+            .AddResourceType<SharedPages.RegisterApplicationResource>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 "Executable application",
                 "Inspect executable applications declared through Resource Manager.",
                 "application",
                 20,
                 resourceClass: ResourceManagerResourceClass.Executable)
-            .AddResourceType<GraphSharedPages.RegisterGraphApplicationResource>(
+            .AddResourceType<SharedPages.RegisterApplicationResource>(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
                 "ASP.NET Core project",
                 "Inspect ASP.NET Core projects declared through Resource Manager.",
@@ -58,7 +58,7 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
                             Source: ResourceProbeSource.ForHttp("/alive", "http"))
                     ]),
                 resourceClass: ResourceManagerResourceClass.Project)
-            .AddResourceType<GraphContainerAppPages.RegisterGraphContainerApplicationResource>(
+            .AddResourceType<ContainerAppPages.RegisterContainerApplicationResource>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 "Container app",
                 "Inspect container applications declared through Resource Manager.",
@@ -66,7 +66,7 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
                 22,
                 probeOptions: new ResourceTypeProbeOptions(SupportsHealth: true),
                 resourceClass: ResourceManagerResourceClass.Container)
-            .AddResourceType<GraphSharedPages.RegisterGraphApplicationResource>(
+            .AddResourceType<SharedPages.RegisterApplicationResource>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 "SQL Server",
                 "Inspect SQL Server resources declared through Resource Manager.",
@@ -80,84 +80,84 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
                             "liveness")
                     ]),
                 resourceClass: ResourceManagerResourceClass.Service)
-            .AddResourceType<GraphSharedPages.RegisterGraphResource>(
+            .AddResourceType<SharedPages.RegisterResource>(
                 SqlDatabaseResourceTypeProvider.ResourceTypeId.ToString(),
                 "SQL Database",
                 "Inspect SQL database child resources declared through Resource Manager.",
                 "database-item",
                 24,
                 resourceClass: ResourceManagerResourceClass.Service)
-            .AddResourceType<GraphSharedPages.RegisterGraphResource>(
+            .AddResourceType<SharedPages.RegisterResource>(
                 ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(),
                 "Configuration Store",
                 "Inspect configuration store resources declared through Resource Manager.",
                 "settings",
                 25,
                 resourceClass: ResourceManagerResourceClass.Configuration)
-            .AddResourceType<GraphSharedPages.RegisterGraphResource>(
+            .AddResourceType<SharedPages.RegisterResource>(
                 SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),
                 "Secrets Vault",
                 "Inspect secrets vault resources declared through Resource Manager.",
                 "key",
                 26,
                 resourceClass: ResourceManagerResourceClass.SecretsVault)
-            .AddResourceType<GraphSharedPages.RegisterGraphResource>(
+            .AddResourceType<SharedPages.RegisterResource>(
                 IdentityProvisioningResourceTypeProvider.ResourceTypeId.ToString(),
                 "Identity Provisioning",
                 "Inspect identity provisioning resources declared through Resource Manager.",
                 "identity",
                 27,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
-            .AddResourceType<GraphSharedPages.RegisterGraphResource>(
+            .AddResourceType<SharedPages.RegisterResource>(
                 ContainerHostResourceTypeProvider.ResourceTypeId.ToString(),
                 "Container Host",
                 "Inspect container host resources declared through Resource Manager.",
                 "container-host",
                 28,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
-            .AddResourceType<GraphSharedPages.RegisterGraphResource>(
+            .AddResourceType<SharedPages.RegisterResource>(
                 DockerHostResourceTypeProvider.ResourceTypeId.ToString(),
                 "Docker Host",
                 "Inspect Docker host resources declared through Resource Manager.",
                 "container-host",
                 29,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
-            .AddResourceType<GraphSharedPages.RegisterGraphResource>(
+            .AddResourceType<SharedPages.RegisterResource>(
                 DockerContainerResourceTypeProvider.ResourceTypeId.ToString(),
                 "Docker Container",
                 "Inspect Docker container resources declared through Resource Manager.",
                 "container",
                 30,
                 resourceClass: ResourceManagerResourceClass.Container)
-            .AddResourceType<GraphSharedPages.RegisterGraphResource>(
+            .AddResourceType<SharedPages.RegisterResource>(
                 HostConfigurationSourceResourceTypeProvider.ResourceTypeId.ToString(),
                 "Host Configuration Source",
                 "Inspect host configuration source resources declared through Resource Manager.",
                 "settings",
                 31,
                 resourceClass: ResourceManagerResourceClass.Configuration)
-            .AddResourceType<GraphSharedPages.RegisterGraphResource>(
+            .AddResourceType<SharedPages.RegisterResource>(
                 VirtualNetworkResourceTypeProvider.ResourceTypeId.ToString(),
                 "Virtual Network",
                 "Inspect virtual network resources declared through Resource Manager.",
                 "network",
                 32,
                 resourceClass: ResourceManagerResourceClass.Network)
-            .AddResourceType<GraphSharedPages.RegisterGraphResource>(
+            .AddResourceType<SharedPages.RegisterResource>(
                 LocalHostNetworkResourceTypeProvider.ResourceTypeId.ToString(),
                 "Local Host Networking",
                 "Inspect local host networking resources declared through Resource Manager.",
                 "network",
                 33,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
-            .AddResourceType<GraphSharedPages.RegisterGraphResource>(
+            .AddResourceType<SharedPages.RegisterResource>(
                 MacOSHostNetworkResourceTypeProvider.ResourceTypeId.ToString(),
                 "macOS Host Networking",
                 "Inspect macOS host networking resources declared through Resource Manager.",
                 "network",
                 34,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
-            .AddResourceType<GraphSharedPages.RegisterGraphResource>(
+            .AddResourceType<SharedPages.RegisterResource>(
                 LocalVolumeResourceTypeProvider.ResourceTypeId.ToString(),
                 "Local Volume",
                 "Inspect local volume resources declared through Resource Manager.",
@@ -173,132 +173,132 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
             .AddResourceTypeEndpoint(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourceEndpointDescriptor.Tcp("tds", 1433))
-            .AddResourceTab<GraphSharedPages.ApplicationConfiguration>(
+            .AddResourceTab<SharedPages.ApplicationConfiguration>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<GraphSharedPages.ApplicationConfiguration>(
+            .AddResourceTab<SharedPages.ApplicationConfiguration>(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<GraphSharedPages.ApplicationEnvironment>(
+            .AddResourceTab<SharedPages.ApplicationEnvironment>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Environment,
                 "Environment",
                 25,
                 groupTitle: ResourceTabGroupTitles.Management)
-            .AddResourceTab<GraphSharedPages.ApplicationEnvironment>(
+            .AddResourceTab<SharedPages.ApplicationEnvironment>(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Environment,
                 "Environment",
                 25,
                 groupTitle: ResourceTabGroupTitles.Management)
-            .AddResourceTab<GraphSharedPages.ApplicationStorage>(
+            .AddResourceTab<SharedPages.ApplicationStorage>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
                 groupTitle: ResourceTabGroupTitles.Storage)
-            .AddResourceTab<GraphSharedPages.ApplicationStorage>(
+            .AddResourceTab<SharedPages.ApplicationStorage>(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
                 groupTitle: ResourceTabGroupTitles.Storage)
-            .AddResourceTab<GraphContainerAppPages.ApplicationDeployment>(
+            .AddResourceTab<ContainerAppPages.ApplicationDeployment>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "deployment"),
                 "Deployment",
                 20,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "deployment")
-            .AddResourceTab<GraphContainerAppPages.ApplicationRevisions>(
+            .AddResourceTab<ContainerAppPages.ApplicationRevisions>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "revisions"),
                 "Revisions",
                 25,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "runtime")
-            .AddResourceTab<GraphContainerAppPages.GraphContainerApplicationScaling>(
+            .AddResourceTab<ContainerAppPages.ContainerApplicationScaling>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "scale-replicas"),
                 "Scale and replicas",
                 30,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "scale")
-            .AddResourceTab<GraphContainerAppPages.ApplicationMonitoring>(
+            .AddResourceTab<ContainerAppPages.ApplicationMonitoring>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Monitoring,
                 "Monitoring",
                 45,
                 groupTitle: ResourceTabGroupTitles.Management)
-            .AddResourceTab<GraphSharedPages.ApplicationConfiguration>(
+            .AddResourceTab<SharedPages.ApplicationConfiguration>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 50,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<GraphSharedPages.ApplicationEnvironment>(
+            .AddResourceTab<SharedPages.ApplicationEnvironment>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Environment,
                 "Environment",
                 55,
                 groupTitle: ResourceTabGroupTitles.Management)
-            .AddResourcePredefinedViewSection<GraphSharedPages.ApplicationEndpointActions>(
+            .AddResourcePredefinedViewSection<SharedPages.ApplicationEndpointActions>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Endpoints,
                 "application.exposure-actions",
                 "Application exposure",
                 10)
-            .AddResourcePredefinedViewSection<GraphSharedPages.ApplicationEndpointActions>(
+            .AddResourcePredefinedViewSection<SharedPages.ApplicationEndpointActions>(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Endpoints,
                 "application.exposure-actions",
                 "Application exposure",
                 10)
-            .AddResourcePredefinedViewSection<GraphSharedPages.ApplicationEndpointActions>(
+            .AddResourcePredefinedViewSection<SharedPages.ApplicationEndpointActions>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Endpoints,
                 "application.exposure-actions",
                 "Application exposure",
                 10)
-            .AddResourceTab<GraphSharedPages.ApplicationStorage>(
+            .AddResourceTab<SharedPages.ApplicationStorage>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "storage"),
                 "Storage",
                 60,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "storage")
-            .AddResourceTab<GraphSharedPages.ApplicationStorage>(
+            .AddResourceTab<SharedPages.ApplicationStorage>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
                 groupTitle: ResourceTabGroupTitles.Storage)
-            .AddResourceTab<GraphSharedPages.ApplicationConfiguration>(
+            .AddResourceTab<SharedPages.ApplicationConfiguration>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<GraphSharedPages.ApplicationEnvironment>(
+            .AddResourceTab<SharedPages.ApplicationEnvironment>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Environment,
                 "Environment",
                 25,
                 groupTitle: ResourceTabGroupTitles.Management)
-            .AddResourceTab<GraphSqlServerPages.SqlServerDatabases>(
+            .AddResourceTab<SqlServerPages.SqlServerDatabases>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "databases"),
                 "Databases",
                 35,
                 groupTitle: "Data",
                 icon: "database-item")
-            .AddResourcePredefinedViewSection<GraphSharedPages.ApplicationEndpointActions>(
+            .AddResourcePredefinedViewSection<SharedPages.ApplicationEndpointActions>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Endpoints,
                 "application.exposure-actions",
