@@ -124,6 +124,23 @@ public sealed class SampleSmokeTests
         };
     }
 
+    [Fact]
+    public void SupportedSwitchReadinessSamples_ReadmeMatchesLaunchMatrix()
+    {
+        var documentedSamples = File
+            .ReadAllLines(Path.Combine(SampleProcess.FindRepositoryRoot(), "samples", "README.md"))
+            .Where(line => line.StartsWith("| `", StringComparison.Ordinal))
+            .Select(line => line.Split('`')[1])
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var launchMatrixSamples = SupportedSwitchReadinessSampleHostProjects()
+            .Select(values => GetSwitchReadinessSampleName((string)values[0]))
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Assert.Equal(documentedSamples, launchMatrixSamples);
+    }
+
     [Theory]
     [MemberData(nameof(SupportedSwitchReadinessSampleHostProjects))]
     public async Task SupportedSwitchReadinessSampleHosts_StartAndRenderResources(
@@ -5760,6 +5777,61 @@ public sealed class SampleSmokeTests
         }
 
         return environment;
+    }
+
+    private static string GetSwitchReadinessSampleName(string projectPath)
+    {
+        if (projectPath.Contains("/ApplicationTopology/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ApplicationTopology";
+        }
+
+        if (projectPath.Contains("/CloudShell.ContainerHost/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "CloudShell.ContainerHost";
+        }
+
+        if (projectPath.Contains("/ContainerAppDeployment/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ContainerAppDeployment";
+        }
+
+        if (projectPath.Contains("/HostVirtualNetwork/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "HostVirtualNetwork";
+        }
+
+        if (projectPath.Contains("/LoadBalancer/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "LoadBalancer";
+        }
+
+        if (projectPath.Contains("/ProjectReference/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ProjectReference";
+        }
+
+        if (projectPath.Contains("/ReplicatedContainerHealth/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ReplicatedContainerHealth";
+        }
+
+        if (projectPath.Contains("/SettingsAndSecrets/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "SettingsAndSecrets";
+        }
+
+        if (projectPath.Contains("/SplitHosting/ControlPlane/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "SplitHosting";
+        }
+
+        if (projectPath.Contains("/ThirdPartyIdentity/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ThirdPartyIdentity";
+        }
+
+        throw new InvalidOperationException($"Could not resolve switch-readiness sample name for '{projectPath}'.");
     }
 
     private static async Task CleanupSwitchReadinessRuntimeArtifactsAsync(string projectPath)
