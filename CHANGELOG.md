@@ -39,6 +39,10 @@ on `git blame --follow`, and then by the broad type of change.
   CloudShell.ContainerHost, ContainerAppDeployment, LoadBalancer, and
   SplitHosting no longer need redundant `cloudShell.Resources(...).Declare(...)`
   blocks for graph resources.
+- ReplicatedContainerHealth Docker smoke coverage now verifies that started
+  graph container-app replicas are projected through Resource Manager child
+  resources and shown as occupied slots in the Scale and replicas view, both
+  before and after graph-backed replica scaling.
 - Added native resource graph builder configuration authoring through
   `WithConfiguration(sectionName, value)`, writing to the ResourceDefinition
   `configuration` channel separately from resource environment variables.

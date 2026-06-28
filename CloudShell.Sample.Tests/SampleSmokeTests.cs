@@ -2076,6 +2076,16 @@ public sealed class SampleSmokeTests
             Assert.True(
                 await WaitForDockerContainerExistsAsync(ingressContainerName, graphOnlySmokeTimeout),
                 $"Expected Docker ingress container '{ingressContainerName}' to be created.");
+            await AssertGraphReplicaChildrenProjectedAsync(
+                host,
+                graphApiResourceId,
+                expectedReplicas: 3,
+                graphOnlySmokeTimeout);
+            await AssertGraphScalePanelReplicaOccupantsAsync(
+                host,
+                graphApiResourceId,
+                expectedReplicas: 3,
+                graphOnlySmokeTimeout);
             var startedContainerIds = await GetDockerContainerIdsAsync(containerNames);
 
             var graphApplyJson = await host.SendJsonAsync(
@@ -2147,6 +2157,16 @@ public sealed class SampleSmokeTests
                 expectedReplicas: 2,
                 graphOnlySmokeTimeout);
             await AssertGraphReplicaLogSourcesAsync(host, graphApiResourceId, expectedReplicas: 2);
+            await AssertGraphReplicaChildrenProjectedAsync(
+                host,
+                graphApiResourceId,
+                expectedReplicas: 2,
+                graphOnlySmokeTimeout);
+            await AssertGraphScalePanelReplicaOccupantsAsync(
+                host,
+                graphApiResourceId,
+                expectedReplicas: 2,
+                graphOnlySmokeTimeout);
             foreach (var containerName in scaledContainerNames)
             {
                 Assert.True(
@@ -3329,6 +3349,101 @@ public sealed class SampleSmokeTests
         throw new TimeoutException(
             $"Graph resource '{resourceId}' runtime-scope health did not aggregate as healthy within {timeout ?? TimeSpan.FromSeconds(30)}." +
             $"{Environment.NewLine}{lastSummariesJson}");
+    }
+
+    private static async Task AssertGraphReplicaChildrenProjectedAsync(
+        SampleProcess host,
+        string resourceId,
+        int expectedReplicas,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        string? lastChildrenJson = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            lastChildrenJson = await host.GetStringAsync(
+                $"/api/control-plane/v1/resources/{Uri.EscapeDataString(resourceId)}/children");
+            using var childrenDocument = JsonDocument.Parse(lastChildrenJson);
+            var replicas = childrenDocument.RootElement
+                .EnumerateArray()
+                .Where(IsRuntimeReplicaChild)
+                .OrderBy(resource => int.Parse(
+                    resource.GetProperty("attributes").GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString()!,
+                    CultureInfo.InvariantCulture))
+                .ToArray();
+
+            if (replicas.Length == expectedReplicas &&
+                Enumerable.Range(1, expectedReplicas).All(replica =>
+                    replicas.Any(resource => IsExpectedRuntimeReplicaChild(resource, replica, expectedReplicas))))
+            {
+                return;
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"Graph resource '{resourceId}' did not project {expectedReplicas.ToString(CultureInfo.InvariantCulture)} runtime replica child resource(s) within {timeout}." +
+            $"{Environment.NewLine}{lastChildrenJson}");
+    }
+
+    private static async Task AssertGraphScalePanelReplicaOccupantsAsync(
+        SampleProcess host,
+        string resourceId,
+        int expectedReplicas,
+        TimeSpan timeout)
+    {
+        var tab = Uri.EscapeDataString("application:scale-replicas");
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        string? lastHtml = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            lastHtml = await host.GetStringAsync(
+                $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={tab}");
+            if (lastHtml.Contains("Occupied slots", StringComparison.OrdinalIgnoreCase) &&
+                lastHtml.Contains($">{expectedReplicas.ToString(CultureInfo.InvariantCulture)}</dd>", StringComparison.OrdinalIgnoreCase) &&
+                Enumerable.Range(1, expectedReplicas).All(replica =>
+                    lastHtml.Contains($"api replica {replica.ToString(CultureInfo.InvariantCulture)}", StringComparison.OrdinalIgnoreCase) &&
+                    lastHtml.Contains(
+                        ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica),
+                        StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"Graph scale panel did not show {expectedReplicas.ToString(CultureInfo.InvariantCulture)} occupied replica slot(s) for '{resourceId}' within {timeout}." +
+            $"{Environment.NewLine}{lastHtml}");
+    }
+
+    private static bool IsRuntimeReplicaChild(JsonElement resource) =>
+        string.Equals(resource.GetProperty("typeId").GetString(), "runtime.container", StringComparison.OrdinalIgnoreCase) &&
+        resource.TryGetProperty("attributes", out var attributes) &&
+        attributes.TryGetProperty(ResourceAttributeNames.RuntimeKind, out var runtimeKind) &&
+        string.Equals(runtimeKind.GetString(), "containerReplica", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsExpectedRuntimeReplicaChild(
+        JsonElement resource,
+        int replica,
+        int replicaCount)
+    {
+        var replicaText = replica.ToString(CultureInfo.InvariantCulture);
+        var replicaCountText = replicaCount.ToString(CultureInfo.InvariantCulture);
+        var attributes = resource.GetProperty("attributes");
+
+        return string.Equals(
+                resource.GetProperty("id").GetString(),
+                ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica),
+                StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(
+                attributes.GetProperty(ResourceAttributeNames.RuntimeContainerName).GetString(),
+                ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica),
+                StringComparison.OrdinalIgnoreCase) &&
+            attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString() == replicaText &&
+            attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaCount).GetString() == replicaCountText;
     }
 
     private static bool HasRuntimeReplicaObservations(
