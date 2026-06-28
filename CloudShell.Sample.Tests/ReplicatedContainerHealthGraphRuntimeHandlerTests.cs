@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
 using CloudShell.ResourceDefinitions;
@@ -442,6 +443,46 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
     }
 
     [Fact]
+    public async Task GraphOnlyMonitoringProvider_ReadsReplicaContainerStats()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        commandRunner.Enqueue(new(
+            0,
+            """
+            {"Name":"cloudshell-replicated-health-graph-api-replica-2","CPUPerc":"7.5%","MemUsage":"32MiB / 1GiB","NetIO":"2kB / 4kB","BlockIO":"1MiB / 2MiB","PIDs":"12"}
+            """,
+            string.Empty));
+        var provider = new ReplicatedContainerHealthGraphOnlyMonitoringProvider(commandRunner);
+        var replica = CreateGraphReplicaResource(replica: 2);
+
+        Assert.True(provider.CanMonitor(replica));
+
+        var snapshot = await provider.GetMonitoringSnapshotAsync(replica);
+
+        var command = Assert.Single(commandRunner.Commands);
+        Assert.Equal("docker", command.FileName);
+        Assert.Equal(
+            [
+                "stats",
+                "--no-stream",
+                "--format",
+                "{{json .}}",
+                "cloudshell-replicated-health-graph-api-replica-2"
+            ],
+            command.Arguments);
+        Assert.False(command.ThrowOnError);
+        Assert.NotNull(snapshot);
+        Assert.Equal(replica.Id, snapshot.ResourceId);
+        Assert.Equal("Available", snapshot.Status);
+        Assert.Contains(snapshot.Metrics, metric =>
+            metric.Name == "resource.cpu.usage" &&
+            metric.Value == 7.5);
+        Assert.Contains(snapshot.Metrics, metric =>
+            metric.Name == "resource.process.count" &&
+            metric.Value == 12);
+    }
+
+    [Fact]
     public async Task Handler_DelegatesMappedGraphApiToBridge()
     {
         var bridge = new RecordingGraphContainerAppRuntimeBridge(ContainerApplicationRuntimeStatus.Running);
@@ -607,6 +648,46 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
                 ["container.replicas"] = replicas.ToString(CultureInfo.InvariantCulture)
             });
 
+    private static CloudShell.Abstractions.ResourceManager.Resource CreateGraphReplicaResource(
+        int replica)
+    {
+        var replicaOrdinal = replica.ToString(CultureInfo.InvariantCulture);
+
+        return new CloudShell.Abstractions.ResourceManager.Resource(
+            ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(replica),
+            $"graph-api replica {replicaOrdinal}",
+            "Container replica",
+            "Replicated Container Health",
+            "local",
+            CloudShell.Abstractions.ResourceManager.ResourceState.Running,
+            [],
+            "v1",
+            DateTimeOffset.UtcNow,
+            [],
+            ParentResourceId: ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId,
+            TypeId: "runtime.container",
+            ResourceClass: CloudShell.Abstractions.ResourceManager.ResourceClass.Container,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.RuntimeKind] = "containerReplica",
+                [ResourceAttributeNames.RuntimeContainerName] =
+                    ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaContainerName(replica),
+                [ResourceAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
+                [ResourceAttributeNames.RuntimeReplicaCount] = "3",
+                [ResourceAttributeNames.RuntimeMaterialization] = "sampleGraphOnlyRuntime"
+            },
+            Capabilities:
+            [
+                new(ResourceCapabilityIds.Monitoring),
+                new(ResourceCapabilityIds.LogSources)
+            ],
+            Source: ResourceSource.Orchestrator,
+            ManagementMode: ResourceManagementMode.RuntimeManaged,
+            Visibility: ResourceVisibility.Hidden,
+            OwnerResourceId: ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId,
+            CleanupBehavior: ResourceCleanupBehavior.DeleteWithOwner);
+    }
+
     private static IConfiguration CreateConfiguration(int? replicaCleanupLimit = null)
     {
         var values = new Dictionary<string, string?>
@@ -758,6 +839,7 @@ public sealed class ReplicatedContainerHealthGraphRuntimeHandlerTests
         Assert.True(replica.EffectiveObservability.Logs);
         Assert.True(replica.EffectiveObservability.Traces);
         Assert.True(replica.EffectiveObservability.Metrics);
+        Assert.True(replica.HasCapability(ResourceCapabilityIds.Monitoring));
         Assert.Equal(
             $"replicated-container-health-graph-api-replica-{ordinal.ToString(CultureInfo.InvariantCulture)}",
             replica.EffectiveObservability.ServiceName);

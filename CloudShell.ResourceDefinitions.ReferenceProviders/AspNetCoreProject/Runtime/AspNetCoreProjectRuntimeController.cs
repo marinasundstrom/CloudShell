@@ -22,6 +22,13 @@ public interface IAspNetCoreProjectRuntimeOutputReader
         DateTimeOffset? before = null);
 }
 
+public interface IAspNetCoreProjectRuntimeMonitor
+{
+    ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IAspNetCoreProjectRuntimeEnvironmentProvider
 {
     ValueTask<IReadOnlyDictionary<string, string>> ResolveAsync(
@@ -45,6 +52,7 @@ public enum AspNetCoreProjectRuntimeStatus
 public sealed class AspNetCoreProjectProcessRuntimeController :
     IAspNetCoreProjectRuntimeController,
     IAspNetCoreProjectRuntimeOutputReader,
+    IAspNetCoreProjectRuntimeMonitor,
     IDisposable,
     IAsyncDisposable
 {
@@ -81,6 +89,54 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             !process.HasExited
                 ? AspNetCoreProjectRuntimeStatus.Running
                 : AspNetCoreProjectRuntimeStatus.Stopped;
+    }
+
+    public async ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+
+        if (!_processes.TryGetValue(resourceId, out var process) ||
+            process.HasExited)
+        {
+            return null;
+        }
+
+        try
+        {
+            var firstTimestamp = DateTimeOffset.UtcNow;
+            var firstProcessorTime = process.TotalProcessorTime;
+            await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
+
+            process.Refresh();
+            if (process.HasExited)
+            {
+                return null;
+            }
+
+            var timestamp = DateTimeOffset.UtcNow;
+            var processorTime = process.TotalProcessorTime;
+            var elapsed = timestamp - firstTimestamp;
+            var cpuPercent = elapsed.TotalMilliseconds > 0
+                ? (processorTime - firstProcessorTime).TotalMilliseconds /
+                    (elapsed.TotalMilliseconds * Environment.ProcessorCount) * 100
+                : 0;
+
+            return new ResourceProcessMonitoringSnapshot(
+                process.Id,
+                TryGetStartTime(process),
+                timestamp,
+                Math.Max(0, cpuPercent),
+                processorTime,
+                process.WorkingSet64,
+                process.PrivateMemorySize64,
+                process.Threads.Count);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return null;
+        }
     }
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
@@ -415,6 +471,18 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
         process.Dispose();
     }
 
+    private static DateTimeOffset? TryGetStartTime(Process process)
+    {
+        try
+        {
+            return process.StartTime.ToUniversalTime();
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
+    }
+
     private static void AppendOutput(
         BoundedRuntimeOutputBuffer output,
         string? message,
@@ -480,7 +548,8 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
 
 public sealed class NoopAspNetCoreProjectRuntimeController :
     IAspNetCoreProjectRuntimeController,
-    IAspNetCoreProjectRuntimeOutputReader
+    IAspNetCoreProjectRuntimeOutputReader,
+    IAspNetCoreProjectRuntimeMonitor
 {
     public AspNetCoreProjectRuntimeStatus GetStatus(Resource resource) =>
         AspNetCoreProjectRuntimeStatus.Unknown;
@@ -496,6 +565,11 @@ public sealed class NoopAspNetCoreProjectRuntimeController :
         int maxEntries = 200,
         DateTimeOffset? before = null) =>
         [];
+
+    public ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<ResourceProcessMonitoringSnapshot?>(null);
 }
 
 public static class AspNetCoreProjectEnvironmentNames

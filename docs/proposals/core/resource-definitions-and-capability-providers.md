@@ -141,6 +141,42 @@ broader `ResourceClassDefinition`. Raw property bags such as `.Attributes`,
 effective model. They are declared or observed inputs that need resolution
 against class, type, preset, provider, and environment rules.
 
+The same rule should apply consistently across the provider ports:
+capabilities and operations that belong to every resource of a class or type
+are declared on the class or type definition so all derived resources inherit
+them automatically. Individual `ResourceDefinition` payloads should only
+declare resource-specific capability or operation configuration, optional
+capabilities, or overrides allowed by the type. Runtime-projected or
+provider-derived child resources may still declare capabilities directly
+because they are projections from runtime state rather than authored graph
+definitions.
+
+Provider ports should distinguish type/class capability expectations from
+instance-level capability activation. A type-level capability means the
+provider expects or supports that behavior for the type as part of its shape.
+An instance-level capability means this concrete resource currently declares
+or activates that behavior. Observability and telemetry are a good example:
+monitoring, log sources, traces, or metrics may be fundamental runtime
+integrations, but they may still be toggled or unavailable for a particular
+resource instance. Liveness/health can be type-level when the provider supplies
+default checks, while monitoring and log-source capabilities can be declared by
+programmatic builders, imported definitions, or runtime projections when that
+instance has the integration active. The exact placement remains a provider
+choice, but shared capability IDs must live in shared graph-model scope rather
+than as provider-local constants.
+
+Whether capability presence itself toggles a feature, or whether the
+capability remains present with a separate provider-owned attribute such as
+`*.enabled`, is a provider decision. The POC may use capability presence as the
+activation signal where existing Resource Manager or UI surfaces already use
+that convention, while leaving richer enabled/disabled policy to the provider
+when a capability needs to express "supported but disabled".
+
+A future root definition can declare global resource behavior shared by all
+resource classes and types, such as platform-wide metadata, identity hooks, or
+standard operations. This POC should not implement that layer yet, but
+providers should avoid patterns that would conflict with it.
+
 Capabilities have a related issue. A resource type may support a capability,
 an individual resource may define capability-owned state, and the resolved
 resource may advertise a capability that downstream systems can discover.

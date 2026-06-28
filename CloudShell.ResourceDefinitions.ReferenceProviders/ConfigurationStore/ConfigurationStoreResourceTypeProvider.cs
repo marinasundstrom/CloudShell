@@ -47,6 +47,7 @@ public sealed class ConfigurationStoreResourceTypeProvider :
         },
         Capabilities:
         [
+            new(ResourceCommonCapabilityIds.EndpointSource),
             new(
                 ResourceHealthCheckCapabilityIds.HealthChecks,
                 ResourceDefinitionJson.FromValue(new ResourceHealthCheckDefinitionSet(

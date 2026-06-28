@@ -68,9 +68,7 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
         },
         Capabilities:
         [
-            new(
-                ResourceLogSourceCapabilityIds.LogSources,
-                ResourceDefinitionJson.FromValue(ResourceLogSourceDefinitionSet.DefaultConsole()))
+            new(ResourceCommonCapabilityIds.EndpointSource)
         ],
         Operations:
         [

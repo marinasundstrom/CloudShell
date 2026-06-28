@@ -93,26 +93,31 @@ still removes running graph-owned containers. A graph-only runtime resource
 provider also projects hidden runtime-managed replica resources from the
 accepted graph state and sample runtime convention so the existing Control Plane
 health aggregation path can evaluate runtime-scope health/liveness without
-writing runtime observations back into the graph. The graph-only Docker bridge
-also assigns each replica container the projected runtime replica resource ID,
-OpenTelemetry service name, and telemetry scope attributes so runtime
-observability can be correlated with the hidden replica resource projection.
-Docker smoke coverage now verifies graph-only image update, replica update,
-stale replica removal, ingress-routed graph-declared HTTP health/liveness
-refresh, runtime-scope health aggregation, log source discovery, Docker log
-reading, the running replica container's projected runtime observability
-environment, live trace/metric ingestion under the projected runtime replica
-resource ID without the old provider records, and graph stop cleanup for both
-the app-owned ingress container and graph-owned replicas. The hidden runtime replica resource
-projection now also advertises Resource Manager logs, traces, metrics, service
-name, and runtime telemetry scope metadata so the projected resource and the
-emitted telemetry line up. Generated Resource Manager telemetry tabs for the
-hidden runtime replica resources are still a parity gap: a graph-only Docker
-smoke investigation confirmed that opening a hidden replica's generated Traces
-details route can time out even though telemetry is ingested and queryable
-through the Control Plane API. Keep this as a Resource Manager
-runtime-resource details seam to fix later rather than moving operational
-behavior into the graph model.
+writing runtime observations back into the graph. The graph-only runtime
+provider also declares operational log-source and monitoring capabilities on
+the hidden replica projections, and a sample-local monitoring provider reads
+Docker stats for those replica containers so the container app Monitoring tab
+can show observed replica metrics without registering the old application
+provider. The graph-only Docker bridge also assigns each replica container the
+projected runtime replica resource ID, OpenTelemetry service name, and
+telemetry scope attributes so runtime observability can be correlated with the
+hidden replica resource projection. Docker smoke coverage now verifies
+graph-only image update, replica update, stale replica removal,
+ingress-routed graph-declared HTTP health/liveness refresh, runtime-scope
+health aggregation, log source discovery, Docker log reading, the running
+replica container's projected runtime observability environment, live
+trace/metric ingestion under the projected runtime replica resource ID without
+the old provider records, and graph stop cleanup for both the app-owned
+ingress container and graph-owned replicas. The hidden runtime replica
+resource projection now also advertises Resource Manager logs, traces,
+metrics, service name, and runtime telemetry scope metadata so the projected
+resource and the emitted telemetry line up. Generated Resource Manager
+telemetry tabs for the hidden runtime replica resources are still a parity
+gap: a graph-only Docker smoke investigation confirmed that opening a hidden
+replica's generated Traces details route can time out even though telemetry is
+ingested and queryable through the Control Plane API. Keep this as a Resource
+Manager runtime-resource details seam to fix later rather than moving
+operational behavior into the graph model.
 
 ### Temporary switch seams
 
@@ -166,6 +171,10 @@ sample runs successfully through the new providers:
   application-provider log parser; promotion to a shared provider runtime
   should wait until another port proves the same Docker-backed behavior is
   needed.
+- `ReplicatedContainerHealthGraphOnlyMonitoringProvider` contributes Docker
+  stats snapshots for graph-owned runtime replica resources. It belongs to the
+  sample-local runtime boundary for now; promotion should wait until the
+  durable container runtime provider owns replica materialization.
 - The sample-local graph image update endpoint exists to exercise
   `ResourceDefinition` overlay apply plus graph operation delegation. It should
   be replaced by the eventual Resource Manager/control-plane API surface for

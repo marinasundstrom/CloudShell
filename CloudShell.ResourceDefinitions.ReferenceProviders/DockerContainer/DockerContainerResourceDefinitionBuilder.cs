@@ -21,6 +21,12 @@ public sealed class DockerContainerResourceDefinitionBuilder(string name) :
     public DockerContainerResourceDefinitionBuilder WithWorkloadKind(string workloadKind) =>
         SetScalarAttribute(DockerContainerResourceTypeProvider.Attributes.WorkloadKind, workloadKind);
 
+    public DockerContainerResourceDefinitionBuilder WithRuntimeMonitoring() =>
+        DeclareCapability(ResourceCommonCapabilityIds.Monitoring);
+
+    public DockerContainerResourceDefinitionBuilder WithRuntimeLogSources() =>
+        DeclareCapability(ResourceLogSourceCapabilityIds.LogSources);
+
     public DockerContainerResourceDefinitionBuilder UseDockerHost(
         IResourceDefinitionBuilder host)
     {
@@ -47,7 +53,9 @@ public static class DockerContainerResourceDefinitionBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(graph);
 
-        var builder = new DockerContainerResourceDefinitionBuilder(name);
+        var builder = new DockerContainerResourceDefinitionBuilder(name)
+            .WithRuntimeMonitoring()
+            .WithRuntimeLogSources();
         graph.Add(builder);
         return builder;
     }

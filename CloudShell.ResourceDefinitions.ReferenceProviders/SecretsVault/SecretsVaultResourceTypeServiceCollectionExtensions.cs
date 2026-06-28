@@ -45,6 +45,8 @@ public static class SecretsVaultResourceTypeServiceCollectionExtensions
         services.TryAddSingleton<SecretsVaultProcessRuntimeController>();
         services.TryAddSingleton<ISecretsVaultRuntimeController>(
             serviceProvider => serviceProvider.GetRequiredService<SecretsVaultProcessRuntimeController>());
+        services.TryAddSingleton<ISecretsVaultRuntimeMonitor>(
+            serviceProvider => serviceProvider.GetRequiredService<SecretsVaultProcessRuntimeController>());
         services.TryAddSingleton<ISecretsVaultInspector, SecretsVaultRuntimeInspector>();
 
         return services;

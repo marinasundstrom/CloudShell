@@ -10,6 +10,9 @@
 
 - Image, registry, and replica attributes.
 - Endpoint request attributes using the shared networking endpoint request shape.
+- Type-level endpoint-source expectation, with programmatic builder activation
+  for runtime monitoring and log-source capabilities on graph container-app
+  resources.
 - Optional typed generic/Docker container-host reference validation and projection.
 - Shared volume-consumer capability.
 - Start, stop, restart, image-update, and replica-update operation seams with
@@ -34,6 +37,9 @@
   Manager bridge derives compatibility facts such as
   `container.replicas.enabled` and `deployment.replicas.requestedSlots` so
   existing deployment and monitoring views render replicated apps correctly.
+  Runtime-projected replica children declare their operational monitoring and
+  log-source capabilities directly because they are derived runtime resources,
+  not authored graph definitions.
 
 ## Runtime Integration
 

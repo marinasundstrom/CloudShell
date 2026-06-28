@@ -20,12 +20,6 @@ public sealed class DockerContainerResourceTypeProvider :
         public static readonly ResourceAttributeId EndpointCount = "endpoints.count";
     }
 
-    public static class Capabilities
-    {
-        public static readonly ResourceCapabilityId Monitoring = "monitoring";
-        public static readonly ResourceCapabilityId LogSources = "logs.sources";
-    }
-
     public static class Operations
     {
         public static readonly ResourceOperationId Start = "start";
@@ -62,11 +56,6 @@ public sealed class DockerContainerResourceTypeProvider :
                 ReadOnly: true,
                 Mutability: ResourceAttributeMutability.ProviderManaged)
         },
-        Capabilities:
-        [
-            new(Capabilities.Monitoring),
-            new(Capabilities.LogSources)
-        ],
         Operations:
         [
             new(Operations.Start),

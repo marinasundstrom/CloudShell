@@ -1,5 +1,6 @@
 using System.Text.Json;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
@@ -248,6 +249,172 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Empty(projected.DependsOn);
         Assert.False(projected.ResourceAttributes.ContainsKey(
             AspNetCoreProjectResourceTypeProvider.Attributes.References));
+    }
+
+    [Fact]
+    public void ResourceModelGraphResourceProvider_ProjectsAspNetCoreProjectTypeExpectedCapabilities()
+    {
+        var api = CreateAspNetCoreProjectState("api");
+        var provider = new ResourceModelGraphResourceProvider(
+            "resource-model",
+            "Resource model",
+            () => new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [api]),
+            CreateAspNetCoreProjectResolver());
+
+        var projected = Assert.Single(provider.GetResources());
+
+        Assert.True(projected.HasCapability(ResourceCapabilityIds.EndpointSource));
+        Assert.False(projected.HasCapability(ResourceCapabilityIds.Monitoring));
+        Assert.False(projected.HasCapability(ResourceLogSourceCapabilityIds.LogSources.ToString()));
+    }
+
+    [Fact]
+    public async Task AspNetCoreProjectResourceManagerMonitoringProvider_ProjectsProcessMetrics()
+    {
+        var runtime = new RecordingAspNetCoreProjectRuntimeController
+        {
+            Status = AspNetCoreProjectRuntimeStatus.Running,
+            MonitoringSnapshot = new ResourceProcessMonitoringSnapshot(
+                123,
+                new DateTimeOffset(2026, 6, 28, 8, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 6, 28, 8, 1, 0, TimeSpan.Zero),
+                12.5,
+                TimeSpan.FromSeconds(42),
+                64 * 1024 * 1024,
+                48 * 1024 * 1024,
+                8)
+        };
+        var provider = new AspNetCoreProjectResourceManagerMonitoringProvider(runtime);
+        var resource = new ResourceManagerResource(
+            "application.aspnet-core-project:api",
+            "api",
+            "application.aspnet-core-project",
+            "Resource model",
+            "local",
+            ResourceManagerResourceState.Running,
+            [],
+            "1",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString());
+
+        var snapshot = await provider.GetMonitoringSnapshotAsync(resource);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(resource.Id, snapshot.ResourceId);
+        Assert.Equal("ASP.NET Core project", snapshot.Provider);
+        Assert.Equal("Available", snapshot.Status);
+        Assert.Contains(snapshot.Metrics, metric =>
+            metric.Name == "resource.cpu.usage" &&
+            metric.Value == 12.5);
+        Assert.Contains(snapshot.Metrics, metric =>
+            metric.Name == "resource.process.count" &&
+            metric.Attributes?["process.id"] == "123");
+    }
+
+    [Fact]
+    public async Task ConfigurationStoreResourceManagerMonitoringProvider_ProjectsProcessMetrics()
+    {
+        var runtime = new RecordingConfigurationStoreRuntimeController
+        {
+            Status = ResourceWebAppRuntimeStatus.Running,
+            MonitoringSnapshot = new ResourceProcessMonitoringSnapshot(
+                456,
+                new DateTimeOffset(2026, 6, 28, 8, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 6, 28, 8, 1, 0, TimeSpan.Zero),
+                3.25,
+                TimeSpan.FromSeconds(11),
+                32 * 1024 * 1024,
+                24 * 1024 * 1024,
+                6)
+        };
+        var provider = new ConfigurationStoreResourceManagerMonitoringProvider(runtime);
+        var resource = new ResourceManagerResource(
+            "configuration.store:settings",
+            "settings",
+            "configuration.store",
+            "Resource model",
+            "local",
+            ResourceManagerResourceState.Running,
+            [],
+            "1",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString());
+
+        var snapshot = await provider.GetMonitoringSnapshotAsync(resource);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(resource.Id, snapshot.ResourceId);
+        Assert.Equal("Configuration Store", snapshot.Provider);
+        Assert.Equal("Available", snapshot.Status);
+        Assert.Contains(snapshot.Metrics, metric =>
+            metric.Name == "resource.cpu.usage" &&
+            metric.Value == 3.25);
+        Assert.Contains(snapshot.Metrics, metric =>
+            metric.Name == "resource.process.count" &&
+            metric.Attributes?["process.id"] == "456");
+    }
+
+    [Fact]
+    public async Task SecretsVaultResourceManagerMonitoringProvider_ProjectsProcessMetrics()
+    {
+        var runtime = new RecordingSecretsVaultRuntimeController
+        {
+            Status = ResourceWebAppRuntimeStatus.Running,
+            MonitoringSnapshot = new ResourceProcessMonitoringSnapshot(
+                789,
+                new DateTimeOffset(2026, 6, 28, 8, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 6, 28, 8, 1, 0, TimeSpan.Zero),
+                1.5,
+                TimeSpan.FromSeconds(7),
+                16 * 1024 * 1024,
+                12 * 1024 * 1024,
+                4)
+        };
+        var provider = new SecretsVaultResourceManagerMonitoringProvider(runtime);
+        var resource = new ResourceManagerResource(
+            "secrets.vault:vault",
+            "vault",
+            "secrets.vault",
+            "Resource model",
+            "local",
+            ResourceManagerResourceState.Running,
+            [],
+            "1",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: SecretsVaultResourceTypeProvider.ResourceTypeId.ToString());
+
+        var snapshot = await provider.GetMonitoringSnapshotAsync(resource);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(resource.Id, snapshot.ResourceId);
+        Assert.Equal("Secrets Vault", snapshot.Provider);
+        Assert.Equal("Available", snapshot.Status);
+        Assert.Contains(snapshot.Metrics, metric =>
+            metric.Name == "resource.cpu.usage" &&
+            metric.Value == 1.5);
+        Assert.Contains(snapshot.Metrics, metric =>
+            metric.Name == "resource.process.count" &&
+            metric.Attributes?["process.id"] == "789");
+    }
+
+    [Fact]
+    public void ReferenceProviderResourceManagerProjections_RegistersProcessMonitoringProviders()
+    {
+        var services = new ServiceCollection();
+
+        services.AddReferenceProviderResourceManagerProjections();
+        using var serviceProvider = services.BuildServiceProvider();
+        var providers = serviceProvider.GetServices<IResourceMonitoringProvider>().ToArray();
+
+        Assert.Contains(providers, provider =>
+            provider.GetType() == typeof(AspNetCoreProjectResourceManagerMonitoringProvider));
+        Assert.Contains(providers, provider =>
+            provider.GetType() == typeof(ConfigurationStoreResourceManagerMonitoringProvider));
+        Assert.Contains(providers, provider =>
+            provider.GetType() == typeof(SecretsVaultResourceManagerMonitoringProvider));
     }
 
     [Fact]
@@ -1474,6 +1641,12 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(8080, Assert.Single(projectedContainer.Endpoints).TargetPort);
         Assert.Equal([host.EffectiveResourceId, volume.EffectiveResourceId], projectedContainer.DependsOn);
         Assert.Contains(projectedContainer.ResourceCapabilities, capability =>
+            capability.Id == ResourceCapabilityIds.EndpointSource);
+        Assert.Contains(projectedContainer.ResourceCapabilities, capability =>
+            capability.Id == ResourceCapabilityIds.Monitoring);
+        Assert.Contains(projectedContainer.ResourceCapabilities, capability =>
+            capability.Id == ResourceCapabilityIds.LogSources);
+        Assert.Contains(projectedContainer.ResourceCapabilities, capability =>
             capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
         Assert.Contains(projectedContainer.ResourceActions, action =>
             action.Id == ContainerApplicationResourceTypeProvider.Operations.Start.ToString());
@@ -1775,6 +1948,10 @@ public sealed class ResourceManagerIntegrationTests
         Assert.False(projectedProject.ResourceAttributes.ContainsKey(
             AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests));
         Assert.Equal([volume.EffectiveResourceId], projectedProject.DependsOn);
+        Assert.Contains(projectedProject.ResourceCapabilities, capability =>
+            capability.Id == ResourceCommonCapabilityIds.EndpointSource.ToString());
+        Assert.Contains(projectedProject.ResourceCapabilities, capability =>
+            capability.Id == ResourceCommonCapabilityIds.Monitoring.ToString());
         Assert.Contains(projectedProject.ResourceCapabilities, capability =>
             capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
         Assert.Contains(projectedProject.ResourceCapabilities, capability =>
@@ -2096,9 +2273,9 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal("1", projectedContainer.ResourceAttributes["container.replicas"]);
         Assert.Equal("0", projectedContainer.ResourceAttributes["endpoints.count"]);
         Assert.Contains(projectedContainer.ResourceCapabilities, capability =>
-            capability.Id == DockerContainerResourceTypeProvider.Capabilities.Monitoring.ToString());
+            capability.Id == ResourceCommonCapabilityIds.Monitoring.ToString());
         Assert.Contains(projectedContainer.ResourceCapabilities, capability =>
-            capability.Id == DockerContainerResourceTypeProvider.Capabilities.LogSources.ToString());
+            capability.Id == ResourceLogSourceCapabilityIds.LogSources.ToString());
         var start = Assert.Single(projectedContainer.ResourceActions, action =>
             action.Id == DockerContainerResourceTypeProvider.Operations.Start.ToString());
         Assert.Equal(ResourceActionKind.Start, start.Kind);
@@ -2118,6 +2295,7 @@ public sealed class ResourceManagerIntegrationTests
                     resolution.Target!,
                     new ResourceProjectionContext("local", "developer")));
         Assert.Equal("example/api:1.0", projection.Image);
+        Assert.True(projection.SupportsMonitoring);
         Assert.True(projection.SupportsLogSources);
 
         var procedure = new ResourceProcedureContext(
@@ -2184,14 +2362,10 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var configurationStore = new ResourceDefinition(
-            "settings",
-            ConfigurationStoreResourceTypeProvider.ResourceTypeId,
-            ProviderId: ConfigurationStoreResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [ConfigurationStoreResourceTypeProvider.Attributes.Endpoint] = "http://localhost:5138"
-            });
+        var configurationStore = new ConfigurationStoreResourceDefinitionBuilder("settings")
+            .WithRuntimeMonitoring()
+            .WithEndpoint("http://localhost:5138")
+            .Build();
 
         var result = await service.ApplyDeploymentAsync(
             new ResourceDeploymentDefinition(
@@ -2218,6 +2392,10 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal("store", projectedStore.ResourceAttributes["configuration.kind"]);
         Assert.Equal("http://localhost:5138", projectedStore.ResourceAttributes["configuration.endpoint"]);
         Assert.Equal("0", projectedStore.ResourceAttributes["configuration.entries.count"]);
+        Assert.Contains(projectedStore.ResourceCapabilities, capability =>
+            capability.Id == ResourceCapabilityIds.EndpointSource);
+        Assert.Contains(projectedStore.ResourceCapabilities, capability =>
+            capability.Id == ResourceCapabilityIds.Monitoring);
         Assert.Contains(projectedStore.ResourceCapabilities, capability =>
             capability.Id == ResourceHealthCheckCapabilityIds.HealthChecks.ToString());
         Assert.Contains(projectedStore.ResourceCapabilities, capability =>
@@ -3423,7 +3601,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.DoesNotContain("endpoints.count", projectedService.ResourceAttributes.Keys);
         Assert.Equal([target.EffectiveResourceId, network.EffectiveResourceId], projectedService.DependsOn);
         Assert.Contains(projectedService.ResourceCapabilities, capability =>
-            capability.Id == ServiceResourceTypeProvider.Capabilities.EndpointSource.ToString());
+            capability.Id == ResourceCommonCapabilityIds.EndpointSource.ToString());
         var reconcile = Assert.Single(projectedService.ResourceActions, action =>
             action.Id == ServiceResourceTypeProvider.Operations.Reconcile.ToString());
         Assert.Equal("Service Reconcile", reconcile.DisplayName);
@@ -3525,14 +3703,10 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var vault = new ResourceDefinition(
-            "vault",
-            SecretsVaultResourceTypeProvider.ResourceTypeId,
-            ProviderId: SecretsVaultResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
-            {
-                [SecretsVaultResourceTypeProvider.Attributes.Endpoint] = "http://localhost:6138"
-            });
+        var vault = new SecretsVaultResourceDefinitionBuilder("vault")
+            .WithRuntimeMonitoring()
+            .WithEndpoint("http://localhost:6138")
+            .Build();
 
         var result = await service.ApplyDeploymentAsync(
             new ResourceDeploymentDefinition(
@@ -3559,6 +3733,10 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal("vault", projectedVault.ResourceAttributes["secrets.kind"]);
         Assert.Equal("http://localhost:6138", projectedVault.ResourceAttributes["secrets.endpoint"]);
         Assert.Equal("0", projectedVault.ResourceAttributes["secrets.entries.count"]);
+        Assert.Contains(projectedVault.ResourceCapabilities, capability =>
+            capability.Id == ResourceCapabilityIds.EndpointSource);
+        Assert.Contains(projectedVault.ResourceCapabilities, capability =>
+            capability.Id == ResourceCapabilityIds.Monitoring);
         Assert.Contains(projectedVault.ResourceCapabilities, capability =>
             capability.Id == ResourceHealthCheckCapabilityIds.HealthChecks.ToString());
         Assert.Contains(projectedVault.ResourceCapabilities, capability =>
@@ -5092,6 +5270,54 @@ public sealed class ResourceManagerIntegrationTests
         }
     }
 
+    private sealed class RecordingConfigurationStoreRuntimeController :
+        IConfigurationStoreRuntimeController,
+        IConfigurationStoreRuntimeMonitor
+    {
+        public ResourceWebAppRuntimeStatus Status { get; init; } =
+            ResourceWebAppRuntimeStatus.Running;
+
+        public ResourceProcessMonitoringSnapshot? MonitoringSnapshot { get; init; }
+
+        public ResourceWebAppRuntimeStatus GetStatus(Resource resource) =>
+            Status;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
+            Resource resource,
+            ResourceOperationId operationId,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+
+        public ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(MonitoringSnapshot);
+    }
+
+    private sealed class RecordingSecretsVaultRuntimeController :
+        ISecretsVaultRuntimeController,
+        ISecretsVaultRuntimeMonitor
+    {
+        public ResourceWebAppRuntimeStatus Status { get; init; } =
+            ResourceWebAppRuntimeStatus.Running;
+
+        public ResourceProcessMonitoringSnapshot? MonitoringSnapshot { get; init; }
+
+        public ResourceWebAppRuntimeStatus GetStatus(Resource resource) =>
+            Status;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
+            Resource resource,
+            ResourceOperationId operationId,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+
+        public ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(MonitoringSnapshot);
+    }
+
     private sealed class RecordingHostConfigurationSourceInspector :
         IHostConfigurationSourceInspector
     {
@@ -5165,7 +5391,8 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     private sealed class RecordingAspNetCoreProjectRuntimeController :
-        IAspNetCoreProjectRuntimeController
+        IAspNetCoreProjectRuntimeController,
+        IAspNetCoreProjectRuntimeMonitor
     {
         private readonly List<(string ResourceId, ResourceOperationId OperationId)> _executedOperations = [];
 
@@ -5174,6 +5401,8 @@ public sealed class ResourceManagerIntegrationTests
 
         public AspNetCoreProjectRuntimeStatus Status { get; set; } =
             AspNetCoreProjectRuntimeStatus.Running;
+
+        public ResourceProcessMonitoringSnapshot? MonitoringSnapshot { get; init; }
 
         public AspNetCoreProjectRuntimeStatus GetStatus(Resource resource) =>
             Status;
@@ -5187,6 +5416,11 @@ public sealed class ResourceManagerIntegrationTests
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
+
+        public ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(MonitoringSnapshot);
     }
 
     private sealed class RuntimePolicyResourceTypeProvider :

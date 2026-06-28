@@ -22,6 +22,12 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
     public ContainerApplicationResourceDefinitionBuilder WithReplicas(long replicas) =>
         SetScalarAttribute(ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas, replicas);
 
+    public ContainerApplicationResourceDefinitionBuilder WithRuntimeMonitoring() =>
+        DeclareCapability(ResourceCommonCapabilityIds.Monitoring);
+
+    public ContainerApplicationResourceDefinitionBuilder WithRuntimeLogSources() =>
+        DeclareCapability(ResourceLogSourceCapabilityIds.LogSources);
+
     public ContainerApplicationResourceDefinitionBuilder UseContainerHost(
         IResourceDefinitionBuilder host,
         ResourceTypeId? typeId = null)
@@ -119,7 +125,9 @@ public static class ContainerApplicationResourceDefinitionBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(graph);
 
-        var builder = new ContainerApplicationResourceDefinitionBuilder(name);
+        var builder = new ContainerApplicationResourceDefinitionBuilder(name)
+            .WithRuntimeMonitoring()
+            .WithRuntimeLogSources();
         graph.Add(builder);
         return builder;
     }

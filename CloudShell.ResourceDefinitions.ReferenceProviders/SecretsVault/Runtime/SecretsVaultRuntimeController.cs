@@ -38,9 +38,17 @@ public interface ISecretsVaultRuntimeController
         CancellationToken cancellationToken = default);
 }
 
+public interface ISecretsVaultRuntimeMonitor
+{
+    ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed class SecretsVaultProcessRuntimeController(
     SecretsVaultRuntimeOptions? options = null) :
     ISecretsVaultRuntimeController,
+    ISecretsVaultRuntimeMonitor,
     IDisposable,
     IAsyncDisposable
 {
@@ -50,6 +58,11 @@ public sealed class SecretsVaultProcessRuntimeController(
 
     public ResourceWebAppRuntimeStatus GetStatus(Resource resource) =>
         _runtime.GetStatus(resource);
+
+    public async ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default) =>
+        await _runtime.GetMonitoringSnapshotAsync(resourceId, cancellationToken);
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
         Resource resource,
@@ -136,10 +149,16 @@ public sealed class SecretsVaultProcessRuntimeController(
 }
 
 public sealed class NoopSecretsVaultRuntimeController :
-    ISecretsVaultRuntimeController
+    ISecretsVaultRuntimeController,
+    ISecretsVaultRuntimeMonitor
 {
     public ResourceWebAppRuntimeStatus GetStatus(Resource resource) =>
         ResourceWebAppRuntimeStatus.Unknown;
+
+    public ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<ResourceProcessMonitoringSnapshot?>(null);
 
     public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
         Resource resource,

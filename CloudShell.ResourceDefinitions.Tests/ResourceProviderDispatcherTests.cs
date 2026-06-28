@@ -440,7 +440,7 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal("logical", validation.Resource.Attributes.GetString(
             ServiceResourceTypeProvider.Attributes.RoutingMode));
         Assert.True(validation.Resource.Capabilities.Has(
-            ServiceResourceTypeProvider.Capabilities.EndpointSource));
+            ResourceCommonCapabilityIds.EndpointSource));
         Assert.True(validation.Resource.Operations.Has(
             ServiceResourceTypeProvider.Operations.Reconcile));
 
@@ -633,10 +633,10 @@ public sealed class ResourceProviderDispatcherTests
             DockerContainerResourceTypeProvider.Attributes.ContainerReplicas));
         Assert.Equal("0", validation.Resource.Attributes.GetString(
             DockerContainerResourceTypeProvider.Attributes.EndpointCount));
-        Assert.True(validation.Resource.Capabilities.Has(
-            DockerContainerResourceTypeProvider.Capabilities.Monitoring));
-        Assert.True(validation.Resource.Capabilities.Has(
-            DockerContainerResourceTypeProvider.Capabilities.LogSources));
+        Assert.False(validation.Resource.Capabilities.Has(
+            ResourceCommonCapabilityIds.Monitoring));
+        Assert.False(validation.Resource.Capabilities.Has(
+            ResourceLogSourceCapabilityIds.LogSources));
         Assert.True(validation.Resource.Operations.Has(
             DockerContainerResourceTypeProvider.Operations.Start));
         Assert.True(validation.Resource.Operations.Has(
@@ -658,8 +658,8 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal("registry.local", projection.Registry);
         Assert.Equal(1, projection.Replicas);
         Assert.Equal(0, projection.EndpointCount);
-        Assert.True(projection.SupportsMonitoring);
-        Assert.True(projection.SupportsLogSources);
+        Assert.False(projection.SupportsMonitoring);
+        Assert.False(projection.SupportsLogSources);
         var start = await projection.GetStartOperationAsync();
         var unpause = await projection.GetUnpauseOperationAsync();
 

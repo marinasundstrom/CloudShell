@@ -65,6 +65,12 @@ public static class AspNetCoreProjectResourceTypeServiceCollectionExtensions
                     is IAspNetCoreProjectRuntimeOutputReader outputReader
                     ? outputReader
                     : serviceProvider.GetRequiredService<AspNetCoreProjectProcessRuntimeController>());
+        services.TryAddSingleton<IAspNetCoreProjectRuntimeMonitor>(
+            serviceProvider =>
+                serviceProvider.GetRequiredService<IAspNetCoreProjectRuntimeController>()
+                    is IAspNetCoreProjectRuntimeMonitor monitor
+                    ? monitor
+                    : serviceProvider.GetRequiredService<AspNetCoreProjectProcessRuntimeController>());
 
         return services;
     }

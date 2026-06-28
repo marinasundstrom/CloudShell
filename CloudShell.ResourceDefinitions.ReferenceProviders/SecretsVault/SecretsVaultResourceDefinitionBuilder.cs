@@ -9,6 +9,9 @@ public sealed class SecretsVaultResourceDefinitionBuilder(string name) :
     protected override string? ProviderId =>
         SecretsVaultResourceTypeProvider.ProviderId;
 
+    public SecretsVaultResourceDefinitionBuilder WithRuntimeMonitoring() =>
+        DeclareCapability(ResourceCommonCapabilityIds.Monitoring);
+
     public SecretsVaultResourceDefinitionBuilder WithEndpoint(string endpoint) =>
         SetScalarAttribute(SecretsVaultResourceTypeProvider.Attributes.Endpoint, endpoint);
 }
@@ -21,7 +24,8 @@ public static class SecretsVaultResourceDefinitionBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(graph);
 
-        var builder = new SecretsVaultResourceDefinitionBuilder(name);
+        var builder = new SecretsVaultResourceDefinitionBuilder(name)
+            .WithRuntimeMonitoring();
         graph.Add(builder);
         return builder;
     }

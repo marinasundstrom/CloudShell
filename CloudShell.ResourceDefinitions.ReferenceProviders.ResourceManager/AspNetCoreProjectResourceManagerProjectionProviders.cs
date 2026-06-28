@@ -1,6 +1,8 @@
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
+using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 using ResourceManagerState = CloudShell.Abstractions.ResourceManager.ResourceState;
 
 namespace CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
@@ -145,6 +147,55 @@ public sealed class AspNetCoreProjectResourceManagerObservabilityProvider :
                 Metrics: true,
                 ServiceName: resource.Name)
             : null;
+    }
+}
+
+public sealed class AspNetCoreProjectResourceManagerMonitoringProvider(
+    IAspNetCoreProjectRuntimeMonitor? runtimeMonitor = null) : IResourceMonitoringProvider
+{
+    private const string ProviderDisplayName = "ASP.NET Core project";
+    private readonly IAspNetCoreProjectRuntimeMonitor _runtimeMonitor =
+        runtimeMonitor ?? new NoopAspNetCoreProjectRuntimeController();
+
+    public bool CanMonitor(ResourceManagerResource resource) =>
+        string.Equals(
+            resource.EffectiveTypeId,
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
+            StringComparison.OrdinalIgnoreCase);
+
+    public async Task<ResourceMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        ResourceManagerResource resource,
+        CancellationToken cancellationToken = default)
+    {
+        if (!CanMonitor(resource))
+        {
+            return null;
+        }
+
+        var timestamp = DateTimeOffset.UtcNow;
+        var snapshot = await _runtimeMonitor.GetMonitoringSnapshotAsync(
+            resource.Id,
+            cancellationToken);
+        if (snapshot is null)
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                ProviderDisplayName,
+                timestamp,
+                [],
+                "Unavailable",
+                "The ASP.NET Core project process could not be observed.");
+        }
+
+        return new ResourceMonitoringSnapshot(
+            resource.Id,
+            ProviderDisplayName,
+            snapshot.Timestamp,
+            ResourceProcessMonitoringMetricSamples.Create(
+                snapshot,
+                "ASP.NET Core project process"),
+            "Available",
+            "ASP.NET Core project process metrics.");
     }
 }
 

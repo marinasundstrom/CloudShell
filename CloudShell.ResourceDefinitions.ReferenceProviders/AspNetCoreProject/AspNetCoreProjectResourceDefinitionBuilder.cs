@@ -30,6 +30,14 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
     public AspNetCoreProjectResourceDefinitionBuilder WithServiceDiscoveryName(string name) =>
         SetScalarAttribute(AspNetCoreProjectResourceTypeProvider.Attributes.ServiceDiscoveryName, name);
 
+    public AspNetCoreProjectResourceDefinitionBuilder WithRuntimeMonitoring() =>
+        DeclareCapability(ResourceCommonCapabilityIds.Monitoring);
+
+    public AspNetCoreProjectResourceDefinitionBuilder WithDefaultConsoleLogSource() =>
+        SetCapability(
+            ResourceLogSourceCapabilityIds.LogSources,
+            ResourceLogSourceDefinitionSet.DefaultConsole());
+
     public AspNetCoreProjectResourceDefinitionBuilder AddEndpointRequest(
         string name,
         string protocol,
@@ -137,7 +145,9 @@ public static class AspNetCoreProjectResourceDefinitionBuilderExtensions
         ArgumentNullException.ThrowIfNull(graph);
 
         var builder = new AspNetCoreProjectResourceDefinitionBuilder(name)
-            .WithProjectPath(projectPath);
+            .WithProjectPath(projectPath)
+            .WithRuntimeMonitoring()
+            .WithDefaultConsoleLogSource();
         graph.Add(builder);
         return builder;
     }

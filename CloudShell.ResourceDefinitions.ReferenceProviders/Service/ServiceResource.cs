@@ -15,7 +15,7 @@ public sealed class ServiceResource(
         Resource.State.StartupDependencies;
 
     public bool SupportsEndpointSource =>
-        Resource.Capabilities.Has(ServiceResourceTypeProvider.Capabilities.EndpointSource);
+        Resource.Capabilities.Has(ResourceCommonCapabilityIds.EndpointSource);
 
     public ValueTask<ServiceReconcileOperation?> GetReconcileOperationAsync(
         CancellationToken cancellationToken = default) =>

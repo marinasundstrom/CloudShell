@@ -11,6 +11,9 @@
 - Configuration class/type defaults, endpoint attribute, and read-only entry-count summary attribute.
 - Health and liveness declarations for the `/healthz` endpoint.
 - Start, stop, and restart operations backed by a provider-local process controller that runs the existing service web app.
+- Runtime monitoring capability activation through the programmatic builder,
+  with Resource Manager process metric snapshots provided by the runtime
+  bridge when the backing service is running.
 - Provider-owned runtime entry seed options.
 - Optional provider-owned runtime authentication options for external
   `Authentication:ServiceBearer` validation when a host wants the graph-backed

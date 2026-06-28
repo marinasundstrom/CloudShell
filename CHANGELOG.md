@@ -71,6 +71,13 @@ on `git blame --follow`, and then by the broad type of change.
   app resource types without registering the legacy application providers.
   Generated views get stable display names, icons, endpoint descriptors, and
   probe defaults while old application edit pages remain provider-specific.
+- Resource Graph provider ports now use shared graph-model capability IDs for
+  common capabilities and distinguish provider type expectations from
+  instance-level runtime activation. ASP.NET Core project, container app,
+  Configuration Store, Secrets Vault, Docker container, and graph-only replica
+  projections activate monitoring/log-source capabilities where the current
+  runtime bridge can back the Resource Manager UI, with tests covering process
+  and Docker stats snapshots.
 
 ### 2026-06-27
 

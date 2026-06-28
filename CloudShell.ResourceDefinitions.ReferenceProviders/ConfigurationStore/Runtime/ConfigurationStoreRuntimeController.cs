@@ -50,9 +50,17 @@ public interface IConfigurationStoreRuntimeController
         CancellationToken cancellationToken = default);
 }
 
+public interface IConfigurationStoreRuntimeMonitor
+{
+    ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed class ConfigurationStoreProcessRuntimeController(
     ConfigurationStoreRuntimeOptions? options = null) :
     IConfigurationStoreRuntimeController,
+    IConfigurationStoreRuntimeMonitor,
     IDisposable,
     IAsyncDisposable
 {
@@ -62,6 +70,11 @@ public sealed class ConfigurationStoreProcessRuntimeController(
 
     public ResourceWebAppRuntimeStatus GetStatus(Resource resource) =>
         _runtime.GetStatus(resource);
+
+    public async ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default) =>
+        await _runtime.GetMonitoringSnapshotAsync(resourceId, cancellationToken);
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
         Resource resource,
@@ -185,10 +198,16 @@ public sealed class ConfigurationStoreProcessRuntimeController(
 }
 
 public sealed class NoopConfigurationStoreRuntimeController :
-    IConfigurationStoreRuntimeController
+    IConfigurationStoreRuntimeController,
+    IConfigurationStoreRuntimeMonitor
 {
     public ResourceWebAppRuntimeStatus GetStatus(Resource resource) =>
         ResourceWebAppRuntimeStatus.Unknown;
+
+    public ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<ResourceProcessMonitoringSnapshot?>(null);
 
     public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
         Resource resource,

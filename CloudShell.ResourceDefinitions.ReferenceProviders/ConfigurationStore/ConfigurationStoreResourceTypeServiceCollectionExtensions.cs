@@ -45,6 +45,8 @@ public static class ConfigurationStoreResourceTypeServiceCollectionExtensions
         services.TryAddSingleton<ConfigurationStoreProcessRuntimeController>();
         services.TryAddSingleton<IConfigurationStoreRuntimeController>(
             serviceProvider => serviceProvider.GetRequiredService<ConfigurationStoreProcessRuntimeController>());
+        services.TryAddSingleton<IConfigurationStoreRuntimeMonitor>(
+            serviceProvider => serviceProvider.GetRequiredService<ConfigurationStoreProcessRuntimeController>());
         services.TryAddSingleton<
             IConfigurationStoreInspector,
             ConfigurationStoreRuntimeInspector>();

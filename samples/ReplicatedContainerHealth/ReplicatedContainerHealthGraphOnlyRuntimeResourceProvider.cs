@@ -105,7 +105,8 @@ internal sealed class ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider(
             },
             Capabilities:
             [
-                new(ResourceCapabilityIds.LogSources)
+                new(ResourceCapabilityIds.LogSources),
+                new(ResourceCapabilityIds.Monitoring)
             ],
             EndpointNetworkMappings:
             [

@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.Hosting;
@@ -88,6 +89,7 @@ if (graphOnly)
     builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider, ReplicatedContainerHealthGraphOnlyOrchestrationDescriptorProvider>();
     builder.Services.AddScoped<IResourceProvider, ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider>();
     builder.Services.AddScoped<ILogProvider, ReplicatedContainerHealthGraphOnlyLogProvider>();
+    builder.Services.AddScoped<IResourceMonitoringProvider, ReplicatedContainerHealthGraphOnlyMonitoringProvider>();
 }
 
 cloudShell

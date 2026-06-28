@@ -17,11 +17,6 @@ public sealed class ServiceResourceTypeProvider :
         public static readonly ResourceAttributeId RoutingMode = "service.routingMode";
     }
 
-    public static class Capabilities
-    {
-        public static readonly ResourceCapabilityId EndpointSource = "endpoint.source";
-    }
-
     public static class Operations
     {
         public static readonly ResourceOperationId Reconcile = "service.reconcile";
@@ -44,7 +39,7 @@ public sealed class ServiceResourceTypeProvider :
         },
         Capabilities:
         [
-            new(Capabilities.EndpointSource)
+            new(ResourceCommonCapabilityIds.EndpointSource)
         ],
         Operations:
         [

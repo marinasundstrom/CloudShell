@@ -50,6 +50,10 @@ public sealed class ContainerApplicationResourceTypeProvider :
                 itemType: ResourceAttributeValueType.ComplexType,
                 itemShapeId: NetworkingEndpointShapeIds.EndpointRequest)
         },
+        Capabilities:
+        [
+            new(ResourceCommonCapabilityIds.EndpointSource)
+        ],
         Operations:
         [
             new(Operations.Start),

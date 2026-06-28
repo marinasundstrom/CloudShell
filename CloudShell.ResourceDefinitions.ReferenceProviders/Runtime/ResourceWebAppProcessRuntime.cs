@@ -49,6 +49,66 @@ internal sealed class ResourceWebAppProcessRuntime :
                 : ResourceWebAppRuntimeStatus.Stopped;
     }
 
+    public async ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+
+        return await GetMonitoringSnapshotAsync(resource.EffectiveResourceId, cancellationToken);
+    }
+
+    public async ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId))
+        {
+            return null;
+        }
+
+        if (!_processes.TryGetValue(resourceId, out var process) ||
+            process.HasExited)
+        {
+            return null;
+        }
+
+        try
+        {
+            var firstTimestamp = DateTimeOffset.UtcNow;
+            var firstProcessorTime = process.TotalProcessorTime;
+            await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
+
+            process.Refresh();
+            if (process.HasExited)
+            {
+                return null;
+            }
+
+            var timestamp = DateTimeOffset.UtcNow;
+            var processorTime = process.TotalProcessorTime;
+            var elapsed = timestamp - firstTimestamp;
+            var cpuPercent = elapsed.TotalMilliseconds > 0
+                ? (processorTime - firstProcessorTime).TotalMilliseconds /
+                    (elapsed.TotalMilliseconds * Environment.ProcessorCount) * 100
+                : 0;
+
+            return new ResourceProcessMonitoringSnapshot(
+                process.Id,
+                TryGetStartTime(process),
+                timestamp,
+                Math.Max(0, cpuPercent),
+                processorTime,
+                process.WorkingSet64,
+                process.PrivateMemorySize64,
+                process.Threads.Count);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
         Resource resource,
         ResourceOperationId operationId,
@@ -360,6 +420,18 @@ internal sealed class ResourceWebAppProcessRuntime :
         }
         catch
         {
+        }
+    }
+
+    private static DateTimeOffset? TryGetStartTime(Process process)
+    {
+        try
+        {
+            return process.StartTime.ToUniversalTime();
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return null;
         }
     }
 

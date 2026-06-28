@@ -10,7 +10,9 @@
 
 - Container class/type defaults.
 - Workload, image, registry, replica, and read-only endpoint-count attributes.
-- Passive monitoring and log-source capability markers.
+- Programmatic builder activation for runtime monitoring and log-source
+  capability markers. Raw Docker container definitions do not implicitly
+  activate observability capabilities.
 - Lifecycle operations with an injected provider-owned runtime handler seam and
   status-aware action availability.
 - Resource Manager bridge state projection through the runtime handler seam.

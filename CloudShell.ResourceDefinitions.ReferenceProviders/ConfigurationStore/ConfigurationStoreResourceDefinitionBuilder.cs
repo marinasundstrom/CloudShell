@@ -9,6 +9,9 @@ public sealed class ConfigurationStoreResourceDefinitionBuilder(string name) :
     protected override string? ProviderId =>
         ConfigurationStoreResourceTypeProvider.ProviderId;
 
+    public ConfigurationStoreResourceDefinitionBuilder WithRuntimeMonitoring() =>
+        DeclareCapability(ResourceCommonCapabilityIds.Monitoring);
+
     public ConfigurationStoreResourceDefinitionBuilder WithEndpoint(string endpoint) =>
         SetScalarAttribute(ConfigurationStoreResourceTypeProvider.Attributes.Endpoint, endpoint);
 }
@@ -21,7 +24,8 @@ public static class ConfigurationStoreResourceDefinitionBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(graph);
 
-        var builder = new ConfigurationStoreResourceDefinitionBuilder(name);
+        var builder = new ConfigurationStoreResourceDefinitionBuilder(name)
+            .WithRuntimeMonitoring();
         graph.Add(builder);
         return builder;
     }

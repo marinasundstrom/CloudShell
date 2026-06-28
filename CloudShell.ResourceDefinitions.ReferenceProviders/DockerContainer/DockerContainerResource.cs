@@ -29,10 +29,10 @@ public sealed class DockerContainerResource(
                 : 0;
 
     public bool SupportsMonitoring =>
-        Resource.Capabilities.Has(DockerContainerResourceTypeProvider.Capabilities.Monitoring);
+        Resource.Capabilities.Has(ResourceCommonCapabilityIds.Monitoring);
 
     public bool SupportsLogSources =>
-        Resource.Capabilities.Has(DockerContainerResourceTypeProvider.Capabilities.LogSources);
+        Resource.Capabilities.Has(ResourceLogSourceCapabilityIds.LogSources);
 
     public ValueTask<DockerContainerLifecycleOperation?> GetStartOperationAsync(
         CancellationToken cancellationToken = default) =>

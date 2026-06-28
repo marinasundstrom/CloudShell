@@ -183,6 +183,12 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
         return Self;
     }
 
+    protected TBuilder DeclareCapability(ResourceCapabilityId capabilityId)
+    {
+        _capabilities[capabilityId] = ResourceDefinitionJson.FromValue(new Dictionary<string, string>());
+        return Self;
+    }
+
     protected TBuilder SetOperation<TOperation>(
         ResourceOperationId operationId,
         TOperation operation)
