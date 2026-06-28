@@ -136,15 +136,15 @@ public sealed class LoadBalancerGraphNameMappingReconciler(
             resources
                 .Where(candidate =>
                     candidate.Type.TypeId == NameMappingResourceTypeProvider.ResourceTypeId &&
-                    DependsOn(candidate, resource.EffectiveResourceId))
+                    BelongsTo(candidate, resource.EffectiveResourceId))
                 .Select(CreateNameMappingDefinition)
                 .ToArray());
 
     private static DnsNameMappingDefinition CreateNameMappingDefinition(
         ResourceModelResource resource)
     {
-        var targetResourceId = resource.State.StartupDependencies
-            .Select(reference => TryGetDependency(reference, out var resourceId, out var typeId)
+        var targetResourceId = resource.State.ResourceDependencies
+            .Select(reference => TryGetTargetReference(reference, out var resourceId, out var typeId)
                 ? (ResourceId: resourceId, TypeId: typeId)
                 : default)
             .FirstOrDefault(reference =>
@@ -272,19 +272,21 @@ public sealed class LoadBalancerGraphNameMappingReconciler(
                 $"DNS zone resource '{definition.Id}' name mapping '{mapping.Id}' target endpoint '{mapping.TargetEndpointName}' could not be found on resource '{mapping.TargetResourceId}'.");
     }
 
-    private static bool DependsOn(
+    private static bool BelongsTo(
         ResourceModelResource resource,
         string dependencyResourceId) =>
-        resource.State.StartupDependencies.Any(reference =>
-            reference.TryGetDependsOnResourceId(out var resourceId) &&
+        resource.State.ResourceDependencies.Any(reference =>
+            reference.Relationship == ResourceReferenceRelationships.BelongsTo &&
+            reference.TryGetResourceId(out var resourceId) &&
             string.Equals(resourceId, dependencyResourceId, StringComparison.OrdinalIgnoreCase));
 
-    private static bool TryGetDependency(
+    private static bool TryGetTargetReference(
         ResourceReference reference,
         out string resourceId,
         out ResourceTypeId? typeId)
     {
-        if (reference.TryGetDependsOnResourceId(out resourceId))
+        if (reference.Relationship == ResourceReferenceRelationships.Reference &&
+            reference.TryGetResourceId(out resourceId))
         {
             typeId = reference.TypeId;
             return true;

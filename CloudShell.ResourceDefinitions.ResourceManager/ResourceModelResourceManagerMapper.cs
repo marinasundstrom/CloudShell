@@ -16,7 +16,9 @@ public sealed record ResourceModelResourceManagerProjectionOptions(
     string BridgeProviderId = ResourceModelResourceProvider.DefaultProviderId,
     ResourceModelResourceManagerStateResolver? StateResolver = null,
     ResourceModelResourceManagerEndpointProjectionResolver? EndpointProjectionResolver = null,
-    ResourceModelResourceManagerObservabilityResolver? ObservabilityResolver = null);
+    ResourceModelResourceManagerObservabilityResolver? ObservabilityResolver = null,
+    ResourceModelResourceManagerAttributeResolver? AttributeResolver = null,
+    ResourceModelResourceManagerParentResourceIdResolver? ParentResourceIdResolver = null);
 
 public delegate ResourceManagerState? ResourceModelResourceManagerStateResolver(
     ResourceModelResource resource);
@@ -25,6 +27,12 @@ public delegate ResourceModelResourceManagerEndpointProjection? ResourceModelRes
     ResourceModelResource resource);
 
 public delegate ResourceObservability? ResourceModelResourceManagerObservabilityResolver(
+    ResourceModelResource resource);
+
+public delegate IReadOnlyDictionary<string, string>? ResourceModelResourceManagerAttributeResolver(
+    ResourceModelResource resource);
+
+public delegate string? ResourceModelResourceManagerParentResourceIdResolver(
     ResourceModelResource resource);
 
 public sealed record ResourceModelResourceManagerEndpointProjection(
@@ -62,7 +70,7 @@ public static class ResourceModelResourceManagerMapper
         ArgumentNullException.ThrowIfNull(resource);
 
         options ??= new ResourceModelResourceManagerProjectionOptions();
-        var attributes = ToResourceManagerAttributes(resource);
+        var attributes = ToResourceManagerAttributes(resource, options);
         attributes[ResourceModelResourceManagerAttributeNames.BridgeProviderId] =
             options.BridgeProviderId;
         var healthChecks = ToResourceManagerHealthChecks(resource);
@@ -93,6 +101,7 @@ public static class ResourceModelResourceManagerMapper
             Source: ResourceSource.User,
             ManagementMode: ResourceManagementMode.UserManaged,
             DisplayName: resource.State.DisplayName,
+            ParentResourceId: ToResourceManagerParentResourceId(resource, options),
             EndpointMappings: endpointProjection.ResourceEndpointMappings,
             EndpointNetworkMappings: endpointProjection.ResourceEndpointNetworkMappings,
             LoadBalancerRoutes: endpointProjection.ResourceLoadBalancerRoutes,
@@ -117,14 +126,24 @@ public static class ResourceModelResourceManagerMapper
     }
 
     private static Dictionary<string, string> ToResourceManagerAttributes(
-        ResourceModelResource resource)
+        ResourceModelResource resource,
+        ResourceModelResourceManagerProjectionOptions options)
     {
         var attributes = resource.Attributes
-            .Where(attribute => attribute.IsSet)
+            .Where(ShouldProjectResourceManagerAttribute)
             .ToDictionary(
                 attribute => attribute.Name.ToString(),
                 FormatResourceManagerAttributeValue,
                 StringComparer.OrdinalIgnoreCase);
+
+        var projectedAttributes = options.AttributeResolver?.Invoke(resource);
+        if (projectedAttributes is not null)
+        {
+            foreach (var attribute in projectedAttributes)
+            {
+                attributes.TryAdd(attribute.Key, attribute.Value);
+            }
+        }
 
         attributes[ResourceAttributeNames.ResourceGraphMembership] = ResourceGraphMembershipKinds.Declared;
         AddDerivedContainerReplicaAttributes(attributes);
@@ -135,6 +154,14 @@ public static class ResourceModelResourceManagerMapper
     private static string FormatResourceManagerAttributeValue(ResourceAttributeResolution attribute) =>
         attribute.Value ??
         JsonSerializer.Serialize(attribute.AttributeValue);
+
+    private static bool ShouldProjectResourceManagerAttribute(ResourceAttributeResolution attribute) =>
+        attribute.AttributeValue?.Kind is
+            ResourceAttributeValueKind.String or
+            ResourceAttributeValueKind.Boolean or
+            ResourceAttributeValueKind.Integer or
+            ResourceAttributeValueKind.Decimal or
+            ResourceAttributeValueKind.Object;
 
     private static void AddDerivedContainerReplicaAttributes(IDictionary<string, string> attributes)
     {
@@ -183,6 +210,11 @@ public static class ResourceModelResourceManagerMapper
         (resource.Operations.Any(operation => IsLifecycleOperation(operation.Id))
             ? ResourceManagerState.Unknown
             : null);
+
+    private static string? ToResourceManagerParentResourceId(
+        ResourceModelResource resource,
+        ResourceModelResourceManagerProjectionOptions options) =>
+        options.ParentResourceIdResolver?.Invoke(resource);
 
     private static ResourceModelResourceManagerEndpointProjection ToResourceManagerEndpointProjection(
         ResourceModelResource resource,

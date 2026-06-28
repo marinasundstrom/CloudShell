@@ -26,7 +26,7 @@ public sealed class NameMappingResourceDefinitionBuilder(string name) :
     }
 
     public NameMappingResourceDefinitionBuilder InDnsZone(string zoneResourceId) =>
-        AddDependency(ResourceReference.DependsOnResourceId(
+        AddDependency(ResourceReference.BelongsToResourceId(
             zoneResourceId,
             DnsZoneResourceTypeProvider.ResourceTypeId));
 
@@ -44,7 +44,7 @@ public sealed class NameMappingResourceDefinitionBuilder(string name) :
     public NameMappingResourceDefinitionBuilder MapsTarget(
         string targetResourceId,
         ResourceTypeId? typeId = null) =>
-        AddDependency(ResourceReference.DependsOnResourceId(targetResourceId, typeId));
+        AddDependency(ResourceReference.ReferenceResourceId(targetResourceId, typeId));
 }
 
 public static class NameMappingResourceDefinitionBuilderExtensions

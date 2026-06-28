@@ -25,6 +25,8 @@
 </div>
 
 @code {
+    private const string DnsZoneResourceType = "cloudshell.dnsZone";
+
     [Parameter, EditorRequired]
     public string ResourceId { get; set; } = string.Empty;
 
@@ -34,7 +36,7 @@
     private Resource? Resource { get; set; }
     private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
         ResourceManagerDisplaySelection.Default;
-    private IReadOnlyList<NameMappingView> InboundNameMappings { get; set; } = [];
+    private IReadOnlyList<NameMappingView> NameMappings { get; set; } = [];
     private IReadOnlyDictionary<string, Resource> RelatedResources { get; set; } =
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
 
@@ -45,9 +47,14 @@
         !IsReadOnly &&
         Resource.State is null or ResourceState.Stopped or ResourceState.Paused;
 
+    private bool IsDnsZoneResource =>
+        Resource is not null &&
+        (string.Equals(Resource.EffectiveTypeId, DnsZoneResourceType, StringComparison.OrdinalIgnoreCase) ||
+            Resource.HasCapability(ResourceCapabilityIds.NetworkingDnsZone));
+
     private bool CanAddNameMapping =>
         CanEditNetworking &&
-        Resource?.Endpoints.Count > 0;
+        (IsDnsZoneResource || Resource?.Endpoints.Count > 0);
 
     private IReadOnlyList<GeneratedResourceViewSection> BuildSections()
     {
@@ -56,7 +63,11 @@
             new("name-mappings", string.Empty, 0, RenderNameMappings())
         };
 
-        sections.Add(new("dns-and-domain-names", L["DNS and domain names"], 100, RenderDnsAndDomainNames()));
+        sections.Add(new(
+            "dns-and-domain-names",
+            IsDnsZoneResource ? L["Owned DNS names"] : L["DNS and domain names"],
+            100,
+            RenderDnsAndDomainNames()));
 
         return sections;
     }
@@ -74,22 +85,22 @@
     </div>;
 
     private RenderFragment RenderDnsAndDomainNames() => @<text>
-        @if (InboundNameMappings.Count == 0)
+        @if (NameMappings.Count == 0)
         {
             <EmptyState Title="@L["No name mappings"].Value"
-                        Message="@L["No DNS or domain names target this resource."].Value"
+                        Message="@GetEmptyNameMappingsMessage()"
                         Compact="true" />
         }
         else
         {
             <div class="generated-list">
-                @foreach (var exposure in InboundNameMappings)
+                @foreach (var exposure in NameMappings)
                 {
                     <GeneratedListItem Summary="@FormatNameMappingSummary(exposure.Mapping)"
                                        IconName="dns"
                                        Metadata="@FormatNameMappingMetadata(exposure)">
                         <TitleContent>
-                            <EndpointLink Address="@ResourceNameMappingDisplay.GetMappedEndpointAddress(exposure.Mapping, Resource)"
+                            <EndpointLink Address="@GetNameMappingEndpointAddress(exposure.Mapping)"
                                           Text="@ResourceNameMappingDisplay.GetHostName(exposure.Mapping)"
                                           EmptyText="@ResourceNameMappingDisplay.GetHostName(exposure.Mapping)" />
                         </TitleContent>
@@ -110,12 +121,12 @@
         DisplaySelection = await DisplaySettings.GetAsync();
         if (Resource is null)
         {
-            InboundNameMappings = [];
+            NameMappings = [];
             RelatedResources = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
             return;
         }
 
-        InboundNameMappings = await LoadInboundNameMappingsAsync();
+        NameMappings = await LoadNameMappingsAsync();
         RelatedResources = await LoadRelatedResourcesAsync();
     }
 
@@ -131,6 +142,11 @@
             return L["Stop the resource before changing DNS or domain name mappings."].Value;
         }
 
+        if (IsDnsZoneResource)
+        {
+            return L["Create DNS or domain name mappings owned by this zone."].Value;
+        }
+
         if (Resource?.Endpoints.Count == 0)
         {
             return L["This resource does not expose an endpoint that can be targeted by a name mapping."].Value;
@@ -139,17 +155,27 @@
         return L["Create DNS or domain name mappings for this resource endpoint."].Value;
     }
 
-    private async Task<IReadOnlyList<NameMappingView>> LoadInboundNameMappingsAsync()
+    private string GetEmptyNameMappingsMessage() =>
+        IsDnsZoneResource
+            ? L["No DNS or domain names are owned by this zone."].Value
+            : L["No DNS or domain names target this resource."].Value;
+
+    private async Task<IReadOnlyList<NameMappingView>> LoadNameMappingsAsync()
     {
         if (Resource is null)
         {
             return [];
         }
 
-        var mappings = await ResourceManager.ListResourcesAsync(
-            new ResourceQuery(ResourceType: "cloudshell.nameMapping"));
+        var mappings = IsDnsZoneResource
+            ? await ResourceManager.ListResourceChildrenAsync(Resource.Id)
+            : await ResourceManager.ListResourcesAsync(
+                new ResourceQuery(ResourceType: "cloudshell.nameMapping"));
         return mappings
-            .Where(mapping => ResourceNameMappingDisplay.TargetsResource(mapping, Resource.Id))
+            .Where(ResourceNameMappingDisplay.IsNameMappingResource)
+            .Where(mapping => IsDnsZoneResource
+                ? string.Equals(mapping.ParentResourceId, Resource.Id, StringComparison.OrdinalIgnoreCase)
+                : ResourceNameMappingDisplay.TargetsResource(mapping, Resource.Id))
             .Select(mapping => new NameMappingView(mapping))
             .OrderBy(mapping => ResourceNameMappingDisplay.GetHostName(mapping.Mapping), StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -162,9 +188,10 @@
             return new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
         }
 
-        var ids = InboundNameMappings.Select(mapping => mapping.Mapping.Id)
-            .Concat(InboundNameMappings.Select(mapping => mapping.Mapping.ParentResourceId))
-            .Concat(InboundNameMappings.Select(mapping => ResourceNameMappingDisplay.GetProviderResourceId(mapping.Mapping)))
+        var ids = NameMappings.Select(mapping => mapping.Mapping.Id)
+            .Concat(NameMappings.Select(mapping => mapping.Mapping.ParentResourceId))
+            .Concat(NameMappings.Select(mapping => ResourceNameMappingDisplay.GetProviderResourceId(mapping.Mapping)))
+            .Concat(NameMappings.Select(mapping => ResourceNameMappingDisplay.GetTargetResourceId(mapping.Mapping)))
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .Select(id => id!)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -203,13 +230,43 @@
 
     private string GetResourceLabel(Resource resource) => DisplaySelection.GetResourceLabel(resource);
 
-    private string FormatNameMappingSummary(Resource mapping) =>
-        Resource is null
+    private string FormatNameMappingSummary(Resource mapping)
+    {
+        if (Resource is null)
+        {
+            return ResourceNameMappingDisplay.GetHostName(mapping);
+        }
+
+        if (IsDnsZoneResource)
+        {
+            var targetResourceId = ResourceNameMappingDisplay.GetTargetResourceId(mapping);
+            var target = FindRelatedResource(targetResourceId);
+            var targetLabel = target is null
+                ? ResourceDisplayLabels.GetName(targetResourceId)
+                : GetResourceLabel(target);
+            return L["{0} -> {1}/{2}",
+                ResourceNameMappingDisplay.GetHostName(mapping),
+                targetLabel,
+                ResourceNameMappingDisplay.GetTargetEndpointName(mapping)].Value;
+        }
+
+        return Resource is null
             ? ResourceNameMappingDisplay.GetHostName(mapping)
             : L["{0} -> {1}/{2}",
                 ResourceNameMappingDisplay.GetHostName(mapping),
                 GetResourceLabel(Resource),
                 ResourceNameMappingDisplay.GetTargetEndpointName(mapping)].Value;
+    }
+
+    private string? GetNameMappingEndpointAddress(Resource mapping)
+    {
+        var targetResourceId = ResourceNameMappingDisplay.GetTargetResourceId(mapping);
+        var target = string.IsNullOrWhiteSpace(targetResourceId)
+            ? null
+            : FindRelatedResource(targetResourceId);
+
+        return ResourceNameMappingDisplay.GetMappedEndpointAddress(mapping, target);
+    }
 
     private string FormatNameMappingMetadata(NameMappingView view)
     {
@@ -259,8 +316,9 @@
         var query = new Dictionary<string, string?>
         {
             ["type"] = "cloudshell.nameMapping",
-            ["targetResourceId"] = resource.Id,
-            ["targetEndpointName"] = resource.Endpoints.FirstOrDefault()?.Name,
+            ["zoneResourceId"] = IsDnsZoneResource ? resource.Id : null,
+            ["targetResourceId"] = IsDnsZoneResource ? null : resource.Id,
+            ["targetEndpointName"] = IsDnsZoneResource ? null : resource.Endpoints.FirstOrDefault()?.Name,
             ["returnUrl"] = BuildResourceTabRoute(resource.Id, ResourcePredefinedViewIds.Dns)
         };
 

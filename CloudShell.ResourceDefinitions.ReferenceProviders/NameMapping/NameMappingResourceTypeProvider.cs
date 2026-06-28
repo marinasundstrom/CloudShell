@@ -111,7 +111,7 @@ public sealed class NameMappingResourceTypeProvider :
             resource.Attributes.GetString(Attributes.HostName),
             Attributes.HostName,
             diagnostics);
-        ValidateHasGraphReference(resource.State.StartupDependencies, diagnostics);
+        ValidateHasGraphReferences(resource.State.ResourceDependencies, diagnostics);
         return diagnostics;
     }
 
@@ -125,7 +125,7 @@ public sealed class NameMappingResourceTypeProvider :
             ValidateRequired(hostName, Attributes.HostName, diagnostics);
         }
 
-        ValidateHasGraphReference(state.StartupDependencies, diagnostics);
+        ValidateHasGraphReferences(state.ResourceDependencies, diagnostics);
         return diagnostics;
     }
 
@@ -143,16 +143,36 @@ public sealed class NameMappingResourceTypeProvider :
         }
     }
 
-    private static void ValidateHasGraphReference(
+    private static void ValidateHasGraphReferences(
         IReadOnlyList<ResourceReference> references,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
-        if (!references.Any(reference => reference.TryGetDependsOnResourceId(out _)))
+        if (!references.Any(IsDnsZoneOwnershipReference))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                "dns.nameMapping.zoneRequired",
+                "Name mappings must belong to a DNS zone resource.",
+                ResourceTypeId));
+        }
+
+        if (!references.Any(IsTargetReference))
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                 "dns.nameMapping.targetRequired",
-                "Name mappings must declare at least one graph resource reference.",
+                "Name mappings must reference a target resource.",
                 ResourceTypeId));
         }
     }
+
+    private static bool IsDnsZoneOwnershipReference(ResourceReference reference) =>
+        reference.Relationship == ResourceReferenceRelationships.BelongsTo &&
+        reference.AddressingMode == ResourceReferenceAddressingModes.ResourceId &&
+        reference.TypeId == DnsZoneResourceTypeProvider.ResourceTypeId &&
+        reference.TryGetResourceId(out _);
+
+    private static bool IsTargetReference(ResourceReference reference) =>
+        reference.Relationship == ResourceReferenceRelationships.Reference &&
+        reference.AddressingMode == ResourceReferenceAddressingModes.ResourceId &&
+        reference.TypeId != DnsZoneResourceTypeProvider.ResourceTypeId &&
+        reference.TryGetResourceId(out _);
 }

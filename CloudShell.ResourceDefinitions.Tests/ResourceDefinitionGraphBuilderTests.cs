@@ -908,9 +908,14 @@ public sealed class ResourceDefinitionGraphBuilderTests
             NameMappingResourceTypeProvider.Attributes.TargetEndpointName].StringValue);
         Assert.Equal("Public", nameMapping.ResourceAttributeValues[
             NameMappingResourceTypeProvider.Attributes.Exposure].StringValue);
-        Assert.Equal(
-            [zone.EffectiveResourceId, apiService.EffectiveResourceId],
-            nameMapping.StartupDependencies.Select(reference => reference.Value));
+        Assert.Empty(nameMapping.StartupDependencyIds);
+        Assert.Contains(nameMapping.ResourceDependencies, reference =>
+            reference.Relationship == ResourceReferenceRelationships.BelongsTo &&
+            reference.TypeId == DnsZoneResourceTypeProvider.ResourceTypeId &&
+            reference.Value == zone.EffectiveResourceId);
+        Assert.Contains(nameMapping.ResourceDependencies, reference =>
+            reference.Relationship == ResourceReferenceRelationships.Reference &&
+            reference.Value == apiService.EffectiveResourceId);
 
         var result = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()

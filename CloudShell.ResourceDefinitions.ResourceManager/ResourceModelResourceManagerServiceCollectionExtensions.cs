@@ -278,10 +278,18 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
         var observabilityProviders = serviceProvider
             .GetServices<IResourceModelResourceManagerObservabilityProvider>()
             .ToArray();
+        var attributeProviders = serviceProvider
+            .GetServices<IResourceModelResourceManagerAttributeProvider>()
+            .ToArray();
+        var parentProviders = serviceProvider
+            .GetServices<IResourceModelResourceManagerParentProvider>()
+            .ToArray();
 
         if (stateProviders.Length == 0 &&
             endpointProjectionProviders.Length == 0 &&
-            observabilityProviders.Length == 0)
+            observabilityProviders.Length == 0 &&
+            attributeProviders.Length == 0 &&
+            parentProviders.Length == 0)
         {
             return options;
         }
@@ -289,6 +297,8 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
         var stateResolver = options.StateResolver;
         var endpointProjectionResolver = options.EndpointProjectionResolver;
         var observabilityResolver = options.ObservabilityResolver;
+        var attributeResolver = options.AttributeResolver;
+        var parentResourceIdResolver = options.ParentResourceIdResolver;
         return options with
         {
             StateResolver = stateProviders.Length == 0
@@ -305,7 +315,19 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
                 : resource => ResolveObservability(
                     resource,
                     observabilityResolver,
-                    observabilityProviders)
+                    observabilityProviders),
+            AttributeResolver = attributeProviders.Length == 0
+                ? attributeResolver
+                : resource => ResolveAttributes(
+                    resource,
+                    attributeResolver,
+                    attributeProviders),
+            ParentResourceIdResolver = parentProviders.Length == 0
+                ? parentResourceIdResolver
+                : resource => ResolveParentResourceId(
+                    resource,
+                    parentResourceIdResolver,
+                    parentProviders)
         };
     }
 
@@ -372,6 +394,61 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
             if (observability is not null)
             {
                 return observability;
+            }
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyDictionary<string, string>? ResolveAttributes(
+        ResourceModelResource resource,
+        ResourceModelResourceManagerAttributeResolver? attributeResolver,
+        IReadOnlyList<IResourceModelResourceManagerAttributeProvider> attributeProviders)
+    {
+        var attributes = attributeResolver?.Invoke(resource);
+        foreach (var attributeProvider in attributeProviders)
+        {
+            var providerAttributes = attributeProvider.GetAttributes(resource);
+            if (providerAttributes is null || providerAttributes.Count == 0)
+            {
+                continue;
+            }
+
+            if (attributes is null)
+            {
+                attributes = providerAttributes;
+                continue;
+            }
+
+            attributes = attributes
+                .Concat(providerAttributes)
+                .GroupBy(attribute => attribute.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.First().Value,
+                    StringComparer.OrdinalIgnoreCase);
+        }
+
+        return attributes;
+    }
+
+    private static string? ResolveParentResourceId(
+        ResourceModelResource resource,
+        ResourceModelResourceManagerParentResourceIdResolver? parentResourceIdResolver,
+        IReadOnlyList<IResourceModelResourceManagerParentProvider> parentProviders)
+    {
+        var parentResourceId = parentResourceIdResolver?.Invoke(resource);
+        if (!string.IsNullOrWhiteSpace(parentResourceId))
+        {
+            return parentResourceId;
+        }
+
+        foreach (var parentProvider in parentProviders)
+        {
+            parentResourceId = parentProvider.GetParentResourceId(resource);
+            if (!string.IsNullOrWhiteSpace(parentResourceId))
+            {
+                return parentResourceId;
             }
         }
 

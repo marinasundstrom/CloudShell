@@ -3260,6 +3260,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddLocalVolumeResourceType();
         services.AddNameMappingResourceType();
         services.AddResourceModelGraphServices();
+        services.AddReferenceProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
@@ -3301,7 +3302,10 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal("Public", projectedMapping.ResourceAttributes["nameMapping.exposure"]);
         Assert.DoesNotContain("nameMapping.status", projectedMapping.ResourceAttributes.Keys);
         Assert.DoesNotContain("nameMapping.materializationStatus", projectedMapping.ResourceAttributes.Keys);
-        Assert.Equal([zone.EffectiveResourceId, target.EffectiveResourceId], projectedMapping.DependsOn);
+        Assert.Empty(projectedMapping.DependsOn);
+        Assert.Equal(zone.EffectiveResourceId, projectedMapping.ParentResourceId);
+        Assert.Equal(target.EffectiveResourceId, projectedMapping.ResourceAttributes[
+            ResourceAttributeNames.NameMappingTargetResourceId]);
         Assert.Contains(projectedMapping.ResourceCapabilities, capability =>
             capability.Id == NameMappingResourceTypeProvider.Capabilities.NetworkingNameMapping.ToString());
         Assert.Empty(projectedMapping.ResourceActions);
@@ -3327,7 +3331,13 @@ public sealed class ResourceManagerIntegrationTests
                     resolution.Target!,
                     new ResourceProjectionContext("local", "developer")));
         Assert.Equal("api.local", projection.HostName);
-        Assert.Equal([zone.EffectiveResourceId, target.EffectiveResourceId], projection.References.Select(reference => reference.Value));
+        Assert.Empty(projection.Resource.State.StartupDependencyIds);
+        Assert.Contains(projection.References, reference =>
+            reference.Relationship == ResourceReferenceRelationships.BelongsTo &&
+            reference.Value == zone.EffectiveResourceId);
+        Assert.Contains(projection.References, reference =>
+            reference.Relationship == ResourceReferenceRelationships.Reference &&
+            reference.Value == target.EffectiveResourceId);
     }
 
     [Fact]
@@ -3350,7 +3360,7 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: NameMappingResourceTypeProvider.ProviderId,
             DependsOn:
             [
-                ResourceReference.DependsOnResourceId(target.EffectiveResourceId)
+                ResourceReference.ReferenceResourceId(target.EffectiveResourceId)
             ],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
@@ -3371,8 +3381,8 @@ public sealed class ResourceManagerIntegrationTests
         Assert.False(result.IsCommitted);
         Assert.Equal(ResourceGraphCommitStatus.Rejected, result.Commit.Summary.Status);
         Assert.Contains(result.Diagnostics, diagnostic =>
-            diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid &&
-            diagnostic.Message.Contains("must reference a DNS zone", StringComparison.OrdinalIgnoreCase));
+            diagnostic.Code == "dns.nameMapping.zoneRequired" &&
+            diagnostic.Message.Contains("must belong to a DNS zone", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -3386,6 +3396,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddDnsZoneResourceType();
         services.AddNameMappingResourceType();
         services.AddResourceModelGraphServices();
+        services.AddReferenceProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
@@ -3433,7 +3444,10 @@ public sealed class ResourceManagerIntegrationTests
             resource.Id == zone.EffectiveResourceId);
 
         Assert.Equal([api.EffectiveResourceId, network.EffectiveResourceId], projectedService.DependsOn);
-        Assert.Equal([zone.EffectiveResourceId, apiService.EffectiveResourceId], projectedMapping.DependsOn);
+        Assert.Empty(projectedMapping.DependsOn);
+        Assert.Equal(zone.EffectiveResourceId, projectedMapping.ParentResourceId);
+        Assert.Equal(apiService.EffectiveResourceId, projectedMapping.ResourceAttributes[
+            ResourceAttributeNames.NameMappingTargetResourceId]);
         Assert.Equal("api.application-topology.cloudshell.local", projectedMapping.ResourceAttributes[
             NameMappingResourceTypeProvider.Attributes.HostName]);
         Assert.Contains(projectedService.ResourceActions, action =>
@@ -3449,12 +3463,14 @@ public sealed class ResourceManagerIntegrationTests
         var resolvedResourceIds = resolution.Resources
             .Select(resource => resource.EffectiveResourceId)
             .ToArray();
-        Assert.Equal(5, resolvedResourceIds.Distinct(StringComparer.OrdinalIgnoreCase).Count());
-        Assert.Contains(mapping.EffectiveResourceId, resolvedResourceIds);
-        Assert.Contains(zone.EffectiveResourceId, resolvedResourceIds);
-        Assert.Contains(apiService.EffectiveResourceId, resolvedResourceIds);
-        Assert.Contains(api.EffectiveResourceId, resolvedResourceIds);
-        Assert.Contains(network.EffectiveResourceId, resolvedResourceIds);
+        Assert.Equal([mapping.EffectiveResourceId], resolvedResourceIds);
+        Assert.Empty(resolution.Resources[0].State.StartupDependencyIds);
+        Assert.Contains(resolution.Resources[0].State.ResourceDependencies, reference =>
+            reference.Relationship == ResourceReferenceRelationships.BelongsTo &&
+            reference.Value == zone.EffectiveResourceId);
+        Assert.Contains(resolution.Resources[0].State.ResourceDependencies, reference =>
+            reference.Relationship == ResourceReferenceRelationships.Reference &&
+            reference.Value == apiService.EffectiveResourceId);
     }
 
     [Fact]

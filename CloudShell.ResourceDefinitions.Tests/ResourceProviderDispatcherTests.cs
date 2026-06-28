@@ -1204,8 +1204,10 @@ public sealed class ResourceProviderDispatcherTests
             NameMappingResourceTypeProvider.ResourceTypeId,
             DependsOn:
             [
-                ResourceReference.DependsOnResourceId("cloudshell.dnsZone:local"),
-                ResourceReference.DependsOnResourceId("application.executable:api")
+                ResourceReference.BelongsToResourceId(
+                    "cloudshell.dnsZone:local",
+                    DnsZoneResourceTypeProvider.ResourceTypeId),
+                ResourceReference.ReferenceResourceId("application.executable:api")
             ],
             Attributes: new Dictionary<ResourceAttributeId, string>
             {
@@ -1248,6 +1250,13 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal(
             ["cloudshell.dnsZone:local", "application.executable:api"],
             projection.References.Select(reference => reference.Value));
+        Assert.Empty(projection.Resource.State.StartupDependencyIds);
+        Assert.Contains(projection.References, reference =>
+            reference.Relationship == ResourceReferenceRelationships.BelongsTo &&
+            reference.Value == "cloudshell.dnsZone:local");
+        Assert.Contains(projection.References, reference =>
+            reference.Relationship == ResourceReferenceRelationships.Reference &&
+            reference.Value == "application.executable:api");
     }
 
     [Fact]

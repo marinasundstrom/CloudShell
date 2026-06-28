@@ -13,6 +13,14 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-06-29
+
+#### Changed
+
+- Resource model DNS name mappings now use `belongsTo` references for their
+  DNS zone, `reference` references for their target resource, and project into
+  Resource Manager as DNS-zone children with target-resource metadata.
+
 ### 2026-06-28
 
 #### Changed

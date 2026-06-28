@@ -28,15 +28,17 @@ public sealed class NameMappingGraphValidator : IResourceDefinitionGraphValidato
         var hasDnsZone = false;
         var hasTarget = false;
 
-        foreach (var reference in resource.State.StartupDependencies)
+        foreach (var reference in resource.State.ResourceDependencies)
         {
-            if (!reference.TryGetDependsOnResourceId(out var resourceId))
+            if (!reference.TryGetResourceId(out var resourceId))
             {
                 continue;
             }
 
             var target = context.FindResource(resourceId);
-            var expectsDnsZone = reference.TypeId == DnsZoneResourceTypeProvider.ResourceTypeId;
+            var expectsDnsZone =
+                reference.Relationship == ResourceReferenceRelationships.BelongsTo &&
+                reference.TypeId == DnsZoneResourceTypeProvider.ResourceTypeId;
             var resolvesToDnsZone = target?.Type.TypeId == DnsZoneResourceTypeProvider.ResourceTypeId;
 
             if (expectsDnsZone && target is not null && !resolvesToDnsZone)
@@ -52,7 +54,7 @@ public sealed class NameMappingGraphValidator : IResourceDefinitionGraphValidato
             {
                 hasDnsZone = true;
             }
-            else
+            else if (reference.Relationship == ResourceReferenceRelationships.Reference)
             {
                 hasTarget = true;
             }
