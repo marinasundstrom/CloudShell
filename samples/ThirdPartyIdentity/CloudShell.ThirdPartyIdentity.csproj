@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\CloudShell.ControlPlane\CloudShell.ControlPlane.csproj" />
+    <ProjectReference Include="..\..\CloudShell.Client\CloudShell.Client.csproj" />
     <ProjectReference Include="..\..\CloudShell.Hosting\CloudShell.Hosting.csproj" />
     <ProjectReference Include="..\..\CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI\CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI.csproj" />
     <ProjectReference Include="..\..\CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager\CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.csproj" />

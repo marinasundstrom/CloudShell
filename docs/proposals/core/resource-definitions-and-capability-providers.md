@@ -1854,11 +1854,13 @@ to an application-provider UI package, and networking/infrastructure UI
 support should live with their corresponding provider families.
 For the current switch-over, provider-specific Resource Manager UI components
 are being extracted into that UI-support project while provider implementations
-remain together. Graph-only registration components and the container app
-scale/replica view belong in the UI-support project. More runtime-coupled
-views, such as deployment history, revisions, monitoring, and endpoint actions,
-may temporarily be reused from the legacy application provider UI until those
-views are moved or replaced behind the same UI boundary.
+remain together. Registration components, endpoint actions, and container app
+deployment, revision, monitoring, and scale/replica views belong in the
+UI-support project. Shared provider core projects should be limited to
+cross-boundary abstractions, identifiers, constants, simple contract DTOs, and
+small helpers used by both Control Plane integration and UI integration.
+Runtime stores, background work, orchestration behavior, and provider services
+stay in the Control Plane/provider integration boundary.
 Small provider-group helpers may be added when they reflect an existing
 switch-readiness boundary, such as local container application support
 requiring both the container app type and its Docker host target type, or a

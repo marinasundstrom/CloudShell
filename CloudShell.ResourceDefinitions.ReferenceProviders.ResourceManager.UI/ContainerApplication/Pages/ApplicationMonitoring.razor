@@ -1,0 +1,400 @@
+@using CloudShell.Abstractions.Observability
+@using System.Globalization
+@implements IDisposable
+@inject IResourceManager ResourceManager
+@inject IResourceMonitoringManager MonitoringManager
+
+@if (Application is null)
+{
+    <EmptyState Title="Monitoring is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
+}
+else if (!ReferenceProviderResourceUiTypes.IsContainerApplication(Application.EffectiveTypeId))
+{
+    <EmptyState Title="Monitoring is not supported"
+                Message="This view is available for container app resources." />
+}
+else
+{
+    <section class="blade-section">
+        <div class="resource-activity-header">
+            <div>
+                <h3>Monitoring</h3>
+                <span>@GetStatusText()</span>
+            </div>
+            <div class="resource-monitoring-actions">
+                <FluentCheckbox @bind-Value="AutoRefresh">
+                    Auto-refresh
+                </FluentCheckbox>
+                @if (!AutoRefresh)
+                {
+                    <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                                  Disabled="@IsLoading" OnClick="RefreshAsync">
+                        @(IsLoading ? "Refreshing" : "Refresh")
+                    </FluentButton>
+                }
+            </div>
+        </div>
+
+        <dl class="detail-list">
+            <dt>Mode</dt>
+            <dd>@(IsReplicaModeEnabled(Application) ? "Replicated" : "Single instance")</dd>
+            <dt>Configured replicas</dt>
+            <dd>@GetConfiguredReplicas(Application)</dd>
+            <dt>Materialized replicas</dt>
+            <dd>@Replicas.Count</dd>
+            <dt>Observed replicas</dt>
+            <dd>@ObservedReplicaCount</dd>
+            <dt>Revision</dt>
+            <dd>@GetAttribute(Application, ResourceAttributeNames.DeploymentRevision, Application.Version)</dd>
+        </dl>
+    </section>
+
+    @if (!IsReplicaModeEnabled(Application))
+    {
+        <section class="blade-section">
+            <h3>Resource metrics</h3>
+            @if (ApplicationSnapshot is null)
+            {
+                <EmptyState Title="No monitoring snapshot"
+                            Message="The provider did not return a resource monitoring snapshot for this container app."
+                            Compact="true" />
+            }
+            else if (ApplicationSnapshot.Metrics.Count == 0)
+            {
+                <EmptyState Title="No metrics available"
+                            Message="@(ApplicationSnapshot.Message ?? "Container app metrics are not available for this snapshot.")"
+                            Compact="true" />
+            }
+            else
+            {
+                <SummaryMetricGrid AriaLabel="Container app resource metrics">
+                    @foreach (var metric in ApplicationSnapshot.Metrics)
+                    {
+                        <SummaryMetricCard Title="@(metric.DisplayName ?? metric.Name)"
+                                           Value="@FormatValue(metric.Value, metric.Unit)"
+                                           Summary="@(metric.Description ?? metric.Name)"
+                                           Compact="true" />
+                    }
+                </SummaryMetricGrid>
+            }
+        </section>
+    }
+    else
+    {
+        <section class="blade-section">
+            <h3>Replica summary</h3>
+            @if (Rows.Count == 0)
+            {
+                <EmptyState Title="No replicas are materialized"
+                            Message="The provider has not materialized runtime replica resources for this app."
+                            Compact="true" />
+            }
+            else
+            {
+                <SummaryMetricGrid AriaLabel="Container app replica metrics">
+                    <SummaryMetricCard Title="CPU usage"
+                                       Value="@FormatValue(SumMetric(CpuUsageMetricName), PercentUnit)"
+                                       Summary="Sum of observed replica CPU usage."
+                                       Compact="true" />
+                    <SummaryMetricCard Title="Memory usage"
+                                       Value="@FormatValue(SumMetric(MemoryUsageMetricName), BytesUnit)"
+                                       Summary="Sum of observed replica memory usage."
+                                       Compact="true" />
+                    <SummaryMetricCard Title="Network received"
+                                       Value="@FormatValue(SumMetric(NetworkReceivedMetricName), BytesUnit)"
+                                       Summary="Total observed replica network bytes received."
+                                       Compact="true" />
+                    <SummaryMetricCard Title="Network sent"
+                                       Value="@FormatValue(SumMetric(NetworkSentMetricName), BytesUnit)"
+                                       Summary="Total observed replica network bytes sent."
+                                       Compact="true" />
+                    <SummaryMetricCard Title="Process count"
+                                       Value="@FormatValue(SumMetric(ProcessCountMetricName), CountUnit)"
+                                       Summary="Sum of observed replica process counts."
+                                       Compact="true" />
+                </SummaryMetricGrid>
+            }
+        </section>
+
+        <section class="blade-section">
+            <h3>Replicas</h3>
+            @if (Rows.Count == 0)
+            {
+                <EmptyState Title="No replicas are projected"
+                            Message="Runtime replica monitoring will appear after the provider projects replica artifacts."
+                            Compact="true" />
+            }
+            else
+            {
+                <ResourceTable>
+                        <thead>
+                            <tr>
+                                <th>Replica</th>
+                                <th>State</th>
+                                <th>Monitoring</th>
+                                <th>CPU</th>
+                                <th>Memory</th>
+                                <th>Network</th>
+                                <th>Processes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in Rows)
+                            {
+                                <tr>
+                                    <td>
+                                        <ResourceTableIdentity IconName="replica"
+                                                               IconTitle="Replica"
+                                                               Title="@row.Resource.Name"
+                                                               Summary="@FormatReplicaOrdinal(row.Resource)" />
+                                    </td>
+                                    <td>
+                                        <ResourceStateIndicator State="row.Resource.State" Variant="pill" />
+                                    </td>
+                                    <td>
+                                        <strong>@(row.Snapshot?.Status ?? "Unavailable")</strong>
+                                        <span>@GetMonitoringMessage(row)</span>
+                                    </td>
+                                    <td>@FormatMetric(row, CpuUsageMetricName)</td>
+                                    <td>@FormatMetric(row, MemoryUsageMetricName)</td>
+                                    <td>
+                                        <strong>@FormatMetric(row, NetworkReceivedMetricName)</strong>
+                                        <span>sent @FormatMetric(row, NetworkSentMetricName)</span>
+                                    </td>
+                                    <td>@FormatMetric(row, ProcessCountMetricName)</td>
+                                </tr>
+                            }
+                        </tbody>
+                </ResourceTable>
+            }
+        </section>
+    }
+}
+
+@code {
+    private static readonly TimeSpan AutoRefreshInterval = TimeSpan.FromSeconds(5);
+    private const string CpuUsageMetricName = "resource.cpu.usage";
+    private const string MemoryUsageMetricName = "resource.memory.usage";
+    private const string NetworkReceivedMetricName = "resource.network.rxBytes";
+    private const string NetworkSentMetricName = "resource.network.txBytes";
+    private const string ProcessCountMetricName = "resource.process.count";
+    private const string PercentUnit = "%";
+    private const string BytesUnit = "bytes";
+    private const string CountUnit = "count";
+
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private Resource? Application { get; set; }
+    private ResourceMonitoringSnapshot? ApplicationSnapshot { get; set; }
+    private IReadOnlyList<Resource> Replicas { get; set; } = [];
+    private IReadOnlyList<ReplicaMonitoringRow> Rows { get; set; } = [];
+    private System.Threading.Timer? RefreshTimer { get; set; }
+    private bool IsLoading { get; set; }
+    private bool IsDisposed { get; set; }
+    private bool AutoRefresh { get; set; } = true;
+
+    private int ObservedReplicaCount =>
+        Rows.Count(row => IsAvailable(row.Snapshot));
+
+    protected override void OnInitialized()
+    {
+        RefreshTimer = new System.Threading.Timer(
+            _ =>
+            {
+                if (!IsDisposed && AutoRefresh)
+                {
+                    _ = InvokeAsync(RefreshAsync);
+                }
+            },
+            null,
+            AutoRefreshInterval,
+            AutoRefreshInterval);
+    }
+
+    protected override Task OnParametersSetAsync() => RefreshAsync();
+
+    private async Task RefreshAsync()
+    {
+        if (string.IsNullOrWhiteSpace(ResourceId) || IsLoading || IsDisposed)
+        {
+            return;
+        }
+
+        IsLoading = true;
+        try
+        {
+            Application = await ResourceManager.GetResourceAsync(ResourceId);
+            ApplicationSnapshot = null;
+            Replicas = [];
+            Rows = [];
+
+            if (Application is null ||
+                !ReferenceProviderResourceUiTypes.IsContainerApplication(Application.EffectiveTypeId))
+            {
+                return;
+            }
+
+            if (!IsReplicaModeEnabled(Application))
+            {
+                ApplicationSnapshot = await MonitoringManager.GetResourceMonitoringAsync(Application.Id);
+                return;
+            }
+
+            Replicas = (await ResourceManager.ListResourceChildrenAsync(Application.Id))
+                .Where(IsReplicaResource)
+                .OrderBy(GetReplicaOrdinal)
+                .ThenBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            var rows = new List<ReplicaMonitoringRow>();
+            foreach (var replica in Replicas)
+            {
+                var snapshot = replica.HasCapability(ResourceCapabilityIds.Monitoring)
+                    ? await MonitoringManager.GetResourceMonitoringAsync(replica.Id)
+                    : null;
+                rows.Add(new ReplicaMonitoringRow(replica, snapshot));
+            }
+
+            Rows = rows;
+        }
+        finally
+        {
+            IsLoading = false;
+            if (!IsDisposed)
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        IsDisposed = true;
+        RefreshTimer?.Dispose();
+    }
+
+    private string GetStatusText()
+    {
+        if (Application is null)
+        {
+            return "Provider-observed resource metrics";
+        }
+
+        if (!IsReplicaModeEnabled(Application))
+        {
+            if (ApplicationSnapshot is null)
+            {
+                return "Provider-observed resource metrics";
+            }
+
+            var updated = ApplicationSnapshot.Timestamp.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture);
+            return string.IsNullOrWhiteSpace(ApplicationSnapshot.Status)
+                ? $"Updated {updated}"
+                : $"{ApplicationSnapshot.Status} / updated {updated}";
+        }
+
+        return Rows.Count == 0
+            ? "Replica resource metrics"
+            : $"{ObservedReplicaCount} of {Rows.Count} replicas observed";
+    }
+
+    private double SumMetric(string name) =>
+        Rows.Sum(row => GetMetricValue(row.Snapshot, name));
+
+    private static string FormatMetric(ReplicaMonitoringRow row, string name)
+    {
+        var metric = row.Snapshot?.Metrics.FirstOrDefault(metric =>
+            string.Equals(metric.Name, name, StringComparison.OrdinalIgnoreCase));
+        return metric is null
+            ? "n/a"
+            : FormatValue(metric.Value, metric.Unit);
+    }
+
+    private static double GetMetricValue(ResourceMonitoringSnapshot? snapshot, string name) =>
+        snapshot?.Metrics.FirstOrDefault(metric =>
+            string.Equals(metric.Name, name, StringComparison.OrdinalIgnoreCase))?.Value ?? 0;
+
+    private static string GetMonitoringMessage(ReplicaMonitoringRow row)
+    {
+        if (row.Snapshot is null)
+        {
+            return "No snapshot";
+        }
+
+        if (!string.IsNullOrWhiteSpace(row.Snapshot.Message))
+        {
+            return row.Snapshot.Message;
+        }
+
+        return row.Snapshot.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.CurrentCulture);
+    }
+
+    private static bool IsAvailable(ResourceMonitoringSnapshot? snapshot) =>
+        string.Equals(snapshot?.Status, "Available", StringComparison.OrdinalIgnoreCase) &&
+        snapshot?.Metrics.Count > 0;
+
+    private static bool IsReplicaResource(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, "runtime.container", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(
+            GetAttribute(resource, ResourceAttributeNames.RuntimeKind, string.Empty),
+            "containerReplica",
+            StringComparison.OrdinalIgnoreCase);
+
+    private static int GetConfiguredReplicas(Resource resource) =>
+        int.TryParse(
+            GetAttribute(resource, ResourceAttributeNames.ContainerReplicas, string.Empty),
+            out var replicas)
+            ? Math.Max(1, replicas)
+            : 1;
+
+    private static bool IsReplicaModeEnabled(Resource resource) =>
+        string.Equals(
+            GetAttribute(resource, ResourceAttributeNames.ContainerReplicasEnabled, "false"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+
+    private static int GetReplicaOrdinal(Resource resource) =>
+        int.TryParse(
+            GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaOrdinal, string.Empty),
+            out var ordinal)
+            ? ordinal
+            : int.MaxValue;
+
+    private static string FormatReplicaOrdinal(Resource resource)
+    {
+        var ordinal = GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaOrdinal, "?");
+        var count = GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaCount, "?");
+        return $"{ordinal} of {count}";
+    }
+
+    private static string GetAttribute(Resource resource, string key, string fallback) =>
+        resource.ResourceAttributes.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
+
+    private static string FormatValue(double value, string unit) =>
+        string.Equals(unit, "bytes", StringComparison.OrdinalIgnoreCase)
+            ? FormatBytes(value)
+            : string.Equals(unit, "%", StringComparison.Ordinal)
+                ? $"{value.ToString("0.##", CultureInfo.InvariantCulture)}%"
+                : $"{value.ToString("0.###", CultureInfo.InvariantCulture)} {unit}".TrimEnd();
+
+    private static string FormatBytes(double value)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        var unitIndex = 0;
+        while (value >= 1024 && unitIndex < units.Length - 1)
+        {
+            value /= 1024;
+            unitIndex++;
+        }
+
+        return $"{value.ToString(unitIndex == 0 ? "0" : "0.##", CultureInfo.InvariantCulture)} {units[unitIndex]}";
+    }
+
+    private sealed record ReplicaMonitoringRow(
+        Resource Resource,
+        ResourceMonitoringSnapshot? Snapshot);
+}

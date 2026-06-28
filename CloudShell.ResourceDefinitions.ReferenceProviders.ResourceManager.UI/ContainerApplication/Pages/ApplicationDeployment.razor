@@ -1,0 +1,526 @@
+@using Microsoft.JSInterop
+@using System.Globalization
+@inject IContainerApplicationHistoryOperations ContainerHistory
+@inject IResourceManager ResourceManager
+@inject IResourceEventManager ResourceEvents
+@inject IJSRuntime JS
+
+@if (Resource is null)
+{
+    <EmptyState Title="Container app deployment is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
+}
+else
+{
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Current image</h3>
+                <p>@GetCurrentDeploymentSummary(Resource)</p>
+            </div>
+            <span class="@GetDeploymentStatusCssClass(Resource)">
+                @GetDeploymentStatusLabel(Resource)
+            </span>
+        </div>
+
+        <div class="container-app-deployment-summary">
+            <div class="container-app-deployment-primary">
+                <small>Running image</small>
+                <strong>@GetCurrentContainerImage(Resource)</strong>
+                <span>@GetLatestDeploymentLine()</span>
+            </div>
+            <dl class="container-app-deployment-metrics">
+                <div>
+                    <dt>Capacity</dt>
+                    <dd>@GetDeploymentCapacity(Resource)</dd>
+                </div>
+                <div>
+                    <dt>Mode</dt>
+                    <dd>@GetScalingMode(Resource)</dd>
+                </div>
+                <div>
+                    <dt>Materialized</dt>
+                    <dd>@GetMaterializedSummary(Resource)</dd>
+                </div>
+            </dl>
+        </div>
+
+        @if (GetDeploymentStatusDescription(Resource) is { Length: > 0 } statusDescription)
+        {
+            <ProcedureMessage Message="@statusDescription"
+                              Compact="true" />
+        }
+    </section>
+
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Deploy image</h3>
+                <p>@GetDeploymentActionSummary(Resource)</p>
+            </div>
+        </div>
+        <div class="generated-deploy-form">
+            <label for="application-deploy-image">Image</label>
+            <FluentTextField Id="application-deploy-image"
+                             @bind-Value="DeploymentImage"
+                             Immediate="true"
+                             Placeholder="example/api:20260608"
+                             Disabled="@(!CanEditDeployment)" />
+            @if (Resource is not null && IsReplicaModeEnabled(Resource))
+            {
+                <label for="application-deploy-replicas">Requested replicas</label>
+                <FluentNumberField TValue="int"
+                                   Id="application-deploy-replicas"
+                                   Min="1"
+                                   Disabled="@(!CanEditDeployment)"
+                                   @bind-Value="DeploymentRequestedReplicas" />
+            }
+
+            @if (GetDeploymentReadiness() is { } readiness)
+            {
+                <div class="generated-list">
+                    <div class="@readiness.CssClass">
+                        <FluentIcon Value="@GetSeverityIcon(readiness.Severity)" />
+                        <div class="generated-diagnostic-content">
+                            <strong>@readiness.Status</strong>
+                            <span>@readiness.Message</span>
+                            <small>@readiness.Context</small>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(ImageDeploymentMessage))
+            {
+                <ProcedureMessage Message="@ImageDeploymentMessage"
+                                  Compact="true" />
+            }
+
+            <FormPrimaryAction Text="@(IsDeploying ? "Deploying" : "Deploy")"
+                               IconStart="@(new Icons.Regular.Size20.ArrowUpload())"
+                               Disabled="@(!CanSubmitImageDeployment)"
+                               OnClick="DeployImage" />
+        </div>
+    </section>
+
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Runtime details</h3>
+                <p>Replica and routing materialization details for this app.</p>
+            </div>
+        </div>
+        <dl class="detail-list">
+            <dt>Requested replicas</dt>
+            <dd>@GetDeploymentRequestedReplicas(Resource!)</dd>
+            <dt>Materialized replicas</dt>
+            <dd>@GetDeploymentMaterializedReplicas(Resource!)</dd>
+            <dt>Orchestrator service</dt>
+            <dd>@GetDeploymentService(Resource!)</dd>
+            <dt>Replica group</dt>
+            <dd>@GetReplicaGroup(Resource!)</dd>
+        </dl>
+    </section>
+
+    @if (DeploymentEvents.Count > 0)
+    {
+        <section class="blade-section">
+            <div class="blade-section-header">
+                <div>
+                    <h3>Deployment events</h3>
+                    <p>Recent apply, readiness, routing, rollback, and cleanup activity.</p>
+                </div>
+            </div>
+            <div class="container-app-deployment-timeline">
+                @foreach (var resourceEvent in DeploymentEvents)
+                {
+                    <div class="@GetDeploymentEventCssClass(resourceEvent)">
+                        <FluentIcon Value="@GetSeverityIcon(resourceEvent.Severity)" />
+                        <div class="generated-diagnostic-content">
+                            <strong>@GetDeploymentEventTitle(resourceEvent.EventType)</strong>
+                            <span>@resourceEvent.Message</span>
+                            <small>@FormatDeploymentEventMetadata(resourceEvent)</small>
+                        </div>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private IReadOnlyList<ApplicationContainerDeployment> Deployments { get; set; } = [];
+    private IReadOnlyList<ResourceEvent> DeploymentEvents { get; set; } = [];
+    private Resource? Resource { get; set; }
+    private ResourceOperationCapabilities Capabilities { get; set; } =
+        ResourceOperationCapabilities.None(string.Empty);
+    private string? CurrentDeploymentResourceId { get; set; }
+    private string? DeploymentImage { get; set; }
+    private int DeploymentRequestedReplicas { get; set; } = 1;
+    private string? ImageDeploymentMessage { get; set; }
+    private bool IsDeploying { get; set; }
+
+    private bool CanEditDeployment =>
+        Resource is not null &&
+        Capabilities.CanManage &&
+        !IsDeploying;
+
+    private bool CanSubmitImageDeployment =>
+        CanEditDeployment &&
+        !string.IsNullOrWhiteSpace(DeploymentImage) &&
+        GetDeploymentReadiness()?.BlocksSubmit != true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Resource = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : await ResourceManager.GetResourceAsync(ResourceId);
+        Deployments = string.IsNullOrWhiteSpace(ResourceId)
+            ? []
+            : ContainerHistory.GetContainerDeployments(ResourceId);
+        DeploymentEvents = string.IsNullOrWhiteSpace(ResourceId)
+            ? []
+            : await LoadDeploymentEventsAsync(ResourceId);
+        Capabilities = Resource is null
+            ? ResourceOperationCapabilities.None(ResourceId ?? string.Empty)
+            : await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
+        InitializeDeploymentImage();
+    }
+
+    private void InitializeDeploymentImage()
+    {
+        if (Resource is null)
+        {
+            CurrentDeploymentResourceId = null;
+            DeploymentImage = null;
+            DeploymentRequestedReplicas = 1;
+            ImageDeploymentMessage = null;
+            return;
+        }
+
+        if (string.Equals(CurrentDeploymentResourceId, Resource.Id, StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(DeploymentImage))
+        {
+            return;
+        }
+
+        CurrentDeploymentResourceId = Resource.Id;
+        DeploymentImage = GetCurrentContainerImage(Resource);
+        DeploymentRequestedReplicas = GetDeploymentRequestedReplicasValue(Resource);
+        ImageDeploymentMessage = null;
+    }
+
+    private async Task DeployImage()
+    {
+        if (!CanSubmitImageDeployment || Resource is null)
+        {
+            if (!Capabilities.CanManage)
+            {
+                ImageDeploymentMessage = "You do not have permission to deploy images for this resource.";
+            }
+
+            return;
+        }
+
+        var requestedImage = await ReadDeploymentImageAsync();
+        if (string.IsNullOrWhiteSpace(requestedImage))
+        {
+            return;
+        }
+
+        DeploymentImage = requestedImage;
+        IsDeploying = true;
+        ImageDeploymentMessage = null;
+        try
+        {
+            var result = await ResourceManager.UpdateResourceImageAsync(
+                Resource,
+                requestedImage,
+                restartIfRunning: false,
+                triggeredBy: "Resource Manager",
+                requestedReplicas: IsReplicaModeEnabled(Resource) ? DeploymentRequestedReplicas : null);
+            ImageDeploymentMessage = result.Message;
+
+            var updatedResource = await ResourceManager.GetResourceAsync(Resource.Id);
+            if (updatedResource is not null)
+            {
+                Resource = updatedResource;
+                Deployments = ContainerHistory.GetContainerDeployments(updatedResource.Id);
+                DeploymentEvents = await LoadDeploymentEventsAsync(updatedResource.Id);
+                DeploymentImage = GetCurrentContainerImage(Resource);
+                DeploymentRequestedReplicas = GetDeploymentRequestedReplicasValue(Resource);
+                CurrentDeploymentResourceId = Resource.Id;
+            }
+        }
+        catch (Exception exception)
+        {
+            ImageDeploymentMessage = exception.Message;
+        }
+        finally
+        {
+            IsDeploying = false;
+        }
+    }
+
+    private string GetLatestDeploymentLine()
+    {
+        var latest = Deployments.FirstOrDefault();
+        if (latest is null)
+        {
+            return "No image deployment has been recorded yet.";
+        }
+
+        var actor = string.IsNullOrWhiteSpace(latest.TriggeredBy)
+            ? "system"
+            : latest.TriggeredBy;
+        return string.Create(
+            CultureInfo.CurrentCulture,
+            $"Last deployed {latest.CreatedAt.ToLocalTime():g} by {actor}.");
+    }
+
+    private static string GetCurrentDeploymentSummary(Resource resource) =>
+        IsReplicaModeEnabled(resource)
+            ? "This app is served by a materialized replica group. Revision and replica details are available when needed."
+            : "This app is served by a single runtime instance. Revision details are available when needed.";
+
+    private static string GetDeploymentActionSummary(Resource resource) =>
+        IsReplicaModeEnabled(resource)
+            ? "Deploy a new image and optionally change requested capacity for the next running state."
+            : "Deploy a new image for this app without treating the update as a manual restart.";
+
+    private static string GetCurrentContainerImage(Resource resource) =>
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerImage) ?? string.Empty;
+
+    private static string GetDeploymentService(Resource resource) =>
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentServiceId) ?? "not projected";
+
+    private static string GetReplicaGroup(Resource resource) =>
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentReplicaGroupId) ?? "not projected";
+
+    private static string GetScalingMode(Resource resource) =>
+        IsReplicaModeEnabled(resource) ? "Replicated" : "Single instance";
+
+    private static string GetDeploymentCapacity(Resource resource) =>
+        IsReplicaModeEnabled(resource)
+            ? $"{GetDeploymentMaterializedReplicas(resource)} of {GetDeploymentRequestedReplicas(resource)} replica slots occupied"
+            : "Single instance";
+
+    private static string GetMaterializedSummary(Resource resource) =>
+        IsReplicaModeEnabled(resource)
+            ? GetDeploymentMaterializedReplicas(resource)
+            : "1";
+
+    private static string GetDeploymentRequestedReplicas(Resource resource) =>
+        IsReplicaModeEnabled(resource)
+            ? GetDeploymentRequestedReplicasValue(resource).ToString(CultureInfo.InvariantCulture)
+            : "not enabled";
+
+    private static int GetDeploymentRequestedReplicasValue(Resource resource) =>
+        TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentRequestedReplicaSlots) ??
+        TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentRequestedReplicas) ??
+        TryGetReplicaCount(resource, ResourceAttributeNames.ContainerReplicas) ??
+        1;
+
+    private static int? TryGetReplicaCount(Resource resource, string attributeName) =>
+        resource.ResourceAttributes.TryGetValue(attributeName, out var value) &&
+        int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var replicas)
+            ? Math.Max(1, replicas)
+            : null;
+
+    private static string GetDeploymentMaterializedReplicas(Resource resource) =>
+        IsReplicaModeEnabled(resource)
+            ? resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentMaterializedReplicas) ??
+                resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentProjectedReplicas) ??
+                "0"
+            : "not enabled";
+
+    private static bool IsReplicaModeEnabled(Resource resource) =>
+        string.Equals(
+            resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerReplicasEnabled),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+
+    private static string GetDeploymentStatusLabel(Resource resource) =>
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentStatus) switch
+        {
+            "active" => "Running",
+            "applying" => "Deploying",
+            "failed" => "Needs attention",
+            "deleted" => "Removed",
+            "pending" => "Not running",
+            _ => "Not deployed"
+        };
+
+    private static string GetDeploymentStatusCssClass(Resource resource) =>
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentStatus) switch
+        {
+            "active" => "container-app-status-pill success",
+            "applying" => "container-app-status-pill info",
+            "failed" => "container-app-status-pill error",
+            "pending" => "container-app-status-pill warning",
+            _ => "container-app-status-pill"
+        };
+
+    private static string GetDeploymentStatusDescription(Resource resource) =>
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentStatus) switch
+        {
+            "active" => string.Empty,
+            "applying" => "CloudShell is applying this image to the selected container host.",
+            "failed" => "The latest image deployment failed. Check deployment events and logs for details.",
+            "pending" => "Start the app to materialize runtime instances.",
+            "deleted" => "The current runtime projection has been removed.",
+            _ => "No runtime projection is available for this app yet."
+        };
+
+    private DeploymentReadinessView? GetDeploymentReadiness()
+    {
+        if (Resource is null)
+        {
+            return null;
+        }
+
+        if (!Capabilities.CanManage)
+        {
+            return DeploymentReadinessView.Blocked(
+                "Cannot deploy",
+                "The current user cannot deploy images for this resource.",
+                "Missing resource manage permission");
+        }
+
+        var requestedImage = DeploymentImage?.Trim();
+        if (string.IsNullOrWhiteSpace(requestedImage))
+        {
+            return DeploymentReadinessView.Blocked(
+                "Image required",
+                "Enter a container image before deploying.",
+                "Image deployment preflight");
+        }
+
+        var currentImage = GetCurrentContainerImage(Resource);
+        var replicaChangeRequested =
+            IsReplicaModeEnabled(Resource) &&
+            DeploymentRequestedReplicas != GetDeploymentRequestedReplicasValue(Resource);
+        if (string.Equals(currentImage, requestedImage, StringComparison.Ordinal) &&
+            !replicaChangeRequested)
+        {
+            return DeploymentReadinessView.Blocked(
+                "No deployment change",
+                "The app is already using this image and requested capacity.",
+                "Image deployment preflight");
+        }
+
+        if (IsReplicaModeEnabled(Resource) && DeploymentRequestedReplicas < 1)
+        {
+            return DeploymentReadinessView.Blocked(
+                "Replica count unavailable",
+                "Requested replicas must be greater than or equal to 1.",
+                "Image deployment preflight");
+        }
+
+        return DeploymentReadinessView.Ready(
+            "Ready to deploy",
+            "CloudShell will request the new runtime state and activate it after materialization succeeds.",
+            "Image deployment preflight");
+    }
+
+    private async Task<string> ReadDeploymentImageAsync()
+    {
+        var fieldValue = await JS.InvokeAsync<string?>(
+            "cloudShellForms.getValue",
+            "application-deploy-image");
+        return (string.IsNullOrWhiteSpace(fieldValue)
+            ? DeploymentImage
+            : fieldValue)?.Trim() ?? string.Empty;
+    }
+
+    private async Task<IReadOnlyList<ResourceEvent>> LoadDeploymentEventsAsync(string resourceId)
+    {
+        var events = await ResourceEvents.ListResourceEventsAsync(new ResourceEventQuery(
+            ResourceId: resourceId,
+            MaxEvents: 50));
+        return events
+            .Where(IsDeploymentDiagnosticEvent)
+            .Take(20)
+            .ToArray();
+    }
+
+    private static bool IsDeploymentDiagnosticEvent(ResourceEvent resourceEvent) =>
+        resourceEvent.EventType.StartsWith(ResourceEventTypes.Events.Deployment.Prefix, StringComparison.OrdinalIgnoreCase) ||
+        resourceEvent.EventType.Contains(".container.instance.readiness.", StringComparison.OrdinalIgnoreCase);
+
+    private static string FormatDeploymentEventMetadata(ResourceEvent resourceEvent)
+    {
+        var triggeredBy = string.IsNullOrWhiteSpace(resourceEvent.TriggeredBy)
+            ? "Triggered by system"
+            : $"Triggered by {resourceEvent.TriggeredBy}";
+        return string.Create(
+            CultureInfo.CurrentCulture,
+            $"{resourceEvent.Timestamp.ToLocalTime():g} | {resourceEvent.EventType} | {triggeredBy}");
+    }
+
+    private static string GetDeploymentEventTitle(string eventType) =>
+        eventType switch
+        {
+            ResourceEventTypes.Events.Deployment.ImageUpdated => "Image updated",
+            ResourceEventTypes.Events.Deployment.ReplicasUpdated => "Replicas updated",
+            ResourceEventTypes.Events.Deployment.Applying => "Deployment started",
+            ResourceEventTypes.Events.Deployment.ServiceReconciling => "Service preparing",
+            ResourceEventTypes.Events.Deployment.ServiceReconciled => "Service prepared",
+            ResourceEventTypes.Events.Deployment.ReplicaMaterializing => "Replica starting",
+            ResourceEventTypes.Events.Deployment.ReplicaMaterialized => "Replica ready",
+            ResourceEventTypes.Events.Deployment.RoutingUpdating => "Routing updating",
+            ResourceEventTypes.Events.Deployment.RoutingUpdated => "Routing updated",
+            ResourceEventTypes.Events.Deployment.RollingBack => "Rollback running",
+            ResourceEventTypes.Events.Deployment.RolledBack => "Rollback completed",
+            ResourceEventTypes.Events.Deployment.RollbackFailed => "Rollback failed",
+            ResourceEventTypes.Events.Deployment.CleanupRunning => "Cleanup running",
+            ResourceEventTypes.Events.Deployment.CleanupCompleted => "Cleanup completed",
+            ResourceEventTypes.Events.Deployment.CleanupWarning => "Cleanup warning",
+            ResourceEventTypes.Events.Deployment.Applied => "Deployment applied",
+            ResourceEventTypes.Events.Deployment.Failed => "Deployment failed",
+            _ when eventType.Contains(".container.instance.readiness.", StringComparison.OrdinalIgnoreCase) =>
+                "Readiness check",
+            _ => "Deployment activity"
+        };
+
+    private static string GetDeploymentEventCssClass(ResourceEvent resourceEvent) =>
+        resourceEvent.Severity switch
+        {
+            ResourceSignalSeverity.Error => "generated-diagnostic error",
+            ResourceSignalSeverity.Warning => "generated-diagnostic warning",
+            _ => "generated-diagnostic info"
+        };
+
+    private static Icon GetSeverityIcon(ResourceSignalSeverity severity) =>
+        severity switch
+        {
+            ResourceSignalSeverity.Success => new Icons.Regular.Size20.CheckmarkCircle(),
+            ResourceSignalSeverity.Error => new Icons.Regular.Size20.ErrorCircle(),
+            ResourceSignalSeverity.Warning => new Icons.Regular.Size20.Warning(),
+            _ => new Icons.Regular.Size20.Info()
+        };
+
+    private sealed record DeploymentReadinessView(
+        string Status,
+        string Message,
+        string Context,
+        bool BlocksSubmit,
+        string CssClass,
+        ResourceSignalSeverity Severity)
+    {
+        public static DeploymentReadinessView Ready(
+            string status,
+            string message,
+            string context) =>
+            new(status, message, context, false, "generated-diagnostic info", ResourceSignalSeverity.Info);
+
+        public static DeploymentReadinessView Blocked(
+            string status,
+            string message,
+            string context) =>
+            new(status, message, context, true, "generated-diagnostic warning", ResourceSignalSeverity.Warning);
+    }
+}

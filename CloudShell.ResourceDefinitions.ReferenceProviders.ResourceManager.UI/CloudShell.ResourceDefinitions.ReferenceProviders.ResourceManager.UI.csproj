@@ -12,7 +12,6 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\CloudShell.Abstractions\CloudShell.Abstractions.csproj" />
     <ProjectReference Include="..\CloudShell.Components\CloudShell.Components.csproj" />
-    <ProjectReference Include="..\CloudShell.Providers.Applications\CloudShell.Providers.Applications.csproj" />
     <ProjectReference Include="..\CloudShell.ResourceDefinitions.ReferenceProviders\CloudShell.ResourceDefinitions.ReferenceProviders.csproj" />
   </ItemGroup>
 

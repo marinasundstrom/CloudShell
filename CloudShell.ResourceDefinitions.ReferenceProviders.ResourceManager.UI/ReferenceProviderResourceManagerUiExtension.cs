@@ -1,11 +1,8 @@
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.Providers.Applications;
-using CloudShell.Providers.Applications.Shared.Pages;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using ApplicationContainerAppPages = CloudShell.Providers.Applications.ContainerApp.Pages;
 using GraphContainerAppPages = CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI.ContainerApplication.Pages;
 using GraphSharedPages = CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI.Shared.Pages;
 using ResourceManagerResourceClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
@@ -91,14 +88,14 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
             .AddResourceTypeEndpoint(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourceEndpointDescriptor.Tcp("tds", 1433))
-            .AddResourceTab<ApplicationContainerAppPages.ApplicationDeployment>(
+            .AddResourceTab<GraphContainerAppPages.ApplicationDeployment>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "deployment"),
                 "Deployment",
                 20,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "deployment")
-            .AddResourceTab<ApplicationContainerAppPages.ApplicationRevisions>(
+            .AddResourceTab<GraphContainerAppPages.ApplicationRevisions>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "revisions"),
                 "Revisions",
@@ -112,13 +109,13 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
                 30,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "scale")
-            .AddResourceTab<ApplicationContainerAppPages.ApplicationMonitoring>(
+            .AddResourceTab<GraphContainerAppPages.ApplicationMonitoring>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Monitoring,
                 "Monitoring",
                 45,
                 groupTitle: ResourceTabGroupTitles.Management)
-            .AddResourcePredefinedViewSection<ApplicationEndpointActions>(
+            .AddResourcePredefinedViewSection<GraphSharedPages.ApplicationEndpointActions>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Endpoints,
                 "application.exposure-actions",

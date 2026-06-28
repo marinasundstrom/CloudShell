@@ -8,7 +8,7 @@
     <EmptyState Title="Scaling is unavailable"
                 Message="The resource may have been removed or is no longer visible." />
 }
-else if (!IsContainerApplication(Resource.EffectiveTypeId))
+else if (!ReferenceProviderResourceUiTypes.IsContainerApplication(Resource.EffectiveTypeId))
 {
     <EmptyState Title="Scale and replicas are not supported"
                 Message="This resource type does not expose container app scale controls." />
@@ -163,7 +163,7 @@ else
         !IsReadOnly &&
         !IsUpdatingReplicas &&
         Resource is not null &&
-        IsContainerApplication(Resource.EffectiveTypeId) &&
+        ReferenceProviderResourceUiTypes.IsContainerApplication(Resource.EffectiveTypeId) &&
         Math.Max(1, Replicas) != Math.Max(1, RequestedReplicaSlots);
 
     protected override Task OnParametersSetAsync() => RefreshAsync();
@@ -215,7 +215,7 @@ else
             return;
         }
 
-        if (Resource is null || !IsContainerApplication(Resource.EffectiveTypeId))
+        if (Resource is null || !ReferenceProviderResourceUiTypes.IsContainerApplication(Resource.EffectiveTypeId))
         {
             ReplicaUpdateSeverity = ResourceSignalSeverity.Warning;
             ReplicaUpdateMessage = "Scaling is not supported for this resource.";
@@ -359,12 +359,6 @@ else
         int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var count)
             ? Math.Max(1, count)
             : null;
-
-    private static bool IsContainerApplication(string? resourceType) =>
-        string.Equals(
-            resourceType,
-            ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
-            StringComparison.OrdinalIgnoreCase);
 
     public void Dispose()
     {
