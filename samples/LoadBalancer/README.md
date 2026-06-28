@@ -56,7 +56,7 @@ CLOUDSHELL_LOCAL_HOSTS_FILE=samples/LoadBalancer/Data/cloudshell.hosts \
 
 The sample exposes Postgres through the TCP entrypoint on `localhost:5432`.
 
-## Resource Graph POC Coverage
+## Resource Model Coverage
 
 The sample declares these Resource Definitions-backed resources:
 

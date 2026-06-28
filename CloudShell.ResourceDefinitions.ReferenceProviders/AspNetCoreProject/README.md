@@ -4,7 +4,7 @@
 
 - Resource type: `application.aspnet-core-project`
 - Provider id: `applications.aspnet-core-project`
-- Purpose: declares a local ASP.NET Core project resource in the Resource Graph and projects it into Resource Manager as a project resource.
+- Purpose: declares a local ASP.NET Core project resource in the Resource model and projects it into Resource Manager as a project resource.
 
 ## Ported
 
@@ -21,11 +21,11 @@
 - CloudShell Configuration Store and Secrets Vault client environment projection from explicit graph references, using the same name/id alias conventions as the existing configuration providers.
 - Resource Manager bridge projection for state, endpoints, observability links,
   process-output logs, and process monitoring snapshots.
-- Resource Manager details use generated Resource Manager views for graph-backed bridge resources so they do not fall into old application-provider tabs that require old provider records.
-- Graph-safe Resource Manager UI metadata registration for graph-only samples,
+- Resource Manager details use generated Resource Manager views for Resource model bridge resources so they do not fall into old application-provider tabs that require old provider records.
+- Resource Manager UI metadata registration for Resource model samples,
   including display name, icon, endpoint descriptor, and health/liveness probe
   defaults without registering old application-provider stores or update forms.
-- ProjectReference and SettingsAndSecrets sample coverage for runtime startup, graph-to-graph calls, logs, metrics, traces, health, and ResourceDefinition apply/update.
+- ProjectReference and SettingsAndSecrets sample coverage for runtime startup, Resource model service-to-service calls, logs, metrics, traces, health, and ResourceDefinition apply/update.
 - ApplicationTopology-inspired graph coverage for explicit SQL Server, Configuration Store, and Secrets Vault service-discovery references without using `DependsOn` for discovery.
 - ApplicationTopology graph API identity declaration and SQL read/write grant setup through Resource Manager declarations.
 - ApplicationTopology graph API `/database` coverage through a sample-local
@@ -42,7 +42,7 @@
 
 ## Example ResourceDefinition
 
-This is the interchange shape for a graph-backed ASP.NET Core project resource.
+This is the interchange shape for an ASP.NET Core project resource.
 `project.references` is the service-discovery input; `dependsOn` remains an
 explicit startup-order hint and should not be used as the discovery mechanism.
 

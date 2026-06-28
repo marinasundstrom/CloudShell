@@ -158,7 +158,7 @@ client can use logical URIs such as `https+http://example-web-api` or
 `https+http://_dashboard.example-web-api` when service discovery is enabled in
 the consuming app.
 
-In the Resource model POC, graph-backed ASP.NET Core project resources keep
-the same distinction through provider-owned `project.references`
+Resource model ASP.NET Core project resources keep the same distinction through
+provider-owned `project.references`
 `ResourceReference` values. `DependsOn` remains startup ordering and is not
 used to derive service discovery configuration.

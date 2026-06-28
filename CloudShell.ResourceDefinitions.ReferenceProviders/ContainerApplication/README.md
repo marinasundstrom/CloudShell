@@ -4,7 +4,7 @@
 
 - Resource type: `application.container-app`
 - Provider id: `applications.container-app`
-- Purpose: declares a containerized application workload in the Resource Graph.
+- Purpose: declares a containerized application workload in the Resource model.
 
 ## Ported
 
@@ -28,8 +28,8 @@
 - Manual `ResourceDefinitionGraphBuilder.AddContainerApplication(...)`
   builder for code-first container app definition authoring with typed host
   dependencies, endpoint requests, replicas, and volume mount capability setup.
-- Provider-owned Resource Manager UI registration for graph-only samples. The
-  POC uses `application.container-app` as the type id trigger for container-app
+- Provider-owned Resource Manager UI registration for Resource model samples.
+  The UI uses `application.container-app` as the type id trigger for container-app
   deployment, revision, scale, monitoring, and endpoint-action UI instead of
   depending on the legacy application provider's concrete resource model.
 - Resource Manager projection parity for replica-mode UI triggers. Graph state
@@ -43,8 +43,8 @@
 
 ## Switch-over status
 
-Ready to start integration for the graph-backed container app scenarios covered
-by ContainerAppDeployment and ReplicatedContainerHealth. The graph path can
+Ready to start integration for the container app scenarios covered by
+ContainerAppDeployment and ReplicatedContainerHealth. The Resource model path can
 start, stop, restart, update image/replica intent, project endpoints, drive the
 container-app UI tabs by type id, and expose runtime replica logs, health,
 traces, metrics, and monitoring through the sample bridges. Full old-provider

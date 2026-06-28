@@ -14,8 +14,8 @@
 - Typed wrapper plus Resource Manager bridge projection and execution.
 - Manual `ResourceDefinitionGraphBuilder.AddHostConfigurationSource(...)`
   builder for code-first host configuration source definition authoring.
-- ApplicationTopology graph-only sample coverage declares
-  `configuration.host:graph-application-topology-host-settings` as host
+- ApplicationTopology sample coverage declares
+  `configuration.host:application-topology-host-settings` as host
   configuration source metadata. The sample verifies Resource Manager
   projection, `configuration.kind`, `configuration.source`, provider-managed
   `configuration.entries.count`, and the `configuration.host.inspect` action
@@ -23,7 +23,7 @@
 
 ## Switch-over status
 
-Ready as a supporting graph resource in ApplicationTopology. The switch gate is
+Ready as a supporting Resource model provider in ApplicationTopology. The switch gate is
 limited to safe metadata projection and inspect action shape; runtime lookup of
 host configuration values, entry-name payloads, authorization, and UI flows are
 deferred because the graph must not become a host-configuration value store.
