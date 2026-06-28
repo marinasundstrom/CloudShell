@@ -40,6 +40,8 @@ on `git blame --follow`, and then by the broad type of change.
   files created by generic sample launches.
 - Switch-readiness sample coverage now verifies that `samples/README.md`
   lists the same supported graph-default samples as the launch matrix.
+- Switch-readiness sample coverage now verifies that the graph-only default
+  settings cover the same supported samples as the launch matrix.
 - Graph-default samples now use the builder-level
   `UseResourceGraphIntegration(...)` seam to register generic graph
   services, current graph-provider Resource Manager projections, and the

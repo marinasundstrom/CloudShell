@@ -47,26 +47,41 @@ public sealed class SampleSmokeTests
     [Fact]
     public void SupportedSwitchReadinessSamples_DefaultToGraphOnly()
     {
-        var samples = new (string AppSettingsPath, string ConfigurationPath)[]
-        {
-            ("samples/ApplicationTopology/Host/appsettings.json", "ApplicationTopology:GraphOnly"),
-            ("samples/CloudShell.ContainerHost/appsettings.json", "ContainerHost:GraphOnly"),
-            ("samples/ContainerAppDeployment/appsettings.json", "ContainerAppDeployment:GraphOnly"),
-            ("samples/HostVirtualNetwork/appsettings.json", "HostVirtualNetwork:GraphOnly"),
-            ("samples/LoadBalancer/appsettings.json", "LoadBalancer:GraphOnly"),
-            ("samples/ProjectReference/Host/appsettings.json", "ProjectReference:GraphOnly"),
-            ("samples/ReplicatedContainerHealth/appsettings.json", "ReplicatedContainerHealth:GraphOnly"),
-            ("samples/SettingsAndSecrets/appsettings.json", "Samples:SettingsAndSecrets:GraphOnly"),
-            ("samples/SplitHosting/ControlPlane/appsettings.json", "SplitHosting:GraphOnly"),
-            ("samples/ThirdPartyIdentity/appsettings.json", "Samples:ThirdPartyIdentity:GraphOnly")
-        };
-
-        foreach (var sample in samples)
+        foreach (var sample in SupportedSwitchReadinessSampleGraphOnlySettings())
         {
             Assert.True(
                 ReadBooleanConfigurationValue(sample.AppSettingsPath, sample.ConfigurationPath),
                 $"{sample.AppSettingsPath} should set {sample.ConfigurationPath}=true.");
         }
+    }
+
+    [Fact]
+    public void SupportedSwitchReadinessSamples_GraphOnlyDefaultsMatchLaunchMatrix()
+    {
+        var defaultSamples = SupportedSwitchReadinessSampleGraphOnlySettings()
+            .Select(sample => sample.SampleName)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var launchMatrixSamples = SupportedSwitchReadinessSampleHostProjects()
+            .Select(values => GetSwitchReadinessSampleName((string)values[0]))
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Assert.Equal(defaultSamples, launchMatrixSamples);
+    }
+
+    private static IEnumerable<(string SampleName, string AppSettingsPath, string ConfigurationPath)> SupportedSwitchReadinessSampleGraphOnlySettings()
+    {
+        yield return ("ApplicationTopology", "samples/ApplicationTopology/Host/appsettings.json", "ApplicationTopology:GraphOnly");
+        yield return ("CloudShell.ContainerHost", "samples/CloudShell.ContainerHost/appsettings.json", "ContainerHost:GraphOnly");
+        yield return ("ContainerAppDeployment", "samples/ContainerAppDeployment/appsettings.json", "ContainerAppDeployment:GraphOnly");
+        yield return ("HostVirtualNetwork", "samples/HostVirtualNetwork/appsettings.json", "HostVirtualNetwork:GraphOnly");
+        yield return ("LoadBalancer", "samples/LoadBalancer/appsettings.json", "LoadBalancer:GraphOnly");
+        yield return ("ProjectReference", "samples/ProjectReference/Host/appsettings.json", "ProjectReference:GraphOnly");
+        yield return ("ReplicatedContainerHealth", "samples/ReplicatedContainerHealth/appsettings.json", "ReplicatedContainerHealth:GraphOnly");
+        yield return ("SettingsAndSecrets", "samples/SettingsAndSecrets/appsettings.json", "Samples:SettingsAndSecrets:GraphOnly");
+        yield return ("SplitHosting", "samples/SplitHosting/ControlPlane/appsettings.json", "SplitHosting:GraphOnly");
+        yield return ("ThirdPartyIdentity", "samples/ThirdPartyIdentity/appsettings.json", "Samples:ThirdPartyIdentity:GraphOnly");
     }
 
     public static IEnumerable<object[]> SupportedSwitchReadinessSampleHostProjects()
