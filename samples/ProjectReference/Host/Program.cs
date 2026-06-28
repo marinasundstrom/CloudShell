@@ -139,7 +139,8 @@ app.MapPost(
             apiProjectPath,
             traceIngestEndpoint,
             metricIngestEndpoint,
-            new AspNetCoreProjectEnvironmentVariableValue(update.Name.Trim(), update.Value));
+            update.Name.Trim(),
+            new AspNetCoreProjectEnvironmentVariableValue(update.Value));
         var result = await applyService.ApplyDefinitionsAsync(
             [definition],
             new ResourceGraphCommitContext(
@@ -158,14 +159,16 @@ static ResourceDefinition CreateApiDefinition(
     string projectPath,
     string? traceIngestEndpoint,
     string? metricIngestEndpoint,
+    string changedEnvironmentVariableName,
     AspNetCoreProjectEnvironmentVariableValue changedEnvironmentVariable)
 {
-    var environmentVariables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    var environmentVariables =
+        new Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>(StringComparer.OrdinalIgnoreCase)
     {
-        ["CLOUDSHELL_TRACE_INGEST_ENDPOINT"] = traceIngestEndpoint ?? string.Empty,
-        ["CLOUDSHELL_METRIC_INGEST_ENDPOINT"] = metricIngestEndpoint ?? string.Empty,
-        ["OTEL_SERVICE_NAME"] = "project-reference-api",
-        [changedEnvironmentVariable.Name] = changedEnvironmentVariable.Value ?? string.Empty
+        ["CLOUDSHELL_TRACE_INGEST_ENDPOINT"] = new(traceIngestEndpoint ?? string.Empty),
+        ["CLOUDSHELL_METRIC_INGEST_ENDPOINT"] = new(metricIngestEndpoint ?? string.Empty),
+        ["OTEL_SERVICE_NAME"] = new("project-reference-api"),
+        [changedEnvironmentVariableName] = changedEnvironmentVariable
     };
 
     return new ResourceDefinition(
@@ -195,11 +198,7 @@ static ResourceDefinition CreateApiDefinition(
                         Exposure: "Local")
                 }),
             [AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables] =
-                ResourceAttributeValue.FromObject(environmentVariables
-                    .Select(pair => new AspNetCoreProjectEnvironmentVariableValue(
-                        pair.Key,
-                        pair.Value))
-                    .ToArray())
+                ResourceAttributeValue.FromObject(environmentVariables)
         });
 }
 

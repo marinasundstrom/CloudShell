@@ -2092,13 +2092,15 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(5010, endpointRequest.Port);
         Assert.NotNull(await projectProjection.GetStopOperationAsync());
         var environmentVariables = resolution.Target.Attributes
-            .GetObject<AspNetCoreProjectEnvironmentVariableValue[]>(
+            .GetObject<Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>>(
                 AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables);
-        var environmentVariable = Assert.Single(environmentVariables ?? []);
-        Assert.Equal("CLOUDSHELL_TRACE_INGEST_ENDPOINT", environmentVariable.Name);
+        Assert.NotNull(environmentVariables);
+        Assert.True(environmentVariables.TryGetValue(
+            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
+            out var environmentVariable));
         Assert.Equal(
             "http://localhost:5104/api/control-plane/v1/traces/ingest",
-            environmentVariable.Value);
+            environmentVariable!.Value);
 
         var procedure = new ResourceProcedureContext(
             projectedProject,

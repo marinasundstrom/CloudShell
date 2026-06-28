@@ -14,6 +14,18 @@ public sealed class ConfigurationStoreResourceDefinitionBuilder(string name) :
 
     public ConfigurationStoreResourceDefinitionBuilder WithEndpoint(string endpoint) =>
         SetScalarAttribute(ConfigurationStoreResourceTypeProvider.Attributes.Endpoint, endpoint);
+
+    public ResourceConfigurationEntryReference Entry(
+        string name,
+        string? version = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        return new(
+            EffectiveResourceId,
+            name.Trim(),
+            string.IsNullOrWhiteSpace(version) ? null : version.Trim());
+    }
 }
 
 public static class ConfigurationStoreResourceDefinitionBuilderExtensions

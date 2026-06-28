@@ -953,6 +953,47 @@ changing the underlying graph shape. The ASP.NET Core project builder now has
 `WithEnvironment(...)`, `WithServiceDiscovery()`, `WithHttpHealthCheck(...)`,
 and `WithHttpLivenessCheck(...)` as extension methods over the existing
 environment-variable, service-discovery-name, and health-check attributes.
+`environmentVariables` and `configuration` are separate authoring channels.
+Both may use the same kinds of value sources, such as literal values,
+configuration-entry references, or secret references, but they are resolved for
+different purposes and usually at different phases. `environmentVariables`
+describes values passed to a resource as process or container environment
+variables when that resource supports them. `configuration` is a more general
+resource configuration channel and should be interpreted by resource types or
+runtime integrations that explicitly support it. The ASP.NET Core project
+ResourceDefinition format therefore uses a human-authored
+`project.environmentVariables` map keyed by environment variable name:
+
+```json
+{
+  "attributes": {
+    "project.environmentVariables": {
+      "ASPNETCORE_ENVIRONMENT": {
+        "value": "Development"
+      },
+      "SAMPLE_MESSAGE": {
+        "configurationEntryRef": {
+          "storeResourceId": "configuration.store:sample-app",
+          "name": "Sample:Message"
+        }
+      },
+      "SERVICE_APIKEY": {
+        "secretRef": {
+          "vaultResourceId": "secrets.vault:sample-app",
+          "name": "application-topology:api-key"
+        }
+      }
+    }
+  }
+}
+```
+
+The ResourceDefinition declares the source; the Resource Manager/runtime bridge
+resolves referenced values when it starts the resource. This mirrors the old
+programmatic API shape (`WithEnvironment("NAME", value)`,
+`WithEnvironment("NAME", settings.Entry(...))`, and
+`WithEnvironment("NAME", secrets.Secret(...))`) while keeping
+ResourceDefinition readable and authorable.
 Resource authoring should normally use resource names as the stable
 human-authored identifiers. Resource ids are assigned by platform conventions
 or provider conventions and should usually be left implicit. Programmatic

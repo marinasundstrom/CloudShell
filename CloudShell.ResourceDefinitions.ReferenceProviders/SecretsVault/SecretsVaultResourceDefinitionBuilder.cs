@@ -14,6 +14,18 @@ public sealed class SecretsVaultResourceDefinitionBuilder(string name) :
 
     public SecretsVaultResourceDefinitionBuilder WithEndpoint(string endpoint) =>
         SetScalarAttribute(SecretsVaultResourceTypeProvider.Attributes.Endpoint, endpoint);
+
+    public ResourceSecretReference Secret(
+        string name,
+        string? version = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        return new(
+            EffectiveResourceId,
+            name.Trim(),
+            string.IsNullOrWhiteSpace(version) ? null : version.Trim());
+    }
 }
 
 public static class SecretsVaultResourceDefinitionBuilderExtensions

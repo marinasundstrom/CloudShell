@@ -660,10 +660,10 @@ public sealed class ResourceDefinitionGraphBuilderTests
             AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests) ?? []);
         Assert.Equal("http", endpoint.Name);
         Assert.Equal(5010, endpoint.Port);
-        var environmentVariable = Assert.Single(project.ResourceAttributeValues
-            .GetObject<AspNetCoreProjectEnvironmentVariableValue[]>(
-                AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables) ?? []);
-        Assert.Equal("CLOUDSHELL_TRACE_INGEST_ENDPOINT", environmentVariable.Name);
+        var environmentVariables = project.ResourceAttributeValues
+            .GetObject<Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>>(
+                AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables) ?? [];
+        Assert.True(environmentVariables.ContainsKey("CLOUDSHELL_TRACE_INGEST_ENDPOINT"));
         var reference = Assert.Single(project.ResourceAttributeValues.GetObject<ResourceReference[]>(
             AspNetCoreProjectResourceTypeProvider.Attributes.References) ?? []);
         Assert.Equal(ResourceReferenceRelationships.Reference, reference.Relationship);

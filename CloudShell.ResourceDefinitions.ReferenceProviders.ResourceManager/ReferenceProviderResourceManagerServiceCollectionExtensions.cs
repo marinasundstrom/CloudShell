@@ -146,6 +146,10 @@ public static class ReferenceProviderResourceManagerServiceCollectionExtensions
                 AspNetCoreProjectResourceManagerObservabilityProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
+                IAspNetCoreProjectRuntimeEnvironmentProvider,
+                AspNetCoreProjectEnvironmentReferenceResolver>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
                 IResourceMonitoringProvider,
                 AspNetCoreProjectResourceManagerMonitoringProvider>());
         services.TryAddEnumerable(

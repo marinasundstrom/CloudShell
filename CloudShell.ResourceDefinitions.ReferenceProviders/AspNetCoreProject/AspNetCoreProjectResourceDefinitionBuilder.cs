@@ -4,7 +4,8 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
     ResourceDefinitionBuilder<AspNetCoreProjectResourceDefinitionBuilder>(name)
 {
     private readonly List<NetworkingEndpointRequestValue> _endpointRequests = [];
-    private readonly List<AspNetCoreProjectEnvironmentVariableValue> _environmentVariables = [];
+    private readonly Dictionary<string, AspNetCoreProjectEnvironmentVariableValue> _environmentVariables =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ResourceReference> _references = [];
     private readonly List<VolumeMountDefinition> _volumeMounts = [];
     private readonly List<ResourceHealthCheckDefinition> _healthChecks = [];
@@ -67,12 +68,39 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        _environmentVariables.Add(new(
-            name.Trim(),
-            string.IsNullOrWhiteSpace(value) ? null : value.Trim()));
+        _environmentVariables[name.Trim()] = new(
+            string.IsNullOrWhiteSpace(value) ? null : value.Trim());
         return SetObjectAttribute(
             AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables,
-            _environmentVariables.ToArray());
+            _environmentVariables);
+    }
+
+    public AspNetCoreProjectResourceDefinitionBuilder WithEnvironmentVariable(
+        string name,
+        ResourceConfigurationEntryReference configurationEntry)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(configurationEntry);
+
+        _environmentVariables[name.Trim()] = new(
+            ConfigurationEntryRef: configurationEntry);
+        return SetObjectAttribute(
+            AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables,
+            _environmentVariables);
+    }
+
+    public AspNetCoreProjectResourceDefinitionBuilder WithEnvironmentVariable(
+        string name,
+        ResourceSecretReference secret)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(secret);
+
+        _environmentVariables[name.Trim()] = new(
+            SecretRef: secret);
+        return SetObjectAttribute(
+            AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables,
+            _environmentVariables);
     }
 
     public AspNetCoreProjectResourceDefinitionBuilder WithReference(
@@ -145,6 +173,26 @@ public static class AspNetCoreProjectResourceDefinitionBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
 
         return builder.WithEnvironmentVariable(name, value);
+    }
+
+    public static AspNetCoreProjectResourceDefinitionBuilder WithEnvironment(
+        this AspNetCoreProjectResourceDefinitionBuilder builder,
+        string name,
+        ResourceConfigurationEntryReference configurationEntry)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return builder.WithEnvironmentVariable(name, configurationEntry);
+    }
+
+    public static AspNetCoreProjectResourceDefinitionBuilder WithEnvironment(
+        this AspNetCoreProjectResourceDefinitionBuilder builder,
+        string name,
+        ResourceSecretReference secret)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return builder.WithEnvironmentVariable(name, secret);
     }
 
     public static AspNetCoreProjectResourceDefinitionBuilder WithServiceDiscovery(

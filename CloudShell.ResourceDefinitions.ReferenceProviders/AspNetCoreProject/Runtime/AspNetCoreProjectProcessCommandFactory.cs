@@ -129,21 +129,27 @@ public sealed class AspNetCoreProjectProcessCommandFactory
         ProcessStartInfo startInfo)
     {
         var environmentVariables = resource.Attributes
-            .GetObject<AspNetCoreProjectEnvironmentVariableValue[]>(
+            .GetObject<Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>>(
                 AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables);
         if (environmentVariables is null)
         {
             return;
         }
 
-        foreach (var variable in environmentVariables)
+        foreach (var (name, variable) in environmentVariables)
         {
-            if (string.IsNullOrWhiteSpace(variable.Name))
+            if (string.IsNullOrWhiteSpace(name))
             {
                 continue;
             }
 
-            startInfo.Environment[variable.Name.Trim()] = variable.Value ?? string.Empty;
+            if (variable.ConfigurationEntryRef is not null ||
+                variable.SecretRef is not null)
+            {
+                continue;
+            }
+
+            startInfo.Environment[name.Trim()] = variable.Value ?? string.Empty;
         }
     }
 

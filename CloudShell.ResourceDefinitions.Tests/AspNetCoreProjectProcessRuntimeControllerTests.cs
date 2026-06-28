@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Sockets;
+using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
 
 namespace CloudShell.ResourceDefinitions.Tests;
@@ -77,12 +79,14 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
     {
         var resource = CreateResource(
             "src/Api/Api.csproj",
-            environmentVariables:
-            [
-                new("CLOUDSHELL_TRACE_INGEST_ENDPOINT", "http://localhost:5104/api/control-plane/v1/traces/ingest"),
-                new("ApplicationTopology__SqlServer__ResourceName", "graph-application-topology-sql-server"),
-                new("EMPTY_VALUE")
-            ]);
+            environmentVariables: new Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>
+            {
+                ["CLOUDSHELL_TRACE_INGEST_ENDPOINT"] = new(
+                    "http://localhost:5104/api/control-plane/v1/traces/ingest"),
+                ["ApplicationTopology__SqlServer__ResourceName"] = new(
+                    "graph-application-topology-sql-server"),
+                ["EMPTY_VALUE"] = new()
+            });
         var command = new AspNetCoreProjectProcessCommandFactory()
             .CreateStartInfo(resource, "/repo/src/Api/Api.csproj");
 
@@ -100,10 +104,10 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
     {
         var resource = CreateResource(
             "src/Api/Api.csproj",
-            environmentVariables:
-            [
-                new("services__project-reference-api__http__0", "http://127.0.0.1:6000")
-            ]);
+            environmentVariables: new Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>
+            {
+                ["services__project-reference-api__http__0"] = new("http://127.0.0.1:6000")
+            });
         var command = new AspNetCoreProjectProcessCommandFactory()
             .CreateStartInfo(
                 resource,
@@ -116,6 +120,34 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         Assert.Equal(
             "http://127.0.0.1:6000",
             command.Environment["services__project-reference-api__http__0"]);
+    }
+
+    [Fact]
+    public async Task EnvironmentReferenceResolver_ResolvesConfigurationAndSecretEnvironmentVariables()
+    {
+        var resource = CreateResource(
+            "src/Api/Api.csproj",
+            environmentVariables: new Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>
+            {
+                ["SAMPLE_MESSAGE"] = new(
+                    ConfigurationEntryRef: new(
+                        "configuration.store:sample-app",
+                        "Sample:Message")),
+                ["SAMPLE_API_KEY"] = new(
+                    SecretRef: new(
+                        "secrets.vault:sample-app",
+                        "sample-api-key")),
+                ["LITERAL"] = new("literal")
+            });
+        var resolver = new AspNetCoreProjectEnvironmentReferenceResolver(
+            [new FixedConfigurationEntryReferenceResolver()],
+            [new FixedSecretReferenceResolver()]);
+
+        var values = await resolver.ResolveAsync(resource);
+
+        Assert.Equal("Hello from configuration", values["SAMPLE_MESSAGE"]);
+        Assert.Equal("secret-value", values["SAMPLE_API_KEY"]);
+        Assert.False(values.ContainsKey("LITERAL"));
     }
 
     [Fact]
@@ -422,7 +454,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         bool? hotReload = null,
         bool? useLaunchSettings = null,
         IReadOnlyList<NetworkingEndpointRequestValue>? endpointRequests = null,
-        IReadOnlyList<AspNetCoreProjectEnvironmentVariableValue>? environmentVariables = null,
+        IReadOnlyDictionary<string, AspNetCoreProjectEnvironmentVariableValue>? environmentVariables = null,
         IReadOnlyList<ResourceReference>? references = null,
         string? serviceDiscoveryName = null)
     {
@@ -456,7 +488,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         bool? hotReload = null,
         bool? useLaunchSettings = null,
         IReadOnlyList<NetworkingEndpointRequestValue>? endpointRequests = null,
-        IReadOnlyList<AspNetCoreProjectEnvironmentVariableValue>? environmentVariables = null,
+        IReadOnlyDictionary<string, AspNetCoreProjectEnvironmentVariableValue>? environmentVariables = null,
         IReadOnlyList<ResourceReference>? references = null,
         string? serviceDiscoveryName = null)
     {
@@ -609,5 +641,34 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             Resource resource,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(variables);
+    }
+
+    private sealed class FixedConfigurationEntryReferenceResolver : IConfigurationEntryReferenceResolver
+    {
+        public ResourceSettingResolutionResult ResolveConfigurationEntry(
+            ConfigurationEntryReference reference,
+            ResourceSettingResolutionContext context) =>
+            reference is
+            {
+                StoreResourceId: "configuration.store:sample-app",
+                EntryName: "Sample:Message"
+            }
+                ? ResourceSettingResolutionResult.Resolved("Hello from configuration")
+                : ResourceSettingResolutionResult.Failed("Configuration entry not found.");
+    }
+
+    private sealed class FixedSecretReferenceResolver : ISecretReferenceResolver
+    {
+        public ValueTask<ResourceSettingResolutionResult> ResolveSecretAsync(
+            SecretReference reference,
+            ResourceSettingResolutionContext context,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(reference is
+            {
+                VaultResourceId: "secrets.vault:sample-app",
+                SecretName: "sample-api-key"
+            }
+                ? ResourceSettingResolutionResult.Resolved("secret-value")
+                : ResourceSettingResolutionResult.Failed("Secret not found."));
     }
 }

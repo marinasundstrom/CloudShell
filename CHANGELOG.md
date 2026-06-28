@@ -17,6 +17,12 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- ASP.NET Core project ResourceDefinition environment variables now use a
+  human-authored map shape keyed by environment variable name, with values that
+  can be literals, configuration-entry references, or secret references. The
+  Resource Manager bridge resolves referenced values when the project resource
+  starts, while `configuration` remains a separate general resource
+  configuration channel.
 - Added Aspire-like ASP.NET Core project graph-builder convenience extensions
   for environment variables, service discovery, HTTP health checks, and HTTP
   liveness/probe declarations, and moved ProjectReference plus

@@ -59,8 +59,8 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
-IResourceDefinitionBuilder settingsResource = null!;
-IResourceDefinitionBuilder secretsResource = null!;
+ConfigurationStoreResourceDefinitionBuilder settingsResource = null!;
+SecretsVaultResourceDefinitionBuilder secretsResource = null!;
 IResourceDefinitionBuilder apiResource = null!;
 cloudShell.DefineResources(resources =>
 {
@@ -104,6 +104,15 @@ cloudShell.DefineResources(resources =>
         .WithEnvironment(
             "CLOUDSHELL_IDENTITY_SCOPE",
             "ControlPlane.Access")
+        .WithEnvironment(
+            "SAMPLE_MESSAGE",
+            settingsResource.Entry("Sample:Message"))
+        .WithEnvironment(
+            "SAMPLE_MODE",
+            settingsResource.Entry("Sample:Mode"))
+        .WithEnvironment(
+            "SAMPLE_API_KEY",
+            secretsResource.Secret("sample-api-key"))
         .WithReference(settingsResource, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
         .WithReference(secretsResource, SecretsVaultResourceTypeProvider.ResourceTypeId)
         .WithHttpHealthCheck(

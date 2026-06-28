@@ -35,7 +35,10 @@
 - Manual `ResourceDefinitionGraphBuilder.AddAspNetCoreProject(...)` builder
   for code-first project definition authoring with endpoint requests,
   environment variables, service-discovery references, volume mounts, and
-  health-check capability payloads.
+  health-check capability payloads. Environment variables are authored as a
+  keyed map and may use literal values, configuration-entry references, or
+  secret references; the Resource Manager bridge resolves references when the
+  project resource starts.
 
 ## Example ResourceDefinition
 
@@ -65,6 +68,23 @@ explicit startup-order hint and should not be used as the discovery mechanism.
         "exposure": "Local"
       }
     ],
+    "project.environmentVariables": {
+      "ASPNETCORE_ENVIRONMENT": {
+        "value": "Development"
+      },
+      "SAMPLE_MESSAGE": {
+        "configurationEntryRef": {
+          "storeResourceId": "configuration.store:graph-settings",
+          "name": "Sample:Message"
+        }
+      },
+      "SERVICE_APIKEY": {
+        "secretRef": {
+          "vaultResourceId": "secrets.vault:graph-secrets",
+          "name": "application-topology:api-key"
+        }
+      }
+    },
     "project.references": [
       {
         "value": "configuration.store:graph-settings",

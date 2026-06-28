@@ -8,8 +8,11 @@ environment variables from references:
 - `SAMPLE_API_KEY` comes from a `secrets.vault` resource through
   `secrets.Secret(...)`.
 
-The application resource stores references, not copied values. CloudShell
-resolves those references when the resource is started.
+The application resource stores references, not copied values. These
+references are declared under the ASP.NET Core project's environment variable
+attribute because they are passed to the Web API process as environment
+variables. CloudShell resolves those references when the resource is started.
+General `configuration` remains a separate resource configuration channel.
 
 The Web API also references the Configuration Store and Secrets Vault as
 discoverable services. `WithReference(...)` records the endpoint relationship,
