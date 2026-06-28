@@ -219,6 +219,47 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     }
 
     [Fact]
+    public async Task RuntimeBridge_GetStatusKeepsLastStableStateWhenDockerProbeTimesOut()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        commandRunner.Enqueue(new(0, "running", string.Empty));
+        commandRunner.Enqueue(new(
+            ReplicatedContainerHealthCommandResult.TimeoutExitCode,
+            string.Empty,
+            "timeout"));
+        var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+            commandRunner,
+            CreateConfiguration(statusCacheMilliseconds: 0));
+        var resource = await CreateGraphAppResourceAsync(replicas: 1);
+
+        var initialStatus = bridge.GetStatus(resource);
+        var statusAfterTimeout = bridge.GetStatus(resource);
+
+        Assert.Equal(ContainerApplicationRuntimeStatus.Running, initialStatus);
+        Assert.Equal(ContainerApplicationRuntimeStatus.Running, statusAfterTimeout);
+    }
+
+    [Fact]
+    public async Task RuntimeBridge_GetStatusDoesNotUseLastStableStateForMixedReplicaStates()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        commandRunner.Enqueue(new(0, "running", string.Empty));
+        commandRunner.Enqueue(new(0, "running", string.Empty));
+        commandRunner.Enqueue(new(0, "running", string.Empty));
+        commandRunner.Enqueue(new(0, "exited", string.Empty));
+        var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+            commandRunner,
+            CreateConfiguration(statusCacheMilliseconds: 0));
+        var resource = await CreateGraphAppResourceAsync(replicas: 2);
+
+        var initialStatus = bridge.GetStatus(resource);
+        var statusAfterMixedState = bridge.GetStatus(resource);
+
+        Assert.Equal(ContainerApplicationRuntimeStatus.Running, initialStatus);
+        Assert.Equal(ContainerApplicationRuntimeStatus.Unknown, statusAfterMixedState);
+    }
+
+    [Fact]
     public async Task RuntimeBridge_ApplyImageRestartsWhenRunning()
     {
         var commandRunner = new RecordingCommandRunner();
@@ -596,7 +637,9 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             CleanupBehavior: ResourceCleanupBehavior.DeleteWithOwner);
     }
 
-    private static IConfiguration CreateConfiguration(int? replicaCleanupLimit = null)
+    private static IConfiguration CreateConfiguration(
+        int? replicaCleanupLimit = null,
+        int? statusCacheMilliseconds = null)
     {
         var values = new Dictionary<string, string?>
         {
@@ -606,6 +649,12 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         if (replicaCleanupLimit is not null)
         {
             values["ReplicatedContainerHealth:RuntimeReplicaCleanupLimit"] = replicaCleanupLimit.Value.ToString();
+        }
+
+        if (statusCacheMilliseconds is not null)
+        {
+            values["ReplicatedContainerHealth:RuntimeStatusCacheMilliseconds"] =
+                statusCacheMilliseconds.Value.ToString();
         }
 
         return new ConfigurationBuilder()

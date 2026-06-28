@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- ReplicatedContainerHealth runtime status probing now uses a less fragile
+  Docker inspect timeout and keeps the last stable container-app lifecycle
+  state across transient probe timeouts, while still reporting mixed replica
+  states as unknown.
 - Resource graph builder overloads that accept another resource builder now
   infer typed `ResourceReference` metadata from the target builder for
   startup dependencies, project references, service/name-mapping targets, and

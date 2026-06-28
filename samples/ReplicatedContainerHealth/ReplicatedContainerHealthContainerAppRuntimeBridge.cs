@@ -28,7 +28,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         : Path.Combine(hostEnvironment.ContentRootPath, "Data", "runtime-ingress");
     private readonly object _statusGate = new();
     private readonly TimeSpan _statusProbeTimeout = TimeSpan.FromMilliseconds(
-        configuration.GetValue<int?>("ReplicatedContainerHealth:RuntimeStatusProbeTimeoutMilliseconds") ?? 50);
+        configuration.GetValue<int?>("ReplicatedContainerHealth:RuntimeStatusProbeTimeoutMilliseconds") ?? 1_000);
     private readonly TimeSpan _statusCacheDuration = TimeSpan.FromMilliseconds(
         configuration.GetValue<int?>("ReplicatedContainerHealth:RuntimeStatusCacheMilliseconds") ?? 2_000);
     private readonly int _replicaCleanupLimit = Math.Max(
@@ -39,6 +39,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
     private readonly string? _metricIngestEndpoint =
         FirstNonEmpty(metricIngestEndpoint, configuration["Observability:MetricIngestEndpoint"]);
     private ContainerApplicationRuntimeStatus? _cachedStatus;
+    private ContainerApplicationRuntimeStatus? _lastStableStatus;
     private DateTimeOffset _cachedStatusTimestamp;
 
     public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource)
@@ -53,17 +54,27 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             }
         }
 
-        var status = ResolveStatus(resource);
+        var probe = ResolveStatus(resource);
+        var status = probe.Status;
         lock (_statusGate)
         {
+            if (probe.IsTransient && _lastStableStatus is not null)
+            {
+                status = _lastStableStatus.Value;
+            }
+
             _cachedStatus = status;
             _cachedStatusTimestamp = now;
+            if (status != ContainerApplicationRuntimeStatus.Unknown)
+            {
+                _lastStableStatus = status;
+            }
         }
 
         return status;
     }
 
-    private ContainerApplicationRuntimeStatus ResolveStatus(GraphResource resource)
+    private RuntimeStatusProbeResult ResolveStatus(GraphResource resource)
     {
         var replicas = ResolveReplicas(resource);
         var running = 0;
@@ -84,7 +95,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
                 timeout: _statusProbeTimeout);
             if (result.ExitCode == ReplicatedContainerHealthCommandResult.TimeoutExitCode)
             {
-                return ContainerApplicationRuntimeStatus.Unknown;
+                return RuntimeStatusProbeResult.Transient();
             }
 
             if (result.ExitCode != 0)
@@ -104,18 +115,18 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
                     stopped++;
                     break;
                 default:
-                    return ContainerApplicationRuntimeStatus.Unknown;
+                    return RuntimeStatusProbeResult.Unknown();
             }
         }
 
         if (running == replicas)
         {
-            return ContainerApplicationRuntimeStatus.Running;
+            return RuntimeStatusProbeResult.Running();
         }
 
         return stopped == replicas
-            ? ContainerApplicationRuntimeStatus.Stopped
-            : ContainerApplicationRuntimeStatus.Unknown;
+            ? RuntimeStatusProbeResult.Stopped()
+            : RuntimeStatusProbeResult.Unknown();
     }
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
@@ -508,6 +519,23 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             "replicatedContainerHealth.runtimeFailed",
             exception.Message,
             resource.EffectiveResourceId);
+
+    private sealed record RuntimeStatusProbeResult(
+        ContainerApplicationRuntimeStatus Status,
+        bool IsTransient = false)
+    {
+        public static RuntimeStatusProbeResult Running() =>
+            new(ContainerApplicationRuntimeStatus.Running);
+
+        public static RuntimeStatusProbeResult Stopped() =>
+            new(ContainerApplicationRuntimeStatus.Stopped);
+
+        public static RuntimeStatusProbeResult Unknown() =>
+            new(ContainerApplicationRuntimeStatus.Unknown);
+
+        public static RuntimeStatusProbeResult Transient() =>
+            new(ContainerApplicationRuntimeStatus.Unknown, IsTransient: true);
+    }
 }
 
 internal interface IReplicatedContainerHealthCommandRunner
