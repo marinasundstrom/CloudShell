@@ -51,6 +51,9 @@ on `git blame --follow`, and then by the broad type of change.
 - SQL Server sample runtime bridges and smoke-test guards now use defaults
   owned by the SQL reference provider boundary instead of reading SQL runtime
   constants from the old application provider extension class.
+- ReplicatedContainerHealth runtime monitoring now owns its Docker stats
+  parsing helper locally instead of depending on the old application provider
+  metrics helper.
 - Resource graph builder overloads that accept another resource builder now
   infer typed `ResourceReference` metadata from the target builder for
   startup dependencies, project references, service/name-mapping targets, and

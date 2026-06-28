@@ -1,6 +1,5 @@
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.Providers.Applications;
 
 internal sealed class ReplicatedContainerHealthRuntimeMonitoringProvider(
     IReplicatedContainerHealthCommandRunner commandRunner) : IResourceMonitoringProvider
@@ -49,7 +48,7 @@ internal sealed class ReplicatedContainerHealthRuntimeMonitoringProvider(
             cancellationToken,
             throwOnError: false);
         if (result.ExitCode != 0 ||
-            !ApplicationContainerMonitoringMetrics.TryParseStatsJson(
+            !ReplicatedContainerHealthRuntimeMonitoringMetrics.TryParseStatsJson(
                 result.Output,
                 DateTimeOffset.UtcNow,
                 out var snapshot))
@@ -69,7 +68,7 @@ internal sealed class ReplicatedContainerHealthRuntimeMonitoringProvider(
             resource.Id,
             ProviderDisplayName,
             snapshot.Timestamp,
-            ApplicationContainerMonitoringMetrics.CreateMetricSamples(snapshot),
+            ReplicatedContainerHealthRuntimeMonitoringMetrics.CreateMetricSamples(snapshot),
             "Available",
             "Runtime replica container runtime metrics.");
     }
