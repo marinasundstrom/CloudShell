@@ -13,7 +13,8 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
     IApplicationTopologyDockerCommandRunner docker,
     IServiceScopeFactory scopeFactory,
     IHostEnvironment hostEnvironment,
-    IConfiguration configuration) : IApplicationTopologyResourceModelSqlServerRuntimeBridge
+    IConfiguration configuration,
+    IApplicationTopologySqlServerReadinessProbe readinessProbe) : IApplicationTopologyResourceModelSqlServerRuntimeBridge
 {
     public const string ResourceModelSqlServerContainerName = "cloudshell-application-topology-sql-server";
     private const string SqlServerDataPath = SqlServerResourceDefaults.DataPath;
@@ -74,10 +75,12 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
         {
             if (string.Equals(status.Output.Trim(), "running", StringComparison.OrdinalIgnoreCase))
             {
+                await readinessProbe.WaitUntilReadyAsync(resource, cancellationToken);
                 return;
             }
 
             await docker.RunAsync(["start", ResourceModelSqlServerContainerName], cancellationToken);
+            await readinessProbe.WaitUntilReadyAsync(resource, cancellationToken);
             return;
         }
 
@@ -101,6 +104,8 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
                 SqlServerResourceDefaults.ContainerImage
             ],
             cancellationToken);
+
+        await readinessProbe.WaitUntilReadyAsync(resource, cancellationToken);
     }
 
     private async Task RunSqlServerContainerAsync(
@@ -353,3 +358,34 @@ public sealed record ApplicationTopologyDockerCommandResult(
     int ExitCode,
     string Output,
     string Error);
+
+public interface IApplicationTopologySqlServerReadinessProbe
+{
+    Task WaitUntilReadyAsync(
+        ResourceModelResource resource,
+        CancellationToken cancellationToken);
+}
+
+public sealed class ApplicationTopologySqlServerReadinessProbe(
+    IConfiguration configuration) : IApplicationTopologySqlServerReadinessProbe
+{
+    public async Task WaitUntilReadyAsync(
+        ResourceModelResource resource,
+        CancellationToken cancellationToken)
+    {
+        if (!ResourceModelSqlServerConnectionSupport.TryCreateAdministratorConnectionString(
+                resource,
+                configuration,
+                "master",
+                out var connectionString))
+        {
+            throw new InvalidOperationException(
+                $"SQL Server resource '{resource.Name}' cannot be started because its TDS endpoint or administrator password is not available.");
+        }
+
+        await using var connection = await ResourceModelSqlServerConnectionSupport.OpenWithRetryAsync(
+            resource,
+            connectionString,
+            cancellationToken);
+    }
+}

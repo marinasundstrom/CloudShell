@@ -287,6 +287,7 @@ cloudShell.DefineResources(resources =>
 builder.Services
     .AddSingleton<ISqlDatabaseCreationHandler, ResourceModelSqlDatabaseCreationHandler>()
     .AddSingleton<IApplicationTopologyDockerCommandRunner, ProcessApplicationTopologyDockerCommandRunner>()
+    .AddSingleton<IApplicationTopologySqlServerReadinessProbe, ApplicationTopologySqlServerReadinessProbe>()
     .AddSingleton<IApplicationTopologyResourceModelSqlServerRuntimeBridge, ApplicationTopologyResourceModelSqlServerDockerBridge>()
     .AddSingleton<IResourceOrchestrationDescriptorProvider, ApplicationTopologyResourceModelSqlServerOrchestrationDescriptorProvider>()
     .AddSingleton<ISqlServerRuntimeHandler, ApplicationTopologyResourceModelSqlServerRuntimeHandler>()

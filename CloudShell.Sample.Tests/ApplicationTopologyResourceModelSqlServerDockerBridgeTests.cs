@@ -31,9 +31,11 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridgeTests
     {
         using var fixture = new ApplicationTopologyResourceModelFixture(port: 15433);
         var runner = new RecordingApplicationTopologyDockerCommandRunner();
+        var readiness = new RecordingApplicationTopologySqlServerReadinessProbe();
         runner.Enqueue(new(1, string.Empty, "No such container"));
         var bridge = fixture.CreateBridge(
             runner,
+            readiness,
             new Dictionary<string, string?>
             {
                 ["ApplicationTopology:SqlServer:Password"] = "Configured-Passw0rd!"
@@ -55,6 +57,7 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridgeTests
                 $"run -d --name cloudshell-application-topology-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=Configured-Passw0rd! -p 127.0.0.1:15433:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
                 command.JoinedArguments));
         Assert.True(Directory.Exists(expectedVolumePath));
+        Assert.Equal([ApplicationTopologyResourceModelSqlServerRuntimeHandler.ResourceModelSqlServerResourceId], readiness.ResourceIds);
     }
 
     [Fact]
@@ -62,8 +65,9 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridgeTests
     {
         using var fixture = new ApplicationTopologyResourceModelFixture();
         var runner = new RecordingApplicationTopologyDockerCommandRunner();
+        var readiness = new RecordingApplicationTopologySqlServerReadinessProbe();
         runner.Enqueue(new(0, "exited", string.Empty));
-        var bridge = fixture.CreateBridge(runner);
+        var bridge = fixture.CreateBridge(runner, readiness);
 
         var diagnostics = await bridge.ExecuteLifecycleAsync(
             await fixture.ResolveResourceModelSqlServerAsync(),
@@ -79,6 +83,7 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridgeTests
             command => Assert.Equal(
                 "start cloudshell-application-topology-sql-server",
                 command.JoinedArguments));
+        Assert.Equal([ApplicationTopologyResourceModelSqlServerRuntimeHandler.ResourceModelSqlServerResourceId], readiness.ResourceIds);
     }
 
     [Fact]
@@ -86,9 +91,10 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridgeTests
     {
         using var fixture = new ApplicationTopologyResourceModelFixture(port: 16433);
         var runner = new RecordingApplicationTopologyDockerCommandRunner();
+        var readiness = new RecordingApplicationTopologySqlServerReadinessProbe();
         runner.Enqueue(new(0, string.Empty, string.Empty));
         runner.Enqueue(new(1, string.Empty, "No such container"));
-        var bridge = fixture.CreateBridge(runner);
+        var bridge = fixture.CreateBridge(runner, readiness);
 
         var diagnostics = await bridge.ExecuteLifecycleAsync(
             await fixture.ResolveResourceModelSqlServerAsync(),
@@ -108,6 +114,7 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridgeTests
             command => Assert.Equal(
                 $"run -d --name cloudshell-application-topology-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=CloudShell-Passw0rd! -p 127.0.0.1:16433:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
                 command.JoinedArguments));
+        Assert.Equal([ApplicationTopologyResourceModelSqlServerRuntimeHandler.ResourceModelSqlServerResourceId], readiness.ResourceIds);
     }
 
     [Fact]
@@ -115,6 +122,7 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridgeTests
     {
         using var fixture = new ApplicationTopologyResourceModelFixture();
         var runner = new RecordingApplicationTopologyDockerCommandRunner();
+        var readiness = new RecordingApplicationTopologySqlServerReadinessProbe();
         runner.Enqueue(new(1, string.Empty, "No such container"));
         runner.Enqueue(new(
             127,
@@ -122,7 +130,7 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridgeTests
             "error while creating mount source path '/host_mnt/tmp/cloudshell/sql-server': no such file or directory"));
         runner.Enqueue(new(0, string.Empty, string.Empty));
         runner.Enqueue(new(0, "container-id", string.Empty));
-        var bridge = fixture.CreateBridge(runner);
+        var bridge = fixture.CreateBridge(runner, readiness);
 
         var diagnostics = await bridge.ExecuteLifecycleAsync(
             await fixture.ResolveResourceModelSqlServerAsync(),
@@ -144,6 +152,7 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridgeTests
             command => Assert.Equal(
                 $"run -d --name cloudshell-application-topology-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=CloudShell-Passw0rd! -p 127.0.0.1:14334:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
                 command.JoinedArguments));
+        Assert.Equal([ApplicationTopologyResourceModelSqlServerRuntimeHandler.ResourceModelSqlServerResourceId], readiness.ResourceIds);
     }
 
     [Fact]
@@ -252,6 +261,7 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridgeTests
 
         public ApplicationTopologyResourceModelSqlServerDockerBridge CreateBridge(
             RecordingApplicationTopologyDockerCommandRunner runner,
+            IApplicationTopologySqlServerReadinessProbe? readinessProbe = null,
             IReadOnlyDictionary<string, string?>? configuration = null) =>
             new(
                 runner,
@@ -259,7 +269,8 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridgeTests
                 _serviceProvider.GetRequiredService<IHostEnvironment>(),
                 new ConfigurationBuilder()
                     .AddInMemoryCollection(configuration ?? new Dictionary<string, string?>())
-                    .Build());
+                    .Build(),
+                readinessProbe ?? new RecordingApplicationTopologySqlServerReadinessProbe());
 
         public async ValueTask<ResourceModelResource> ResolveResourceModelSqlServerAsync()
         {
@@ -360,5 +371,19 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridgeTests
         bool ThrowOnError)
     {
         public string JoinedArguments => string.Join(' ', Arguments);
+    }
+
+    private sealed class RecordingApplicationTopologySqlServerReadinessProbe :
+        IApplicationTopologySqlServerReadinessProbe
+    {
+        public List<string> ResourceIds { get; } = [];
+
+        public Task WaitUntilReadyAsync(
+            ResourceModelResource resource,
+            CancellationToken cancellationToken)
+        {
+            ResourceIds.Add(resource.EffectiveResourceId);
+            return Task.CompletedTask;
+        }
     }
 }
