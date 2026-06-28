@@ -11,7 +11,7 @@ public sealed class ApplicationResourceManagerUiExtension : ICloudShellExtension
     public CloudShellExtensionManifest Manifest => new(
         "cloudshell.applications.resource-manager-ui",
         "Application Resource Manager UI",
-        "Adds application resource views for graph-backed application resource types without registering the legacy application providers.",
+        "Adds application resource views for Resource model application resource types without registering the legacy application providers.",
         "0.1.0",
         [
             "resource-ui.application.executable",

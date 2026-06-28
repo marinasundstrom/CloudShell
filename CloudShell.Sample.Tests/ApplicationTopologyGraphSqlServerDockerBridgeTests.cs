@@ -49,10 +49,10 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
         Assert.Collection(
             runner.Commands,
             command => Assert.Equal(
-                "container inspect --format {{.State.Status}} cloudshell-application-topology-graph-sql-server",
+                "container inspect --format {{.State.Status}} cloudshell-application-topology-sql-server",
                 command.JoinedArguments),
             command => Assert.Equal(
-                $"run -d --name cloudshell-application-topology-graph-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=Configured-Passw0rd! -p 127.0.0.1:15433:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
+                $"run -d --name cloudshell-application-topology-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=Configured-Passw0rd! -p 127.0.0.1:15433:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
                 command.JoinedArguments));
         Assert.True(Directory.Exists(expectedVolumePath));
     }
@@ -74,10 +74,10 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
         Assert.Collection(
             runner.Commands,
             command => Assert.Equal(
-                "container inspect --format {{.State.Status}} cloudshell-application-topology-graph-sql-server",
+                "container inspect --format {{.State.Status}} cloudshell-application-topology-sql-server",
                 command.JoinedArguments),
             command => Assert.Equal(
-                "start cloudshell-application-topology-graph-sql-server",
+                "start cloudshell-application-topology-sql-server",
                 command.JoinedArguments));
     }
 
@@ -100,13 +100,13 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
         Assert.Collection(
             runner.Commands,
             command => Assert.Equal(
-                "rm -f cloudshell-application-topology-graph-sql-server",
+                "rm -f cloudshell-application-topology-sql-server",
                 command.JoinedArguments),
             command => Assert.Equal(
-                "container inspect --format {{.State.Status}} cloudshell-application-topology-graph-sql-server",
+                "container inspect --format {{.State.Status}} cloudshell-application-topology-sql-server",
                 command.JoinedArguments),
             command => Assert.Equal(
-                $"run -d --name cloudshell-application-topology-graph-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=CloudShell-Passw0rd! -p 127.0.0.1:16433:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
+                $"run -d --name cloudshell-application-topology-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=CloudShell-Passw0rd! -p 127.0.0.1:16433:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
                 command.JoinedArguments));
     }
 
@@ -133,16 +133,16 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
         Assert.Collection(
             runner.Commands,
             command => Assert.Equal(
-                "container inspect --format {{.State.Status}} cloudshell-application-topology-graph-sql-server",
+                "container inspect --format {{.State.Status}} cloudshell-application-topology-sql-server",
                 command.JoinedArguments),
             command => Assert.Equal(
-                $"run -d --name cloudshell-application-topology-graph-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=CloudShell-Passw0rd! -p 127.0.0.1:14334:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
+                $"run -d --name cloudshell-application-topology-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=CloudShell-Passw0rd! -p 127.0.0.1:14334:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
                 command.JoinedArguments),
             command => Assert.Equal(
-                "rm -f cloudshell-application-topology-graph-sql-server",
+                "rm -f cloudshell-application-topology-sql-server",
                 command.JoinedArguments),
             command => Assert.Equal(
-                $"run -d --name cloudshell-application-topology-graph-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=CloudShell-Passw0rd! -p 127.0.0.1:14334:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
+                $"run -d --name cloudshell-application-topology-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=CloudShell-Passw0rd! -p 127.0.0.1:14334:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
                 command.JoinedArguments));
     }
 
@@ -162,14 +162,14 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
         Assert.Collection(
             runner.Commands,
             command => Assert.Equal(
-                "rm -f cloudshell-application-topology-graph-sql-server",
+                "rm -f cloudshell-application-topology-sql-server",
                 command.JoinedArguments));
     }
 
     private sealed class ApplicationTopologyGraphFixture : IDisposable
     {
-        private const string GraphStorageResourceId = "cloudshell.storage:graph-application-topology-local";
-        private const string GraphVolumeResourceId = "cloudshell.volume:graph-application-topology-sql-data";
+        private const string GraphStorageResourceId = "cloudshell.storage:application-topology-local";
+        private const string GraphVolumeResourceId = "cloudshell.volume:application-topology-sql-data";
         private const string GraphSqlServerResourceId = ApplicationTopologyGraphSqlServerRuntimeHandler.GraphSqlServerResourceId;
         private readonly ServiceProvider _serviceProvider;
 
@@ -183,7 +183,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
                 .AddInMemoryResourceModelGraph(
                 [
                     new ResourceState(
-                        "graph-application-topology-local",
+                        "application-topology-local",
                         StorageResourceTypeProvider.ResourceTypeId,
                         ResourceId: GraphStorageResourceId,
                         ProviderId: StorageResourceTypeProvider.ProviderId,
@@ -194,11 +194,11 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
                             [StorageResourceTypeProvider.Attributes.Location] = "./Data/storage"
                         }),
                     new ResourceState(
-                        "graph-application-topology-sql-data",
+                        "application-topology-sql-data",
                         CloudShellVolumeResourceTypeProvider.ResourceTypeId,
                         ResourceId: GraphVolumeResourceId,
                         ProviderId: CloudShellVolumeResourceTypeProvider.ProviderId,
-                        DisplayName: "Graph Application Topology SQL Data",
+                        DisplayName: "Application Topology SQL Data",
                         DependsOn:
                         [
                             ResourceReference.DependsOnResourceId(
@@ -214,7 +214,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
                             [CloudShellVolumeResourceTypeProvider.Attributes.Persistent] = true
                         }),
                     new ResourceState(
-                        "graph-application-topology-sql-server",
+                        "application-topology-sql-server",
                         SqlServerResourceTypeProvider.ResourceTypeId,
                         ResourceId: GraphSqlServerResourceId,
                         ProviderId: SqlServerResourceTypeProvider.ProviderId,
@@ -276,7 +276,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridgeTests
                 [new SqlServerResourceTypeProvider().TypeDefinition]);
 
             return resolver.Resolve(new ResourceState(
-                "graph-application-topology-sql-server",
+                "application-topology-sql-server",
                 SqlServerResourceTypeProvider.ResourceTypeId,
                 ResourceId: GraphSqlServerResourceId,
                 ProviderId: SqlServerResourceTypeProvider.ProviderId,

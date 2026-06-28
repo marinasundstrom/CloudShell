@@ -1,4 +1,3 @@
-using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
@@ -10,7 +9,7 @@ public sealed class ApplicationTopologyGraphSqlServerRuntimeHandler(
     IApplicationTopologyGraphSqlServerRuntimeBridge bridge) : ISqlServerRuntimeHandler
 {
     public const string GraphSqlServerResourceId =
-        "application.sql-server:graph-application-topology-sql-server";
+        "application.sql-server:application-topology-sql-server";
 
     public SqlServerRuntimeStatus GetStatus(GraphResource resource) =>
         IsGraphSqlServer(resource)
@@ -35,115 +34,4 @@ public sealed class ApplicationTopologyGraphSqlServerRuntimeHandler(
             resource.EffectiveResourceId,
             GraphSqlServerResourceId,
             StringComparison.OrdinalIgnoreCase);
-}
-
-public sealed class ApplicationTopologyGraphSqlServerResourceManagerBridge(
-    IServiceScopeFactory scopeFactory) : IApplicationTopologyGraphSqlServerRuntimeBridge
-{
-    private SqlServerRuntimeStatus _status = SqlServerRuntimeStatus.Unknown;
-
-    private const string RuntimeSqlServerResourceId =
-        "application:application-topology-sql-server";
-
-    public SqlServerRuntimeStatus GetStatus(GraphResource resource) => _status;
-
-    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
-        GraphResource resource,
-        ResourceOperationId operationId,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            using var scope = scopeFactory.CreateScope();
-            var resourceManager = scope.ServiceProvider.GetRequiredService<IResourceManager>();
-            var result = operationId.ToString() switch
-            {
-                ResourceActionIds.Start => await resourceManager.StartResourceAsync(
-                    RuntimeSqlServerResourceId,
-                    startDependencies: true,
-                    cancellationToken),
-                ResourceActionIds.Stop => await resourceManager.StopResourceAsync(
-                    RuntimeSqlServerResourceId,
-                    ignoreDependentWarning: true,
-                    cancellationToken),
-                ResourceActionIds.Restart => await resourceManager.RestartResourceAsync(
-                    RuntimeSqlServerResourceId,
-                    startDependencies: true,
-                    ignoreDependentWarning: true,
-                    cancellationToken),
-                _ => throw new NotSupportedException(
-                    $"The ApplicationTopology sample does not map graph SQL operation '{operationId}' to runtime SQL.")
-            };
-            _status = operationId.ToString() switch
-            {
-                ResourceActionIds.Start or ResourceActionIds.Restart =>
-                    SqlServerRuntimeStatus.Running,
-                ResourceActionIds.Stop =>
-                    SqlServerRuntimeStatus.Stopped,
-                _ => _status
-            };
-
-            return ToDiagnostics(result, resource.EffectiveResourceId);
-        }
-        catch (Exception exception)
-        {
-            return
-            [
-                ResourceDefinitionDiagnostic.Error(
-                    "applicationTopology.sqlServer.runtimeLifecycleFailed",
-                    exception.Message,
-                    resource.EffectiveResourceId)
-            ];
-        }
-    }
-
-    private static IReadOnlyList<ResourceDefinitionDiagnostic> ToDiagnostics(
-        ResourceProcedureResult result,
-        string target)
-    {
-        if (result.Signals.Count == 0 &&
-            !result.RestartRequired &&
-            !result.RuntimeReconciliationRequired)
-        {
-            return [];
-        }
-
-        var diagnostics = new List<ResourceDefinitionDiagnostic>();
-        foreach (var signal in result.Signals)
-        {
-            diagnostics.Add(ToDiagnostic(signal, target));
-        }
-
-        if (result.RestartRequired && !string.IsNullOrWhiteSpace(result.RestartMessage))
-        {
-            diagnostics.Add(ResourceDefinitionDiagnostic.Warning(
-                "applicationTopology.sqlServer.restartRequired",
-                result.RestartMessage,
-                target));
-        }
-
-        if (result.RuntimeReconciliationRequired &&
-            !string.IsNullOrWhiteSpace(result.RuntimeReconciliationMessage))
-        {
-            diagnostics.Add(ResourceDefinitionDiagnostic.Warning(
-                "applicationTopology.sqlServer.runtimeReconciliationRequired",
-                result.RuntimeReconciliationMessage,
-                target));
-        }
-
-        return diagnostics;
-    }
-
-    private static ResourceDefinitionDiagnostic ToDiagnostic(
-        ResourceProcedureSignal signal,
-        string target) =>
-        signal.Severity == ResourceSignalSeverity.Error
-            ? ResourceDefinitionDiagnostic.Error(
-                "applicationTopology.sqlServer.runtimeSignal",
-                signal.Message,
-                target)
-            : ResourceDefinitionDiagnostic.Warning(
-                "applicationTopology.sqlServer.runtimeSignal",
-                signal.Message,
-                target);
 }

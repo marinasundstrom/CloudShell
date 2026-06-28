@@ -63,6 +63,16 @@ on `git blame --follow`, and then by the broad type of change.
   (`docker:sample` and `application.container-app:api`), removes the old
   `GraphOnly` comparison seam plus old application/Docker provider records,
   and keeps the sample-local Docker runtime bridge as the active runtime path.
+- ApplicationTopology now uses only Resource Definitions-backed storage,
+  volume, SQL Server/database, Configuration Store, Secrets Vault,
+  host-configuration source, API, frontend, and local DNS resources with
+  stable sample identities such as
+  `application.sql-server:application-topology-sql-server` and
+  `application.aspnet-core-project:application-topology-api`. The old
+  side-by-side comparison setting, old workload records, old SQL Resource
+  Manager bridge, and graph-prefixed sample names were removed while the
+  sample-local SQL Docker runtime and SQL credential endpoint seams remain
+  active.
 - Local container application graph samples now use
   `AddLocalContainerApplicationResourceTypes(...)` to register the paired
   container app and Docker host resource types while keeping runtime handlers

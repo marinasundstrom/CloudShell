@@ -16,7 +16,7 @@ public sealed class ApplicationTopologyGraphSqlServerDockerBridge(
     IHostEnvironment hostEnvironment,
     IConfiguration configuration) : IApplicationTopologyGraphSqlServerRuntimeBridge
 {
-    public const string GraphSqlServerContainerName = "cloudshell-application-topology-graph-sql-server";
+    public const string GraphSqlServerContainerName = "cloudshell-application-topology-sql-server";
     private const string SqlServerDataPath = ApplicationProviderServiceCollectionExtensions.DefaultSqlServerDataPath;
     private SqlServerRuntimeStatus _status = SqlServerRuntimeStatus.Unknown;
 

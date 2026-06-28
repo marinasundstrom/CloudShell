@@ -44,22 +44,6 @@ public sealed class SampleSmokeTests
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(90);
     private static readonly TimeSpan SampleHostLaunchTimeout = TimeSpan.FromMinutes(3);
 
-    [Fact]
-    public void SupportedSwitchReadinessSamples_DefaultToGraphOnly()
-    {
-        foreach (var sample in SupportedSwitchReadinessSampleGraphOnlySettings())
-        {
-            Assert.True(
-                ReadBooleanConfigurationValue(sample.AppSettingsPath, sample.ConfigurationPath),
-                $"{sample.AppSettingsPath} should set {sample.ConfigurationPath}=true.");
-        }
-    }
-
-    private static IEnumerable<(string SampleName, string AppSettingsPath, string ConfigurationPath)> SupportedSwitchReadinessSampleGraphOnlySettings()
-    {
-        yield return ("ApplicationTopology", "samples/ApplicationTopology/Host/appsettings.json", "ApplicationTopology:GraphOnly");
-    }
-
     public static IEnumerable<object[]> SupportedSwitchReadinessSampleHostProjects()
     {
         var resourceHostPaths = new[] { "/", "/resources", "/api/control-plane/v1/resources" };
@@ -595,773 +579,6 @@ public sealed class SampleSmokeTests
         Assert.DoesNotContain("Create a resource group", addResourceHtml);
     }
 
-    [Fact]
-    public async Task ApplicationTopologyHost_ProjectsSqlStorageAndServiceDiscoveryTopology()
-    {
-        var apiPort = await GetFreePortAsync();
-        var frontendPort = await GetFreePortAsync();
-        var graphApiPort = await GetFreePortAsync();
-        var graphFrontendPort = await GetFreePortAsync();
-        var graphConfigurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
-        var graphSecretsEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
-        var sqlPort = await GetFreePortAsync();
-        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
-        var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
-        using var host = await SampleProcess.StartAsync(
-            "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
-            await GetFreePortAsync(),
-            [
-                ("ApplicationTopology__GraphOnly", "false"),
-                ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
-                ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
-                ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
-                ("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{graphFrontendPort}"),
-                ("ApplicationTopology__GraphConfigurationServiceEndpoint", graphConfigurationEndpoint),
-                ("ApplicationTopology__GraphSecretsServiceEndpoint", graphSecretsEndpoint),
-                ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
-                ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
-                ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
-            ]);
-
-        await host.WaitForHttpOkAsync("/", StartupTimeout);
-
-        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
-        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
-        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
-        var storage = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "storage:application-topology-local");
-        var volume = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "volume:application-topology-sql-data");
-        var sqlServer = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:application-topology-sql-server");
-        var sqlDatabase = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:application-topology-sql-server/database:application-topology");
-        var settings = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "configuration:application-topology");
-        var secrets = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "secrets-vault:application-topology");
-        var api = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:application-topology-api");
-        var frontend = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:application-topology-frontend");
-        var graphSqlServer = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.sql-server:graph-application-topology-sql-server");
-        var graphDatabase = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.sql-database:graph-application-topology-db");
-        var graphSettings = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "configuration.store:graph-application-topology-settings");
-        var graphSecrets = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "secrets.vault:graph-application-topology-secrets");
-        var graphApi = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-application-topology-api");
-        var graphFrontend = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-application-topology-frontend");
-        var dnsZone = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:application-topology-local");
-        var nameMapping = Assert.Single(resources, resource =>
-            resource.GetProperty("typeId").GetString() == PlatformResourceProvider.NameMappingResourceType
-            && resource.GetProperty("attributes")
-                .GetProperty(ResourceAttributeNames.NameMappingHostName)
-                .GetString() == "app.application-topology.cloudshell.local");
-
-        var storageAttributes = storage.GetProperty("attributes");
-        var volumeAttributes = volume.GetProperty("attributes");
-        var sqlAttributes = sqlServer.GetProperty("attributes");
-        var sqlDatabaseAttributes = sqlDatabase.GetProperty("attributes");
-        var apiAttributes = api.GetProperty("attributes");
-        var frontendAttributes = frontend.GetProperty("attributes");
-        var graphApiAttributes = graphApi.GetProperty("attributes");
-        var graphFrontendAttributes = graphFrontend.GetProperty("attributes");
-        var dnsZoneAttributes = dnsZone.GetProperty("attributes");
-        var nameMappingAttributes = nameMapping.GetProperty("attributes");
-        var settingsIdentity = settings.GetProperty("identity");
-        var secretsIdentity = secrets.GetProperty("identity");
-        var apiIdentity = api.GetProperty("identity");
-        var graphApiIdentity = graphApi.GetProperty("identity");
-
-        Assert.Equal((int)ResourceState.Stopped, sqlServer.GetProperty("state").GetInt32());
-        Assert.Equal((int)ResourceState.Stopped, api.GetProperty("state").GetInt32());
-        Assert.Equal((int)ResourceState.Stopped, frontend.GetProperty("state").GetInt32());
-
-        Assert.Equal("cloudshell.storage", storage.GetProperty("typeId").GetString());
-        Assert.Equal(StorageProviderNames.LocalStorage, storage.GetProperty("kind").GetString());
-        Assert.Equal(StorageMedia.FileSystem, storageAttributes.GetProperty(ResourceAttributeNames.StorageMedium).GetString());
-        Assert.Equal("./Data/storage", storageAttributes.GetProperty(ResourceAttributeNames.StorageLocation).GetString());
-        Assert.Equal("1", storageAttributes.GetProperty(ResourceAttributeNames.StorageVolumeCount).GetString());
-
-        Assert.Equal("cloudshell.volume", volume.GetProperty("typeId").GetString());
-        Assert.Equal("storage:application-topology-local", volume.GetProperty("parentResourceId").GetString());
-        Assert.Equal("storage:application-topology-local", volumeAttributes.GetProperty(ResourceAttributeNames.VolumeStorageResourceId).GetString());
-        Assert.Equal("sql-server", volumeAttributes.GetProperty(ResourceAttributeNames.VolumeSubPath).GetString());
-        Assert.Equal(StorageMedia.FileSystem, volumeAttributes.GetProperty(ResourceAttributeNames.VolumeStorageMedium).GetString());
-
-        Assert.Equal(ApplicationResourceTypes.SqlServer, sqlServer.GetProperty("typeId").GetString());
-        Assert.Equal($"tcp://localhost:{sqlPort}", GetEndpointAddress(sqlServer, "tds"));
-        Assert.Equal("1", sqlAttributes.GetProperty(ResourceAttributeNames.DatabaseCount).GetString());
-        Assert.Equal("1", sqlAttributes.GetProperty(ResourceAttributeNames.VolumeMountCount).GetString());
-        Assert.Equal("0", sqlAttributes.GetProperty(ResourceAttributeNames.VolumeMountMaterializedCount).GetString());
-        Assert.Equal(
-            ResourceVolumeMountMaterializationStatus.NotActive,
-            sqlAttributes.GetProperty(ResourceAttributeNames.VolumeMountMaterializationStatus).GetString());
-        Assert.Equal(SqlServerResources.DefaultSqlServerImage, sqlAttributes.GetProperty(ResourceAttributeNames.ContainerImage).GetString());
-        Assert.Contains(
-            "volume:application-topology-sql-data",
-            sqlServer.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        var sqlIdentity = sqlServer.GetProperty("identity");
-        Assert.Equal("identity:development", sqlIdentity.GetProperty("providerId").GetString());
-        Assert.Equal("application-topology-sql-server", sqlIdentity.GetProperty("name").GetString());
-        Assert.Equal(ApplicationResourceTypes.SqlDatabase, sqlDatabase.GetProperty("typeId").GetString());
-        Assert.Equal("application:application-topology-sql-server", sqlDatabase.GetProperty("parentResourceId").GetString());
-        Assert.Equal("Application Topology", sqlDatabase.GetProperty("displayName").GetString());
-        Assert.Equal("application_topology", sqlDatabaseAttributes.GetProperty(ResourceAttributeNames.DatabaseName).GetString());
-        Assert.Equal("application:application-topology-sql-server", sqlDatabaseAttributes.GetProperty(ResourceAttributeNames.DatabaseServerResourceId).GetString());
-        Assert.Equal("declared", sqlDatabaseAttributes.GetProperty(ResourceAttributeNames.DatabaseSource).GetString());
-
-        Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
-        Assert.Equal("secrets.vault", secrets.GetProperty("typeId").GetString());
-        Assert.Equal("identity:development", settingsIdentity.GetProperty("providerId").GetString());
-        Assert.Equal("identity:development", secretsIdentity.GetProperty("providerId").GetString());
-
-        Assert.Equal("application.sql-server", graphSqlServer.GetProperty("typeId").GetString());
-        Assert.Equal($"localhost:{sqlPort}", GetEndpointAddress(graphSqlServer, "tds"));
-        Assert.Equal("application.sql-database", graphDatabase.GetProperty("typeId").GetString());
-        Assert.Contains(
-            "application.sql-server:graph-application-topology-sql-server",
-            graphDatabase.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.Equal("configuration.store", graphSettings.GetProperty("typeId").GetString());
-        Assert.Equal(graphConfigurationEndpoint +
-            "/api/configuration/stores/configuration.store%3Agraph-application-topology-settings/entries",
-            GetEndpointAddress(graphSettings, "entries"));
-        Assert.Equal("secrets.vault", graphSecrets.GetProperty("typeId").GetString());
-        Assert.Equal(graphSecretsEndpoint +
-            "/api/secrets/vaults/secrets.vault%3Agraph-application-topology-secrets/secrets",
-            GetEndpointAddress(graphSecrets, "secrets"));
-        Assert.Equal("application.aspnet-core-project", graphApi.GetProperty("typeId").GetString());
-        Assert.Equal($"http://localhost:{graphApiPort}", GetPrimaryEndpointAddress(graphApi));
-        Assert.Equal("identity:development", graphApiIdentity.GetProperty("providerId").GetString());
-        Assert.Equal("graph-application-topology-api", graphApiIdentity.GetProperty("name").GetString());
-        Assert.Equal(
-            "application-topology-api",
-            graphApiAttributes
-                .GetProperty(AspNetCoreProjectResourceTypeProvider.Attributes.ServiceDiscoveryName.Value)
-                .GetString());
-        Assert.Contains(
-            "application.sql-database:graph-application-topology-db",
-            graphApi.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.DoesNotContain(
-            "application.sql-server:graph-application-topology-sql-server",
-            graphApi.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.EndsWith(
-            "/samples/ApplicationTopology/Api/CloudShell.ApplicationTopologyApi.csproj",
-            graphApiAttributes
-                .GetProperty(AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath.Value)
-                .GetString());
-        Assert.Equal("application.aspnet-core-project", graphFrontend.GetProperty("typeId").GetString());
-        Assert.Equal($"http://localhost:{graphFrontendPort}", GetPrimaryEndpointAddress(graphFrontend));
-        Assert.Contains(
-            "application.aspnet-core-project:graph-application-topology-api",
-            graphFrontend.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.EndsWith(
-            "/samples/ApplicationTopology/Frontend/CloudShell.ApplicationTopologyFrontend.csproj",
-            graphFrontendAttributes
-                .GetProperty(AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath.Value)
-                .GetString());
-
-        var resourcesHtml = await host.GetStringAsync("/resources");
-        Assert.Contains("Graph Application Topology API", resourcesHtml);
-        Assert.Contains("Graph Application Topology Frontend", resourcesHtml);
-        Assert.Contains("Graph Application Topology SQL Server", resourcesHtml);
-        Assert.Contains("Graph Application Topology Settings", resourcesHtml);
-        Assert.Contains("Graph Application Topology Secrets", resourcesHtml);
-
-        var graphApiDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:graph-application-topology-api")}/details");
-        Assert.Contains("Graph Application Topology API", graphApiDetailsHtml);
-        Assert.Contains("application.aspnet-core-project", graphApiDetailsHtml);
-        Assert.Contains(">Identity<", graphApiDetailsHtml);
-        Assert.Contains(">Relationships<", graphApiDetailsHtml);
-        Assert.Contains(">Depends on<", graphApiDetailsHtml);
-        Assert.Contains(">Used by<", graphApiDetailsHtml);
-        Assert.Contains("graph-application-topology-db", graphApiDetailsHtml);
-        Assert.Contains("graph-application-topology-settings", graphApiDetailsHtml);
-        Assert.Contains("graph-application-topology-secrets", graphApiDetailsHtml);
-        Assert.DoesNotContain("CloudShell-Passw0rd!", graphApiDetailsHtml);
-
-        var graphApiEnvironmentHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:graph-application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Environment.Value)}");
-        Assert.Contains("Environment", graphApiEnvironmentHtml);
-        Assert.DoesNotContain("CloudShell-Passw0rd!", graphApiEnvironmentHtml);
-
-        var graphSqlDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application.sql-server:graph-application-topology-sql-server")}/details");
-        Assert.Contains("Graph Application Topology SQL Server", graphSqlDetailsHtml);
-        Assert.Contains("application.sql-server", graphSqlDetailsHtml);
-        Assert.Contains("graph-application-topology-sql-data", graphSqlDetailsHtml);
-        Assert.DoesNotContain("Deploy image", graphSqlDetailsHtml);
-
-        var graphSettingsDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("configuration.store:graph-application-topology-settings")}/details");
-        Assert.Contains("Graph Application Topology Settings", graphSettingsDetailsHtml);
-        Assert.Contains("configuration.store", graphSettingsDetailsHtml);
-        Assert.Contains("2", graphSettingsDetailsHtml);
-
-        var graphSecretsDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("secrets.vault:graph-application-topology-secrets")}/details");
-        Assert.Contains("Graph Application Topology Secrets", graphSecretsDetailsHtml);
-        Assert.Contains("secrets.vault", graphSecretsDetailsHtml);
-        Assert.DoesNotContain("local-development-api-key", graphSecretsDetailsHtml);
-
-        await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology settings");
-        await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology secrets");
-        await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology graph-only API");
-        await host.WaitForAbsoluteHttpOkAsync(
-            $"http://localhost:{graphApiPort}/health",
-            bearerToken: null,
-            StartupTimeout);
-        var graphApiSettingsJson = await host.GetAbsoluteStringAsync(
-            $"http://localhost:{graphApiPort}/settings");
-        using var graphApiSettingsDocument = JsonDocument.Parse(graphApiSettingsJson);
-        var graphApiSettings = graphApiSettingsDocument.RootElement;
-        Assert.Equal(
-            "Hello from CloudShell graph configuration.",
-            graphApiSettings.GetProperty("message").GetString());
-        Assert.Equal("Graph", graphApiSettings.GetProperty("mode").GetString());
-        Assert.True(graphApiSettings.GetProperty("externalApiKeyConfigured").GetBoolean());
-
-        await StartGraphResourceIfAvailableAsync(host, graphFrontend, "ApplicationTopology Frontend");
-        await host.WaitForAbsoluteHttpOkAsync(
-            $"http://localhost:{graphFrontendPort}/healthz",
-            bearerToken: null,
-            StartupTimeout);
-        var graphFrontendFailureJson = await host.WaitForAbsoluteHttpStatusAsync(
-            $"http://localhost:{graphFrontendPort}/upstream/failure",
-            HttpStatusCode.BadGateway,
-            StartupTimeout);
-        Assert.Contains("Intentional upstream failure", graphFrontendFailureJson);
-        Assert.Contains("Application Topology API failure endpoint returned 500", graphFrontendFailureJson);
-
-        await host.SendAsync(
-            HttpMethod.Post,
-            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application.aspnet-core-project:graph-application-topology-frontend")}/actions/stop?ignoreDependentWarning=true");
-        await host.SendAsync(
-            HttpMethod.Post,
-            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application.aspnet-core-project:graph-application-topology-api")}/actions/stop?ignoreDependentWarning=true");
-
-        Assert.Equal(ApplicationResourceTypes.AspNetCoreProject, api.GetProperty("typeId").GetString());
-        Assert.Equal("../Api/CloudShell.ApplicationTopologyApi.csproj", apiAttributes.GetProperty(ResourceAttributeNames.ProjectPath).GetString());
-        Assert.Equal(
-            ResourceDeclarationPersistence.Transient.ToString(),
-            apiAttributes.GetProperty(ResourceAttributeNames.DeclarationPersistence).GetString());
-        Assert.Equal("identity:development", apiIdentity.GetProperty("providerId").GetString());
-        Assert.Equal("application-topology-api", apiIdentity.GetProperty("name").GetString());
-        Assert.Contains(
-            "application:application-topology-sql-server",
-            api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.Contains(
-            "configuration:application-topology",
-            api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.Contains(
-            "secrets-vault:application-topology",
-            api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-
-        var apiRecoveryPolicyJson = await host.GetStringAsync(
-            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application:application-topology-api")}/recovery-policy");
-        using var apiRecoveryPolicyDocument = JsonDocument.Parse(apiRecoveryPolicyJson);
-        var apiRecoveryPolicy = apiRecoveryPolicyDocument.RootElement;
-        Assert.True(apiRecoveryPolicy.GetProperty("enabled").GetBoolean());
-        Assert.Equal((int)ResourceProbeType.Liveness, apiRecoveryPolicy.GetProperty("probeType").GetInt32());
-        Assert.Equal(3, apiRecoveryPolicy.GetProperty("failureThreshold").GetInt32());
-        Assert.Equal(3, apiRecoveryPolicy.GetProperty("maxAttempts").GetInt32());
-
-        var apiRecoveryStatusJson = await host.GetStringAsync(
-            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application:application-topology-api")}/recovery-status");
-        using var apiRecoveryStatusDocument = JsonDocument.Parse(apiRecoveryStatusJson);
-        var apiRecoveryStatus = apiRecoveryStatusDocument.RootElement;
-        Assert.Equal((int)ResourceRecoveryState.WaitingForSignal, apiRecoveryStatus.GetProperty("state").GetInt32());
-        Assert.True(apiRecoveryStatus.GetProperty("policy").GetProperty("enabled").GetBoolean());
-
-        var grantsJson = await host.GetStringAsync(
-            "/api/control-plane/v1/resource-permission-grants" +
-            $"?principalKind={(int)ResourcePrincipalKind.ResourceIdentity}" +
-            $"&principalId={Uri.EscapeDataString("application:application-topology-api/identities/application-topology-api")}");
-        using var grantsDocument = JsonDocument.Parse(grantsJson);
-        var grants = grantsDocument.RootElement.EnumerateArray().ToArray();
-        Assert.Contains(
-            grants,
-            grant =>
-                grant.GetProperty("targetResourceId").GetString() == "secrets-vault:application-topology" &&
-                grant.GetProperty("permission").GetString() == SecretsVaultResourceOperationPermissions.ReadSecrets);
-        Assert.Contains(
-            grants,
-            grant =>
-                grant.GetProperty("targetResourceId").GetString() == "configuration:application-topology" &&
-                grant.GetProperty("permission").GetString() == ConfigurationStoreResourceOperationPermissions.ReadEntries);
-        Assert.Contains(
-            grants,
-            grant =>
-                grant.GetProperty("targetResourceId").GetString() == "application:application-topology-sql-server" &&
-                grant.GetProperty("permission").GetString() == DatabaseResourceOperationPermissions.ReadWrite);
-        var graphGrantsJson = await host.GetStringAsync(
-            "/api/control-plane/v1/resource-permission-grants" +
-            $"?principalKind={(int)ResourcePrincipalKind.ResourceIdentity}" +
-            $"&principalId={Uri.EscapeDataString("application.aspnet-core-project:graph-application-topology-api/identities/graph-application-topology-api")}");
-        using var graphGrantsDocument = JsonDocument.Parse(graphGrantsJson);
-        var graphGrants = graphGrantsDocument.RootElement.EnumerateArray().ToArray();
-        Assert.Contains(
-            graphGrants,
-            grant =>
-                grant.GetProperty("targetResourceId").GetString() == "application.sql-server:graph-application-topology-sql-server" &&
-                grant.GetProperty("permission").GetString() == DatabaseResourceOperationPermissions.ReadWrite);
-
-        await AssertProvisionedIdentityStatusAsync(host, "application:application-topology-api");
-        await AssertProvisionedIdentityStatusAsync(host, "application:application-topology-sql-server");
-        await AssertProvisionedIdentityStatusAsync(host, "application.aspnet-core-project:graph-application-topology-api");
-        await AssertProvisionedIdentityStatusAsync(host, "configuration:application-topology");
-        await AssertProvisionedIdentityStatusAsync(host, "secrets-vault:application-topology");
-
-        var resourceToken = await host.GetClientCredentialsTokenAsync(
-            "application:application-topology-api/application-topology-api",
-            "local-development-application-topology-api-secret",
-            "ControlPlane.Access");
-        Assert.NotEmpty(resourceToken);
-
-        Assert.Equal(ApplicationResourceTypes.AspNetCoreProject, frontend.GetProperty("typeId").GetString());
-        Assert.Equal($"http://localhost:{frontendPort}", GetEndpointAddress(frontend, "http"));
-        Assert.Equal("../Frontend/CloudShell.ApplicationTopologyFrontend.csproj", frontendAttributes.GetProperty(ResourceAttributeNames.ProjectPath).GetString());
-        Assert.Contains(
-            "application:application-topology-api",
-            frontend.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-
-        Assert.Equal(PlatformResourceProvider.DnsZoneResourceType, dnsZone.GetProperty("typeId").GetString());
-        Assert.Equal(
-            "application-topology.cloudshell.local",
-            dnsZoneAttributes.GetProperty(ResourceAttributeNames.DnsZoneName).GetString());
-        Assert.Equal("local-hostnames", dnsZoneAttributes.GetProperty(ResourceAttributeNames.DnsProvider).GetString());
-        Assert.Equal("1", dnsZoneAttributes.GetProperty(ResourceAttributeNames.DnsRecordCount).GetString());
-        var reconcileNameMappingsAction = dnsZone
-            .GetProperty("resourceActions")
-            .GetProperty("reconcileNameMappings");
-        Assert.Equal("Reconcile name mappings", reconcileNameMappingsAction.GetProperty("displayName").GetString());
-        Assert.Equal("dns:application-topology-local", nameMapping.GetProperty("parentResourceId").GetString());
-        Assert.Equal(
-            "application:application-topology-frontend",
-            nameMappingAttributes.GetProperty(ResourceAttributeNames.NameMappingTargetResourceId).GetString());
-        Assert.Equal(
-            "http",
-            nameMappingAttributes.GetProperty(ResourceAttributeNames.NameMappingTargetEndpointName).GetString());
-        Assert.Equal(
-            "ProviderSelected",
-            nameMappingAttributes.GetProperty(ResourceAttributeNames.NameMappingMaterializationStatus).GetString());
-
-        var storageVolumesHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("storage:application-topology-local")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Volumes.Value)}");
-        Assert.Contains("Add volume", storageVolumesHtml);
-        Assert.Contains("This Storage resource cannot be deleted while it owns volumes.", storageVolumesHtml);
-
-        var addSqlServerHtml = await host.GetStringAsync(
-            $"/resources/add?type={Uri.EscapeDataString(ApplicationResourceTypes.SqlServer)}");
-        Assert.Contains("SA password", addSqlServerHtml);
-        Assert.Contains("TDS endpoint", addSqlServerHtml);
-        Assert.Contains("Advanced runtime settings", addSqlServerHtml);
-        Assert.DoesNotContain("Container host", addSqlServerHtml);
-        Assert.DoesNotContain("Container image", addSqlServerHtml);
-        Assert.DoesNotContain("Registry username", addSqlServerHtml);
-        Assert.DoesNotContain("Dockerfile", addSqlServerHtml);
-
-        var sqlConfigurationHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Configuration.Value)}");
-        Assert.Contains("SA password", sqlConfigurationHtml);
-        Assert.Contains("TDS endpoint assignment", sqlConfigurationHtml);
-        Assert.Contains("Advanced runtime settings", sqlConfigurationHtml);
-        Assert.DoesNotContain("Container host", sqlConfigurationHtml);
-        Assert.DoesNotContain("Container image", sqlConfigurationHtml);
-        Assert.DoesNotContain("Registry username", sqlConfigurationHtml);
-        Assert.DoesNotContain("Dockerfile", sqlConfigurationHtml);
-        Assert.DoesNotContain("Scale and replicas", sqlConfigurationHtml);
-
-        var apiEndpointsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");
-        Assert.Contains("Application exposure", apiEndpointsHtml);
-        Assert.Contains("Add load-balancer route", apiEndpointsHtml);
-        Assert.Contains("Add name mapping", apiEndpointsHtml);
-        Assert.Contains("type=cloudshell.loadBalancer", apiEndpointsHtml);
-        Assert.Contains("targetResourceId=application%3Aapplication-topology-api", apiEndpointsHtml);
-        Assert.Contains("targetEndpointName=http", apiEndpointsHtml);
-        Assert.Contains("returnUrl=%2Fresources%2Fapplication%253Aapplication-topology-api%2Fendpoints", apiEndpointsHtml);
-
-        var apiDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details");
-        Assert.Contains(">Identity<", apiDetailsHtml);
-        Assert.Contains("ASP.NET Core project / application-topology-api", apiDetailsHtml);
-        Assert.DoesNotContain("ASP.NET Core project / application:application-topology-api", apiDetailsHtml);
-        Assert.Contains("Action readiness", apiDetailsHtml);
-        Assert.Contains("Start preflight checks passed.", apiDetailsHtml);
-        Assert.Contains("Resource status", apiDetailsHtml);
-        Assert.Contains("Resource health", apiDetailsHtml);
-        Assert.Contains("Startup declaration", apiDetailsHtml);
-        Assert.Contains("Declared by code for this host process.", apiDetailsHtml);
-        Assert.Contains("UI changes are temporary until the resource is persisted.", apiDetailsHtml);
-        Assert.Contains(">Dependency graph<", apiDetailsHtml);
-        Assert.Contains(">Depends on<", apiDetailsHtml);
-        Assert.Contains(">Used by<", apiDetailsHtml);
-        Assert.Contains("application-topology-sql-server", apiDetailsHtml);
-        Assert.Contains("application-topology-frontend", apiDetailsHtml);
-        Assert.Contains(">Settings<", apiDetailsHtml);
-        Assert.Contains(">Secrets<", apiDetailsHtml);
-        Assert.Contains("application.sql-server", apiDetailsHtml);
-        Assert.Contains("Environment references", apiDetailsHtml);
-        Assert.Contains("ApplicationTopology__Message", apiDetailsHtml);
-        Assert.Contains("Configuration entry", apiDetailsHtml);
-        Assert.Contains("Settings / ApplicationTopology:Message", apiDetailsHtml);
-        Assert.Contains($"Settings; requires {ConfigurationStoreResourceOperationPermissions.ReadEntries} for application-topology-api", apiDetailsHtml);
-        Assert.Contains("ApplicationTopology__SqlServer__Password", apiDetailsHtml);
-        Assert.Contains("ApplicationTopology__ExternalApiKey", apiDetailsHtml);
-        Assert.Contains("Secret reference", apiDetailsHtml);
-        Assert.Contains("Secrets / external-api-key", apiDetailsHtml);
-        Assert.Contains($"Secrets; requires {SecretsVaultResourceOperationPermissions.ReadSecrets} for application-topology-api", apiDetailsHtml);
-        Assert.DoesNotContain("configuration:application-topology; requires", apiDetailsHtml);
-        Assert.DoesNotContain("secrets-vault:application-topology; requires", apiDetailsHtml);
-        Assert.Contains(">Hidden<", apiDetailsHtml);
-        Assert.Contains(">Granted<", apiDetailsHtml);
-        Assert.Contains("Resource identity", apiDetailsHtml);
-        Assert.Contains("Access control", apiDetailsHtml);
-        Assert.Contains("application-topology-api", apiDetailsHtml);
-        Assert.Contains("Provider: identity:development", apiDetailsHtml);
-        Assert.Contains("Provisioned", apiDetailsHtml);
-        Assert.Contains("Built-in resource identity client is registered.", apiDetailsHtml);
-        Assert.Contains(ConfigurationStoreResourceOperationPermissions.ReadEntries, apiDetailsHtml);
-        Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, apiDetailsHtml);
-        Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/logs", apiDetailsHtml);
-        Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/traces\"", apiDetailsHtml);
-        Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/recovery\"", apiDetailsHtml);
-        Assert.DoesNotContain("href=\"/logs?resourceId=application%3Aapplication-topology-api", apiDetailsHtml);
-        Assert.DoesNotContain("href=\"/observability/traces?resourceId=application%3Aapplication-topology-api", apiDetailsHtml);
-        Assert.DoesNotContain("CloudShell-Passw0rd!", apiDetailsHtml);
-        Assert.DoesNotContain("local-development-api-key", apiDetailsHtml);
-
-        var healthHtml = await host.GetStringAsync("/health");
-        Assert.Contains("Review configured resource health checks", healthHtml);
-        Assert.Contains("application-topology-api", healthHtml);
-        Assert.Contains("application-topology-frontend", healthHtml);
-        Assert.Contains("/health", healthHtml);
-        Assert.Contains("/healthz", healthHtml);
-        Assert.Contains("Recent polling", healthHtml);
-
-        var apiHealthHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Health.Value)}");
-        Assert.Contains(">Health<", apiHealthHtml);
-        Assert.Contains("Health summary", apiHealthHtml);
-        Assert.Contains("Auto-refresh", apiHealthHtml);
-        Assert.Contains("Recent polling", apiHealthHtml);
-        Assert.Contains("/health", apiHealthHtml);
-        Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/recovery\"", apiHealthHtml);
-
-        var apiRecoveryHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Recovery.Value)}");
-        Assert.Contains(">Recovery<", apiRecoveryHtml);
-        Assert.Contains("Recovery summary", apiRecoveryHtml);
-        Assert.Contains("Waiting for signal", apiRecoveryHtml);
-        Assert.Contains("Enabled", apiRecoveryHtml);
-        Assert.Contains("Liveness signal", apiRecoveryHtml);
-        Assert.Contains("liveness (Liveness)", apiRecoveryHtml);
-        Assert.Contains("3 consecutive failed observation(s)", apiRecoveryHtml);
-        Assert.Contains("5s initial, 60s max, multiplier 2", apiRecoveryHtml);
-        Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/health\"", apiRecoveryHtml);
-        Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/activity\"", apiRecoveryHtml);
-
-        var frontendHealthHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Health.Value)}");
-        Assert.Contains(">Health<", frontendHealthHtml);
-        Assert.Contains("Health summary", frontendHealthHtml);
-        Assert.Contains("/healthz", frontendHealthHtml);
-
-        var settingsHtml = await host.GetStringAsync("/settings");
-        Assert.Contains(">Settings<", settingsHtml);
-        Assert.Contains(">Overview<", settingsHtml);
-        Assert.Contains(">Users<", settingsHtml);
-        Assert.Contains(">Extensions<", settingsHtml);
-        Assert.Contains(">General<", settingsHtml);
-        Assert.Contains(">Orchestration<", settingsHtml);
-        Assert.Contains(">Resource Management<", settingsHtml);
-        Assert.Contains("Settings composition", settingsHtml);
-
-        var usersSettingsHtml = await host.GetStringAsync("/settings/users");
-        Assert.Contains(">Users<", usersSettingsHtml);
-        Assert.Contains("Settings section", usersSettingsHtml);
-
-        var extensionsSettingsHtml = await host.GetStringAsync("/settings/extensions");
-        Assert.Contains(">Extensions<", extensionsSettingsHtml);
-        Assert.Contains("Shell extensions", extensionsSettingsHtml);
-
-        var resourceManagerSettingsHtml = await host.GetStringAsync("/settings/resource-manager");
-        Assert.Contains(">General<", resourceManagerSettingsHtml);
-        Assert.Contains("Resource labels", resourceManagerSettingsHtml);
-        Assert.Contains("Inventory visibility", resourceManagerSettingsHtml);
-
-        var resourceManagerOrchestrationSettingsHtml = await host.GetStringAsync("/settings/resource-manager-orchestration");
-        Assert.Contains(">Orchestration<", resourceManagerOrchestrationSettingsHtml);
-        Assert.Contains(">Orchestrator<", resourceManagerOrchestrationSettingsHtml);
-        Assert.Contains("CloudShell modes", resourceManagerOrchestrationSettingsHtml);
-        Assert.Contains("Health check interval", resourceManagerOrchestrationSettingsHtml);
-
-        var missingSettingsSectionHtml = await host.GetStringAsync("/settings/does-not-exist");
-        Assert.Contains("Section not found", missingSettingsSectionHtml);
-        Assert.Contains("Section &#x27;does-not-exist&#x27; is not available.", missingSettingsSectionHtml);
-        Assert.Contains("Open overview", missingSettingsSectionHtml);
-        Assert.Contains("href=\"/settings\"", missingSettingsSectionHtml);
-
-        var settingsDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("configuration:application-topology")}/details");
-        Assert.Contains(">Relationships<", settingsDetailsHtml);
-        Assert.Contains(">Used by<", settingsDetailsHtml);
-        Assert.Contains("application-topology-api", settingsDetailsHtml);
-
-        var settingsIdentityHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("configuration:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");
-        Assert.Contains("Enable identity", settingsIdentityHtml);
-        Assert.Contains("Provisioned", settingsIdentityHtml);
-        Assert.Contains("Built-in resource identity client is registered.", settingsIdentityHtml);
-        Assert.Contains("application-topology-api / application-topology-api", settingsIdentityHtml);
-        Assert.Contains(ConfigurationStoreResourceOperationPermissions.ReadEntries, settingsIdentityHtml);
-
-        var settingsAccessControlHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("configuration:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
-        Assert.Contains("Search principals", settingsAccessControlHtml);
-        Assert.Contains("Assigned principals", settingsAccessControlHtml);
-        Assert.Contains("Configuration entries: read", settingsAccessControlHtml);
-        Assert.Contains("application-topology-api", settingsAccessControlHtml);
-        Assert.Contains(ConfigurationStoreResourceOperationPermissions.ReadEntries, settingsAccessControlHtml);
-        Assert.DoesNotContain("Secrets: read", settingsAccessControlHtml);
-
-        var secretsDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("secrets-vault:application-topology")}/details");
-        Assert.Contains(">Relationships<", secretsDetailsHtml);
-        Assert.Contains(">Used by<", secretsDetailsHtml);
-        Assert.Contains("application-topology-api", secretsDetailsHtml);
-
-        var secretsIdentityHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("secrets-vault:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");
-        Assert.Contains("Enable identity", secretsIdentityHtml);
-        Assert.Contains("Provisioned", secretsIdentityHtml);
-        Assert.Contains("Built-in resource identity client is registered.", secretsIdentityHtml);
-        Assert.Contains("application-topology-api / application-topology-api", secretsIdentityHtml);
-        Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, secretsIdentityHtml);
-
-        var secretsAccessControlHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("secrets-vault:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
-        Assert.Contains("Search principals", secretsAccessControlHtml);
-        Assert.Contains("Assigned principals", secretsAccessControlHtml);
-        Assert.Contains("Secrets: read", secretsAccessControlHtml);
-        Assert.Contains("application-topology-api", secretsAccessControlHtml);
-        Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, secretsAccessControlHtml);
-        Assert.DoesNotContain("Configuration entries: read", secretsAccessControlHtml);
-
-        var apiMonitoringHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Monitoring.Value)}");
-        Assert.Contains("Auto-refresh", apiMonitoringHtml);
-        Assert.Contains(">Monitoring<", apiMonitoringHtml);
-        Assert.DoesNotContain(">Refresh<", apiMonitoringHtml);
-
-        var apiEnvironmentHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Environment.Value)}");
-        Assert.Contains("Startup declaration", apiEnvironmentHtml);
-        Assert.Contains("Declared by code for this host process.", apiEnvironmentHtml);
-        Assert.Contains("ApplicationTopology__SqlServer__Database", apiEnvironmentHtml);
-        Assert.Contains("application_topology", apiEnvironmentHtml);
-        Assert.Contains("ApplicationTopology__SqlServer__Authentication", apiEnvironmentHtml);
-        Assert.Contains("CloudShell", apiEnvironmentHtml);
-        Assert.Contains("ApplicationTopology__SqlServer__ResourceName", apiEnvironmentHtml);
-        Assert.Contains("application-topology-sql-server", apiEnvironmentHtml);
-        Assert.Contains("CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT", apiEnvironmentHtml);
-        Assert.Contains("ApplicationTopology__SqlServer__Password", apiEnvironmentHtml);
-        Assert.Contains("Stored value hidden", apiEnvironmentHtml);
-        Assert.DoesNotContain("CloudShell-Passw0rd!", apiEnvironmentHtml);
-
-        var frontendAccessControlHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
-        Assert.Contains("Search principals", frontendAccessControlHtml);
-        Assert.Contains("Assigned principals", frontendAccessControlHtml);
-        Assert.Contains("Select a permission", frontendAccessControlHtml);
-        Assert.DoesNotContain("Identity required", frontendAccessControlHtml);
-        Assert.DoesNotContain("Set up an identity for this resource before assigning access permissions.", frontendAccessControlHtml);
-        Assert.DoesNotContain("Open Identity", frontendAccessControlHtml);
-
-        var frontendIdentityHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");
-        Assert.Contains("Enable identity", frontendIdentityHtml);
-        Assert.Contains("Identity not enabled", frontendIdentityHtml);
-        Assert.Contains("Enable identity for this resource before provisioning identity or assigning access permissions.", frontendIdentityHtml);
-
-        var frontendDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details");
-        Assert.Contains(">Identity<", frontendDetailsHtml);
-        Assert.Contains("ASP.NET Core project / application-topology-frontend", frontendDetailsHtml);
-        Assert.DoesNotContain("ASP.NET Core project / application:application-topology-frontend", frontendDetailsHtml);
-        Assert.Contains("Access control", frontendDetailsHtml);
-        Assert.Contains(">Dependency graph<", frontendDetailsHtml);
-        Assert.Contains(">Depends on<", frontendDetailsHtml);
-        Assert.Contains(">Used by<", frontendDetailsHtml);
-        Assert.Contains("application-topology-api", frontendDetailsHtml);
-        Assert.Contains("application.aspnet-core-project", frontendDetailsHtml);
-        Assert.Contains("app.application-topology.cloudshell.local", frontendDetailsHtml);
-        Assert.Contains("app.application-topology.cloudshell.local -&gt; application-topology-frontend/http", frontendDetailsHtml);
-        Assert.Contains("Zone: Local DNS", frontendDetailsHtml);
-        Assert.Contains("Provider: local-hostnames", frontendDetailsHtml);
-        Assert.Contains("Materialization: provider selected", frontendDetailsHtml);
-
-        var frontendDetailsRouteHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}");
-        Assert.Contains(">Identity<", frontendDetailsRouteHtml);
-        Assert.Contains("application-topology-api", frontendDetailsRouteHtml);
-
-        var frontendOverviewRouteHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/overview");
-        Assert.Contains(">Identity<", frontendOverviewRouteHtml);
-        Assert.Contains("application-topology-api", frontendOverviewRouteHtml);
-
-        var dnsDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("dns:application-topology-local")}/details");
-        Assert.Contains("app.application-topology.cloudshell.local", dnsDetailsHtml);
-        Assert.Contains("application-topology-frontend/http", dnsDetailsHtml);
-        Assert.DoesNotContain("application:application-topology-frontend/http", dnsDetailsHtml);
-        Assert.Contains("local-hostnames", dnsDetailsHtml);
-
-        var sqlEndpointsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");
-        Assert.Contains("Application exposure", sqlEndpointsHtml);
-        Assert.Contains("type=cloudshell.loadBalancer", sqlEndpointsHtml);
-        Assert.Contains("targetResourceId=application%3Aapplication-topology-sql-server", sqlEndpointsHtml);
-        Assert.Contains("targetEndpointName=tds", sqlEndpointsHtml);
-        Assert.Contains("routeKind=tcp", sqlEndpointsHtml);
-        Assert.Contains("returnUrl=%2Fresources%2Fapplication%253Aapplication-topology-sql-server%2Fendpoints", sqlEndpointsHtml);
-
-        var globalLogsHtml = await host.GetStringAsync("/logs");
-        Assert.Contains("All resources", globalLogsHtml);
-        Assert.Contains(">All logs<", globalLogsHtml);
-        Assert.Contains("application-topology-api / Console logs", globalLogsHtml);
-        Assert.Contains("application-topology-frontend / Console logs", globalLogsHtml);
-        Assert.DoesNotContain(" / Activity", globalLogsHtml);
-
-        var selectedLogHtml = await host.GetStringAsync(
-            $"/logs?logSourceId={Uri.EscapeDataString("application:application-topology-api:logs")}");
-        Assert.Contains("All resources", selectedLogHtml);
-        Assert.Contains("application-topology-api / Console logs", selectedLogHtml);
-        Assert.Contains("application-topology-frontend / Console logs", selectedLogHtml);
-
-        var apiLogsHtml = await host.GetStringAsync(
-            $"/logs?resourceId={Uri.EscapeDataString("application:application-topology-api")}");
-        Assert.Contains("All resources", apiLogsHtml);
-        Assert.Contains("application-topology-api / Console logs", apiLogsHtml);
-        Assert.DoesNotContain("application-topology-frontend / Console logs", apiLogsHtml);
-
-        var missingLogHtml = await host.GetStringAsync(
-            $"/logs?logSourceId={Uri.EscapeDataString("application:application-topology-missing:logs")}");
-        Assert.Contains("Log source not found", missingLogHtml);
-        Assert.Contains("application:application-topology-missing:logs", missingLogHtml);
-        Assert.Contains("Show available logs", missingLogHtml);
-
-        var missingResourceLogFilterHtml = await host.GetStringAsync(
-            $"/logs?resourceId={Uri.EscapeDataString("application:application-topology-missing")}");
-        Assert.Contains("Resource log filter not found", missingResourceLogFilterHtml);
-        Assert.Contains("application-topology-missing", missingResourceLogFilterHtml);
-        Assert.Contains("Show all logs", missingResourceLogFilterHtml);
-
-        var inlineApiLogsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}");
-        Assert.Contains("application-topology-api / Console logs", inlineApiLogsHtml);
-        Assert.DoesNotContain("All resources", inlineApiLogsHtml);
-        Assert.DoesNotContain("Resource telemetry", inlineApiLogsHtml);
-        Assert.DoesNotContain("application-topology-frontend / Console logs", inlineApiLogsHtml);
-
-        var missingInlineLogHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}&logSourceId={Uri.EscapeDataString("application:application-topology-missing:logs")}");
-        Assert.Contains("Log source not found", missingInlineLogHtml);
-        Assert.Contains("application:application-topology-missing:logs", missingInlineLogHtml);
-        Assert.Contains("Show available logs", missingInlineLogHtml);
-
-        var missingResourceViewHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString("management:does-not-exist")}");
-        Assert.Contains("Resource view not found", missingResourceViewHtml);
-        Assert.Contains("management:does-not-exist", missingResourceViewHtml);
-        Assert.Contains("Open overview", missingResourceViewHtml);
-
-        var missingResourceHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:does-not-exist")}/details");
-        Assert.Contains("Resource not found", missingResourceHtml);
-        Assert.Contains("application:does-not-exist", missingResourceHtml);
-        Assert.Contains("Open Resources", missingResourceHtml);
-
-        var sqlDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details");
-        Assert.Contains(">Identity<", sqlDetailsHtml);
-        Assert.Contains("Access control", sqlDetailsHtml);
-        Assert.Contains("SQL Server", sqlDetailsHtml);
-        Assert.Contains("SQL Server / application-topology-sql-server", sqlDetailsHtml);
-        Assert.DoesNotContain("SQL Server / application:application-topology-sql-server", sqlDetailsHtml);
-        Assert.Contains("1 declared database", sqlDetailsHtml);
-        Assert.Contains("Administrator", sqlDetailsHtml);
-        Assert.Contains("Storage mounts", sqlDetailsHtml);
-        Assert.Contains("SQL Data (FileSystem)", sqlDetailsHtml);
-        Assert.Contains("/var/opt/mssql", sqlDetailsHtml);
-        Assert.Contains("Read/write", sqlDetailsHtml);
-        Assert.Contains("Database grants are recorded in CloudShell.", sqlDetailsHtml);
-        Assert.Contains("Reconcile access to create SQL-side users and roles", sqlDetailsHtml);
-        Assert.Contains("procedure-message warning", sqlDetailsHtml);
-        Assert.DoesNotContain("<dt>Image</dt>", sqlDetailsHtml);
-        Assert.DoesNotContain("<h3>Container host</h3>", sqlDetailsHtml);
-        AssertResourceTabsInOrder(
-            sqlDetailsHtml,
-            ">Overview<",
-            ">Configuration<",
-            ">Endpoints<",
-            ">DNS<",
-            ">Storage<",
-            ">Databases<",
-            ">Environment<",
-            ">Identity<",
-            ">Access control<",
-            ">Activity<");
-        Assert.DoesNotContain(">Deployment<", sqlDetailsHtml);
-        Assert.DoesNotContain(">Scale and replicas<", sqlDetailsHtml);
-
-        var databasesTabId = new ResourceViewId(ResourceTabGroupIds.Application, "databases");
-        var sqlDatabasesHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(databasesTabId.Value)}");
-        Assert.Contains("<th>Database</th>", sqlDatabasesHtml);
-        Assert.Contains("<th>Type</th>", sqlDatabasesHtml);
-        Assert.Contains("<th>State</th>", sqlDatabasesHtml);
-        Assert.Contains("<th>Verification</th>", sqlDatabasesHtml);
-        Assert.Contains("Application Topology", sqlDatabasesHtml);
-        Assert.Contains("Declared database", sqlDatabasesHtml);
-        Assert.Contains("application_topology", sqlDatabasesHtml);
-        Assert.Contains("not reported", sqlDatabasesHtml);
-        Assert.Contains("Existence not verified", sqlDatabasesHtml);
-        Assert.Contains("Declared databases are shown until the SQL Server instance is running.", sqlDatabasesHtml);
-
-        var sqlIdentityHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");
-        Assert.Contains("Enable identity", sqlIdentityHtml);
-        Assert.Contains("Provisioned", sqlIdentityHtml);
-        Assert.Contains("Built-in resource identity client is registered.", sqlIdentityHtml);
-        Assert.Contains("application-topology-api / application-topology-api", sqlIdentityHtml);
-        Assert.Contains(DatabaseResourceOperationPermissions.ReadWrite, sqlIdentityHtml);
-
-        var sqlAccessControlHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
-        Assert.Contains("Search principals", sqlAccessControlHtml);
-        Assert.Contains("Assigned principals", sqlAccessControlHtml);
-        Assert.Contains("Database grants are saved in CloudShell.", sqlAccessControlHtml);
-        Assert.Contains("Reconcile access to create SQL-side users and roles", sqlAccessControlHtml);
-        Assert.Contains("procedure-message warning", sqlAccessControlHtml);
-        Assert.Contains("Database: read/write", sqlAccessControlHtml);
-        Assert.Contains("Database access: reconcile", sqlAccessControlHtml);
-        Assert.Contains("Effective access: pending", sqlAccessControlHtml);
-        Assert.Contains("Start SQL Server to inspect or reconcile database users and roles.", sqlAccessControlHtml);
-        Assert.Contains("application-topology-api", sqlAccessControlHtml);
-        Assert.Contains(DatabaseResourceOperationPermissions.ReadWrite, sqlAccessControlHtml);
-        Assert.Contains(DatabaseResourceOperationPermissions.ReconcileAccess, sqlAccessControlHtml);
-        Assert.DoesNotContain("Deploy image", sqlAccessControlHtml);
-    }
 
     [Fact]
     public void ApplicationTopologyFailureProblemExtensions_IncludeTraceResourceAndUpstreamStatus()
@@ -1378,119 +595,6 @@ public sealed class SampleSmokeTests
         Assert.Equal(activity.TraceId.ToHexString(), extensions["traceId"]);
     }
 
-    [Fact]
-    public async Task ApplicationTopologyHost_RuntimeFailurePathReturnsCorrelatedProblemDetails()
-    {
-        var apiPort = await GetFreePortAsync();
-        var frontendPort = await GetFreePortAsync();
-        var graphApiPort = await GetFreePortAsync();
-        var graphFrontendPort = await GetFreePortAsync();
-        var sqlPort = await GetFreePortAsync();
-        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
-        var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
-        using var host = await SampleProcess.StartAsync(
-            "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
-            await GetFreePortAsync(),
-            [
-                ("ApplicationTopology__GraphOnly", "false"),
-                ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
-                ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
-                ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
-                ("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{graphFrontendPort}"),
-                ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
-                ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
-                ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
-            ]);
-
-        await host.WaitForHttpOkAsync("/", StartupTimeout);
-        await host.SendAsync(
-            HttpMethod.Post,
-            "/api/control-plane/v1/resources/application%3Aapplication-topology-api/actions/start?startDependencies=false&ignoreDependentWarning=true");
-
-        var startedApiJson = await host.GetStringAsync("/api/control-plane/v1/resources");
-        using var startedApiDocument = JsonDocument.Parse(startedApiJson);
-        var api = Assert.Single(startedApiDocument.RootElement.EnumerateArray(), resource =>
-            resource.GetProperty("id").GetString() == "application:application-topology-api");
-        var apiEndpoint = GetPrimaryEndpointAddress(api);
-        var apiFailureJson = await host.WaitForAbsoluteHttpStatusAsync(
-            $"{apiEndpoint.TrimEnd('/')}/failure",
-            HttpStatusCode.InternalServerError,
-            StartupTimeout);
-        using var apiFailureDocument = JsonDocument.Parse(apiFailureJson);
-        Assert.Equal("Intentional sample failure", apiFailureDocument.RootElement.GetProperty("title").GetString());
-        Assert.Equal("application-topology-api", apiFailureDocument.RootElement.GetProperty("resourceName").GetString());
-        Assert.Equal("intentional", apiFailureDocument.RootElement.GetProperty("sampleFailureKind").GetString());
-        Assert.Matches("^[0-9a-f]{32}$", apiFailureDocument.RootElement.GetProperty("traceId").GetString() ?? string.Empty);
-
-        await host.SendAsync(
-            HttpMethod.Post,
-            "/api/control-plane/v1/resources/application%3Aapplication-topology-frontend/actions/start?startDependencies=false&ignoreDependentWarning=true");
-
-        var frontendFailureJson = await host.WaitForAbsoluteHttpStatusAsync(
-            $"http://localhost:{frontendPort}/upstream/failure",
-            HttpStatusCode.BadGateway,
-            StartupTimeout);
-        using var frontendFailureDocument = JsonDocument.Parse(frontendFailureJson);
-        Assert.Equal("Intentional upstream failure", frontendFailureDocument.RootElement.GetProperty("title").GetString());
-        Assert.Equal("application-topology-frontend", frontendFailureDocument.RootElement.GetProperty("resourceName").GetString());
-        Assert.Equal("intentional", frontendFailureDocument.RootElement.GetProperty("sampleFailureKind").GetString());
-        Assert.Equal(500, frontendFailureDocument.RootElement.GetProperty("upstreamStatusCode").GetInt32());
-        Assert.Matches("^[0-9a-f]{32}$", frontendFailureDocument.RootElement.GetProperty("traceId").GetString() ?? string.Empty);
-
-        var fallbackJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
-            $"http://localhost:{frontendPort}/upstream/fallback",
-            StartupTimeout);
-        using var fallbackDocument = JsonDocument.Parse(fallbackJson);
-        var fallback = fallbackDocument.RootElement;
-        var fallbackTraceId = fallback.GetProperty("traceId").GetString();
-        Assert.Equal("Application Topology Frontend", fallback.GetProperty("frontend").GetString());
-        Assert.Equal(500, fallback.GetProperty("fallback").GetProperty("failedAttemptStatusCode").GetInt32());
-        Assert.True(fallback.GetProperty("fallback").GetProperty("recovered").GetBoolean());
-        Assert.Equal("Hello from the referenced API project.", fallback.GetProperty("upstream").GetProperty("message").GetString());
-        Assert.Matches("^[0-9a-f]{32}$", fallbackTraceId ?? string.Empty);
-
-        var fallbackSpans = await WaitForTraceSpansAsync(
-            host,
-            fallbackTraceId!,
-            StartupTimeout,
-            spans =>
-                spans.Any(span => IsHttpClientSpanForPath(span, "/failure", "Error")) &&
-                spans.Any(span => IsHttpClientSpanForPath(span, "/message", "Unset")));
-        Assert.Contains(
-            fallbackSpans,
-            span =>
-                IsHttpClientSpanForPath(span, "/failure", "Error"));
-        Assert.Contains(
-            fallbackSpans,
-            span => IsHttpClientSpanForPath(span, "/message", "Unset"));
-
-        var fallbackTraceListHtml = await host.GetStringAsync(
-            $"/observability/traces?resourceId={Uri.EscapeDataString("application:application-topology-frontend")}");
-        Assert.Contains("GET /upstream/fallback", fallbackTraceListHtml);
-        Assert.Contains("recent-trace-item attention", fallbackTraceListHtml);
-        Assert.Contains("Needs attention: 1 error span(s)", fallbackTraceListHtml);
-
-        var frontendMetrics = await WaitForMetricPointsAsync(
-            host,
-            "application:application-topology-frontend",
-            StartupTimeout,
-            points =>
-                points.Any(point => IsHttpMetricForPath(point, "http.server.requests", "/upstream/fallback")) &&
-                points.Any(point => IsHttpMetricForPath(point, "http.server.duration", "/upstream/fallback")));
-        Assert.Contains(
-            frontendMetrics,
-            point => IsHttpMetricForPath(point, "http.server.requests", "/upstream/fallback"));
-        Assert.Contains(
-            frontendMetrics,
-            point => IsHttpMetricForPath(point, "http.server.duration", "/upstream/fallback"));
-
-        var frontendMetricsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}");
-        Assert.Contains("Telemetry", frontendMetricsHtml);
-        Assert.Contains("http.server.requests", frontendMetricsHtml);
-        Assert.Contains("http.server.duration", frontendMetricsHtml);
-        Assert.Contains("application-topology-frontend", frontendMetricsHtml);
-    }
 
     [Fact]
     public async Task ApplicationTopologyHost_GraphBackingServicesRunThroughResourceModelRuntime()
@@ -1525,11 +629,11 @@ public sealed class SampleSmokeTests
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
         var graphSettings = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "configuration.store:graph-application-topology-settings");
+            resource.GetProperty("id").GetString() == "configuration.store:application-topology-settings");
         var graphSecrets = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "secrets.vault:graph-application-topology-secrets");
+            resource.GetProperty("id").GetString() == "secrets.vault:application-topology-secrets");
         var graphApi = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-application-topology-api");
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:application-topology-api");
 
         var graphSettingsEndpoint = GetEndpointAddress(graphSettings, "entries");
         var graphSecretsEndpointAddress = GetEndpointAddress(graphSecrets, "secrets");
@@ -1538,7 +642,7 @@ public sealed class SampleSmokeTests
             graphSettingsEndpoint,
             StringComparison.Ordinal);
         Assert.EndsWith(
-            $"/api/configuration/stores/{Uri.EscapeDataString("configuration.store:graph-application-topology-settings")}/entries",
+            $"/api/configuration/stores/{Uri.EscapeDataString("configuration.store:application-topology-settings")}/entries",
             graphSettingsEndpoint,
             StringComparison.Ordinal);
         Assert.StartsWith(
@@ -1546,11 +650,11 @@ public sealed class SampleSmokeTests
             graphSecretsEndpointAddress,
             StringComparison.Ordinal);
         Assert.EndsWith(
-            $"/api/secrets/vaults/{Uri.EscapeDataString("secrets.vault:graph-application-topology-secrets")}/secrets",
+            $"/api/secrets/vaults/{Uri.EscapeDataString("secrets.vault:application-topology-secrets")}/secrets",
             graphSecretsEndpointAddress,
             StringComparison.Ordinal);
-        await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology graph settings");
-        await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology graph secrets");
+        await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology settings");
+        await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology secrets");
         await host.WaitForAbsoluteHttpOkAsync(
             $"{graphConfigurationEndpoint}/healthz",
             bearerToken: null,
@@ -1561,7 +665,7 @@ public sealed class SampleSmokeTests
             StartupTimeout);
 
         var graphResourceToken = await host.GetClientCredentialsTokenAsync(
-            "application.aspnet-core-project:graph-application-topology-api/graph-application-topology-api",
+            "application.aspnet-core-project:application-topology-api/application-topology-api",
             "local-development-application-topology-api-secret",
             "ControlPlane.Access");
         var graphSettingsJson = await host.GetAbsoluteStringAsync(
@@ -1587,7 +691,7 @@ public sealed class SampleSmokeTests
             "graph-local-development-api-key",
             graphSecretDocument.RootElement.GetProperty("value").GetString());
 
-        await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology graph API");
+        await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology API");
         await host.WaitForAbsoluteHttpOkAsync(
             $"http://localhost:{graphApiPort}/health",
             bearerToken: null,
@@ -1602,7 +706,7 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
-    public async Task ApplicationTopologyHost_GraphOnlyModeDeclaresWorkloadThroughResourceModel()
+    public async Task ApplicationTopologyHost_DeclaresWorkloadThroughResourceModel()
     {
         var apiPort = await GetFreePortAsync();
         var frontendPort = await GetFreePortAsync();
@@ -1634,23 +738,23 @@ public sealed class SampleSmokeTests
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
         var graphStorage = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "cloudshell.storage:graph-application-topology-local");
+            resource.GetProperty("id").GetString() == "cloudshell.storage:application-topology-local");
         var graphVolume = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "cloudshell.volume:graph-application-topology-sql-data");
+            resource.GetProperty("id").GetString() == "cloudshell.volume:application-topology-sql-data");
         var graphSqlServer = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.sql-server:graph-application-topology-sql-server");
+            resource.GetProperty("id").GetString() == "application.sql-server:application-topology-sql-server");
         var graphDatabase = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.sql-database:graph-application-topology-db");
+            resource.GetProperty("id").GetString() == "application.sql-database:application-topology-db");
         var graphSettings = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "configuration.store:graph-application-topology-settings");
+            resource.GetProperty("id").GetString() == "configuration.store:application-topology-settings");
         var graphSecrets = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "secrets.vault:graph-application-topology-secrets");
+            resource.GetProperty("id").GetString() == "secrets.vault:application-topology-secrets");
         var graphApi = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-application-topology-api");
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:application-topology-api");
         var graphFrontend = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-application-topology-frontend");
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:application-topology-frontend");
         var graphHostConfiguration = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "configuration.host:graph-application-topology-host-settings");
+            resource.GetProperty("id").GetString() == "configuration.host:application-topology-host-settings");
         var nameMapping = Assert.Single(resources, resource =>
             resource.GetProperty("typeId").GetString() == PlatformResourceProvider.NameMappingResourceType
             && resource.GetProperty("attributes")
@@ -1678,7 +782,7 @@ public sealed class SampleSmokeTests
         }
 
         Assert.Equal(
-            "application.aspnet-core-project:graph-application-topology-frontend",
+            "application.aspnet-core-project:application-topology-frontend",
             nameMapping.GetProperty("attributes")
                 .GetProperty(ResourceAttributeNames.NameMappingTargetResourceId)
                 .GetString());
@@ -1687,13 +791,13 @@ public sealed class SampleSmokeTests
         Assert.Equal("application.sql-server", graphSqlServer.GetProperty("typeId").GetString());
         Assert.Equal("application.sql-database", graphDatabase.GetProperty("typeId").GetString());
         Assert.Contains(
-            "cloudshell.storage:graph-application-topology-local",
+            "cloudshell.storage:application-topology-local",
             graphVolume.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
         Assert.Contains(
-            "cloudshell.volume:graph-application-topology-sql-data",
+            "cloudshell.volume:application-topology-sql-data",
             graphSqlServer.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
         Assert.Contains(
-            "application.sql-server:graph-application-topology-sql-server",
+            "application.sql-server:application-topology-sql-server",
             graphDatabase.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
         Assert.Equal($"localhost:{sqlPort}", GetEndpointAddress(graphSqlServer, "tds"));
         Assert.Equal("configuration.host", graphHostConfiguration.GetProperty("typeId").GetString());
@@ -1711,24 +815,24 @@ public sealed class SampleSmokeTests
                 .TryGetProperty(HostConfigurationSourceResourceTypeProvider.Operations.Inspect.ToString(), out _));
 
         var graphApiDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:graph-application-topology-api")}/details");
-        Assert.Contains("Graph Application Topology API", graphApiDetailsHtml);
+            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:application-topology-api")}/details");
+        Assert.Contains("Application Topology API", graphApiDetailsHtml);
         Assert.Contains("ASP.NET Core project", graphApiDetailsHtml);
         Assert.Contains("application.aspnet-core-project", graphApiDetailsHtml);
 
         var graphSqlDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application.sql-server:graph-application-topology-sql-server")}/details");
-        Assert.Contains("Graph Application Topology SQL Server", graphSqlDetailsHtml);
+            $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details");
+        Assert.Contains("Application Topology SQL Server", graphSqlDetailsHtml);
         Assert.Contains("SQL Server", graphSqlDetailsHtml);
         Assert.Contains("application.sql-server", graphSqlDetailsHtml);
 
         var graphApplicationAddHtml = await host.GetStringAsync(
             "/resources/add?type=application.aspnet-core-project");
-        Assert.Contains("Graph-backed application resources", graphApplicationAddHtml);
+        Assert.Contains("Resource model application resources", graphApplicationAddHtml);
         Assert.DoesNotContain("Resource type not found", graphApplicationAddHtml);
 
-        await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology graph-only settings");
-        await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology graph-only secrets");
+        await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology settings");
+        await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology secrets");
         await host.WaitForAbsoluteHttpOkAsync(
             $"{graphConfigurationEndpoint}/healthz",
             bearerToken: null,
@@ -1751,7 +855,7 @@ public sealed class SampleSmokeTests
         Assert.Equal("Graph", graphApiSettings.GetProperty("mode").GetString());
         Assert.True(graphApiSettings.GetProperty("externalApiKeyConfigured").GetBoolean());
 
-        await StartGraphResourceIfAvailableAsync(host, graphFrontend, "ApplicationTopology graph-only frontend");
+        await StartGraphResourceIfAvailableAsync(host, graphFrontend, "ApplicationTopology frontend");
         await host.WaitForAbsoluteHttpOkAsync(
             $"http://localhost:{graphFrontendPort}/healthz",
             bearerToken: null,
@@ -1760,7 +864,7 @@ public sealed class SampleSmokeTests
 
     [Fact]
     [Trait("Category", "DockerIntegration")]
-    public async Task ApplicationTopologyHost_GraphOnlyModeRunsSqlBackedWorkload()
+    public async Task ApplicationTopologyHost_RunsSqlBackedWorkload()
     {
         var sqlContainerName = ApplicationTopologyGraphSqlServerDockerBridge.GraphSqlServerContainerName;
         if (!await DockerComposeStack.IsAvailableAsync() ||
@@ -1808,45 +912,45 @@ public sealed class SampleSmokeTests
             var graphStorage = Assert.Single(
                 resources,
                 resource => resource.GetProperty("id").GetString() ==
-                    "cloudshell.storage:graph-application-topology-local");
+                    "cloudshell.storage:application-topology-local");
             var graphVolume = Assert.Single(
                 resources,
                 resource => resource.GetProperty("id").GetString() ==
-                    "cloudshell.volume:graph-application-topology-sql-data");
+                    "cloudshell.volume:application-topology-sql-data");
             var graphSqlServer = Assert.Single(
                 resources,
                 resource => resource.GetProperty("id").GetString() ==
-                    "application.sql-server:graph-application-topology-sql-server");
+                    "application.sql-server:application-topology-sql-server");
             var graphDatabase = Assert.Single(
                 resources,
                 resource => resource.GetProperty("id").GetString() ==
-                    "application.sql-database:graph-application-topology-db");
+                    "application.sql-database:application-topology-db");
             var graphSettings = Assert.Single(
                 resources,
                 resource => resource.GetProperty("id").GetString() ==
-                    "configuration.store:graph-application-topology-settings");
+                    "configuration.store:application-topology-settings");
             var graphSecrets = Assert.Single(
                 resources,
                 resource => resource.GetProperty("id").GetString() ==
-                    "secrets.vault:graph-application-topology-secrets");
+                    "secrets.vault:application-topology-secrets");
             var graphApi = Assert.Single(
                 resources,
                 resource => resource.GetProperty("id").GetString() ==
-                    "application.aspnet-core-project:graph-application-topology-api");
+                    "application.aspnet-core-project:application-topology-api");
             var graphFrontend = Assert.Single(
                 resources,
                 resource => resource.GetProperty("id").GetString() ==
-                    "application.aspnet-core-project:graph-application-topology-frontend");
+                    "application.aspnet-core-project:application-topology-frontend");
             Assert.Equal("cloudshell.storage", graphStorage.GetProperty("typeId").GetString());
             Assert.Equal("cloudshell.volume", graphVolume.GetProperty("typeId").GetString());
             Assert.Contains(
-                "cloudshell.storage:graph-application-topology-local",
+                "cloudshell.storage:application-topology-local",
                 graphVolume.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
 
-            await StartGraphResourceIfAvailableAsync(host, graphSqlServer, "ApplicationTopology graph-only SQL Server");
+            await StartGraphResourceIfAvailableAsync(host, graphSqlServer, "ApplicationTopology SQL Server");
             await WaitForResourceStateAsync(
                 host,
-                "application.sql-server:graph-application-topology-sql-server",
+                "application.sql-server:application-topology-sql-server",
                 ResourceState.Running,
                 StartupTimeout);
             Assert.True(
@@ -1862,18 +966,18 @@ public sealed class SampleSmokeTests
                 "sql-server");
             Assert.True(
                 Directory.Exists(sampleDataPath),
-                $"Expected graph storage-backed SQL data path '{sampleDataPath}' to be created.");
+                $"Expected resource-model storage-backed SQL data path '{sampleDataPath}' to be created.");
 
             var ensureCreatedHref = graphDatabase
                 .GetProperty("resourceActions")
                 .GetProperty(SqlDatabaseResourceTypeProvider.Operations.EnsureCreated.Value)
                 .GetProperty("href")
-                .GetString() ?? throw new InvalidOperationException("The graph SQL database ensure-created action did not include an href.");
+                .GetString() ?? throw new InvalidOperationException("The SQL database ensure-created action did not include an href.");
             await host.SendAsync(HttpMethod.Post, ensureCreatedHref);
 
-            await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology graph-only settings");
-            await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology graph-only secrets");
-            await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology graph-only API");
+            await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology settings");
+            await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology secrets");
+            await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology API");
             await host.WaitForAbsoluteHttpOkAsync(
                 $"http://localhost:{graphApiPort}/health",
                 bearerToken: null,
@@ -1886,7 +990,7 @@ public sealed class SampleSmokeTests
             Assert.Equal("mssql", graphDatabaseDocument.RootElement.GetProperty("provider").GetString());
             Assert.Equal("application_topology", graphDatabaseDocument.RootElement.GetProperty("database").GetString());
 
-            await StartGraphResourceIfAvailableAsync(host, graphFrontend, "ApplicationTopology graph-only frontend");
+            await StartGraphResourceIfAvailableAsync(host, graphFrontend, "ApplicationTopology frontend");
             await host.WaitForAbsoluteHttpOkAsync(
                 $"http://localhost:{graphFrontendPort}/healthz",
                 bearerToken: null,
@@ -1905,24 +1009,24 @@ public sealed class SampleSmokeTests
             Assert.Equal("mssql", graphUpstream.GetProperty("database").GetProperty("provider").GetString());
             Assert.Equal("application_topology", graphUpstream.GetProperty("database").GetProperty("database").GetString());
 
-            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:graph-application-topology-frontend");
-            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:graph-application-topology-api");
-            await StopResourceIfRunningAsync(host, "application.sql-server:graph-application-topology-sql-server");
+            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:application-topology-frontend");
+            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:application-topology-api");
+            await StopResourceIfRunningAsync(host, "application.sql-server:application-topology-sql-server");
             await WaitForResourceStateAsync(
                 host,
-                "application.sql-server:graph-application-topology-sql-server",
+                "application.sql-server:application-topology-sql-server",
                 ResourceState.Stopped,
                 StartupTimeout);
             Assert.True(
                 await WaitForDockerContainerRemovedAsync(sqlContainerName, StartupTimeout),
-                $"Expected Docker container '{sqlContainerName}' to be removed after graph SQL stop.");
+                $"Expected Docker container '{sqlContainerName}' to be removed after SQL stop.");
             shouldCleanupSqlContainer = false;
         }
         finally
         {
-            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:graph-application-topology-frontend");
-            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:graph-application-topology-api");
-            await StopResourceIfRunningAsync(host, "application.sql-server:graph-application-topology-sql-server");
+            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:application-topology-frontend");
+            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:application-topology-api");
+            await StopResourceIfRunningAsync(host, "application.sql-server:application-topology-sql-server");
             if (shouldCleanupSqlContainer)
             {
                 await DockerComposeStack.RemoveContainerIfExistsAsync(sqlContainerName);
@@ -1932,9 +1036,9 @@ public sealed class SampleSmokeTests
 
     [Fact]
     [Trait("Category", "DockerIntegration")]
-    public async Task ApplicationTopologyHost_GraphOnlySqlRuntimeStopsOnGracefulHostShutdown()
+    public async Task ApplicationTopologyHost_SqlRuntimeStopsOnGracefulHostShutdown()
     {
-        const string graphSqlServerResourceId = "application.sql-server:graph-application-topology-sql-server";
+        const string graphSqlServerResourceId = "application.sql-server:application-topology-sql-server";
         var sqlContainerName = ApplicationTopologyGraphSqlServerDockerBridge.GraphSqlServerContainerName;
         if (!await DockerComposeStack.IsAvailableAsync() ||
             !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.DefaultSqlServerImage))
@@ -1978,7 +1082,7 @@ public sealed class SampleSmokeTests
                 resourcesDocument.RootElement.EnumerateArray(),
                 resource => resource.GetProperty("id").GetString() == graphSqlServerResourceId);
 
-            await StartGraphResourceIfAvailableAsync(host, graphSqlServer, "ApplicationTopology graph-only SQL Server");
+            await StartGraphResourceIfAvailableAsync(host, graphSqlServer, "ApplicationTopology SQL Server");
             await WaitForResourceStateAsync(
                 host,
                 graphSqlServerResourceId,
@@ -2000,328 +1104,6 @@ public sealed class SampleSmokeTests
         }
     }
 
-    [Fact]
-    [Trait("Category", "DockerIntegration")]
-    public async Task ApplicationTopologyHost_SqlInclusiveRuntimePathConnectsFrontendApiAndDatabase()
-    {
-        const string sqlContainerName = "cloudshell-application-application-topology-sql-server";
-        if (!await DockerComposeStack.IsAvailableAsync() ||
-            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.DefaultSqlServerImage) ||
-            await DockerComposeStack.ContainerExistsAsync(sqlContainerName))
-        {
-            return;
-        }
-
-        var apiPort = await GetFreePortAsync();
-        var frontendPort = await GetFreePortAsync();
-        var graphApiPort = await GetFreePortAsync();
-        var graphFrontendPort = await GetFreePortAsync();
-        var sqlPort = await GetFreePortAsync();
-        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
-        var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
-        var shouldCleanupSqlContainer = true;
-        using var host = await SampleProcess.StartAsync(
-            "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
-            await GetFreePortAsync(),
-            [
-                ("ApplicationTopology__GraphOnly", "false"),
-                ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
-                ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
-                ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
-                ("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{graphFrontendPort}"),
-                ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
-                ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
-                ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
-            ]);
-
-        try
-        {
-            await host.WaitForHttpOkAsync("/", StartupTimeout);
-
-            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
-            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
-            var graphSqlServer = Assert.Single(
-                resourcesDocument.RootElement.EnumerateArray(),
-                resource => resource.GetProperty("id").GetString() ==
-                    "application.sql-server:graph-application-topology-sql-server");
-            await StartGraphResourceIfAvailableAsync(host, graphSqlServer, "ApplicationTopology SQL Server");
-            await WaitForResourceStateAsync(
-                host,
-                "application:application-topology-sql-server",
-                ResourceState.Running,
-                StartupTimeout);
-            await WaitForResourceStateAsync(
-                host,
-                "application.sql-server:graph-application-topology-sql-server",
-                ResourceState.Running,
-                StartupTimeout);
-            Assert.True(
-                await WaitForDockerContainerExistsAsync(sqlContainerName, StartupTimeout),
-                $"Expected Docker container '{sqlContainerName}' to be created.");
-            var startedSqlContainerId = await DockerComposeStack.GetContainerIdAsync(sqlContainerName) ??
-                throw new InvalidOperationException(
-                    $"Docker container '{sqlContainerName}' did not have an inspectable id.");
-            await host.SendAsync(
-                HttpMethod.Post,
-                $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application.sql-server:graph-application-topology-sql-server")}/actions/restart?ignoreDependentWarning=true");
-            await WaitForResourceStateAsync(
-                host,
-                "application:application-topology-sql-server",
-                ResourceState.Running,
-                StartupTimeout);
-            await WaitForResourceStateAsync(
-                host,
-                "application.sql-server:graph-application-topology-sql-server",
-                ResourceState.Running,
-                StartupTimeout);
-            Assert.True(
-                await WaitForDockerContainerIdChangedAsync(
-                    sqlContainerName,
-                    startedSqlContainerId,
-                    StartupTimeout),
-                $"Expected Docker container '{sqlContainerName}' to be recreated after graph SQL restart.");
-
-            await host.SendAsync(
-                HttpMethod.Post,
-                "/api/control-plane/v1/resources/application%3Aapplication-topology-frontend/actions/start?startDependencies=true");
-
-            var upstreamJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
-                $"http://localhost:{frontendPort}/upstream",
-                StartupTimeout);
-            using var upstreamDocument = JsonDocument.Parse(upstreamJson);
-            var upstream = upstreamDocument.RootElement;
-            Assert.Equal("Application Topology Frontend", upstream.GetProperty("frontend").GetString());
-            Assert.Equal("https+http://application-topology-api", upstream.GetProperty("logicalApiEndpoint").GetString());
-            Assert.Equal("Hello from the referenced API project.", upstream.GetProperty("upstream").GetProperty("message").GetString());
-            Assert.Equal("Development", upstream.GetProperty("settings").GetProperty("mode").GetString());
-            Assert.True(upstream.GetProperty("settings").GetProperty("externalApiKeyConfigured").GetBoolean());
-            Assert.Equal("ok", upstream.GetProperty("database").GetProperty("status").GetString());
-            Assert.Equal("mssql", upstream.GetProperty("database").GetProperty("provider").GetString());
-            Assert.Equal("application_topology", upstream.GetProperty("database").GetProperty("database").GetString());
-
-            var graphDatabase = Assert.Single(
-                resourcesDocument.RootElement.EnumerateArray(),
-                resource => resource.GetProperty("id").GetString() ==
-                    "application.sql-database:graph-application-topology-db");
-            var graphApi = Assert.Single(
-                resourcesDocument.RootElement.EnumerateArray(),
-                resource => resource.GetProperty("id").GetString() ==
-                    "application.aspnet-core-project:graph-application-topology-api");
-            var graphFrontend = Assert.Single(
-                resourcesDocument.RootElement.EnumerateArray(),
-                resource => resource.GetProperty("id").GetString() ==
-                    "application.aspnet-core-project:graph-application-topology-frontend");
-            var ensureCreatedHref = graphDatabase
-                .GetProperty("resourceActions")
-                .GetProperty(SqlDatabaseResourceTypeProvider.Operations.EnsureCreated.Value)
-                .GetProperty("href")
-                .GetString() ?? throw new InvalidOperationException("The graph SQL database ensure-created action did not include an href.");
-            await host.SendAsync(HttpMethod.Post, ensureCreatedHref);
-
-            await StartGraphResourceIfAvailableAsync(host, Assert.Single(
-                resourcesDocument.RootElement.EnumerateArray(),
-                resource => resource.GetProperty("id").GetString() ==
-                    "configuration.store:graph-application-topology-settings"), "ApplicationTopology settings");
-            await StartGraphResourceIfAvailableAsync(host, Assert.Single(
-                resourcesDocument.RootElement.EnumerateArray(),
-                resource => resource.GetProperty("id").GetString() ==
-                    "secrets.vault:graph-application-topology-secrets"), "ApplicationTopology secrets");
-            await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology API");
-            await host.WaitForAbsoluteHttpOkAsync(
-                $"http://localhost:{graphApiPort}/health",
-                bearerToken: null,
-                StartupTimeout);
-            var graphSettingsJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
-                $"http://localhost:{graphApiPort}/settings",
-                StartupTimeout);
-            using var graphSettingsDocument = JsonDocument.Parse(graphSettingsJson);
-            var graphSettings = graphSettingsDocument.RootElement;
-            Assert.Equal("Hello from CloudShell graph configuration.", graphSettings.GetProperty("message").GetString());
-            Assert.Equal("Graph", graphSettings.GetProperty("mode").GetString());
-            Assert.True(graphSettings.GetProperty("externalApiKeyConfigured").GetBoolean());
-            var graphDatabaseJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
-                $"http://localhost:{graphApiPort}/database",
-                StartupTimeout);
-            using var graphDatabaseDocument = JsonDocument.Parse(graphDatabaseJson);
-            Assert.Equal("ok", graphDatabaseDocument.RootElement.GetProperty("status").GetString());
-            Assert.Equal("mssql", graphDatabaseDocument.RootElement.GetProperty("provider").GetString());
-            Assert.Equal("application_topology", graphDatabaseDocument.RootElement.GetProperty("database").GetString());
-
-            await StartGraphResourceIfAvailableAsync(host, graphFrontend, "ApplicationTopology Frontend");
-            await host.WaitForAbsoluteHttpOkAsync(
-                $"http://localhost:{graphFrontendPort}/healthz",
-                bearerToken: null,
-                StartupTimeout);
-            var graphUpstreamJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
-                $"http://localhost:{graphFrontendPort}/upstream",
-                StartupTimeout);
-            using var graphUpstreamDocument = JsonDocument.Parse(graphUpstreamJson);
-            var graphUpstream = graphUpstreamDocument.RootElement;
-            Assert.Equal("Application Topology Frontend", graphUpstream.GetProperty("frontend").GetString());
-            Assert.Equal("https+http://application-topology-api", graphUpstream.GetProperty("logicalApiEndpoint").GetString());
-            Assert.Equal("Hello from the referenced API project.", graphUpstream.GetProperty("upstream").GetProperty("message").GetString());
-            Assert.Equal("Graph", graphUpstream.GetProperty("settings").GetProperty("mode").GetString());
-            Assert.True(graphUpstream.GetProperty("settings").GetProperty("externalApiKeyConfigured").GetBoolean());
-            Assert.Equal("ok", graphUpstream.GetProperty("database").GetProperty("status").GetString());
-            Assert.Equal("mssql", graphUpstream.GetProperty("database").GetProperty("provider").GetString());
-            Assert.Equal("application_topology", graphUpstream.GetProperty("database").GetProperty("database").GetString());
-
-            var eventsJson = await host.GetStringAsync(
-                "/api/control-plane/v1/resource-events?resourceId=application%3Aapplication-topology-sql-server");
-            using var eventsDocument = JsonDocument.Parse(eventsJson);
-            var credentialEvent = Assert.Single(
-                eventsDocument.RootElement.EnumerateArray(),
-                resourceEvent => string.Equals(
-                    resourceEvent.GetProperty("eventType").GetString(),
-                    "event.provider.applications.sql-server.credential.resolved",
-                    StringComparison.OrdinalIgnoreCase));
-            Assert.Equal(
-                "application:application-topology-sql-server",
-                credentialEvent.GetProperty("resourceId").GetString());
-            Assert.Equal("Information", credentialEvent.GetProperty("severity").GetString());
-            Assert.Contains(
-                "application_topology",
-                credentialEvent.GetProperty("message").GetString() ?? string.Empty);
-            Assert.DoesNotContain(
-                "Password=",
-                credentialEvent.GetProperty("message").GetString() ?? string.Empty,
-                StringComparison.OrdinalIgnoreCase);
-            var graphEventsJson = await host.GetStringAsync(
-                "/api/control-plane/v1/resource-events?resourceId=application.sql-server%3Agraph-application-topology-sql-server");
-            using var graphEventsDocument = JsonDocument.Parse(graphEventsJson);
-            var graphCredentialEvents = graphEventsDocument.RootElement
-                .EnumerateArray()
-                .Where(resourceEvent => string.Equals(
-                    resourceEvent.GetProperty("eventType").GetString(),
-                    "event.provider.applications.sql-server.credential.resolved",
-                    StringComparison.OrdinalIgnoreCase))
-                .ToArray();
-            Assert.NotEmpty(graphCredentialEvents);
-            foreach (var graphCredentialEvent in graphCredentialEvents)
-            {
-                Assert.Equal(
-                    "application.sql-server:graph-application-topology-sql-server",
-                    graphCredentialEvent.GetProperty("resourceId").GetString());
-                Assert.Equal("Information", graphCredentialEvent.GetProperty("severity").GetString());
-                Assert.Contains(
-                    "application_topology",
-                    graphCredentialEvent.GetProperty("message").GetString() ?? string.Empty);
-                Assert.DoesNotContain(
-                    "Password=",
-                    graphCredentialEvent.GetProperty("message").GetString() ?? string.Empty,
-                    StringComparison.OrdinalIgnoreCase);
-            }
-
-            var databasesTabId = new ResourceViewId(ResourceTabGroupIds.Application, "databases");
-            var sqlDatabasesHtml = await host.GetStringAsync(
-                $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(databasesTabId.Value)}");
-            Assert.Contains("Application Topology", sqlDatabasesHtml);
-            Assert.Contains("Declared database, exists on server", sqlDatabasesHtml);
-            Assert.Contains("Existing system database", sqlDatabasesHtml);
-            Assert.Contains("master", sqlDatabasesHtml);
-            Assert.Contains("Verified from live SQL Server", sqlDatabasesHtml);
-
-            var frontendFailureJson = await host.WaitForAbsoluteHttpStatusAsync(
-                $"http://localhost:{frontendPort}/upstream/failure",
-                HttpStatusCode.BadGateway,
-                StartupTimeout);
-            using var frontendFailureDocument = JsonDocument.Parse(frontendFailureJson);
-            Assert.Equal("application-topology-frontend", frontendFailureDocument.RootElement.GetProperty("resourceName").GetString());
-            Assert.Equal(500, frontendFailureDocument.RootElement.GetProperty("upstreamStatusCode").GetInt32());
-            Assert.Matches("^[0-9a-f]{32}$", frontendFailureDocument.RootElement.GetProperty("traceId").GetString() ?? string.Empty);
-
-            await StopResourceIfRunningAsync(host, "application:application-topology-frontend");
-            await StopResourceIfRunningAsync(host, "application:application-topology-api");
-            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:graph-application-topology-frontend");
-            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:graph-application-topology-api");
-            await StopResourceIfRunningAsync(host, "application.sql-server:graph-application-topology-sql-server");
-            await WaitForResourceStateAsync(
-                host,
-                "application:application-topology-sql-server",
-                ResourceState.Stopped,
-                StartupTimeout);
-            await WaitForResourceStateAsync(
-                host,
-                "application.sql-server:graph-application-topology-sql-server",
-                ResourceState.Stopped,
-                StartupTimeout);
-            Assert.True(
-                await WaitForDockerContainerRemovedAsync(sqlContainerName, StartupTimeout),
-                $"Expected Docker container '{sqlContainerName}' to be removed after graph SQL stop.");
-            shouldCleanupSqlContainer = false;
-        }
-        finally
-        {
-            await StopResourceIfRunningAsync(host, "application:application-topology-frontend");
-            await StopResourceIfRunningAsync(host, "application:application-topology-api");
-            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:graph-application-topology-frontend");
-            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:graph-application-topology-api");
-            await StopResourceIfRunningAsync(host, "application.sql-server:graph-application-topology-sql-server");
-            await StopResourceIfRunningAsync(host, "application:application-topology-sql-server");
-            if (shouldCleanupSqlContainer)
-            {
-                await DockerComposeStack.RemoveContainerIfExistsAsync(sqlContainerName);
-            }
-        }
-    }
-
-    [Fact]
-    [Trait("Category", "DockerIntegration")]
-    public async Task ApplicationTopologyHost_GracefulShutdownRemovesSqlServerContainer()
-    {
-        const string sqlContainerName = "cloudshell-application-application-topology-sql-server";
-        if (!await DockerComposeStack.IsAvailableAsync() ||
-            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.DefaultSqlServerImage) ||
-            await DockerComposeStack.ContainerExistsAsync(sqlContainerName))
-        {
-            return;
-        }
-
-        var apiPort = await GetFreePortAsync();
-        var sqlPort = await GetFreePortAsync();
-        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
-        var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
-        SampleProcess? host = null;
-        var shouldCleanupContainer = false;
-
-        try
-        {
-            host = await SampleProcess.StartAsync(
-                "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
-                await GetFreePortAsync(),
-                [
-                    ("ApplicationTopology__GraphOnly", "false"),
-                    ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
-                    ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
-                    ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
-                    ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
-                ]);
-
-            await host.WaitForHttpOkAsync("/", StartupTimeout);
-            shouldCleanupContainer = true;
-            await host.SendAsync(
-                HttpMethod.Post,
-                "/api/control-plane/v1/resources/application%3Aapplication-topology-sql-server/actions/start");
-            Assert.True(
-                await WaitForDockerContainerExistsAsync(sqlContainerName, StartupTimeout),
-                $"Expected Docker container '{sqlContainerName}' to be created.");
-
-            await host.StopAsync(TimeSpan.FromSeconds(30));
-
-            Assert.True(
-                await WaitForDockerContainerRemovedAsync(sqlContainerName, StartupTimeout),
-                $"Expected Docker container '{sqlContainerName}' to be removed during graceful host shutdown.");
-            shouldCleanupContainer = false;
-        }
-        finally
-        {
-            host?.Dispose();
-            if (shouldCleanupContainer)
-            {
-                await DockerComposeStack.RemoveContainerIfExistsAsync(sqlContainerName);
-            }
-        }
-    }
 
     [Fact]
     public async Task SettingsAndSecretsSample_RunsServicesAndApiWithoutOldProviderRecords()
