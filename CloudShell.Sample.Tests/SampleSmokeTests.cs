@@ -3738,7 +3738,7 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
-    public async Task SplitHostingSample_RendersGraphResourceThroughRemoteControlPlane()
+    public async Task SplitHostingSample_RendersResourceThroughRemoteControlPlane()
     {
         var controlPlanePort = await GetFreePortAsync();
         var uiPort = await GetFreePortAsync();
@@ -3762,7 +3762,7 @@ public sealed class SampleSmokeTests
         await ui.WaitForHttpOkAsync("/", StartupTimeout);
 
         var resourcesHtml = await ui.GetStringAsync("/resources");
-        Assert.Contains("Graph Split Sample Network", resourcesHtml);
+        Assert.Contains("Split Sample Network", resourcesHtml);
 
         var token = await controlPlane.GetClientCredentialsTokenAsync(
             "cloudshell-split-ui",
@@ -3773,13 +3773,11 @@ public sealed class SampleSmokeTests
             token);
         using var document = JsonDocument.Parse(apiJson);
         var resources = document.RootElement.EnumerateArray().ToArray();
-        Assert.DoesNotContain(resources, resource =>
+        var network = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "network:split-sample");
-        var graphNetwork = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "network:graph-split-sample");
-        Assert.Equal("cloudshell.network", graphNetwork.GetProperty("typeId").GetString());
-        Assert.Equal("Logical", graphNetwork.GetProperty("attributes").GetProperty("network.kind").GetString());
-        Assert.Equal("logicalOnly", graphNetwork.GetProperty("attributes").GetProperty("network.hostReadiness").GetString());
+        Assert.Equal("cloudshell.network", network.GetProperty("typeId").GetString());
+        Assert.Equal("Logical", network.GetProperty("attributes").GetProperty("network.kind").GetString());
+        Assert.Equal("logicalOnly", network.GetProperty("attributes").GetProperty("network.hostReadiness").GetString());
     }
 
     [Fact]
@@ -5722,10 +5720,7 @@ public sealed class SampleSmokeTests
                 "secrets-vault:sample-app",
                 "application:settings-secrets-api"
             ],
-            "SplitHosting" =>
-            [
-                "network:split-sample"
-            ],
+            "SplitHosting" => [],
             "ThirdPartyIdentity" =>
             [
                 "identity-provisioning:keycloak",

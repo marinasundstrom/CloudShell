@@ -8,16 +8,16 @@ using CloudShell.ResourceDefinitions.ResourceManager;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
-const string graphResourceGroupId = "split-hosting-graph-poc";
-const string graphNetworkResourceId = "network:graph-split-sample";
+const string resourceGroupId = "split-hosting-poc";
+const string networkResourceId = "network:split-sample";
 
 var controlPlane = builder.AddCloudShellControlPlane();
 controlPlane.DefineResources(resources =>
 {
     resources
-        .AddNetwork("graph-split-sample")
-        .WithResourceId(graphNetworkResourceId)
-        .WithDisplayName("Graph Split Sample Network")
+        .AddNetwork("split-sample")
+        .WithResourceId(networkResourceId)
+        .WithDisplayName("Split Sample Network")
         .WithNetworkKind("Logical")
         .WithHostReadiness("logicalOnly");
 });
@@ -28,13 +28,13 @@ controlPlane.UseResourceGraphIntegration();
 controlPlane.Resources(resources =>
 {
     resources.AddResourceGroup(
-        graphResourceGroupId,
-        "Split Hosting graph POC",
-        "Graph-backed resources used to validate remote Control Plane projection.");
+        resourceGroupId,
+        "Split Hosting POC",
+        "Resources used to validate remote Control Plane projection.");
 
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphNetworkResourceId)
-        .WithResourceGroup(graphResourceGroupId);
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, networkResourceId)
+        .WithResourceGroup(resourceGroupId);
 });
 
 var app = builder.Build();
