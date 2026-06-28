@@ -18,31 +18,28 @@ var registryPort = builder.Configuration.GetValue("ContainerAppDeployment:Regist
 string registryAddress = $"{registryHost}:{registryPort}";
 const string sampleImage = "cloudshell/mock-api:20260608.1";
 const string resourceGroupId = "container-app-deployment-poc";
-const string dockerResourceId = "docker:sample";
-const string registryResourceId = "docker.container:sample-registry";
-const string containerAppResourceId = "application.container-app:sample-api";
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+IResourceDefinitionBuilder dockerResource = null!;
+IResourceDefinitionBuilder registryResource = null!;
+IResourceDefinitionBuilder containerAppResource = null!;
 cloudShell.DefineResources(resources =>
     {
-        var docker = resources
+        dockerResource = resources
             .AddDockerHost("sample")
-            .WithResourceId(dockerResourceId)
             .WithRegistry(registryAddress);
-        var registry = resources
+        registryResource = resources
             .AddDockerContainer("sample-registry")
-            .WithResourceId(registryResourceId)
             .WithDisplayName("Sample Registry")
-            .UseDockerHost(docker)
+            .UseDockerHost(dockerResource)
             .WithImage("registry:2")
             .WithRegistry(registryAddress);
-        resources
+        containerAppResource = resources
             .AddContainerApplication("sample-api")
-            .WithResourceId(containerAppResourceId)
             .WithDisplayName("Sample API")
-            .UseDockerHost(docker)
-            .DependsOn(registry)
+            .UseDockerHost(dockerResource)
+            .DependsOn(registryResource)
             .WithImage(sampleImage)
             .WithRegistry(registryAddress);
     });
@@ -75,15 +72,15 @@ cloudShell.Resources(resources =>
         "Resources used by the ContainerAppDeployment sample.");
 
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, dockerResourceId)
+        .Declare(dockerResource)
         .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, registryResourceId)
+        .Declare(registryResource)
         .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, containerAppResourceId)
+        .Declare(containerAppResource)
         .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false);
 });

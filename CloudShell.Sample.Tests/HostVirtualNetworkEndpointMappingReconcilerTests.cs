@@ -14,9 +14,9 @@ public sealed class HostVirtualNetworkEndpointMappingReconcilerTests
     [Fact]
     public async Task ReconcileEndpointMappings_ProvisionsMappingThroughHostNetworkingProvisioner()
     {
-        const string hostNetworkingResourceId = "networking:host-local";
+        const string hostNetworkingResourceId = "cloudshell.hostNetworking.local:host-local";
         const string apiResourceId = "application.aspnet-core-project:vnet-api";
-        const string networkResourceId = "network:sample-vnet";
+        const string networkResourceId = "cloudshell.virtualNetwork:sample-vnet";
         var provisioner = new RecordingEndpointMappingProvisioner();
         var services = new ServiceCollection();
         services.AddSingleton<IResourceEndpointMappingProvisioner>(provisioner);

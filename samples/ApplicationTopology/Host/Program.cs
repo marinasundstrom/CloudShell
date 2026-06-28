@@ -67,17 +67,7 @@ var graphFrontendProjectPath = Path.Combine(
 var sqlPassword = builder.Configuration["ApplicationTopology:SqlServer:Password"]
     ?? ApplicationProviderServiceCollectionExtensions.DefaultSqlServerAdministratorPassword;
 var sqlPort = builder.Configuration.GetValue("ApplicationTopology:SqlServer:Port", 14334);
-const string graphSqlStorageResourceId = "cloudshell.storage:application-topology-local";
-const string graphSqlVolumeResourceId = "cloudshell.volume:application-topology-sql-data";
-const string graphSqlServerResourceId = "application.sql-server:application-topology-sql-server";
-const string graphDatabaseResourceId = "application.sql-database:application-topology-db";
-const string graphSettingsResourceId = "configuration.store:application-topology-settings";
-const string graphSecretsResourceId = "secrets.vault:application-topology-secrets";
-const string graphApiResourceId = "application.aspnet-core-project:application-topology-api";
-const string graphFrontendResourceId = "application.aspnet-core-project:application-topology-frontend";
-const string graphHostConfigurationResourceId = "configuration.host:application-topology-host-settings";
 const string graphApiIdentityName = "application-topology-api";
-var graphApiIdentityClientId = $"{graphApiResourceId}/{graphApiIdentityName}";
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 {
     ["Authentication:BuiltInAuthority:Enabled"] = "true",
@@ -88,27 +78,33 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+IResourceDefinitionBuilder sqlStorageResource = null!;
+IResourceDefinitionBuilder sqlVolumeResource = null!;
+IResourceDefinitionBuilder sqlServerResource = null!;
+IResourceDefinitionBuilder databaseResource = null!;
+IResourceDefinitionBuilder settingsResource = null!;
+IResourceDefinitionBuilder secretsResource = null!;
+IResourceDefinitionBuilder hostConfigurationResource = null!;
+IResourceDefinitionBuilder apiResource = null!;
+IResourceDefinitionBuilder frontendResource = null!;
 cloudShell.DefineResources(resources =>
 {
-    var graphSqlStorage = resources
+    sqlStorageResource = resources
         .AddStorage("application-topology-local")
-        .WithResourceId(graphSqlStorageResourceId)
         .WithProvider("local")
         .WithMedium("FileSystem")
         .WithLocation("./Data/storage");
-    var graphSqlVolume = resources
+    sqlVolumeResource = resources
         .AddCloudShellVolume("application-topology-sql-data")
-        .WithResourceId(graphSqlVolumeResourceId)
         .WithDisplayName("Application Topology SQL Data")
-        .UseStorage(graphSqlStorage)
+        .UseStorage(sqlStorageResource)
         .WithProvider("local")
         .WithStorageMedium("FileSystem")
         .WithSubPath("sql-server")
         .WithAccessMode("ReadWriteOnce")
         .WithPersistent();
-    var graphSqlServer = resources
+    sqlServerResource = resources
         .AddSqlServer("application-topology-sql-server")
-        .WithResourceId(graphSqlServerResourceId)
         .WithDisplayName("Application Topology SQL Server")
         .AddEndpointRequest(
             "tds",
@@ -117,35 +113,33 @@ cloudShell.DefineResources(resources =>
             host: "localhost",
             port: sqlPort,
             exposure: "Local")
-        .MountVolume(graphSqlVolume, "/var/opt/mssql");
-    var graphDatabase = resources
+        .MountVolume(sqlVolumeResource, "/var/opt/mssql");
+    databaseResource = resources
         .AddSqlDatabase("application-topology-db")
-        .WithResourceId(graphDatabaseResourceId)
-        .BelongsToServer(graphSqlServer)
+        .BelongsToServer(sqlServerResource)
         .WithDatabaseName("application_topology")
         .EnsureCreated();
-    var graphSettings = resources
+    settingsResource = resources
         .AddConfigurationStore("application-topology-settings")
-        .WithResourceId(graphSettingsResourceId)
         .WithDisplayName("Application Topology Settings")
         .WithEndpoint(graphConfigurationEndpoint);
-    var graphSecrets = resources
+    secretsResource = resources
         .AddSecretsVault("application-topology-secrets")
-        .WithResourceId(graphSecretsResourceId)
         .WithDisplayName("Application Topology Secrets")
         .WithEndpoint(graphSecretsEndpoint);
-    resources
+    hostConfigurationResource = resources
         .AddHostConfigurationSource("application-topology-host-settings")
-        .WithResourceId(graphHostConfigurationResourceId)
         .WithDisplayName("Application Topology Host Settings")
         .WithSource("application-topology");
-    var graphApi = resources
-        .AddAspNetCoreProject("application-topology-api", graphApiProjectPath)
-        .WithResourceId(graphApiResourceId)
+    var api = resources
+        .AddAspNetCoreProject("application-topology-api", graphApiProjectPath);
+    apiResource = api;
+    var graphApiIdentityClientId = $"{apiResource.EffectiveResourceId}/{graphApiIdentityName}";
+    api
         .WithDisplayName("Application Topology API")
-        .DependsOn(graphDatabase, SqlDatabaseResourceTypeProvider.ResourceTypeId)
-        .DependsOn(graphSettings, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
-        .DependsOn(graphSecrets, SecretsVaultResourceTypeProvider.ResourceTypeId)
+        .DependsOn(databaseResource, SqlDatabaseResourceTypeProvider.ResourceTypeId)
+        .DependsOn(settingsResource, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
+        .DependsOn(secretsResource, SecretsVaultResourceTypeProvider.ResourceTypeId)
         .WithHotReload(false)
         .UseLaunchSettings(false)
         .WithServiceDiscoveryName("application-topology-api")
@@ -194,9 +188,9 @@ cloudShell.DefineResources(resources =>
         .WithEnvironmentVariable(
             "OTEL_SERVICE_NAME",
             "application-topology-api")
-        .WithReference(graphSqlServer, SqlServerResourceTypeProvider.ResourceTypeId)
-        .WithReference(graphSettings, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
-        .WithReference(graphSecrets, SecretsVaultResourceTypeProvider.ResourceTypeId)
+        .WithReference(sqlServerResource, SqlServerResourceTypeProvider.ResourceTypeId)
+        .WithReference(settingsResource, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
+        .WithReference(secretsResource, SecretsVaultResourceTypeProvider.ResourceTypeId)
         .AddHealthCheck(ResourceHealthCheckDefinition.Http(
             "/health",
             endpointName: "http"))
@@ -205,11 +199,10 @@ cloudShell.DefineResources(resources =>
             endpointName: "http",
             name: "alive"));
 
-    resources
+    frontendResource = resources
         .AddAspNetCoreProject("application-topology-frontend", graphFrontendProjectPath)
-        .WithResourceId(graphFrontendResourceId)
         .WithDisplayName("Application Topology Frontend")
-        .DependsOn(graphApi, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+        .DependsOn(apiResource, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
         .WithHotReload(false)
         .UseLaunchSettings(false)
         .AddEndpointRequest(
@@ -227,7 +220,7 @@ cloudShell.DefineResources(resources =>
         .WithEnvironmentVariable(
             "OTEL_SERVICE_NAME",
             "application-topology-frontend")
-        .WithReference(graphApi, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+        .WithReference(apiResource, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
         .AddHealthCheck(ResourceHealthCheckDefinition.Http(
             "/healthz",
             endpointName: "http"))
@@ -295,41 +288,41 @@ cloudShell.Resources(resources =>
         "Resources for the Application Topology sample.");
 
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphSqlStorageResourceId)
+        .Declare(sqlStorageResource)
         .WithResourceGroup(groupId)
         .WithAutoStart(false);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphSqlVolumeResourceId)
+        .Declare(sqlVolumeResource)
         .WithResourceGroup(groupId)
         .WithAutoStart(false);
     var graphSqlServer = resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphSqlServerResourceId)
+        .Declare(sqlServerResource)
         .WithResourceGroup(groupId)
         .WithAutoStart(false);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphDatabaseResourceId)
+        .Declare(databaseResource)
         .WithResourceGroup(groupId)
         .WithAutoStart(false);
     var graphSettings = resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphSettingsResourceId)
+        .Declare(settingsResource)
         .WithResourceGroup(groupId)
         .WithAutoStart(false);
     var graphSecrets = resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphSecretsResourceId)
+        .Declare(secretsResource)
         .WithResourceGroup(groupId)
         .WithAutoStart(false);
     var graphApi = resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphApiResourceId)
+        .Declare(apiResource)
         .WithIdentity(identityProvider, name: graphApiIdentityName)
         .WithResourceGroup(groupId)
         .WithAutoStart(false)
         .ProvisionIdentityOnStartup();
     var graphFrontend = resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphFrontendResourceId)
+        .Declare(frontendResource)
         .WithResourceGroup(groupId)
         .WithAutoStart(false);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphHostConfigurationResourceId)
+        .Declare(hostConfigurationResource)
         .WithResourceGroup(groupId)
         .WithAutoStart(false);
 
@@ -360,14 +353,14 @@ app.Run();
 CloudShell.ResourceDefinitions.ResourceState AddGraphProjectionState(
     CloudShell.ResourceDefinitions.ResourceState state)
 {
-    if (state.EffectiveResourceId != graphSettingsResourceId &&
-        state.EffectiveResourceId != graphSecretsResourceId)
+    if (state.EffectiveResourceId != settingsResource.EffectiveResourceId &&
+        state.EffectiveResourceId != secretsResource.EffectiveResourceId)
     {
         return state;
     }
 
     var attributes = state.ResourceAttributeValues.ToDictionary();
-    if (state.EffectiveResourceId == graphSettingsResourceId)
+    if (state.EffectiveResourceId == settingsResource.EffectiveResourceId)
     {
         attributes[ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] = 2;
     }

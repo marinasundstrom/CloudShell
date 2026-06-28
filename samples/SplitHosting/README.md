@@ -36,7 +36,7 @@ represented by the UI's Control Plane credential.
 
 ## Resource graph coverage
 
-The split Control Plane exposes `network:split-sample`, a network resource
+The split Control Plane exposes `cloudshell.network:split-sample`, a network resource
 projected through the Resource Definitions bridge. The separate UI host renders
 it through the remote Control Plane client, which keeps this sample useful for
 validating Resource Manager projections before changing public API or client

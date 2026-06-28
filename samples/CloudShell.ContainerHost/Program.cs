@@ -16,35 +16,32 @@ using CloudShell.ResourceDefinitions.ResourceManager;
 var builder = CloudShellApplication.CreateBuilder(args);
 
 const string resourceGroupId = "container-host-poc";
-const string storageResourceId = "cloudshell.storage:local";
-const string volumeResourceId = "cloudshell.volume:sql-data";
-const string sqlServerResourceId = "application.sql-server:sql-server";
 var sqlServerPort = builder.Configuration.GetValue<int?>("ContainerHost:SqlServer:Port") ?? 14334;
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+IResourceDefinitionBuilder storageResource = null!;
+IResourceDefinitionBuilder volumeResource = null!;
+IResourceDefinitionBuilder sqlServerResource = null!;
 cloudShell.DefineResources(resources =>
 {
-    var storage = resources
+    storageResource = resources
         .AddStorage("local")
-        .WithResourceId(storageResourceId)
         .WithProvider("local")
         .WithMedium("FileSystem")
         .WithLocation("./Data/storage");
-    var volume = resources
+    volumeResource = resources
         .AddCloudShellVolume("sql-data")
-        .WithResourceId(volumeResourceId)
         .WithDisplayName("SQL Server Data")
-        .UseStorage(storage)
+        .UseStorage(storageResource)
         .WithProvider("local")
         .WithStorageMedium("FileSystem")
         .WithSubPath("sql-server")
         .WithAccessMode("ReadWriteOnce")
         .WithPersistent();
 
-    resources
+    sqlServerResource = resources
         .AddSqlServer("sql-server")
-        .WithResourceId(sqlServerResourceId)
         .WithDisplayName("SQL Server")
         .AddEndpointRequest(
             "tds",
@@ -53,7 +50,7 @@ cloudShell.DefineResources(resources =>
             host: "localhost",
             port: sqlServerPort,
             exposure: "Local")
-        .MountVolume(volume, "/var/opt/mssql");
+        .MountVolume(volumeResource, "/var/opt/mssql");
 });
 builder.Services
     .AddSingleton<IContainerHostDockerCommandRunner, ProcessContainerHostDockerCommandRunner>()
@@ -76,13 +73,13 @@ cloudShell.Resources(resources =>
         "Resources used by the ContainerHost sample.");
 
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, storageResourceId)
+        .Declare(storageResource)
         .WithResourceGroup(resourceGroupId);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, volumeResourceId)
+        .Declare(volumeResource)
         .WithResourceGroup(resourceGroupId);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, sqlServerResourceId)
+        .Declare(sqlServerResource)
         .WithResourceGroup(resourceGroupId);
 });
 

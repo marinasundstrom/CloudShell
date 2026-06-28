@@ -19,22 +19,20 @@ var builder = CloudShellApplication.CreateBuilder(args);
 var targetPort = builder.Configuration.GetValue<int?>("HostVirtualNetwork:TargetPort") ?? 5291;
 var virtualNetworkPort = builder.Configuration.GetValue<int?>("HostVirtualNetwork:VirtualNetworkPort") ?? 5292;
 const string resourceGroupId = "host-virtual-network-poc";
-const string hostNetworkingResourceId = "networking:host-local";
-const string apiResourceId = "application.aspnet-core-project:vnet-api";
-const string networkResourceId = "network:sample-vnet";
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+IResourceDefinitionBuilder hostNetworkingResource = null!;
+IResourceDefinitionBuilder apiResource = null!;
+IResourceDefinitionBuilder networkResource = null!;
 cloudShell.DefineResources(resources =>
 {
-    var hostNetwork = resources
-        .AddLocalHostNetwork("host-local")
-        .WithResourceId(hostNetworkingResourceId);
-    var api = resources
+    hostNetworkingResource = resources
+        .AddLocalHostNetwork("host-local");
+    apiResource = resources
         .AddAspNetCoreProject(
             "vnet-api",
             "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
-        .WithResourceId(apiResourceId)
         .WithDisplayName("VNet API")
         .WithArguments($"--urls http://localhost:{targetPort}")
         .UseLaunchSettings(false)
@@ -45,14 +43,13 @@ cloudShell.DefineResources(resources =>
             port: targetPort,
             exposure: "Local");
 
-    resources
+    networkResource = resources
         .AddVirtualNetwork("sample-vnet")
-        .WithResourceId(networkResourceId)
-        .DependsOn(hostNetwork, LocalHostNetworkResourceTypeProvider.ResourceTypeId)
-        .DependsOn(api, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+        .DependsOn(hostNetworkingResource, LocalHostNetworkResourceTypeProvider.ResourceTypeId)
+        .DependsOn(apiResource, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
         .AsDefault()
         .WithHostReadiness("providerRequired")
-        .WithMappingProviders(hostNetworkingResourceId)
+        .WithMappingProviders(hostNetworkingResource.EffectiveResourceId)
         .AddEndpoint(
             "api-public",
             "http",
@@ -62,12 +59,12 @@ cloudShell.DefineResources(resources =>
             "api-public",
             $"http://localhost:{virtualNetworkPort}",
             name: "API public ingress",
-            provider: hostNetwork)
+            provider: hostNetworkingResource)
         .MapEndpoint(
             "api-public",
-            api,
+            apiResource,
             "http",
-            hostNetwork,
+            hostNetworkingResource,
             "mapping:api-public",
             "API public ingress");
 });
@@ -93,14 +90,14 @@ cloudShell.Resources(resources =>
         "Resources used by the HostVirtualNetwork sample.");
 
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, hostNetworkingResourceId)
+        .Declare(hostNetworkingResource)
         .WithResourceGroup(resourceGroupId);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, apiResourceId)
+        .Declare(apiResource)
         .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, networkResourceId)
+        .Declare(networkResource)
         .WithResourceGroup(resourceGroupId);
 });
 

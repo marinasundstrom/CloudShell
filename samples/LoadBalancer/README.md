@@ -60,15 +60,15 @@ The sample exposes Postgres through the TCP entrypoint on `localhost:5432`.
 
 The sample declares these Resource Definitions-backed resources:
 
-- `docker:sample-host`: Docker host used by the container app targets.
+- `docker.host:sample-host`: Docker host used by the container app targets.
 - `application.container-app:web`: web target.
 - `application.container-app:api`: replicated API target.
 - `application.container-app:postgres`: TCP target.
-- `load-balancer:public`: load balancer with typed startup dependencies on the
+- `cloudshell.loadBalancer:public`: load balancer with typed startup dependencies on the
   host and target resources plus declared entrypoints and host/path/TCP routes.
-- `dns:cloudshell-local`: DNS zone using the local-hostnames provider.
-- `dns:cloudshell-local:name:app-cloudshell-local` and
-  `dns:cloudshell-local:name:api-cloudshell-local`: name mappings targeting
+- `cloudshell.dnsZone:cloudshell-local`: DNS zone using the local-hostnames provider.
+- `cloudshell.nameMapping:app-cloudshell-local` and
+  `cloudshell.nameMapping:api-cloudshell-local`: name mappings targeting
   the public load-balancer `http` frontend.
 
 Those resources prove projection, dependency, count-summary, route payload,

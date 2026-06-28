@@ -24,8 +24,6 @@ var frontendEndpoint = builder.Configuration["ProjectReference:FrontendEndpoint"
     ?? "http://localhost:5230";
 var apiEndpointUri = new Uri(apiEndpoint);
 var frontendEndpointUri = new Uri(frontendEndpoint);
-var apiResourceId = "application.aspnet-core-project:project-reference-api";
-var frontendResourceId = "application.aspnet-core-project:project-reference-frontend";
 var apiProjectPath = Path.GetFullPath(
     "../Api/CloudShell.ProjectReferenceApi.csproj",
     builder.Environment.ContentRootPath);
@@ -35,11 +33,12 @@ var frontendProjectPath = Path.GetFullPath(
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+IResourceDefinitionBuilder apiResource = null!;
+IResourceDefinitionBuilder frontendResource = null!;
 cloudShell.DefineResources(resources =>
 {
-    resources
+    apiResource = resources
         .AddAspNetCoreProject("project-reference-api", apiProjectPath)
-        .WithResourceId(apiResourceId)
         .WithDisplayName("Project Reference API")
         .WithHotReload(false)
         .UseLaunchSettings(false)
@@ -67,14 +66,13 @@ cloudShell.DefineResources(resources =>
             endpointName: "http",
             name: "alive"));
 
-    resources
+    frontendResource = resources
         .AddAspNetCoreProject("project-reference-frontend", frontendProjectPath)
-        .WithResourceId(frontendResourceId)
         .WithDisplayName("Project Reference Frontend")
         .WithHotReload(false)
         .UseLaunchSettings(false)
         .WithReference(
-            apiResourceId,
+            apiResource,
             AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
         .AddEndpointRequest(
             "http",
@@ -110,12 +108,8 @@ cloudShell.AddApplicationResourceManagerUi();
 
 cloudShell.Resources(resources =>
 {
-    resources.Declare(
-        ResourceModelResourceProvider.DefaultProviderId,
-        apiResourceId);
-    resources.Declare(
-        ResourceModelResourceProvider.DefaultProviderId,
-        frontendResourceId);
+    resources.Declare(apiResource);
+    resources.Declare(frontendResource);
 });
 
 var app = builder.Build();
@@ -132,7 +126,7 @@ app.MapPost(
         ResourceModelGraphDefinitionApplyService applyService,
         CancellationToken cancellationToken) =>
     {
-        if (!string.Equals(resourceId, apiResourceId, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(resourceId, apiResource.EffectiveResourceId, StringComparison.OrdinalIgnoreCase))
         {
             return Results.NotFound();
         }

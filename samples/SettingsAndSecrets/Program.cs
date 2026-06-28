@@ -42,12 +42,8 @@ var secretsServiceEndpoint = builder.Configuration["Samples:SettingsAndSecrets:S
 var apiEndpoint = builder.Configuration["Samples:SettingsAndSecrets:ApiEndpoint"] ??
     "http://localhost:5228";
 var apiEndpointUri = new Uri(apiEndpoint);
-const string settingsResourceId = "configuration.store:sample-app";
-const string secretsResourceId = "secrets.vault:sample-app";
-const string apiResourceId = "application.aspnet-core-project:settings-secrets-api";
 const string apiIdentityName = "settings-secrets-api";
 const string resourceIdentityClientSecret = "local-development-settings-secrets-api-secret";
-var apiIdentityClientId = $"{apiResourceId}/{apiIdentityName}";
 var apiProjectPath = Path.Combine(
     repositoryRootPath,
     "samples",
@@ -63,25 +59,28 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+IResourceDefinitionBuilder settingsResource = null!;
+IResourceDefinitionBuilder secretsResource = null!;
+IResourceDefinitionBuilder apiResource = null!;
 cloudShell.DefineResources(resources =>
 {
-    var settings = resources
+    settingsResource = resources
         .AddConfigurationStore("sample-app")
-        .WithResourceId(settingsResourceId)
         .WithDisplayName("Sample App Settings")
         .WithEndpoint(configurationServiceEndpoint);
-    var secrets = resources
+    secretsResource = resources
         .AddSecretsVault("sample-app")
-        .WithResourceId(secretsResourceId)
         .WithDisplayName("Sample App Secrets")
         .WithEndpoint(secretsServiceEndpoint);
+    var api = resources
+        .AddAspNetCoreProject("settings-secrets-api", apiProjectPath);
+    apiResource = api;
+    var apiIdentityClientId = $"{apiResource.EffectiveResourceId}/{apiIdentityName}";
 
-    resources
-        .AddAspNetCoreProject("settings-secrets-api", apiProjectPath)
-        .WithResourceId(apiResourceId)
+    api
         .WithDisplayName("Settings and Secrets API")
-        .DependsOn(settings, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
-        .DependsOn(secrets, SecretsVaultResourceTypeProvider.ResourceTypeId)
+        .DependsOn(settingsResource, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
+        .DependsOn(secretsResource, SecretsVaultResourceTypeProvider.ResourceTypeId)
         .WithHotReload(false)
         .UseLaunchSettings(false)
         .AddEndpointRequest(
@@ -105,8 +104,8 @@ cloudShell.DefineResources(resources =>
         .WithEnvironmentVariable(
             "CLOUDSHELL_IDENTITY_SCOPE",
             "ControlPlane.Access")
-        .WithReference(settings, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
-        .WithReference(secrets, SecretsVaultResourceTypeProvider.ResourceTypeId)
+        .WithReference(settingsResource, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
+        .WithReference(secretsResource, SecretsVaultResourceTypeProvider.ResourceTypeId)
         .AddHealthCheck(ResourceHealthCheckDefinition.Http(
             "/health",
             endpointName: "http"));
@@ -153,16 +152,10 @@ cloudShell.Resources(resources =>
         },
         useAsDefault: true);
 
-    var settings = resources.Declare(
-        ResourceModelResourceProvider.DefaultProviderId,
-        settingsResourceId);
-    var secrets = resources.Declare(
-        ResourceModelResourceProvider.DefaultProviderId,
-        secretsResourceId);
+    var settings = resources.Declare(settingsResource);
+    var secrets = resources.Declare(secretsResource);
     var api = resources
-        .Declare(
-            ResourceModelResourceProvider.DefaultProviderId,
-            apiResourceId)
+        .Declare(apiResource)
         .WithIdentity(identityProvider, name: apiIdentityName)
         .ProvisionIdentityOnStartup();
     settings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
@@ -181,14 +174,14 @@ app.Run();
 CloudShell.ResourceDefinitions.ResourceState AddProjectionState(
     CloudShell.ResourceDefinitions.ResourceState state)
 {
-    if (state.EffectiveResourceId != settingsResourceId &&
-        state.EffectiveResourceId != secretsResourceId)
+    if (state.EffectiveResourceId != settingsResource.EffectiveResourceId &&
+        state.EffectiveResourceId != secretsResource.EffectiveResourceId)
     {
         return state;
     }
 
     var attributes = state.ResourceAttributeValues.ToDictionary();
-    if (state.EffectiveResourceId == settingsResourceId)
+    if (state.EffectiveResourceId == settingsResource.EffectiveResourceId)
     {
         attributes[ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] = 2;
     }

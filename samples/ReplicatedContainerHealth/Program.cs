@@ -17,8 +17,6 @@ var builder = CloudShellApplication.CreateBuilder(args);
 
 const string sampleImageTag = "20260622.2";
 const string resourceGroupId = "replicated-container-health-poc";
-const string dockerResourceId = "docker:sample";
-const string apiResourceId = "application.container-app:api";
 
 var apiEndpointPort = builder.Configuration.GetValue<int?>("ReplicatedContainerHealth:ApiPort") ?? 5092;
 var cloudShellEndpoint = ResolveCloudShellEndpoint(builder.Configuration);
@@ -31,17 +29,17 @@ var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndp
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+IResourceDefinitionBuilder dockerResource = null!;
+IResourceDefinitionBuilder apiResource = null!;
 cloudShell.DefineResources(resources =>
 {
-    var docker = resources
-        .AddDockerHost("sample")
-        .WithResourceId(dockerResourceId);
+    dockerResource = resources
+        .AddDockerHost("sample");
 
-    resources
+    apiResource = resources
         .AddContainerApplication("api")
-        .WithResourceId(apiResourceId)
         .WithDisplayName("Replicated API")
-        .UseDockerHost(docker)
+        .UseDockerHost(dockerResource)
         .WithImage($"cloudshell-application-api:{sampleImageTag}")
         .WithReplicas(3)
         .AddEndpointRequest(
@@ -90,11 +88,11 @@ cloudShell.Resources(resources =>
         "Resource model resources used by the ReplicatedContainerHealth sample.");
 
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, dockerResourceId)
+        .Declare(dockerResource)
         .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, apiResourceId)
+        .Declare(apiResource)
         .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false);
 });
@@ -113,7 +111,7 @@ app.MapPost(
         ResourceModelGraphDefinitionApplyService applyService,
         CancellationToken cancellationToken) =>
     {
-        if (!string.Equals(resourceId, apiResourceId, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(resourceId, apiResource.EffectiveResourceId, StringComparison.OrdinalIgnoreCase))
         {
             return Results.NotFound();
         }

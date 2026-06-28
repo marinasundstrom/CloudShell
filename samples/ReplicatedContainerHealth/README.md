@@ -27,9 +27,9 @@ when another local app port is needed.
 
 The sample declares only Resource Definitions-backed resources:
 
-- `docker:sample`: Docker host used by the sample runtime.
+- `docker.host:sample`: Docker host used by the sample runtime.
 - `application.container-app:api`: replicated container app with three
-  requested replicas, a typed startup dependency on `docker:sample`, local
+  requested replicas, a typed startup dependency on `docker.host:sample`, local
   `http` endpoint request, `/health` health check, and `/alive` liveness check.
 
 The old `application:api` and old Docker provider records are no longer

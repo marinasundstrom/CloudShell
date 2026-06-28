@@ -77,7 +77,7 @@ resource or resource-group scope.
 
 The sample also declares the external resource identity boundary:
 
-- `identity-provisioning:keycloak` is the provisioning resource boundary.
+- `cloudshell.identity-provisioning:keycloak` is the provisioning resource boundary.
 - `identity:keycloak` is the CloudShell resource identity provider definition.
 - `application.aspnet-core-project:keycloak-provisioned-api` declares a
   resource identity bound to that provider.
@@ -172,7 +172,7 @@ The expected response has `status` set to `connected` and includes
 `Sample:Message`.
 
 The sample smoke tests can start Keycloak with Docker Compose, run the
-CloudShell host, verify that `identity-provisioning:keycloak` is projected as
+CloudShell host, verify that `cloudshell.identity-provisioning:keycloak` is projected as
 the resource boundary, execute provider setup, start the dependent
 Configuration Store/API resources, and assert the API can read protected
 configuration entries with a Keycloak-issued token. The Docker-backed path also

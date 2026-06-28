@@ -17,14 +17,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
-const string dockerHostResourceId = "docker:sample-host";
-const string webResourceId = "application.container-app:web";
-const string apiResourceId = "application.container-app:api";
-const string postgresResourceId = "application.container-app:postgres";
-const string loadBalancerResourceId = "load-balancer:public";
-const string dnsZoneResourceId = "dns:cloudshell-local";
-const string appNameMappingResourceId = "dns:cloudshell-local:name:app-cloudshell-local";
-const string apiNameMappingResourceId = "dns:cloudshell-local:name:api-cloudshell-local";
 const string resourceGroupId = "load-balancer-poc";
 var dynamicConfigurationDirectory = Path.Combine(
     builder.Environment.ContentRootPath,
@@ -40,66 +32,66 @@ if (!string.IsNullOrWhiteSpace(localHostsFilePath))
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+IResourceDefinitionBuilder dockerHostResource = null!;
+IResourceDefinitionBuilder webResource = null!;
+IResourceDefinitionBuilder apiResource = null!;
+IResourceDefinitionBuilder postgresResource = null!;
+IResourceDefinitionBuilder loadBalancerResource = null!;
+IResourceDefinitionBuilder dnsZoneResource = null!;
+IResourceDefinitionBuilder appNameMappingResource = null!;
+IResourceDefinitionBuilder apiNameMappingResource = null!;
 cloudShell.DefineResources(resources =>
 {
-    var dockerHost = resources
-        .AddDockerHost("sample-host")
-        .WithResourceId(dockerHostResourceId);
-    var web = resources
+    dockerHostResource = resources
+        .AddDockerHost("sample-host");
+    webResource = resources
         .AddContainerApplication("web")
-        .WithResourceId(webResourceId)
         .WithDisplayName("Web App")
-        .UseDockerHost(dockerHost)
+        .UseDockerHost(dockerHostResource)
         .WithImage("nginx:1.27-alpine");
-    var api = resources
+    apiResource = resources
         .AddContainerApplication("api")
-        .WithResourceId(apiResourceId)
         .WithDisplayName("API Service")
-        .UseDockerHost(dockerHost)
+        .UseDockerHost(dockerHostResource)
         .WithImage("traefik/whoami:v1.10")
         .WithReplicas(3);
-    var postgres = resources
+    postgresResource = resources
         .AddContainerApplication("postgres")
-        .WithResourceId(postgresResourceId)
         .WithDisplayName("Postgres Replica Set")
-        .UseDockerHost(dockerHost)
+        .UseDockerHost(dockerHostResource)
         .WithImage("postgres:16-alpine");
 
-    resources
+    loadBalancerResource = resources
         .AddLoadBalancer("public")
-        .WithResourceId(loadBalancerResourceId)
         .WithDisplayName("Public Load Balancer")
         .WithProvider("traefik")
-        .UseHost(dockerHost)
+        .UseHost(dockerHostResource)
         .ExposeHttp()
         .ExposeHttps()
         .ExposeTcp(5432)
-        .MapHost("app.cloudshell.local", web, port: 80)
-        .MapPath("api.cloudshell.local", "/v1", api, port: 80)
-        .MapTcp(5432, postgres, targetPort: 5432);
+        .MapHost("app.cloudshell.local", webResource, port: 80)
+        .MapPath("api.cloudshell.local", "/v1", apiResource, port: 80)
+        .MapTcp(5432, postgresResource, targetPort: 5432);
 
-    var dnsZone = resources
+    dnsZoneResource = resources
         .AddDnsZone("cloudshell-local")
-        .WithResourceId(dnsZoneResourceId)
         .WithDisplayName("CloudShell Local DNS")
         .WithZoneName("cloudshell.local")
         .WithProvider("local-hostnames");
-    resources
+    appNameMappingResource = resources
         .AddNameMapping("app-cloudshell-local")
-        .WithResourceId(appNameMappingResourceId)
         .WithDisplayName("app.cloudshell.local")
         .WithHostName("app.cloudshell.local")
         .WithTargetEndpointName("http")
-        .InDnsZone(dnsZone)
-        .MapsTarget(loadBalancerResourceId, LoadBalancerResourceTypeProvider.ResourceTypeId);
-    resources
+        .InDnsZone(dnsZoneResource)
+        .MapsTarget(loadBalancerResource, LoadBalancerResourceTypeProvider.ResourceTypeId);
+    apiNameMappingResource = resources
         .AddNameMapping("api-cloudshell-local")
-        .WithResourceId(apiNameMappingResourceId)
         .WithDisplayName("api.cloudshell.local")
         .WithHostName("api.cloudshell.local")
         .WithTargetEndpointName("http")
-        .InDnsZone(dnsZone)
-        .MapsTarget(loadBalancerResourceId, LoadBalancerResourceTypeProvider.ResourceTypeId);
+        .InDnsZone(dnsZoneResource)
+        .MapsTarget(loadBalancerResource, LoadBalancerResourceTypeProvider.ResourceTypeId);
 });
 builder.Services
     .AddLocalContainerApplicationResourceTypes()
@@ -136,28 +128,28 @@ cloudShell.Resources(resources =>
         "Resource model resources used by the LoadBalancer sample.");
 
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, dockerHostResourceId)
+        .Declare(dockerHostResource)
         .WithResourceGroup(resourceGroupId);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, webResourceId)
+        .Declare(webResource)
         .WithResourceGroup(resourceGroupId);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, apiResourceId)
+        .Declare(apiResource)
         .WithResourceGroup(resourceGroupId);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, postgresResourceId)
+        .Declare(postgresResource)
         .WithResourceGroup(resourceGroupId);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, loadBalancerResourceId)
+        .Declare(loadBalancerResource)
         .WithResourceGroup(resourceGroupId);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, dnsZoneResourceId)
+        .Declare(dnsZoneResource)
         .WithResourceGroup(resourceGroupId);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, appNameMappingResourceId)
+        .Declare(appNameMappingResource)
         .WithResourceGroup(resourceGroupId);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, apiNameMappingResourceId)
+        .Declare(apiNameMappingResource)
         .WithResourceGroup(resourceGroupId);
 });
 

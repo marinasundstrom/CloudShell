@@ -17,24 +17,32 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Resource graph sample declarations now omit explicit resource ids by default
+  and use name-first builders plus the host `IResourceIdConvention`; the
+  temporary Resource Manager bridge can declare a built graph resource from
+  its builder while keeping the old `Resources(...)` seam isolated until the
+  switch is complete.
+- Documented resource-id and naming conventions as deferred cleanup after the
+  provider switch, so the current `resourceTypeId:name` convention stays a POC
+  bridge rather than a settled public naming design.
 - Resource graph builders now resolve omitted resource ids through an
   `IResourceIdConvention`. The default host convention preserves the existing
   `resourceTypeId:name` ids, while built graphs/deployments carry the resolved
   ids so provider APIs and references can use Aspire-like name-first builder
   declarations.
 - SplitHosting Resource Definitions projection now uses the stable
-  `network:split-sample` identity and "Split Sample Network" display name
+  `cloudshell.network:split-sample` identity and "Split Sample Network" display name
   instead of temporary `graph-` sample naming.
 - HostVirtualNetwork Resource Definitions projection now uses stable sample
-  identities such as `networking:host-local`,
-  `application.aspnet-core-project:vnet-api`, and `network:sample-vnet`, and
+  identities such as `cloudshell.hostNetworking.local:host-local`,
+  `application.aspnet-core-project:vnet-api`, and `cloudshell.virtualNetwork:sample-vnet`, and
   its public sample setting is now `HostVirtualNetwork:VirtualNetworkPort`.
 - CloudShell.ContainerHost Resource Definitions projection now uses stable
   sample identities such as `cloudshell.storage:local`,
   `cloudshell.volume:sql-data`, and `application.sql-server:sql-server`, and
   its SQL runtime bridge now creates `cloudshell-container-host-sql-server`.
 - ContainerAppDeployment now uses only Resource Definitions-backed resources
-  with stable sample identities (`docker:sample`,
+  with stable sample identities (`docker.host:sample`,
   `docker.container:sample-registry`, and
   `application.container-app:sample-api`), removes the old `GraphOnly`
   comparison seam, and renames its opt-in registry runtime toggle to
@@ -52,20 +60,20 @@ on `git blame --follow`, and then by the broad type of change.
   provider records.
 - ThirdPartyIdentity now uses only Resource Definitions-backed identity
   provisioning, Configuration Store, and ASP.NET Core project resources with
-  stable sample identities (`identity-provisioning:keycloak`,
+  stable sample identities (`cloudshell.identity-provisioning:keycloak`,
   `configuration.store:third-party-identity`, and
   `application.aspnet-core-project:keycloak-provisioned-api`) and removes the
   old `GraphOnly` comparison seam plus old application/configuration provider
   records.
 - LoadBalancer now uses only Resource Definitions-backed Docker host,
   container-app, load-balancer, DNS-zone, and name-mapping resources with
-  stable sample identities such as `docker:sample-host`,
-  `application.container-app:api`, `load-balancer:public`, and
-  `dns:cloudshell-local`, and removes the old `GraphOnly` comparison seam plus
+  stable sample identities such as `docker.host:sample-host`,
+  `application.container-app:api`, `cloudshell.loadBalancer:public`, and
+  `cloudshell.dnsZone:cloudshell-local`, and removes the old `GraphOnly` comparison seam plus
   old Docker/application/load-balancer/DNS provider records.
 - ReplicatedContainerHealth now uses only Resource Definitions-backed Docker
   host and container-app resources with stable sample identities
-  (`docker:sample` and `application.container-app:api`), removes the old
+  (`docker.host:sample` and `application.container-app:api`), removes the old
   `GraphOnly` comparison seam plus old application/Docker provider records,
   and keeps the sample-local Docker runtime bridge as the active runtime path.
 - ApplicationTopology now uses only Resource Definitions-backed storage,
@@ -122,7 +130,7 @@ on `git blame --follow`, and then by the broad type of change.
   working status notes that should be updated as seams are removed and deferred
   work is identified.
 - SplitHosting has switched to graph-only projection: the old persisted
-  `network:split-sample` comparison record, `SplitHosting:GraphOnly` setting,
+  `cloudshell.network:split-sample` comparison record, `SplitHosting:GraphOnly` setting,
   and host-code branch were removed, leaving the split Control Plane sample as
   a remote-client projection gate for graph-backed resources.
 - HostVirtualNetwork has switched to graph-backed resources only: the old
@@ -269,7 +277,7 @@ on `git blame --follow`, and then by the broad type of change.
   interchange configuration payload.
 - ReplicatedContainerHealth now has an opt-in graph-only declaration mode that
   skips old application/Docker provider registrations and omits
-  `application:api` plus `docker:sample`, proving the graph-backed Docker host
+  `application:api` plus `docker.host:sample`, proving the graph-backed Docker host
   and container-app projection without old provider records.
 - ReplicatedContainerHealth graph-only mode now wires the graph-backed
   container app to a sample-local Docker bridge that publishes the API image,
@@ -4036,7 +4044,7 @@ on `git blame --follow`, and then by the broad type of change.
   endpoint descriptors, endpoint requests, resolved endpoints, endpoint
   network mappings, and configured endpoint mappings. They also clarify that
   `network:host` is the default topology boundary while
-  `networking:host-local` is the provider resource that materializes
+  `cloudshell.hostNetworking.local:host-local` is the provider resource that materializes
   host-local behavior.
 - The CloudShell goal and networking docs now state the platform principle of
   exposing provider behavior through familiar, standardized concepts that
@@ -4510,7 +4518,7 @@ on `git blame --follow`, and then by the broad type of change.
   SQL Server, Local Storage, storage-owned volume, project dependencies, and
   grouped resource tabs.
 - Host-provided virtual networking now has a portable local host networking
-  provider. `networking:host-local` is an activated resource on macOS, Linux,
+  provider. `cloudshell.hostNetworking.local:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP
   proxies for HTTP, HTTPS, and TCP endpoints. This is the MVP baseline for
   cross-platform development and team-owned hosts; OS-native Linux, Windows,

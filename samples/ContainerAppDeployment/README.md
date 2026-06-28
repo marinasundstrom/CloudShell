@@ -7,7 +7,7 @@ real build server.
 The sample runs with the new Resource model provider path. The resource graph
 declares:
 
-- `docker:sample`: the local Docker environment.
+- `docker.host:sample`: the local Docker environment.
 - `docker.container:sample-registry`: a local registry instance at
   `localhost:5023`.
 - `application.container-app:sample-api`: a container app that depends

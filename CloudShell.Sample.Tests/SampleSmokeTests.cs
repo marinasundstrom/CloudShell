@@ -1269,7 +1269,7 @@ public sealed class SampleSmokeTests
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
         var provisioning = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "identity-provisioning:keycloak");
+            resource.GetProperty("id").GetString() == "cloudshell.identity-provisioning:keycloak");
         var settings = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "configuration.store:third-party-identity");
         var api = Assert.Single(resources, resource =>
@@ -1363,7 +1363,7 @@ public sealed class SampleSmokeTests
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
         var provisioning = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "identity-provisioning:keycloak");
+            resource.GetProperty("id").GetString() == "cloudshell.identity-provisioning:keycloak");
         var settings = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "configuration.store:third-party-identity");
         var api = Assert.Single(resources, resource =>
@@ -1447,7 +1447,7 @@ public sealed class SampleSmokeTests
         using var document = JsonDocument.Parse(apiJson);
         var resources = document.RootElement.EnumerateArray().ToArray();
         var network = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "network:split-sample");
+            resource.GetProperty("id").GetString() == "cloudshell.network:split-sample");
         Assert.Equal("cloudshell.network", network.GetProperty("typeId").GetString());
         Assert.Equal("Logical", network.GetProperty("attributes").GetProperty("network.kind").GetString());
         Assert.Equal("logicalOnly", network.GetProperty("attributes").GetProperty("network.hostReadiness").GetString());
@@ -1695,7 +1695,7 @@ public sealed class SampleSmokeTests
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
         var docker = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "docker:sample");
+            resource.GetProperty("id").GetString() == "docker.host:sample");
         var registry = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "docker.container:sample-registry");
         var app = Assert.Single(resources, resource =>
@@ -1930,7 +1930,7 @@ public sealed class SampleSmokeTests
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
         var graphDocker = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "docker:sample");
+            resource.GetProperty("id").GetString() == "docker.host:sample");
         var graphApp = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application.container-app:api");
         var graphAppAttributes = graphApp.GetProperty("attributes");
@@ -1949,7 +1949,7 @@ public sealed class SampleSmokeTests
             $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}",
             GetPrimaryEndpointAddress(graphApp));
         Assert.Contains(
-            "docker:sample",
+            "docker.host:sample",
             graphApp.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
         Assert.Contains(
             graphApp.GetProperty("capabilities").EnumerateArray(),
@@ -2053,7 +2053,7 @@ public sealed class SampleSmokeTests
                 host,
                 graphApiResourceId,
                 expectedReplicas: 3,
-                message => message.Contains("handled demo work", StringComparison.OrdinalIgnoreCase));
+                message => message.Contains("reported healthy", StringComparison.OrdinalIgnoreCase));
             Assert.NotEmpty(graphReplicaLogEntries);
             await AssertGraphResourceHealthChecksHealthyAsync(host, graphApiResourceId, apiPort, graphOnlySmokeTimeout);
             await AssertGraphResourceRuntimeHealthAggregatesAsync(
@@ -2200,7 +2200,7 @@ public sealed class SampleSmokeTests
     public async Task HostVirtualNetworkSample_ReconcilesEndpointMappingThroughRuntimeBridge()
     {
         const string apiResourceId = "application.aspnet-core-project:vnet-api";
-        const string networkResourceId = "network:sample-vnet";
+        const string networkResourceId = "cloudshell.virtualNetwork:sample-vnet";
         var targetPort = await GetFreePortAsync();
         var virtualNetworkPort = await GetFreePortAsync();
         using var host = await SampleProcess.StartAsync(
@@ -2281,15 +2281,15 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "application:postgres");
 
         var loadBalancer = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "load-balancer:public");
+            resource.GetProperty("id").GetString() == "cloudshell.loadBalancer:public");
         var dnsZone = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:cloudshell-local");
+            resource.GetProperty("id").GetString() == "cloudshell.dnsZone:cloudshell-local");
         var api = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application.container-app:api");
         Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:cloudshell-local:name:app-cloudshell-local");
+            resource.GetProperty("id").GetString() == "cloudshell.nameMapping:app-cloudshell-local");
         Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:cloudshell-local:name:api-cloudshell-local");
+            resource.GetProperty("id").GetString() == "cloudshell.nameMapping:api-cloudshell-local");
         Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application.container-app:web");
         Assert.Single(resources, resource =>
@@ -2301,11 +2301,11 @@ public sealed class SampleSmokeTests
         Assert.Equal("traefik/whoami:v1.10", apiAttributes.GetProperty("container.image").GetString());
         Assert.Equal("3", apiAttributes.GetProperty("container.replicas").GetString());
         Assert.Contains(
-            "docker:sample-host",
+            "docker.host:sample-host",
             api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
         Assert.Equal("cloudshell.loadBalancer", loadBalancer.GetProperty("typeId").GetString());
         Assert.Equal("traefik", loadBalancerAttributes.GetProperty("loadBalancer.provider").GetString());
-        Assert.Equal("docker:sample-host", loadBalancerAttributes.GetProperty("loadBalancer.hostResourceId").GetString());
+        Assert.Equal("docker.host:sample-host", loadBalancerAttributes.GetProperty("loadBalancer.hostResourceId").GetString());
         Assert.Equal("3", loadBalancerAttributes.GetProperty("loadBalancer.routes").GetString());
         Assert.Equal("2", loadBalancerAttributes.GetProperty("loadBalancer.routes.http").GetString());
         Assert.Equal("1", loadBalancerAttributes.GetProperty("loadBalancer.routes.tcp").GetString());
@@ -2322,7 +2322,7 @@ public sealed class SampleSmokeTests
             "Applied Traefik configuration for 3 route(s)",
             applyDocument.RootElement.GetProperty("message").GetString());
 
-        var configPath = Path.Combine(dataDirectory, "traefik", "load-balancer-public.dynamic.yml");
+        var configPath = Path.Combine(dataDirectory, "traefik", "cloudshell-loadbalancer-public.dynamic.yml");
         var config = await File.ReadAllTextAsync(configPath);
         Assert.Contains("Host(`app.cloudshell.local`)", config);
         Assert.Contains("Host(`api.cloudshell.local`) && PathPrefix(`/v1`)", config);
@@ -2540,7 +2540,6 @@ public sealed class SampleSmokeTests
             "SplitHosting" => [],
             "ThirdPartyIdentity" =>
             [
-                "identity-provisioning:keycloak",
                 "configuration:third-party-identity",
                 "application:keycloak-provisioned-api"
             ],

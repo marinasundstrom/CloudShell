@@ -5,13 +5,13 @@ provider to materialize an endpoint mapping on macOS, Linux, or Windows.
 
 The resource graph declares:
 
-- `networking:host-local`: the local host networking provider.
+- `cloudshell.hostNetworking.local:host-local`: the local host networking provider.
 - `application.aspnet-core-project:vnet-api`: a stopped ASP.NET Core target app endpoint at
   `http://localhost:5291`.
-- `network:sample-vnet`: a virtual network with public endpoint
+- `cloudshell.virtualNetwork:sample-vnet`: a virtual network with public endpoint
   `http://localhost:5292`.
 - `mapping:api-public`: a mapping from the virtual network endpoint to the API
-  endpoint through `networking:host-local`.
+  endpoint through `cloudshell.hostNetworking.local:host-local`.
 
 Run the sample:
 
@@ -25,7 +25,7 @@ Optional endpoint-port settings:
 - `HostVirtualNetwork:VirtualNetworkPort`: virtual-network public endpoint
   port. Defaults to `5292`.
 
-`networking:host-local` is projected as an active host networking
+`cloudshell.hostNetworking.local:host-local` is projected as an active host networking
 resource on macOS, Linux, and Windows. Use the virtual network's
 `Reconcile endpoint mappings` action to start a local TCP proxy from
 `localhost:5292` to `localhost:5291`.
@@ -39,8 +39,8 @@ networking configuration.
 
 The sample now declares only Resource Definitions-backed resources. The old
 direct Resource Manager comparison path has been removed. The remaining
-sample-local bridge validates that `networking:host-local`,
-`application.aspnet-core-project:vnet-api`, and `network:sample-vnet` can start
+sample-local bridge validates that `cloudshell.hostNetworking.local:host-local`,
+`application.aspnet-core-project:vnet-api`, and `cloudshell.virtualNetwork:sample-vnet` can start
 the API and materialize the public ingress without the old application-provider
 aggregate.
 
