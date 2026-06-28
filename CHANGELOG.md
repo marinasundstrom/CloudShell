@@ -64,6 +64,11 @@ on `git blame --follow`, and then by the broad type of change.
   `network:split-sample` comparison record, `SplitHosting:GraphOnly` setting,
   and host-code branch were removed, leaving the split Control Plane sample as
   a remote-client projection gate for graph-backed resources.
+- HostVirtualNetwork has switched to graph-backed resources only: the old
+  application-provider registration, legacy host-network/API/virtual-network
+  records, `HostVirtualNetwork:GraphOnly` setting, and legacy virtual-network
+  port setting were removed while the sample-local endpoint-mapping bridge
+  remains the runtime integration seam to replace later.
 - Resource graph provider helper coverage now verifies grouped registration
   seams include both change-apply and definition-apply providers, not only type
   providers.

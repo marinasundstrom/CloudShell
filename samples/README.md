@@ -17,7 +17,7 @@ when intentionally running the old-provider comparison path.
 | `ReplicatedContainerHealth` | Replicated container app runtime, health/liveness, logs, traces, metrics, and hidden runtime replica projection. | Defaults to graph-only; Docker-backed runtime/log/resource seams remain sample-local until the provider boundary is stabilized. |
 | `ContainerAppDeployment` | Container app image and replica updates through the Control Plane API. | Defaults to graph-only; deployment API updates graph state through a sample-local bridge. |
 | `CloudShell.ContainerHost` | Storage-backed SQL Server lifecycle using a graph volume. | Defaults to graph-only; SQL Docker runtime materialization is sample-local. |
-| `HostVirtualNetwork` | Host-local virtual network endpoint mapping. | Defaults to graph-only; endpoint mapping delegates to the existing Resource Manager provisioner seam. |
+| `HostVirtualNetwork` | Host-local virtual network endpoint mapping. | Switched to graph-backed resources only; endpoint mapping still delegates through a sample-local Resource Manager provisioner bridge. |
 | `LoadBalancer` | Graph-declared load-balancer routes and DNS/name mapping. | Defaults to graph-only; Traefik configuration and local hosts publishing use sample-local runtime bridges. |
 | `SplitHosting` | Remote UI rendering graph-backed resources through a separate Control Plane. | Switched to graph-only projection; the old persisted network comparison record and toggle have been removed. |
 

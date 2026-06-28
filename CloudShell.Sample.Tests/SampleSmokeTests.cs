@@ -60,7 +60,6 @@ public sealed class SampleSmokeTests
         yield return ("ApplicationTopology", "samples/ApplicationTopology/Host/appsettings.json", "ApplicationTopology:GraphOnly");
         yield return ("CloudShell.ContainerHost", "samples/CloudShell.ContainerHost/appsettings.json", "ContainerHost:GraphOnly");
         yield return ("ContainerAppDeployment", "samples/ContainerAppDeployment/appsettings.json", "ContainerAppDeployment:GraphOnly");
-        yield return ("HostVirtualNetwork", "samples/HostVirtualNetwork/appsettings.json", "HostVirtualNetwork:GraphOnly");
         yield return ("LoadBalancer", "samples/LoadBalancer/appsettings.json", "LoadBalancer:GraphOnly");
         yield return ("ProjectReference", "samples/ProjectReference/Host/appsettings.json", "ProjectReference:GraphOnly");
         yield return ("ReplicatedContainerHealth", "samples/ReplicatedContainerHealth/appsettings.json", "ReplicatedContainerHealth:GraphOnly");
@@ -5176,128 +5175,17 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
-    public async Task HostVirtualNetworkSample_ProjectsVirtualNetworkAndHostProvider()
-    {
-        var targetPort = await GetFreePortAsync();
-        var virtualNetworkPort = await GetFreePortAsync();
-        var graphVirtualNetworkPort = await GetFreePortAsync();
-        using var host = await SampleProcess.StartAsync(
-            "samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj",
-            await GetFreePortAsync(),
-            [
-                ("HostVirtualNetwork__GraphOnly", "false"),
-                ("HostVirtualNetwork__TargetPort", targetPort.ToString(CultureInfo.InvariantCulture)),
-                ("HostVirtualNetwork__VirtualNetworkPort", virtualNetworkPort.ToString(CultureInfo.InvariantCulture)),
-                ("HostVirtualNetwork__GraphVirtualNetworkPort", graphVirtualNetworkPort.ToString(CultureInfo.InvariantCulture))
-            ]);
-
-        await host.WaitForHttpOkAsync("/", StartupTimeout);
-
-        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
-        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
-        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
-        var network = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "network:sample-vnet");
-        var graphHost = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "networking:graph-host-local");
-        var graphApi = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.aspnet-core-project:graph-vnet-api");
-        var graphNetwork = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "network:graph-sample-vnet");
-        var attributes = network.GetProperty("attributes");
-
-        Assert.Equal("cloudshell.virtualNetwork", network.GetProperty("typeId").GetString());
-        Assert.Equal("providerRequired", attributes.GetProperty("network.hostReadiness").GetString());
-        Assert.Equal("networking:host-local", attributes.GetProperty("network.mappingProviders").GetString());
-
-        var endpoint = Assert.Single(network.GetProperty("endpoints").EnumerateArray());
-        Assert.Equal("api-public", endpoint.GetProperty("name").GetString());
-        Assert.Equal($"http://localhost:{virtualNetworkPort}", GetEndpointAddress(network, "api-public"));
-        Assert.True(endpoint.GetProperty("isExternal").GetBoolean());
-
-        var mapping = Assert.Single(network.GetProperty("endpointMappings").EnumerateArray());
-        Assert.Equal("mapping:api-public", mapping.GetProperty("id").GetString());
-        Assert.Equal("network:sample-vnet", mapping.GetProperty("source").GetProperty("resourceId").GetString());
-        Assert.Equal("api-public", mapping.GetProperty("source").GetProperty("endpointName").GetString());
-        Assert.Equal("application:vnet-api", mapping.GetProperty("target").GetProperty("resourceId").GetString());
-        Assert.Equal("http", mapping.GetProperty("target").GetProperty("endpointName").GetString());
-        Assert.Equal("networking:host-local", mapping.GetProperty("providerResourceId").GetString());
-
-        var reconcileAction = network
-            .GetProperty("resourceActions")
-            .GetProperty("reconcileEndpointMappings");
-        Assert.Equal("Reconcile endpoint mappings", reconcileAction.GetProperty("displayName").GetString());
-
-        var capabilitiesJson = await host.SendJsonAsync(
-            HttpMethod.Post,
-            "/api/control-plane/v1/resources/capabilities",
-            """
-            {
-              "resourceIds": [
-                "network:sample-vnet"
-              ]
-            }
-            """);
-        using var capabilitiesDocument = JsonDocument.Parse(capabilitiesJson);
-        var networkCapabilities = Assert.Single(capabilitiesDocument.RootElement.EnumerateArray());
-        var reconcileCapability = Assert.Single(
-            networkCapabilities.GetProperty("resourceActionCapabilities").EnumerateArray(),
-            capability => capability.GetProperty("actionId").GetString() == "reconcileEndpointMappings");
-
-        Assert.Contains(resources, resource =>
-            resource.GetProperty("id").GetString() == "networking:host-local");
-        Assert.Equal("cloudshell.hostNetworking.local", graphHost.GetProperty("typeId").GetString());
-        Assert.Equal("application.aspnet-core-project", graphApi.GetProperty("typeId").GetString());
-        Assert.Equal($"http://localhost:{targetPort}", GetPrimaryEndpointAddress(graphApi));
-        Assert.Equal("cloudshell.virtualNetwork", graphNetwork.GetProperty("typeId").GetString());
-        Assert.Equal("providerRequired", graphNetwork.GetProperty("attributes").GetProperty("network.hostReadiness").GetString());
-        Assert.Equal(
-            "networking:graph-host-local",
-            graphNetwork.GetProperty("attributes").GetProperty("network.mappingProviders").GetString());
-        var graphNetworkEndpoint = Assert.Single(graphNetwork.GetProperty("endpoints").EnumerateArray());
-        Assert.Equal("api-public", graphNetworkEndpoint.GetProperty("name").GetString());
-        Assert.Equal("http", graphNetworkEndpoint.GetProperty("protocol").GetString());
-        Assert.Equal(graphVirtualNetworkPort, graphNetworkEndpoint.GetProperty("targetPort").GetInt32());
-        Assert.Equal($"http://localhost:{graphVirtualNetworkPort}", GetEndpointAddress(graphNetwork, "api-public"));
-        Assert.True(graphNetworkEndpoint.GetProperty("isExternal").GetBoolean());
-        var graphNetworkMapping = Assert.Single(graphNetwork.GetProperty("endpointMappings").EnumerateArray());
-        Assert.Equal("mapping:graph-api-public", graphNetworkMapping.GetProperty("id").GetString());
-        Assert.Equal(
-            "network:graph-sample-vnet",
-            graphNetworkMapping.GetProperty("source").GetProperty("resourceId").GetString());
-        Assert.Equal("api-public", graphNetworkMapping.GetProperty("source").GetProperty("endpointName").GetString());
-        Assert.Equal(
-            "application.aspnet-core-project:graph-vnet-api",
-            graphNetworkMapping.GetProperty("target").GetProperty("resourceId").GetString());
-        Assert.Equal("http", graphNetworkMapping.GetProperty("target").GetProperty("endpointName").GetString());
-        Assert.Equal(
-            "networking:graph-host-local",
-            graphNetworkMapping.GetProperty("providerResourceId").GetString());
-        Assert.Contains(
-            "networking:graph-host-local",
-            graphNetwork.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.Contains(
-            "application.aspnet-core-project:graph-vnet-api",
-            graphNetwork.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-
-        Assert.True(reconcileCapability.GetProperty("canExecute").GetBoolean());
-        Assert.Equal(JsonValueKind.Null, reconcileCapability.GetProperty("reason").ValueKind);
-    }
-
-    [Fact]
-    public async Task HostVirtualNetworkSample_GraphOnlyModeReconcilesGraphEndpointMappingThroughRuntimeBridge()
+    public async Task HostVirtualNetworkSample_ReconcilesGraphEndpointMappingThroughRuntimeBridge()
     {
         const string graphApiResourceId = "application.aspnet-core-project:graph-vnet-api";
         const string graphNetworkResourceId = "network:graph-sample-vnet";
         var targetPort = await GetFreePortAsync();
-        var virtualNetworkPort = await GetFreePortAsync();
         var graphVirtualNetworkPort = await GetFreePortAsync();
         using var host = await SampleProcess.StartAsync(
             "samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj",
             await GetFreePortAsync(),
             [
                 ("HostVirtualNetwork__TargetPort", targetPort.ToString(CultureInfo.InvariantCulture)),
-                ("HostVirtualNetwork__VirtualNetworkPort", virtualNetworkPort.ToString(CultureInfo.InvariantCulture)),
                 ("HostVirtualNetwork__GraphVirtualNetworkPort", graphVirtualNetworkPort.ToString(CultureInfo.InvariantCulture))
             ]);
 
@@ -5725,7 +5613,6 @@ public sealed class SampleSmokeTests
         else if (sampleName == "HostVirtualNetwork")
         {
             environment.Add(("HostVirtualNetwork__TargetPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
-            environment.Add(("HostVirtualNetwork__VirtualNetworkPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
             environment.Add(("HostVirtualNetwork__GraphVirtualNetworkPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
         }
         else if (sampleName == "LoadBalancer")

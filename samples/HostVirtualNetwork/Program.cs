@@ -17,9 +17,7 @@ using Microsoft.Extensions.Configuration;
 var builder = CloudShellApplication.CreateBuilder(args);
 
 var targetPort = builder.Configuration.GetValue<int?>("HostVirtualNetwork:TargetPort") ?? 5291;
-var virtualNetworkPort = builder.Configuration.GetValue<int?>("HostVirtualNetwork:VirtualNetworkPort") ?? 5290;
 var graphVirtualNetworkPort = builder.Configuration.GetValue<int?>("HostVirtualNetwork:GraphVirtualNetworkPort") ?? 5292;
-var graphOnly = builder.Configuration.GetValue("HostVirtualNetwork:GraphOnly", true);
 const string graphResourceGroupId = "host-virtual-network-graph-poc";
 const string graphHostNetworkingResourceId = "networking:graph-host-local";
 const string graphApiResourceId = "application.aspnet-core-project:graph-vnet-api";
@@ -85,52 +83,14 @@ builder.Services.AddSingleton<
 cloudShell
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>();
-
-if (!graphOnly)
-{
-    cloudShell.AddApplicationProvider();
-}
-else
-{
-    cloudShell.AddApplicationResourceManagerUi();
-}
+cloudShell.AddApplicationResourceManagerUi();
 
 cloudShell.Resources(resources =>
 {
     resources.AddResourceGroup(
         graphResourceGroupId,
         "Host Virtual Network graph POC",
-        "Side-by-side graph-backed resources used while porting the HostVirtualNetwork sample.");
-
-    if (!graphOnly)
-    {
-        var hostNetworking = resources.AddLocalHostNetworking();
-
-        var api = resources
-            .AddAspNetCoreProject(
-                "vnet-api",
-                "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
-                endpoint: $"http://localhost:{targetPort}")
-            .WithAutoStart(false);
-
-        var network = resources
-            .AddVirtualNetwork(
-                "sample-vnet",
-                isDefault: true);
-
-        var ingress = network.AddHttpEndpoint(
-            "localhost",
-            virtualNetworkPort,
-            "api-public",
-            ResourceExposureScope.Public);
-
-        network.MapEndpoint(
-            ingress,
-            new ResourceEndpointReference(api.ResourceId, "http"),
-            hostNetworking,
-            "mapping:api-public",
-            "API public ingress");
-    }
+        "Graph-backed resources used by the HostVirtualNetwork sample.");
 
     resources
         .Declare(ResourceModelResourceProvider.DefaultProviderId, graphHostNetworkingResourceId)
