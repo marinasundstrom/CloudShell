@@ -55,6 +55,12 @@ on `git blame --follow`, and then by the broad type of change.
 - The supported sample host launch matrix now verifies that graph-default
   sample hosts project at least one Resource Manager resource through the
   Control Plane resources API instead of treating a 200 response as enough.
+- The supported sample host launch matrix now includes the SplitHosting
+  Control Plane resources API, using the sample's client-credentials flow so
+  the graph projection gate also covers the protected split-hosting API path.
+- The supported sample host launch matrix now uses a longer readiness window
+  than focused smoke tests so cold sample host startup and local persistence
+  initialization do not hide graph-default projection regressions.
 
 ### 2026-06-27
 

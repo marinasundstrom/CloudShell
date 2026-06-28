@@ -42,6 +42,7 @@ public sealed class SampleSmokeCollection
 public sealed class SampleSmokeTests
 {
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(90);
+    private static readonly TimeSpan SampleHostLaunchTimeout = TimeSpan.FromMinutes(3);
 
     [Fact]
     public void SupportedSwitchReadinessSamples_DefaultToGraphOnly()
@@ -114,7 +115,7 @@ public sealed class SampleSmokeTests
         yield return new object[]
         {
             "samples/SplitHosting/ControlPlane/CloudShell.SplitHosting.ControlPlane.csproj",
-            new[] { "/openapi/control-plane-v1.json" }
+            new[] { "/openapi/control-plane-v1.json", "/api/control-plane/v1/resources" }
         };
         yield return new object[]
         {
@@ -137,14 +138,25 @@ public sealed class SampleSmokeTests
 
         try
         {
+            var isSplitControlPlane = projectPath.Contains(
+                "/SplitHosting/ControlPlane/",
+                StringComparison.OrdinalIgnoreCase);
             foreach (var path in readinessPaths)
             {
-                await host.WaitForHttpOkAsync(path, StartupTimeout);
                 if (string.Equals(path, "/api/control-plane/v1/resources", StringComparison.Ordinal))
                 {
-                    using var resourcesDocument = JsonDocument.Parse(await host.GetStringAsync(path));
+                    var token = isSplitControlPlane
+                        ? await host.GetClientCredentialsTokenAsync(
+                            "cloudshell-split-ui",
+                            "local-development-client-secret",
+                            "ControlPlane.Access")
+                        : null;
+                    using var resourcesDocument = JsonDocument.Parse(await host.GetStringAsync(path, token));
                     Assert.NotEmpty(resourcesDocument.RootElement.EnumerateArray());
+                    continue;
                 }
+
+                await host.WaitForHttpOkAsync(path, SampleHostLaunchTimeout);
             }
         }
         finally
