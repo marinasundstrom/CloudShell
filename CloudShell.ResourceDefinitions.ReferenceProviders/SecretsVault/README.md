@@ -22,6 +22,29 @@
   provider/runtime data and are not authored as graph attributes.
 - SettingsAndSecrets smoke coverage for endpoint projection, inspect execution, authorized secret reads, and API consumption through the graph-backed endpoint.
 
+## Example ResourceDefinition
+
+This is the interchange shape for a graph-backed Secrets Vault resource. The
+graph declares the service boundary and endpoint; secret values are
+provider/runtime data and must not be stored as ordinary graph attributes.
+
+```json
+{
+  "name": "graph-secrets",
+  "typeId": "secrets.vault",
+  "resourceId": "secrets.vault:graph-secrets",
+  "providerId": "secrets-vault",
+  "displayName": "Graph Secrets",
+  "attributes": {
+    "secrets.kind": "local",
+    "secrets.endpoint": "http://localhost:5102"
+  },
+  "capabilities": {
+    "monitoring": {}
+  }
+}
+```
+
 ## Switch-over status
 
 Ready to integrate for graph-declared Secrets Vault resources in the selected

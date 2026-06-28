@@ -37,6 +37,55 @@
   environment variables, service-discovery references, volume mounts, and
   health-check capability payloads.
 
+## Example ResourceDefinition
+
+This is the interchange shape for a graph-backed ASP.NET Core project resource.
+`project.references` is the service-discovery input; `dependsOn` remains an
+explicit startup-order hint and should not be used as the discovery mechanism.
+
+```json
+{
+  "name": "api",
+  "typeId": "application.aspnet-core-project",
+  "resourceId": "application.aspnet-core-project:graph-api",
+  "providerId": "applications.aspnet-core-project",
+  "displayName": "Graph API",
+  "attributes": {
+    "project.path": "./Api/CloudShell.Sample.Api.csproj",
+    "project.hotReload": false,
+    "project.useLaunchSettings": false,
+    "project.serviceDiscoveryName": "api",
+    "project.endpointRequests": [
+      {
+        "name": "http",
+        "protocol": "http",
+        "targetPort": 8080,
+        "host": "localhost",
+        "port": 5092,
+        "exposure": "Local"
+      }
+    ],
+    "project.references": [
+      {
+        "value": "configuration.store:graph-settings",
+        "relationship": "reference",
+        "addressingMode": "resourceId",
+        "typeId": "configuration.store"
+      },
+      {
+        "value": "secrets.vault:graph-secrets",
+        "relationship": "reference",
+        "addressingMode": "resourceId",
+        "typeId": "secrets.vault"
+      }
+    ]
+  },
+  "capabilities": {
+    "monitoring": {}
+  }
+}
+```
+
 ## Switch-over status
 
 Ready to integrate for graph-declared ASP.NET Core project resources in the

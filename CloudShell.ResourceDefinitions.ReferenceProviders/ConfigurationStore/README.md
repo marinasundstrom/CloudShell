@@ -27,6 +27,29 @@
 - ThirdPartyIdentity Docker smoke coverage for a Keycloak-protected
   graph-backed Configuration Store consumed by a graph-backed ASP.NET Core API.
 
+## Example ResourceDefinition
+
+This is the interchange shape for a graph-backed Configuration Store resource.
+The graph declares the service boundary and endpoint; configuration entry values
+are provider/runtime data and are not authored as ordinary graph attributes.
+
+```json
+{
+  "name": "graph-settings",
+  "typeId": "configuration.store",
+  "resourceId": "configuration.store:graph-settings",
+  "providerId": "configuration",
+  "displayName": "Graph Settings",
+  "attributes": {
+    "configuration.kind": "local",
+    "configuration.endpoint": "http://localhost:5101"
+  },
+  "capabilities": {
+    "monitoring": {}
+  }
+}
+```
+
 ## Switch-over status
 
 Ready to integrate for graph-declared configuration stores in the selected

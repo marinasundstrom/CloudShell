@@ -54,6 +54,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource graph reference provider README coverage now also checks for the
   standard provider overview, ported surface, switch-over status, and remaining
   work sections.
+- ASP.NET Core project, Configuration Store, and Secrets Vault provider READMEs
+  now include `ResourceDefinition` interchange examples that show service
+  discovery references and keep configuration/secret values out of graph
+  attributes.
 - Resource graph provider helper coverage now verifies grouped registration
   seams include both change-apply and definition-apply providers, not only type
   providers.
