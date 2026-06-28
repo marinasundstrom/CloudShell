@@ -170,9 +170,13 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridgeTests
         Assert.Equal(SqlServerRuntimeStatus.Stopped, bridge.GetStatus(await fixture.ResolveResourceModelSqlServerAsync()));
         Assert.Collection(
             runner.Commands,
-            command => Assert.Equal(
-                "rm -f cloudshell-application-topology-sql-server",
-                command.JoinedArguments));
+            command =>
+            {
+                Assert.Equal(
+                    "rm -f cloudshell-application-topology-sql-server",
+                    command.JoinedArguments);
+                Assert.Equal(TimeSpan.FromSeconds(5), command.CommandTimeout);
+            });
     }
 
     private sealed class ApplicationTopologyResourceModelFixture : IDisposable
@@ -346,14 +350,16 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridgeTests
         public Task<ApplicationTopologyDockerCommandResult> RunAsync(
             IReadOnlyList<string> arguments,
             CancellationToken cancellationToken,
-            bool throwOnError = true) =>
-            Task.FromResult(RunCore(arguments, throwOnError));
+            bool throwOnError = true,
+            TimeSpan? commandTimeout = null) =>
+            Task.FromResult(RunCore(arguments, throwOnError, commandTimeout));
 
         private ApplicationTopologyDockerCommandResult RunCore(
             IReadOnlyList<string> arguments,
-            bool throwOnError)
+            bool throwOnError,
+            TimeSpan? commandTimeout = null)
         {
-            Commands.Add(new(arguments.ToArray(), throwOnError));
+            Commands.Add(new(arguments.ToArray(), throwOnError, commandTimeout));
             var result = _results.Count == 0
                 ? new ApplicationTopologyDockerCommandResult(0, string.Empty, string.Empty)
                 : _results.Dequeue();
@@ -368,7 +374,8 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridgeTests
 
     private sealed record RecordedDockerCommand(
         IReadOnlyList<string> Arguments,
-        bool ThrowOnError)
+        bool ThrowOnError,
+        TimeSpan? CommandTimeout)
     {
         public string JoinedArguments => string.Join(' ', Arguments);
     }

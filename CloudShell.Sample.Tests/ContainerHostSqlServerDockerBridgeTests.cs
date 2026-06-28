@@ -62,9 +62,13 @@ public sealed class ContainerHostSqlServerDockerBridgeTests
         var expectedVolumePath = Path.Combine(fixture.ContentRootPath, "Data", "storage", "sql-server");
         Assert.Collection(
             runner.Commands,
-            command => Assert.Equal(
-                "rm -f cloudshell-container-host-sql-server",
-                command.JoinedArguments),
+            command =>
+            {
+                Assert.Equal(
+                    "rm -f cloudshell-container-host-sql-server",
+                    command.JoinedArguments);
+                Assert.Equal(TimeSpan.FromSeconds(5), command.CommandTimeout);
+            },
             command => Assert.Equal(
                 "container inspect --format {{.State.Status}} cloudshell-container-host-sql-server",
                 command.JoinedArguments),
@@ -272,14 +276,16 @@ public sealed class ContainerHostSqlServerDockerBridgeTests
         public Task<ContainerHostDockerCommandResult> RunAsync(
             IReadOnlyList<string> arguments,
             CancellationToken cancellationToken,
-            bool throwOnError = true) =>
-            Task.FromResult(RunCore(arguments, throwOnError));
+            bool throwOnError = true,
+            TimeSpan? commandTimeout = null) =>
+            Task.FromResult(RunCore(arguments, throwOnError, commandTimeout));
 
         private ContainerHostDockerCommandResult RunCore(
             IReadOnlyList<string> arguments,
-            bool throwOnError)
+            bool throwOnError,
+            TimeSpan? commandTimeout = null)
         {
-            Commands.Add(new(arguments.ToArray(), throwOnError));
+            Commands.Add(new(arguments.ToArray(), throwOnError, commandTimeout));
             var result = _results.Count == 0
                 ? new ContainerHostDockerCommandResult(0, string.Empty, string.Empty)
                 : _results.Dequeue();
@@ -294,7 +300,8 @@ public sealed class ContainerHostSqlServerDockerBridgeTests
 
     private sealed record RecordedDockerCommand(
         IReadOnlyList<string> Arguments,
-        bool ThrowOnError)
+        bool ThrowOnError,
+        TimeSpan? CommandTimeout)
     {
         public string JoinedArguments => string.Join(' ', Arguments);
     }

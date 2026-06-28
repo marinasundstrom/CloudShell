@@ -18,6 +18,7 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
 {
     public const string ResourceModelSqlServerContainerName = "cloudshell-application-topology-sql-server";
     private const string SqlServerDataPath = SqlServerResourceDefaults.DataPath;
+    private static readonly TimeSpan DockerRemoveTimeout = TimeSpan.FromSeconds(5);
     private SqlServerRuntimeStatus _status = SqlServerRuntimeStatus.Unknown;
 
     public SqlServerRuntimeStatus GetStatus(ResourceModelResource resource) => _status;
@@ -228,7 +229,11 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
     }
 
     private async Task RemoveAsync(CancellationToken cancellationToken) =>
-        await docker.RunAsync(["rm", "-f", ResourceModelSqlServerContainerName], cancellationToken, throwOnError: false);
+        await docker.RunAsync(
+            ["rm", "-f", ResourceModelSqlServerContainerName],
+            cancellationToken,
+            throwOnError: false,
+            commandTimeout: DockerRemoveTimeout);
 
     private string ResolveAdministratorPassword() =>
         configuration["ApplicationTopology:SqlServer:Password"] ??
@@ -277,7 +282,8 @@ public interface IApplicationTopologyDockerCommandRunner
     Task<ApplicationTopologyDockerCommandResult> RunAsync(
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken,
-        bool throwOnError = true);
+        bool throwOnError = true,
+        TimeSpan? commandTimeout = null);
 }
 
 public sealed class ProcessApplicationTopologyDockerCommandRunner(
@@ -293,7 +299,8 @@ public sealed class ProcessApplicationTopologyDockerCommandRunner(
     public async Task<ApplicationTopologyDockerCommandResult> RunAsync(
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken,
-        bool throwOnError = true)
+        bool throwOnError = true,
+        TimeSpan? commandTimeout = null)
     {
         var host = containerHostProviders.FirstOrDefault()?.GetDefaultHost();
         var startInfo = new ProcessStartInfo(ResolveExecutable(host))
@@ -309,13 +316,26 @@ public sealed class ProcessApplicationTopologyDockerCommandRunner(
             startInfo.ArgumentList.Add(argument);
         }
 
+        using var commandTimeoutSource = commandTimeout is { } timeout
+            ? new CancellationTokenSource(timeout)
+            : null;
+        using var linkedCancellationSource = commandTimeoutSource is null
+            ? null
+            : CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                commandTimeoutSource.Token);
+        var effectiveCancellationToken = linkedCancellationSource?.Token ?? cancellationToken;
+
         try
         {
             using var process = Process.Start(startInfo) ??
                 throw new InvalidOperationException("Docker command could not be started.");
-            var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-            var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-            await process.WaitForExitAsync(cancellationToken);
+            using var cancellationRegistration = effectiveCancellationToken.Register(
+                static state => KillProcessTree((Process)state!),
+                process);
+            var outputTask = process.StandardOutput.ReadToEndAsync(effectiveCancellationToken);
+            var errorTask = process.StandardError.ReadToEndAsync(effectiveCancellationToken);
+            await process.WaitForExitAsync(effectiveCancellationToken);
             var result = new ApplicationTopologyDockerCommandResult(
                 process.ExitCode,
                 await outputTask,
@@ -327,6 +347,21 @@ public sealed class ProcessApplicationTopologyDockerCommandRunner(
             }
 
             return result;
+        }
+        catch (OperationCanceledException) when (
+            commandTimeoutSource?.IsCancellationRequested == true &&
+            !cancellationToken.IsCancellationRequested)
+        {
+            var message = $"Docker command '{startInfo.FileName} {string.Join(' ', arguments)}' timed out after {commandTimeout!.Value.TotalSeconds.ToString(CultureInfo.InvariantCulture)} seconds.";
+            if (throwOnError)
+            {
+                throw new TimeoutException(message);
+            }
+
+            return new ApplicationTopologyDockerCommandResult(
+                -1,
+                string.Empty,
+                message);
         }
         catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
         {
@@ -347,6 +382,21 @@ public sealed class ProcessApplicationTopologyDockerCommandRunner(
         !string.IsNullOrWhiteSpace(executable)
             ? executable
             : host?.Kind == ContainerHostKind.Podman ? "podman" : "docker";
+
+    private static void KillProcessTree(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit((int)TimeSpan.FromSeconds(1).TotalMilliseconds);
+            }
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+        }
+    }
 
     private static void ConfigureEnvironment(
         ProcessStartInfo startInfo,

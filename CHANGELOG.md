@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- ApplicationTopology and CloudShell.ContainerHost SQL Server Docker cleanup now bounds
+  container removal and terminates cancelled Docker CLI processes so host shutdown is
+  not held by a stuck `docker rm -f`.
 - Resource model DNS name mappings now use `belongsTo` references for their
   DNS zone, `reference` references for their target resource, and project into
   Resource Manager as DNS-zone children with target-resource metadata.

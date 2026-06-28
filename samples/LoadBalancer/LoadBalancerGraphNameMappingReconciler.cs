@@ -285,6 +285,9 @@ public sealed class LoadBalancerGraphNameMappingReconciler(
         out string resourceId,
         out ResourceTypeId? typeId)
     {
+        resourceId = string.Empty;
+        typeId = null;
+
         if (reference.Relationship == ResourceReferenceRelationships.Reference &&
             reference.TryGetResourceId(out resourceId))
         {
@@ -292,7 +295,6 @@ public sealed class LoadBalancerGraphNameMappingReconciler(
             return true;
         }
 
-        typeId = null;
         return false;
     }
 
