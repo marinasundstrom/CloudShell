@@ -75,7 +75,7 @@ cloudShell.DefineResources(resources =>
     var api = resources
         .AddAspNetCoreProject("settings-secrets-api", apiProjectPath);
     apiResource = api;
-    var apiIdentityClientId = $"{apiResource.EffectiveResourceId}/{apiIdentityName}";
+    var apiIdentityClientId = apiResource.IdentityClientId(apiIdentityName);
 
     api
         .WithDisplayName("Settings and Secrets API")

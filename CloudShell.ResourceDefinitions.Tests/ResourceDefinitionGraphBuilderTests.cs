@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
@@ -171,6 +172,30 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         Assert.Equal(NetworkResourceTypeProvider.ResourceTypeId, resource.TypeId);
         Assert.Equal("cloudshell.network:app", resource.EffectiveResourceId);
+    }
+
+    [Fact]
+    public void ResourceDefinitionBuilder_ProjectsIdentityAuthoringReferences()
+    {
+        var graph = new ResourceDefinitionGraphBuilder();
+        var api = graph.AddAspNetCoreProject("api", "src/Api/Api.csproj");
+
+        var identity = api.Identity("api-service");
+        var principal = api.Principal(
+            "api-service",
+            displayName: "API service",
+            providerId: "identity:development");
+
+        Assert.Equal("application.aspnet-core-project:api", identity.ResourceId);
+        Assert.Equal("api-service", identity.Name);
+        Assert.Equal("application.aspnet-core-project:api/api-service", api.IdentityClientId("api-service"));
+        Assert.Equal("application.aspnet-core-project:api", api.IdentityClientId());
+        Assert.Equal(ResourcePrincipalKind.ResourceIdentity, principal.Kind);
+        Assert.Equal("application.aspnet-core-project:api/identities/api-service", principal.Id);
+        Assert.Equal("application.aspnet-core-project:api", principal.SourceResourceId);
+        Assert.Equal("api-service", principal.SourceIdentityName);
+        Assert.Equal("API service", principal.DisplayName);
+        Assert.Equal("identity:development", principal.ProviderId);
     }
 
     [Fact]

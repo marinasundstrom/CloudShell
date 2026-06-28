@@ -134,7 +134,7 @@ cloudShell.DefineResources(resources =>
     var api = resources
         .AddAspNetCoreProject("application-topology-api", graphApiProjectPath);
     apiResource = api;
-    var graphApiIdentityClientId = $"{apiResource.EffectiveResourceId}/{graphApiIdentityName}";
+    var graphApiIdentityClientId = apiResource.IdentityClientId(graphApiIdentityName);
     api
         .WithDisplayName("Application Topology API")
         .DependsOn(databaseResource, SqlDatabaseResourceTypeProvider.ResourceTypeId)

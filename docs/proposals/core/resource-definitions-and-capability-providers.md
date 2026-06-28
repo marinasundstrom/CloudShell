@@ -942,6 +942,12 @@ convenience extensions can provide shorter host or provider-specific authoring
 forms for common identity bindings, grants, or provisioning patterns. This
 keeps the programmatic API approachable without hiding CloudShell's resource
 graph semantics or prematurely coupling all providers to one shared toolkit.
+The first bridge-owned convenience helpers project Resource Manager identity
+authoring values from graph builders: `resource.Identity(name)`,
+`resource.Principal(identityName)`, and `resource.IdentityClientId(name)`.
+These mirror the old builder's identity ergonomics for samples and runtime
+environment composition while keeping the actual identity binding and grant
+declarations in the Resource Manager seam for now.
 Resource authoring should normally use resource names as the stable
 human-authored identifiers. Resource ids are assigned by platform conventions
 or provider conventions and should usually be left implicit. Programmatic

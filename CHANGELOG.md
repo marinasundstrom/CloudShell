@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added bridge-owned resource graph identity convenience helpers for
+  `IResourceDefinitionBuilder`: `Identity(...)`, `Principal(...)`, and
+  `IdentityClientId(...)`, and updated graph-backed samples to use the helper
+  instead of hand-formatting resource identity client ids.
 - Documented the resource graph builder API layering direction: core builders
   stay aligned with Resource model concepts, while Aspire-like and old-builder
   convenience shapes should start as extension methods until provider ports
