@@ -116,7 +116,7 @@ internal sealed class ApplicationContainerOrchestratorServicePreparationOperatio
 
     private bool ShouldUseContainerAppIngress(ResourceOrchestratorService service) =>
         options.EnableReplicatedContainerAppIngress &&
-        service.Replicas > 1 &&
+        service.ReplicasEnabled &&
         service.ServicePorts.Any(IsContainerAppIngressPort);
 
     private async Task StopContainerAppIngressAsync(

@@ -290,6 +290,11 @@ public interface IResourceOrchestratorServiceProcedureProvider
         CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
 
+    Task ReconcileOrchestratorServiceRoutingAsync(
+        ResourceOrchestratorServiceProcedureContext context,
+        CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
     Task ExecuteOrchestratorServiceInstanceAsync(
         ResourceOrchestratorServiceInstanceContext context,
         ResourceAction action,

@@ -54,6 +54,9 @@ internal static class ResourceOrchestratorServiceExecutor
                 resourceContext,
                 ResourceEventTypes.Events.Deployment.RoutingUpdating,
                 $"Updating routing for orchestrator service '{deployment.ServiceId}' to revision '{deployment.RevisionId}' for deployment '{deployment.Id}'.");
+            await provider.ReconcileOrchestratorServiceRoutingAsync(
+                new ResourceOrchestratorServiceProcedureContext(resourceContext, service, replicaGroup),
+                cancellationToken);
             AppendDeploymentEvent(
                 resourceContext,
                 ResourceEventTypes.Events.Deployment.RoutingUpdated,

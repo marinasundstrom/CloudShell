@@ -17,6 +17,12 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Container app deployment apply now reconciles replica routing separately
+  from replica materialization: scale-out adds replicas before updating
+  routing, scale-in updates routing before removing replicas, and image
+  deployments route to the new revision group before retiring the old group.
+  The local Docker ingress reconciler now rewrites watched routing config
+  without removing a running ingress container.
 - ReplicatedContainerHealth runtime status probing now uses a less fragile
   Docker inspect timeout and keeps the last stable container-app lifecycle
   state across transient probe timeouts, while still reporting mixed replica

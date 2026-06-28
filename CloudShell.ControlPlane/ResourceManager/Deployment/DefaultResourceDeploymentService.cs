@@ -197,6 +197,22 @@ public sealed class DefaultResourceDeploymentService(
             }
         }
 
+        if (change.HasChanges &&
+            service.ServicePorts.Count > 0)
+        {
+            ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
+                resourceContext,
+                ResourceEventTypes.Events.Deployment.RoutingUpdating,
+                $"Updating routing for orchestrator service '{deployment.ServiceId}' to replica group '{targetReplicaGroup.Id}' for deployment '{deployment.Id}'.");
+            await provider.ReconcileOrchestratorServiceRoutingAsync(
+                new ResourceOrchestratorServiceProcedureContext(resourceContext, service, targetReplicaGroup),
+                cancellationToken);
+            ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
+                resourceContext,
+                ResourceEventTypes.Events.Deployment.RoutingUpdated,
+                $"Updated routing for orchestrator service '{deployment.ServiceId}' to replica group '{targetReplicaGroup.Id}' for deployment '{deployment.Id}'.");
+        }
+
         foreach (var instance in change.RemovedInstances.OrderByDescending(instance => instance.ReplicaOrdinal))
         {
             await provider.ExecuteOrchestratorServiceInstanceAsync(

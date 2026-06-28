@@ -275,6 +275,64 @@ public sealed class ResourceOrchestrationDeploymentTests
     }
 
     [Fact]
+    public async Task ApplyDeploymentAsync_UpdatesRoutingAfterAddingReplicas()
+    {
+        var resource = CreateResource();
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var initialProvider = new RecordingServiceProcedureProvider(resource);
+        var initialDeployments = CreateDeployments(resource, initialProvider, deploymentStore: deploymentStore);
+        await initialDeployments.ApplyDeploymentAsync(
+            resource,
+            CreateDeployment(resource.Id, "default", replicas: 2));
+
+        var scaleProvider = new RecordingServiceProcedureProvider(resource);
+        var scaleDeployments = CreateDeployments(resource, scaleProvider, deploymentStore: deploymentStore);
+
+        await scaleDeployments.ApplyDeploymentAsync(
+            resource,
+            CreateDeployment(resource.Id, "default", replicas: 4));
+
+        Assert.Equal(
+            [
+                "Prepare:Start:cloudshell-application-api-rev-2-replicas",
+                "Start:cloudshell-application-api-rev-2-replica-3",
+                "Start:cloudshell-application-api-rev-2-replica-4",
+                "Route:cloudshell-application-api-rev-2-replicas"
+            ],
+            scaleProvider.Operations.ToArray());
+        Assert.Equal("cloudshell-application-api-rev-2-replicas", Assert.Single(scaleProvider.RoutedContexts).ReplicaGroup?.Id);
+    }
+
+    [Fact]
+    public async Task ApplyDeploymentAsync_UpdatesRoutingBeforeRemovingReplicas()
+    {
+        var resource = CreateResource();
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var initialProvider = new RecordingServiceProcedureProvider(resource);
+        var initialDeployments = CreateDeployments(resource, initialProvider, deploymentStore: deploymentStore);
+        await initialDeployments.ApplyDeploymentAsync(
+            resource,
+            CreateDeployment(resource.Id, "default", replicas: 4));
+
+        var scaleProvider = new RecordingServiceProcedureProvider(resource);
+        var scaleDeployments = CreateDeployments(resource, scaleProvider, deploymentStore: deploymentStore);
+
+        await scaleDeployments.ApplyDeploymentAsync(
+            resource,
+            CreateDeployment(resource.Id, "default", replicas: 2));
+
+        Assert.Equal(
+            [
+                "Route:cloudshell-application-api-rev-2-replicas",
+                "Stop:cloudshell-application-api-rev-2-replica-4",
+                "Stop:cloudshell-application-api-rev-2-replica-3"
+            ],
+            scaleProvider.Operations.ToArray());
+        Assert.Empty(scaleProvider.PreparedActions);
+        Assert.Equal("cloudshell-application-api-rev-2-replicas", Assert.Single(scaleProvider.RoutedContexts).ReplicaGroup?.Id);
+    }
+
+    [Fact]
     public async Task ApplyDeploymentAsync_ReturnsRetiredReplicaGroupWhenRuntimeRevisionChanges()
     {
         var resource = CreateResource();
@@ -309,6 +367,12 @@ public sealed class ResourceOrchestrationDeploymentTests
             tearDown.Reason,
             StringComparison.OrdinalIgnoreCase);
         Assert.Equal("cloudshell-application-api-rev-3-replicas", secondResult.Revision.ReplicaGroup?.Id);
+        Assert.DoesNotContain(
+            provider.ExecutedInstanceActions,
+            action => action.StartsWith("Stop:", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            provider.Operations,
+            operation => string.Equals(operation, "Route:cloudshell-application-api-rev-3-replicas", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -985,11 +1049,15 @@ public sealed class ResourceOrchestrationDeploymentTests
 
         public ConcurrentBag<ResourceAction> PreparedActions { get; } = [];
 
+        public ConcurrentBag<ResourceOrchestratorServiceProcedureContext> RoutedContexts { get; } = [];
+
         public ConcurrentBag<ResourceOrchestratorServiceInstanceContext> ExecutedInstances { get; } = [];
 
         public ConcurrentBag<ResourceAction> ExecutedActions { get; } = [];
 
         public ConcurrentQueue<string> ExecutedInstanceActions { get; } = [];
+
+        public ConcurrentQueue<string> Operations { get; } = [];
 
         public ResourceOrchestratorService? OrchestratorService { get; init; }
 
@@ -1014,10 +1082,20 @@ public sealed class ResourceOrchestrationDeploymentTests
             PreparedActions.Add(action);
             PreparedContexts.Add(context);
             PreparedServices.Add(context.Service);
+            Operations.Enqueue($"Prepare:{action.Kind}:{context.ReplicaGroup?.Id ?? context.Service.Name}");
             if (gate is not null)
             {
                 await gate.SignalAndWaitAsync(cancellationToken);
             }
+        }
+
+        public Task ReconcileOrchestratorServiceRoutingAsync(
+            ResourceOrchestratorServiceProcedureContext context,
+            CancellationToken cancellationToken = default)
+        {
+            RoutedContexts.Add(context);
+            Operations.Enqueue($"Route:{context.ReplicaGroup?.Id ?? context.Service.Name}");
+            return Task.CompletedTask;
         }
 
         public Task ExecuteOrchestratorServiceInstanceAsync(
@@ -1034,6 +1112,7 @@ public sealed class ResourceOrchestrationDeploymentTests
             ExecutedActions.Add(action);
             ExecutedInstances.Add(context);
             ExecutedInstanceActions.Enqueue($"{action.Kind}:{context.Instance.Name}");
+            Operations.Enqueue($"{action.Kind}:{context.Instance.Name}");
             return Task.CompletedTask;
         }
 

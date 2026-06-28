@@ -333,6 +333,31 @@ public sealed partial class ApplicationResourceRuntimeOperations(
         }
     }
 
+    public async Task ReconcileOrchestratorServiceRoutingAsync(
+        ResourceOrchestratorServiceProcedureContext context,
+        CancellationToken cancellationToken = default)
+    {
+        if (!ShouldUseContainerAppIngress(context.Service))
+        {
+            return;
+        }
+
+        var application = GetContainerApplication(context.ResourceContext.Resource.Id);
+        var engine = await ResolveRequiredContainerHostAsync(
+            application,
+            context.ResourceContext.ResourceManager,
+            context.ResourceContext.PreferredContainerHostId,
+            ContainerHostCapabilityIds.ContainerImage,
+            cancellationToken);
+        await StartContainerAppIngressAsync(
+            application,
+            engine,
+            context.Service,
+            _containerProcesses.GetProcessLog(application.Id),
+            cancellationToken,
+            context.ResourceContext);
+    }
+
     public bool IsRunning(string applicationId) =>
         GetApplication(applicationId) is { } application &&
         (IsContainerBacked(application)
@@ -1100,12 +1125,45 @@ public sealed partial class ApplicationResourceRuntimeOperations(
             cancellationToken,
             procedureContext);
 
-        await ApplicationContainerHostCommands.RunAsync(
+        var runningStatus = await TryGetContainerRunningStatusAsync(
             engine,
-            ["rm", "-f", ingressName],
-            log,
-            cancellationToken,
-            dockerHostLogger);
+            ingressName,
+            cancellationToken);
+        if (runningStatus == true)
+        {
+            log.Append(
+                $"Updated replicated container app ingress mapping '{ingressName}' for {definition.Name}.",
+                "process",
+                "Information");
+            procedureContext?.AppendProviderEvent(
+                Id,
+                "application.container.ingress.updated",
+                $"Application provider updated ingress '{ingressName}' for '{definition.Name}'.");
+            return;
+        }
+
+        if (runningStatus == false)
+        {
+            procedureContext?.AppendProviderEvent(
+                Id,
+                "application.container.ingress.starting",
+                $"Application provider is starting existing ingress '{ingressName}' for '{definition.Name}'.");
+            await ApplicationContainerHostCommands.RunAsync(
+                engine,
+                ["start", ingressName],
+                log,
+                cancellationToken,
+                dockerHostLogger);
+            log.Append(
+                $"Started existing replicated container app ingress '{ingressName}' for {definition.Name}.",
+                "process",
+                "Information");
+            procedureContext?.AppendProviderEvent(
+                Id,
+                "application.container.ingress.started",
+                $"Application provider started existing ingress '{ingressName}' for '{definition.Name}'.");
+            return;
+        }
 
         var arguments = new List<string>
         {
@@ -1155,6 +1213,29 @@ public sealed partial class ApplicationResourceRuntimeOperations(
             Id,
             "application.container.ingress.started",
             $"Application provider started ingress '{ingressName}' for '{definition.Name}'.");
+    }
+
+    private static async Task<bool?> TryGetContainerRunningStatusAsync(
+        ContainerHostDescriptor engine,
+        string containerName,
+        CancellationToken cancellationToken)
+    {
+        var result = await ApplicationContainerHostCommands.CaptureAsync(
+            engine,
+            ["inspect", "--format", "{{.State.Running}}", containerName],
+            cancellationToken);
+        if (result.ExitCode != 0)
+        {
+            return null;
+        }
+
+        var output = result.Output.Trim();
+        if (bool.TryParse(output, out var running))
+        {
+            return running;
+        }
+
+        return null;
     }
 
     private async Task<string> WriteContainerAppIngressConfigurationAsync(
@@ -1558,7 +1639,7 @@ public sealed partial class ApplicationResourceRuntimeOperations(
 
     private bool ShouldUseContainerAppIngress(ResourceOrchestratorService service) =>
         options.EnableReplicatedContainerAppIngress &&
-        service.Replicas > 1 &&
+        service.ReplicasEnabled &&
         service.ServicePorts.Any(IsContainerAppIngressPort);
 
     private static IReadOnlyList<ServicePort> GetRuntimeContainerProbePorts(
