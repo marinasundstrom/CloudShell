@@ -5,7 +5,9 @@ using CloudShell.Providers.Applications;
 using CloudShell.Providers.Applications.Shared.Pages;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using ContainerAppPages = CloudShell.Providers.Applications.ContainerApp.Pages;
+using ApplicationContainerAppPages = CloudShell.Providers.Applications.ContainerApp.Pages;
+using GraphContainerAppPages = CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI.ContainerApplication.Pages;
+using GraphSharedPages = CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI.Shared.Pages;
 using ResourceManagerResourceClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
 
 namespace CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI;
@@ -30,14 +32,14 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
         builder.Services.TryAddSingleton<IContainerApplicationHistoryOperations, EmptyContainerApplicationHistoryOperations>();
 
         builder
-            .AddResourceType<RegisterGraphApplicationResource>(
+            .AddResourceType<GraphSharedPages.RegisterGraphApplicationResource>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 "Executable application",
                 "Inspect Resource graph executable applications through Resource Manager.",
                 "application",
                 20,
                 resourceClass: ResourceManagerResourceClass.Executable)
-            .AddResourceType<RegisterGraphApplicationResource>(
+            .AddResourceType<GraphSharedPages.RegisterGraphApplicationResource>(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
                 "ASP.NET Core project",
                 "Inspect Resource graph ASP.NET Core projects through Resource Manager.",
@@ -58,7 +60,7 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
                             Source: ResourceProbeSource.ForHttp("/alive", "http"))
                     ]),
                 resourceClass: ResourceManagerResourceClass.Project)
-            .AddResourceType<ContainerAppPages.RegisterGraphContainerApplicationResource>(
+            .AddResourceType<GraphContainerAppPages.RegisterGraphContainerApplicationResource>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 "Container app",
                 "Inspect Resource graph container applications through Resource Manager.",
@@ -66,7 +68,7 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
                 22,
                 probeOptions: new ResourceTypeProbeOptions(SupportsHealth: true),
                 resourceClass: ResourceManagerResourceClass.Container)
-            .AddResourceType<RegisterGraphApplicationResource>(
+            .AddResourceType<GraphSharedPages.RegisterGraphApplicationResource>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 "SQL Server",
                 "Inspect Resource graph SQL Server resources through Resource Manager.",
@@ -89,28 +91,28 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
             .AddResourceTypeEndpoint(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourceEndpointDescriptor.Tcp("tds", 1433))
-            .AddResourceTab<ContainerAppPages.ApplicationDeployment>(
+            .AddResourceTab<ApplicationContainerAppPages.ApplicationDeployment>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "deployment"),
                 "Deployment",
                 20,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "deployment")
-            .AddResourceTab<ContainerAppPages.ApplicationRevisions>(
+            .AddResourceTab<ApplicationContainerAppPages.ApplicationRevisions>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "revisions"),
                 "Revisions",
                 25,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "runtime")
-            .AddResourceTab<ContainerAppPages.GraphContainerApplicationScaling>(
+            .AddResourceTab<GraphContainerAppPages.GraphContainerApplicationScaling>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "scale-replicas"),
                 "Scale and replicas",
                 30,
                 groupTitle: ResourceTabGroupTitles.Application,
                 icon: "scale")
-            .AddResourceTab<ContainerAppPages.ApplicationMonitoring>(
+            .AddResourceTab<ApplicationContainerAppPages.ApplicationMonitoring>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Monitoring,
                 "Monitoring",

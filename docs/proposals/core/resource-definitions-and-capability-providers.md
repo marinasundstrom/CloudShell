@@ -1216,6 +1216,20 @@ builders to produce Resource Definitions, but it must not become the owner of
 runtime behavior. This keeps provider UI beside the provider runtime boundary
 without recreating the legacy application-provider aggregate.
 
+The starting package model is:
+
+- The core Resource Manager shell UI extension owns the generic Resources UI
+  and uses the Control Plane client.
+- A shared Resource Manager UI integration library exposes the contracts and
+  helpers provider UI extensions use to contribute resource-specific views,
+  forms, sections, and commands. It also uses the Control Plane client when it
+  needs to read or invoke Resource Manager behavior.
+- Each provider creates a Control Plane Resource Provider extension for runtime
+  integration and graph/resource projection.
+- Each provider creates a Resource Manager UI extension for its UI integration.
+  This extension depends on the shared Resource Manager UI integration surface,
+  not on provider runtime internals.
+
 `/resources/add` should be treated as an authoring surface over the graph
 model. Creating a resource through the UI is equivalent to applying a
 single-resource deployment: the provider UI gathers input, builds a
@@ -1838,6 +1852,13 @@ it still belongs to the POC provider family. Rename that project and namespace
 when the provider split is ready: application workload UI support should move
 to an application-provider UI package, and networking/infrastructure UI
 support should live with their corresponding provider families.
+For the current switch-over, provider-specific Resource Manager UI components
+are being extracted into that UI-support project while provider implementations
+remain together. Graph-only registration components and the container app
+scale/replica view belong in the UI-support project. More runtime-coupled
+views, such as deployment history, revisions, monitoring, and endpoint actions,
+may temporarily be reused from the legacy application provider UI until those
+views are moved or replaced behind the same UI boundary.
 Small provider-group helpers may be added when they reflect an existing
 switch-readiness boundary, such as local container application support
 requiring both the container app type and its Docker host target type, or a
