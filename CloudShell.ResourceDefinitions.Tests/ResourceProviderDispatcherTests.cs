@@ -1529,6 +1529,24 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public void AddStorageBackedSqlServerResourceTypes_RegistersStorageVolumeAndSqlServerTypes()
+    {
+        var services = new ServiceCollection();
+
+        services.AddStorageBackedSqlServerResourceTypes();
+        using var serviceProvider = services.BuildServiceProvider();
+        var typeIds = serviceProvider
+            .GetServices<IResourceTypeProvider>()
+            .Select(provider => provider.TypeDefinition.TypeId)
+            .ToArray();
+
+        Assert.Contains(StorageResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(CloudShellVolumeResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(SqlServerResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.DoesNotContain(SqlDatabaseResourceTypeProvider.ResourceTypeId, typeIds);
+    }
+
+    [Fact]
     public async Task AddSqlServerResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();

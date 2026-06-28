@@ -1705,10 +1705,13 @@ independently registered provider groups. Shared graph infrastructure stays
 outside those groups.
 Small provider-group helpers may be added when they reflect an existing
 switch-readiness boundary, such as local container application support
-requiring both the container app type and its Docker host target type. These
-helpers are composition conveniences only. They must not hide runtime handler
-ownership, fold unrelated provider families together, or prevent a host from
-registering the same providers independently.
+requiring both the container app type and its Docker host target type, or a
+storage-backed SQL Server path requiring storage, CloudShell volume, and SQL
+Server type registration. SQL database remains explicitly registered by hosts
+that declare database children. These helpers are composition conveniences
+only. They must not hide runtime handler ownership, fold unrelated provider
+families together, or prevent a host from registering the same providers
+independently.
 
 The old provider implementations are reference and compatibility surfaces
 during this phase. They should stay decoupled and isolated from the new graph

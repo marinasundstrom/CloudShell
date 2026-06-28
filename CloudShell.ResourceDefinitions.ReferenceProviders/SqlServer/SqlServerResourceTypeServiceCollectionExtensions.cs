@@ -5,6 +5,18 @@ namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
 public static class SqlServerResourceTypeServiceCollectionExtensions
 {
+    public static IServiceCollection AddStorageBackedSqlServerResourceTypes(
+        this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddStorageResourceType();
+        services.AddCloudShellVolumeResourceType();
+        services.AddSqlServerResourceType();
+
+        return services;
+    }
+
     public static IServiceCollection AddSqlServerResourceType(
         this IServiceCollection services)
     {

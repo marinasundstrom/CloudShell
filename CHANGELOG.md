@@ -21,6 +21,10 @@ on `git blame --follow`, and then by the broad type of change.
   `AddLocalContainerApplicationResourceTypes(...)` to register the paired
   container app and Docker host resource types while keeping runtime handlers
   and extra provider types explicit per sample.
+- Storage-backed SQL graph samples now use
+  `AddStorageBackedSqlServerResourceTypes(...)` to register storage,
+  CloudShell volume, and SQL Server resource types together while keeping SQL
+  database children and runtime handlers explicit per sample.
 - Graph-default samples now use the builder-level
   `UseResourceGraphIntegration(...)` seam to register generic graph
   services, current graph-provider Resource Manager projections, and the

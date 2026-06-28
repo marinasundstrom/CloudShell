@@ -257,9 +257,7 @@ else
 
 builder.Services
     .AddSingleton<ISqlServerRuntimeHandler, ApplicationTopologyGraphSqlServerRuntimeHandler>()
-    .AddStorageResourceType()
-    .AddCloudShellVolumeResourceType()
-    .AddSqlServerResourceType()
+    .AddStorageBackedSqlServerResourceTypes()
     .AddSqlDatabaseResourceType()
     .AddConfigurationStoreResourceType(options =>
     {
