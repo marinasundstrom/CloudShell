@@ -46,9 +46,9 @@ var frontendEndpoint = builder.Configuration["ApplicationTopology:FrontendEndpoi
     ?? "http://localhost:5218";
 var apiEndpoint = builder.Configuration["ApplicationTopology:ApiEndpoint"]
     ?? "http://localhost:21422";
-var graphApiEndpoint = builder.Configuration["ApplicationTopology:GraphApiEndpoint"]
+var apiResourceEndpoint = builder.Configuration["ApplicationTopology:GraphApiEndpoint"]
     ?? apiEndpoint;
-var graphFrontendEndpoint = builder.Configuration["ApplicationTopology:GraphFrontendEndpoint"]
+var frontendResourceEndpoint = builder.Configuration["ApplicationTopology:GraphFrontendEndpoint"]
     ?? frontendEndpoint;
 var configurationServiceBasePort =
     builder.Configuration.GetValue<int?>("ApplicationTopology:ConfigurationServiceBasePort") ??
@@ -64,20 +64,20 @@ var graphConfigurationEndpoint = builder.Configuration["ApplicationTopology:Conf
 var graphSecretsEndpoint = builder.Configuration["ApplicationTopology:SecretsServiceEndpoint"]
     ?? builder.Configuration["ApplicationTopology:GraphSecretsServiceEndpoint"]
     ?? $"http://localhost:{secretsServiceBasePort}";
-var graphApiEndpointUri = new Uri(graphApiEndpoint);
-var graphFrontendEndpointUri = new Uri(graphFrontendEndpoint);
-var graphApiProjectPath = Path.Combine(
+var apiResourceEndpointUri = new Uri(apiResourceEndpoint);
+var frontendResourceEndpointUri = new Uri(frontendResourceEndpoint);
+var apiProjectPath = Path.Combine(
     sampleRootPath,
     "Api",
     "CloudShell.ApplicationTopologyApi.csproj");
-var graphFrontendProjectPath = Path.Combine(
+var frontendProjectPath = Path.Combine(
     sampleRootPath,
     "Frontend",
     "CloudShell.ApplicationTopologyFrontend.csproj");
 var sqlPassword = builder.Configuration["ApplicationTopology:SqlServer:Password"]
     ?? ApplicationProviderServiceCollectionExtensions.DefaultSqlServerAdministratorPassword;
 var sqlPort = builder.Configuration.GetValue("ApplicationTopology:SqlServer:Port", 14334);
-const string graphApiIdentityName = "application-topology-api";
+const string apiIdentityName = "application-topology-api";
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 {
     ["Authentication:BuiltInAuthority:Enabled"] = "true",
@@ -138,9 +138,9 @@ cloudShell.DefineResources(resources =>
         .WithDisplayName("Application Topology Host Settings")
         .WithSource("application-topology");
     var api = resources
-        .AddAspNetCoreProject("application-topology-api", graphApiProjectPath);
+        .AddAspNetCoreProject("application-topology-api", apiProjectPath);
     apiResource = api;
-    var graphApiIdentityClientId = apiResource.IdentityClientId(graphApiIdentityName);
+    var apiIdentityClientId = apiResource.IdentityClientId(apiIdentityName);
     api
         .WithDisplayName("Application Topology API")
         .DependsOn(databaseResource)
@@ -150,8 +150,8 @@ cloudShell.DefineResources(resources =>
         .UseLaunchSettings(false)
         .WithServiceDiscoveryName("application-topology-api")
         .WithHttpEndpoint(
-            host: graphApiEndpointUri.Host,
-            port: graphApiEndpointUri.Port)
+            host: apiResourceEndpointUri.Host,
+            port: apiResourceEndpointUri.Port)
         .WithEnvironmentVariable(
             "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
             traceIngestEndpoint ?? string.Empty)
@@ -166,7 +166,7 @@ cloudShell.DefineResources(resources =>
             identityTokenEndpoint)
         .WithEnvironmentVariable(
             "CLOUDSHELL_IDENTITY_CLIENT_ID",
-            graphApiIdentityClientId)
+            apiIdentityClientId)
         .WithEnvironmentVariable(
             "CLOUDSHELL_IDENTITY_CLIENT_SECRET",
             "local-development-application-topology-api-secret")
@@ -203,14 +203,14 @@ cloudShell.DefineResources(resources =>
             name: "alive");
 
     frontendResource = resources
-        .AddAspNetCoreProject("application-topology-frontend", graphFrontendProjectPath)
+        .AddAspNetCoreProject("application-topology-frontend", frontendProjectPath)
         .WithDisplayName("Application Topology Frontend")
         .DependsOn(apiResource)
         .WithHotReload(false)
         .UseLaunchSettings(false)
         .WithHttpEndpoint(
-            host: graphFrontendEndpointUri.Host,
-            port: graphFrontendEndpointUri.Port)
+            host: frontendResourceEndpointUri.Host,
+            port: frontendResourceEndpointUri.Port)
         .WithEnvironmentVariable(
             "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
             traceIngestEndpoint ?? string.Empty)
@@ -313,7 +313,7 @@ cloudShell.Resources(resources =>
         .WithAutoStart(false);
     var graphApi = resources
         .Declare(apiResource)
-        .WithIdentity(identityProvider, name: graphApiIdentityName)
+        .WithIdentity(identityProvider, name: apiIdentityName)
         .WithResourceGroup(groupId)
         .WithAutoStart(false)
         .ProvisionIdentityOnStartup();

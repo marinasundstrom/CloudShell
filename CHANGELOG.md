@@ -25,6 +25,9 @@ on `git blame --follow`, and then by the broad type of change.
   use Resource model terminology instead of graph-only labels, while keeping
   the old `Graph*` endpoint settings as compatibility fallbacks during the
   switch.
+- ApplicationTopology and ProjectReference switch-readiness tests now use the
+  neutral API/frontend endpoint settings for Resource model resources instead
+  of configuring graph-prefixed endpoint overrides.
 - Resource graph builder overloads that accept another resource builder now
   infer typed `ResourceReference` metadata from the target builder for
   startup dependencies, project references, service/name-mapping targets, and

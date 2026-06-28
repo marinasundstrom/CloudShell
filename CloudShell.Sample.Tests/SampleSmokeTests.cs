@@ -601,8 +601,6 @@ public sealed class SampleSmokeTests
     {
         var apiPort = await GetFreePortAsync();
         var frontendPort = await GetFreePortAsync();
-        var graphApiPort = await GetFreePortAsync();
-        var graphFrontendPort = await GetFreePortAsync();
         var graphConfigurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
         var graphSecretsEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
         var sqlPort = await GetFreePortAsync();
@@ -614,8 +612,6 @@ public sealed class SampleSmokeTests
             [
                 ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
-                ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
-                ("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{graphFrontendPort}"),
                 ("ApplicationTopology__ConfigurationServiceEndpoint", graphConfigurationEndpoint),
                 ("ApplicationTopology__SecretsServiceEndpoint", graphSecretsEndpoint),
                 ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
@@ -693,11 +689,11 @@ public sealed class SampleSmokeTests
 
         await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology API");
         await host.WaitForAbsoluteHttpOkAsync(
-            $"http://localhost:{graphApiPort}/health",
+            $"http://localhost:{apiPort}/health",
             bearerToken: null,
             StartupTimeout);
         var graphApiSettingsJson = await host.GetAbsoluteStringAsync(
-            $"http://localhost:{graphApiPort}/settings");
+            $"http://localhost:{apiPort}/settings");
         using var graphApiSettingsDocument = JsonDocument.Parse(graphApiSettingsJson);
         var graphApiSettings = graphApiSettingsDocument.RootElement;
         Assert.Equal("Hello from CloudShell resource configuration.", graphApiSettings.GetProperty("message").GetString());
@@ -710,8 +706,6 @@ public sealed class SampleSmokeTests
     {
         var apiPort = await GetFreePortAsync();
         var frontendPort = await GetFreePortAsync();
-        var graphApiPort = await GetFreePortAsync();
-        var graphFrontendPort = await GetFreePortAsync();
         var graphConfigurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
         var graphSecretsEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
         var sqlPort = await GetFreePortAsync();
@@ -723,8 +717,6 @@ public sealed class SampleSmokeTests
             [
                 ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
-                ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
-                ("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{graphFrontendPort}"),
                 ("ApplicationTopology__ConfigurationServiceEndpoint", graphConfigurationEndpoint),
                 ("ApplicationTopology__SecretsServiceEndpoint", graphSecretsEndpoint),
                 ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
@@ -844,11 +836,11 @@ public sealed class SampleSmokeTests
 
         await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology API");
         await host.WaitForAbsoluteHttpOkAsync(
-            $"http://localhost:{graphApiPort}/health",
+            $"http://localhost:{apiPort}/health",
             bearerToken: null,
             StartupTimeout);
         var graphApiSettingsJson = await host.GetAbsoluteStringAsync(
-            $"http://localhost:{graphApiPort}/settings");
+            $"http://localhost:{apiPort}/settings");
         using var graphApiSettingsDocument = JsonDocument.Parse(graphApiSettingsJson);
         var graphApiSettings = graphApiSettingsDocument.RootElement;
         Assert.Equal("Hello from CloudShell resource configuration.", graphApiSettings.GetProperty("message").GetString());
@@ -857,7 +849,7 @@ public sealed class SampleSmokeTests
 
         await StartGraphResourceIfAvailableAsync(host, graphFrontend, "ApplicationTopology frontend");
         await host.WaitForAbsoluteHttpOkAsync(
-            $"http://localhost:{graphFrontendPort}/healthz",
+            $"http://localhost:{frontendPort}/healthz",
             bearerToken: null,
             StartupTimeout);
     }
@@ -876,8 +868,6 @@ public sealed class SampleSmokeTests
 
         var apiPort = await GetFreePortAsync();
         var frontendPort = await GetFreePortAsync();
-        var graphApiPort = await GetFreePortAsync();
-        var graphFrontendPort = await GetFreePortAsync();
         var graphConfigurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
         var graphSecretsEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
         var sqlPort = await GetFreePortAsync();
@@ -890,8 +880,6 @@ public sealed class SampleSmokeTests
             [
                 ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
-                ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
-                ("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{graphFrontendPort}"),
                 ("ApplicationTopology__ConfigurationServiceEndpoint", graphConfigurationEndpoint),
                 ("ApplicationTopology__SecretsServiceEndpoint", graphSecretsEndpoint),
                 ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
@@ -979,11 +967,11 @@ public sealed class SampleSmokeTests
             await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology secrets");
             await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology API");
             await host.WaitForAbsoluteHttpOkAsync(
-                $"http://localhost:{graphApiPort}/health",
+                $"http://localhost:{apiPort}/health",
                 bearerToken: null,
                 StartupTimeout);
             var graphDatabaseJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
-                $"http://localhost:{graphApiPort}/database",
+                $"http://localhost:{apiPort}/database",
                 StartupTimeout);
             using var graphDatabaseDocument = JsonDocument.Parse(graphDatabaseJson);
             Assert.Equal("ok", graphDatabaseDocument.RootElement.GetProperty("status").GetString());
@@ -992,11 +980,11 @@ public sealed class SampleSmokeTests
 
             await StartGraphResourceIfAvailableAsync(host, graphFrontend, "ApplicationTopology frontend");
             await host.WaitForAbsoluteHttpOkAsync(
-                $"http://localhost:{graphFrontendPort}/healthz",
+                $"http://localhost:{frontendPort}/healthz",
                 bearerToken: null,
                 StartupTimeout);
             var graphUpstreamJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
-                $"http://localhost:{graphFrontendPort}/upstream",
+                $"http://localhost:{frontendPort}/upstream",
                 StartupTimeout);
             using var graphUpstreamDocument = JsonDocument.Parse(graphUpstreamJson);
             var graphUpstream = graphUpstreamDocument.RootElement;
@@ -1050,8 +1038,6 @@ public sealed class SampleSmokeTests
 
         var apiPort = await GetFreePortAsync();
         var frontendPort = await GetFreePortAsync();
-        var graphApiPort = await GetFreePortAsync();
-        var graphFrontendPort = await GetFreePortAsync();
         var graphConfigurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
         var graphSecretsEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
         var sqlPort = await GetFreePortAsync();
@@ -1063,8 +1049,6 @@ public sealed class SampleSmokeTests
             [
                 ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
-                ("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{graphApiPort}"),
-                ("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{graphFrontendPort}"),
                 ("ApplicationTopology__ConfigurationServiceEndpoint", graphConfigurationEndpoint),
                 ("ApplicationTopology__SecretsServiceEndpoint", graphSecretsEndpoint),
                 ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
@@ -2382,8 +2366,6 @@ public sealed class SampleSmokeTests
         {
             environment.Add(("ApplicationTopology__ApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("ApplicationTopology__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
-            environment.Add(("ApplicationTopology__GraphApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
-            environment.Add(("ApplicationTopology__GraphFrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("ApplicationTopology__ConfigurationServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("ApplicationTopology__SecretsServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("ApplicationTopology__SqlServer__Port", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
@@ -2413,8 +2395,7 @@ public sealed class SampleSmokeTests
         else if (sampleName == "ProjectReference")
         {
             environment.Add(("ProjectReference__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
-            environment.Add(("ProjectReference__GraphApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
-            environment.Add(("ProjectReference__GraphFrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ProjectReference__ApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
         }
         else if (sampleName == "ReplicatedContainerHealth")
         {
