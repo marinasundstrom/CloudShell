@@ -815,6 +815,12 @@ public sealed class SampleSmokeTests
         Assert.Contains("SQL Server", graphSqlDetailsHtml);
         Assert.Contains("application.sql-server", graphSqlDetailsHtml);
 
+        var graphSqlDatabasesHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details?tab={Uri.EscapeDataString("application:databases")}");
+        Assert.Contains("Databases", graphSqlDatabasesHtml);
+        Assert.Contains("application_topology", graphSqlDatabasesHtml);
+        Assert.Contains("application.sql-database:application-topology-db", graphSqlDatabasesHtml);
+
         var graphApplicationAddHtml = await host.GetStringAsync(
             "/resources/add?type=application.aspnet-core-project");
         Assert.Contains("Resource model application resources", graphApplicationAddHtml);

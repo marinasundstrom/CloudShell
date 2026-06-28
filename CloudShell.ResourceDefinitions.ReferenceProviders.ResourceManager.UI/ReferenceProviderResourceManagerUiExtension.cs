@@ -5,6 +5,7 @@ using CloudShell.ResourceDefinitions.ReferenceProviders;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using GraphContainerAppPages = CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI.ContainerApplication.Pages;
 using GraphSharedPages = CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI.Shared.Pages;
+using GraphSqlServerPages = CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI.SqlServer.Pages;
 using ResourceManagerResourceClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
 
 namespace CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI;
@@ -120,7 +121,14 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
                 ResourcePredefinedViewIds.Endpoints,
                 "application.exposure-actions",
                 "Application exposure",
-                10);
+                10)
+            .AddResourceTab<GraphSqlServerPages.SqlServerDatabases>(
+                SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
+                new ResourceViewId(ResourceTabGroupIds.Application, "databases"),
+                "Databases",
+                35,
+                groupTitle: "Data",
+                icon: "database-item");
     }
 
     private static ResourceProbeSource CreateSqlServerProbeSource() =>
