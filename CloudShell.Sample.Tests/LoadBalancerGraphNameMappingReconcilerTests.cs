@@ -17,9 +17,9 @@ public sealed class LoadBalancerGraphNameMappingReconcilerTests
     [Fact]
     public async Task ReconcileNameMappings_PublishesGraphMappingsThroughLocalHostNamesProvider()
     {
-        const string graphLoadBalancerResourceId = "load-balancer:graph-public";
-        const string graphDnsZoneResourceId = "dns:graph-cloudshell-local";
-        const string graphNameMappingResourceId = "dns:graph-cloudshell-local:name:api-cloudshell-local";
+        const string loadBalancerResourceId = "cloudshell.loadBalancer:public";
+        const string dnsZoneResourceId = "cloudshell.dnsZone:cloudshell-local";
+        const string nameMappingResourceId = "cloudshell.nameMapping:api-cloudshell-local";
         var tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var hostsFilePath = Path.Combine(tempDirectory, "cloudshell.hosts");
         var services = new ServiceCollection();
@@ -34,9 +34,9 @@ public sealed class LoadBalancerGraphNameMappingReconcilerTests
         services.AddInMemoryResourceModelGraph(
         [
             new ResourceGraphState(
-                "graph-public",
+                "public",
                 LoadBalancerResourceTypeProvider.ResourceTypeId,
-                ResourceId: graphLoadBalancerResourceId,
+                ResourceId: loadBalancerResourceId,
                 ProviderId: LoadBalancerResourceTypeProvider.ProviderId,
                 Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
                 {
@@ -54,9 +54,9 @@ public sealed class LoadBalancerGraphNameMappingReconcilerTests
                             })
                 }),
             new ResourceGraphState(
-                "graph-cloudshell-local",
+                "cloudshell-local",
                 DnsZoneResourceTypeProvider.ResourceTypeId,
-                ResourceId: graphDnsZoneResourceId,
+                ResourceId: dnsZoneResourceId,
                 ProviderId: DnsZoneResourceTypeProvider.ProviderId,
                 Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
                 {
@@ -65,17 +65,17 @@ public sealed class LoadBalancerGraphNameMappingReconcilerTests
                         LocalHostNamePublishingProvider.DefaultProviderName
                 }),
             new ResourceGraphState(
-                "graph-api-cloudshell-local",
+                "api-cloudshell-local",
                 NameMappingResourceTypeProvider.ResourceTypeId,
-                ResourceId: graphNameMappingResourceId,
+                ResourceId: nameMappingResourceId,
                 ProviderId: NameMappingResourceTypeProvider.ProviderId,
                 DependsOn:
                 [
                     ResourceReference.DependsOnResourceId(
-                        graphDnsZoneResourceId,
+                        dnsZoneResourceId,
                         DnsZoneResourceTypeProvider.ResourceTypeId),
                     ResourceReference.DependsOnResourceId(
-                        graphLoadBalancerResourceId,
+                        loadBalancerResourceId,
                         LoadBalancerResourceTypeProvider.ResourceTypeId)
                 ],
                 Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
@@ -100,7 +100,7 @@ public sealed class LoadBalancerGraphNameMappingReconcilerTests
         var operationResolution = await serviceProvider
             .GetRequiredService<ResourceModelGraphResourceResolver>()
             .ResolveOperationAsync(
-                graphDnsZoneResourceId,
+                dnsZoneResourceId,
                 DnsZoneResourceTypeProvider.Operations.ReconcileNameMappings);
 
         Assert.False(operationResolution.HasErrors, FormatDiagnostics(operationResolution.Diagnostics));
