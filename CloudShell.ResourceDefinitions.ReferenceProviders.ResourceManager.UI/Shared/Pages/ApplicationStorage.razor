@@ -1,0 +1,191 @@
+@inject IResourceManager ResourceManager
+@inject IResourceOrchestrationCatalog OrchestrationCatalog
+
+@if (Application is null)
+{
+    <EmptyState Title="Storage is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
+}
+else if (!ReferenceProviderResourceUiTypes.IsApplicationResource(Application.EffectiveTypeId))
+{
+    <EmptyState Title="Storage is not supported"
+                Message="This resource type does not expose application storage." />
+}
+else
+{
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Storage</h3>
+                <p>@GetSummaryMessage()</p>
+            </div>
+            <FluentButton Appearance="Appearance.Neutral"
+                          IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          Disabled="@IsLoading"
+                          OnClick="RefreshAsync">
+                @(IsLoading ? "Refreshing" : "Refresh")
+            </FluentButton>
+        </div>
+
+        @if (VolumeMounts.Count > 0)
+        {
+            <ResourceTable AriaLabel="Application volume mounts">
+                <thead>
+                    <tr>
+                        <th>Volume</th>
+                        <th>Mount</th>
+                        <th>Access</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var mount in VolumeMounts)
+                    {
+                        <tr>
+                            <td>@VolumeReference(mount.VolumeReference)</td>
+                            <td>@mount.NormalizedTargetPath</td>
+                            <td>@(mount.ReadOnly ? "Read-only" : "Read/write")</td>
+                            <td>@GetMountMaterializationLabel()</td>
+                        </tr>
+                    }
+                </tbody>
+            </ResourceTable>
+        }
+        else if (VolumeDependencies.Count > 0)
+        {
+            <ProcedureMessage Compact="true">
+                Volume dependencies are declared, but mount target details are not projected into the Resource Manager view yet.
+            </ProcedureMessage>
+            <ResourceTable AriaLabel="Application volume dependencies">
+                <thead>
+                    <tr>
+                        <th>Volume</th>
+                        <th>Type</th>
+                        <th>Mount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var volume in VolumeDependencies)
+                    {
+                        <tr>
+                            <td>
+                                <a class="resource-link" href="@ResourceManagerRoutes.ResourceDetails(volume.Id)">
+                                    @ResourceDisplayLabels.GetLabel(volume)
+                                </a>
+                            </td>
+                            <td>@volume.EffectiveTypeId</td>
+                            <td>not projected</td>
+                        </tr>
+                    }
+                </tbody>
+            </ResourceTable>
+        }
+        else
+        {
+            <EmptyState Title="No mounted storage"
+                        Message="No volume mounts or graph volume dependencies are projected for this resource." />
+        }
+    </section>
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private Resource? Application { get; set; }
+    private IReadOnlyDictionary<string, Resource> ResourcesById { get; set; } =
+        new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<ResourceVolumeMount> VolumeMounts { get; set; } = [];
+    private IReadOnlyList<Resource> VolumeDependencies { get; set; } = [];
+    private bool IsLoading { get; set; }
+
+    protected override Task OnParametersSetAsync() => RefreshAsync();
+
+    private async Task RefreshAsync()
+    {
+        if (IsLoading)
+        {
+            return;
+        }
+
+        IsLoading = true;
+        try
+        {
+            Application = string.IsNullOrWhiteSpace(ResourceId)
+                ? null
+                : await ResourceManager.GetResourceAsync(ResourceId);
+            if (Application is null ||
+                !ReferenceProviderResourceUiTypes.IsApplicationResource(Application.EffectiveTypeId))
+            {
+                VolumeMounts = [];
+                VolumeDependencies = [];
+                ResourcesById = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+                return;
+            }
+
+            var resources = await ResourceManager.ListResourcesAsync();
+            ResourcesById = resources.ToDictionary(
+                resource => resource.Id,
+                StringComparer.OrdinalIgnoreCase);
+
+            var orchestration = await OrchestrationCatalog.GetSnapshotAsync();
+            VolumeMounts = orchestration.Workloads.TryGetValue(Application.Id, out var workload)
+                ? workload.WorkloadVolumeMounts
+                    .OrderBy(mount => mount.NormalizedTargetPath, StringComparer.OrdinalIgnoreCase)
+                    .ToArray()
+                : [];
+
+            VolumeDependencies = Application.DependsOn
+                .Select(dependency => ResourcesById.GetValueOrDefault(dependency))
+                .Where(resource => resource is not null)
+                .Cast<Resource>()
+                .Where(ReferenceProviderResourceUiTypes.IsVolumeResource)
+                .OrderBy(resource => ResourceDisplayLabels.GetLabel(resource), StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private string GetSummaryMessage()
+    {
+        if (VolumeMounts.Count > 0)
+        {
+            return VolumeMounts.Count == 1
+                ? "1 volume mount is projected from the runtime workload descriptor."
+                : $"{VolumeMounts.Count} volume mounts are projected from the runtime workload descriptor.";
+        }
+
+        if (VolumeDependencies.Count > 0)
+        {
+            return VolumeDependencies.Count == 1
+                ? "1 volume dependency is declared in the Resource graph."
+                : $"{VolumeDependencies.Count} volume dependencies are declared in the Resource graph.";
+        }
+
+        return "No mounted storage is projected for this application resource.";
+    }
+
+    private RenderFragment VolumeReference(string volumeReference) => builder =>
+    {
+        if (ResourcesById.GetValueOrDefault(volumeReference) is { } volume)
+        {
+            builder.OpenElement(0, "a");
+            builder.AddAttribute(1, "class", "resource-link");
+            builder.AddAttribute(2, "href", ResourceManagerRoutes.ResourceDetails(volume.Id));
+            builder.AddContent(3, ResourceDisplayLabels.GetLabel(volume));
+            builder.CloseElement();
+            return;
+        }
+
+        builder.AddContent(4, volumeReference);
+    };
+
+    private string GetMountMaterializationLabel() =>
+        Application is not null &&
+        ResourceVolumeMountDisplay.GetMaterializationSummary(Application) is { } materialization
+            ? materialization
+            : "not projected";
+}

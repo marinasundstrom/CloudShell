@@ -89,6 +89,18 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
             .AddResourceTypeEndpoint(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourceEndpointDescriptor.Tcp("tds", 1433))
+            .AddResourceTab<GraphSharedPages.ApplicationStorage>(
+                ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Storage,
+                "Storage",
+                30,
+                groupTitle: ResourceTabGroupTitles.Storage)
+            .AddResourceTab<GraphSharedPages.ApplicationStorage>(
+                AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Storage,
+                "Storage",
+                30,
+                groupTitle: ResourceTabGroupTitles.Storage)
             .AddResourceTab<GraphContainerAppPages.ApplicationDeployment>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "deployment"),
@@ -122,6 +134,19 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
                 "application.exposure-actions",
                 "Application exposure",
                 10)
+            .AddResourceTab<GraphSharedPages.ApplicationStorage>(
+                ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
+                new ResourceViewId(ResourceTabGroupIds.Application, "storage"),
+                "Storage",
+                60,
+                groupTitle: ResourceTabGroupTitles.Application,
+                icon: "storage")
+            .AddResourceTab<GraphSharedPages.ApplicationStorage>(
+                SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Storage,
+                "Storage",
+                30,
+                groupTitle: ResourceTabGroupTitles.Storage)
             .AddResourceTab<GraphSqlServerPages.SqlServerDatabases>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "databases"),

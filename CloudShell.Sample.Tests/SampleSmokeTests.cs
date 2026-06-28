@@ -821,6 +821,12 @@ public sealed class SampleSmokeTests
         Assert.Contains("application_topology", graphSqlDatabasesHtml);
         Assert.Contains("application.sql-database:application-topology-db", graphSqlDatabasesHtml);
 
+        var graphSqlStorageHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Storage.Value)}");
+        Assert.Contains("Storage", graphSqlStorageHtml);
+        Assert.Contains("Application Topology SQL Data", graphSqlStorageHtml);
+        Assert.Contains("not projected", graphSqlStorageHtml);
+
         var graphApplicationAddHtml = await host.GetStringAsync(
             "/resources/add?type=application.aspnet-core-project");
         Assert.Contains("Resource model application resources", graphApplicationAddHtml);
