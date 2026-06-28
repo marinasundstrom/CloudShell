@@ -69,6 +69,10 @@ on `git blame --follow`, and then by the broad type of change.
   records, `HostVirtualNetwork:GraphOnly` setting, and legacy virtual-network
   port setting were removed while the sample-local endpoint-mapping bridge
   remains the runtime integration seam to replace later.
+- CloudShell.ContainerHost has switched to graph-backed resources only: the
+  old application-provider registration, legacy storage/volume/SQL records,
+  and `ContainerHost:GraphOnly` setting were removed while the sample-local SQL
+  Docker bridge remains the runtime integration seam to replace later.
 - Resource graph provider helper coverage now verifies grouped registration
   seams include both change-apply and definition-apply providers, not only type
   providers.

@@ -58,7 +58,6 @@ public sealed class SampleSmokeTests
     private static IEnumerable<(string SampleName, string AppSettingsPath, string ConfigurationPath)> SupportedSwitchReadinessSampleGraphOnlySettings()
     {
         yield return ("ApplicationTopology", "samples/ApplicationTopology/Host/appsettings.json", "ApplicationTopology:GraphOnly");
-        yield return ("CloudShell.ContainerHost", "samples/CloudShell.ContainerHost/appsettings.json", "ContainerHost:GraphOnly");
         yield return ("ContainerAppDeployment", "samples/ContainerAppDeployment/appsettings.json", "ContainerAppDeployment:GraphOnly");
         yield return ("LoadBalancer", "samples/LoadBalancer/appsettings.json", "LoadBalancer:GraphOnly");
         yield return ("ProjectReference", "samples/ProjectReference/Host/appsettings.json", "ProjectReference:GraphOnly");
@@ -174,7 +173,7 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
-    public async Task ContainerHostSample_DeclaresLocalStorageBackedSqlServerVolume()
+    public void ContainerHostSample_ProjectsStorageBackedSqlServerGraphResources()
     {
         const string graphStorageResourceId = "cloudshell.storage:graph-local";
         const string graphVolumeResourceId = "cloudshell.volume:graph-sql-data";
@@ -239,26 +238,9 @@ public sealed class SampleSmokeTests
             .AddResourceModelGraphProcedureProvider(
                 ResourceModelResourceProvider.DefaultProviderId,
                 "Resource model");
-        services
-            .AddControlPlane()
-            .AddApplicationProvider()
-            .Resources(ContainerHostSampleResources.AddResources);
+        services.AddControlPlane();
 
         using var serviceProvider = services.BuildServiceProvider();
-        var declarations = serviceProvider
-            .GetRequiredService<ResourceDeclarationStore>()
-            .GetDeclarations()
-            .ToDictionary(declaration => declaration.ResourceId, StringComparer.OrdinalIgnoreCase);
-        var platformOptions = serviceProvider.GetRequiredService<PlatformResourceOptions>();
-        var platformStore = new PlatformResourceStore(
-            platformOptions,
-            serviceProvider.GetRequiredService<IHostEnvironment>());
-        var platformProvider = new PlatformResourceProvider(platformStore, platformOptions);
-        var platformResources = platformProvider
-            .GetResources()
-            .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
-        var applicationResources = serviceProvider.GetRequiredService<ApplicationResourceProjectionSource>();
-        var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
         var graphProvider = serviceProvider
             .GetServices<IResourceProvider>()
             .OfType<ResourceModelGraphProcedureProvider>()
@@ -266,39 +248,6 @@ public sealed class SampleSmokeTests
         var graphResources = graphProvider
             .GetResources()
             .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
-        var sqlServer = Assert.Single(applicationResources.GetResources(), resource =>
-            resource.Id == "application:sql-server");
-        var descriptor = await descriptors.DescribeAsync(
-            sqlServer,
-            new ResourceOrchestrationDescriptorContext(null, null, null!));
-        var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
-            new JsonSerializerOptions(JsonSerializerDefaults.Web));
-
-        Assert.True(declarations.ContainsKey("storage:local"));
-        Assert.True(declarations.ContainsKey("volume:sql-data"));
-        Assert.True(declarations.ContainsKey("application:sql-server"));
-        Assert.Equal("storage:local", declarations["volume:sql-data"].ParentResourceId);
-        Assert.Equal(["storage:local"], declarations["volume:sql-data"].DependsOn);
-        Assert.Contains("volume:sql-data", declarations["application:sql-server"].DependsOn);
-
-        var storage = platformResources["storage:local"];
-        Assert.Equal(ResourceClass.Storage, storage.ResourceClass);
-        Assert.Equal(StorageProviderNames.LocalStorage, storage.Kind);
-        Assert.Equal(StorageMedia.FileSystem, storage.ResourceAttributes[ResourceAttributeNames.StorageMedium]);
-        Assert.Equal("./Data/storage", storage.ResourceAttributes[ResourceAttributeNames.StorageLocation]);
-        Assert.Equal("1", storage.ResourceAttributes[ResourceAttributeNames.StorageVolumeCount]);
-
-        var volume = platformResources["volume:sql-data"];
-        Assert.Equal(ResourceClass.Storage, volume.ResourceClass);
-        Assert.Equal(["storage:local"], volume.DependsOn);
-        Assert.Equal("storage:local", volume.ResourceAttributes[ResourceAttributeNames.VolumeStorageResourceId]);
-        Assert.Equal("sql-server", volume.ResourceAttributes[ResourceAttributeNames.VolumeSubPath]);
-        Assert.Equal(StorageMedia.FileSystem, volume.ResourceAttributes[ResourceAttributeNames.VolumeStorageMedium]);
-
-        Assert.Equal(ApplicationResourceTypes.SqlServer, sqlServer.EffectiveTypeId);
-        Assert.Equal(ResourceClass.Service, sqlServer.ResourceClass);
-        Assert.True(sqlServer.HasCapability(ResourceCapabilityIds.StorageVolumeConsumer));
-        Assert.Equal("1", sqlServer.ResourceAttributes[ResourceAttributeNames.VolumeMountCount]);
         var graphStorage = graphResources[graphStorageResourceId];
         Assert.Equal("cloudshell.storage", graphStorage.EffectiveTypeId);
         Assert.Equal("local", graphStorage.ResourceAttributes[StorageResourceTypeProvider.Attributes.Provider]);
@@ -315,13 +264,6 @@ public sealed class SampleSmokeTests
         Assert.Equal("application.sql-server", graphSqlServer.EffectiveTypeId);
         Assert.Contains(graphSqlServer.ResourceCapabilities, capability =>
             capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
-
-        var mount = Assert.Single(workload?.WorkloadVolumeMounts ?? []);
-        Assert.Equal("volume:sql-data", mount.VolumeReference);
-        Assert.Equal("/var/opt/mssql", mount.TargetPath);
-        Assert.Equal("data", mount.Name);
-        Assert.False(mount.ReadOnly);
-        Assert.Equal(StorageVolumeResourceOperationPermissions.MountWrite, mount.RequiredPermission);
     }
 
     [Fact]
