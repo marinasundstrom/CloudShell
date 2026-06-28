@@ -5674,10 +5674,30 @@ public sealed class SampleSmokeTests
             await DockerComposeStack.RemoveContainerIfExistsAsync(
                 ContainerHostGraphSqlServerDockerBridge.GraphSqlServerContainerName);
         }
+        else if (projectPath.Contains("/ContainerAppDeployment/", StringComparison.OrdinalIgnoreCase))
+        {
+            await DockerComposeStack.RemoveContainerIfExistsAsync(
+                "cloudshell-container-app-deployment-graph-registry");
+        }
         else if (projectPath.Contains("/ApplicationTopology/", StringComparison.OrdinalIgnoreCase))
         {
             await DockerComposeStack.RemoveContainerIfExistsAsync(
                 ApplicationTopologyGraphSqlServerDockerBridge.GraphSqlServerContainerName);
+        }
+        else if (projectPath.Contains("/ReplicatedContainerHealth/", StringComparison.OrdinalIgnoreCase))
+        {
+            await DockerComposeStack.RemoveContainerIfExistsAsync(
+                "cloudshell-replicated-health-graph-api-ingress");
+
+            for (var replica = 1; replica <= 10; replica++)
+            {
+                await DockerComposeStack.RemoveContainerIfExistsAsync(
+                    $"cloudshell-replicated-health-graph-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}");
+            }
+        }
+        else if (projectPath.Contains("/ThirdPartyIdentity/", StringComparison.OrdinalIgnoreCase))
+        {
+            await CleanupThirdPartyIdentityKeycloakStacksAsync();
         }
     }
 

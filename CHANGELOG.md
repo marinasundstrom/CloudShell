@@ -48,6 +48,10 @@ on `git blame --follow`, and then by the broad type of change.
 - LoadBalancer graph-only smoke coverage now verifies the old DNS
   name-mapping resource records are absent while graph name mappings are
   projected and reconciled through the graph runtime bridge.
+- The supported sample host launch matrix now cleans known graph runtime
+  artifacts for ContainerAppDeployment, ReplicatedContainerHealth, and
+  ThirdPartyIdentity after each host run, reducing stale Docker state while
+  validating graph-default sample startup.
 
 ### 2026-06-27
 
