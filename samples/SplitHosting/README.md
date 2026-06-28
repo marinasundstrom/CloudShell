@@ -42,11 +42,9 @@ separate UI host renders it through the remote Control Plane client, which
 keeps this sample useful for validating graph-backed Resource Manager
 projections before changing public API or client contracts.
 
-By default the Control Plane runs in graph-only mode, omitting the old
-persisted `network:split-sample` record and exposing only the graph-backed
-network resource. Set `SplitHosting:GraphOnly` to `false` for side-by-side
-comparison with the old persisted network record. The smoke test uses the
-default mode as a remote-client switch-readiness gate: the UI must render the
-graph resource through the remote adapter, and the Control Plane API must not
-need a legacy Resource Manager network record for the graph projection to
-appear.
+The Control Plane now exposes only the graph-backed network resource. The old
+persisted `network:split-sample` comparison record and `SplitHosting:GraphOnly`
+toggle have been removed from this sample. The smoke test uses the sample as a
+remote-client switch-readiness gate: the UI must render the graph resource
+through the remote adapter, and the Control Plane API must not need a legacy
+Resource Manager network record for the graph projection to appear.

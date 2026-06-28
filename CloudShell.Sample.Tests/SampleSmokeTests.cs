@@ -55,21 +55,6 @@ public sealed class SampleSmokeTests
         }
     }
 
-    [Fact]
-    public void SupportedSwitchReadinessSamples_GraphOnlyDefaultsMatchLaunchMatrix()
-    {
-        var defaultSamples = SupportedSwitchReadinessSampleGraphOnlySettings()
-            .Select(sample => sample.SampleName)
-            .Order(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        var launchMatrixSamples = SupportedSwitchReadinessSampleHostProjects()
-            .Select(values => GetSwitchReadinessSampleName((string)values[0]))
-            .Order(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        Assert.Equal(defaultSamples, launchMatrixSamples);
-    }
-
     private static IEnumerable<(string SampleName, string AppSettingsPath, string ConfigurationPath)> SupportedSwitchReadinessSampleGraphOnlySettings()
     {
         yield return ("ApplicationTopology", "samples/ApplicationTopology/Host/appsettings.json", "ApplicationTopology:GraphOnly");
@@ -80,7 +65,6 @@ public sealed class SampleSmokeTests
         yield return ("ProjectReference", "samples/ProjectReference/Host/appsettings.json", "ProjectReference:GraphOnly");
         yield return ("ReplicatedContainerHealth", "samples/ReplicatedContainerHealth/appsettings.json", "ReplicatedContainerHealth:GraphOnly");
         yield return ("SettingsAndSecrets", "samples/SettingsAndSecrets/appsettings.json", "Samples:SettingsAndSecrets:GraphOnly");
-        yield return ("SplitHosting", "samples/SplitHosting/ControlPlane/appsettings.json", "SplitHosting:GraphOnly");
         yield return ("ThirdPartyIdentity", "samples/ThirdPartyIdentity/appsettings.json", "Samples:ThirdPartyIdentity:GraphOnly");
     }
 
@@ -3813,7 +3797,7 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
-    public async Task SplitHostingSample_GraphOnlyModeRendersUiThroughRemoteControlPlane()
+    public async Task SplitHostingSample_RendersGraphResourceThroughRemoteControlPlane()
     {
         var controlPlanePort = await GetFreePortAsync();
         var uiPort = await GetFreePortAsync();

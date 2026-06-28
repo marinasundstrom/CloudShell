@@ -60,6 +60,10 @@ on `git blame --follow`, and then by the broad type of change.
   switch readiness focuses on runtime/provider behavior. Provider docs remain
   working status notes that should be updated as seams are removed and deferred
   work is identified.
+- SplitHosting has switched to graph-only projection: the old persisted
+  `network:split-sample` comparison record, `SplitHosting:GraphOnly` setting,
+  and host-code branch were removed, leaving the split Control Plane sample as
+  a remote-client projection gate for graph-backed resources.
 - Resource graph provider helper coverage now verifies grouped registration
   seams include both change-apply and definition-apply providers, not only type
   providers.

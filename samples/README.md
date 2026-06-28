@@ -19,7 +19,7 @@ when intentionally running the old-provider comparison path.
 | `CloudShell.ContainerHost` | Storage-backed SQL Server lifecycle using a graph volume. | Defaults to graph-only; SQL Docker runtime materialization is sample-local. |
 | `HostVirtualNetwork` | Host-local virtual network endpoint mapping. | Defaults to graph-only; endpoint mapping delegates to the existing Resource Manager provisioner seam. |
 | `LoadBalancer` | Graph-declared load-balancer routes and DNS/name mapping. | Defaults to graph-only; Traefik configuration and local hosts publishing use sample-local runtime bridges. |
-| `SplitHosting` | Remote UI rendering graph-backed resources through a separate Control Plane. | Defaults to graph-only on the Control Plane host. |
+| `SplitHosting` | Remote UI rendering graph-backed resources through a separate Control Plane. | Switched to graph-only projection; the old persisted network comparison record and toggle have been removed. |
 
 ## Creating a new sample
 
