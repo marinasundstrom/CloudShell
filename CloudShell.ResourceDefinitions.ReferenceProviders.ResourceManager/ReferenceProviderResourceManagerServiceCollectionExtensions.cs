@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
+using CloudShell.Abstractions.Hosting;
 using CloudShell.ResourceDefinitions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -8,9 +9,62 @@ namespace CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 
 public static class ReferenceProviderResourceManagerServiceCollectionExtensions
 {
+    public static ICloudShellBuilder UseResourceGraphIntegration(
+        this ICloudShellBuilder builder,
+        string id = ResourceModelResourceProvider.DefaultProviderId,
+        string displayName = "Resource model",
+        ResourceDefinitionResolutionContext? resolutionContext = null,
+        ResourceModelResourceManagerProjectionOptions? projectionOptions = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Services.AddResourceGraphIntegration(
+            id,
+            displayName,
+            resolutionContext,
+            projectionOptions);
+
+        return builder;
+    }
+
+    public static IControlPlaneBuilder UseResourceGraphIntegration(
+        this IControlPlaneBuilder builder,
+        string id = ResourceModelResourceProvider.DefaultProviderId,
+        string displayName = "Resource model",
+        ResourceDefinitionResolutionContext? resolutionContext = null,
+        ResourceModelResourceManagerProjectionOptions? projectionOptions = null)
+    {
+        ((ICloudShellBuilder)builder).UseResourceGraphIntegration(
+            id,
+            displayName,
+            resolutionContext,
+            projectionOptions);
+
+        return builder;
+    }
+
+    public static IServiceCollection AddResourceGraphIntegration(
+        this IServiceCollection services,
+        string id = ResourceModelResourceProvider.DefaultProviderId,
+        string displayName = "Resource model",
+        ResourceDefinitionResolutionContext? resolutionContext = null,
+        ResourceModelResourceManagerProjectionOptions? projectionOptions = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddResourceModelGraphServices();
+        services.AddReferenceProviderResourceManagerIntegration(
+            id,
+            displayName,
+            resolutionContext,
+            projectionOptions);
+
+        return services;
+    }
+
     public static IServiceCollection AddReferenceProviderResourceManagerIntegration(
         this IServiceCollection services,
-        string id = "resource-model",
+        string id = ResourceModelResourceProvider.DefaultProviderId,
         string displayName = "Resource model",
         ResourceDefinitionResolutionContext? resolutionContext = null,
         ResourceModelResourceManagerProjectionOptions? projectionOptions = null)

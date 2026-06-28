@@ -69,9 +69,8 @@ builder.Services
 builder.Services
     .AddDockerHostResourceType()
     .AddDockerContainerResourceType()
-    .AddContainerApplicationResourceType()
-    .AddResourceModelGraphServices()
-    .AddReferenceProviderResourceManagerIntegration();
+    .AddContainerApplicationResourceType();
+cloudShell.UseResourceGraphIntegration();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

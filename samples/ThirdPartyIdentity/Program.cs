@@ -99,9 +99,8 @@ builder.Services
             "Sample:Message",
             "Hello from a graph Keycloak-provisioned resource identity"));
     })
-    .AddAspNetCoreProjectResourceType()
-    .AddResourceModelGraphServices()
-    .AddReferenceProviderResourceManagerIntegration();
+    .AddAspNetCoreProjectResourceType();
+cloudShell.UseResourceGraphIntegration();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

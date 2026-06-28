@@ -105,9 +105,8 @@ cloudShell.DefineResources(resources =>
             name: "alive"));
 });
 builder.Services
-    .AddAspNetCoreProjectResourceType()
-    .AddResourceModelGraphServices()
-    .AddReferenceProviderResourceManagerIntegration();
+    .AddAspNetCoreProjectResourceType();
+cloudShell.UseResourceGraphIntegration();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

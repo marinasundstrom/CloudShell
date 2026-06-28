@@ -76,9 +76,8 @@ cloudShell.DefineResources(resources =>
 builder.Services
     .AddLocalHostNetworkResourceType()
     .AddVirtualNetworkResourceType()
-    .AddAspNetCoreProjectResourceType()
-    .AddResourceModelGraphServices()
-    .AddReferenceProviderResourceManagerIntegration();
+    .AddAspNetCoreProjectResourceType();
+cloudShell.UseResourceGraphIntegration();
 builder.Services.AddSingleton<
     IVirtualNetworkEndpointMappingReconciler,
     HostVirtualNetworkGraphEndpointMappingReconciler>();

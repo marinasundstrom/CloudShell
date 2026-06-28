@@ -78,9 +78,8 @@ builder.Services
                     serviceProvider.GetRequiredService<IServiceScopeFactory>()))
     .AddSingleton<IContainerApplicationRuntimeHandler, ReplicatedContainerHealthGraphRuntimeHandler>()
     .AddDockerHostResourceType()
-    .AddContainerApplicationResourceType()
-    .AddResourceModelGraphServices()
-    .AddReferenceProviderResourceManagerIntegration();
+    .AddContainerApplicationResourceType();
+cloudShell.UseResourceGraphIntegration();
 if (graphOnly)
 {
     builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider, ReplicatedContainerHealthGraphOnlyOrchestrationDescriptorProvider>();

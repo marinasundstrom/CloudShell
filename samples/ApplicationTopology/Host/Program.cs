@@ -281,9 +281,8 @@ builder.Services
         options.Secrets.Add(new("ApplicationTopology--ExternalApiKey", "graph-local-development-api-key"));
     })
     .AddHostConfigurationSourceResourceType()
-    .AddAspNetCoreProjectResourceType()
-    .AddResourceModelGraphServices()
-    .AddReferenceProviderResourceManagerIntegration();
+    .AddAspNetCoreProjectResourceType();
+cloudShell.UseResourceGraphIntegration();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

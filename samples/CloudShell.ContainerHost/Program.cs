@@ -63,9 +63,8 @@ builder.Services
     .AddSingleton<IResourceOrchestrationDescriptorProvider, ContainerHostGraphSqlServerOrchestrationDescriptorProvider>()
     .AddStorageResourceType()
     .AddCloudShellVolumeResourceType()
-    .AddSqlServerResourceType()
-    .AddResourceModelGraphServices()
-    .AddReferenceProviderResourceManagerIntegration();
+    .AddSqlServerResourceType();
+cloudShell.UseResourceGraphIntegration();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

@@ -139,9 +139,8 @@ builder.Services
         options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
         options.Secrets.Add(new("sample-api-key", "graph-local-development-api-key"));
     })
-    .AddAspNetCoreProjectResourceType()
-    .AddResourceModelGraphServices()
-    .AddReferenceProviderResourceManagerIntegration();
+    .AddAspNetCoreProjectResourceType();
+cloudShell.UseResourceGraphIntegration();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

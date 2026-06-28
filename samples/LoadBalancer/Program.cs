@@ -108,9 +108,8 @@ builder.Services
     .AddContainerApplicationResourceType()
     .AddLoadBalancerResourceType()
     .AddDnsZoneResourceType()
-    .AddNameMappingResourceType()
-    .AddResourceModelGraphServices()
-    .AddReferenceProviderResourceManagerIntegration();
+    .AddNameMappingResourceType();
+cloudShell.UseResourceGraphIntegration();
 builder.Services.Replace(
     ServiceDescriptor.Singleton<ILoadBalancerConfigurationApplier, LoadBalancerGraphTraefikConfigurationApplier>());
 builder.Services.Replace(

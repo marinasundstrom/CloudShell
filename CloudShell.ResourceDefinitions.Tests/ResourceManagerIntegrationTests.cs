@@ -1,4 +1,5 @@
 using System.Text.Json;
+using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
@@ -476,6 +477,26 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Contains(
             serviceProvider.GetServices<IResourceMonitoringProvider>(),
             provider => provider.GetType() == typeof(AspNetCoreProjectResourceManagerMonitoringProvider));
+        var provider = Assert.IsType<ResourceModelGraphProcedureProvider>(
+            Assert.Single(serviceProvider.GetServices<IResourceProvider>()));
+        var availabilityProvider = Assert.IsType<ResourceModelGraphProcedureProvider>(
+            Assert.Single(serviceProvider.GetServices<IResourceActionAvailabilityProvider>()));
+
+        Assert.Same(provider, availabilityProvider);
+    }
+
+    [Fact]
+    public void UseResourceGraphIntegration_RegistersGraphServicesAndResourceManagerBridge()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddExecutableApplicationResourceType();
+        var builder = services.AddCloudShell();
+
+        builder.UseResourceGraphIntegration();
+        using var serviceProvider = services.BuildServiceProvider();
+
+        Assert.NotNull(serviceProvider.GetService<ResourceResolver>());
         var provider = Assert.IsType<ResourceModelGraphProcedureProvider>(
             Assert.Single(serviceProvider.GetServices<IResourceProvider>()));
         var availabilityProvider = Assert.IsType<ResourceModelGraphProcedureProvider>(

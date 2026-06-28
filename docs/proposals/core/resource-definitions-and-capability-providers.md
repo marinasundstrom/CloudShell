@@ -1687,12 +1687,22 @@ resource types belong together; each resource type provider package keeps that
 boundary.
 
 The first switch-over integration seam is
-`AddReferenceProviderResourceManagerIntegration(...)`. It composes the
-reference-provider Resource Manager projections with the graph procedure
-provider using the default graph bridge provider identity. This does not make
-the reference providers a single provider package; it only removes repeated
-sample registration boilerplate while the individual provider type
-registrations and runtime handlers remain explicit.
+`UseResourceGraphIntegration(...)` on the CloudShell/Control Plane
+builder. It composes the generic Resource model graph services,
+reference-provider Resource Manager projections, and graph procedure provider
+using the default graph bridge provider identity. Lower-level service
+registration helpers remain available for tests and specialized hosts, but
+sample hosts should use the builder seam so the Resource graph integration is
+visible as host composition instead of scattered `IServiceCollection`
+plumbing. This does not make the reference providers a single provider
+package; it only removes repeated sample registration boilerplate while the
+individual provider type registrations and runtime handlers remain explicit.
+`ReferenceProvider` is a transitional POC label and should not become the
+durable product/package name. As the switch stabilizes, application workload
+providers should move toward an application-provider grouping, while
+networking and other infrastructure providers should move into their own
+independently registered provider groups. Shared graph infrastructure stays
+outside those groups.
 
 The old provider implementations are reference and compatibility surfaces
 during this phase. They should stay decoupled and isolated from the new graph

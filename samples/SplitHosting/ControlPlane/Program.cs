@@ -24,9 +24,8 @@ controlPlane.DefineResources(resources =>
         .WithHostReadiness("logicalOnly");
 });
 builder.Services
-    .AddNetworkResourceType()
-    .AddResourceModelGraphServices()
-    .AddReferenceProviderResourceManagerIntegration();
+    .AddNetworkResourceType();
+controlPlane.UseResourceGraphIntegration();
 
 controlPlane.Resources(resources =>
 {

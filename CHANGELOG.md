@@ -17,6 +17,11 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Graph-default samples now use the builder-level
+  `UseResourceGraphIntegration(...)` seam to register generic graph
+  services, current graph-provider Resource Manager projections, and the
+  graph procedure provider. Resource type providers and runtime handlers
+  remain explicit per sample.
 - Graph-default samples now use a shared
   `AddReferenceProviderResourceManagerIntegration(...)` seam to compose
   reference-provider Resource Manager projections with the graph procedure
