@@ -69,6 +69,11 @@ cloudShell.DefineResources(
             .WithHttpEndpoint(
                 host: apiEndpointUri.Host,
                 port: apiEndpointUri.Port)
+            .WithIdentity(
+                identityProviderId,
+                scopes: [builder.Configuration["Keycloak:ResourceIdentityScope"] ?? "openid"],
+                name: apiIdentityName)
+            .ProvisionIdentityOnStartup()
             .WithEnvironmentVariable(
                 "CLOUDSHELL_APPLICATION",
                 "Keycloak Provisioned API")
@@ -120,18 +125,12 @@ cloudShell.Resources(resources =>
     resources.Declare(identityProvisioningResource);
     var settings = resources.Declare(configurationResource);
 
-    var identityProvider = AddIdentityProviderDefinition(resources, CreateKeycloakIdentityProviderDefinition(
+    AddIdentityProviderDefinition(resources, CreateKeycloakIdentityProviderDefinition(
         identityProviderId,
         "Keycloak",
         identityProvisioningResource.EffectiveResourceId));
 
-    var api = resources
-        .Declare(apiResource)
-        .WithIdentity(
-            identityProvider,
-            scopes: [builder.Configuration["Keycloak:ResourceIdentityScope"] ?? "openid"],
-            name: apiIdentityName)
-        .ProvisionIdentityOnStartup();
+    var api = resources.Declare(apiResource);
     settings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
 });
 

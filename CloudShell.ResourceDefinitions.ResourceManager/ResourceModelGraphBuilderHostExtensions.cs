@@ -76,6 +76,10 @@ public static class ResourceModelGraphBuilderHostExtensions
                 ResourceModelResourceProvider.DefaultProviderId,
                 resource.EffectiveResourceId,
                 resourceGroupId: metadata.ResourceGroupId);
+            if (metadata.Identity is { } identity)
+            {
+                declaration.WithIdentity(identity);
+            }
 
             if (metadata.AutoStart is { } autoStart)
             {
@@ -85,6 +89,11 @@ public static class ResourceModelGraphBuilderHostExtensions
             if (metadata.DependencyAutoStart is { } dependencyAutoStart)
             {
                 declaration.WithDependencyAutoStart(dependencyAutoStart);
+            }
+
+            if (metadata.ProvisionIdentityOnStartup is { } provisionIdentityOnStartup)
+            {
+                declaration.ProvisionIdentityOnStartup(provisionIdentityOnStartup);
             }
         }
     }

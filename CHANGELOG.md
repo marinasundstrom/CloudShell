@@ -40,6 +40,10 @@ on `git blame --follow`, and then by the broad type of change.
 - ThirdPartyIdentity's sample-local identity provisioning and ASP.NET Core
   identity-environment seams now use Resource model naming instead of
   graph-specific class and test names.
+- Resource graph builders can now declare Resource Manager identity binding
+  and provision-on-startup intent with old-builder-compatible
+  `WithIdentity(...)` and `ProvisionIdentityOnStartup(...)` methods, and
+  ThirdPartyIdentity now uses that surface for its API resource.
 - Resource graph builder overloads that accept another resource builder now
   infer typed `ResourceReference` metadata from the target builder for
   startup dependencies, project references, service/name-mapping targets, and

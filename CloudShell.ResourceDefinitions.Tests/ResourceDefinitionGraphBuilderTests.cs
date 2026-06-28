@@ -148,6 +148,11 @@ public sealed class ResourceDefinitionGraphBuilderTests
     [Fact]
     public void Host_DefineResourcesRegistersResourceManagerDeclarations()
     {
+        var identityProvider = new ResourceIdentityProviderDefinition(
+            "identity:development",
+            "Development identity",
+            ResourceIdentityProviderKind.BuiltIn,
+            new Dictionary<string, string>());
         var services = new ServiceCollection();
         services
             .AddCloudShellControlPlane()
@@ -158,7 +163,14 @@ public sealed class ResourceDefinitionGraphBuilderTests
                     .AddNetwork("app")
                     .WithResourceGroup("group:sample")
                     .WithAutoStart(false)
-                    .WithDependencyAutoStart(false);
+                    .WithDependencyAutoStart(false)
+                    .WithIdentity(identityProvider, identity =>
+                    {
+                        identity.Name = "app";
+                        identity.Subject = "client:app";
+                        identity.Scopes.Add("openid");
+                    })
+                    .ProvisionIdentityOnStartup();
             });
         using var serviceProvider = services.BuildServiceProvider();
         var declarations = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
@@ -169,6 +181,11 @@ public sealed class ResourceDefinitionGraphBuilderTests
         Assert.Equal(ResourceModelResourceProvider.DefaultProviderId, declaration.ProviderId);
         Assert.Equal("cloudshell.network:app", declaration.ResourceId);
         Assert.Equal("group:sample", declaration.ResourceGroupId);
+        Assert.Equal("identity:development", declaration.IdentityBinding?.ProviderId);
+        Assert.Equal("app", declaration.IdentityBinding?.Name);
+        Assert.Equal("client:app", declaration.IdentityBinding?.Subject);
+        Assert.Equal(["openid"], declaration.IdentityBinding?.IdentityScopes);
+        Assert.True(declaration.ProvisionIdentityOnStartup);
         Assert.False(declarations.ShouldAutoStart(declaration.ResourceId));
         Assert.False(declarations.ShouldAutoStartAsDependency(declaration.ResourceId));
     }
