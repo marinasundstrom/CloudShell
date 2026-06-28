@@ -45,6 +45,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The supported sample host launch matrix now rejects known old-provider
   resource IDs for graph-default samples, making accidental fallback to legacy
   resource records visible in the generic switch-readiness gate.
+- Switch-readiness sample launch setup, cleanup, and legacy-record checks now
+  share the same sample-name resolver so the graph-default test gate has one
+  source of truth for supported samples.
 - Graph-default samples now use the builder-level
   `UseResourceGraphIntegration(...)` seam to register generic graph
   services, current graph-provider Resource Manager projections, and the

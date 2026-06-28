@@ -5735,8 +5735,9 @@ public sealed class SampleSmokeTests
         int hostPort)
     {
         List<(string Key, string Value)> environment = [];
+        var sampleName = GetSwitchReadinessSampleName(projectPath);
 
-        if (projectPath.Contains("/ApplicationTopology/", StringComparison.OrdinalIgnoreCase))
+        if (sampleName == "ApplicationTopology")
         {
             environment.Add(("ApplicationTopology__ApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("ApplicationTopology__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
@@ -5746,21 +5747,21 @@ public sealed class SampleSmokeTests
             environment.Add(("ApplicationTopology__GraphSecretsServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("ApplicationTopology__SqlServer__Port", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
         }
-        else if (projectPath.Contains("/CloudShell.ContainerHost/", StringComparison.OrdinalIgnoreCase))
+        else if (sampleName == "CloudShell.ContainerHost")
         {
             environment.Add(("ContainerHost__GraphSqlServer__Port", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
         }
-        else if (projectPath.Contains("/ContainerAppDeployment/", StringComparison.OrdinalIgnoreCase))
+        else if (sampleName == "ContainerAppDeployment")
         {
             environment.Add(("ContainerAppDeployment__RegistryPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
         }
-        else if (projectPath.Contains("/HostVirtualNetwork/", StringComparison.OrdinalIgnoreCase))
+        else if (sampleName == "HostVirtualNetwork")
         {
             environment.Add(("HostVirtualNetwork__TargetPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
             environment.Add(("HostVirtualNetwork__VirtualNetworkPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
             environment.Add(("HostVirtualNetwork__GraphVirtualNetworkPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
         }
-        else if (projectPath.Contains("/LoadBalancer/", StringComparison.OrdinalIgnoreCase))
+        else if (sampleName == "LoadBalancer")
         {
             environment.Add(("CLOUDSHELL_LOADBALANCER_SKIP_TRAEFIK_RUNTIME", "true"));
             environment.Add((
@@ -5769,28 +5770,28 @@ public sealed class SampleSmokeTests
                     Path.GetTempPath(),
                     $"cloudshell-load-balancer-{Guid.NewGuid():N}.hosts")));
         }
-        else if (projectPath.Contains("/ProjectReference/", StringComparison.OrdinalIgnoreCase))
+        else if (sampleName == "ProjectReference")
         {
             environment.Add(("ProjectReference__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("ProjectReference__GraphApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("ProjectReference__GraphFrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
         }
-        else if (projectPath.Contains("/ReplicatedContainerHealth/", StringComparison.OrdinalIgnoreCase))
+        else if (sampleName == "ReplicatedContainerHealth")
         {
             environment.Add(("ReplicatedContainerHealth__ApiPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
             environment.Add(("ReplicatedContainerHealth__GraphOnlyStatusCacheMilliseconds", "25"));
         }
-        else if (projectPath.Contains("/SettingsAndSecrets/", StringComparison.OrdinalIgnoreCase))
+        else if (sampleName == "SettingsAndSecrets")
         {
             environment.Add(("Samples__SettingsAndSecrets__GraphConfigurationServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("Samples__SettingsAndSecrets__GraphSecretsServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("Samples__SettingsAndSecrets__GraphApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
         }
-        else if (projectPath.Contains("/SplitHosting/ControlPlane/", StringComparison.OrdinalIgnoreCase))
+        else if (sampleName == "SplitHosting")
         {
             environment.Add(("Authentication__BuiltInAuthority__Issuer", $"http://localhost:{hostPort}"));
         }
-        else if (projectPath.Contains("/ThirdPartyIdentity/", StringComparison.OrdinalIgnoreCase))
+        else if (sampleName == "ThirdPartyIdentity")
         {
             environment.Add(("Authentication__Enabled", "false"));
             environment.Add(("Authentication__OpenIdConnect__RequireHttpsMetadata", "false"));
@@ -5941,22 +5942,24 @@ public sealed class SampleSmokeTests
 
     private static async Task CleanupSwitchReadinessRuntimeArtifactsAsync(string projectPath)
     {
-        if (projectPath.Contains("/CloudShell.ContainerHost/", StringComparison.OrdinalIgnoreCase))
+        var sampleName = GetSwitchReadinessSampleName(projectPath);
+
+        if (sampleName == "CloudShell.ContainerHost")
         {
             await DockerComposeStack.RemoveContainerIfExistsAsync(
                 ContainerHostGraphSqlServerDockerBridge.GraphSqlServerContainerName);
         }
-        else if (projectPath.Contains("/ContainerAppDeployment/", StringComparison.OrdinalIgnoreCase))
+        else if (sampleName == "ContainerAppDeployment")
         {
             await DockerComposeStack.RemoveContainerIfExistsAsync(
                 "cloudshell-container-app-deployment-graph-registry");
         }
-        else if (projectPath.Contains("/ApplicationTopology/", StringComparison.OrdinalIgnoreCase))
+        else if (sampleName == "ApplicationTopology")
         {
             await DockerComposeStack.RemoveContainerIfExistsAsync(
                 ApplicationTopologyGraphSqlServerDockerBridge.GraphSqlServerContainerName);
         }
-        else if (projectPath.Contains("/LoadBalancer/", StringComparison.OrdinalIgnoreCase))
+        else if (sampleName == "LoadBalancer")
         {
             foreach (var path in Directory.EnumerateFiles(
                 Path.GetTempPath(),
@@ -5972,7 +5975,7 @@ public sealed class SampleSmokeTests
                 }
             }
         }
-        else if (projectPath.Contains("/ReplicatedContainerHealth/", StringComparison.OrdinalIgnoreCase))
+        else if (sampleName == "ReplicatedContainerHealth")
         {
             await DockerComposeStack.RemoveContainerIfExistsAsync(
                 "cloudshell-replicated-health-graph-api-ingress");
@@ -5983,7 +5986,7 @@ public sealed class SampleSmokeTests
                     $"cloudshell-replicated-health-graph-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}");
             }
         }
-        else if (projectPath.Contains("/ThirdPartyIdentity/", StringComparison.OrdinalIgnoreCase))
+        else if (sampleName == "ThirdPartyIdentity")
         {
             await CleanupThirdPartyIdentityKeycloakStacksAsync();
         }
