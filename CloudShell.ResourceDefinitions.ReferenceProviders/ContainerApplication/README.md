@@ -25,6 +25,10 @@
 - Manual `ResourceDefinitionGraphBuilder.AddContainerApplication(...)`
   builder for code-first container app definition authoring with typed host
   dependencies, endpoint requests, replicas, and volume mount capability setup.
+- Provider-owned Resource Manager UI registration for graph-only samples. The
+  POC uses `application.container-app` as the type id trigger for container-app
+  deployment, revision, scale, monitoring, and endpoint-action UI instead of
+  depending on the legacy application provider's concrete resource model.
 
 ## Runtime Integration
 
@@ -141,4 +145,5 @@ model cleanup work after switch-over.
 ## Remaining
 
 - Actual container host orchestration through a runtime handler implementation.
-- Revisions, replica runtime state, monitoring, and UI operations.
+- Rich revision history, replica runtime state, and old edit surfaces such as
+  configuration and storage updates.

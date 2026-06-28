@@ -61,6 +61,11 @@ on `git blame --follow`, and then by the broad type of change.
 - The supported sample host launch matrix now uses a longer readiness window
   than focused smoke tests so cold sample host startup and local persistence
   initialization do not hide graph-default projection regressions.
+- Graph-backed container app resources can now light up the provider-owned
+  Scale and replicas Resource Manager tab by resource type id in graph-only
+  samples without registering the legacy application providers. The proposal
+  records the broader capability/attribute-driven Shell UI selection model as
+  future work.
 
 ### 2026-06-27
 

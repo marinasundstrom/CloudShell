@@ -723,6 +723,36 @@ workloads through the normal user experience. Until the provider switch-over is
 far enough along, focused provider tests and sample smoke tests remain the
 practical gates for each slice.
 
+Resource Manager UI selection should eventually be driven by the resolved
+resource type, resource class, capabilities, and attribute definitions. Parts
+of the current shell already use attributes and capabilities to decide whether
+generic views are useful. Provider-unique UI remains a separate concern:
+container apps have dedicated scale/replica views, so the current POC selects
+those views by the stable provider type id `application.container-app` for
+both legacy and graph-backed resources. The broader capability/attribute-driven
+UI contribution model is future Shell work and should not be designed in the
+provider-porting slice.
+
+The midterm migration goal is UI parity while the provider switch is still in
+progress. Each provider-owned UI integration should be audited and moved away
+from old concrete provider records when the same decision can be made from the
+projected `Resource`: `EffectiveTypeId` for provider-unique UI, resource class
+for broad grouping, capabilities for supported behavior, and attributes for
+resource-specific facts. Any UI still requiring old provider stores or
+`ApplicationResourceDefinition` should either be split into a graph-safe view,
+adapted to the public Resource Manager API, or recorded as a remaining
+switch-over seam in the provider README.
+
+Initial UI-porting audit:
+
+| UI area | Current direction | Remaining concern |
+| --- | --- | --- |
+| Generated resource views | Already mostly driven by projected resource facts such as endpoints, identity, access-control state, health declarations, logs, monitoring, and attributes. | Keep new generic views capability/attribute-driven instead of tied to concrete provider stores. |
+| Container app Deployment, Revisions, Scale and replicas, Monitoring, and endpoint actions | Provider-unique UI is selected by `application.container-app` for graph-backed resources. Deployment, monitoring, and endpoint actions use public Resource Manager APIs and projected attributes; revisions can render with an empty history provider until graph/runtime history is ported; scaling uses a graph-safe panel over the public replica update API. | Port rich revision history, replica slots, deployment records, and runtime-specific details without depending on the old application-provider definition store. |
+| Application registration/update/storage pages | Still primarily tied to `ApplicationResourceDefinition` and old application-provider services. | Audit each page as providers are switched: either adapt to projected Resource facts and public managers, split graph-safe views, or mark as old-provider-only until replacement. |
+| SQL Server databases and configuration pages | Still tied to old application-provider SQL services. | Decide during SQL provider switch whether database child projection and credential/runtime diagnostics become graph/provider views or Control Plane runtime views. |
+| Provider registration forms | Still provider-specific and often old-store-backed. | Keep create flows explicit; graph-backed declarations may need separate builder/deployment authoring rather than reusing old register forms. |
+
 The target for each selected sample is a runnable workload path through the
 new graph-backed providers. Temporary adapters are acceptable when they bridge
 the graph provider into existing Control Plane or Resource Manager services,

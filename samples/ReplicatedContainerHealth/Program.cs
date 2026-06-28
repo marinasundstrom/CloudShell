@@ -104,6 +104,10 @@ if (!graphOnly)
         })
         .AddDockerProvider();
 }
+else
+{
+    cloudShell.AddApplicationResourceManagerUi();
+}
 
 cloudShell.Resources(resources =>
 {

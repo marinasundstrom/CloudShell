@@ -1,0 +1,207 @@
+@using System.Globalization
+@implements IDisposable
+@inject IResourceManager ResourceManager
+
+@if (Resource is null)
+{
+    <EmptyState Title="Scaling is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
+}
+else if (!ApplicationResourceTypes.IsContainerApp(Resource.EffectiveTypeId))
+{
+    <EmptyState Title="Scale and replicas are not supported"
+                Message="This resource type does not expose container app scale controls." />
+}
+else
+{
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Scale and replicas</h3>
+            </div>
+            <GeneratedRowActions>
+                <FluentButton Appearance="Appearance.Neutral"
+                              IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                              Disabled="@IsRefreshing"
+                              OnClick="RefreshAsync">
+                    @(IsRefreshing ? "Refreshing" : "Refresh")
+                </FluentButton>
+            </GeneratedRowActions>
+        </div>
+
+        <dl class="detail-list">
+            <dt>Mode</dt>
+            <dd>@GetModeLabel()</dd>
+            <dt>Requested replica slots</dt>
+            <dd>@RequestedReplicaSlots.ToString(CultureInfo.InvariantCulture)</dd>
+            <dt>Materialized slots</dt>
+            <dd>@GetAttribute(ResourceAttributeNames.DeploymentMaterializedReplicas, "not projected")</dd>
+            <dt>Resource type</dt>
+            <dd>@Resource.EffectiveTypeId</dd>
+        </dl>
+
+        <label for="graph-container-app-replicas">Replicas</label>
+        <FluentNumberField TValue="int"
+                           Id="graph-container-app-replicas"
+                           Min="1"
+                           Disabled="@IsReadOnly"
+                           @bind-Value="Replicas" />
+        <GeneratedRowActions>
+            <FluentButton Appearance="Appearance.Accent"
+                          IconStart="@(new Icons.Regular.Size20.ArrowSyncCircle())"
+                          Disabled="@(!CanUpdateReplicaCount)"
+                          OnClick="UpdateReplicasAsync">
+                @(IsUpdatingReplicas ? "Updating replicas" : "Update replicas")
+            </FluentButton>
+        </GeneratedRowActions>
+
+        @if (!string.IsNullOrWhiteSpace(ReplicaUpdateMessage))
+        {
+            <ProcedureMessage Compact="true"
+                              Severity="@ReplicaUpdateSeverity"
+                              Role="status">
+                @ReplicaUpdateMessage
+            </ProcedureMessage>
+        }
+    </section>
+}
+
+@code {
+    [CascadingParameter(Name = ResourceManagerCascadingParameterNames.ReadOnly)]
+    public bool IsReadOnly { get; set; }
+
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private Resource? Resource { get; set; }
+    private int RequestedReplicaSlots { get; set; } = 1;
+    private int Replicas { get; set; } = 1;
+    private bool IsRefreshing { get; set; }
+    private bool IsUpdatingReplicas { get; set; }
+    private bool IsDisposed { get; set; }
+    private string? ReplicaUpdateMessage { get; set; }
+    private ResourceSignalSeverity? ReplicaUpdateSeverity { get; set; }
+
+    private bool CanUpdateReplicaCount =>
+        !IsReadOnly &&
+        !IsUpdatingReplicas &&
+        Resource is not null &&
+        ApplicationResourceTypes.IsContainerApp(Resource.EffectiveTypeId) &&
+        Math.Max(1, Replicas) != Math.Max(1, RequestedReplicaSlots);
+
+    protected override Task OnParametersSetAsync() => RefreshAsync();
+
+    private async Task RefreshAsync()
+    {
+        if (IsDisposed || IsRefreshing)
+        {
+            return;
+        }
+
+        IsRefreshing = true;
+        try
+        {
+            Resource = string.IsNullOrWhiteSpace(ResourceId)
+                ? null
+                : await ResourceManager.GetResourceAsync(ResourceId);
+            RequestedReplicaSlots = Math.Max(1, GetReplicaCount(Resource));
+            Replicas = RequestedReplicaSlots;
+        }
+        finally
+        {
+            IsRefreshing = false;
+            if (!IsDisposed)
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private async Task UpdateReplicasAsync()
+    {
+        if (IsUpdatingReplicas)
+        {
+            return;
+        }
+
+        if (IsReadOnly)
+        {
+            ReplicaUpdateSeverity = ResourceSignalSeverity.Warning;
+            ReplicaUpdateMessage = "Resource Manager is in read-only mode.";
+            return;
+        }
+
+        if (Resource is null || !ApplicationResourceTypes.IsContainerApp(Resource.EffectiveTypeId))
+        {
+            ReplicaUpdateSeverity = ResourceSignalSeverity.Warning;
+            ReplicaUpdateMessage = "Scaling is not supported for this resource.";
+            return;
+        }
+
+        IsUpdatingReplicas = true;
+        ReplicaUpdateMessage = null;
+        ReplicaUpdateSeverity = null;
+        try
+        {
+            var result = await ResourceManager.UpdateResourceReplicasAsync(
+                Resource.Id,
+                Math.Max(1, Replicas),
+                restartIfRunning: false,
+                triggeredBy: "resource-manager-ui");
+            var requiresFollowUp = result.RestartRequired || result.RuntimeReconciliationRequired;
+            var followUpMessage = result.RestartRequired
+                ? result.RestartMessage
+                : result.RuntimeReconciliationMessage;
+            ReplicaUpdateSeverity = requiresFollowUp
+                ? ResourceSignalSeverity.Warning
+                : ResourceSignalSeverity.Success;
+            ReplicaUpdateMessage = requiresFollowUp && !string.IsNullOrWhiteSpace(followUpMessage)
+                ? $"{result.Message} {followUpMessage}"
+                : result.Message;
+            await RefreshAsync();
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            ReplicaUpdateSeverity = ResourceSignalSeverity.Error;
+            ReplicaUpdateMessage = $"Replica update failed: {exception.Message}";
+        }
+        finally
+        {
+            IsUpdatingReplicas = false;
+        }
+    }
+
+    private string GetModeLabel() =>
+        RequestedReplicaSlots > 1 ? "Replicated" : "Single instance";
+
+    private string GetAttribute(string attributeName, string fallback) =>
+        Resource is not null &&
+        Resource.ResourceAttributes.TryGetValue(attributeName, out var value) &&
+        !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
+
+    private static int GetReplicaCount(Resource? resource)
+    {
+        if (resource is null)
+        {
+            return 1;
+        }
+
+        return TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentRequestedReplicaSlots) ??
+            TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentRequestedReplicas) ??
+            TryGetReplicaCount(resource, ResourceAttributeNames.ContainerReplicas) ??
+            1;
+    }
+
+    private static int? TryGetReplicaCount(Resource resource, string attributeName) =>
+        resource.ResourceAttributes.TryGetValue(attributeName, out var value) &&
+        int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var count)
+            ? Math.Max(1, count)
+            : null;
+
+    public void Dispose()
+    {
+        IsDisposed = true;
+    }
+}

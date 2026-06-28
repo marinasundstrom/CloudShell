@@ -33,6 +33,11 @@ public static class ApplicationProviderServiceCollectionExtensions
         return builder.AddExtension(new ApplicationProviderExtension(), activationPolicy);
     }
 
+    public static ICloudShellBuilder AddApplicationResourceManagerUi(
+        this ICloudShellBuilder builder,
+        CloudShellExtensionActivationPolicy activationPolicy = CloudShellExtensionActivationPolicy.Enabled) =>
+        builder.AddExtension(new ApplicationResourceManagerUiExtension(), activationPolicy);
+
     private static void AddApplicationProviderCore(
         ICloudShellBuilder builder,
         Action<ApplicationProviderOptions>? configure)

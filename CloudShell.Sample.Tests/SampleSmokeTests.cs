@@ -4694,6 +4694,26 @@ public sealed class SampleSmokeTests
         Assert.Contains(
             graphApp.GetProperty("capabilities").EnumerateArray(),
             capability => capability.GetProperty("id").GetString() == ResourceHealthCheckCapabilityIds.Liveness.ToString());
+
+        var graphScalingHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.container-app:graph-api")}/details?tab={Uri.EscapeDataString("application:scale-replicas")}");
+        Assert.Contains("Scale and replicas", graphScalingHtml);
+        Assert.Contains("Requested replica slots", graphScalingHtml);
+        Assert.Contains("Update replicas", graphScalingHtml);
+        Assert.Contains(">3</dd>", graphScalingHtml);
+
+        var graphDeploymentHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.container-app:graph-api")}/details?tab={Uri.EscapeDataString("application:deployment")}");
+        Assert.Contains("Deploy image", graphDeploymentHtml);
+        Assert.Contains("Current image", graphDeploymentHtml);
+
+        var graphRevisionsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.container-app:graph-api")}/details?tab={Uri.EscapeDataString("application:revisions")}");
+        Assert.Contains("No revisions recorded", graphRevisionsHtml);
+
+        var graphMonitoringHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.container-app:graph-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Monitoring.Value)}");
+        Assert.Contains("Monitoring", graphMonitoringHtml);
     }
 
     [Fact]

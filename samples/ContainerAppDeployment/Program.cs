@@ -90,6 +90,10 @@ if (!graphOnly)
             options.Registry = registryAddress;
         });
 }
+else
+{
+    cloudShell.AddApplicationResourceManagerUi();
+}
 
 cloudShell.Resources(resources =>
 {

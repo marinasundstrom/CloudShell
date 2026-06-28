@@ -129,6 +129,10 @@ if (!graphOnly)
         .AddApplicationProvider()
         .AddDockerProvider();
 }
+else
+{
+    cloudShell.AddApplicationResourceManagerUi();
+}
 
 cloudShell
     .AddTraefikProvider(options =>
