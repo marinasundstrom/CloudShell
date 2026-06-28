@@ -224,7 +224,7 @@
                             }
                         </div>
                     </div>
-                    <span>@resource.Kind</span>
+                    <span>@GetResourceTypeDisplayName(resource)</span>
                     <span>@(group?.Name ?? L["Default group"])</span>
                     <span>
                         @if (ResourceLifecycleDisplay.ShouldShowStatus(resource))
@@ -322,7 +322,7 @@
                 <ResourceKindIcon Resource="selected" Class="resource-kind-icon large" />
                 <div>
                     <h2>@GetResourceLabel(selected)</h2>
-                    <p>@selected.Kind</p>
+                    <p>@GetResourceTypeDisplayName(selected)</p>
                 </div>
                 <FluentButton class="blade-dismiss" IconStart="new Icons.Regular.Size20.Dismiss()"
                               title="@L["Dismiss details"]" aria-label="@L["Dismiss details"]" OnClick="DismissResource">
@@ -452,7 +452,7 @@
                                 <ResourceKindIcon Resource="child" />
                                 <span>
                                     <strong>@GetResourceLabel(child)</strong>
-                                    <small>@child.Kind</small>
+                                    <small>@GetResourceTypeDisplayName(child)</small>
                                 </span>
                                 @if (ResourceLifecycleDisplay.ShouldShowStatus(child))
                                 {
@@ -1042,13 +1042,20 @@ StringComparer.OrdinalIgnoreCase);
             .Select(group =>
             {
                 var resource = group.First();
-                var displayName = string.Equals(resource.Kind, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase)
-                    ? resource.Kind
-                    : $"{resource.Kind} ({resource.EffectiveTypeId})";
-                return new ResourceTypeFilterOption(resource.EffectiveTypeId, displayName);
+                return new ResourceTypeFilterOption(
+                    resource.EffectiveTypeId,
+                    GetResourceTypeDisplayName(resource));
             })
             .OrderBy(type => type.DisplayName, StringComparer.OrdinalIgnoreCase)
     ];
+
+    private string GetResourceTypeDisplayName(Resource resource) =>
+        ShellCatalog.ResourceTypes.FirstOrDefault(type =>
+            string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase))
+            ?.DisplayName ??
+        (string.Equals(resource.Kind, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase)
+            ? resource.Kind
+            : $"{resource.Kind} ({resource.EffectiveTypeId})");
 
     private IReadOnlyList<ResourceGroupFilterOption> GetResourceGroupFilterOptions(IReadOnlyList<ResourceGroup> groups) =>
     [
