@@ -13,7 +13,6 @@ using CloudShell.ApplicationTopology.ServiceDefaults;
 using CloudShell.ContainerHost;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Platform;
-using CloudShell.Providers.Applications;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
