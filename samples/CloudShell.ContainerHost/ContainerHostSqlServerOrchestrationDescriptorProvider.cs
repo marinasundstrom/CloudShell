@@ -3,7 +3,7 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ContainerHost;
 
-internal sealed class ContainerHostGraphSqlServerOrchestrationDescriptorProvider :
+internal sealed class ContainerHostSqlServerOrchestrationDescriptorProvider :
     IResourceOrchestrationDescriptorProvider
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
@@ -11,7 +11,7 @@ internal sealed class ContainerHostGraphSqlServerOrchestrationDescriptorProvider
     public bool CanDescribe(Resource resource) =>
         string.Equals(
             resource.Id,
-            ContainerHostGraphSqlServerRuntimeHandler.GraphSqlServerResourceId,
+            ContainerHostSqlServerRuntimeHandler.SqlServerResourceId,
             StringComparison.OrdinalIgnoreCase);
 
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(
@@ -30,7 +30,7 @@ internal sealed class ContainerHostGraphSqlServerOrchestrationDescriptorProvider
             resource.DependsOn,
             [],
             resource.Endpoints,
-            "container-host.graph-sql-runtime.v1",
+            "container-host.sql-runtime.v1",
             JsonSerializer.SerializeToElement(workload, SerializerOptions)));
     }
 }

@@ -7,16 +7,16 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
-using GraphResource = CloudShell.ResourceDefinitions.Resource;
+using ResourceModelResource = CloudShell.ResourceDefinitions.Resource;
 
 namespace CloudShell.Sample.Tests;
 
-public sealed class ContainerHostGraphSqlServerDockerBridgeTests
+public sealed class ContainerHostSqlServerDockerBridgeTests
 {
     [Fact]
     public async Task ExecuteStart_CreatesSqlServerContainerWithStorageBackedBindMount()
     {
-        using var fixture = new ContainerHostGraphFixture();
+        using var fixture = new ContainerHostFixture();
         var runner = new RecordingContainerHostDockerCommandRunner();
         runner.Enqueue(new(1, string.Empty, "No such container"));
         var bridge = fixture.CreateBridge(
@@ -27,19 +27,19 @@ public sealed class ContainerHostGraphSqlServerDockerBridgeTests
             });
 
         var diagnostics = await bridge.ExecuteLifecycleAsync(
-            await fixture.ResolveGraphSqlServerAsync(),
+            await fixture.ResolveSqlServerAsync(),
             SqlServerResourceTypeProvider.Operations.Start);
 
         Assert.Empty(diagnostics);
-        Assert.Equal(SqlServerRuntimeStatus.Running, bridge.GetStatus(await fixture.ResolveGraphSqlServerAsync()));
+        Assert.Equal(SqlServerRuntimeStatus.Running, bridge.GetStatus(await fixture.ResolveSqlServerAsync()));
         var expectedVolumePath = Path.Combine(fixture.ContentRootPath, "Data", "storage", "sql-server");
         Assert.Collection(
             runner.Commands,
             command => Assert.Equal(
-                "container inspect --format {{.State.Status}} cloudshell-container-host-graph-sql-server",
+                "container inspect --format {{.State.Status}} cloudshell-container-host-sql-server",
                 command.JoinedArguments),
             command => Assert.Equal(
-                $"run -d --name cloudshell-container-host-graph-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=Configured-Passw0rd! -p 127.0.0.1:15434:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
+                $"run -d --name cloudshell-container-host-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=Configured-Passw0rd! -p 127.0.0.1:15434:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
                 command.JoinedArguments));
         Assert.True(Directory.Exists(expectedVolumePath));
     }
@@ -47,36 +47,36 @@ public sealed class ContainerHostGraphSqlServerDockerBridgeTests
     [Fact]
     public async Task ExecuteRestart_RemovesAndRecreatesSqlServerContainerWithBindMount()
     {
-        using var fixture = new ContainerHostGraphFixture();
+        using var fixture = new ContainerHostFixture();
         var runner = new RecordingContainerHostDockerCommandRunner();
         runner.Enqueue(new(0, string.Empty, string.Empty));
         runner.Enqueue(new(1, string.Empty, "No such container"));
         var bridge = fixture.CreateBridge(runner);
 
         var diagnostics = await bridge.ExecuteLifecycleAsync(
-            await fixture.ResolveGraphSqlServerAsync(),
+            await fixture.ResolveSqlServerAsync(),
             SqlServerResourceTypeProvider.Operations.Restart);
 
         Assert.Empty(diagnostics);
-        Assert.Equal(SqlServerRuntimeStatus.Running, bridge.GetStatus(await fixture.ResolveGraphSqlServerAsync()));
+        Assert.Equal(SqlServerRuntimeStatus.Running, bridge.GetStatus(await fixture.ResolveSqlServerAsync()));
         var expectedVolumePath = Path.Combine(fixture.ContentRootPath, "Data", "storage", "sql-server");
         Assert.Collection(
             runner.Commands,
             command => Assert.Equal(
-                "rm -f cloudshell-container-host-graph-sql-server",
+                "rm -f cloudshell-container-host-sql-server",
                 command.JoinedArguments),
             command => Assert.Equal(
-                "container inspect --format {{.State.Status}} cloudshell-container-host-graph-sql-server",
+                "container inspect --format {{.State.Status}} cloudshell-container-host-sql-server",
                 command.JoinedArguments),
             command => Assert.Equal(
-                $"run -d --name cloudshell-container-host-graph-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=CloudShell-Passw0rd! -p 127.0.0.1:15434:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
+                $"run -d --name cloudshell-container-host-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=CloudShell-Passw0rd! -p 127.0.0.1:15434:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
                 command.JoinedArguments));
     }
 
     [Fact]
     public async Task ExecuteStart_RemovesFailedCreatedContainerAndRetriesTransientMountFailure()
     {
-        using var fixture = new ContainerHostGraphFixture();
+        using var fixture = new ContainerHostFixture();
         var runner = new RecordingContainerHostDockerCommandRunner();
         runner.Enqueue(new(1, string.Empty, "No such container"));
         runner.Enqueue(new(
@@ -88,7 +88,7 @@ public sealed class ContainerHostGraphSqlServerDockerBridgeTests
         var bridge = fixture.CreateBridge(runner);
 
         var diagnostics = await bridge.ExecuteLifecycleAsync(
-            await fixture.ResolveGraphSqlServerAsync(),
+            await fixture.ResolveSqlServerAsync(),
             SqlServerResourceTypeProvider.Operations.Start);
 
         Assert.Empty(diagnostics);
@@ -96,25 +96,25 @@ public sealed class ContainerHostGraphSqlServerDockerBridgeTests
         Assert.Collection(
             runner.Commands,
             command => Assert.Equal(
-                "container inspect --format {{.State.Status}} cloudshell-container-host-graph-sql-server",
+                "container inspect --format {{.State.Status}} cloudshell-container-host-sql-server",
                 command.JoinedArguments),
             command => Assert.Equal(
-                $"run -d --name cloudshell-container-host-graph-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=CloudShell-Passw0rd! -p 127.0.0.1:15434:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
+                $"run -d --name cloudshell-container-host-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=CloudShell-Passw0rd! -p 127.0.0.1:15434:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
                 command.JoinedArguments),
             command => Assert.Equal(
-                "rm -f cloudshell-container-host-graph-sql-server",
+                "rm -f cloudshell-container-host-sql-server",
                 command.JoinedArguments),
             command => Assert.Equal(
-                $"run -d --name cloudshell-container-host-graph-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=CloudShell-Passw0rd! -p 127.0.0.1:15434:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
+                $"run -d --name cloudshell-container-host-sql-server -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=CloudShell-Passw0rd! -p 127.0.0.1:15434:1433 -v {expectedVolumePath}:/var/opt/mssql mcr.microsoft.com/mssql/server:2022-latest",
                 command.JoinedArguments));
     }
 
     [Fact]
     public async Task RuntimeHandler_IgnoresUnmappedSqlServerResource()
     {
-        using var fixture = new ContainerHostGraphFixture();
+        using var fixture = new ContainerHostFixture();
         var runner = new RecordingContainerHostDockerCommandRunner();
-        var handler = new ContainerHostGraphSqlServerRuntimeHandler(
+        var handler = new ContainerHostSqlServerRuntimeHandler(
             fixture.CreateBridge(runner));
         var resource = fixture.ResolveUnmappedSqlServer();
 
@@ -127,14 +127,14 @@ public sealed class ContainerHostGraphSqlServerDockerBridgeTests
         Assert.Equal(SqlServerRuntimeStatus.Unknown, handler.GetStatus(resource));
     }
 
-    private sealed class ContainerHostGraphFixture : IDisposable
+    private sealed class ContainerHostFixture : IDisposable
     {
-        private const string GraphStorageResourceId = "cloudshell.storage:graph-local";
-        private const string GraphVolumeResourceId = "cloudshell.volume:graph-sql-data";
-        private const string GraphSqlServerResourceId = ContainerHostGraphSqlServerRuntimeHandler.GraphSqlServerResourceId;
+        private const string StorageResourceId = "cloudshell.storage:local";
+        private const string VolumeResourceId = "cloudshell.volume:sql-data";
+        private const string SqlServerResourceId = ContainerHostSqlServerRuntimeHandler.SqlServerResourceId;
         private readonly ServiceProvider _serviceProvider;
 
-        public ContainerHostGraphFixture()
+        public ContainerHostFixture()
         {
             ContentRootPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(ContentRootPath);
@@ -144,9 +144,9 @@ public sealed class ContainerHostGraphSqlServerDockerBridgeTests
                 .AddInMemoryResourceModelGraph(
                 [
                     new ResourceState(
-                        "graph-local",
+                        "local",
                         StorageResourceTypeProvider.ResourceTypeId,
-                        ResourceId: GraphStorageResourceId,
+                        ResourceId: StorageResourceId,
                         ProviderId: StorageResourceTypeProvider.ProviderId,
                         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
                         {
@@ -155,15 +155,15 @@ public sealed class ContainerHostGraphSqlServerDockerBridgeTests
                             [StorageResourceTypeProvider.Attributes.Location] = "./Data/storage"
                         }),
                     new ResourceState(
-                        "graph-sql-data",
+                        "sql-data",
                         CloudShellVolumeResourceTypeProvider.ResourceTypeId,
-                        ResourceId: GraphVolumeResourceId,
+                        ResourceId: VolumeResourceId,
                         ProviderId: CloudShellVolumeResourceTypeProvider.ProviderId,
-                        DisplayName: "Graph SQL Server Data",
+                        DisplayName: "SQL Server Data",
                         DependsOn:
                         [
                             ResourceReference.DependsOnResourceId(
-                                GraphStorageResourceId,
+                                StorageResourceId,
                                 typeId: StorageResourceTypeProvider.ResourceTypeId)
                         ],
                         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
@@ -175,11 +175,11 @@ public sealed class ContainerHostGraphSqlServerDockerBridgeTests
                             [CloudShellVolumeResourceTypeProvider.Attributes.Persistent] = true
                         }),
                     new ResourceState(
-                        "graph-sql-server",
+                        "sql-server",
                         SqlServerResourceTypeProvider.ResourceTypeId,
-                        ResourceId: GraphSqlServerResourceId,
+                        ResourceId: SqlServerResourceId,
                         ProviderId: SqlServerResourceTypeProvider.ProviderId,
-                        DisplayName: "Graph SQL Server",
+                        DisplayName: "SQL Server",
                         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
                         {
                             [SqlServerResourceTypeProvider.Attributes.EndpointRequests] =
@@ -199,7 +199,7 @@ public sealed class ContainerHostGraphSqlServerDockerBridgeTests
                             [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
                                 ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
                                 [
-                                    new(GraphVolumeResourceId, "/var/opt/mssql")
+                                    new(VolumeResourceId, "/var/opt/mssql")
                                 ]))
                         })
                 ])
@@ -212,7 +212,7 @@ public sealed class ContainerHostGraphSqlServerDockerBridgeTests
 
         public string ContentRootPath { get; }
 
-        public ContainerHostGraphSqlServerDockerBridge CreateBridge(
+        public ContainerHostSqlServerDockerBridge CreateBridge(
             RecordingContainerHostDockerCommandRunner runner,
             IReadOnlyDictionary<string, string?>? configuration = null) =>
             new(
@@ -223,15 +223,15 @@ public sealed class ContainerHostGraphSqlServerDockerBridgeTests
                     .AddInMemoryCollection(configuration ?? new Dictionary<string, string?>())
                     .Build());
 
-        public async ValueTask<GraphResource> ResolveGraphSqlServerAsync()
+        public async ValueTask<ResourceModelResource> ResolveSqlServerAsync()
         {
             var resolution = await _serviceProvider
                 .GetRequiredService<ResourceModelGraphResourceResolver>()
-                .ResolveAsync(GraphSqlServerResourceId);
-            return resolution.Target ?? throw new InvalidOperationException("Graph SQL Server was not resolved.");
+                .ResolveAsync(SqlServerResourceId);
+            return resolution.Target ?? throw new InvalidOperationException("SQL Server was not resolved.");
         }
 
-        public GraphResource ResolveUnmappedSqlServer()
+        public ResourceModelResource ResolveUnmappedSqlServer()
         {
             var resolver = new ResourceResolver(
                 [SqlServerResourceTypeProvider.ClassDefinition],

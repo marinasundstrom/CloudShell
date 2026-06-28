@@ -173,11 +173,11 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
-    public void ContainerHostSample_ProjectsStorageBackedSqlServerGraphResources()
+    public void ContainerHostSample_ProjectsStorageBackedSqlServerResources()
     {
-        const string graphStorageResourceId = "cloudshell.storage:graph-local";
-        const string graphVolumeResourceId = "cloudshell.volume:graph-sql-data";
-        const string graphSqlServerResourceId = "application.sql-server:graph-sql-server";
+        const string storageResourceId = "cloudshell.storage:local";
+        const string volumeResourceId = "cloudshell.volume:sql-data";
+        const string sqlServerResourceId = "application.sql-server:sql-server";
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var services = new ServiceCollection();
         services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
@@ -185,9 +185,9 @@ public sealed class SampleSmokeTests
             .AddInMemoryResourceModelGraph(
             [
                 new ResourceGraphState(
-                    "graph-local",
+                    "local",
                     StorageResourceTypeProvider.ResourceTypeId,
-                    ResourceId: graphStorageResourceId,
+                    ResourceId: storageResourceId,
                     ProviderId: StorageResourceTypeProvider.ProviderId,
                     Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
                     {
@@ -196,15 +196,15 @@ public sealed class SampleSmokeTests
                         [StorageResourceTypeProvider.Attributes.Location] = "./Data/storage"
                     }),
                 new ResourceGraphState(
-                    "graph-sql-data",
+                    "sql-data",
                     CloudShellVolumeResourceTypeProvider.ResourceTypeId,
-                    ResourceId: graphVolumeResourceId,
+                    ResourceId: volumeResourceId,
                     ProviderId: CloudShellVolumeResourceTypeProvider.ProviderId,
-                    DisplayName: "Graph SQL Server Data",
+                    DisplayName: "SQL Server Data",
                     DependsOn:
                     [
                         ResourceReference.DependsOnResourceId(
-                            graphStorageResourceId,
+                            storageResourceId,
                             typeId: StorageResourceTypeProvider.ResourceTypeId)
                     ],
                     Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
@@ -216,17 +216,17 @@ public sealed class SampleSmokeTests
                         [CloudShellVolumeResourceTypeProvider.Attributes.Persistent] = true
                     }),
                 new ResourceGraphState(
-                    "graph-sql-server",
+                    "sql-server",
                     SqlServerResourceTypeProvider.ResourceTypeId,
-                    ResourceId: graphSqlServerResourceId,
+                    ResourceId: sqlServerResourceId,
                     ProviderId: SqlServerResourceTypeProvider.ProviderId,
-                    DisplayName: "Graph SQL Server",
+                    DisplayName: "SQL Server",
                     Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
                     {
                         [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
                             ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
                             [
-                                new(graphVolumeResourceId, "/var/opt/mssql")
+                                new(volumeResourceId, "/var/opt/mssql")
                             ]))
                     })
             ])
@@ -245,33 +245,33 @@ public sealed class SampleSmokeTests
             .GetServices<IResourceProvider>()
             .OfType<ResourceModelGraphProcedureProvider>()
             .Single();
-        var graphResources = graphProvider
+        var resources = graphProvider
             .GetResources()
             .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
-        var graphStorage = graphResources[graphStorageResourceId];
-        Assert.Equal("cloudshell.storage", graphStorage.EffectiveTypeId);
-        Assert.Equal("local", graphStorage.ResourceAttributes[StorageResourceTypeProvider.Attributes.Provider]);
-        Assert.Equal("FileSystem", graphStorage.ResourceAttributes[StorageResourceTypeProvider.Attributes.Medium]);
-        Assert.Equal("./Data/storage", graphStorage.ResourceAttributes[StorageResourceTypeProvider.Attributes.Location]);
-        var graphVolume = graphResources[graphVolumeResourceId];
-        Assert.Equal("cloudshell.volume", graphVolume.EffectiveTypeId);
-        Assert.Equal([graphStorageResourceId], graphVolume.DependsOn);
-        Assert.Equal("FileSystem", graphVolume.ResourceAttributes[
+        var storage = resources[storageResourceId];
+        Assert.Equal("cloudshell.storage", storage.EffectiveTypeId);
+        Assert.Equal("local", storage.ResourceAttributes[StorageResourceTypeProvider.Attributes.Provider]);
+        Assert.Equal("FileSystem", storage.ResourceAttributes[StorageResourceTypeProvider.Attributes.Medium]);
+        Assert.Equal("./Data/storage", storage.ResourceAttributes[StorageResourceTypeProvider.Attributes.Location]);
+        var volume = resources[volumeResourceId];
+        Assert.Equal("cloudshell.volume", volume.EffectiveTypeId);
+        Assert.Equal([storageResourceId], volume.DependsOn);
+        Assert.Equal("FileSystem", volume.ResourceAttributes[
             CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium]);
-        Assert.Equal("sql-server", graphVolume.ResourceAttributes[
+        Assert.Equal("sql-server", volume.ResourceAttributes[
             CloudShellVolumeResourceTypeProvider.Attributes.SubPath]);
-        var graphSqlServer = graphResources[graphSqlServerResourceId];
-        Assert.Equal("application.sql-server", graphSqlServer.EffectiveTypeId);
-        Assert.Contains(graphSqlServer.ResourceCapabilities, capability =>
+        var sqlServer = resources[sqlServerResourceId];
+        Assert.Equal("application.sql-server", sqlServer.EffectiveTypeId);
+        Assert.Contains(sqlServer.ResourceCapabilities, capability =>
             capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
     }
 
     [Fact]
     [Trait("Category", "DockerIntegration")]
-    public async Task ContainerHostSample_GraphOnlySqlRuntimeStartsWithStorageBackedVolume()
+    public async Task ContainerHostSample_SqlRuntimeStartsWithStorageBackedVolume()
     {
-        const string graphSqlServerResourceId = "application.sql-server:graph-sql-server";
-        var sqlContainerName = ContainerHostGraphSqlServerDockerBridge.GraphSqlServerContainerName;
+        const string sqlServerResourceId = "application.sql-server:sql-server";
+        var sqlContainerName = ContainerHostSqlServerDockerBridge.SqlServerContainerName;
         if (!await DockerComposeStack.IsAvailableAsync() ||
             !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.DefaultSqlServerImage) ||
             await DockerComposeStack.ContainerExistsAsync(sqlContainerName))
@@ -285,7 +285,7 @@ public sealed class SampleSmokeTests
             "samples/CloudShell.ContainerHost/CloudShell.ContainerHost.csproj",
             await GetFreePortAsync(),
             [
-                ("ContainerHost__GraphSqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture))
+                ("ContainerHost__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture))
             ]);
 
         try
@@ -295,9 +295,9 @@ public sealed class SampleSmokeTests
             var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
             using var resourcesDocument = JsonDocument.Parse(resourcesJson);
             var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
-            var graphSqlServer = Assert.Single(
+            var sqlServer = Assert.Single(
                 resources,
-                resource => resource.GetProperty("id").GetString() == graphSqlServerResourceId);
+                resource => resource.GetProperty("id").GetString() == sqlServerResourceId);
 
             Assert.DoesNotContain(resources, resource =>
                 resource.GetProperty("id").GetString() == "storage:local");
@@ -305,11 +305,11 @@ public sealed class SampleSmokeTests
                 resource.GetProperty("id").GetString() == "volume:sql-data");
             Assert.DoesNotContain(resources, resource =>
                 resource.GetProperty("id").GetString() == "application:sql-server");
-            Assert.Equal($"localhost:{sqlPort}", GetEndpointAddress(graphSqlServer, "tds"));
-            await StartGraphResourceIfAvailableAsync(host, graphSqlServer, "ContainerHost graph SQL Server");
+            Assert.Equal($"localhost:{sqlPort}", GetEndpointAddress(sqlServer, "tds"));
+            await StartGraphResourceIfAvailableAsync(host, sqlServer, "ContainerHost SQL Server");
             await WaitForResourceStateAsync(
                 host,
-                graphSqlServerResourceId,
+                sqlServerResourceId,
                 ResourceState.Running,
                 StartupTimeout);
             Assert.True(
@@ -324,17 +324,17 @@ public sealed class SampleSmokeTests
                 "sql-server");
             Assert.True(
                 Directory.Exists(sampleDataPath),
-                $"Expected graph storage-backed volume path '{sampleDataPath}' to be created.");
+                $"Expected storage-backed volume path '{sampleDataPath}' to be created.");
 
             var startedSqlContainerId = await DockerComposeStack.GetContainerIdAsync(sqlContainerName) ??
                 throw new InvalidOperationException(
                     $"Docker container '{sqlContainerName}' did not have an inspectable id.");
             await host.SendAsync(
                 HttpMethod.Post,
-                $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphSqlServerResourceId)}/actions/restart?ignoreDependentWarning=true");
+                $"/api/control-plane/v1/resources/{Uri.EscapeDataString(sqlServerResourceId)}/actions/restart?ignoreDependentWarning=true");
             await WaitForResourceStateAsync(
                 host,
-                graphSqlServerResourceId,
+                sqlServerResourceId,
                 ResourceState.Running,
                 StartupTimeout);
             Assert.True(
@@ -342,22 +342,22 @@ public sealed class SampleSmokeTests
                     sqlContainerName,
                     startedSqlContainerId,
                     StartupTimeout),
-                $"Expected Docker container '{sqlContainerName}' to be recreated after graph SQL restart.");
+                $"Expected Docker container '{sqlContainerName}' to be recreated after SQL restart.");
 
-            await StopResourceIfRunningAsync(host, graphSqlServerResourceId);
+            await StopResourceIfRunningAsync(host, sqlServerResourceId);
             await WaitForResourceStateAsync(
                 host,
-                graphSqlServerResourceId,
+                sqlServerResourceId,
                 ResourceState.Stopped,
                 StartupTimeout);
             Assert.True(
                 await WaitForDockerContainerRemovedAsync(sqlContainerName, StartupTimeout),
-                $"Expected Docker container '{sqlContainerName}' to be removed after graph SQL stop.");
+                $"Expected Docker container '{sqlContainerName}' to be removed after SQL stop.");
             shouldCleanupSqlContainer = false;
         }
         finally
         {
-            await StopResourceIfRunningAsync(host, graphSqlServerResourceId);
+            await StopResourceIfRunningAsync(host, sqlServerResourceId);
             if (shouldCleanupSqlContainer)
             {
                 await DockerComposeStack.RemoveContainerIfExistsAsync(sqlContainerName);
@@ -367,10 +367,10 @@ public sealed class SampleSmokeTests
 
     [Fact]
     [Trait("Category", "DockerIntegration")]
-    public async Task ContainerHostSample_GraphOnlySqlRuntimeStopsOnGracefulHostShutdown()
+    public async Task ContainerHostSample_SqlRuntimeStopsOnGracefulHostShutdown()
     {
-        const string graphSqlServerResourceId = "application.sql-server:graph-sql-server";
-        var sqlContainerName = ContainerHostGraphSqlServerDockerBridge.GraphSqlServerContainerName;
+        const string sqlServerResourceId = "application.sql-server:sql-server";
+        var sqlContainerName = ContainerHostSqlServerDockerBridge.SqlServerContainerName;
         if (!await DockerComposeStack.IsAvailableAsync() ||
             !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.DefaultSqlServerImage))
         {
@@ -384,7 +384,7 @@ public sealed class SampleSmokeTests
             "samples/CloudShell.ContainerHost/CloudShell.ContainerHost.csproj",
             await GetFreePortAsync(),
             [
-                ("ContainerHost__GraphSqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture))
+                ("ContainerHost__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture))
             ]);
 
         try
@@ -393,14 +393,14 @@ public sealed class SampleSmokeTests
 
             var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
             using var resourcesDocument = JsonDocument.Parse(resourcesJson);
-            var graphSqlServer = Assert.Single(
+            var sqlServer = Assert.Single(
                 resourcesDocument.RootElement.EnumerateArray(),
-                resource => resource.GetProperty("id").GetString() == graphSqlServerResourceId);
+                resource => resource.GetProperty("id").GetString() == sqlServerResourceId);
 
-            await StartGraphResourceIfAvailableAsync(host, graphSqlServer, "ContainerHost graph SQL Server");
+            await StartGraphResourceIfAvailableAsync(host, sqlServer, "ContainerHost SQL Server");
             await WaitForResourceStateAsync(
                 host,
-                graphSqlServerResourceId,
+                sqlServerResourceId,
                 ResourceState.Running,
                 StartupTimeout);
             Assert.True(
@@ -5540,7 +5540,7 @@ public sealed class SampleSmokeTests
         }
         else if (sampleName == "CloudShell.ContainerHost")
         {
-            environment.Add(("ContainerHost__GraphSqlServer__Port", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+            environment.Add(("ContainerHost__SqlServer__Port", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
         }
         else if (sampleName == "ContainerAppDeployment")
         {
@@ -5732,7 +5732,7 @@ public sealed class SampleSmokeTests
         if (sampleName == "CloudShell.ContainerHost")
         {
             await DockerComposeStack.RemoveContainerIfExistsAsync(
-                ContainerHostGraphSqlServerDockerBridge.GraphSqlServerContainerName);
+                ContainerHostSqlServerDockerBridge.SqlServerContainerName);
         }
         else if (sampleName == "ContainerAppDeployment")
         {

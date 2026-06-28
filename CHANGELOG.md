@@ -24,6 +24,10 @@ on `git blame --follow`, and then by the broad type of change.
   identities such as `networking:host-local`,
   `application.aspnet-core-project:vnet-api`, and `network:sample-vnet`, and
   its public sample setting is now `HostVirtualNetwork:VirtualNetworkPort`.
+- CloudShell.ContainerHost Resource Definitions projection now uses stable
+  sample identities such as `cloudshell.storage:local`,
+  `cloudshell.volume:sql-data`, and `application.sql-server:sql-server`, and
+  its SQL runtime bridge now creates `cloudshell-container-host-sql-server`.
 - Local container application graph samples now use
   `AddLocalContainerApplicationResourceTypes(...)` to register the paired
   container app and Docker host resource types while keeping runtime handlers

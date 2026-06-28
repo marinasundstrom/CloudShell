@@ -26,14 +26,14 @@ provider/control-plane concern.
 
 ```json
 {
-  "name": "graph-sql-data",
+  "name": "sql-data",
   "typeId": "cloudshell.volume",
-  "resourceId": "cloudshell.volume:graph-sql-data",
+  "resourceId": "cloudshell.volume:sql-data",
   "providerId": "cloudshell.storage",
-  "displayName": "Graph SQL Server Data",
+  "displayName": "SQL Server Data",
   "dependsOn": [
     {
-      "value": "cloudshell.storage:graph-local",
+      "value": "cloudshell.storage:local",
       "relationship": "dependsOn",
       "addressingMode": "resourceId",
       "typeId": "cloudshell.storage"

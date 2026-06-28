@@ -24,11 +24,11 @@ does not materialize directories on its own.
 
 ```json
 {
-  "name": "graph-local",
+  "name": "local",
   "typeId": "cloudshell.storage",
-  "resourceId": "cloudshell.storage:graph-local",
+  "resourceId": "cloudshell.storage:local",
   "providerId": "cloudshell.storage",
-  "displayName": "Graph Local Storage",
+  "displayName": "Local Storage",
   "attributes": {
     "storage.provider": "Local Storage",
     "storage.medium": "FileSystem",

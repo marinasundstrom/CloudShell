@@ -15,27 +15,27 @@ using CloudShell.ResourceDefinitions.ResourceManager;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
-const string graphResourceGroupId = "container-host-graph-poc";
-const string graphStorageResourceId = "cloudshell.storage:graph-local";
-const string graphVolumeResourceId = "cloudshell.volume:graph-sql-data";
-const string graphSqlServerResourceId = "application.sql-server:graph-sql-server";
-var graphSqlServerPort = builder.Configuration.GetValue<int?>("ContainerHost:GraphSqlServer:Port") ?? 14334;
+const string resourceGroupId = "container-host-poc";
+const string storageResourceId = "cloudshell.storage:local";
+const string volumeResourceId = "cloudshell.volume:sql-data";
+const string sqlServerResourceId = "application.sql-server:sql-server";
+var sqlServerPort = builder.Configuration.GetValue<int?>("ContainerHost:SqlServer:Port") ?? 14334;
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 cloudShell.DefineResources(resources =>
 {
-    var graphStorage = resources
-        .AddStorage("graph-local")
-        .WithResourceId(graphStorageResourceId)
+    var storage = resources
+        .AddStorage("local")
+        .WithResourceId(storageResourceId)
         .WithProvider("local")
         .WithMedium("FileSystem")
         .WithLocation("./Data/storage");
-    var graphVolume = resources
-        .AddCloudShellVolume("graph-sql-data")
-        .WithResourceId(graphVolumeResourceId)
-        .WithDisplayName("Graph SQL Server Data")
-        .UseStorage(graphStorage)
+    var volume = resources
+        .AddCloudShellVolume("sql-data")
+        .WithResourceId(volumeResourceId)
+        .WithDisplayName("SQL Server Data")
+        .UseStorage(storage)
         .WithProvider("local")
         .WithStorageMedium("FileSystem")
         .WithSubPath("sql-server")
@@ -43,23 +43,23 @@ cloudShell.DefineResources(resources =>
         .WithPersistent();
 
     resources
-        .AddSqlServer("graph-sql-server")
-        .WithResourceId(graphSqlServerResourceId)
-        .WithDisplayName("Graph SQL Server")
+        .AddSqlServer("sql-server")
+        .WithResourceId(sqlServerResourceId)
+        .WithDisplayName("SQL Server")
         .AddEndpointRequest(
             "tds",
             "tcp",
             targetPort: 1433,
             host: "localhost",
-            port: graphSqlServerPort,
+            port: sqlServerPort,
             exposure: "Local")
-        .MountVolume(graphVolume, "/var/opt/mssql");
+        .MountVolume(volume, "/var/opt/mssql");
 });
 builder.Services
     .AddSingleton<IContainerHostDockerCommandRunner, ProcessContainerHostDockerCommandRunner>()
-    .AddSingleton<IContainerHostGraphSqlServerRuntimeBridge, ContainerHostGraphSqlServerDockerBridge>()
-    .AddSingleton<ISqlServerRuntimeHandler, ContainerHostGraphSqlServerRuntimeHandler>()
-    .AddSingleton<IResourceOrchestrationDescriptorProvider, ContainerHostGraphSqlServerOrchestrationDescriptorProvider>()
+    .AddSingleton<IContainerHostSqlServerRuntimeBridge, ContainerHostSqlServerDockerBridge>()
+    .AddSingleton<ISqlServerRuntimeHandler, ContainerHostSqlServerRuntimeHandler>()
+    .AddSingleton<IResourceOrchestrationDescriptorProvider, ContainerHostSqlServerOrchestrationDescriptorProvider>()
     .AddStorageBackedSqlServerResourceTypes();
 cloudShell.UseResourceGraphIntegration();
 
@@ -71,19 +71,19 @@ cloudShell.AddApplicationResourceManagerUi();
 cloudShell.Resources(resources =>
 {
     resources.AddResourceGroup(
-        graphResourceGroupId,
-        "Container Host graph POC",
-        "Graph-backed resources used by the ContainerHost sample.");
+        resourceGroupId,
+        "Container Host POC",
+        "Resources used by the ContainerHost sample.");
 
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphStorageResourceId)
-        .WithResourceGroup(graphResourceGroupId);
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, storageResourceId)
+        .WithResourceGroup(resourceGroupId);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphVolumeResourceId)
-        .WithResourceGroup(graphResourceGroupId);
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, volumeResourceId)
+        .WithResourceGroup(resourceGroupId);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphSqlServerResourceId)
-        .WithResourceGroup(graphResourceGroupId);
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, sqlServerResourceId)
+        .WithResourceGroup(resourceGroupId);
 });
 
 var app = builder.Build();

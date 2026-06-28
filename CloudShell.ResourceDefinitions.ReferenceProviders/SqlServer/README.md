@@ -49,11 +49,11 @@ runtime integration for the provider.
 
 ```json
 {
-  "name": "graph-sql-server",
+  "name": "sql-server",
   "typeId": "application.sql-server",
-  "resourceId": "application.sql-server:graph-sql-server",
+  "resourceId": "application.sql-server:sql-server",
   "providerId": "applications.sql-server",
-  "displayName": "Graph SQL Server",
+  "displayName": "SQL Server",
   "dependsOn": [
     {
       "value": "docker:graph-sample",
@@ -91,7 +91,7 @@ runtime integration for the provider.
     "storage.volumeConsumer": {
       "mounts": [
         {
-          "volume": "cloudshell.volume:graph-sql-data",
+          "volume": "cloudshell.volume:sql-data",
           "targetPath": "/var/opt/mssql",
           "readOnly": false
         }
