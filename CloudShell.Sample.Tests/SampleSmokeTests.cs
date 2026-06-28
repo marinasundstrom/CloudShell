@@ -2109,6 +2109,10 @@ public sealed class SampleSmokeTests
                 graphApiResourceId,
                 expectedReplicas: 3,
                 graphOnlySmokeTimeout);
+            await AssertGraphReplicaMonitoringSnapshotsAsync(
+                host,
+                expectedReplicas: 3,
+                graphOnlySmokeTimeout);
             await AssertGraphScalePanelReplicaOccupantsAsync(
                 host,
                 graphApiResourceId,
@@ -2188,6 +2192,10 @@ public sealed class SampleSmokeTests
             await AssertGraphReplicaChildrenProjectedAsync(
                 host,
                 graphApiResourceId,
+                expectedReplicas: 2,
+                graphOnlySmokeTimeout);
+            await AssertGraphReplicaMonitoringSnapshotsAsync(
+                host,
                 expectedReplicas: 2,
                 graphOnlySmokeTimeout);
             await AssertGraphScalePanelReplicaOccupantsAsync(
@@ -3442,6 +3450,59 @@ public sealed class SampleSmokeTests
         throw new TimeoutException(
             $"Graph scale panel did not show {expectedReplicas.ToString(CultureInfo.InvariantCulture)} occupied replica slot(s) for '{resourceId}' within {timeout}." +
             $"{Environment.NewLine}{lastHtml}");
+    }
+
+    private static async Task AssertGraphReplicaMonitoringSnapshotsAsync(
+        SampleProcess host,
+        int expectedReplicas,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        var observed = new HashSet<int>();
+        string? lastSnapshotJson = null;
+        Exception? lastException = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            observed.Clear();
+            lastException = null;
+
+            foreach (var replica in Enumerable.Range(1, expectedReplicas))
+            {
+                var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
+                try
+                {
+                    lastSnapshotJson = await host.GetStringAsync(
+                        $"/api/control-plane/v1/resources/{Uri.EscapeDataString(replicaResourceId)}/monitoring");
+                    using var snapshotDocument = JsonDocument.Parse(lastSnapshotJson);
+                    var snapshot = snapshotDocument.RootElement;
+                    if (string.Equals(
+                            snapshot.GetProperty("resourceId").GetString(),
+                            replicaResourceId,
+                            StringComparison.OrdinalIgnoreCase) &&
+                        snapshot.GetProperty("metrics").GetArrayLength() > 0)
+                    {
+                        observed.Add(replica);
+                    }
+                }
+                catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException)
+                {
+                    lastException = exception;
+                    break;
+                }
+            }
+
+            if (observed.Count == expectedReplicas)
+            {
+                return;
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"Runtime replica monitoring did not return metric snapshots for {expectedReplicas.ToString(CultureInfo.InvariantCulture)} replica(s) within {timeout}." +
+            $"{Environment.NewLine}{lastSnapshotJson}{Environment.NewLine}{lastException?.Message}");
     }
 
     private static bool IsRuntimeReplicaChild(JsonElement resource) =>
