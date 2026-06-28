@@ -38,8 +38,6 @@ on `git blame --follow`, and then by the broad type of change.
   next switch-readiness run.
 - LoadBalancer switch-readiness cleanup now removes temporary local-hosts
   files created by generic sample launches.
-- Switch-readiness sample coverage now verifies that `samples/README.md`
-  lists the same supported graph-default samples as the launch matrix.
 - Switch-readiness sample coverage now verifies that the graph-only default
   settings cover the same supported samples as the launch matrix.
 - The supported sample host launch matrix now rejects known old-provider
@@ -48,12 +46,6 @@ on `git blame --follow`, and then by the broad type of change.
 - Switch-readiness sample launch setup, cleanup, and legacy-record checks now
   share the same sample-name resolver so the graph-default test gate has one
   source of truth for supported samples.
-- Resource graph reference provider tests now enforce that each concrete
-  resource type provider folder carries a local README documenting provider
-  shape, porting status, and remaining switch work.
-- Resource graph reference provider README coverage now also checks for the
-  standard provider overview, ported surface, switch-over status, and remaining
-  work sections.
 - ASP.NET Core project, Configuration Store, and Secrets Vault provider READMEs
   now include `ResourceDefinition` interchange examples that show service
   discovery references and keep configuration/secret values out of graph
@@ -62,12 +54,12 @@ on `git blame --follow`, and then by the broad type of change.
   `ResourceDefinition` interchange examples for the storage-backed SQL chain,
   including typed storage dependencies, volume mounts, and declared database
   configuration.
-- Resource graph provider README coverage now checks that documented
-  `ResourceDefinition` examples use the current interchange keys, and the
-  LoadBalancer example was normalized to `typeId`/`providerId`.
-- Switch-readiness sample coverage now verifies that each supported sample's
-  README documents the graph-only configuration setting used to opt into
-  old-provider comparison mode.
+- LoadBalancer provider documentation now uses the current
+  `ResourceDefinition` interchange keys in its example.
+- Documentation-structure validation tests were removed from the POC track so
+  switch readiness focuses on runtime/provider behavior. Provider docs remain
+  working status notes that should be updated as seams are removed and deferred
+  work is identified.
 - Resource graph provider helper coverage now verifies grouped registration
   seams include both change-apply and definition-apply providers, not only type
   providers.
