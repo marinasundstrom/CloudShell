@@ -17,25 +17,25 @@ using Microsoft.Extensions.Configuration;
 var builder = CloudShellApplication.CreateBuilder(args);
 
 var targetPort = builder.Configuration.GetValue<int?>("HostVirtualNetwork:TargetPort") ?? 5291;
-var graphVirtualNetworkPort = builder.Configuration.GetValue<int?>("HostVirtualNetwork:GraphVirtualNetworkPort") ?? 5292;
-const string graphResourceGroupId = "host-virtual-network-graph-poc";
-const string graphHostNetworkingResourceId = "networking:graph-host-local";
-const string graphApiResourceId = "application.aspnet-core-project:graph-vnet-api";
-const string graphNetworkResourceId = "network:graph-sample-vnet";
+var virtualNetworkPort = builder.Configuration.GetValue<int?>("HostVirtualNetwork:VirtualNetworkPort") ?? 5292;
+const string resourceGroupId = "host-virtual-network-poc";
+const string hostNetworkingResourceId = "networking:host-local";
+const string apiResourceId = "application.aspnet-core-project:vnet-api";
+const string networkResourceId = "network:sample-vnet";
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 cloudShell.DefineResources(resources =>
 {
-    var graphHostNetwork = resources
-        .AddLocalHostNetwork("graph-host-local")
-        .WithResourceId(graphHostNetworkingResourceId);
-    var graphApi = resources
+    var hostNetwork = resources
+        .AddLocalHostNetwork("host-local")
+        .WithResourceId(hostNetworkingResourceId);
+    var api = resources
         .AddAspNetCoreProject(
-            "graph-vnet-api",
+            "vnet-api",
             "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
-        .WithResourceId(graphApiResourceId)
-        .WithDisplayName("Graph VNet API")
+        .WithResourceId(apiResourceId)
+        .WithDisplayName("VNet API")
         .WithArguments($"--urls http://localhost:{targetPort}")
         .UseLaunchSettings(false)
         .AddEndpointRequest(
@@ -46,30 +46,30 @@ cloudShell.DefineResources(resources =>
             exposure: "Local");
 
     resources
-        .AddVirtualNetwork("graph-sample-vnet")
-        .WithResourceId(graphNetworkResourceId)
-        .DependsOn(graphHostNetwork, LocalHostNetworkResourceTypeProvider.ResourceTypeId)
-        .DependsOn(graphApi, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+        .AddVirtualNetwork("sample-vnet")
+        .WithResourceId(networkResourceId)
+        .DependsOn(hostNetwork, LocalHostNetworkResourceTypeProvider.ResourceTypeId)
+        .DependsOn(api, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
         .AsDefault()
         .WithHostReadiness("providerRequired")
-        .WithMappingProviders(graphHostNetworkingResourceId)
+        .WithMappingProviders(hostNetworkingResourceId)
         .AddEndpoint(
             "api-public",
             "http",
-            graphVirtualNetworkPort,
+            virtualNetworkPort,
             "Public")
         .AddEndpointNetworkMapping(
             "api-public",
-            $"http://localhost:{graphVirtualNetworkPort}",
-            name: "Graph API public ingress",
-            provider: graphHostNetwork)
+            $"http://localhost:{virtualNetworkPort}",
+            name: "API public ingress",
+            provider: hostNetwork)
         .MapEndpoint(
             "api-public",
-            graphApi,
+            api,
             "http",
-            graphHostNetwork,
-            "mapping:graph-api-public",
-            "Graph API public ingress");
+            hostNetwork,
+            "mapping:api-public",
+            "API public ingress");
 });
 builder.Services
     .AddLocalHostNetworkResourceType()
@@ -78,7 +78,7 @@ builder.Services
 cloudShell.UseResourceGraphIntegration();
 builder.Services.AddSingleton<
     IVirtualNetworkEndpointMappingReconciler,
-    HostVirtualNetworkGraphEndpointMappingReconciler>();
+    HostVirtualNetworkEndpointMappingReconciler>();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
@@ -88,20 +88,20 @@ cloudShell.AddApplicationResourceManagerUi();
 cloudShell.Resources(resources =>
 {
     resources.AddResourceGroup(
-        graphResourceGroupId,
-        "Host Virtual Network graph POC",
-        "Graph-backed resources used by the HostVirtualNetwork sample.");
+        resourceGroupId,
+        "Host Virtual Network POC",
+        "Resources used by the HostVirtualNetwork sample.");
 
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphHostNetworkingResourceId)
-        .WithResourceGroup(graphResourceGroupId);
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, hostNetworkingResourceId)
+        .WithResourceGroup(resourceGroupId);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphApiResourceId)
-        .WithResourceGroup(graphResourceGroupId)
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, apiResourceId)
+        .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphNetworkResourceId)
-        .WithResourceGroup(graphResourceGroupId);
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, networkResourceId)
+        .WithResourceGroup(resourceGroupId);
 });
 
 var app = builder.Build();

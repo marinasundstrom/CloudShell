@@ -5115,18 +5115,18 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
-    public async Task HostVirtualNetworkSample_ReconcilesGraphEndpointMappingThroughRuntimeBridge()
+    public async Task HostVirtualNetworkSample_ReconcilesEndpointMappingThroughRuntimeBridge()
     {
-        const string graphApiResourceId = "application.aspnet-core-project:graph-vnet-api";
-        const string graphNetworkResourceId = "network:graph-sample-vnet";
+        const string apiResourceId = "application.aspnet-core-project:vnet-api";
+        const string networkResourceId = "network:sample-vnet";
         var targetPort = await GetFreePortAsync();
-        var graphVirtualNetworkPort = await GetFreePortAsync();
+        var virtualNetworkPort = await GetFreePortAsync();
         using var host = await SampleProcess.StartAsync(
             "samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj",
             await GetFreePortAsync(),
             [
                 ("HostVirtualNetwork__TargetPort", targetPort.ToString(CultureInfo.InvariantCulture)),
-                ("HostVirtualNetwork__GraphVirtualNetworkPort", graphVirtualNetworkPort.ToString(CultureInfo.InvariantCulture))
+                ("HostVirtualNetwork__VirtualNetworkPort", virtualNetworkPort.ToString(CultureInfo.InvariantCulture))
             ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
@@ -5134,40 +5134,36 @@ public sealed class SampleSmokeTests
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
         Assert.DoesNotContain(resources, resource =>
-            resource.GetProperty("id").GetString() == "networking:host-local");
-        Assert.DoesNotContain(resources, resource =>
             resource.GetProperty("id").GetString() == "application:vnet-api");
-        Assert.DoesNotContain(resources, resource =>
-            resource.GetProperty("id").GetString() == "network:sample-vnet");
-        var graphApi = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == graphApiResourceId);
-        var graphNetwork = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == graphNetworkResourceId);
+        var api = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == apiResourceId);
+        var network = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == networkResourceId);
 
         try
         {
-            await StartGraphResourceIfAvailableAsync(host, graphApi, "HostVirtualNetwork graph API");
+            await StartGraphResourceIfAvailableAsync(host, api, "HostVirtualNetwork API");
             await host.WaitForAbsoluteHttpOkAsync(
                 $"http://localhost:{targetPort.ToString(CultureInfo.InvariantCulture)}/health",
                 null,
                 StartupTimeout);
 
-            var reconcile = graphNetwork
+            var reconcile = network
                 .GetProperty("resourceActions")
                 .GetProperty("reconcileEndpointMappings");
             var href = reconcile.GetProperty("href").GetString() ??
-                throw new InvalidOperationException("The graph virtual network reconcile action did not include an href.");
+                throw new InvalidOperationException("The virtual network reconcile action did not include an href.");
             await host.SendAsync(HttpMethod.Post, href);
 
             var healthJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
-                $"http://localhost:{graphVirtualNetworkPort.ToString(CultureInfo.InvariantCulture)}/health",
+                $"http://localhost:{virtualNetworkPort.ToString(CultureInfo.InvariantCulture)}/health",
                 StartupTimeout);
             using var healthDocument = JsonDocument.Parse(healthJson);
             Assert.Equal("ok", healthDocument.RootElement.GetProperty("status").GetString());
         }
         finally
         {
-            await StopResourceIfRunningAsync(host, graphApiResourceId);
+            await StopResourceIfRunningAsync(host, apiResourceId);
         }
     }
 
@@ -5553,7 +5549,7 @@ public sealed class SampleSmokeTests
         else if (sampleName == "HostVirtualNetwork")
         {
             environment.Add(("HostVirtualNetwork__TargetPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
-            environment.Add(("HostVirtualNetwork__GraphVirtualNetworkPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+            environment.Add(("HostVirtualNetwork__VirtualNetworkPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
         }
         else if (sampleName == "LoadBalancer")
         {
@@ -5689,9 +5685,7 @@ public sealed class SampleSmokeTests
             ],
             "HostVirtualNetwork" =>
             [
-                "networking:host-local",
-                "application:vnet-api",
-                "network:sample-vnet"
+                "application:vnet-api"
             ],
             "LoadBalancer" =>
             [

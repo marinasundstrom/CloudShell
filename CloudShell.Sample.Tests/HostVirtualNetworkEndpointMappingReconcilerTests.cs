@@ -9,20 +9,20 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.Sample.Tests;
 
-public sealed class HostVirtualNetworkGraphEndpointMappingReconcilerTests
+public sealed class HostVirtualNetworkEndpointMappingReconcilerTests
 {
     [Fact]
-    public async Task ReconcileEndpointMappings_ProvisionsGraphMappingThroughHostNetworkingProvisioner()
+    public async Task ReconcileEndpointMappings_ProvisionsMappingThroughHostNetworkingProvisioner()
     {
-        const string graphHostNetworkingResourceId = "networking:graph-host-local";
-        const string graphApiResourceId = "application.aspnet-core-project:graph-vnet-api";
-        const string graphNetworkResourceId = "network:graph-sample-vnet";
+        const string hostNetworkingResourceId = "networking:host-local";
+        const string apiResourceId = "application.aspnet-core-project:vnet-api";
+        const string networkResourceId = "network:sample-vnet";
         var provisioner = new RecordingEndpointMappingProvisioner();
         var services = new ServiceCollection();
         services.AddSingleton<IResourceEndpointMappingProvisioner>(provisioner);
         services.AddSingleton<
             IVirtualNetworkEndpointMappingReconciler,
-            HostVirtualNetworkGraphEndpointMappingReconciler>();
+            HostVirtualNetworkEndpointMappingReconciler>();
         services.AddInMemoryResourceModelGraph();
         services.AddLocalHostNetworkResourceType();
         services.AddVirtualNetworkResourceType();
@@ -32,14 +32,14 @@ public sealed class HostVirtualNetworkGraphEndpointMappingReconcilerTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var graph = new ResourceDefinitionGraphBuilder();
-        var graphHostNetwork = graph
-            .AddLocalHostNetwork("graph-host-local")
-            .WithResourceId(graphHostNetworkingResourceId);
-        var graphApi = graph
+        var hostNetwork = graph
+            .AddLocalHostNetwork("host-local")
+            .WithResourceId(hostNetworkingResourceId);
+        var api = graph
             .AddAspNetCoreProject(
-                "graph-vnet-api",
+                "vnet-api",
                 "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
-            .WithResourceId(graphApiResourceId)
+            .WithResourceId(apiResourceId)
             .WithArguments("--urls http://localhost:5291")
             .UseLaunchSettings(false)
             .AddEndpointRequest(
@@ -50,13 +50,13 @@ public sealed class HostVirtualNetworkGraphEndpointMappingReconcilerTests
                 exposure: "Local");
 
         graph
-            .AddVirtualNetwork("graph-sample-vnet")
-            .WithResourceId(graphNetworkResourceId)
-            .DependsOn(graphHostNetwork, LocalHostNetworkResourceTypeProvider.ResourceTypeId)
-            .DependsOn(graphApi, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+            .AddVirtualNetwork("sample-vnet")
+            .WithResourceId(networkResourceId)
+            .DependsOn(hostNetwork, LocalHostNetworkResourceTypeProvider.ResourceTypeId)
+            .DependsOn(api, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
             .AsDefault()
             .WithHostReadiness("providerRequired")
-            .WithMappingProviders(graphHostNetworkingResourceId)
+            .WithMappingProviders(hostNetworkingResourceId)
             .AddEndpoint(
                 "api-public",
                 "http",
@@ -65,15 +65,15 @@ public sealed class HostVirtualNetworkGraphEndpointMappingReconcilerTests
             .AddEndpointNetworkMapping(
                 "api-public",
                 "http://localhost:5292",
-                name: "Graph API public ingress",
-                provider: graphHostNetwork)
+                name: "API public ingress",
+                provider: hostNetwork)
             .MapEndpoint(
                 "api-public",
-                graphApi,
+                api,
                 "http",
-                graphHostNetwork,
-                "mapping:graph-api-public",
-                "Graph API public ingress");
+                hostNetwork,
+                "mapping:api-public",
+                "API public ingress");
 
         var apply = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
@@ -88,7 +88,7 @@ public sealed class HostVirtualNetworkGraphEndpointMappingReconcilerTests
         var operationResolution = await serviceProvider
             .GetRequiredService<ResourceModelGraphResourceResolver>()
             .ResolveOperationAsync(
-                graphNetworkResourceId,
+                networkResourceId,
                 VirtualNetworkResourceTypeProvider.Operations.ReconcileEndpointMappings);
 
         Assert.False(operationResolution.HasErrors, FormatDiagnostics(operationResolution.Diagnostics));
@@ -98,13 +98,13 @@ public sealed class HostVirtualNetworkGraphEndpointMappingReconcilerTests
 
         Assert.False(execution.HasErrors, FormatDiagnostics(execution.Diagnostics));
         var context = Assert.Single(provisioner.Contexts);
-        Assert.Equal("mapping:graph-api-public", context.Mapping.Id);
-        Assert.Equal(graphNetworkResourceId, context.NetworkResource.Id);
+        Assert.Equal("mapping:api-public", context.Mapping.Id);
+        Assert.Equal(networkResourceId, context.NetworkResource.Id);
         Assert.Equal(LocalHostNetworkProvider.ResourceId, context.ProviderResource.Id);
         Assert.Equal(LocalHostNetworkProvider.ResourceType, context.ProviderResource.EffectiveTypeId);
         Assert.Equal("api-public", context.SourceEndpoint.Name);
         Assert.Equal("http://localhost:5292", context.SourceEndpointNetworkMapping?.Address);
-        Assert.Equal(graphApiResourceId, context.TargetResource.Id);
+        Assert.Equal(apiResourceId, context.TargetResource.Id);
         Assert.Equal("http", context.TargetEndpoint.Name);
         Assert.Equal("http://localhost:5291", context.TargetEndpointNetworkMapping?.Address);
     }

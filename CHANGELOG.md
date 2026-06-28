@@ -20,6 +20,10 @@ on `git blame --follow`, and then by the broad type of change.
 - SplitHosting Resource Definitions projection now uses the stable
   `network:split-sample` identity and "Split Sample Network" display name
   instead of temporary `graph-` sample naming.
+- HostVirtualNetwork Resource Definitions projection now uses stable sample
+  identities such as `networking:host-local`,
+  `application.aspnet-core-project:vnet-api`, and `network:sample-vnet`, and
+  its public sample setting is now `HostVirtualNetwork:VirtualNetworkPort`.
 - Local container application graph samples now use
   `AddLocalContainerApplicationResourceTypes(...)` to register the paired
   container app and Docker host resource types while keeping runtime handlers

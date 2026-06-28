@@ -9,7 +9,7 @@ using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource
 
 namespace CloudShell.HostVirtualNetwork;
 
-public sealed class HostVirtualNetworkGraphEndpointMappingReconciler(
+public sealed class HostVirtualNetworkEndpointMappingReconciler(
     IEnumerable<IResourceEndpointMappingProvisioner> endpointMappingProvisioners,
     IEnumerable<IResourceModelResourceManagerEndpointProjectionProvider> endpointProjectionProviders) :
     IVirtualNetworkEndpointMappingReconciler
@@ -30,7 +30,7 @@ public sealed class HostVirtualNetworkGraphEndpointMappingReconciler(
         var resourceManagerResources = context.Resources
             .Select(ToResourceManagerResource)
             .ToArray();
-        var resourceManager = new GraphHostVirtualNetworkResourceManagerStore(resourceManagerResources);
+        var resourceManager = new HostVirtualNetworkResourceManagerStore(resourceManagerResources);
         var networkResource = resourceManager.GetResource(resource.EffectiveResourceId);
         if (networkResource is null)
         {
@@ -50,7 +50,7 @@ public sealed class HostVirtualNetworkGraphEndpointMappingReconciler(
                 new ResourceDefinitionDiagnostic(
                     ResourceDefinitionDiagnosticSeverity.Information,
                     "hostVirtualNetwork.endpointMappingsEmpty",
-                    "No graph endpoint mappings to reconcile.",
+                    "No endpoint mappings to reconcile.",
                     resource.EffectiveResourceId)
             ];
         }
@@ -85,7 +85,7 @@ public sealed class HostVirtualNetworkGraphEndpointMappingReconciler(
             diagnostics.Add(new ResourceDefinitionDiagnostic(
                 ResourceDefinitionDiagnosticSeverity.Information,
                 "hostVirtualNetwork.endpointMappingsReconciled",
-                $"Reconciled {networkResource.ResourceEndpointMappings.Count} graph endpoint mapping(s), provisioned {provisionedCount}.",
+                $"Reconciled {networkResource.ResourceEndpointMappings.Count} endpoint mapping(s), provisioned {provisionedCount}.",
                 resource.EffectiveResourceId));
         }
 
@@ -254,7 +254,7 @@ public sealed class HostVirtualNetworkGraphEndpointMappingReconciler(
         ResourceEndpoint Endpoint,
         ResourceEndpointNetworkMapping? EndpointNetworkMapping);
 
-    private sealed class GraphHostVirtualNetworkResourceManagerStore(
+    private sealed class HostVirtualNetworkResourceManagerStore(
         IReadOnlyList<ResourceManagerResource> resources) : IResourceManagerStore
     {
         public IReadOnlyList<IResourceProvider> Providers => [];
