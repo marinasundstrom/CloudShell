@@ -94,6 +94,10 @@ if (!graphOnly)
 {
     cloudShell.AddApplicationProvider();
 }
+else
+{
+    cloudShell.AddApplicationResourceManagerUi();
+}
 
 cloudShell.Resources(resources =>
 {

@@ -124,6 +124,10 @@ if (!graphOnly)
         options.OtlpProtocol = otlpProtocol;
     });
 }
+else
+{
+    cloudShell.AddApplicationResourceManagerUi();
+}
 
 cloudShell.Resources(resources =>
 {

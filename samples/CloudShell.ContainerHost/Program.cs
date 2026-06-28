@@ -80,6 +80,10 @@ if (!graphOnly)
         .AddApplicationProvider()
         .UseLocalDevelopmentDefaults();
 }
+else
+{
+    cloudShell.AddApplicationResourceManagerUi();
+}
 
 cloudShell.Resources(resources =>
 {

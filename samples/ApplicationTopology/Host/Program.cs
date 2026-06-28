@@ -331,6 +331,10 @@ if (!graphOnly)
             options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
         });
 }
+else
+{
+    cloudShell.AddApplicationResourceManagerUi();
+}
 
 cloudShell.UseLocalDevelopmentDefaults();
 

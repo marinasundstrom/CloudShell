@@ -124,6 +124,10 @@ if (!graphOnly)
                 builder.Configuration.GetValue("Authentication:OpenIdConnect:RequireHttpsMetadata", true);
         });
 }
+else
+{
+    cloudShell.AddApplicationResourceManagerUi();
+}
 builder.Services.TryAddEnumerable(
     ServiceDescriptor.Singleton<IResourceIdentityProvisioner, KeycloakResourceIdentityProvisioner>());
 builder.Services.TryAddEnumerable(

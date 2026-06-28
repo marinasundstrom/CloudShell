@@ -66,6 +66,11 @@ on `git blame --follow`, and then by the broad type of change.
   samples without registering the legacy application providers. The proposal
   records the broader capability/attribute-driven Shell UI selection model as
   future work.
+- Graph-only samples can now register graph-safe application Resource Manager
+  UI metadata for ASP.NET Core project, executable, SQL Server, and container
+  app resource types without registering the legacy application providers.
+  Generated views get stable display names, icons, endpoint descriptors, and
+  probe defaults while old application edit pages remain provider-specific.
 
 ### 2026-06-27
 

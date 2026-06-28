@@ -2169,6 +2169,23 @@ public sealed class SampleSmokeTests
             graphHostConfiguration.GetProperty("resourceActions")
                 .TryGetProperty(HostConfigurationSourceResourceTypeProvider.Operations.Inspect.ToString(), out _));
 
+        var graphApiDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:graph-application-topology-api")}/details");
+        Assert.Contains("Graph Application Topology API", graphApiDetailsHtml);
+        Assert.Contains("ASP.NET Core project", graphApiDetailsHtml);
+        Assert.Contains("application.aspnet-core-project", graphApiDetailsHtml);
+
+        var graphSqlDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.sql-server:graph-application-topology-sql-server")}/details");
+        Assert.Contains("Graph Application Topology SQL Server", graphSqlDetailsHtml);
+        Assert.Contains("SQL Server", graphSqlDetailsHtml);
+        Assert.Contains("application.sql-server", graphSqlDetailsHtml);
+
+        var graphApplicationAddHtml = await host.GetStringAsync(
+            "/resources/add?type=application.aspnet-core-project");
+        Assert.Contains("Graph-backed application resources", graphApplicationAddHtml);
+        Assert.DoesNotContain("Resource type not found", graphApplicationAddHtml);
+
         await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology graph-only settings");
         await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology graph-only secrets");
         await host.WaitForAbsoluteHttpOkAsync(

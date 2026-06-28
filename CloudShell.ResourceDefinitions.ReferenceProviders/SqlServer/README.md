@@ -22,6 +22,10 @@
 - Resource Manager bridge projection, including endpoint contract/network mapping projection, and execution.
 - Resource Manager bridge state projection through the lifecycle runtime
   handler when one is registered.
+- Graph-safe Resource Manager UI metadata registration for graph-only samples,
+  including display name, icon, TDS endpoint descriptor, and SQL liveness probe
+  defaults without registering old application-provider stores or SQL edit
+  pages.
 - ApplicationTopology sample-local lifecycle runtime handler that maps graph
   SQL Server start/stop/restart operations to the existing SQL Server runtime
   resource and projects cached lifecycle status while the provider-owned
@@ -42,4 +46,4 @@
 - Default/preferred container-host resolution.
 - Reusable provider-owned credential/grant reconciliation for graph-backed SQL
   Server resources outside the ApplicationTopology sample-local endpoint.
-- Database child projections and UI tabs.
+- Database child projections and editable/provider-specific UI tabs.
