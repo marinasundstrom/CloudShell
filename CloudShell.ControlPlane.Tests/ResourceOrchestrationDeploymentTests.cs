@@ -141,6 +141,71 @@ public sealed class ResourceOrchestrationDeploymentTests
     }
 
     [Fact]
+    public async Task ApplyDeploymentAsync_UsesReplicaGroupDefinitionAsDesiredState()
+    {
+        var resource = CreateResource();
+        var provider = new RecordingServiceProcedureProvider(resource);
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var deployments = CreateDeployments(resource, provider, deploymentStore: deploymentStore);
+        var baseDeployment = CreateDeployment(resource.Id, "default", replicas: 5);
+        var replicaGroup = ResourceOrchestratorReplicaGroupDefinition
+            .FromReplicaGroup(
+                ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+                    baseDeployment.Spec.Service with
+                    {
+                        Workload = baseDeployment.Spec.Service.Workload with
+                        {
+                            Replicas = 2,
+                            ReplicasEnabled = true
+                        }
+                    },
+                    "rev-9"),
+                "rev-9")
+            with
+            {
+                Name = "custom-api-rev-9-slots"
+            };
+        var deployment = baseDeployment with
+        {
+            RevisionId = "rev-9",
+            Spec = baseDeployment.Spec with
+            {
+                Definition = new ResourceOrchestratorDeploymentDefinition(
+                    ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+                    Services:
+                    [
+                        new ResourceOrchestratorServiceDefinition(
+                            baseDeployment.Spec.Service.Name,
+                            ResourceOrchestratorDeploymentDefinitionTypes.Service,
+                            ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+                            Resources: [replicaGroup.ToResourceDefinition()])
+                    ])
+            }
+        };
+
+        var result = await deployments.ApplyDeploymentAsync(resource, deployment);
+
+        Assert.NotNull(result.Revision.ReplicaGroup);
+        Assert.Equal("custom-api-rev-9-slots", result.Revision.ReplicaGroup.Id);
+        Assert.Equal("rev-9", result.Revision.ReplicaGroup.RuntimeRevisionId);
+        Assert.Equal(2, result.Revision.ReplicaGroup.RequestedReplicaSlots);
+        Assert.Equal(
+            [
+                "cloudshell-application-api-rev-9-replica-1",
+                "cloudshell-application-api-rev-9-replica-2"
+            ],
+            provider.ExecutedInstances
+                .Select(instance => instance.Instance.Name)
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .ToArray());
+        Assert.Equal(
+            ["Route:custom-api-rev-9-slots"],
+            provider.Operations
+                .Where(operation => operation.StartsWith("Route:", StringComparison.Ordinal))
+                .ToArray());
+    }
+
+    [Fact]
     public async Task ApplyDeploymentAsync_RematerializesSameReplicaGroupWhenResourceIsStopped()
     {
         var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();

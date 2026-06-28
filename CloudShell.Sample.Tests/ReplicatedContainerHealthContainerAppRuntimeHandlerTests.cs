@@ -54,7 +54,6 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 "cloudshell-replicated-health-api-replica-2",
                 replica: 2,
                 expectedProbePort: 5193),
-            command => AssertDockerRemove(command, ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()),
             command => AssertDockerIngressRun(command, endpointPort: 5092));
     }
 
@@ -295,16 +294,20 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     }
 
     [Fact]
-    public async Task RuntimeBridge_ApplyReplicasRestartsAndRemovesStaleReplicaContainers()
+    public async Task RuntimeBridge_ApplyReplicasAddsReplicasBeforeUpdatingIngress()
     {
         var commandRunner = new RecordingCommandRunner();
         var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
             commandRunner,
-            CreateConfiguration(replicaCleanupLimit: 3));
+            CreateConfiguration(replicaCleanupLimit: 2));
         var resource = await CreateGraphAppResourceAsync(
-            replicas: 2,
+            replicas: 4,
             endpointPort: 5092);
         commandRunner.Enqueue(new(0, "running", string.Empty));
+        commandRunner.Enqueue(new(0, "running", string.Empty));
+        commandRunner.Enqueue(new(1, string.Empty, "not found"));
+        commandRunner.Enqueue(new(1, string.Empty, "not found"));
+        commandRunner.EnqueueSuccess(3);
         commandRunner.Enqueue(new(0, "running", string.Empty));
 
         var diagnostics = await bridge.ApplyReplicasAsync(resource);
@@ -314,20 +317,54 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             commandRunner.Commands,
             command => AssertDockerInspect(command, "cloudshell-replicated-health-api-replica-1"),
             command => AssertDockerInspect(command, "cloudshell-replicated-health-api-replica-2"),
-            command => AssertDockerRemove(command, ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()),
-            command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-1"),
-            command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-2"),
-            command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-3"),
-            command =>
-            {
-                Assert.Equal("dotnet", command.FileName);
-                Assert.Equal("publish", command.Arguments[0]);
-            },
+            command => AssertDockerInspect(command, "cloudshell-replicated-health-api-replica-3"),
+            command => AssertDockerInspect(command, "cloudshell-replicated-health-api-replica-4"),
             AssertDockerNetworkCreate,
-            command => AssertDockerRun(command, "cloudshell-replicated-health-api-replica-1", replica: 1),
-            command => AssertDockerRun(command, "cloudshell-replicated-health-api-replica-2", replica: 2),
-            command => AssertDockerRemove(command, ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()),
-            command => AssertDockerIngressRun(command, endpointPort: 5092));
+            command => AssertDockerRun(
+                command,
+                "cloudshell-replicated-health-api-replica-3",
+                replica: 3,
+                expectedProbePort: 5194,
+                expectedReplicaCount: 4),
+            command => AssertDockerRun(
+                command,
+                "cloudshell-replicated-health-api-replica-4",
+                replica: 4,
+                expectedProbePort: 5195,
+                expectedReplicaCount: 4),
+            command => AssertDockerInspect(command, ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()));
+    }
+
+    [Fact]
+    public async Task RuntimeBridge_ApplyReplicasUpdatesIngressBeforeRemovingStaleReplicas()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+            commandRunner,
+            CreateConfiguration(replicaCleanupLimit: 4));
+        var resource = await CreateGraphAppResourceAsync(
+            replicas: 2,
+            endpointPort: 5092);
+        commandRunner.Enqueue(new(0, "running", string.Empty));
+        commandRunner.Enqueue(new(0, "running", string.Empty));
+        commandRunner.Enqueue(new(0, "running", string.Empty));
+        commandRunner.Enqueue(new(0, "running", string.Empty));
+        commandRunner.EnqueueSuccess(1);
+        commandRunner.Enqueue(new(0, "running", string.Empty));
+
+        var diagnostics = await bridge.ApplyReplicasAsync(resource);
+
+        Assert.Empty(diagnostics);
+        Assert.Collection(
+            commandRunner.Commands,
+            command => AssertDockerInspect(command, "cloudshell-replicated-health-api-replica-1"),
+            command => AssertDockerInspect(command, "cloudshell-replicated-health-api-replica-2"),
+            command => AssertDockerInspect(command, "cloudshell-replicated-health-api-replica-3"),
+            command => AssertDockerInspect(command, "cloudshell-replicated-health-api-replica-4"),
+            AssertDockerNetworkCreate,
+            command => AssertDockerInspect(command, ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()),
+            command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-4"),
+            command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-3"));
     }
 
     [Fact]

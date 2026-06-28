@@ -192,15 +192,51 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         GraphResource resource,
         CancellationToken cancellationToken = default)
     {
-        if (GetStatus(resource) == ContainerApplicationRuntimeStatus.Running)
+        try
         {
-            return await ExecuteLifecycleAsync(
-                resource,
-                ContainerApplicationResourceTypeProvider.Operations.Restart,
+            var desiredReplicas = ResolveReplicas(resource);
+            var inspectedReplicas = await InspectReplicasAsync(
+                Math.Max(desiredReplicas, _replicaCleanupLimit),
                 cancellationToken);
-        }
+            if (!inspectedReplicas.Any(replica => IsMaterialized(replica.Status)))
+            {
+                return [];
+            }
 
-        return [];
+            var image = ResolveImage(resource);
+            await EnsureContainerNetworkAsync(cancellationToken);
+            for (var replica = 1; replica <= desiredReplicas; replica++)
+            {
+                var status = inspectedReplicas.FirstOrDefault(candidate => candidate.Ordinal == replica)?.Status ??
+                    RuntimeContainerStatus.Missing;
+                if (!IsMaterialized(status))
+                {
+                    await commandRunner.RunAsync(
+                        "docker",
+                        CreateRunArguments(resource, image, replica),
+                        cancellationToken);
+                }
+            }
+
+            await StartIngressAsync(
+                resource,
+                cancellationToken,
+                createWhenMissing: desiredReplicas > 1);
+
+            foreach (var replica in inspectedReplicas
+                         .Where(candidate => candidate.Ordinal > desiredReplicas && IsMaterialized(candidate.Status))
+                         .OrderByDescending(candidate => candidate.Ordinal))
+            {
+                await RemoveReplicaAsync(replica.Ordinal, cancellationToken);
+            }
+
+            ClearStatusCache();
+            return [];
+        }
+        catch (Exception exception)
+        {
+            return [RuntimeFailed(resource, exception)];
+        }
     }
 
     private async Task StartAsync(
@@ -244,7 +280,10 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
                     cancellationToken);
             }
 
-            await StartIngressAsync(resource, cancellationToken);
+            await StartIngressAsync(
+                resource,
+                cancellationToken,
+                reuseExisting: false);
         }
         catch
         {
@@ -348,16 +387,45 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
 
     private async Task StartIngressAsync(
         GraphResource resource,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool createWhenMissing = true,
+        bool reuseExisting = true)
     {
-        if (!TryResolveHttpEndpoint(resource, out var endpoint) ||
-            ResolveReplicas(resource) <= 1)
+        if (!TryResolveHttpEndpoint(resource, out var endpoint))
         {
             return;
         }
 
         await WriteIngressConfigurationAsync(resource, endpoint, cancellationToken);
-        await RemoveIngressAsync(cancellationToken);
+        if (reuseExisting)
+        {
+            var ingressStatus = await InspectContainerAsync(
+                ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName(),
+                cancellationToken);
+            if (ingressStatus == RuntimeContainerStatus.Running)
+            {
+                return;
+            }
+
+            if (IsMaterialized(ingressStatus))
+            {
+                await commandRunner.RunAsync(
+                    "docker",
+                    ["start", ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()],
+                    cancellationToken);
+                return;
+            }
+        }
+
+        if (!createWhenMissing && ResolveReplicas(resource) <= 1)
+        {
+            return;
+        }
+
+        if (ResolveReplicas(resource) <= 1)
+        {
+            return;
+        }
 
         var hostPort = endpoint.Port!.Value;
         var arguments = new List<string>
@@ -382,6 +450,52 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             "docker",
             arguments,
             cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<InspectedReplica>> InspectReplicasAsync(
+        int replicaCount,
+        CancellationToken cancellationToken)
+    {
+        var replicas = new InspectedReplica[Math.Max(0, replicaCount)];
+        for (var replica = 1; replica <= replicas.Length; replica++)
+        {
+            replicas[replica - 1] = new InspectedReplica(
+                replica,
+                await InspectContainerAsync(
+                    ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica),
+                    cancellationToken));
+        }
+
+        return replicas;
+    }
+
+    private async Task<RuntimeContainerStatus> InspectContainerAsync(
+        string containerName,
+        CancellationToken cancellationToken)
+    {
+        var result = await commandRunner.RunAsync(
+            "docker",
+            [
+                "container",
+                "inspect",
+                "--format",
+                "{{.State.Status}}",
+                containerName
+            ],
+            cancellationToken,
+            throwOnError: false,
+            timeout: _statusProbeTimeout);
+        if (result.ExitCode != 0)
+        {
+            return RuntimeContainerStatus.Missing;
+        }
+
+        return result.Output.Trim().ToLowerInvariant() switch
+        {
+            "running" => RuntimeContainerStatus.Running,
+            "created" or "exited" or "dead" => RuntimeContainerStatus.Stopped,
+            _ => RuntimeContainerStatus.Unknown
+        };
     }
 
     private async Task WriteIngressConfigurationAsync(
@@ -535,6 +649,21 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
 
         public static RuntimeStatusProbeResult Transient() =>
             new(ContainerApplicationRuntimeStatus.Unknown, IsTransient: true);
+    }
+
+    private sealed record InspectedReplica(
+        int Ordinal,
+        RuntimeContainerStatus Status);
+
+    private static bool IsMaterialized(RuntimeContainerStatus status) =>
+        status is RuntimeContainerStatus.Running or RuntimeContainerStatus.Stopped or RuntimeContainerStatus.Unknown;
+
+    private enum RuntimeContainerStatus
+    {
+        Missing,
+        Running,
+        Stopped,
+        Unknown
     }
 }
 

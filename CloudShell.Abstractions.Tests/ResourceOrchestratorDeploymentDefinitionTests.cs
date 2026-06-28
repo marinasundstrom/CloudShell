@@ -33,6 +33,7 @@ public sealed class ResourceOrchestratorDeploymentDefinitionTests
         Assert.Equal(
             ResourceOrchestratorDeploymentDefinitionTypes.ReplicaGroup,
             replicaGroup.Type);
+        Assert.Equal("rev-2", replicaGroup.ResourceAttributes[ResourceAttributeNames.RuntimeRevision]);
         Assert.Equal("rev-2", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentWorkloadVersion]);
         Assert.Equal("3", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentRequestedReplicaSlots]);
         Assert.Equal("3", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentRequestedReplicas]);
@@ -41,6 +42,23 @@ public sealed class ResourceOrchestratorDeploymentDefinitionTests
             replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaRestartMode]);
         Assert.Equal("1", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaFailureThreshold]);
         Assert.Equal("10", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaMaxAttempts]);
+        Assert.True(ResourceOrchestratorReplicaGroupDefinition.TryFromResourceDefinition(
+            serviceDefinition,
+            replicaGroup,
+            out var replicaGroupDefinition));
+        Assert.NotNull(replicaGroupDefinition.Template);
+        Assert.Equal(
+            ResourceOrchestratorDeploymentDefinitionTypes.Replica,
+            replicaGroupDefinition.Template.Type);
+        Assert.Equal(
+            "cloudshell-application-api-rev-2-replicas-replica-template",
+            replicaGroupDefinition.Template.Name);
+        Assert.Equal(
+            replicaGroup.Name,
+            replicaGroupDefinition.Template.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaGroupId]);
+        Assert.Equal(
+            "rev-2",
+            replicaGroupDefinition.Template.ResourceAttributes[ResourceAttributeNames.RuntimeRevision]);
     }
 
     [Fact]
@@ -119,6 +137,7 @@ public sealed class ResourceOrchestratorDeploymentDefinitionTests
         var serviceDefinition = Assert.Single(definition.DeploymentServices);
         var replicaGroup = Assert.Single(serviceDefinition.ServiceResources);
         Assert.Equal("cloudshell-application-api-rev-3-replicas", replicaGroup.Name);
+        Assert.Equal("rev-3", replicaGroup.ResourceAttributes[ResourceAttributeNames.RuntimeRevision]);
         Assert.Equal("rev-2", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentWorkloadVersion]);
     }
 

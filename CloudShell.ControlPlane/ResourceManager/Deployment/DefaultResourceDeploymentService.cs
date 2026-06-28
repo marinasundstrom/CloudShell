@@ -28,7 +28,7 @@ public sealed class DefaultResourceDeploymentService(
         {
             RuntimeRevisionId = deployment.RevisionId
         };
-        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+        var replicaGroup = ResolveTargetReplicaGroup(deployment, service);
         var previousReplicaGroup = GetLatestActiveReplicaGroup(deployment);
         try
         {
@@ -126,6 +126,24 @@ public sealed class DefaultResourceDeploymentService(
             .OrderByDescending(record => record.CompletedAt ?? record.StartedAt)
             .Select(record => record.ReplicaGroup)
             .FirstOrDefault();
+    }
+
+    private static ResourceOrchestratorReplicaGroup ResolveTargetReplicaGroup(
+        ResourceOrchestratorDeployment deployment,
+        ResourceOrchestratorService service)
+    {
+        var replicaGroupDefinition = deployment
+            .Spec
+            .CreateDeploymentDefinition(deployment.RevisionId)
+            .DeploymentServices
+            .FirstOrDefault(candidate =>
+                string.Equals(candidate.Name, service.Name, StringComparison.OrdinalIgnoreCase))
+            ?.ReplicaGroupDefinitions
+            .FirstOrDefault();
+
+        return replicaGroupDefinition is null
+            ? ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service)
+            : replicaGroupDefinition.ToReplicaGroup(service);
     }
 
     private static IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest> CreateRetiredReplicaGroups(

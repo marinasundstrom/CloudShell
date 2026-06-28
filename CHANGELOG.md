@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Container app deployments now carry an explicit replica-group definition
+  with a revision-aware replica template, and the default deployment applier
+  treats that definition as the desired replica state when reconciling scale
+  and image changes.
 - ApplicationTopology and CloudShell.ContainerHost SQL Server Docker cleanup now bounds
   container removal and terminates cancelled Docker CLI processes so host shutdown is
   not held by a stuck `docker rm -f`.

@@ -11441,7 +11441,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
-    public async Task ContainerApplicationProvider_PreflightsRestartBeforeImageUpdate()
+    public async Task ContainerApplicationProvider_RecordsRunningImageUpdateWithoutRestartPreflight()
     {
         var services = new ServiceCollection();
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -11485,24 +11485,22 @@ public sealed class ResourceDeclarationTests
             currentProcess.StartTime,
             DateTimeOffset.UtcNow));
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            updates.UpdateImageAsync(
-                new ResourceProcedureContext(
-                    resource,
-                    registrations.GetRegistration(resource.Id),
-                    null,
-                    registrations,
-                    resourceManager),
-                "example/api:20260608",
-                restartIfRunning: true));
+        var result = await updates.UpdateImageAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations,
+                resourceManager),
+            "example/api:20260608",
+            restartIfRunning: true);
         var updated = provider.GetApplication("application:api");
 
-        Assert.Contains(
-            "Container app resource 'api' cannot update image and restart because Could not resolve configuration-entry reference for setting 'WELCOME_MESSAGE'.",
-            exception.Message);
+        Assert.True(result.RuntimeReconciliationRequired);
+        Assert.False(result.RestartRequired);
         Assert.NotNull(updated);
-        Assert.Equal("example/api:latest", updated.ContainerImage);
-        Assert.Equal(resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision], updated.ContainerRevision);
+        Assert.Equal("example/api:20260608", updated.ContainerImage);
+        Assert.NotEqual(resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision], updated.ContainerRevision);
     }
 
     [Fact]
@@ -11638,7 +11636,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
-    public async Task ContainerApplicationProvider_PreflightsRestartBeforeReplicaUpdate()
+    public async Task ContainerApplicationProvider_RecordsRunningReplicaUpdateWithoutRestartPreflight()
     {
         var services = new ServiceCollection();
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -11682,24 +11680,22 @@ public sealed class ResourceDeclarationTests
             currentProcess.StartTime,
             DateTimeOffset.UtcNow));
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            updates.UpdateReplicasAsync(
-                new ResourceProcedureContext(
-                    resource,
-                    registrations.GetRegistration(resource.Id),
-                    null,
-                    registrations,
-                    resourceManager),
-                3,
-                restartIfRunning: true));
+        var result = await updates.UpdateReplicasAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations,
+                resourceManager),
+            3,
+            restartIfRunning: true);
         var updated = provider.GetApplication("application:api");
 
-        Assert.Contains(
-            "Container app resource 'api' cannot update replicas and restart because Could not resolve configuration-entry reference for setting 'WELCOME_MESSAGE'.",
-            exception.Message);
+        Assert.True(result.RuntimeReconciliationRequired);
+        Assert.False(result.RestartRequired);
         Assert.NotNull(updated);
         Assert.True(updated.ReplicasEnabled);
-        Assert.Equal(2, updated.Replicas);
+        Assert.Equal(3, updated.Replicas);
     }
 
 

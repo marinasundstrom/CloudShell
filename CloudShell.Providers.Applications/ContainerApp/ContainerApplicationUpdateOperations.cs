@@ -8,8 +8,6 @@ internal sealed class ContainerApplicationUpdateOperations(
     ApplicationResourceStore store,
     ApplicationContainerDeploymentStore containerDeployments,
     IApplicationResourceRunningStateOperations runningState,
-    IApplicationResourceActionAvailabilityOperations actionAvailability,
-    IApplicationResourceProcedureOperations procedures,
     ApplicationResourceDefinitionNormalizer definitionNormalizer,
     IResourceEventSink? resourceEvents = null) :
     IContainerApplicationUpdateOperations
@@ -53,15 +51,6 @@ internal sealed class ContainerApplicationUpdateOperations(
         }
 
         var wasRunning = runningState.IsRunning(application.Id);
-        if (restartIfRunning && wasRunning)
-        {
-            await EnsureContainerRestartAvailableForUpdateAsync(
-                context,
-                application,
-                "update image",
-                cancellationToken);
-        }
-
         var plan = DeploymentPlanner.PlanImageDeployment(
             application,
             normalizedImage,
@@ -83,20 +72,6 @@ internal sealed class ContainerApplicationUpdateOperations(
             $"Deployed container image '{normalizedImage}' from '{application.ContainerImage ?? "none"}' and produced revision '{updated.ContainerRevision}' with requested replicas '{FormatRequestedReplicas(requestedReplicas)}'.",
             DateTimeOffset.UtcNow,
             triggeredBy));
-
-        if (restartIfRunning && wasRunning)
-        {
-            await RestartApplicationAsync(context, cancellationToken);
-            resourceEvents?.Append(new ResourceEvent(
-                application.Id,
-                ResourceEventTypes.Events.Lifecycle.Restarted,
-                $"Restarted container app on revision '{updated.ContainerRevision}' after image update.",
-                DateTimeOffset.UtcNow,
-                triggeredBy));
-
-            return ResourceProcedureResult.Completed(
-                $"Deployed {application.Name} image '{normalizedImage}', produced revision '{updated.ContainerRevision}', and restarted it.");
-        }
 
         return wasRunning
             ? ResourceProcedureResult.CompletedWithRuntimeReconciliationRequired(
@@ -127,25 +102,11 @@ internal sealed class ContainerApplicationUpdateOperations(
         }
 
         var wasRunning = runningState.IsRunning(application.Id);
-        if (restartIfRunning && wasRunning)
-        {
-            await EnsureContainerRestartAvailableForUpdateAsync(
-                context,
-                application,
-                "update replicas",
-                cancellationToken);
-        }
-
         var plan = ScalingPlanner.PlanReplicaUpdate(
             application,
             replicas,
             definitionNormalizer.Normalize);
         var updated = plan.Definition;
-
-        if (restartIfRunning && wasRunning)
-        {
-            await procedures.ExecuteActionAsync(context, ResourceAction.Stop, cancellationToken);
-        }
 
         store.Save(updated);
 
@@ -156,20 +117,6 @@ internal sealed class ContainerApplicationUpdateOperations(
             DateTimeOffset.UtcNow,
             triggeredBy));
 
-        if (restartIfRunning && wasRunning)
-        {
-            await procedures.ExecuteActionAsync(context, ResourceAction.Start, cancellationToken);
-            resourceEvents?.Append(new ResourceEvent(
-                application.Id,
-                ResourceEventTypes.Events.Lifecycle.Restarted,
-                $"Restarted container app with {updated.Replicas} replica{Pluralize(updated.Replicas)}.",
-                DateTimeOffset.UtcNow,
-                triggeredBy));
-
-            return ResourceProcedureResult.Completed(
-                $"Updated {application.Name} to {updated.Replicas} replica{Pluralize(updated.Replicas)} and restarted it.");
-        }
-
         return wasRunning
             ? ResourceProcedureResult.CompletedWithRuntimeReconciliationRequired(
                 $"Updated {application.Name} to {updated.Replicas} replica{Pluralize(updated.Replicas)}.",
@@ -177,31 +124,6 @@ internal sealed class ContainerApplicationUpdateOperations(
                 "The container app is running. Runtime reconciliation is required to apply the replica count.")
             : ResourceProcedureResult.Completed(
                 $"Updated {application.Name} to {updated.Replicas} replica{Pluralize(updated.Replicas)}.");
-    }
-
-    private async Task EnsureContainerRestartAvailableForUpdateAsync(
-        ResourceProcedureContext context,
-        ApplicationResourceDefinition application,
-        string operation,
-        CancellationToken cancellationToken)
-    {
-        var restartReason = await actionAvailability.GetActionUnavailableReasonAsync(
-            context,
-            ResourceAction.Restart,
-            cancellationToken);
-        if (!string.IsNullOrWhiteSpace(restartReason))
-        {
-            throw new InvalidOperationException(
-                $"Container app resource '{FormatApplicationResourceName(application)}' cannot {operation} and restart because {restartReason}");
-        }
-    }
-
-    private async Task RestartApplicationAsync(
-        ResourceProcedureContext context,
-        CancellationToken cancellationToken)
-    {
-        await procedures.ExecuteActionAsync(context, ResourceAction.Stop, cancellationToken);
-        await procedures.ExecuteActionAsync(context, ResourceAction.Start, cancellationToken);
     }
 
     private ApplicationResourceDefinition GetContainerApplication(string resourceId)
@@ -222,11 +144,6 @@ internal sealed class ContainerApplicationUpdateOperations(
         requestedReplicas is { } value
             ? value.ToString(CultureInfo.InvariantCulture)
             : "unchanged";
-
-    private static string FormatApplicationResourceName(ApplicationResourceDefinition application) =>
-        string.IsNullOrWhiteSpace(application.Name)
-            ? application.Id
-            : application.Name;
 
     private static string Pluralize(int count) =>
         count == 1 ? string.Empty : "s";
