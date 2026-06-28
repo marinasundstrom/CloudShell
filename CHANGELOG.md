@@ -54,6 +54,8 @@ on `git blame --follow`, and then by the broad type of change.
 - ReplicatedContainerHealth runtime monitoring now owns its Docker stats
   parsing helper locally instead of depending on the old application provider
   metrics helper.
+- CloudShell.ContainerHost no longer carries the unused old resource-builder
+  sample helper after moving the sample declarations to `DefineResources(...)`.
 - Resource graph builder overloads that accept another resource builder now
   infer typed `ResourceReference` metadata from the target builder for
   startup dependencies, project references, service/name-mapping targets, and
