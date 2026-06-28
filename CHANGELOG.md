@@ -28,6 +28,9 @@ on `git blame --follow`, and then by the broad type of change.
   methods for service discovery, HTTP health checks, and HTTP liveness/probe
   declarations, and moved ProjectReference plus SettingsAndSecrets sample
   declarations onto those APIs.
+- Added native resource graph builder configuration authoring through
+  `WithConfiguration(sectionName, value)`, writing to the ResourceDefinition
+  `configuration` channel separately from resource environment variables.
 - Added bridge-owned resource graph identity convenience helpers for
   `IResourceDefinitionBuilder`: `Identity(...)`, `Principal(...)`, and
   `IdentityClientId(...)`, and updated graph-backed samples to use the helper

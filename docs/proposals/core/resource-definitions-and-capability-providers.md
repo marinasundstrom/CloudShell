@@ -937,9 +937,10 @@ resource type ids, graph/deployment envelopes, and native resource authoring
 channels such as environment variables and configuration. Environment variable
 authoring is not merely an Aspire-compatible alias; it is the native way to
 declare values that a resource runtime should receive as process or container
-environment variables. Future configuration authoring should follow the same
-principle: it is a native resource configuration channel, even if it reuses the
-same literal/reference value constructs.
+environment variables. Configuration authoring follows the same principle:
+`WithConfiguration(...)` writes to the ResourceDefinition `configuration`
+channel and is the native way to declare general resource configuration,
+separate from process or container environment variables.
 Aspire-like ergonomics and old-builder flexibility should be brought back
 primarily as extension-method layers only where they make provider authoring
 clearer without hiding CloudShell's resource semantics. Identity declaration is
@@ -961,7 +962,9 @@ clearly to CloudShell concepts. The ASP.NET Core project builder now has native
 references, and secret references. It also has provider-owned convenience
 methods such as `WithServiceDiscovery()`, `WithHttpHealthCheck(...)`, and
 `WithHttpLivenessCheck(...)` over the service-discovery-name and health-check
-resource attributes/capabilities.
+resource attributes/capabilities. All resource definition builders also expose
+native `WithConfiguration(sectionName, value)` authoring for the
+ResourceDefinition `configuration` channel.
 `environmentVariables` and `configuration` are separate authoring channels.
 Both may use the same kinds of value sources, such as literal values,
 configuration-entry references, or secret references, but they are resolved for

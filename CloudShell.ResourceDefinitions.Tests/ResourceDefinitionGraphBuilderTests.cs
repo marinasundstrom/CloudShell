@@ -76,6 +76,27 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
+    public void ResourceDefinitionGraphBuilder_BuildsConfigurationPayloadFromNativeBuilderApi()
+    {
+        var graph = new ResourceDefinitionGraphBuilder()
+            .DefineResources(resources =>
+            {
+                resources
+                    .AddNetwork("app")
+                    .WithConfiguration(
+                        "network",
+                        new TestConfiguration("10.0.0.0/24", Enabled: true));
+            });
+
+        var definition = Assert.Single(graph.BuildGraph().Resources);
+        var configuration = definition.GetConfiguration<TestConfiguration>("network");
+
+        Assert.NotNull(configuration);
+        Assert.Equal("10.0.0.0/24", configuration!.AddressPrefix);
+        Assert.True(configuration.Enabled);
+    }
+
+    [Fact]
     public void ResourceDefinitionGraphBuilder_UsesConfiguredResourceIdConventionForReferences()
     {
         var graph = new ResourceDefinitionGraphBuilder(new TestResourceIdConvention("host"))
@@ -972,4 +993,8 @@ public sealed class ResourceDefinitionGraphBuilderTests
         public string CreateResourceId(ResourceIdConventionContext context) =>
             $"{prefix}/{context.TypeId}/{context.Name}";
     }
+
+    private sealed record TestConfiguration(
+        string AddressPrefix,
+        bool Enabled);
 }

@@ -73,6 +73,17 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
         return Self;
     }
 
+    public TBuilder WithConfiguration<TConfiguration>(
+        string sectionName,
+        TConfiguration configuration)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sectionName);
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        _configuration[sectionName.Trim()] = ResourceDefinitionJson.FromValue(configuration);
+        return Self;
+    }
+
     public TBuilder DependsOn(string resourceId)
     {
         _dependencies.Add(ResourceReference.DependsOnResourceId(resourceId));
@@ -193,13 +204,7 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
     protected TBuilder SetConfiguration<TConfiguration>(
         string sectionName,
         TConfiguration configuration)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(sectionName);
-        ArgumentNullException.ThrowIfNull(configuration);
-
-        _configuration[sectionName.Trim()] = ResourceDefinitionJson.FromValue(configuration);
-        return Self;
-    }
+        => WithConfiguration(sectionName, configuration);
 
     protected TBuilder SetCapability<TCapability>(
         ResourceCapabilityId capabilityId,
