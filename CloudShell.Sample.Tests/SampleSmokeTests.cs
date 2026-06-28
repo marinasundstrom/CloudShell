@@ -140,6 +140,11 @@ public sealed class SampleSmokeTests
             foreach (var path in readinessPaths)
             {
                 await host.WaitForHttpOkAsync(path, StartupTimeout);
+                if (string.Equals(path, "/api/control-plane/v1/resources", StringComparison.Ordinal))
+                {
+                    using var resourcesDocument = JsonDocument.Parse(await host.GetStringAsync(path));
+                    Assert.NotEmpty(resourcesDocument.RootElement.EnumerateArray());
+                }
             }
         }
         finally

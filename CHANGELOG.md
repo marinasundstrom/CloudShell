@@ -52,6 +52,9 @@ on `git blame --follow`, and then by the broad type of change.
   artifacts for ContainerAppDeployment, ReplicatedContainerHealth, and
   ThirdPartyIdentity after each host run, reducing stale Docker state while
   validating graph-default sample startup.
+- The supported sample host launch matrix now verifies that graph-default
+  sample hosts project at least one Resource Manager resource through the
+  Control Plane resources API instead of treating a 200 response as enough.
 
 ### 2026-06-27
 
