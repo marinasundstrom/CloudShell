@@ -28,6 +28,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The supported sample host launch matrix now assigns a free graph SQL Server
   port for CloudShell.ContainerHost so switch-readiness startup does not
   depend on the sample's default SQL port being unused.
+- The supported sample host launch matrix now launches the LoadBalancer sample
+  with Traefik runtime management disabled and a temporary local-hosts file so
+  the generic graph projection gate does not require Docker or host-file
+  writes.
 - Graph-default samples now use the builder-level
   `UseResourceGraphIntegration(...)` seam to register generic graph
   services, current graph-provider Resource Manager projections, and the

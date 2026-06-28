@@ -5719,6 +5719,15 @@ public sealed class SampleSmokeTests
             environment.Add(("HostVirtualNetwork__VirtualNetworkPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
             environment.Add(("HostVirtualNetwork__GraphVirtualNetworkPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
         }
+        else if (projectPath.Contains("/LoadBalancer/", StringComparison.OrdinalIgnoreCase))
+        {
+            environment.Add(("CLOUDSHELL_LOADBALANCER_SKIP_TRAEFIK_RUNTIME", "true"));
+            environment.Add((
+                "CLOUDSHELL_LOCAL_HOSTS_FILE",
+                Path.Combine(
+                    Path.GetTempPath(),
+                    $"cloudshell-load-balancer-{Guid.NewGuid():N}.hosts")));
+        }
         else if (projectPath.Contains("/ProjectReference/", StringComparison.OrdinalIgnoreCase))
         {
             environment.Add(("ProjectReference__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
