@@ -56,39 +56,32 @@ CLOUDSHELL_LOCAL_HOSTS_FILE=samples/LoadBalancer/Data/cloudshell.hosts \
 
 The sample exposes Postgres through the TCP entrypoint on `localhost:5432`.
 
-## Resource Graph POC coverage
+## Resource Graph POC Coverage
 
-The sample also declares side-by-side graph-backed resources through the
-Resource Definitions bridge:
+The sample declares these Resource Definitions-backed resources:
 
-- `docker:graph-sample-host`: graph-backed Docker host.
-- `application.container-app:graph-web`: graph-backed web target.
-- `application.container-app:graph-api`: graph-backed replicated API target.
-- `application.container-app:graph-postgres`: graph-backed TCP target.
-- `load-balancer:graph-public`: graph-backed load balancer with typed startup
-  dependencies on the graph host and target resources plus graph-declared
-  entrypoints and host/path/TCP routes.
-- `dns:graph-cloudshell-local`: graph-backed DNS zone using the local-hostnames
-  provider.
-- `dns:graph-cloudshell-local:name:app-cloudshell-local` and
-  `dns:graph-cloudshell-local:name:api-cloudshell-local`: graph-backed
-  name mappings targeting the graph load-balancer `http` frontend.
+- `docker:sample-host`: Docker host used by the container app targets.
+- `application.container-app:web`: web target.
+- `application.container-app:api`: replicated API target.
+- `application.container-app:postgres`: TCP target.
+- `load-balancer:public`: load balancer with typed startup dependencies on the
+  host and target resources plus declared entrypoints and host/path/TCP routes.
+- `dns:cloudshell-local`: DNS zone using the local-hostnames provider.
+- `dns:cloudshell-local:name:app-cloudshell-local` and
+  `dns:cloudshell-local:name:api-cloudshell-local`: name mappings targeting
+  the public load-balancer `http` frontend.
 
 Those resources prove projection, dependency, count-summary, route payload,
 frontend endpoint projection, declarative name-mapping shape, and operation
-shape. The graph **Apply load balancer configuration** action uses a
-sample-local Traefik adapter to translate graph-declared routes into the
-existing Traefik provider context. The provider-owned Traefik writer then
-materializes dynamic configuration. The graph **Reconcile name mappings**
-action uses a sample-local DNS adapter to translate graph DNS/name-mapping
-resources into the existing `INamePublishingProvider` contract, allowing the
-local-hostnames publisher to write the graph host names to the configured
-hosts file.
+shape. **Apply load balancer configuration** uses a sample-local Traefik
+adapter to translate declared routes into the existing Traefik provider
+context. The provider-owned Traefik writer then materializes dynamic
+configuration. **Reconcile name mappings** uses a sample-local DNS adapter to
+translate DNS/name-mapping resources into the existing
+`INamePublishingProvider` contract, allowing the local-hostnames publisher to
+write the host names to the configured hosts file.
 
-`LoadBalancer:GraphOnly` defaults to `true` so the sample omits the old Docker,
-container-app, load-balancer, DNS-zone, and name-mapping resource records and
-provider registrations. This is the switch-readiness gate for the graph-backed
-load-balancer path: graph apply and DNS reconcile still execute through the
-sample-local runtime bridges, while Traefik runtime container management
-remains on the existing Traefik provider path. Set it to `false` only when
-running the side-by-side comparison path against the old providers.
+The old Docker, container-app, load-balancer, DNS-zone, and name-mapping
+resource records are no longer declared by this sample. Traefik runtime
+container management still uses the existing Traefik provider path until that
+runtime support is moved into the new provider structure.

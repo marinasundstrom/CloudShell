@@ -56,7 +56,7 @@ public sealed class LoadBalancerGraphNameMappingReconciler(
                 [
                     ResourceDefinitionDiagnostic.Error(
                         "loadBalancer.graphNameMappingProviderMissing",
-                        $"No activated DNS publishing provider can reconcile name mappings for graph DNS zone resource '{resource.EffectiveResourceId}'.",
+                        $"No activated DNS publishing provider can reconcile name mappings for DNS zone resource '{resource.EffectiveResourceId}'.",
                         resource.EffectiveResourceId)
                 ];
             }

@@ -52,6 +52,12 @@ on `git blame --follow`, and then by the broad type of change.
   `application.aspnet-core-project:keycloak-provisioned-api`) and removes the
   old `GraphOnly` comparison seam plus old application/configuration provider
   records.
+- LoadBalancer now uses only Resource Definitions-backed Docker host,
+  container-app, load-balancer, DNS-zone, and name-mapping resources with
+  stable sample identities such as `docker:sample-host`,
+  `application.container-app:api`, `load-balancer:public`, and
+  `dns:cloudshell-local`, and removes the old `GraphOnly` comparison seam plus
+  old Docker/application/load-balancer/DNS provider records.
 - Local container application graph samples now use
   `AddLocalContainerApplicationResourceTypes(...)` to register the paired
   container app and Docker host resource types while keeping runtime handlers

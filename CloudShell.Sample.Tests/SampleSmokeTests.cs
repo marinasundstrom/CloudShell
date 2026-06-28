@@ -58,7 +58,6 @@ public sealed class SampleSmokeTests
     private static IEnumerable<(string SampleName, string AppSettingsPath, string ConfigurationPath)> SupportedSwitchReadinessSampleGraphOnlySettings()
     {
         yield return ("ApplicationTopology", "samples/ApplicationTopology/Host/appsettings.json", "ApplicationTopology:GraphOnly");
-        yield return ("LoadBalancer", "samples/LoadBalancer/appsettings.json", "LoadBalancer:GraphOnly");
         yield return ("ReplicatedContainerHealth", "samples/ReplicatedContainerHealth/appsettings.json", "ReplicatedContainerHealth:GraphOnly");
     }
 
@@ -3888,7 +3887,7 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
-    public async Task LoadBalancerSample_AppliesTraefikConfigurationFromAdvertisedAction()
+    public async Task LoadBalancerSample_RunsLoadBalancerAndDnsPathsWithoutOldProviderRecords()
     {
         var root = SampleProcess.FindRepositoryRoot();
         var dataDirectory = Path.Combine(root, "samples", "LoadBalancer", "Data");
@@ -3902,7 +3901,6 @@ public sealed class SampleSmokeTests
             "samples/LoadBalancer/CloudShell.LoadBalancer.csproj",
             await GetFreePortAsync(),
             [
-                ("LoadBalancer__GraphOnly", "false"),
                 ("CLOUDSHELL_LOADBALANCER_SKIP_TRAEFIK_RUNTIME", "true"),
                 ("CLOUDSHELL_LOCAL_HOSTS_FILE", hostsFilePath)
             ]);
@@ -3912,154 +3910,49 @@ public sealed class SampleSmokeTests
         var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:web");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:api");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:postgres");
+
         var loadBalancer = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "load-balancer:public");
-        var api = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:api");
-        var postgres = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:postgres");
         var dnsZone = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "dns:cloudshell-local");
-        var appName = Assert.Single(resources, resource =>
+        var api = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.container-app:api");
+        Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "dns:cloudshell-local:name:app-cloudshell-local");
-        var apiName = Assert.Single(resources, resource =>
+        Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "dns:cloudshell-local:name:api-cloudshell-local");
-        var graphDockerHost = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "docker:graph-sample-host");
-        var graphApi = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.container-app:graph-api");
-        var graphLoadBalancer = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "load-balancer:graph-public");
-        var graphDnsZone = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:graph-cloudshell-local");
-        var graphAppName = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:graph-cloudshell-local:name:app-cloudshell-local");
-        var graphApiName = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:graph-cloudshell-local:name:api-cloudshell-local");
-        var attributes = loadBalancer.GetProperty("attributes");
-        var apiAttributes = api.GetProperty("attributes");
-        var postgresAttributes = postgres.GetProperty("attributes");
-        var dnsAttributes = dnsZone.GetProperty("attributes");
-        var appNameAttributes = appName.GetProperty("attributes");
-        var apiNameAttributes = apiName.GetProperty("attributes");
-        var graphApiAttributes = graphApi.GetProperty("attributes");
-        var graphLoadBalancerAttributes = graphLoadBalancer.GetProperty("attributes");
-        var graphDnsAttributes = graphDnsZone.GetProperty("attributes");
-        var graphAppNameAttributes = graphAppName.GetProperty("attributes");
-        var graphApiNameAttributes = graphApiName.GetProperty("attributes");
+        Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.container-app:web");
+        Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.container-app:postgres");
 
-        Assert.Equal("cloudshell.loadBalancer", loadBalancer.GetProperty("typeId").GetString());
-        Assert.Equal("traefik", attributes.GetProperty("loadBalancer.provider").GetString());
-        Assert.Equal("docker:sample-host", attributes.GetProperty("loadBalancer.hostResourceId").GetString());
-        Assert.Equal("3", attributes.GetProperty("loadBalancer.routes").GetString());
-        Assert.Equal(3, loadBalancer.GetProperty("loadBalancerRoutes").GetArrayLength());
+        var apiAttributes = api.GetProperty("attributes");
+        var loadBalancerAttributes = loadBalancer.GetProperty("attributes");
+        Assert.Equal("application.container-app", api.GetProperty("typeId").GetString());
         Assert.Equal("traefik/whoami:v1.10", apiAttributes.GetProperty("container.image").GetString());
         Assert.Equal("3", apiAttributes.GetProperty("container.replicas").GetString());
-        Assert.Equal("postgres:16-alpine", postgresAttributes.GetProperty("container.image").GetString());
+        Assert.Contains(
+            "docker:sample-host",
+            api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal("cloudshell.loadBalancer", loadBalancer.GetProperty("typeId").GetString());
+        Assert.Equal("traefik", loadBalancerAttributes.GetProperty("loadBalancer.provider").GetString());
+        Assert.Equal("docker:sample-host", loadBalancerAttributes.GetProperty("loadBalancer.hostResourceId").GetString());
+        Assert.Equal("3", loadBalancerAttributes.GetProperty("loadBalancer.routes").GetString());
+        Assert.Equal("2", loadBalancerAttributes.GetProperty("loadBalancer.routes.http").GetString());
+        Assert.Equal("1", loadBalancerAttributes.GetProperty("loadBalancer.routes.tcp").GetString());
         Assert.Equal("cloudshell.dnsZone", dnsZone.GetProperty("typeId").GetString());
-        Assert.Equal("2", dnsAttributes.GetProperty("dns.records").GetString());
-        Assert.Equal("cloudshell.nameMapping", appName.GetProperty("typeId").GetString());
-        Assert.Equal("app.cloudshell.local", appNameAttributes.GetProperty("nameMapping.hostName").GetString());
-        Assert.Equal("load-balancer:public", appNameAttributes.GetProperty("nameMapping.targetResourceId").GetString());
-        Assert.Equal("http", appNameAttributes.GetProperty("nameMapping.targetEndpointName").GetString());
-        Assert.Equal("ProviderSelected", appNameAttributes.GetProperty("nameMapping.materializationStatus").GetString());
-        Assert.Equal("api.cloudshell.local", apiNameAttributes.GetProperty("nameMapping.hostName").GetString());
-        Assert.Equal("load-balancer:public", apiNameAttributes.GetProperty("nameMapping.targetResourceId").GetString());
-        Assert.Equal("ProviderSelected", apiNameAttributes.GetProperty("nameMapping.materializationStatus").GetString());
-        Assert.Equal("docker.host", graphDockerHost.GetProperty("typeId").GetString());
-        Assert.Equal("application.container-app", graphApi.GetProperty("typeId").GetString());
-        Assert.Equal("traefik/whoami:v1.10", graphApiAttributes.GetProperty("container.image").GetString());
-        Assert.Equal("3", graphApiAttributes.GetProperty("container.replicas").GetString());
-        Assert.Contains(
-            "docker:graph-sample-host",
-            graphApi.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.Equal("cloudshell.loadBalancer", graphLoadBalancer.GetProperty("typeId").GetString());
-        Assert.Equal("traefik", graphLoadBalancerAttributes.GetProperty("loadBalancer.provider").GetString());
-        Assert.Equal("docker:graph-sample-host", graphLoadBalancerAttributes.GetProperty("loadBalancer.hostResourceId").GetString());
-        Assert.Equal("3", graphLoadBalancerAttributes.GetProperty("loadBalancer.routes").GetString());
-        Assert.Equal("2", graphLoadBalancerAttributes.GetProperty("loadBalancer.routes.http").GetString());
-        Assert.Equal("1", graphLoadBalancerAttributes.GetProperty("loadBalancer.routes.tcp").GetString());
-        var graphLoadBalancerRoutes = graphLoadBalancer.GetProperty("loadBalancerRoutes").EnumerateArray().ToArray();
-        Assert.Equal(3, graphLoadBalancerRoutes.Length);
-        Assert.Contains(graphLoadBalancerRoutes, route =>
-            route.GetProperty("match").GetProperty("host").GetString() == "app.cloudshell.local" &&
-            route.GetProperty("target").GetProperty("resourceId").GetString() == "application.container-app:graph-web");
-        Assert.Contains(graphLoadBalancerRoutes, route =>
-            route.GetProperty("match").GetProperty("host").GetString() == "api.cloudshell.local" &&
-            route.GetProperty("match").GetProperty("pathPrefix").GetString() == "/v1" &&
-            route.GetProperty("target").GetProperty("resourceId").GetString() == "application.container-app:graph-api");
-        Assert.Contains(graphLoadBalancerRoutes, route =>
-            route.GetProperty("kind").GetInt32() == (int)LoadBalancerRouteKind.Tcp &&
-            route.GetProperty("match").GetProperty("port").GetInt32() == 5432 &&
-            route.GetProperty("target").GetProperty("resourceId").GetString() == "application.container-app:graph-postgres");
-        var graphLoadBalancerEndpoints = graphLoadBalancer.GetProperty("endpoints").EnumerateArray().ToArray();
-        Assert.Contains(graphLoadBalancerEndpoints, endpoint =>
-            endpoint.GetProperty("name").GetString() == "http" &&
-            endpoint.GetProperty("protocol").GetString() == "http" &&
-            endpoint.GetProperty("targetPort").GetInt32() == 80);
-        Assert.Contains(graphLoadBalancerEndpoints, endpoint =>
-            endpoint.GetProperty("name").GetString() == "tcp-5432" &&
-            endpoint.GetProperty("protocol").GetString() == "tcp" &&
-            endpoint.GetProperty("targetPort").GetInt32() == 5432);
-        var graphLoadBalancerEndpointMappings = graphLoadBalancer
-            .GetProperty("endpointNetworkMappings")
-            .EnumerateArray()
-            .ToArray();
-        Assert.Contains(graphLoadBalancerEndpointMappings, mapping =>
-            mapping.GetProperty("address").GetString() == "http://localhost:80" &&
-            mapping.GetProperty("target").GetProperty("endpointName").GetString() == "http");
-        Assert.Contains(graphLoadBalancerEndpointMappings, mapping =>
-            mapping.GetProperty("address").GetString() == "tcp://localhost:5432" &&
-            mapping.GetProperty("target").GetProperty("endpointName").GetString() == "tcp-5432");
-        Assert.Contains(
-            "docker:graph-sample-host",
-            graphLoadBalancer.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.Contains(
-            "application.container-app:graph-api",
-            graphLoadBalancer.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.True(graphLoadBalancer
-            .GetProperty("resourceActions")
-            .TryGetProperty("applyLoadBalancerConfiguration", out _));
-        Assert.Equal("cloudshell.dnsZone", graphDnsZone.GetProperty("typeId").GetString());
-        Assert.Equal("cloudshell.local", graphDnsAttributes.GetProperty("dns.zone").GetString());
-        Assert.Equal("local-hostnames", graphDnsAttributes.GetProperty("dns.provider").GetString());
-        Assert.True(graphDnsZone
-            .GetProperty("resourceActions")
-            .TryGetProperty("reconcileNameMappings", out _));
-        Assert.Equal("cloudshell.nameMapping", graphAppName.GetProperty("typeId").GetString());
-        Assert.Equal("app.cloudshell.local", graphAppNameAttributes.GetProperty("nameMapping.hostName").GetString());
-        Assert.Equal("http", graphAppNameAttributes.GetProperty("nameMapping.targetEndpointName").GetString());
-        Assert.Contains(
-            "dns:graph-cloudshell-local",
-            graphAppName.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.Contains(
-            "load-balancer:graph-public",
-            graphAppName.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.Equal("cloudshell.nameMapping", graphApiName.GetProperty("typeId").GetString());
-        Assert.Equal("api.cloudshell.local", graphApiNameAttributes.GetProperty("nameMapping.hostName").GetString());
-        Assert.Equal("http", graphApiNameAttributes.GetProperty("nameMapping.targetEndpointName").GetString());
-        Assert.Contains(
-            "dns:graph-cloudshell-local",
-            graphApiName.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.Contains(
-            "load-balancer:graph-public",
-            graphApiName.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-
-        var apiEndpointsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");
-        Assert.Contains("Add route to load balancer", apiEndpointsHtml);
-        Assert.Contains("/resources/load-balancer%3Apublic", apiEndpointsHtml);
-        Assert.Contains("/configuration", apiEndpointsHtml);
-        Assert.Contains("targetResourceId=application%3Aapi", apiEndpointsHtml);
-        Assert.Contains("targetEndpointName=http", apiEndpointsHtml);
-        Assert.DoesNotContain("type=cloudshell.loadBalancer", apiEndpointsHtml);
 
         var applyAction = loadBalancer
             .GetProperty("resourceActions")
             .GetProperty("applyLoadBalancerConfiguration");
         var applyHref = applyAction.GetProperty("href").GetString() ??
             throw new InvalidOperationException("The load balancer apply action did not include an href.");
-
         var applyJson = await host.SendAsync(HttpMethod.Post, applyHref);
         using var applyDocument = JsonDocument.Parse(applyJson);
         Assert.Contains(
@@ -4070,146 +3963,25 @@ public sealed class SampleSmokeTests
         var config = await File.ReadAllTextAsync(configPath);
         Assert.Contains("Host(`app.cloudshell.local`)", config);
         Assert.Contains("Host(`api.cloudshell.local`) && PathPrefix(`/v1`)", config);
-        Assert.Contains("url: \"http://cloudshell-application-web:80\"", config);
-        Assert.Contains("url: \"http://cloudshell-application-api-replica-1:80\"", config);
-        Assert.Contains("url: \"http://cloudshell-application-api-replica-2:80\"", config);
-        Assert.Contains("url: \"http://cloudshell-application-api-replica-3:80\"", config);
+        Assert.Contains("url: \"http://cloudshell-application-container-app-web:80\"", config);
+        Assert.Contains("url: \"http://cloudshell-application-container-app-api-replica-1:80\"", config);
+        Assert.Contains("url: \"http://cloudshell-application-container-app-api-replica-2:80\"", config);
+        Assert.Contains("url: \"http://cloudshell-application-container-app-api-replica-3:80\"", config);
         Assert.Contains("HostSNI(`*`)", config);
-        Assert.Contains("address: \"cloudshell-application-postgres:5432\"", config);
+        Assert.Contains("address: \"cloudshell-application-container-app-postgres:5432\"", config);
 
-        var graphApplyAction = graphLoadBalancer
-            .GetProperty("resourceActions")
-            .GetProperty("applyLoadBalancerConfiguration");
-        var graphApplyHref = graphApplyAction.GetProperty("href").GetString() ??
-            throw new InvalidOperationException("The graph load balancer apply action did not include an href.");
-
-        var graphApplyJson = await host.SendAsync(HttpMethod.Post, graphApplyHref);
-        using var graphApplyDocument = JsonDocument.Parse(graphApplyJson);
-        Assert.Contains(
-            "Applied Traefik configuration for 3 route(s)",
-            graphApplyDocument.RootElement.GetProperty("message").GetString());
-
-        var graphConfigPath = Path.Combine(dataDirectory, "traefik", "load-balancer-graph-public.dynamic.yml");
-        var graphConfig = await File.ReadAllTextAsync(graphConfigPath);
-        Assert.Contains("Host(`app.cloudshell.local`)", graphConfig);
-        Assert.Contains("Host(`api.cloudshell.local`) && PathPrefix(`/v1`)", graphConfig);
-        Assert.Contains("url: \"http://cloudshell-application-container-app-graph-web:80\"", graphConfig);
-        Assert.Contains("url: \"http://cloudshell-application-container-app-graph-api-replica-1:80\"", graphConfig);
-        Assert.Contains("url: \"http://cloudshell-application-container-app-graph-api-replica-2:80\"", graphConfig);
-        Assert.Contains("url: \"http://cloudshell-application-container-app-graph-api-replica-3:80\"", graphConfig);
-        Assert.Contains("HostSNI(`*`)", graphConfig);
-        Assert.Contains("address: \"cloudshell-application-container-app-graph-postgres:5432\"", graphConfig);
-
-        var graphDnsReconcileAction = graphDnsZone
+        var dnsReconcileAction = dnsZone
             .GetProperty("resourceActions")
             .GetProperty("reconcileNameMappings");
-        var graphDnsReconcileHref = graphDnsReconcileAction.GetProperty("href").GetString() ??
-            throw new InvalidOperationException("The graph DNS zone reconcile action did not include an href.");
-
-        var graphDnsReconcileJson = await host.SendAsync(HttpMethod.Post, graphDnsReconcileHref);
-        using var graphDnsReconcileDocument = JsonDocument.Parse(graphDnsReconcileJson);
-        var graphDnsReconcileMessage =
-            graphDnsReconcileDocument.RootElement.GetProperty("message").GetString();
-        Assert.Contains(
-            "Executed ReconcileNameMappings",
-            graphDnsReconcileMessage);
+        var dnsReconcileHref = dnsReconcileAction.GetProperty("href").GetString() ??
+            throw new InvalidOperationException("The DNS zone reconcile action did not include an href.");
+        var dnsReconcileJson = await host.SendAsync(HttpMethod.Post, dnsReconcileHref);
+        using var dnsReconcileDocument = JsonDocument.Parse(dnsReconcileJson);
+        var dnsReconcileMessage =
+            dnsReconcileDocument.RootElement.GetProperty("message").GetString();
         Assert.Contains(
             "Published 2 local host name mapping(s)",
-            graphDnsReconcileMessage);
-
-        var hostsFile = await File.ReadAllTextAsync(hostsFilePath);
-        Assert.Contains("127.0.0.1 app.cloudshell.local", hostsFile);
-        Assert.Contains("127.0.0.1 api.cloudshell.local", hostsFile);
-    }
-
-    [Fact]
-    public async Task LoadBalancerSample_GraphOnlyModeRunsGraphLoadBalancerAndDnsPaths()
-    {
-        var root = SampleProcess.FindRepositoryRoot();
-        var dataDirectory = Path.Combine(root, "samples", "LoadBalancer", "Data");
-        if (Directory.Exists(dataDirectory))
-        {
-            Directory.Delete(dataDirectory, recursive: true);
-        }
-
-        var hostsFilePath = Path.Combine(dataDirectory, "cloudshell.graph-only.hosts");
-        using var host = await SampleProcess.StartAsync(
-            "samples/LoadBalancer/CloudShell.LoadBalancer.csproj",
-            await GetFreePortAsync(),
-            [
-                ("CLOUDSHELL_LOADBALANCER_SKIP_TRAEFIK_RUNTIME", "true"),
-                ("CLOUDSHELL_LOCAL_HOSTS_FILE", hostsFilePath)
-            ]);
-
-        await host.WaitForHttpOkAsync("/", StartupTimeout);
-
-        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
-        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
-        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
-        Assert.DoesNotContain(resources, resource =>
-            resource.GetProperty("id").GetString() == "docker:sample-host");
-        Assert.DoesNotContain(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:web");
-        Assert.DoesNotContain(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:api");
-        Assert.DoesNotContain(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:postgres");
-        Assert.DoesNotContain(resources, resource =>
-            resource.GetProperty("id").GetString() == "load-balancer:public");
-        Assert.DoesNotContain(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:cloudshell-local");
-        Assert.DoesNotContain(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:cloudshell-local:name:app-cloudshell-local");
-        Assert.DoesNotContain(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:cloudshell-local:name:api-cloudshell-local");
-
-        var graphLoadBalancer = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "load-balancer:graph-public");
-        var graphDnsZone = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:graph-cloudshell-local");
-        Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:graph-cloudshell-local:name:app-cloudshell-local");
-        Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:graph-cloudshell-local:name:api-cloudshell-local");
-        Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.container-app:graph-web");
-        Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.container-app:graph-api");
-        Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.container-app:graph-postgres");
-
-        var graphApplyAction = graphLoadBalancer
-            .GetProperty("resourceActions")
-            .GetProperty("applyLoadBalancerConfiguration");
-        var graphApplyHref = graphApplyAction.GetProperty("href").GetString() ??
-            throw new InvalidOperationException("The graph load balancer apply action did not include an href.");
-        var graphApplyJson = await host.SendAsync(HttpMethod.Post, graphApplyHref);
-        using var graphApplyDocument = JsonDocument.Parse(graphApplyJson);
-        Assert.Contains(
-            "Applied Traefik configuration for 3 route(s)",
-            graphApplyDocument.RootElement.GetProperty("message").GetString());
-
-        var graphConfigPath = Path.Combine(dataDirectory, "traefik", "load-balancer-graph-public.dynamic.yml");
-        var graphConfig = await File.ReadAllTextAsync(graphConfigPath);
-        Assert.Contains("Host(`app.cloudshell.local`)", graphConfig);
-        Assert.Contains("Host(`api.cloudshell.local`) && PathPrefix(`/v1`)", graphConfig);
-        Assert.Contains("url: \"http://cloudshell-application-container-app-graph-web:80\"", graphConfig);
-        Assert.Contains("url: \"http://cloudshell-application-container-app-graph-api-replica-1:80\"", graphConfig);
-        Assert.Contains("HostSNI(`*`)", graphConfig);
-        Assert.Contains("address: \"cloudshell-application-container-app-graph-postgres:5432\"", graphConfig);
-
-        var graphDnsReconcileAction = graphDnsZone
-            .GetProperty("resourceActions")
-            .GetProperty("reconcileNameMappings");
-        var graphDnsReconcileHref = graphDnsReconcileAction.GetProperty("href").GetString() ??
-            throw new InvalidOperationException("The graph DNS zone reconcile action did not include an href.");
-        var graphDnsReconcileJson = await host.SendAsync(HttpMethod.Post, graphDnsReconcileHref);
-        using var graphDnsReconcileDocument = JsonDocument.Parse(graphDnsReconcileJson);
-        var graphDnsReconcileMessage =
-            graphDnsReconcileDocument.RootElement.GetProperty("message").GetString();
-        Assert.Contains(
-            "Published 2 local host name mapping(s)",
-            graphDnsReconcileMessage);
+            dnsReconcileMessage);
 
         var hostsFile = await File.ReadAllTextAsync(hostsFilePath);
         Assert.Contains("127.0.0.1 app.cloudshell.local", hostsFile);
@@ -4408,14 +4180,9 @@ public sealed class SampleSmokeTests
             ],
             "LoadBalancer" =>
             [
-                "docker:sample-host",
                 "application:web",
                 "application:api",
-                "application:postgres",
-                "load-balancer:public",
-                "dns:cloudshell-local",
-                "dns:cloudshell-local:name:app-cloudshell-local",
-                "dns:cloudshell-local:name:api-cloudshell-local"
+                "application:postgres"
             ],
             "ProjectReference" =>
             [
