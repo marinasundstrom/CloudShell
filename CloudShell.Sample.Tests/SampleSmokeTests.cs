@@ -3677,6 +3677,7 @@ public sealed class SampleSmokeTests
         var keycloak = await StartThirdPartyIdentityKeycloakAsync(
             root,
             "cloudshell-third-party-identity-graph-test");
+        var keycloakProjectName = keycloak.Stack.ProjectName;
         using var keycloakStack = keycloak.Stack;
         var keycloakPort = keycloak.Port;
 
@@ -3746,6 +3747,11 @@ public sealed class SampleSmokeTests
             entry =>
                 entry.GetProperty("name").GetString() == "Sample:Message" &&
                 entry.GetProperty("value").GetString() == "Hello from a graph Keycloak-provisioned resource identity");
+
+        keycloakStack.Dispose();
+        Assert.True(
+            await WaitForDockerComposeProjectRemovedAsync(keycloakProjectName, StartupTimeout),
+            $"Expected ThirdPartyIdentity graph-only Keycloak compose project '{keycloakProjectName}' to be removed after cleanup.");
     }
 
     [Fact]
@@ -6198,6 +6204,22 @@ public sealed class SampleSmokeTests
         return false;
     }
 
+    private static async Task<bool> WaitForDockerComposeProjectRemovedAsync(string projectName, TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (!await DockerComposeStack.ProjectExistsAsync(projectName))
+            {
+                return true;
+            }
+
+            await Task.Delay(250);
+        }
+
+        return false;
+    }
+
     private static bool IsHttpMetricForPath(
         JsonElement point,
         string name,
@@ -6638,6 +6660,8 @@ public sealed class SampleSmokeTests
             this.projectName = projectName;
         }
 
+        public string ProjectName => projectName;
+
         public static async Task<bool> IsAvailableAsync()
         {
             try
@@ -6749,6 +6773,34 @@ public sealed class SampleSmokeTests
             {
                 await RemoveProjectArtifactsAsync(SampleProcess.FindRepositoryRoot(), project);
             }
+        }
+
+        public static async Task<bool> ProjectExistsAsync(string projectName)
+        {
+            var containers = await RunDockerAsync(
+                SampleProcess.FindRepositoryRoot(),
+                ["ps", "-a", "--filter", $"label=com.docker.compose.project={projectName}", "--format", "{{.ID}}"],
+                null,
+                TimeSpan.FromSeconds(15),
+                throwOnError: false);
+            var containerIds = containers.Output.Split(
+                '\n',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (containerIds.Length > 0)
+            {
+                return true;
+            }
+
+            var networks = await RunDockerAsync(
+                SampleProcess.FindRepositoryRoot(),
+                ["network", "ls", "--filter", $"label=com.docker.compose.project={projectName}", "--format", "{{.ID}}"],
+                null,
+                TimeSpan.FromSeconds(15),
+                throwOnError: false);
+            var networkIds = networks.Output.Split(
+                '\n',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return networkIds.Length > 0;
         }
 
         public static async Task<DockerComposeStack> StartAsync(

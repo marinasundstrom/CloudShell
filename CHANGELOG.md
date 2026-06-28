@@ -38,6 +38,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ReplicatedContainerHealth graph-only Docker smoke coverage now treats the
   app-owned ingress container as part of the runtime cleanup contract, verifying
   graph stop removes it alongside graph-owned replica containers.
+- ThirdPartyIdentity graph-only Docker smoke coverage now verifies the
+  generated Keycloak compose project is removed after the graph-only workload
+  path completes, including compose-managed containers and networks.
 
 ### 2026-06-27
 

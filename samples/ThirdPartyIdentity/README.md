@@ -195,4 +195,6 @@ workload identities, start the dependent old and graph Configuration Store/API
 resources, and assert both APIs can read protected configuration entries with a
 Keycloak-issued token. A separate graph-only smoke path starts only the graph
 resources and verifies the same protected configuration read without old
-application/configuration provider records.
+application/configuration provider records. That graph-only path also verifies
+the generated Keycloak Docker Compose project is removed during test cleanup,
+including compose-managed containers and networks.
