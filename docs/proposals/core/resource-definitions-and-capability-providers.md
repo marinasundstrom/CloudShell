@@ -1832,6 +1832,12 @@ providers should move toward an application-provider grouping, while
 networking and other infrastructure providers should move into their own
 independently registered provider groups. Shared graph infrastructure stays
 outside those groups.
+The temporary Resource Manager UI-support project may keep the
+`ReferenceProviders` name while the switch is in progress so it is clear that
+it still belongs to the POC provider family. Rename that project and namespace
+when the provider split is ready: application workload UI support should move
+to an application-provider UI package, and networking/infrastructure UI
+support should live with their corresponding provider families.
 Small provider-group helpers may be added when they reflect an existing
 switch-readiness boundary, such as local container application support
 requiring both the container app type and its Docker host target type, or a

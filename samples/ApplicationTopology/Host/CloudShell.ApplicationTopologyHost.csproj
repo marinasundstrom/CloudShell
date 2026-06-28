@@ -13,7 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\CloudShell.ControlPlane\CloudShell.ControlPlane.csproj" />
     <ProjectReference Include="..\..\..\CloudShell.Hosting\CloudShell.Hosting.csproj" />
-    <ProjectReference Include="..\..\..\CloudShell.Providers.Applications\CloudShell.Providers.Applications.csproj" />
+    <ProjectReference Include="..\..\..\CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI\CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI.csproj" />
     <ProjectReference Include="..\..\..\CloudShell.Providers.Configuration\CloudShell.Providers.Configuration.csproj" />
     <ProjectReference Include="..\..\..\CloudShell.Providers.Docker\CloudShell.Providers.Docker.csproj" />
     <ProjectReference Include="..\..\..\CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager\CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.csproj" />

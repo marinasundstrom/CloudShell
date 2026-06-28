@@ -6,11 +6,11 @@ using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
-using CloudShell.Providers.Applications;
 using CloudShell.Providers.Docker;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
+using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI;
 using CloudShell.ResourceDefinitions.ResourceManager;
 
 var builder = CloudShellApplication.CreateBuilder(args);
@@ -65,7 +65,7 @@ cloudShell.UseResourceGraphIntegration();
 cloudShell
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>();
-cloudShell.AddApplicationResourceManagerUi();
+cloudShell.AddReferenceProviderResourceManagerUi();
 
 var app = builder.Build();
 

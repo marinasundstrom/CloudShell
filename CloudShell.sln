@@ -149,6 +149,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ResourceDefiniti
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager", "CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager\CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.csproj", "{63B0B75A-8375-447E-BC2D-30A95DF2370C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI", "CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI\CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI.csproj", "{36855727-61C3-4C61-8249-F26BB1A694BD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -771,6 +773,18 @@ Global
 		{63B0B75A-8375-447E-BC2D-30A95DF2370C}.Release|x64.Build.0 = Release|Any CPU
 		{63B0B75A-8375-447E-BC2D-30A95DF2370C}.Release|x86.ActiveCfg = Release|Any CPU
 		{63B0B75A-8375-447E-BC2D-30A95DF2370C}.Release|x86.Build.0 = Release|Any CPU
+		{36855727-61C3-4C61-8249-F26BB1A694BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{36855727-61C3-4C61-8249-F26BB1A694BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{36855727-61C3-4C61-8249-F26BB1A694BD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{36855727-61C3-4C61-8249-F26BB1A694BD}.Debug|x64.Build.0 = Debug|Any CPU
+		{36855727-61C3-4C61-8249-F26BB1A694BD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{36855727-61C3-4C61-8249-F26BB1A694BD}.Debug|x86.Build.0 = Debug|Any CPU
+		{36855727-61C3-4C61-8249-F26BB1A694BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{36855727-61C3-4C61-8249-F26BB1A694BD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{36855727-61C3-4C61-8249-F26BB1A694BD}.Release|x64.ActiveCfg = Release|Any CPU
+		{36855727-61C3-4C61-8249-F26BB1A694BD}.Release|x64.Build.0 = Release|Any CPU
+		{36855727-61C3-4C61-8249-F26BB1A694BD}.Release|x86.ActiveCfg = Release|Any CPU
+		{36855727-61C3-4C61-8249-F26BB1A694BD}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
