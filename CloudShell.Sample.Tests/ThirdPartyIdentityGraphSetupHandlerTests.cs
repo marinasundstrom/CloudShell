@@ -19,14 +19,14 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
     {
         var declarations = new ResourceDeclarationStore();
         declarations.AddIdentityProvider(new ResourceIdentityProviderDefinition(
-            "identity:graph-keycloak",
-            "Graph Keycloak",
+            "identity:keycloak",
+            "Keycloak",
             ResourceIdentityProviderKind.Oidc,
             new Dictionary<string, string>
             {
                 ["Provider"] = "Keycloak"
             },
-            ProvisioningResourceId: "identity-provisioning:graph-keycloak"));
+            ProvisioningResourceId: "cloudshell.identity-provisioning:keycloak"));
         var setupHandler = new RecordingSetupHandler();
         var setupService = new ResourceIdentityProviderSetupService(
             declarations,
@@ -39,12 +39,12 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
         var diagnostics = await bridge.SetupAsync(CreateGraphIdentityProvisioningResource(
             includeProviderId: true));
 
-        Assert.Equal("identity:graph-keycloak", setupHandler.SetupProviderId);
+        Assert.Equal("identity:keycloak", setupHandler.SetupProviderId);
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal(ResourceDefinitionDiagnosticSeverity.Information, diagnostic.Severity);
         Assert.Equal("identity.provisioning.setupInformation", diagnostic.Code);
         Assert.Equal("Configured graph identity provider.", diagnostic.Message);
-        Assert.Equal("identity:graph-keycloak", diagnostic.Target);
+        Assert.Equal("identity:keycloak", diagnostic.Target);
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal(ResourceDefinitionDiagnosticSeverity.Warning, diagnostic.Severity);
         Assert.Equal("identity.provisioning.providerMissing", diagnostic.Code);
-        Assert.Contains("identity-provisioning:graph-keycloak", diagnostic.Message);
+        Assert.Contains("cloudshell.identity-provisioning:keycloak", diagnostic.Message);
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
         var diagnostics = await handler.SetupAsync(resource);
 
         Assert.Empty(diagnostics);
-        Assert.Equal("identity-provisioning:graph-keycloak", bridge.SetupResourceId);
+        Assert.Equal("cloudshell.identity-provisioning:keycloak", bridge.SetupResourceId);
     }
 
     [Fact]
@@ -91,8 +91,8 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
             .OfType<ResourceDeclarationStore>()
             .Single();
         var provider = declarations.AddIdentityProvider(new ResourceIdentityProviderDefinition(
-            "identity:graph-keycloak",
-            "Graph Keycloak",
+            "identity:keycloak",
+            "Keycloak",
             ResourceIdentityProviderKind.Oidc,
             new Dictionary<string, string>
             {
@@ -101,12 +101,12 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
         declarations.Declare(
             builder,
             "resource-model",
-            "application.aspnet-core-project:graph-keycloak-provisioned-api",
+            "application.aspnet-core-project:keycloak-provisioned-api",
             identity: new ResourceIdentityBinding(
                 provider.Id,
-                Subject: "client:graph-keycloak-provisioned-api",
+                Subject: "client:keycloak-provisioned-api",
                 Scopes: ["openid"],
-                Name: "graph-keycloak-provisioned-api"));
+                Name: "keycloak-provisioned-api"));
         var environmentProvider = new GraphAspNetCoreProjectIdentityEnvironmentProvider(
             declarations,
             new ResourceIdentityProviderCatalog(),
@@ -119,7 +119,7 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
             "https://identity.example/token",
             variables[EnvironmentCloudShellResourceCredential.TokenEndpointEnvironmentVariable]);
         Assert.Equal(
-            "application.aspnet-core-project:graph-keycloak-provisioned-api/graph-keycloak-provisioned-api",
+            "application.aspnet-core-project:keycloak-provisioned-api/keycloak-provisioned-api",
             variables[EnvironmentCloudShellResourceCredential.ClientIdEnvironmentVariable]);
         Assert.Equal(
             "openid",
@@ -140,13 +140,13 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
         if (includeProviderId)
         {
             attributes[IdentityProvisioningResourceTypeProvider.Attributes.IdentityProviderId] =
-                "identity:graph-keycloak";
+                "identity:keycloak";
         }
 
         return resolver.Resolve(new GraphResourceState(
-            "graph-keycloak",
+            "keycloak",
             IdentityProvisioningResourceTypeProvider.ResourceTypeId,
-            ResourceId: "identity-provisioning:graph-keycloak",
+            ResourceId: "cloudshell.identity-provisioning:keycloak",
             ProviderId: IdentityProvisioningResourceTypeProvider.ProviderId,
             Attributes: attributes));
     }
@@ -164,9 +164,9 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
             ]);
 
         return resolver.Resolve(new GraphResourceState(
-            "graph-keycloak-provisioned-api",
+            "keycloak-provisioned-api",
             AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
-            ResourceId: "application.aspnet-core-project:graph-keycloak-provisioned-api",
+            ResourceId: "application.aspnet-core-project:keycloak-provisioned-api",
             ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
@@ -228,7 +228,7 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
         public string ProviderId => "recording";
 
         public bool CanCreateEnvironment(ResourceIdentityProviderDefinition provider) =>
-            string.Equals(provider.Id, "identity:graph-keycloak", StringComparison.OrdinalIgnoreCase);
+            string.Equals(provider.Id, "identity:keycloak", StringComparison.OrdinalIgnoreCase);
 
         public IReadOnlyList<EnvironmentVariableAssignment> CreateEnvironment(
             ResourceIdentityCredentialEnvironmentRequest request) =>
