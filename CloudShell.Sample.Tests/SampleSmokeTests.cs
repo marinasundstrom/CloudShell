@@ -2113,6 +2113,11 @@ public sealed class SampleSmokeTests
                 host,
                 expectedReplicas: 3,
                 graphOnlySmokeTimeout);
+            await AssertGraphMonitoringPanelReplicaSnapshotsAsync(
+                host,
+                graphApiResourceId,
+                expectedReplicas: 3,
+                graphOnlySmokeTimeout);
             await AssertGraphScalePanelReplicaOccupantsAsync(
                 host,
                 graphApiResourceId,
@@ -2196,6 +2201,11 @@ public sealed class SampleSmokeTests
                 graphOnlySmokeTimeout);
             await AssertGraphReplicaMonitoringSnapshotsAsync(
                 host,
+                expectedReplicas: 2,
+                graphOnlySmokeTimeout);
+            await AssertGraphMonitoringPanelReplicaSnapshotsAsync(
+                host,
+                graphApiResourceId,
                 expectedReplicas: 2,
                 graphOnlySmokeTimeout);
             await AssertGraphScalePanelReplicaOccupantsAsync(
@@ -3503,6 +3513,39 @@ public sealed class SampleSmokeTests
         throw new TimeoutException(
             $"Runtime replica monitoring did not return metric snapshots for {expectedReplicas.ToString(CultureInfo.InvariantCulture)} replica(s) within {timeout}." +
             $"{Environment.NewLine}{lastSnapshotJson}{Environment.NewLine}{lastException?.Message}");
+    }
+
+    private static async Task AssertGraphMonitoringPanelReplicaSnapshotsAsync(
+        SampleProcess host,
+        string resourceId,
+        int expectedReplicas,
+        TimeSpan timeout)
+    {
+        var tab = Uri.EscapeDataString(ResourcePredefinedViewIds.Monitoring.Value);
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        string? lastHtml = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            lastHtml = await host.GetStringAsync(
+                $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={tab}");
+
+            if (lastHtml.Contains(
+                    $"{expectedReplicas.ToString(CultureInfo.InvariantCulture)} of {expectedReplicas.ToString(CultureInfo.InvariantCulture)} replicas observed",
+                    StringComparison.OrdinalIgnoreCase) &&
+                Enumerable.Range(1, expectedReplicas).All(replica =>
+                    lastHtml.Contains($"api replica {replica.ToString(CultureInfo.InvariantCulture)}", StringComparison.OrdinalIgnoreCase)) &&
+                !lastHtml.Contains("No snapshot", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"Graph monitoring panel did not show {expectedReplicas.ToString(CultureInfo.InvariantCulture)} observed runtime replica snapshot(s) for '{resourceId}' within {timeout}." +
+            $"{Environment.NewLine}{lastHtml}");
     }
 
     private static bool IsRuntimeReplicaChild(JsonElement resource) =>
