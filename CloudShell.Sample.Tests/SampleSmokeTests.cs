@@ -156,6 +156,19 @@ public sealed class SampleSmokeTests
         Assert.Equal(documentedSamples, launchMatrixSamples);
     }
 
+    [Fact]
+    public void SupportedSwitchReadinessSamples_ReadmesDocumentGraphOnlySetting()
+    {
+        var repositoryRoot = SampleProcess.FindRepositoryRoot();
+        foreach (var sample in SupportedSwitchReadinessSampleGraphOnlySettings())
+        {
+            var readmePath = GetSwitchReadinessSampleReadmePath(sample.SampleName);
+            var markdown = File.ReadAllText(Path.Combine(repositoryRoot, readmePath));
+
+            Assert.Contains(sample.ConfigurationPath, markdown, StringComparison.Ordinal);
+        }
+    }
+
     [Theory]
     [MemberData(nameof(SupportedSwitchReadinessSampleHostProjects))]
     public async Task SupportedSwitchReadinessSampleHosts_StartAndRenderResources(
@@ -5856,6 +5869,25 @@ public sealed class SampleSmokeTests
         }
 
         throw new InvalidOperationException($"Could not resolve switch-readiness sample name for '{projectPath}'.");
+    }
+
+    private static string GetSwitchReadinessSampleReadmePath(string sampleName)
+    {
+        return sampleName switch
+        {
+            "ApplicationTopology" => "samples/ApplicationTopology/Host/README.md",
+            "CloudShell.ContainerHost" => "samples/CloudShell.ContainerHost/README.md",
+            "ContainerAppDeployment" => "samples/ContainerAppDeployment/README.md",
+            "HostVirtualNetwork" => "samples/HostVirtualNetwork/README.md",
+            "LoadBalancer" => "samples/LoadBalancer/README.md",
+            "ProjectReference" => "samples/ProjectReference/Host/README.md",
+            "ReplicatedContainerHealth" => "samples/ReplicatedContainerHealth/README.md",
+            "SettingsAndSecrets" => "samples/SettingsAndSecrets/README.md",
+            "SplitHosting" => "samples/SplitHosting/README.md",
+            "ThirdPartyIdentity" => "samples/ThirdPartyIdentity/README.md",
+            _ => throw new InvalidOperationException(
+                $"Could not resolve switch-readiness sample README path for '{sampleName}'.")
+        };
     }
 
     private static void AssertNoUnexpectedLegacyResources(

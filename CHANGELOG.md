@@ -65,6 +65,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource graph provider README coverage now checks that documented
   `ResourceDefinition` examples use the current interchange keys, and the
   LoadBalancer example was normalized to `typeId`/`providerId`.
+- Switch-readiness sample coverage now verifies that each supported sample's
+  README documents the graph-only configuration setting used to opt into
+  old-provider comparison mode.
 - Resource graph provider helper coverage now verifies grouped registration
   seams include both change-apply and definition-apply providers, not only type
   providers.
