@@ -1858,7 +1858,11 @@ For the current switch-over, provider-specific Resource Manager UI components
 are being extracted into that UI-support project while provider implementations
 remain together. Registration components, endpoint actions, and container app
 deployment, revision, monitoring, and scale/replica views belong in the
-UI-support project. Shared provider core projects should be limited to
+UI-support project. The graph UI now registers the application endpoint-action
+section for executable applications, ASP.NET Core projects, container apps, and
+SQL Server resources, matching the old provider UI trigger surface while still
+driving the page from Resource Manager projections instead of legacy provider
+types. Shared provider core projects should be limited to
 cross-boundary abstractions, identifiers, constants, simple contract DTOs, and
 small helpers used by both Control Plane integration and UI integration.
 Runtime stores, background work, orchestration behavior, and provider services

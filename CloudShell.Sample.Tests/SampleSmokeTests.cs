@@ -809,6 +809,11 @@ public sealed class SampleSmokeTests
         Assert.Contains("ASP.NET Core project", graphApiDetailsHtml);
         Assert.Contains("application.aspnet-core-project", graphApiDetailsHtml);
 
+        var graphApiEndpointsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");
+        Assert.Contains("Application exposure", graphApiEndpointsHtml);
+        Assert.Contains("Add DNS name", graphApiEndpointsHtml);
+
         var graphSqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details");
         Assert.Contains("Application Topology SQL Server", graphSqlDetailsHtml);

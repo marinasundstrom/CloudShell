@@ -129,6 +129,18 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
                 45,
                 groupTitle: ResourceTabGroupTitles.Management)
             .AddResourcePredefinedViewSection<GraphSharedPages.ApplicationEndpointActions>(
+                ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Endpoints,
+                "application.exposure-actions",
+                "Application exposure",
+                10)
+            .AddResourcePredefinedViewSection<GraphSharedPages.ApplicationEndpointActions>(
+                AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Endpoints,
+                "application.exposure-actions",
+                "Application exposure",
+                10)
+            .AddResourcePredefinedViewSection<GraphSharedPages.ApplicationEndpointActions>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Endpoints,
                 "application.exposure-actions",
@@ -153,7 +165,13 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
                 "Databases",
                 35,
                 groupTitle: "Data",
-                icon: "database-item");
+                icon: "database-item")
+            .AddResourcePredefinedViewSection<GraphSharedPages.ApplicationEndpointActions>(
+                SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Endpoints,
+                "application.exposure-actions",
+                "Application exposure",
+                10);
     }
 
     private static ResourceProbeSource CreateSqlServerProbeSource() =>
