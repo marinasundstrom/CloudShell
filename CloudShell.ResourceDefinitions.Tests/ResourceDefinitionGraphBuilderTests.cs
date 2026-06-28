@@ -56,6 +56,50 @@ public sealed class ResourceDefinitionGraphBuilderTests
         Assert.Equal("test", deployment.Metadata["source"]);
         Assert.Equal(NetworkResourceTypeProvider.ResourceTypeId, definition.TypeId);
         Assert.Equal("cloudshell.network:app", definition.EffectiveResourceId);
+        Assert.Equal("cloudshell.network:app", definition.ResourceId);
+    }
+
+    [Fact]
+    public void ResourceDefinitionGraphBuilder_BuildGraphAssignsResourceIdsByConvention()
+    {
+        var graph = new ResourceDefinitionGraphBuilder()
+            .DefineResources(resources =>
+            {
+                resources.AddNetwork("app");
+            });
+
+        var definition = Assert.Single(graph.BuildGraph().Resources);
+
+        Assert.Equal("cloudshell.network:app", definition.ResourceId);
+        Assert.Equal("cloudshell.network:app", definition.EffectiveResourceId);
+    }
+
+    [Fact]
+    public void ResourceDefinitionGraphBuilder_UsesConfiguredResourceIdConventionForReferences()
+    {
+        var graph = new ResourceDefinitionGraphBuilder(new TestResourceIdConvention("host"))
+            .DefineResources(resources =>
+            {
+                var docker = resources.AddDockerHost("sample");
+                resources
+                    .AddContainerApplication("api")
+                    .UseDockerHost(docker);
+            });
+
+        var definitions = graph.BuildGraph().Resources;
+        var dockerDefinition = Assert.Single(
+            definitions,
+            resource => resource.TypeId == DockerHostResourceTypeProvider.ResourceTypeId);
+        var appDefinition = Assert.Single(
+            definitions,
+            resource => resource.TypeId == ContainerApplicationResourceTypeProvider.ResourceTypeId);
+
+        Assert.Equal("host/docker.host/sample", dockerDefinition.ResourceId);
+        Assert.Equal("host/application.container-app/api", appDefinition.ResourceId);
+
+        var dependency = Assert.Single(appDefinition.StartupDependencies);
+        Assert.True(dependency.TryGetDependsOnResourceId(out var dependencyResourceId));
+        Assert.Equal(dockerDefinition.ResourceId, dependencyResourceId);
     }
 
     [Fact]
@@ -77,6 +121,28 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         Assert.Equal(NetworkResourceTypeProvider.ResourceTypeId, resource.TypeId);
         Assert.Equal("cloudshell.network:app", resource.EffectiveResourceId);
+    }
+
+    [Fact]
+    public async Task Host_DefineResourcesUsesConfiguredResourceIdConvention()
+    {
+        var services = new ServiceCollection();
+        services
+            .AddCloudShellControlPlane()
+            .DefineResources(
+                resources =>
+                {
+                    resources.AddNetwork("app");
+                },
+                resourceIdConvention: new TestResourceIdConvention("host"));
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var snapshot = await serviceProvider
+            .GetRequiredService<ResourceGraphModel>()
+            .GetSnapshotAsync();
+        var resource = Assert.Single(snapshot.Resources);
+
+        Assert.Equal("host/cloudshell.network/app", resource.EffectiveResourceId);
     }
 
     [Fact]
@@ -872,5 +938,11 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
         Assert.True(result.IsCommitted);
+    }
+
+    private sealed class TestResourceIdConvention(string prefix) : IResourceIdConvention
+    {
+        public string CreateResourceId(ResourceIdConventionContext context) =>
+            $"{prefix}/{context.TypeId}/{context.Name}";
     }
 }

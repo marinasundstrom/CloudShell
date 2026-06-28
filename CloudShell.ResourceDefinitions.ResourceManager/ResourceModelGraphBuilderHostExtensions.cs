@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CloudShell.ResourceDefinitions.ResourceManager;
 
@@ -8,12 +9,16 @@ public static class ResourceModelGraphBuilderHostExtensions
     public static IControlPlaneBuilder DefineResources(
         this IControlPlaneBuilder builder,
         Action<ResourceDefinitionGraphBuilder> configure,
-        Func<ResourceState, ResourceState>? projectState = null)
+        Func<ResourceState, ResourceState>? projectState = null,
+        IResourceIdConvention? resourceIdConvention = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
-        var graph = new ResourceDefinitionGraphBuilder();
+        var convention = resourceIdConvention ?? DefaultResourceIdConvention.Instance;
+        builder.Services.TryAddSingleton<IResourceIdConvention>(convention);
+
+        var graph = new ResourceDefinitionGraphBuilder(convention);
         graph.DefineResources(configure);
         builder.Services.AddInMemoryResourceModelGraph(
             ProjectStates(
@@ -29,13 +34,17 @@ public static class ResourceModelGraphBuilderHostExtensions
         Action<ResourceDefinitionGraphBuilder> configure,
         string? environmentId = null,
         IReadOnlyDictionary<string, string>? metadata = null,
-        Func<ResourceState, ResourceState>? projectState = null)
+        Func<ResourceState, ResourceState>? projectState = null,
+        IResourceIdConvention? resourceIdConvention = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(configure);
 
-        var graph = new ResourceDefinitionGraphBuilder();
+        var convention = resourceIdConvention ?? DefaultResourceIdConvention.Instance;
+        builder.Services.TryAddSingleton<IResourceIdConvention>(convention);
+
+        var graph = new ResourceDefinitionGraphBuilder(convention);
         graph.DefineResources(configure);
         var deployment = graph.BuildDeployment(
             name,

@@ -17,6 +17,11 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Resource graph builders now resolve omitted resource ids through an
+  `IResourceIdConvention`. The default host convention preserves the existing
+  `resourceTypeId:name` ids, while built graphs/deployments carry the resolved
+  ids so provider APIs and references can use Aspire-like name-first builder
+  declarations.
 - SplitHosting Resource Definitions projection now uses the stable
   `network:split-sample` identity and "Split Sample Network" display name
   instead of temporary `graph-` sample naming.

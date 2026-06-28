@@ -933,13 +933,17 @@ need those values while running in-memory project them into graph
 runtime/provider-managed nature of those attributes.
 Resource authoring should normally use resource names as the stable
 human-authored identifiers. Resource ids are assigned by platform conventions
-or provider conventions and should usually be left implicit. After the sample
-seams are removed, programmatic builders should allow resource ids to be
-omitted and let the Resource Manager / Control Plane assign them according to
-the active convention. Builder methods such as `WithResourceId(...)` exist for
-explicit platform ids, migration cases, and current bridge seams where the old
-and new models must share an identifier during provider porting. Display names
-remain convenience labels, not identity.
+or provider conventions and should usually be left implicit. Programmatic
+builders now resolve omitted ids through an `IResourceIdConvention` supplied by
+the host integration; the default convention preserves the current
+`resourceTypeId:name` shape. Builder APIs therefore remain Aspire-like:
+provider extension methods can return a builder whose `EffectiveResourceId` is
+already resolved, while authors normally identify resources by name. Built
+graphs and deployment envelopes carry the resolved resource id so references,
+runtime providers, and Resource Manager adapters all see the same identity.
+Builder methods such as `WithResourceId(...)` exist for explicit platform ids,
+migration cases, and bridge seams where an existing external identity must be
+preserved. Display names remain convenience labels, not identity.
 Container authoring should also keep the resource concepts explicit.
 `resources.AddContainerApplication(...)` defines a container application
 resource. A future `resources.AddContainer(...)` convenience should define a

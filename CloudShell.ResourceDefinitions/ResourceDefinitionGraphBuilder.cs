@@ -4,13 +4,26 @@ namespace CloudShell.ResourceDefinitions;
 
 public interface IResourceDefinitionBuilder
 {
+    string Name { get; }
+
+    ResourceTypeId ResourceTypeId { get; }
+
+    string? ResourceProviderId { get; }
+
     string EffectiveResourceId { get; }
 
     ResourceDefinition Build();
 }
 
+internal interface IResourceIdConventionAwareBuilder
+{
+    void UseResourceIdConvention(IResourceIdConvention resourceIdConvention);
+}
+
 public abstract class ResourceDefinitionBuilder<TBuilder>(
-    string name) : IResourceDefinitionBuilder
+    string name) :
+    IResourceDefinitionBuilder,
+    IResourceIdConventionAwareBuilder
     where TBuilder : ResourceDefinitionBuilder<TBuilder>
 {
     private readonly Dictionary<ResourceAttributeId, ResourceAttributeValue> _attributes = [];
@@ -20,8 +33,13 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
     private readonly Dictionary<ResourceOperationId, JsonElement> _operations = [];
     private string? _resourceId;
     private string? _displayName;
+    private IResourceIdConvention _resourceIdConvention = DefaultResourceIdConvention.Instance;
 
     public string Name { get; } = NormalizeName(name);
+
+    public ResourceTypeId ResourceTypeId => TypeId;
+
+    public string? ResourceProviderId => ProviderId;
 
     protected abstract ResourceTypeId TypeId { get; }
 
@@ -39,7 +57,9 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
     protected IReadOnlyDictionary<ResourceOperationId, JsonElement> Operations => _operations;
 
     public string EffectiveResourceId =>
-        string.IsNullOrWhiteSpace(_resourceId) ? $"{TypeId}:{Name}" : _resourceId;
+        string.IsNullOrWhiteSpace(_resourceId)
+            ? ResourceIdConventionResolver.Resolve(_resourceIdConvention, Name, TypeId, ProviderId)
+            : _resourceId;
 
     public TBuilder WithResourceId(string? resourceId)
     {
@@ -99,7 +119,7 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
         new(
             Name,
             TypeId,
-            ResourceId: _resourceId,
+            ResourceId: EffectiveResourceId,
             ProviderId: ProviderId,
             DisplayName: _displayName,
             DependsOn: _dependencies.Count == 0
@@ -117,6 +137,14 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
             Operations: _operations.Count == 0
                 ? null
                 : new Dictionary<ResourceOperationId, JsonElement>(_operations));
+
+    void IResourceIdConventionAwareBuilder.UseResourceIdConvention(
+        IResourceIdConvention resourceIdConvention)
+    {
+        ArgumentNullException.ThrowIfNull(resourceIdConvention);
+
+        _resourceIdConvention = resourceIdConvention;
+    }
 
     protected TBuilder SetScalarAttribute(
         ResourceAttributeId attributeId,
@@ -208,9 +236,12 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
     }
 }
 
-public sealed class ResourceDefinitionGraphBuilder
+public sealed class ResourceDefinitionGraphBuilder(
+    IResourceIdConvention? resourceIdConvention = null)
 {
     private readonly List<IResourceDefinitionBuilder> _resources = [];
+    private readonly IResourceIdConvention _resourceIdConvention =
+        resourceIdConvention ?? DefaultResourceIdConvention.Instance;
 
     public IReadOnlyList<IResourceDefinitionBuilder> ResourceBuilders => _resources;
 
@@ -226,6 +257,11 @@ public sealed class ResourceDefinitionGraphBuilder
     public ResourceDefinitionGraphBuilder Add(IResourceDefinitionBuilder resource)
     {
         ArgumentNullException.ThrowIfNull(resource);
+
+        if (resource is IResourceIdConventionAwareBuilder conventionAware)
+        {
+            conventionAware.UseResourceIdConvention(_resourceIdConvention);
+        }
 
         _resources.Add(resource);
         return this;
@@ -256,10 +292,38 @@ public sealed class ResourceDefinitionGraphBuilder
     }
 
     private sealed class FixedResourceDefinitionBuilder(
-        ResourceDefinition definition) : IResourceDefinitionBuilder
+        ResourceDefinition definition) :
+        IResourceDefinitionBuilder,
+        IResourceIdConventionAwareBuilder
     {
-        public string EffectiveResourceId => definition.EffectiveResourceId;
+        private IResourceIdConvention _resourceIdConvention = DefaultResourceIdConvention.Instance;
 
-        public ResourceDefinition Build() => definition;
+        public string Name => definition.Name;
+
+        public ResourceTypeId ResourceTypeId => definition.TypeId;
+
+        public string? ResourceProviderId => definition.ProviderId;
+
+        public string EffectiveResourceId =>
+            string.IsNullOrWhiteSpace(definition.ResourceId)
+                ? ResourceIdConventionResolver.Resolve(
+                    _resourceIdConvention,
+                    definition.Name,
+                    definition.TypeId,
+                    definition.ProviderId)
+                : definition.ResourceId;
+
+        public ResourceDefinition Build() =>
+            definition with
+            {
+                ResourceId = EffectiveResourceId
+            };
+
+        public void UseResourceIdConvention(IResourceIdConvention resourceIdConvention)
+        {
+            ArgumentNullException.ThrowIfNull(resourceIdConvention);
+
+            _resourceIdConvention = resourceIdConvention;
+        }
     }
 }
