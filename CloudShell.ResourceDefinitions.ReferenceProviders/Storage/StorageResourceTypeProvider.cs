@@ -42,7 +42,7 @@ public sealed class StorageResourceTypeProvider :
                 DefaultValue: "provider",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.Provider] = new(
-                DefaultValue: "Local Storage",
+                DefaultValue: StorageResourceDefaults.LocalProvider,
                 Required: true,
                 RequiredMessage: "Storage provider is required.",
                 ValueType: ResourceAttributeValueType.String),

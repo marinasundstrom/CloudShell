@@ -397,6 +397,7 @@ public sealed class ResourceProviderDispatcherTests
 
         Assert.NotNull(projection);
         Assert.Equal("data", projection.SubPath);
+        Assert.Equal(StorageVolumeAccessMode.ReadWriteOnce, projection.AccessMode);
         Assert.True(projection.Persistent);
         Assert.Equal([storage.EffectiveResourceId], projection.References.Select(reference => reference.Value));
         var provision = await projection.GetProvisionOperationAsync();
@@ -405,6 +406,34 @@ public sealed class ResourceProviderDispatcherTests
         Assert.True(await provision.CanExecuteAsync());
         Assert.Equal("FileSystem", provision.PlanProvision().StorageMedium);
         Assert.Equal([storage.EffectiveResourceId], provision.PlanProvision().References.Select(reference => reference.Value));
+    }
+
+    [Fact]
+    public async Task AddCloudShellVolumeResourceType_RejectsUnknownAccessMode()
+    {
+        var services = new ServiceCollection();
+        services.AddStorageResourceType();
+        services.AddCloudShellVolumeResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "data",
+            CloudShellVolumeResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium] = "FileSystem",
+                [CloudShellVolumeResourceTypeProvider.Attributes.AccessMode] = "ReadWriteSometimes"
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionValidationPipeline>()
+            .ValidateAsync(
+                definition,
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        var diagnostic = Assert.Single(validation.Diagnostics, diagnostic =>
+            diagnostic.Code == "storage.volume.accessModeInvalid");
+        Assert.Equal(CloudShellVolumeResourceTypeProvider.Attributes.AccessMode.ToString(), diagnostic.Target);
     }
 
     [Fact]

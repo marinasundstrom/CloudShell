@@ -3472,9 +3472,9 @@ public sealed class ResourceManagerIntegrationTests
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
         var graph = new ResourceDefinitionGraphBuilder();
-        var storageBuilder = graph
-            .AddStorage("local")
-            .UseLocalFileSystem("Data/storage/local");
+        var storageBuilder = graph.AddLocalStorage(
+            "local",
+            "Data/storage/local");
         var deployment = graph.BuildDeployment(
             "storage",
             environmentId: "local");
@@ -3500,7 +3500,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(ResourceManagerClass.Storage, projectedStorage.ResourceClass);
         Assert.Equal(StorageResourceTypeProvider.ProviderId, projectedStorage.Provider);
         Assert.Equal("provider", projectedStorage.ResourceAttributes["storage.kind"]);
-        Assert.Equal("Local Storage", projectedStorage.ResourceAttributes["storage.provider"]);
+        Assert.Equal("local", projectedStorage.ResourceAttributes["storage.provider"]);
         Assert.Equal("FileSystem", projectedStorage.ResourceAttributes["storage.medium"]);
         Assert.Equal("Data/storage/local", projectedStorage.ResourceAttributes["storage.location"]);
         Assert.DoesNotContain("storage.volumes", projectedStorage.ResourceAttributes.Keys);
@@ -3554,13 +3554,10 @@ public sealed class ResourceManagerIntegrationTests
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
         var graph = new ResourceDefinitionGraphBuilder();
-        var storage = graph
-            .AddStorage("local")
-            .UseLocalFileSystem();
-        var volume = graph
-            .AddCloudShellVolume("data")
-            .UseStorage(storage)
-            .UseLocalFileSystemVolume("data");
+        var storage = graph.AddLocalStorage("local");
+        var volume = storage.AddVolume(
+            "data",
+            subPath: "data");
         var deployment = graph.BuildDeployment(
             "storage-volume",
             environmentId: "local");
@@ -3585,7 +3582,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(ResourceManagerClass.Storage, projectedVolume.ResourceClass);
         Assert.Equal(CloudShellVolumeResourceTypeProvider.ProviderId, projectedVolume.Provider);
         Assert.Equal("volume", projectedVolume.ResourceAttributes["storage.kind"]);
-        Assert.Equal("Local Storage", projectedVolume.ResourceAttributes["storage.volume.provider"]);
+        Assert.Equal("local", projectedVolume.ResourceAttributes["storage.volume.provider"]);
         Assert.Equal("FileSystem", projectedVolume.ResourceAttributes["storage.volume.medium"]);
         Assert.Equal("data", projectedVolume.ResourceAttributes["storage.volume.subPath"]);
         Assert.Equal("ReadWriteOnce", projectedVolume.ResourceAttributes["storage.volume.accessMode"]);

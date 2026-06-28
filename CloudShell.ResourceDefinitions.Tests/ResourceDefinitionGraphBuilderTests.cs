@@ -432,14 +432,13 @@ public sealed class ResourceDefinitionGraphBuilderTests
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
         var graph = new ResourceDefinitionGraphBuilder();
-        var storage = graph
-            .AddStorage("local")
-            .UseLocalFileSystem("Data/storage/local");
+        var storage = graph.AddLocalStorage(
+            "local",
+            "Data/storage/local");
 
-        graph
-            .AddCloudShellVolume("data")
-            .UseStorage(storage)
-            .UseLocalFileSystemVolume("data");
+        storage.AddVolume(
+            "data",
+            subPath: "data");
 
         var deployment = graph.BuildDeployment("storage-volume", environmentId: "local");
 
@@ -449,7 +448,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
         var volumeDefinition = Assert.Single(deployment.Resources, resource =>
             resource.TypeId == CloudShellVolumeResourceTypeProvider.ResourceTypeId);
         Assert.Equal("cloudshell.storage:local", storageDefinition.EffectiveResourceId);
-        Assert.Equal("Local Storage", storageDefinition.ResourceAttributeValues[
+        Assert.Equal("local", storageDefinition.ResourceAttributeValues[
             StorageResourceTypeProvider.Attributes.Provider].StringValue);
         Assert.Equal("FileSystem", storageDefinition.ResourceAttributeValues[
             StorageResourceTypeProvider.Attributes.Medium].StringValue);
@@ -457,7 +456,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
             StorageResourceTypeProvider.Attributes.Location].StringValue);
 
         Assert.Equal("cloudshell.volume:data", volumeDefinition.EffectiveResourceId);
-        Assert.Equal("Local Storage", volumeDefinition.ResourceAttributeValues[
+        Assert.Equal("local", volumeDefinition.ResourceAttributeValues[
             CloudShellVolumeResourceTypeProvider.Attributes.Provider].StringValue);
         Assert.Equal("FileSystem", volumeDefinition.ResourceAttributeValues[
             CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium].StringValue);
@@ -483,6 +482,55 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
+    public async Task ResourceDefinitionGraphBuilder_BuildsDirectLocalVolumeDefinitions()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddCloudShellVolumeResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var graph = new ResourceDefinitionGraphBuilder();
+
+        graph.AddVolume(
+            "data",
+            path: "./Data/storage/data",
+            accessMode: StorageVolumeAccessMode.ReadWriteMany);
+        graph.AddVolume("current");
+
+        var deployment = graph.BuildDeployment("direct-volume", environmentId: "local");
+
+        Assert.Equal(2, deployment.Resources.Count);
+        var volumeDefinition = Assert.Single(deployment.Resources, resource =>
+            resource.Name == "data");
+        var currentDirectoryVolume = Assert.Single(deployment.Resources, resource =>
+            resource.Name == "current");
+        Assert.Equal("cloudshell.volume:data", volumeDefinition.EffectiveResourceId);
+        Assert.Equal("local", volumeDefinition.ResourceAttributeValues[
+            CloudShellVolumeResourceTypeProvider.Attributes.Provider].StringValue);
+        Assert.Equal("FileSystem", volumeDefinition.ResourceAttributeValues[
+            CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium].StringValue);
+        Assert.Equal("./Data/storage/data", volumeDefinition.ResourceAttributeValues[
+            CloudShellVolumeResourceTypeProvider.Attributes.Location].StringValue);
+        Assert.Equal("ReadWriteMany", volumeDefinition.ResourceAttributeValues[
+            CloudShellVolumeResourceTypeProvider.Attributes.AccessMode].StringValue);
+        Assert.Empty(volumeDefinition.StartupDependencies);
+        Assert.Equal(".", currentDirectoryVolume.ResourceAttributeValues[
+            CloudShellVolumeResourceTypeProvider.Attributes.Location].StringValue);
+        Assert.Empty(currentDirectoryVolume.StartupDependencies);
+
+        var result = await serviceProvider
+            .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
+            .ApplyDeploymentAsync(
+                deployment,
+                new ResourceGraphCommitContext(
+                    PrincipalId: "developer",
+                    Timestamp: new DateTimeOffset(2026, 6, 26, 14, 30, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(result.IsCommitted);
+    }
+
+    [Fact]
     public async Task ResourceDefinitionGraphBuilder_BuildsSqlServerAndDatabaseDefinitions()
     {
         var services = new ServiceCollection();
@@ -494,13 +542,9 @@ public sealed class ResourceDefinitionGraphBuilderTests
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
         var graph = new ResourceDefinitionGraphBuilder();
-        var storage = graph
-            .AddStorage("local")
-            .UseLocalFileSystem();
-        var volume = graph
-            .AddCloudShellVolume("sql-data")
-            .UseStorage(storage)
-            .UseLocalFileSystemVolume("sql-server");
+        var volume = graph.AddVolume(
+            "sql-data",
+            path: "./Data/storage/sql-server");
         var server = graph
             .AddSqlServer("sql")
             .WithVersion("2022")
@@ -522,11 +566,15 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         var deployment = graph.BuildDeployment("sql-app", environmentId: "local");
 
-        Assert.Equal(4, deployment.Resources.Count);
+        Assert.Equal(3, deployment.Resources.Count);
+        var volumeDefinition = Assert.Single(deployment.Resources, resource =>
+            resource.TypeId == CloudShellVolumeResourceTypeProvider.ResourceTypeId);
         var sqlServer = Assert.Single(deployment.Resources, resource =>
             resource.TypeId == SqlServerResourceTypeProvider.ResourceTypeId);
         var sqlDatabase = Assert.Single(deployment.Resources, resource =>
             resource.TypeId == SqlDatabaseResourceTypeProvider.ResourceTypeId);
+        Assert.Equal("./Data/storage/sql-server", volumeDefinition.ResourceAttributeValues[
+            CloudShellVolumeResourceTypeProvider.Attributes.Location].StringValue);
         Assert.Equal("application.sql-server:sql", sqlServer.EffectiveResourceId);
         Assert.Equal("2022", sqlServer.ResourceAttributeValues[
             SqlServerResourceTypeProvider.Attributes.Version].StringValue);
@@ -581,13 +629,9 @@ public sealed class ResourceDefinitionGraphBuilderTests
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
         var graph = new ResourceDefinitionGraphBuilder();
-        var storage = graph
-            .AddStorage("local")
-            .UseLocalFileSystem();
-        var volume = graph
-            .AddCloudShellVolume("data")
-            .UseStorage(storage)
-            .UseLocalFileSystemVolume("api");
+        var volume = graph.AddVolume(
+            "data",
+            path: "./Data/storage/api");
         var host = graph
             .AddDockerHost("engine")
             .UseLocalDocker();
@@ -612,7 +656,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         var deployment = graph.BuildDeployment("container-app", environmentId: "local");
 
-        Assert.Equal(4, deployment.Resources.Count);
+        Assert.Equal(3, deployment.Resources.Count);
         var hostDefinition = Assert.Single(deployment.Resources, resource =>
             resource.TypeId == DockerHostResourceTypeProvider.ResourceTypeId);
         var appDefinition = Assert.Single(deployment.Resources, resource =>
@@ -650,6 +694,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
         var mount = Assert.Single(volumeConsumer!.Mounts);
         Assert.Equal(volume.EffectiveResourceId, mount.Volume);
         Assert.Equal("/data", mount.TargetPath);
+        Assert.NotEqual("api", mount.TargetPath);
 
         var result = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
@@ -676,13 +721,9 @@ public sealed class ResourceDefinitionGraphBuilderTests
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
         var graph = new ResourceDefinitionGraphBuilder();
-        var storage = graph
-            .AddStorage("local")
-            .UseLocalFileSystem();
-        var volume = graph
-            .AddCloudShellVolume("app-data")
-            .UseStorage(storage)
-            .UseLocalFileSystemVolume("app");
+        var volume = graph.AddVolume(
+            "app-data",
+            path: "./Data/storage/app");
         var settings = graph
             .AddConfigurationStore("settings")
             .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/entries");
@@ -714,7 +755,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         var deployment = graph.BuildDeployment("project-app", environmentId: "local");
 
-        Assert.Equal(5, deployment.Resources.Count);
+        Assert.Equal(4, deployment.Resources.Count);
         var executable = Assert.Single(deployment.Resources, resource =>
             resource.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId);
         var project = Assert.Single(deployment.Resources, resource =>
@@ -754,6 +795,12 @@ public sealed class ResourceDefinitionGraphBuilderTests
             ResourceHealthCheckCapabilityIds.HealthChecks);
         var healthCheck = Assert.Single(healthChecks!.Checks ?? []);
         Assert.Equal("alive", healthCheck.Name);
+        var projectVolumeConsumer = project.GetCapability<VolumeConsumerDefinition>(
+            VolumeConsumerCapabilityProvider.CapabilityIdValue);
+        var projectMount = Assert.Single(projectVolumeConsumer!.Mounts);
+        Assert.Equal(volume.EffectiveResourceId, projectMount.Volume);
+        Assert.Equal("App_Data", projectMount.TargetPath);
+        Assert.NotEqual("app", projectMount.TargetPath);
 
         var result = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()

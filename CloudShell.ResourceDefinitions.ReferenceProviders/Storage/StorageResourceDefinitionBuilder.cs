@@ -1,6 +1,8 @@
 namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
-public sealed class StorageResourceDefinitionBuilder(string name) :
+public sealed class StorageResourceDefinitionBuilder(
+    string name,
+    ResourceDefinitionGraphBuilder? graph = null) :
     ResourceDefinitionBuilder<StorageResourceDefinitionBuilder>(name)
 {
     protected override ResourceTypeId TypeId =>
@@ -20,8 +22,8 @@ public sealed class StorageResourceDefinitionBuilder(string name) :
 
     public StorageResourceDefinitionBuilder UseLocalFileSystem(string? location = null)
     {
-        WithProvider("Local Storage");
-        WithMedium("FileSystem");
+        WithProvider(StorageResourceDefaults.LocalProvider);
+        WithMedium(StorageResourceDefaults.FileSystemMedium);
 
         if (!string.IsNullOrWhiteSpace(location))
         {
@@ -29,6 +31,26 @@ public sealed class StorageResourceDefinitionBuilder(string name) :
         }
 
         return this;
+    }
+
+    public CloudShellVolumeResourceDefinitionBuilder AddVolume(
+        string name,
+        string? subPath = null,
+        StorageVolumeAccessMode accessMode = StorageVolumeAccessMode.ReadWriteOnce,
+        bool persistent = true)
+    {
+        if (graph is null)
+        {
+            throw new InvalidOperationException(
+                "The storage builder is not attached to a resource graph builder.");
+        }
+
+        return graph.AddVolume(
+            name,
+            this,
+            subPath,
+            accessMode,
+            persistent);
     }
 }
 
@@ -40,8 +62,20 @@ public static class StorageResourceDefinitionBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(graph);
 
-        var builder = new StorageResourceDefinitionBuilder(name);
+        var builder = new StorageResourceDefinitionBuilder(name, graph);
         graph.Add(builder);
         return builder;
+    }
+
+    public static StorageResourceDefinitionBuilder AddLocalStorage(
+        this ResourceDefinitionGraphBuilder graph,
+        string name,
+        string? location = null)
+    {
+        ArgumentNullException.ThrowIfNull(graph);
+
+        return graph
+            .AddStorage(name)
+            .UseLocalFileSystem(location);
     }
 }

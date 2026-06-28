@@ -24,26 +24,15 @@ cloudShell.AddResourceGroup(
     resourceGroupId,
     "Container Host POC",
     "Resources used by the ContainerHost sample.");
-IResourceDefinitionBuilder storageResource = null!;
 IResourceDefinitionBuilder volumeResource = null!;
 cloudShell.DefineResources(resources =>
 {
-    storageResource = resources
-        .AddStorage("local")
-        .WithResourceGroup(resourceGroupId)
-        .WithProvider("local")
-        .WithMedium("FileSystem")
-        .WithLocation("./Data/storage");
     volumeResource = resources
-        .AddCloudShellVolume("sql-data")
+        .AddVolume(
+            "sql-data",
+            path: "./Data/storage/sql-server")
         .WithDisplayName("SQL Server Data")
-        .WithResourceGroup(resourceGroupId)
-        .UseStorage(storageResource)
-        .WithProvider("local")
-        .WithStorageMedium("FileSystem")
-        .WithSubPath("sql-server")
-        .WithAccessMode("ReadWriteOnce")
-        .WithPersistent();
+        .WithResourceGroup(resourceGroupId);
 
     resources
         .AddSqlServer("sql-server")

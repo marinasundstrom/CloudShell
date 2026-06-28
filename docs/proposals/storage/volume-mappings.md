@@ -190,30 +190,39 @@ graph and Resource Manager may present it from Storage-owned views or workflows
 that select mountable volumes when the user has permission. Environments may
 also hide or restrict volume inspection by permission.
 
-`resources.AddVolume(...)` declares a CloudShell volume resource through the
-default Local Storage provider unless another provider is supplied. Its path is
-the direct relative or absolute folder path for that volume and is not derived
-from, appended to, or otherwise affected by a separate storage resource
-location. This is intentionally lightweight for local development: the volume
-can be tracked as a resource without requiring a separate storage-provider
-resource or storage-control-plane service. Direct volumes are normal inventory
-resources because the volume itself is the thing being managed.
+`resources.AddVolume(...)` declares an ad-hoc Local Storage volume backed by
+the local filesystem provider. The volume is free from an explicit storage
+root: its `storage.volume.location` may be absolute or relative, and the
+default location is `.`. Relative locations are resolved by the runtime from
+the host's working/content-root context, which is the common development case
+when resources are declared from a host project.
+
+`resources.AddLocalStorage(...)` declares an explicit Local Storage resource:
+a provider-managed storage boundary rooted on the local machine. The storage
+resource owns the local root location and may enforce rules for what can be
+allocated or mounted under that boundary.
+
+`localStorage.AddVolume(...)` declares a CloudShell volume resource under that
+storage resource. For Local Storage, the volume sub-path is the designated
+mapping to a folder below the local storage root. The sub-path describes where
+the volume is backed by storage; it is not the same as a mount target path.
 
 A storage resource is a boundary whose behavior depends on the concrete
 resource kind/provider. It may represent local storage, a NAS share, remote
 host, appliance, cloud storage account, Kubernetes storage class, or another
 provider-defined storage boundary. For the default Local Storage kind, the
-resource class is Storage and the storage medium is `FileSystem`. Volumes
-created under that storage resource are expected to be sub-items, typically
-subfolders, of the provider-managed storage location.
-Direct volumes created with `resources.AddVolume(...)` are the exception: they
-carry their own supplied path and do not use a storage resource `Location`;
-that storage resource location remains null. Other providers may use different
-sub-item semantics as long as the projected CloudShell volume remains a
-mountable target. The Local Storage provider is a temporary default
-until storage capabilities are formalized. After storage capabilities are
-defined, the provider should materialize the allocation and report
-provider-specific diagnostics and usage metrics for the resource.
+resource class is Storage and the storage medium is `FileSystem`. Other
+providers may use different sub-item semantics as long as the projected
+CloudShell volume remains a mountable target. The Local Storage provider is a
+temporary default until storage capabilities are formalized. After storage
+capabilities are defined, the provider should materialize the allocation and
+report provider-specific diagnostics and usage metrics for the resource.
+
+Resources that support mounts, such as ASP.NET Core project resources,
+container applications, executable applications, and SQL Server resources,
+mount a volume at a resource-specific target path. That target path must be
+valid for the resource/runtime and is intentionally separate from the volume's
+storage sub-path.
 
 Shared on-premise environments need a stricter policy boundary than local
 development. Any operation that changes the host machine or shared platform
@@ -270,7 +279,7 @@ var postgres = resources
     .AddContainerApplication("application:postgres", "postgres:16")
     .WithDisplayName("Postgres")
     .RequireIdentity()
-    .WithVolume(data, "/var/lib/postgresql/data");
+    .MountVolume(data, "/var/lib/postgresql/data");
 
 data.Allow(postgres, CloudShellPermissions.Storage.Actions.MountWrite);
 ```
@@ -320,7 +329,7 @@ var data = resources.AddVolume(
 var postgres = resources
     .AddContainerApplication("application:postgres", "postgres:16")
     .WithDisplayName("Postgres")
-    .WithVolume(data, "/var/lib/postgresql/data")
+    .MountVolume(data, "/var/lib/postgresql/data")
     .WithEnvironmentVariable("POSTGRES_DB", "cloudshell");
 ```
 
@@ -328,14 +337,13 @@ Explicit host directory:
 
 ```csharp
 var data = resources
-    .AddVolume("volume:uploads")
-    .WithDisplayName("Uploads")
-    .UseHostPath("./data/uploads");
+    .AddVolume("volume:uploads", path: "./data/uploads")
+    .WithDisplayName("Uploads");
 
 resources
     .AddAspNetCoreProject("application:web", "../Web/Web.csproj")
     .WithDisplayName("Web")
-    .WithVolume(data, "/app/uploads");
+    .MountVolume(data, "/app/uploads");
 ```
 
 Provider-backed mountable storage by provider name:
@@ -344,29 +352,38 @@ Provider-backed mountable storage by provider name:
 var media = resources
     .AddVolume("volume:media")
     .WithDisplayName("Media")
-    .UseProvider("nas")
-    .UseLocation("team-share/media")
-    .WithAccessMode(VolumeAccessMode.ReadWriteMany);
+    .WithProvider("nas")
+    .WithLocation("team-share/media")
+    .WithAccessMode(StorageVolumeAccessMode.ReadWriteMany);
 ```
 
 Future provider-defined storage resource with provider-owned sub-volumes:
 
 ```csharp
-var storage = resources.AddLocalStorage(
-    "storage:local")
-    .WithDisplayName("Local Storage")
-    .UseLocation("./storage");
+var data = resources
+    .AddVolume("data", path: "App_Data")
+    .WithDisplayName("Application data");
 
-var media = resources
-    .AddVolume("volume:media")
-    .WithDisplayName("Media")
-    .UseStorage(storage, "media");
+webApp.MountVolume(data, "App_Data");
+
+var storage = resources.AddLocalStorage(
+    "local",
+    location: "./storage")
+    .WithDisplayName("Local Storage")
+    .WithResourceGroup(resourceGroup);
+
+var media = storage
+    .AddVolume("media", subPath: "media")
+    .WithDisplayName("Media");
+
+webApp.MountVolume(media, "App_Data");
 ```
 
-The exact builder names may evolve, but the model split is stable: Storage is
-the resource class, Local Storage is the concrete storage kind/provider,
-`FileSystem` is the medium it announces, and a volume is the mountable
-sub-item that should project compatible medium information for consumers.
+The model split is stable: Storage is the resource class, Local Storage is the
+concrete local-machine storage provider, `FileSystem` is the medium it
+announces, ad-hoc volumes can point directly at a local filesystem path,
+storage-bound volumes are mountable sub-items, and the consuming resource owns
+the target path where a volume is attached.
 
 ## Provider Responsibilities
 

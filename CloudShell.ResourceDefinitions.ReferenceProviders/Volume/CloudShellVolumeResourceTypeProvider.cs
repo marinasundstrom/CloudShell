@@ -44,10 +44,10 @@ public sealed class CloudShellVolumeResourceTypeProvider :
                 DefaultValue: "volume",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.Provider] = new(
-                DefaultValue: "Local Storage",
+                DefaultValue: StorageResourceDefaults.LocalProvider,
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.StorageMedium] = new(
-                DefaultValue: "FileSystem",
+                DefaultValue: StorageResourceDefaults.FileSystemMedium,
                 Required: true,
                 RequiredMessage: "Volume storage medium is required.",
                 ValueType: ResourceAttributeValueType.String),
@@ -56,7 +56,7 @@ public sealed class CloudShellVolumeResourceTypeProvider :
             [Attributes.SubPath] = new(
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.AccessMode] = new(
-                DefaultValue: "ReadWriteOnce",
+                DefaultValue: StorageResourceDefaults.ReadWriteOnceAccessMode,
                 Required: true,
                 RequiredMessage: "Volume access mode is required.",
                 ValueType: ResourceAttributeValueType.String),
@@ -140,6 +140,10 @@ public sealed class CloudShellVolumeResourceTypeProvider :
             "storage.volume.accessModeRequired",
             "Volume access mode is required.",
             diagnostics);
+        ValidateAccessMode(
+            resource.Attributes.GetString(Attributes.AccessMode),
+            Attributes.AccessMode,
+            diagnostics);
         ValidateBoolean(
             resource.Attributes.GetString(Attributes.Persistent),
             Attributes.Persistent,
@@ -169,6 +173,10 @@ public sealed class CloudShellVolumeResourceTypeProvider :
                 Attributes.AccessMode,
                 "storage.volume.accessModeRequired",
                 "Volume access mode is required.",
+                diagnostics);
+            ValidateAccessMode(
+                accessMode,
+                Attributes.AccessMode,
                 diagnostics);
         }
 
@@ -207,6 +215,21 @@ public sealed class CloudShellVolumeResourceTypeProvider :
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                 "storage.volume.persistentInvalid",
                 "Volume persistence must be a boolean value.",
+                attributeId));
+        }
+    }
+
+    private static void ValidateAccessMode(
+        string? value,
+        ResourceAttributeId attributeId,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (!string.IsNullOrWhiteSpace(value) &&
+            !Enum.TryParse<StorageVolumeAccessMode>(value, ignoreCase: true, out _))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                "storage.volume.accessModeInvalid",
+                "Volume access mode must be ReadWriteOnce, ReadOnlyMany, or ReadWriteMany.",
                 attributeId));
         }
     }

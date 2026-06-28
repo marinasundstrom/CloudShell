@@ -20,8 +20,13 @@ public sealed class CloudShellVolumeResource(
     public string? SubPath =>
         Resource.Attributes.GetString(CloudShellVolumeResourceTypeProvider.Attributes.SubPath);
 
-    public string? AccessMode =>
-        Resource.Attributes.GetString(CloudShellVolumeResourceTypeProvider.Attributes.AccessMode);
+    public StorageVolumeAccessMode? AccessMode =>
+        Enum.TryParse<StorageVolumeAccessMode>(
+            Resource.Attributes.GetString(CloudShellVolumeResourceTypeProvider.Attributes.AccessMode),
+            ignoreCase: true,
+            out var accessMode)
+            ? accessMode
+            : null;
 
     public bool Persistent =>
         bool.TryParse(

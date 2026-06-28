@@ -178,23 +178,7 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
                 $"SQL Server data volume '{mount.Volume}' must be a '{CloudShellVolumeResourceTypeProvider.ResourceTypeId}' resource.");
         }
 
-        var storageResourceId = volume.State.StartupDependencies
-            .Select(reference => reference.TryGetResourceId(out var resourceId) ? resourceId : null)
-            .FirstOrDefault(resourceId => !string.IsNullOrWhiteSpace(resourceId)) ??
-            throw new InvalidOperationException(
-                $"SQL Server data volume '{mount.Volume}' must reference a storage resource.");
-        var storage = FindResolvedResource(graphResolution.Resources, storageResourceId);
-        if (storage.Type.TypeId != StorageResourceTypeProvider.ResourceTypeId)
-        {
-            throw new InvalidOperationException(
-                $"SQL Server data volume '{mount.Volume}' references '{storage.Type.TypeId}', expected '{StorageResourceTypeProvider.ResourceTypeId}'.");
-        }
-
-        var storageLocation = storage.Attributes.GetString(StorageResourceTypeProvider.Attributes.Location) ??
-            throw new InvalidOperationException(
-                $"Storage resource '{storage.EffectiveResourceId}' must declare a storage location.");
-        var subPath = volume.Attributes.GetString(CloudShellVolumeResourceTypeProvider.Attributes.SubPath);
-        var sourcePath = ResolvePath(storageLocation, subPath);
+        var sourcePath = ResolveVolumeSourcePath(volume, graphResolution.Resources, mount.Volume);
 
         return new ResolvedSqlVolumeMount(
             sourcePath,
@@ -212,6 +196,36 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
                 StringComparison.OrdinalIgnoreCase)) ??
         throw new InvalidOperationException(
             $"Resource graph state '{resourceId}' was not resolved.");
+
+    private string ResolveVolumeSourcePath(
+        ResourceModelResource volume,
+        IReadOnlyList<ResourceModelResource> resources,
+        string volumeResourceId)
+    {
+        var directLocation = volume.Attributes.GetString(CloudShellVolumeResourceTypeProvider.Attributes.Location);
+        if (!string.IsNullOrWhiteSpace(directLocation))
+        {
+            return ResolvePath(directLocation, subPath: null);
+        }
+
+        var storageResourceId = volume.State.StartupDependencies
+            .Select(reference => reference.TryGetResourceId(out var resourceId) ? resourceId : null)
+            .FirstOrDefault(resourceId => !string.IsNullOrWhiteSpace(resourceId)) ??
+            throw new InvalidOperationException(
+                $"SQL Server data volume '{volumeResourceId}' must declare a local path or reference a storage resource.");
+        var storage = FindResolvedResource(resources, storageResourceId);
+        if (storage.Type.TypeId != StorageResourceTypeProvider.ResourceTypeId)
+        {
+            throw new InvalidOperationException(
+                $"SQL Server data volume '{volumeResourceId}' references '{storage.Type.TypeId}', expected '{StorageResourceTypeProvider.ResourceTypeId}'.");
+        }
+
+        var storageLocation = storage.Attributes.GetString(StorageResourceTypeProvider.Attributes.Location) ??
+            throw new InvalidOperationException(
+                $"Storage resource '{storage.EffectiveResourceId}' must declare a storage location.");
+        var subPath = volume.Attributes.GetString(CloudShellVolumeResourceTypeProvider.Attributes.SubPath);
+        return ResolvePath(storageLocation, subPath);
+    }
 
     private async Task RemoveAsync(CancellationToken cancellationToken) =>
         await docker.RunAsync(["rm", "-f", ResourceModelSqlServerContainerName], cancellationToken, throwOnError: false);

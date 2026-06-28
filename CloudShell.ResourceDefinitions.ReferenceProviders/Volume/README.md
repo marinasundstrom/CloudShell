@@ -4,7 +4,7 @@
 
 - Resource type: `cloudshell.volume`
 - Provider id: `cloudshell.storage`
-- Purpose: declares a CloudShell storage-backed volume resource in the Resource Graph.
+- Purpose: declares a CloudShell volume resource in the Resource Graph.
 
 ## Ported
 
@@ -14,15 +14,44 @@
 - Typed `ResourceReference` storage dependencies and storage-reference graph validation.
 - Type-specific `storage.volume.provision` operation provider with an injected provider-owned provisioner seam.
 - Typed wrapper plus apply planning and Resource Manager bridge projection/execution.
-- Manual `ResourceDefinitionGraphBuilder.AddCloudShellVolume(...)` builder for
-  code-first storage-backed volume authoring, including typed storage
-  dependencies for tests and deployment definitions.
+- Manual `ResourceDefinitionGraphBuilder.AddCloudShellVolume(...)` builder
+  plus `AddVolume(...)` convenience builders for code-first volume authoring.
+  Graph-level `AddVolume(...)` creates an ad-hoc local filesystem volume;
+  storage builder `AddVolume(...)` creates a storage-bound volume with typed
+  storage dependencies.
 
 ## Example ResourceDefinition
 
-This is the interchange shape for a graph-backed CloudShell volume declaration
-that depends on a storage resource. Runtime materialization remains a
-provider/control-plane concern.
+This is the interchange shape for an ad-hoc local filesystem CloudShell volume
+declaration. Runtime materialization remains a provider/control-plane concern.
+
+Relative `storage.volume.location` values are resolved by the runtime from the
+host's working/content-root context. The default ad-hoc location is `.`.
+
+```json
+{
+  "name": "data",
+  "typeId": "cloudshell.volume",
+  "resourceId": "cloudshell.volume:data",
+  "providerId": "cloudshell.storage",
+  "displayName": "Application data",
+  "attributes": {
+    "storage.volume.provider": "local",
+    "storage.volume.medium": "FileSystem",
+    "storage.volume.location": "App_Data",
+    "storage.volume.accessMode": "ReadWriteOnce",
+    "storage.volume.persistent": true
+  }
+}
+```
+
+This is the interchange shape for a storage-bound CloudShell volume declaration
+that depends on an explicit storage resource.
+
+For Local Storage, `storage.volume.subPath` identifies the folder mapping under
+the local storage resource. A consuming resource still chooses its own mount
+target path, for example `App_Data` for an ASP.NET Core project or
+`/var/opt/mssql` for SQL Server.
 
 ```json
 {
@@ -41,7 +70,7 @@ provider/control-plane concern.
     }
   ],
   "attributes": {
-    "storage.volume.provider": "Local Storage",
+    "storage.volume.provider": "local",
     "storage.volume.medium": "FileSystem",
     "storage.volume.subPath": "sql",
     "storage.volume.accessMode": "ReadWriteOnce",

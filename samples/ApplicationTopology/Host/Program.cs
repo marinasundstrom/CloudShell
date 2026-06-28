@@ -104,7 +104,6 @@ cloudShell.AddIdentityProvider(
             "local-development-application-topology-api-secret"
     },
     useAsDefault: true);
-IResourceDefinitionBuilder sqlStorageResource = null!;
 IResourceDefinitionBuilder sqlVolumeResource = null!;
 IResourceDefinitionBuilder sqlServerResource = null!;
 IResourceDefinitionBuilder databaseResource = null!;
@@ -115,24 +114,13 @@ IResourceDefinitionBuilder apiResource = null!;
 IResourceDefinitionBuilder frontendResource = null!;
 cloudShell.DefineResources(resources =>
 {
-    sqlStorageResource = resources
-        .AddStorage("application-topology-local")
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false)
-        .WithProvider("local")
-        .WithMedium("FileSystem")
-        .WithLocation("./Data/storage");
     sqlVolumeResource = resources
-        .AddCloudShellVolume("application-topology-sql-data")
+        .AddVolume(
+            "application-topology-sql-data",
+            path: "./Data/storage/sql-server")
         .WithDisplayName("Application Topology SQL Data")
         .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false)
-        .UseStorage(sqlStorageResource)
-        .WithProvider("local")
-        .WithStorageMedium("FileSystem")
-        .WithSubPath("sql-server")
-        .WithAccessMode("ReadWriteOnce")
-        .WithPersistent();
+        .WithAutoStart(false);
     sqlServerResource = resources
         .AddSqlServer("application-topology-sql-server")
         .WithDisplayName("Application Topology SQL Server")
