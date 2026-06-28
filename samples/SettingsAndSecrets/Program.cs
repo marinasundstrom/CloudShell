@@ -60,6 +60,16 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+cloudShell.AddIdentityProvider(
+    identityProviderId,
+    "Development identity",
+    ResourceIdentityProviderKind.BuiltIn,
+    new Dictionary<string, string>
+    {
+        [BuiltInResourceIdentityRegistry.ClientSecretSettingName] =
+            resourceIdentityClientSecret
+    },
+    useAsDefault: true);
 ConfigurationStoreResourceDefinitionBuilder settingsResource = null!;
 SecretsVaultResourceDefinitionBuilder secretsResource = null!;
 IResourceDefinitionBuilder apiResource = null!;
@@ -118,6 +128,8 @@ cloudShell.DefineResources(resources =>
         .WithHttpHealthCheck(
             "/health",
             endpointName: "http");
+    settingsResource.Allow(apiResource, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+    secretsResource.Allow(apiResource, SecretsVaultResourceOperationPermissions.ReadSecrets);
 }, AddProjectionState);
 builder.Services
     .AddConfigurationStoreResourceType(options =>
@@ -147,26 +159,6 @@ cloudShell
     .AddExtension<ObservabilityExtension>();
 
 cloudShell.AddApplicationResourceManagerUi();
-
-cloudShell.Resources(resources =>
-{
-    resources.AddIdentityProvider(
-        identityProviderId,
-        "Development identity",
-        ResourceIdentityProviderKind.BuiltIn,
-        new Dictionary<string, string>
-        {
-            [BuiltInResourceIdentityRegistry.ClientSecretSettingName] =
-                resourceIdentityClientSecret
-        },
-        useAsDefault: true);
-
-    var settings = resources.Declare(settingsResource);
-    var secrets = resources.Declare(secretsResource);
-    var api = resources.Declare(apiResource);
-    settings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
-    secrets.Allow(api.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
-});
 
 var app = builder.Build();
 

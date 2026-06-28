@@ -96,6 +96,15 @@ public static class ResourceModelGraphBuilderHostExtensions
                 declaration.ProvisionIdentityOnStartup(provisionIdentityOnStartup);
             }
         }
+
+        foreach (var resource in graph.ResourceBuilders)
+        {
+            var metadata = ResourceModelResourceDefinitionBuilderExtensions.GetDeclarationMetadata(resource);
+            foreach (var grant in metadata.PermissionGrants)
+            {
+                declarations.AddPermissionGrant(grant);
+            }
+        }
     }
 
     private static IEnumerable<ResourceState> ProjectStates(

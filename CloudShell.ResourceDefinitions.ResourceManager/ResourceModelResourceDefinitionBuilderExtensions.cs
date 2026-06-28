@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
@@ -157,6 +158,61 @@ public static class ResourceModelResourceDefinitionBuilderExtensions
             });
     }
 
+    public static TBuilder Allow<TBuilder>(
+        this TBuilder builder,
+        ResourcePrincipalReference principal,
+        string permission)
+        where TBuilder : IResourceDefinitionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(principal);
+        ArgumentException.ThrowIfNullOrWhiteSpace(permission);
+
+        GetMetadata(builder).PermissionGrants.Add(new ResourcePermissionGrant(
+            principal,
+            builder.EffectiveResourceId,
+            permission));
+        return builder;
+    }
+
+    public static TBuilder Allow<TBuilder>(
+        this TBuilder builder,
+        ResourcePrincipalReference principal,
+        ResourceAccessPermissionSet access)
+        where TBuilder : IResourceDefinitionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(access);
+
+        foreach (var permission in access.Permissions)
+        {
+            builder.Allow(principal, permission);
+        }
+
+        return builder;
+    }
+
+    public static TBuilder Allow<TBuilder>(
+        this TBuilder builder,
+        IResourceDefinitionBuilder resource,
+        string permission)
+        where TBuilder : IResourceDefinitionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+
+        return builder.Allow(resource.Principal(), permission);
+    }
+
+    public static TBuilder Allow<TBuilder>(
+        this TBuilder builder,
+        IResourceDefinitionBuilder resource,
+        ResourceAccessPermissionSet access)
+        where TBuilder : IResourceDefinitionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+
+        return builder.Allow(resource.Principal(), access);
+    }
+
     public static IControlPlaneBuilder AddResourceGroup(
         this IControlPlaneBuilder builder,
         string id,
@@ -167,6 +223,51 @@ public static class ResourceModelResourceDefinitionBuilderExtensions
 
         GetOrAddDeclarationStore(builder.Services)
             .AddResourceGroup(id, name, description);
+        return builder;
+    }
+
+    public static IControlPlaneBuilder AddIdentityProvider(
+        this IControlPlaneBuilder builder,
+        string id,
+        string name,
+        ResourceIdentityProviderKind kind = ResourceIdentityProviderKind.Oidc,
+        IReadOnlyDictionary<string, string>? settings = null,
+        string? provisioningResourceId = null,
+        bool useAsDefault = false)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        if (!string.IsNullOrWhiteSpace(provisioningResourceId))
+        {
+            GetOrAddDeclarationStore(builder.Services)
+                .Declare(
+                    builder,
+                    ResourceIdentityProvisioningResources.ProviderId,
+                    provisioningResourceId.Trim(),
+                    resourceClass: CloudShell.Abstractions.ResourceManager.ResourceClass.Infrastructure,
+                    attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [ResourceAttributeNames.InfrastructureKind] = "identity-provisioning",
+                        ["identity.provider"] = name.Trim()
+                    });
+        }
+
+        var provider = new ResourceIdentityProviderDefinition(id, name, kind, settings, provisioningResourceId);
+        GetOrAddDeclarationStore(builder.Services)
+            .AddIdentityProvider(provider, useAsDefault);
+        return builder;
+    }
+
+    public static IControlPlaneBuilder AddIdentityProvider(
+        this IControlPlaneBuilder builder,
+        ResourceIdentityProviderDefinition provider,
+        bool useAsDefault = false)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(provider);
+
+        GetOrAddDeclarationStore(builder.Services)
+            .AddIdentityProvider(provider, useAsDefault);
         return builder;
     }
 
@@ -214,4 +315,6 @@ internal sealed class ResourceModelDeclarationMetadata
     public bool? ProvisionIdentityOnStartup { get; set; }
 
     public ResourceIdentityBinding? Identity { get; set; }
+
+    public List<ResourcePermissionGrant> PermissionGrants { get; } = [];
 }

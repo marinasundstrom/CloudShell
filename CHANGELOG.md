@@ -56,6 +56,11 @@ on `git blame --follow`, and then by the broad type of change.
   metrics helper.
 - CloudShell.ContainerHost no longer carries the unused old resource-builder
   sample helper after moving the sample declarations to `DefineResources(...)`.
+- Resource graph builders can now register Resource Manager permission grants
+  and host-level identity providers, allowing SettingsAndSecrets,
+  ThirdPartyIdentity, and ApplicationTopology to remove old
+  `cloudShell.Resources(...).Declare(...)` blocks in favor of
+  graph-builder metadata.
 - Resource graph builder overloads that accept another resource builder now
   infer typed `ResourceReference` metadata from the target builder for
   startup dependencies, project references, service/name-mapping targets, and

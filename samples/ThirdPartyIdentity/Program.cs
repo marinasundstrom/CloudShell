@@ -80,8 +80,13 @@ cloudShell.DefineResources(
             .WithEnvironmentVariable(
                 "CLOUDSHELL_CONFIGURATION_SERVICE_NAME",
                 "third-party-identity");
+        configurationResource.Allow(apiResource, ConfigurationStoreResourceOperationPermissions.ReadEntries);
     },
     projectState: AddProjectionState);
+cloudShell.AddIdentityProvider(CreateKeycloakIdentityProviderDefinition(
+    identityProviderId,
+    "Keycloak",
+    identityProvisioningResource.EffectiveResourceId));
 builder.Services
     .AddIdentityProvisioningResourceType()
     .AddConfigurationStoreResourceType(options =>
@@ -120,20 +125,6 @@ builder.Services.TryAddEnumerable(
         IAspNetCoreProjectRuntimeEnvironmentProvider,
         ThirdPartyIdentityAspNetCoreProjectIdentityEnvironmentProvider>());
 
-cloudShell.Resources(resources =>
-{
-    resources.Declare(identityProvisioningResource);
-    var settings = resources.Declare(configurationResource);
-
-    AddIdentityProviderDefinition(resources, CreateKeycloakIdentityProviderDefinition(
-        identityProviderId,
-        "Keycloak",
-        identityProvisioningResource.EffectiveResourceId));
-
-    var api = resources.Declare(apiResource);
-    settings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
-});
-
 var app = builder.Build();
 
 await app.UseCloudShellControlPlaneAsync();
@@ -157,19 +148,6 @@ static string FindRepositoryRoot(string startPath)
     }
 
     return Path.GetFullPath("../..", startPath);
-}
-
-static ResourceIdentityProviderDefinition AddIdentityProviderDefinition(
-    CloudShell.Abstractions.ResourceManager.IResourceGraphBuilder resources,
-    ResourceIdentityProviderDefinition provider)
-{
-    var declarations = resources.Services
-        .Where(descriptor => descriptor.ServiceType == typeof(ResourceDeclarationStore))
-        .Select(descriptor => descriptor.ImplementationInstance)
-        .OfType<ResourceDeclarationStore>()
-        .SingleOrDefault() ?? throw new InvalidOperationException(
-            "The resource declaration store is not registered.");
-    return declarations.AddIdentityProvider(provider);
 }
 
 ResourceIdentityProviderDefinition CreateKeycloakIdentityProviderDefinition(

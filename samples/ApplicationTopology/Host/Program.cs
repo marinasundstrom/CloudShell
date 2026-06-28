@@ -79,6 +79,7 @@ var sqlPassword = builder.Configuration["ApplicationTopology:SqlServer:Password"
 var sqlPort = builder.Configuration.GetValue("ApplicationTopology:SqlServer:Port", 14334);
 const string identityProviderId = "identity:development";
 const string apiIdentityName = "application-topology-api";
+const string resourceGroupId = "group:application-topology";
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 {
     ["Authentication:BuiltInAuthority:Enabled"] = "true",
@@ -89,6 +90,20 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
+cloudShell.AddResourceGroup(
+    resourceGroupId,
+    "Application Topology",
+    "Resources for the Application Topology sample.");
+cloudShell.AddIdentityProvider(
+    identityProviderId,
+    "Development identity",
+    ResourceIdentityProviderKind.BuiltIn,
+    new Dictionary<string, string>
+    {
+        [BuiltInResourceIdentityRegistry.ClientSecretSettingName] =
+            "local-development-application-topology-api-secret"
+    },
+    useAsDefault: true);
 IResourceDefinitionBuilder sqlStorageResource = null!;
 IResourceDefinitionBuilder sqlVolumeResource = null!;
 IResourceDefinitionBuilder sqlServerResource = null!;
@@ -102,12 +117,16 @@ cloudShell.DefineResources(resources =>
 {
     sqlStorageResource = resources
         .AddStorage("application-topology-local")
+        .WithResourceGroup(resourceGroupId)
+        .WithAutoStart(false)
         .WithProvider("local")
         .WithMedium("FileSystem")
         .WithLocation("./Data/storage");
     sqlVolumeResource = resources
         .AddCloudShellVolume("application-topology-sql-data")
         .WithDisplayName("Application Topology SQL Data")
+        .WithResourceGroup(resourceGroupId)
+        .WithAutoStart(false)
         .UseStorage(sqlStorageResource)
         .WithProvider("local")
         .WithStorageMedium("FileSystem")
@@ -117,26 +136,36 @@ cloudShell.DefineResources(resources =>
     sqlServerResource = resources
         .AddSqlServer("application-topology-sql-server")
         .WithDisplayName("Application Topology SQL Server")
+        .WithResourceGroup(resourceGroupId)
+        .WithAutoStart(false)
         .WithTcpEndpoint(
             host: "localhost",
             port: sqlPort)
         .MountVolume(sqlVolumeResource, "/var/opt/mssql");
     databaseResource = resources
         .AddSqlDatabase("application-topology-db")
+        .WithResourceGroup(resourceGroupId)
+        .WithAutoStart(false)
         .BelongsToServer(sqlServerResource)
         .WithDatabaseName("application_topology")
         .EnsureCreated();
     settingsResource = resources
         .AddConfigurationStore("application-topology-settings")
         .WithDisplayName("Application Topology Settings")
+        .WithResourceGroup(resourceGroupId)
+        .WithAutoStart(false)
         .WithEndpoint(graphConfigurationEndpoint);
     secretsResource = resources
         .AddSecretsVault("application-topology-secrets")
         .WithDisplayName("Application Topology Secrets")
+        .WithResourceGroup(resourceGroupId)
+        .WithAutoStart(false)
         .WithEndpoint(graphSecretsEndpoint);
     hostConfigurationResource = resources
         .AddHostConfigurationSource("application-topology-host-settings")
         .WithDisplayName("Application Topology Host Settings")
+        .WithResourceGroup(resourceGroupId)
+        .WithAutoStart(false)
         .WithSource("application-topology");
     var api = resources
         .AddAspNetCoreProject("application-topology-api", apiProjectPath);
@@ -144,6 +173,8 @@ cloudShell.DefineResources(resources =>
     var apiIdentityClientId = apiResource.IdentityClientId(apiIdentityName);
     api
         .WithDisplayName("Application Topology API")
+        .WithResourceGroup(resourceGroupId)
+        .WithAutoStart(false)
         .DependsOn(databaseResource)
         .DependsOn(settingsResource)
         .DependsOn(secretsResource)
@@ -208,6 +239,8 @@ cloudShell.DefineResources(resources =>
     frontendResource = resources
         .AddAspNetCoreProject("application-topology-frontend", frontendProjectPath)
         .WithDisplayName("Application Topology Frontend")
+        .WithResourceGroup(resourceGroupId)
+        .WithAutoStart(false)
         .DependsOn(apiResource)
         .WithHotReload(false)
         .UseLaunchSettings(false)
@@ -231,6 +264,25 @@ cloudShell.DefineResources(resources =>
             "/alive",
             endpointName: "http",
             name: "alive");
+
+    sqlServerResource.Allow(apiResource, DatabaseResourceOperationPermissions.ReadWrite);
+    settingsResource.Allow(apiResource, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+    secretsResource.Allow(apiResource, SecretsVaultResourceOperationPermissions.ReadSecrets);
+
+    var dnsZoneResource = resources
+        .AddDnsZone("application-topology-local")
+        .WithDisplayName("Local DNS")
+        .WithResourceGroup(resourceGroupId)
+        .WithZoneName("application-topology.cloudshell.local")
+        .WithProvider("local-hostnames");
+    resources
+        .AddNameMapping("application-topology-app-local")
+        .WithDisplayName("app.application-topology.cloudshell.local")
+        .WithResourceGroup(resourceGroupId)
+        .WithHostName("app.application-topology.cloudshell.local")
+        .WithTargetEndpointName("http")
+        .InDnsZone(dnsZoneResource)
+        .MapsTarget(frontendResource);
 }, AddGraphProjectionState);
 builder.Services
     .AddSingleton<ISqlDatabaseCreationHandler, GraphSqlDatabaseCreationHandler>()
@@ -260,6 +312,8 @@ builder.Services
         options.Secrets.Add(new("ApplicationTopology--ExternalApiKey", "local-development-application-topology-api-key"));
     })
     .AddHostConfigurationSourceResourceType()
+    .AddDnsZoneResourceType()
+    .AddNameMappingResourceType()
     .AddAspNetCoreProjectResourceType();
 cloudShell.UseResourceGraphIntegration();
 
@@ -270,76 +324,6 @@ cloudShell
 cloudShell.AddApplicationResourceManagerUi();
 
 cloudShell.UseLocalDevelopmentDefaults();
-
-cloudShell.Resources(resources =>
-{
-    const string groupId = "group:application-topology";
-    resources.AddIdentityProvider(
-        identityProviderId,
-        "Development identity",
-        ResourceIdentityProviderKind.BuiltIn,
-        new Dictionary<string, string>
-        {
-            [BuiltInResourceIdentityRegistry.ClientSecretSettingName] =
-                "local-development-application-topology-api-secret"
-        },
-        useAsDefault: true);
-
-    resources.AddResourceGroup(
-        groupId,
-        "Application Topology",
-        "Resources for the Application Topology sample.");
-
-    resources
-        .Declare(sqlStorageResource)
-        .WithResourceGroup(groupId)
-        .WithAutoStart(false);
-    resources
-        .Declare(sqlVolumeResource)
-        .WithResourceGroup(groupId)
-        .WithAutoStart(false);
-    var graphSqlServer = resources
-        .Declare(sqlServerResource)
-        .WithResourceGroup(groupId)
-        .WithAutoStart(false);
-    resources
-        .Declare(databaseResource)
-        .WithResourceGroup(groupId)
-        .WithAutoStart(false);
-    var graphSettings = resources
-        .Declare(settingsResource)
-        .WithResourceGroup(groupId)
-        .WithAutoStart(false);
-    var graphSecrets = resources
-        .Declare(secretsResource)
-        .WithResourceGroup(groupId)
-        .WithAutoStart(false);
-    var graphApi = resources
-        .Declare(apiResource)
-        .WithResourceGroup(groupId)
-        .WithAutoStart(false);
-    var graphFrontend = resources
-        .Declare(frontendResource)
-        .WithResourceGroup(groupId)
-        .WithAutoStart(false);
-    resources
-        .Declare(hostConfigurationResource)
-        .WithResourceGroup(groupId)
-        .WithAutoStart(false);
-
-    graphSqlServer.Allow(graphApi.Principal, DatabaseResourceOperationPermissions.ReadWrite);
-    graphSettings.Allow(graphApi.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
-    graphSecrets.Allow(graphApi.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
-
-    resources
-        .AddDnsZone(
-            "application-topology-local",
-            zoneName: "application-topology.cloudshell.local")
-        .WithDisplayName("Local DNS")
-        .WithResourceGroup(groupId)
-        .UseLocalHostNames()
-        .MapHost("app.application-topology.cloudshell.local", graphFrontend, "http");
-});
 
 var app = builder.Build();
 

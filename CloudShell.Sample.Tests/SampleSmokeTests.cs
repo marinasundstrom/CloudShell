@@ -747,9 +747,9 @@ public sealed class SampleSmokeTests
         var graphHostConfiguration = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "configuration.host:application-topology-host-settings");
         var nameMapping = Assert.Single(resources, resource =>
-            resource.GetProperty("typeId").GetString() == PlatformResourceProvider.NameMappingResourceType
+            resource.GetProperty("typeId").GetString() == NameMappingResourceTypeProvider.ResourceTypeId.ToString()
             && resource.GetProperty("attributes")
-                .GetProperty(ResourceAttributeNames.NameMappingHostName)
+                .GetProperty(NameMappingResourceTypeProvider.Attributes.HostName.ToString())
                 .GetString() == "app.application-topology.cloudshell.local");
 
         foreach (var oldResourceId in new[]
@@ -772,11 +772,9 @@ public sealed class SampleSmokeTests
                     StringComparison.OrdinalIgnoreCase));
         }
 
-        Assert.Equal(
+        Assert.Contains(
             "application.aspnet-core-project:application-topology-frontend",
-            nameMapping.GetProperty("attributes")
-                .GetProperty(ResourceAttributeNames.NameMappingTargetResourceId)
-                .GetString());
+            nameMapping.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
         Assert.Equal("cloudshell.storage", graphStorage.GetProperty("typeId").GetString());
         Assert.Equal("cloudshell.volume", graphVolume.GetProperty("typeId").GetString());
         Assert.Equal("application.sql-server", graphSqlServer.GetProperty("typeId").GetString());
