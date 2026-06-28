@@ -51,6 +51,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource graph reference provider tests now enforce that each concrete
   resource type provider folder carries a local README documenting provider
   shape, porting status, and remaining switch work.
+- Resource graph provider helper coverage now verifies grouped registration
+  seams include both change-apply and definition-apply providers, not only type
+  providers.
 - Graph-default samples now use the builder-level
   `UseResourceGraphIntegration(...)` seam to register generic graph
   services, current graph-provider Resource Manager projections, and the

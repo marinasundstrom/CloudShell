@@ -1523,9 +1523,21 @@ public sealed class ResourceProviderDispatcherTests
             .GetServices<IResourceTypeProvider>()
             .Select(provider => provider.TypeDefinition.TypeId)
             .ToArray();
+        var changeApplyTypeIds = serviceProvider
+            .GetServices<IResourceChangeApplyProvider>()
+            .Select(provider => provider.TypeId)
+            .ToArray();
+        var definitionApplyTypeIds = serviceProvider
+            .GetServices<IResourceDefinitionApplyProvider>()
+            .Select(provider => provider.TypeId)
+            .ToArray();
 
         Assert.Contains(DockerHostResourceTypeProvider.ResourceTypeId, typeIds);
         Assert.Contains(ContainerApplicationResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(DockerHostResourceTypeProvider.ResourceTypeId, changeApplyTypeIds);
+        Assert.Contains(ContainerApplicationResourceTypeProvider.ResourceTypeId, changeApplyTypeIds);
+        Assert.Contains(DockerHostResourceTypeProvider.ResourceTypeId, definitionApplyTypeIds);
+        Assert.Contains(ContainerApplicationResourceTypeProvider.ResourceTypeId, definitionApplyTypeIds);
     }
 
     [Fact]
@@ -1539,11 +1551,27 @@ public sealed class ResourceProviderDispatcherTests
             .GetServices<IResourceTypeProvider>()
             .Select(provider => provider.TypeDefinition.TypeId)
             .ToArray();
+        var changeApplyTypeIds = serviceProvider
+            .GetServices<IResourceChangeApplyProvider>()
+            .Select(provider => provider.TypeId)
+            .ToArray();
+        var definitionApplyTypeIds = serviceProvider
+            .GetServices<IResourceDefinitionApplyProvider>()
+            .Select(provider => provider.TypeId)
+            .ToArray();
 
         Assert.Contains(StorageResourceTypeProvider.ResourceTypeId, typeIds);
         Assert.Contains(CloudShellVolumeResourceTypeProvider.ResourceTypeId, typeIds);
         Assert.Contains(SqlServerResourceTypeProvider.ResourceTypeId, typeIds);
         Assert.DoesNotContain(SqlDatabaseResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(StorageResourceTypeProvider.ResourceTypeId, changeApplyTypeIds);
+        Assert.Contains(CloudShellVolumeResourceTypeProvider.ResourceTypeId, changeApplyTypeIds);
+        Assert.Contains(SqlServerResourceTypeProvider.ResourceTypeId, changeApplyTypeIds);
+        Assert.DoesNotContain(SqlDatabaseResourceTypeProvider.ResourceTypeId, changeApplyTypeIds);
+        Assert.Contains(StorageResourceTypeProvider.ResourceTypeId, definitionApplyTypeIds);
+        Assert.Contains(CloudShellVolumeResourceTypeProvider.ResourceTypeId, definitionApplyTypeIds);
+        Assert.Contains(SqlServerResourceTypeProvider.ResourceTypeId, definitionApplyTypeIds);
+        Assert.DoesNotContain(SqlDatabaseResourceTypeProvider.ResourceTypeId, definitionApplyTypeIds);
     }
 
     [Fact]
