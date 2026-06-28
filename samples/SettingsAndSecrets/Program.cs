@@ -89,26 +89,26 @@ cloudShell.DefineResources(resources =>
             host: apiEndpointUri.Host,
             port: apiEndpointUri.Port,
             exposure: "Local")
-        .WithEnvironmentVariable(
+        .WithEnvironment(
             "CLOUDSHELL_APPLICATION",
             "Settings and Secrets API")
-        .WithEnvironmentVariable(
+        .WithEnvironment(
             "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT",
             identityTokenEndpoint)
-        .WithEnvironmentVariable(
+        .WithEnvironment(
             "CLOUDSHELL_IDENTITY_CLIENT_ID",
             apiIdentityClientId)
-        .WithEnvironmentVariable(
+        .WithEnvironment(
             "CLOUDSHELL_IDENTITY_CLIENT_SECRET",
             resourceIdentityClientSecret)
-        .WithEnvironmentVariable(
+        .WithEnvironment(
             "CLOUDSHELL_IDENTITY_SCOPE",
             "ControlPlane.Access")
         .WithReference(settingsResource, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
         .WithReference(secretsResource, SecretsVaultResourceTypeProvider.ResourceTypeId)
-        .AddHealthCheck(ResourceHealthCheckDefinition.Http(
+        .WithHttpHealthCheck(
             "/health",
-            endpointName: "http"));
+            endpointName: "http");
 }, AddProjectionState);
 builder.Services
     .AddConfigurationStoreResourceType(options =>

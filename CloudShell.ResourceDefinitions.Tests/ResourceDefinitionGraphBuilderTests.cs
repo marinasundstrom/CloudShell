@@ -614,22 +614,22 @@ public sealed class ResourceDefinitionGraphBuilderTests
             .AddAspNetCoreProject("api", "src/Api/Api.csproj")
             .WithHotReload()
             .UseLaunchSettings(false)
+            .WithServiceDiscovery()
             .AddEndpointRequest(
                 "http",
                 "http",
                 host: "localhost",
                 port: 5010,
                 exposure: "Local")
-            .WithEnvironmentVariable(
+            .WithEnvironment(
                 "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
                 "http://localhost:5104/api/control-plane/v1/traces/ingest")
             .WithReference(settings, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
             .MountVolume(volume, "App_Data")
-            .AddHealthCheck(ResourceHealthCheckDefinition.HttpLiveness(
+            .WithHttpLivenessCheck(
                 "/alive",
                 endpointName: "http",
-                name: "alive",
-                intervalSeconds: 10));
+                interval: TimeSpan.FromSeconds(10));
 
         var deployment = graph.BuildDeployment("project-app", environmentId: "local");
 
@@ -654,6 +654,8 @@ public sealed class ResourceDefinitionGraphBuilderTests
             AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath].StringValue);
         Assert.Equal(false, project.ResourceAttributeValues[
             AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings].BooleanValue);
+        Assert.Equal("api", project.ResourceAttributeValues[
+            AspNetCoreProjectResourceTypeProvider.Attributes.ServiceDiscoveryName].StringValue);
         var endpoint = Assert.Single(project.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
             AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests) ?? []);
         Assert.Equal("http", endpoint.Name);

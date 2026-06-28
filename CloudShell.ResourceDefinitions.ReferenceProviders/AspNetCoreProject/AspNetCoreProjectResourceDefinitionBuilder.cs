@@ -137,6 +137,88 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
 
 public static class AspNetCoreProjectResourceDefinitionBuilderExtensions
 {
+    public static AspNetCoreProjectResourceDefinitionBuilder WithEnvironment(
+        this AspNetCoreProjectResourceDefinitionBuilder builder,
+        string name,
+        string? value = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return builder.WithEnvironmentVariable(name, value);
+    }
+
+    public static AspNetCoreProjectResourceDefinitionBuilder WithServiceDiscovery(
+        this AspNetCoreProjectResourceDefinitionBuilder builder,
+        bool enabled = true)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return enabled
+            ? builder.WithServiceDiscoveryName(builder.Name)
+            : builder;
+    }
+
+    public static AspNetCoreProjectResourceDefinitionBuilder WithHttpHealthCheck(
+        this AspNetCoreProjectResourceDefinitionBuilder builder,
+        string path,
+        string? endpointName = null,
+        string name = ResourceHealthCheckDefinitionValues.Health,
+        TimeSpan? timeout = null,
+        TimeSpan? interval = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return builder.WithHttpProbe(
+            ResourceHealthCheckDefinitionValues.Health,
+            path,
+            endpointName,
+            name,
+            timeout,
+            interval);
+    }
+
+    public static AspNetCoreProjectResourceDefinitionBuilder WithHttpLivenessCheck(
+        this AspNetCoreProjectResourceDefinitionBuilder builder,
+        string path,
+        string? endpointName = null,
+        string name = "alive",
+        TimeSpan? timeout = null,
+        TimeSpan? interval = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return builder.WithHttpProbe(
+            ResourceHealthCheckDefinitionValues.Liveness,
+            path,
+            endpointName,
+            name,
+            timeout,
+            interval);
+    }
+
+    public static AspNetCoreProjectResourceDefinitionBuilder WithHttpProbe(
+        this AspNetCoreProjectResourceDefinitionBuilder builder,
+        string type,
+        string path,
+        string? endpointName = null,
+        string? name = null,
+        TimeSpan? timeout = null,
+        TimeSpan? interval = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(type);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        return builder.AddHealthCheck(new ResourceHealthCheckDefinition(
+            string.IsNullOrWhiteSpace(name) ? type.Trim() : name.Trim(),
+            type.Trim(),
+            ResourceProbeSourceDefinition.ForHttp(
+                path,
+                endpointName,
+                ToMilliseconds(timeout)),
+            ToSeconds(interval)));
+    }
+
     public static AspNetCoreProjectResourceDefinitionBuilder AddAspNetCoreProject(
         this ResourceDefinitionGraphBuilder graph,
         string name,
@@ -151,4 +233,10 @@ public static class AspNetCoreProjectResourceDefinitionBuilderExtensions
         graph.Add(builder);
         return builder;
     }
+
+    private static int? ToMilliseconds(TimeSpan? value) =>
+        value is null ? null : Math.Max(1, (int)Math.Ceiling(value.Value.TotalMilliseconds));
+
+    private static int? ToSeconds(TimeSpan? value) =>
+        value is null ? null : Math.Max(1, (int)Math.Ceiling(value.Value.TotalSeconds));
 }

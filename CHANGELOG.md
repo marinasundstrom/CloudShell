@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added Aspire-like ASP.NET Core project graph-builder convenience extensions
+  for environment variables, service discovery, HTTP health checks, and HTTP
+  liveness/probe declarations, and moved ProjectReference plus
+  SettingsAndSecrets sample declarations onto those aliases.
 - Added bridge-owned resource graph identity convenience helpers for
   `IResourceDefinitionBuilder`: `Identity(...)`, `Principal(...)`, and
   `IdentityClientId(...)`, and updated graph-backed samples to use the helper

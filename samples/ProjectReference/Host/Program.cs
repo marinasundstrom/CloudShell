@@ -42,29 +42,28 @@ cloudShell.DefineResources(resources =>
         .WithDisplayName("Project Reference API")
         .WithHotReload(false)
         .UseLaunchSettings(false)
-        .WithServiceDiscoveryName("project-reference-api")
+        .WithServiceDiscovery()
         .AddEndpointRequest(
             "http",
             apiEndpointUri.Scheme,
             host: apiEndpointUri.Host,
             port: apiEndpointUri.Port,
             exposure: "Local")
-        .WithEnvironmentVariable(
+        .WithEnvironment(
             "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
             traceIngestEndpoint ?? string.Empty)
-        .WithEnvironmentVariable(
+        .WithEnvironment(
             "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
             metricIngestEndpoint ?? string.Empty)
-        .WithEnvironmentVariable(
+        .WithEnvironment(
             "OTEL_SERVICE_NAME",
             "project-reference-api")
-        .AddHealthCheck(ResourceHealthCheckDefinition.Http(
+        .WithHttpHealthCheck(
             "/health",
-            endpointName: "http"))
-        .AddHealthCheck(ResourceHealthCheckDefinition.HttpLiveness(
+            endpointName: "http")
+        .WithHttpLivenessCheck(
             "/alive",
-            endpointName: "http",
-            name: "alive"));
+            endpointName: "http");
 
     frontendResource = resources
         .AddAspNetCoreProject("project-reference-frontend", frontendProjectPath)
@@ -80,22 +79,21 @@ cloudShell.DefineResources(resources =>
             host: frontendEndpointUri.Host,
             port: frontendEndpointUri.Port,
             exposure: "Local")
-        .WithEnvironmentVariable(
+        .WithEnvironment(
             "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
             traceIngestEndpoint ?? string.Empty)
-        .WithEnvironmentVariable(
+        .WithEnvironment(
             "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
             metricIngestEndpoint ?? string.Empty)
-        .WithEnvironmentVariable(
+        .WithEnvironment(
             "OTEL_SERVICE_NAME",
             "project-reference-frontend")
-        .AddHealthCheck(ResourceHealthCheckDefinition.Http(
+        .WithHttpHealthCheck(
             "/healthz",
-            endpointName: "http"))
-        .AddHealthCheck(ResourceHealthCheckDefinition.HttpLiveness(
+            endpointName: "http")
+        .WithHttpLivenessCheck(
             "/alive",
-            endpointName: "http",
-            name: "alive"));
+            endpointName: "http");
 });
 builder.Services
     .AddAspNetCoreProjectResourceType();

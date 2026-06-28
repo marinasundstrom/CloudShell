@@ -948,6 +948,11 @@ authoring values from graph builders: `resource.Identity(name)`,
 These mirror the old builder's identity ergonomics for samples and runtime
 environment composition while keeping the actual identity binding and grant
 declarations in the Resource Manager seam for now.
+Provider-owned builder aliases can restore old-builder readability without
+changing the underlying graph shape. The ASP.NET Core project builder now has
+`WithEnvironment(...)`, `WithServiceDiscovery()`, `WithHttpHealthCheck(...)`,
+and `WithHttpLivenessCheck(...)` as extension methods over the existing
+environment-variable, service-discovery-name, and health-check attributes.
 Resource authoring should normally use resource names as the stable
 human-authored identifiers. Resource ids are assigned by platform conventions
 or provider conventions and should usually be left implicit. Programmatic
