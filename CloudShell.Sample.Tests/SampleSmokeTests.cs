@@ -5525,11 +5525,19 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "load-balancer:public");
         Assert.DoesNotContain(resources, resource =>
             resource.GetProperty("id").GetString() == "dns:cloudshell-local");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "dns:cloudshell-local:name:app-cloudshell-local");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "dns:cloudshell-local:name:api-cloudshell-local");
 
         var graphLoadBalancer = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "load-balancer:graph-public");
         var graphDnsZone = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "dns:graph-cloudshell-local");
+        Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "dns:graph-cloudshell-local:name:app-cloudshell-local");
+        Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "dns:graph-cloudshell-local:name:api-cloudshell-local");
         Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application.container-app:graph-web");
         Assert.Single(resources, resource =>

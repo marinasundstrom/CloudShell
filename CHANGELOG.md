@@ -45,6 +45,9 @@ on `git blame --follow`, and then by the broad type of change.
   into the Resource Manager orchestration catalog with control-plane-scoped
   lifetime metadata, and Docker smoke coverage verifies graceful host shutdown
   removes the graph registry container without old Docker provider records.
+- LoadBalancer graph-only smoke coverage now verifies the old DNS
+  name-mapping resource records are absent while graph name mappings are
+  projected and reconciled through the graph runtime bridge.
 
 ### 2026-06-27
 
