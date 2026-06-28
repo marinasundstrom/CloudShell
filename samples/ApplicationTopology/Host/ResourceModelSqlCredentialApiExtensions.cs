@@ -40,6 +40,7 @@ internal static class ResourceModelSqlCredentialApiExtensions
         HttpContext httpContext,
         ResourceGraphModel graphModel,
         ResourceGraphResolver graphResolver,
+        ISqlDatabaseCreationHandler databaseCreationHandler,
         IConfiguration configuration,
         IResourceEventSink? resourceEvents,
         CancellationToken cancellationToken)
@@ -55,6 +56,7 @@ internal static class ResourceModelSqlCredentialApiExtensions
                 httpContext.User,
                 graphModel,
                 graphResolver,
+                databaseCreationHandler,
                 configuration,
                 resourceEvents,
                 cancellationToken);
@@ -92,6 +94,7 @@ internal static class ResourceModelSqlCredentialApiExtensions
         ClaimsPrincipal principal,
         ResourceGraphModel graphModel,
         ResourceGraphResolver graphResolver,
+        ISqlDatabaseCreationHandler databaseCreationHandler,
         IConfiguration configuration,
         IResourceEventSink? resourceEvents,
         CancellationToken cancellationToken)
@@ -126,7 +129,7 @@ internal static class ResourceModelSqlCredentialApiExtensions
         var server = resolution.Resource;
         var subject = GetPrincipalSubject(principal);
         var databaseName = request.DatabaseName.Trim();
-        if (!HasDeclaredDatabase(snapshot.Resources, server.EffectiveResourceId, databaseName))
+        if (!TryGetDeclaredDatabase(snapshot.Resources, server.EffectiveResourceId, databaseName, out var databaseState))
         {
             AppendCredentialEvent(
                 resourceEvents,
@@ -154,6 +157,14 @@ internal static class ResourceModelSqlCredentialApiExtensions
             throw new UnauthorizedAccessException(
                 $"The current CloudShell principal cannot resolve Resource model SQL credentials for resource '{server.Name}'.");
         }
+
+        await EnsureDeclaredDatabaseCreatedAsync(
+            databaseState,
+            server,
+            graphResolver,
+            snapshot,
+            databaseCreationHandler,
+            cancellationToken);
 
         if (!ResourceModelSqlServerConnectionSupport.TryCreateAdministratorConnectionString(
                 server,
@@ -211,18 +222,62 @@ internal static class ResourceModelSqlCredentialApiExtensions
         return new ResolveSqlServerCredentialResponse(connectionString, expiresOn);
     }
 
-    private static bool HasDeclaredDatabase(
+    private static bool TryGetDeclaredDatabase(
         IReadOnlyList<ResourceModelResourceState> resources,
         string serverResourceId,
-        string databaseName) =>
-        resources.Any(resource =>
+        string databaseName,
+        out ResourceModelResourceState database)
+    {
+        database = resources.FirstOrDefault(resource =>
             resource.TypeId == SqlDatabaseResourceTypeProvider.ResourceTypeId &&
             TryGetDatabaseName(resource, out var declaredDatabaseName) &&
             string.Equals(declaredDatabaseName, databaseName, StringComparison.OrdinalIgnoreCase) &&
             SqlDatabaseResourceTypeProvider.TryGetServerDependencyResourceId(
                 resource,
                 out var declaredServerResourceId) &&
-            string.Equals(declaredServerResourceId, serverResourceId, StringComparison.OrdinalIgnoreCase));
+            string.Equals(declaredServerResourceId, serverResourceId, StringComparison.OrdinalIgnoreCase))!;
+
+        return database is not null;
+    }
+
+    private static async Task EnsureDeclaredDatabaseCreatedAsync(
+        ResourceModelResourceState databaseState,
+        ResourceModelResource server,
+        ResourceGraphResolver graphResolver,
+        ResourceGraphSnapshot snapshot,
+        ISqlDatabaseCreationHandler databaseCreationHandler,
+        CancellationToken cancellationToken)
+    {
+        if (!ShouldEnsureCreated(databaseState))
+        {
+            return;
+        }
+
+        var databaseResolution = graphResolver.ResolveResource(snapshot, databaseState.EffectiveResourceId);
+        if (databaseResolution.HasErrors || databaseResolution.Resource is null)
+        {
+            throw new InvalidOperationException(
+                $"SQL database resource '{databaseState.EffectiveResourceId}' could not be resolved.");
+        }
+
+        var diagnostics = await databaseCreationHandler.EnsureCreatedAsync(
+            new SqlDatabaseCreationContext(databaseResolution.Resource, server),
+            cancellationToken);
+        var error = diagnostics.FirstOrDefault(diagnostic =>
+            diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);
+        if (error is not null)
+        {
+            throw new InvalidOperationException(error.Message);
+        }
+    }
+
+    private static bool ShouldEnsureCreated(ResourceModelResourceState databaseState) =>
+        databaseState.ResourceAttributeValues.TryGetValue(
+            SqlDatabaseResourceTypeProvider.Attributes.EnsureCreated,
+            out var value) &&
+        value.TryGetScalarString(out var ensureCreated) &&
+        bool.TryParse(ensureCreated, out var parsed) &&
+        parsed;
 
     private static bool TryGetDatabaseName(
         ResourceModelResourceState resource,

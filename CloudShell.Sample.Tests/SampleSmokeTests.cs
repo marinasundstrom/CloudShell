@@ -995,7 +995,9 @@ public sealed class SampleSmokeTests
                 .GetProperty(SqlDatabaseResourceTypeProvider.Operations.EnsureCreated.Value)
                 .GetProperty("href")
                 .GetString() ?? throw new InvalidOperationException("The SQL database ensure-created action did not include an href.");
-            await host.SendAsync(HttpMethod.Post, ensureCreatedHref);
+            Assert.Contains(
+                "/api/control-plane/v1/resources/application.sql-database%3Aapplication-topology-db/actions/application.sql-database.ensure-created",
+                ensureCreatedHref);
 
             await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology settings");
             await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology secrets");
