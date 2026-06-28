@@ -4,7 +4,7 @@ using GraphResource = CloudShell.ResourceDefinitions.Resource;
 
 namespace CloudShell.ThirdPartyIdentity;
 
-public sealed class GraphAspNetCoreProjectIdentityEnvironmentProvider(
+public sealed class ThirdPartyIdentityAspNetCoreProjectIdentityEnvironmentProvider(
     ResourceDeclarationStore declarations,
     ResourceIdentityProviderCatalog identityProviders,
     IEnumerable<IResourceIdentityCredentialEnvironmentProvider> credentialEnvironmentProviders) :

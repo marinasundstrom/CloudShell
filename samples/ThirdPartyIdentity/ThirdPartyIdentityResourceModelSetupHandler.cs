@@ -7,8 +7,8 @@ using GraphResource = CloudShell.ResourceDefinitions.Resource;
 
 namespace CloudShell.ThirdPartyIdentity;
 
-public sealed class GraphIdentityProvisioningSetupHandler(
-    IThirdPartyIdentityGraphIdentityProvisioningSetupBridge bridge) :
+public sealed class ThirdPartyIdentityResourceModelSetupHandler(
+    IThirdPartyIdentityResourceModelSetupBridge bridge) :
     IIdentityProvisioningSetupHandler
 {
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> SetupAsync(
@@ -21,8 +21,8 @@ public sealed class GraphIdentityProvisioningSetupHandler(
     }
 }
 
-public sealed class ThirdPartyIdentityGraphResourceManagerIdentitySetupBridge(
-    IServiceScopeFactory scopeFactory) : IThirdPartyIdentityGraphIdentityProvisioningSetupBridge
+public sealed class ThirdPartyIdentityResourceManagerIdentitySetupBridge(
+    IServiceScopeFactory scopeFactory) : IThirdPartyIdentityResourceModelSetupBridge
 {
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> SetupAsync(
         GraphResource resource,

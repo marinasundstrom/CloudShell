@@ -37,6 +37,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ThirdPartyIdentity's graph ASP.NET Core identity environment provider no
   longer depends on the old application provider options just to resolve the
   default resource identity scope.
+- ThirdPartyIdentity's sample-local identity provisioning and ASP.NET Core
+  identity-environment seams now use Resource model naming instead of
+  graph-specific class and test names.
 - Resource graph builder overloads that accept another resource builder now
   infer typed `ResourceReference` metadata from the target builder for
   startup dependencies, project references, service/name-mapping targets, and

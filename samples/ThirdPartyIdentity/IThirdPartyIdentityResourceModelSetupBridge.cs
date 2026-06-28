@@ -3,7 +3,7 @@ using GraphResource = CloudShell.ResourceDefinitions.Resource;
 
 namespace CloudShell.ThirdPartyIdentity;
 
-public interface IThirdPartyIdentityGraphIdentityProvisioningSetupBridge
+public interface IThirdPartyIdentityResourceModelSetupBridge
 {
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> SetupAsync(
         GraphResource resource,

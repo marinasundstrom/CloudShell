@@ -107,13 +107,13 @@ builder.Services.TryAddEnumerable(
 builder.Services.TryAddEnumerable(
     ServiceDescriptor.Singleton<IResourceIdentityCredentialEnvironmentProvider, KeycloakResourceIdentityProvisioner>());
 builder.Services.AddSingleton<
-    IThirdPartyIdentityGraphIdentityProvisioningSetupBridge,
-    ThirdPartyIdentityGraphResourceManagerIdentitySetupBridge>();
-builder.Services.AddSingleton<IIdentityProvisioningSetupHandler, GraphIdentityProvisioningSetupHandler>();
+    IThirdPartyIdentityResourceModelSetupBridge,
+    ThirdPartyIdentityResourceManagerIdentitySetupBridge>();
+builder.Services.AddSingleton<IIdentityProvisioningSetupHandler, ThirdPartyIdentityResourceModelSetupHandler>();
 builder.Services.TryAddEnumerable(
     ServiceDescriptor.Singleton<
         IAspNetCoreProjectRuntimeEnvironmentProvider,
-        GraphAspNetCoreProjectIdentityEnvironmentProvider>());
+        ThirdPartyIdentityAspNetCoreProjectIdentityEnvironmentProvider>());
 
 cloudShell.Resources(resources =>
 {

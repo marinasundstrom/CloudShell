@@ -11,7 +11,7 @@ using GraphResourceState = CloudShell.ResourceDefinitions.ResourceState;
 
 namespace CloudShell.Sample.Tests;
 
-public sealed class ThirdPartyIdentityGraphSetupHandlerTests
+public sealed class ThirdPartyIdentityResourceModelSetupHandlerTests
 {
     [Fact]
     public async Task ResourceManagerBridge_DelegatesToAttachedIdentityProviderSetup()
@@ -32,17 +32,17 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
             new ResourceIdentityProviderCatalog(),
             [setupHandler]);
         using var services = CreateServices(setupService);
-        var bridge = new ThirdPartyIdentityGraphResourceManagerIdentitySetupBridge(
+        var bridge = new ThirdPartyIdentityResourceManagerIdentitySetupBridge(
             services.GetRequiredService<IServiceScopeFactory>());
 
-        var diagnostics = await bridge.SetupAsync(CreateGraphIdentityProvisioningResource(
+        var diagnostics = await bridge.SetupAsync(CreateResourceModelIdentityProvisioningResource(
             includeProviderId: true));
 
         Assert.Equal("identity:keycloak", setupHandler.SetupProviderId);
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal(ResourceDefinitionDiagnosticSeverity.Information, diagnostic.Severity);
         Assert.Equal("identity.provisioning.setupInformation", diagnostic.Code);
-        Assert.Equal("Configured graph identity provider.", diagnostic.Message);
+        Assert.Equal("Configured Resource model identity provider.", diagnostic.Message);
         Assert.Equal("identity:keycloak", diagnostic.Target);
     }
 
@@ -54,10 +54,10 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
             new ResourceIdentityProviderCatalog(),
             []);
         using var services = CreateServices(setupService);
-        var bridge = new ThirdPartyIdentityGraphResourceManagerIdentitySetupBridge(
+        var bridge = new ThirdPartyIdentityResourceManagerIdentitySetupBridge(
             services.GetRequiredService<IServiceScopeFactory>());
 
-        var diagnostics = await bridge.SetupAsync(CreateGraphIdentityProvisioningResource(
+        var diagnostics = await bridge.SetupAsync(CreateResourceModelIdentityProvisioningResource(
             includeProviderId: false));
 
         var diagnostic = Assert.Single(diagnostics);
@@ -67,11 +67,11 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
     }
 
     [Fact]
-    public async Task GraphIdentityProvisioningSetupHandler_DelegatesToBridge()
+    public async Task ResourceModelIdentityProvisioningSetupHandler_DelegatesToBridge()
     {
-        var bridge = new RecordingGraphIdentityProvisioningSetupBridge();
-        var handler = new GraphIdentityProvisioningSetupHandler(bridge);
-        var resource = CreateGraphIdentityProvisioningResource(includeProviderId: true);
+        var bridge = new RecordingResourceModelSetupBridge();
+        var handler = new ThirdPartyIdentityResourceModelSetupHandler(bridge);
+        var resource = CreateResourceModelIdentityProvisioningResource(includeProviderId: true);
 
         var diagnostics = await handler.SetupAsync(resource);
 
@@ -106,12 +106,12 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
                 Subject: "client:keycloak-provisioned-api",
                 Scopes: ["openid"],
                 Name: "keycloak-provisioned-api"));
-        var environmentProvider = new GraphAspNetCoreProjectIdentityEnvironmentProvider(
+        var environmentProvider = new ThirdPartyIdentityAspNetCoreProjectIdentityEnvironmentProvider(
             declarations,
             new ResourceIdentityProviderCatalog(),
             [new RecordingCredentialEnvironmentProvider()]);
 
-        var variables = await environmentProvider.ResolveAsync(CreateGraphAspNetCoreProjectResource());
+        var variables = await environmentProvider.ResolveAsync(CreateResourceModelAspNetCoreProjectResource());
 
         Assert.Equal(
             "https://identity.example/token",
@@ -124,7 +124,7 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
             variables[EnvironmentCloudShellResourceCredential.ScopeEnvironmentVariable]);
     }
 
-    private static GraphResource CreateGraphIdentityProvisioningResource(
+    private static GraphResource CreateResourceModelIdentityProvisioningResource(
         bool includeProviderId)
     {
         var provider = new IdentityProvisioningResourceTypeProvider();
@@ -149,7 +149,7 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
             Attributes: attributes));
     }
 
-    private static GraphResource CreateGraphAspNetCoreProjectResource()
+    private static GraphResource CreateResourceModelAspNetCoreProjectResource()
     {
         var provider = new AspNetCoreProjectResourceTypeProvider();
         var resolver = new ResourceResolver(
@@ -200,14 +200,14 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
                 [
                     new ResourceIdentityProvisioningDiagnostic(
                         ResourceIdentityProvisioningDiagnosticSeverity.Information,
-                        "Configured graph identity provider.",
+                        "Configured Resource model identity provider.",
                         ProviderId: request.Provider.Id)
                 ]));
         }
     }
 
-    private sealed class RecordingGraphIdentityProvisioningSetupBridge :
-        IThirdPartyIdentityGraphIdentityProvisioningSetupBridge
+    private sealed class RecordingResourceModelSetupBridge :
+        IThirdPartyIdentityResourceModelSetupBridge
     {
         public string? SetupResourceId { get; private set; }
 
