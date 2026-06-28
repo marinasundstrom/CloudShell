@@ -35,6 +35,12 @@ public static class ExecutableApplicationResourceTypeServiceCollectionExtensions
         services.TryAddSingleton<
             IExecutableApplicationRuntimeController,
             ExecutableApplicationProcessRuntimeController>();
+        services.TryAddSingleton<IExecutableApplicationRuntimeMonitor>(
+            serviceProvider =>
+                serviceProvider.GetRequiredService<IExecutableApplicationRuntimeController>()
+                    is IExecutableApplicationRuntimeMonitor monitor
+                        ? monitor
+                        : new NoopExecutableApplicationRuntimeController());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, ExecutableStartOperationProvider>());
         services.TryAddEnumerable(

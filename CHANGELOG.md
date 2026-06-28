@@ -78,6 +78,10 @@ on `git blame --follow`, and then by the broad type of change.
   projections activate monitoring/log-source capabilities where the current
   runtime bridge can back the Resource Manager UI, with tests covering process
   and Docker stats snapshots.
+- Executable application graph resources now activate runtime monitoring
+  through the programmatic builder and project process monitoring snapshots
+  through the Resource Manager bridge. Stop/restart, log streaming, endpoint,
+  template, and UI registration parity remain documented switch-over gaps.
 
 ### 2026-06-27
 

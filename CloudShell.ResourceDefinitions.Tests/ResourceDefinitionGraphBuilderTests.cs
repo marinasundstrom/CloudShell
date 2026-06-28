@@ -555,6 +555,8 @@ public sealed class ResourceDefinitionGraphBuilderTests
         Assert.Equal("dotnet", executableConfiguration!.Path);
         Assert.Equal("run --project src/Worker/Worker.csproj", executableConfiguration.Arguments);
         Assert.Equal("src/Worker", executableConfiguration.WorkingDirectory);
+        Assert.NotNull(executable.Capabilities);
+        Assert.Contains(ResourceCommonCapabilityIds.Monitoring, executable.Capabilities.Keys);
 
         Assert.Equal("application.aspnet-core-project:api", project.EffectiveResourceId);
         Assert.Equal("src/Api/Api.csproj", project.ResourceAttributeValues[

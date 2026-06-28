@@ -14,6 +14,9 @@ public sealed class ExecutableApplicationResourceDefinitionBuilder(string name) 
     protected override string? ProviderId =>
         ExecutableApplicationResourceTypeProvider.ProviderId;
 
+    public ExecutableApplicationResourceDefinitionBuilder WithRuntimeMonitoring() =>
+        DeclareCapability(ResourceCommonCapabilityIds.Monitoring);
+
     public ExecutableApplicationResourceDefinitionBuilder WithExecutablePath(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -98,6 +101,7 @@ public static class ExecutableApplicationResourceDefinitionBuilderExtensions
         ArgumentNullException.ThrowIfNull(graph);
 
         var builder = new ExecutableApplicationResourceDefinitionBuilder(name);
+        builder.WithRuntimeMonitoring();
         graph.Add(builder);
         return builder;
     }

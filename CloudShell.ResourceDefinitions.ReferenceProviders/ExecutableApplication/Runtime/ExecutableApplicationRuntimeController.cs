@@ -12,8 +12,16 @@ public interface IExecutableApplicationRuntimeController
         CancellationToken cancellationToken = default);
 }
 
+public interface IExecutableApplicationRuntimeMonitor
+{
+    ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed class ExecutableApplicationProcessRuntimeController :
     IExecutableApplicationRuntimeController,
+    IExecutableApplicationRuntimeMonitor,
     IDisposable,
     IAsyncDisposable
 {
@@ -93,6 +101,57 @@ public sealed class ExecutableApplicationProcessRuntimeController :
                     $"Executable application process for '{resource.EffectiveResourceId}' could not start: {exception.Message}",
                     resource.EffectiveResourceId)
             ]);
+        }
+    }
+
+    public async ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId))
+        {
+            return null;
+        }
+
+        if (!_processes.TryGetValue(resourceId, out var process) ||
+            process.HasExited)
+        {
+            return null;
+        }
+
+        try
+        {
+            var firstTimestamp = DateTimeOffset.UtcNow;
+            var firstProcessorTime = process.TotalProcessorTime;
+            await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
+
+            process.Refresh();
+            if (process.HasExited)
+            {
+                return null;
+            }
+
+            var timestamp = DateTimeOffset.UtcNow;
+            var processorTime = process.TotalProcessorTime;
+            var elapsed = timestamp - firstTimestamp;
+            var cpuPercent = elapsed.TotalMilliseconds > 0
+                ? (processorTime - firstProcessorTime).TotalMilliseconds /
+                    (elapsed.TotalMilliseconds * Environment.ProcessorCount) * 100
+                : 0;
+
+            return new ResourceProcessMonitoringSnapshot(
+                process.Id,
+                TryGetStartTime(process),
+                timestamp,
+                Math.Max(0, cpuPercent),
+                processorTime,
+                process.WorkingSet64,
+                process.PrivateMemorySize64,
+                process.Threads.Count);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return null;
         }
     }
 
@@ -201,6 +260,18 @@ public sealed class ExecutableApplicationProcessRuntimeController :
         process.Dispose();
     }
 
+    private static DateTimeOffset? TryGetStartTime(Process process)
+    {
+        try
+        {
+            return process.StartTime;
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or NotSupportedException)
+        {
+            return null;
+        }
+    }
+
     private static string? FirstNonEmpty(params string?[] values)
     {
         foreach (var value in values)
@@ -216,12 +287,18 @@ public sealed class ExecutableApplicationProcessRuntimeController :
 }
 
 public sealed class NoopExecutableApplicationRuntimeController :
-    IExecutableApplicationRuntimeController
+    IExecutableApplicationRuntimeController,
+    IExecutableApplicationRuntimeMonitor
 {
     public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> StartAsync(
         Resource resource,
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+
+    public ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<ResourceProcessMonitoringSnapshot?>(null);
 }
 
 public static class ExecutableApplicationEnvironmentNames

@@ -76,6 +76,10 @@ public static class ReferenceProviderResourceManagerServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceMonitoringProvider,
+                ExecutableApplicationResourceManagerMonitoringProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceMonitoringProvider,
                 ConfigurationStoreResourceManagerMonitoringProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<

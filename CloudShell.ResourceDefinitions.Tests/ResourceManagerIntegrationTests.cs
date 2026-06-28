@@ -313,6 +313,49 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ExecutableApplicationResourceManagerMonitoringProvider_ProjectsProcessMetrics()
+    {
+        var runtime = new RecordingExecutableApplicationRuntimeController
+        {
+            MonitoringSnapshot = new ResourceProcessMonitoringSnapshot(
+                321,
+                new DateTimeOffset(2026, 6, 28, 8, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 6, 28, 8, 1, 0, TimeSpan.Zero),
+                6.75,
+                TimeSpan.FromSeconds(22),
+                24 * 1024 * 1024,
+                18 * 1024 * 1024,
+                5)
+        };
+        var provider = new ExecutableApplicationResourceManagerMonitoringProvider(runtime);
+        var resource = new ResourceManagerResource(
+            "application.executable:worker",
+            "worker",
+            "application.executable",
+            "Resource model",
+            "local",
+            ResourceManagerResourceState.Running,
+            [],
+            "1",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString());
+
+        var snapshot = await provider.GetMonitoringSnapshotAsync(resource);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(resource.Id, snapshot.ResourceId);
+        Assert.Equal("Executable application", snapshot.Provider);
+        Assert.Equal("Available", snapshot.Status);
+        Assert.Contains(snapshot.Metrics, metric =>
+            metric.Name == "resource.cpu.usage" &&
+            metric.Value == 6.75);
+        Assert.Contains(snapshot.Metrics, metric =>
+            metric.Name == "resource.process.count" &&
+            metric.Attributes?["process.id"] == "321");
+    }
+
+    [Fact]
     public async Task ConfigurationStoreResourceManagerMonitoringProvider_ProjectsProcessMetrics()
     {
         var runtime = new RecordingConfigurationStoreRuntimeController
@@ -411,6 +454,8 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.Contains(providers, provider =>
             provider.GetType() == typeof(AspNetCoreProjectResourceManagerMonitoringProvider));
+        Assert.Contains(providers, provider =>
+            provider.GetType() == typeof(ExecutableApplicationResourceManagerMonitoringProvider));
         Assert.Contains(providers, provider =>
             provider.GetType() == typeof(ConfigurationStoreResourceManagerMonitoringProvider));
         Assert.Contains(providers, provider =>
@@ -4983,11 +5028,14 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     private sealed class RecordingExecutableApplicationRuntimeController :
-        IExecutableApplicationRuntimeController
+        IExecutableApplicationRuntimeController,
+        IExecutableApplicationRuntimeMonitor
     {
         private readonly List<string> _startedResourceIds = [];
 
         public IReadOnlyList<string> StartedResourceIds => _startedResourceIds;
+
+        public ResourceProcessMonitoringSnapshot? MonitoringSnapshot { get; init; }
 
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> StartAsync(
             Resource resource,
@@ -4997,6 +5045,11 @@ public sealed class ResourceManagerIntegrationTests
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
+
+        public ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(MonitoringSnapshot);
     }
 
     private sealed class RecordingLocalHostNetworkEndpointMappingReconciler :
