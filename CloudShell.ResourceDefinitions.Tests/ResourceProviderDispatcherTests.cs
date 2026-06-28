@@ -1513,6 +1513,22 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public void AddLocalContainerApplicationResourceTypes_RegistersDockerHostAndContainerAppTypes()
+    {
+        var services = new ServiceCollection();
+
+        services.AddLocalContainerApplicationResourceTypes();
+        using var serviceProvider = services.BuildServiceProvider();
+        var typeIds = serviceProvider
+            .GetServices<IResourceTypeProvider>()
+            .Select(provider => provider.TypeDefinition.TypeId)
+            .ToArray();
+
+        Assert.Contains(DockerHostResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(ContainerApplicationResourceTypeProvider.ResourceTypeId, typeIds);
+    }
+
+    [Fact]
     public async Task AddSqlServerResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();

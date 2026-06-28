@@ -104,8 +104,7 @@ cloudShell.DefineResources(resources =>
         .MapsTarget(graphLoadBalancerResourceId, LoadBalancerResourceTypeProvider.ResourceTypeId);
 });
 builder.Services
-    .AddDockerHostResourceType()
-    .AddContainerApplicationResourceType()
+    .AddLocalContainerApplicationResourceTypes()
     .AddLoadBalancerResourceType()
     .AddDnsZoneResourceType()
     .AddNameMappingResourceType();

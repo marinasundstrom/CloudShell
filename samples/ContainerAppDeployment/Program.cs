@@ -67,9 +67,8 @@ builder.Services
     .AddSingleton<IContainerApplicationRuntimeHandler, ContainerAppDeploymentGraphContainerApplicationRuntimeHandler>();
 
 builder.Services
-    .AddDockerHostResourceType()
-    .AddDockerContainerResourceType()
-    .AddContainerApplicationResourceType();
+    .AddLocalContainerApplicationResourceTypes()
+    .AddDockerContainerResourceType();
 cloudShell.UseResourceGraphIntegration();
 
 cloudShell

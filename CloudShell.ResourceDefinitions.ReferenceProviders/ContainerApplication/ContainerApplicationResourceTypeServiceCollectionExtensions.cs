@@ -5,6 +5,17 @@ namespace CloudShell.ResourceDefinitions.ReferenceProviders;
 
 public static class ContainerApplicationResourceTypeServiceCollectionExtensions
 {
+    public static IServiceCollection AddLocalContainerApplicationResourceTypes(
+        this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddDockerHostResourceType();
+        services.AddContainerApplicationResourceType();
+
+        return services;
+    }
+
     public static IServiceCollection AddContainerApplicationResourceType(
         this IServiceCollection services)
     {
