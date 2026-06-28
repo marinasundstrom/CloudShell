@@ -28,12 +28,12 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
         : Path.Combine(hostEnvironment.ContentRootPath, "Data", "graph-only-ingress");
     private readonly object _statusGate = new();
     private readonly TimeSpan _statusProbeTimeout = TimeSpan.FromMilliseconds(
-        configuration.GetValue<int?>("ReplicatedContainerHealth:GraphOnlyStatusProbeTimeoutMilliseconds") ?? 50);
+        configuration.GetValue<int?>("ReplicatedContainerHealth:RuntimeStatusProbeTimeoutMilliseconds") ?? 50);
     private readonly TimeSpan _statusCacheDuration = TimeSpan.FromMilliseconds(
-        configuration.GetValue<int?>("ReplicatedContainerHealth:GraphOnlyStatusCacheMilliseconds") ?? 2_000);
+        configuration.GetValue<int?>("ReplicatedContainerHealth:RuntimeStatusCacheMilliseconds") ?? 2_000);
     private readonly int _replicaCleanupLimit = Math.Max(
         1,
-        configuration.GetValue<int?>("ReplicatedContainerHealth:GraphOnlyReplicaCleanupLimit") ?? 10);
+        configuration.GetValue<int?>("ReplicatedContainerHealth:RuntimeReplicaCleanupLimit") ?? 10);
     private readonly string? _traceIngestEndpoint =
         FirstNonEmpty(traceIngestEndpoint, configuration["Observability:TraceIngestEndpoint"]);
     private readonly string? _metricIngestEndpoint =
@@ -325,7 +325,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
         arguments.Add("-e");
         arguments.Add($"CLOUDSHELL_REPLICA_ORDINAL={replica.ToString(CultureInfo.InvariantCulture)}");
         arguments.Add("-e");
-        arguments.Add($"OTEL_SERVICE_NAME=replicated-container-health-graph-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}");
+        arguments.Add($"OTEL_SERVICE_NAME=replicated-container-health-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}");
         arguments.Add("-e");
         arguments.Add($"OTEL_RESOURCE_ATTRIBUTES={CreateOtelResourceAttributes(replicaResourceId, replicaContainerName, replicaName, replica, replicaCount)}");
         AddEnvironment(arguments, "CLOUDSHELL_TRACE_INGEST_ENDPOINT", _traceIngestEndpoint);
@@ -361,7 +361,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
             $"127.0.0.1:{hostPort.ToString(CultureInfo.InvariantCulture)}:{hostPort.ToString(CultureInfo.InvariantCulture)}/tcp",
             "-v",
             $"{Path.GetFullPath(_ingressConfigurationDirectory)}:/etc/traefik/dynamic:ro",
-            configuration["ReplicatedContainerHealth:GraphOnlyIngressImage"] ?? DefaultIngressImage,
+            configuration["ReplicatedContainerHealth:RuntimeIngressImage"] ?? DefaultIngressImage,
             "--providers.file.directory=/etc/traefik/dynamic",
             "--providers.file.watch=true",
             $"--entrypoints.http.address=:{hostPort.ToString(CultureInfo.InvariantCulture)}"
@@ -393,12 +393,12 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
         var builder = new StringBuilder();
         builder.AppendLine("http:");
         builder.AppendLine("  routers:");
-        builder.AppendLine("    graph-api-http:");
+        builder.AppendLine("    api-http:");
         builder.AppendLine("      entryPoints: [\"http\"]");
         builder.AppendLine("      rule: \"PathPrefix(`/`)\"");
-        builder.AppendLine("      service: \"graph-api-http\"");
+        builder.AppendLine("      service: \"api-http\"");
         builder.AppendLine("  services:");
-        builder.AppendLine("    graph-api-http:");
+        builder.AppendLine("    api-http:");
         builder.AppendLine("      loadBalancer:");
         builder.AppendLine("        servers:");
         for (var replica = 1; replica <= ResolveReplicas(resource); replica++)
@@ -505,7 +505,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
         GraphResource resource,
         Exception exception) =>
         ResourceDefinitionDiagnostic.Error(
-            "replicatedContainerHealth.graphOnlyRuntimeFailed",
+            "replicatedContainerHealth.runtimeFailed",
             exception.Message,
             resource.EffectiveResourceId);
 }

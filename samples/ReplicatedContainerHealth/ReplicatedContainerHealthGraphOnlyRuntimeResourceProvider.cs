@@ -16,7 +16,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider(
     IReplicatedContainerHealthGraphContainerAppRuntimeBridge runtime,
     IConfiguration configuration) : IResourceProvider
 {
-    public string Id => "replicated-container-health.graph-only-runtime";
+    public string Id => "replicated-container-health.runtime";
 
     public string DisplayName => "Replicated Container Health runtime";
 
@@ -82,7 +82,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider(
 
         return new ResourceManagerResource(
             resourceId,
-            $"graph-api replica {replica.ToString(CultureInfo.InvariantCulture)}",
+            $"api replica {replica.ToString(CultureInfo.InvariantCulture)}",
             "runtime.container",
             DisplayName,
             "local",
@@ -101,7 +101,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider(
                 [ResourceAttributeNames.RuntimeContainerName] = containerName,
                 [ResourceAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
                 [ResourceAttributeNames.RuntimeReplicaCount] = totalReplicas,
-                [ResourceAttributeNames.RuntimeMaterialization] = "sampleGraphOnlyRuntime"
+                [ResourceAttributeNames.RuntimeMaterialization] = "sampleRuntime"
             },
             Capabilities:
             [
@@ -142,7 +142,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider(
             Logs: true,
             Traces: true,
             Metrics: true,
-            ServiceName: $"replicated-container-health-graph-api-replica-{replicaOrdinal}",
+            ServiceName: $"replicated-container-health-api-replica-{replicaOrdinal}",
             ResourceAttributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["cloudshell.resource.id"] = replicaResourceId,

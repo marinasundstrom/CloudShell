@@ -8,7 +8,6 @@ using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.Providers.Applications;
-using CloudShell.Providers.Docker;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
@@ -17,36 +16,32 @@ using CloudShell.ResourceDefinitions.ResourceManager;
 var builder = CloudShellApplication.CreateBuilder(args);
 
 const string sampleImageTag = "20260622.2";
-const string graphResourceGroupId = "replicated-container-health-graph-poc";
-const string graphDockerResourceId = "docker:graph-sample";
-const string graphApiResourceId = "application.container-app:graph-api";
+const string resourceGroupId = "replicated-container-health-poc";
+const string dockerResourceId = "docker:sample";
+const string apiResourceId = "application.container-app:api";
 
 var apiEndpointPort = builder.Configuration.GetValue<int?>("ReplicatedContainerHealth:ApiPort") ?? 5092;
 var cloudShellEndpoint = ResolveCloudShellEndpoint(builder.Configuration);
 var runtimeControlPlaneEndpoint = builder.Configuration["Observability:RuntimeEndpoint"]
     ?? ResolveDockerReachableEndpoint(cloudShellEndpoint);
-var otlpEndpoint = builder.Configuration["Observability:OtlpEndpoint"]
-    ?? runtimeControlPlaneEndpoint;
-var otlpProtocol = builder.Configuration["Observability:OtlpProtocol"];
 var traceIngestEndpoint = builder.Configuration["Observability:TraceIngestEndpoint"]
     ?? $"{runtimeControlPlaneEndpoint}/api/control-plane/v1/traces/ingest";
 var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndpoint"]
     ?? $"{runtimeControlPlaneEndpoint}/api/control-plane/v1/metrics/ingest";
-var graphOnly = builder.Configuration.GetValue("ReplicatedContainerHealth:GraphOnly", true);
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 cloudShell.DefineResources(resources =>
 {
-    var graphDocker = resources
-        .AddDockerHost("graph-sample")
-        .WithResourceId(graphDockerResourceId);
+    var docker = resources
+        .AddDockerHost("sample")
+        .WithResourceId(dockerResourceId);
 
     resources
-        .AddContainerApplication("graph-api")
-        .WithResourceId(graphApiResourceId)
-        .WithDisplayName("Graph Replicated API")
-        .UseDockerHost(graphDocker)
+        .AddContainerApplication("api")
+        .WithResourceId(apiResourceId)
+        .WithDisplayName("Replicated API")
+        .UseDockerHost(docker)
         .WithImage($"cloudshell-application-api:{sampleImageTag}")
         .WithReplicas(3)
         .AddEndpointRequest(
@@ -67,87 +62,40 @@ cloudShell.DefineResources(resources =>
 builder.Services
     .AddSingleton<IReplicatedContainerHealthCommandRunner, ProcessReplicatedContainerHealthCommandRunner>()
     .AddSingleton<IReplicatedContainerHealthGraphContainerAppRuntimeBridge>(
-            serviceProvider => graphOnly
-                ? new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
-                    serviceProvider.GetRequiredService<IReplicatedContainerHealthCommandRunner>(),
-                    serviceProvider.GetRequiredService<IConfiguration>(),
-                    serviceProvider.GetRequiredService<IHostEnvironment>(),
-                    traceIngestEndpoint,
-                    metricIngestEndpoint)
-                : new ReplicatedContainerHealthGraphResourceManagerBridge(
-                    serviceProvider.GetRequiredService<IServiceScopeFactory>()))
+        serviceProvider => new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
+            serviceProvider.GetRequiredService<IReplicatedContainerHealthCommandRunner>(),
+            serviceProvider.GetRequiredService<IConfiguration>(),
+            serviceProvider.GetRequiredService<IHostEnvironment>(),
+            traceIngestEndpoint,
+            metricIngestEndpoint))
     .AddSingleton<IContainerApplicationRuntimeHandler, ReplicatedContainerHealthGraphRuntimeHandler>()
     .AddLocalContainerApplicationResourceTypes();
 cloudShell.UseResourceGraphIntegration();
-if (graphOnly)
-{
-    builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider, ReplicatedContainerHealthGraphOnlyOrchestrationDescriptorProvider>();
-    builder.Services.AddScoped<IResourceProvider, ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider>();
-    builder.Services.AddScoped<ILogProvider, ReplicatedContainerHealthGraphOnlyLogProvider>();
-    builder.Services.AddScoped<IResourceMonitoringProvider, ReplicatedContainerHealthGraphOnlyMonitoringProvider>();
-}
+builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider, ReplicatedContainerHealthGraphOnlyOrchestrationDescriptorProvider>();
+builder.Services.AddScoped<IResourceProvider, ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider>();
+builder.Services.AddScoped<ILogProvider, ReplicatedContainerHealthGraphOnlyLogProvider>();
+builder.Services.AddScoped<IResourceMonitoringProvider, ReplicatedContainerHealthGraphOnlyMonitoringProvider>();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>();
 
-if (!graphOnly)
-{
-    cloudShell
-        .AddApplicationProvider(options =>
-        {
-            options.OtlpEndpoint = otlpEndpoint;
-            options.OtlpProtocol = otlpProtocol;
-        })
-        .AddDockerProvider();
-}
-else
-{
-    cloudShell.AddApplicationResourceManagerUi();
-}
+cloudShell.AddApplicationResourceManagerUi();
 
 cloudShell.Resources(resources =>
 {
     resources.AddResourceGroup(
-        graphResourceGroupId,
-        "Replicated Container Health graph POC",
-        "Side-by-side graph-backed resources used while porting the ReplicatedContainerHealth sample.");
-
-    if (!graphOnly)
-    {
-        var docker = resources
-            .AddDocker("sample")
-            .Persist(overwrite: true);
-
-        resources
-            .AddAspNetCoreProject(
-                "api",
-                "Api/CloudShell.ReplicatedContainerHealth.Api.csproj")
-            .AsContainer(replicas: 3, tag: sampleImageTag)
-            .WithEndpointPort(
-                "http",
-                targetPort: 8080,
-                port: apiEndpointPort,
-                protocol: "http",
-                exposure: ResourceExposureScope.Local)
-            .WithHttpHealthCheck("/health", "http")
-            .WithHttpProbe(ResourceProbeType.Liveness, "/alive", "http", "alive")
-            .WithLogFormat(LogFormat.JsonConsole)
-            .WithOtlpExporter(otlpEndpoint, otlpProtocol)
-            .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
-            .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty)
-            .WithContainerHost(docker)
-            .WithAutoStart(false)
-            .Persist(overwrite: true);
-    }
+        resourceGroupId,
+        "Replicated Container Health POC",
+        "Resource model resources used by the ReplicatedContainerHealth sample.");
 
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphDockerResourceId)
-        .WithResourceGroup(graphResourceGroupId)
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, dockerResourceId)
+        .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false);
     resources
-        .Declare(ResourceModelResourceProvider.DefaultProviderId, graphApiResourceId)
-        .WithResourceGroup(graphResourceGroupId)
+        .Declare(ResourceModelResourceProvider.DefaultProviderId, apiResourceId)
+        .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false);
 });
 
@@ -165,7 +113,7 @@ app.MapPost(
         ResourceModelGraphDefinitionApplyService applyService,
         CancellationToken cancellationToken) =>
     {
-        if (!string.Equals(resourceId, graphApiResourceId, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(resourceId, apiResourceId, StringComparison.OrdinalIgnoreCase))
         {
             return Results.NotFound();
         }
@@ -176,7 +124,7 @@ app.MapPost(
         }
 
         var result = await applyService.ApplyDefinitionsAsync(
-            [CreateGraphApiImageDefinition(update.Image.Trim())],
+            [CreateApiImageDefinition(update.Image.Trim())],
             new ResourceGraphCommitContext(
                 EnvironmentId: "replicated-container-health",
                 PrincipalId: "sample",
@@ -188,11 +136,11 @@ app.MapPost(
 
 app.Run();
 
-static ResourceDefinition CreateGraphApiImageDefinition(string image) =>
+static ResourceDefinition CreateApiImageDefinition(string image) =>
     new(
-        "graph-api",
+        "api",
         ContainerApplicationResourceTypeProvider.ResourceTypeId,
-        ResourceId: "application.container-app:graph-api",
+        ResourceId: "application.container-app:api",
         ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
         {

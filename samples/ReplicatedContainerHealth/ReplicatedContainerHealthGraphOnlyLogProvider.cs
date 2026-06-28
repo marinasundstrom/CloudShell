@@ -9,7 +9,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyLogProvider(
 {
     private const string ContainerReplicasAttribute = "container.replicas";
 
-    public string Id => "replicated-container-health.graph-only";
+    public string Id => "replicated-container-health.runtime";
 
     public string DisplayName => "Replicated Container Health";
 

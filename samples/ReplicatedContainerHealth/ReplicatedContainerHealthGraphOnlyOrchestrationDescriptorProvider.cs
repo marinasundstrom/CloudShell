@@ -28,7 +28,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyOrchestrationDescriptorP
             resource.DependsOn,
             [],
             resource.Endpoints,
-            "replicated-container-health.graph-only-workload.v1",
+            "replicated-container-health.runtime-workload.v1",
             JsonSerializer.SerializeToElement(workload, SerializerOptions)));
     }
 }
