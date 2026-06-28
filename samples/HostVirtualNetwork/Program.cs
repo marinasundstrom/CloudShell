@@ -36,12 +36,9 @@ cloudShell.DefineResources(resources =>
         .WithDisplayName("VNet API")
         .WithArguments($"--urls http://localhost:{targetPort}")
         .UseLaunchSettings(false)
-        .AddEndpointRequest(
-            "http",
-            "http",
+        .WithHttpEndpoint(
             host: "localhost",
-            port: targetPort,
-            exposure: "Local");
+            port: targetPort);
 
     networkResource = resources
         .AddVirtualNetwork("sample-vnet")

@@ -42,20 +42,17 @@ cloudShell.DefineResources(resources =>
         .UseDockerHost(dockerResource)
         .WithImage($"cloudshell-application-api:{sampleImageTag}")
         .WithReplicas(3)
-        .AddEndpointRequest(
-            "http",
-            "http",
+        .WithHttpEndpoint(
             targetPort: 8080,
             host: "localhost",
-            port: apiEndpointPort,
-            exposure: "Local")
-        .AddHealthCheck(ResourceHealthCheckDefinition.Http(
+            port: apiEndpointPort)
+        .WithHttpHealthCheck(
             "/health",
-            endpointName: "http"))
-        .AddHealthCheck(ResourceHealthCheckDefinition.HttpLiveness(
+            endpointName: "http")
+        .WithHttpLivenessCheck(
             "/alive",
             endpointName: "http",
-            name: "alive"));
+            name: "alive");
 });
 builder.Services
     .AddSingleton<IReplicatedContainerHealthCommandRunner, ProcessReplicatedContainerHealthCommandRunner>()

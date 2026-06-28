@@ -1693,13 +1693,10 @@ public sealed class ResourceManagerIntegrationTests
             .UseContainerHost(host)
             .WithImage("ghcr.io/example/api:latest")
             .WithReplicas(2)
-            .AddEndpointRequest(
-                "http",
-                "http",
+            .WithHttpEndpoint(
                 targetPort: 8080,
                 host: "localhost",
-                port: 5092,
-                exposure: "Local")
+                port: 5092)
             .MountVolume(volume.EffectiveResourceId, "/data");
 
         var result = await service.ApplyDeploymentAsync(
@@ -1996,21 +1993,18 @@ public sealed class ResourceManagerIntegrationTests
             .AddAspNetCoreProject("api", "src/Api/Api.csproj")
             .WithHotReload()
             .UseLaunchSettings(false)
-            .AddEndpointRequest(
-                "http",
-                "http",
+            .WithHttpEndpoint(
                 host: "localhost",
-                port: 5010,
-                exposure: "Local")
+                port: 5010)
             .WithEnvironmentVariable(
                 "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
                 "http://localhost:5104/api/control-plane/v1/traces/ingest")
             .MountVolume(volume.EffectiveResourceId, "App_Data")
-            .AddHealthCheck(ResourceHealthCheckDefinition.HttpLiveness(
+            .WithHttpLivenessCheck(
                 "/alive",
                 endpointName: "http",
                 name: "alive",
-                intervalSeconds: 10));
+                interval: TimeSpan.FromSeconds(10));
 
         var result = await service.ApplyDeploymentAsync(
             graph.BuildDeployment("project-app", environmentId: "local"),

@@ -105,6 +105,39 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
             _endpointRequests.ToArray());
     }
 
+    public ContainerApplicationResourceDefinitionBuilder WithEndpoint(
+        string name,
+        int targetPort,
+        int? port = null,
+        string protocol = "tcp",
+        string? host = null,
+        string exposure = "Local") =>
+        AddEndpointRequest(name, protocol, targetPort, host, port, exposure);
+
+    public ContainerApplicationResourceDefinitionBuilder WithHttpEndpoint(
+        int targetPort = 80,
+        int? port = null,
+        string name = "http",
+        string? host = null,
+        string exposure = "Local") =>
+        AddEndpointRequest(name, "http", targetPort, host, port, exposure);
+
+    public ContainerApplicationResourceDefinitionBuilder WithHttpsEndpoint(
+        int targetPort = 443,
+        int? port = null,
+        string name = "https",
+        string? host = null,
+        string exposure = "Local") =>
+        AddEndpointRequest(name, "https", targetPort, host, port, exposure);
+
+    public ContainerApplicationResourceDefinitionBuilder WithTcpEndpoint(
+        string name,
+        int targetPort,
+        int? port = null,
+        string? host = null,
+        string exposure = "Local") =>
+        AddEndpointRequest(name, "tcp", targetPort, host, port, exposure);
+
     public ContainerApplicationResourceDefinitionBuilder AddHealthCheck(
         ResourceHealthCheckDefinition check)
     {
@@ -119,6 +152,67 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
 
 public static class ContainerApplicationResourceDefinitionBuilderExtensions
 {
+    public static ContainerApplicationResourceDefinitionBuilder WithHttpHealthCheck(
+        this ContainerApplicationResourceDefinitionBuilder builder,
+        string path,
+        string? endpointName = null,
+        string name = ResourceHealthCheckDefinitionValues.Health,
+        TimeSpan? timeout = null,
+        TimeSpan? interval = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return builder.WithHttpProbe(
+            ResourceHealthCheckDefinitionValues.Health,
+            path,
+            endpointName,
+            name,
+            timeout,
+            interval);
+    }
+
+    public static ContainerApplicationResourceDefinitionBuilder WithHttpLivenessCheck(
+        this ContainerApplicationResourceDefinitionBuilder builder,
+        string path,
+        string? endpointName = null,
+        string name = "alive",
+        TimeSpan? timeout = null,
+        TimeSpan? interval = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return builder.WithHttpProbe(
+            ResourceHealthCheckDefinitionValues.Liveness,
+            path,
+            endpointName,
+            name,
+            timeout,
+            interval);
+    }
+
+    public static ContainerApplicationResourceDefinitionBuilder WithHttpProbe(
+        this ContainerApplicationResourceDefinitionBuilder builder,
+        string type,
+        string path,
+        string? endpointName = null,
+        string? name = null,
+        TimeSpan? timeout = null,
+        TimeSpan? interval = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(type);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        return builder.AddHealthCheck(new ResourceHealthCheckDefinition(
+            string.IsNullOrWhiteSpace(name) ? type.Trim() : name.Trim(),
+            type.Trim(),
+            ResourceProbeSourceDefinition.ForHttp(
+                path,
+                endpointName,
+                ToMilliseconds(timeout)),
+            ToSeconds(interval)));
+    }
+
     public static ContainerApplicationResourceDefinitionBuilder AddContainerApplication(
         this ResourceDefinitionGraphBuilder graph,
         string name)
@@ -131,4 +225,10 @@ public static class ContainerApplicationResourceDefinitionBuilderExtensions
         graph.Add(builder);
         return builder;
     }
+
+    private static int? ToMilliseconds(TimeSpan? value) =>
+        value is null ? null : Math.Max(1, (int)Math.Ceiling(value.Value.TotalMilliseconds));
+
+    private static int? ToSeconds(TimeSpan? value) =>
+        value is null ? null : Math.Max(1, (int)Math.Ceiling(value.Value.TotalSeconds));
 }

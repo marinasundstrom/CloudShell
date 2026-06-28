@@ -106,13 +106,9 @@ cloudShell.DefineResources(resources =>
     sqlServerResource = resources
         .AddSqlServer("application-topology-sql-server")
         .WithDisplayName("Application Topology SQL Server")
-        .AddEndpointRequest(
-            "tds",
-            "tcp",
-            targetPort: 1433,
+        .WithTcpEndpoint(
             host: "localhost",
-            port: sqlPort,
-            exposure: "Local")
+            port: sqlPort)
         .MountVolume(sqlVolumeResource, "/var/opt/mssql");
     databaseResource = resources
         .AddSqlDatabase("application-topology-db")
@@ -143,12 +139,9 @@ cloudShell.DefineResources(resources =>
         .WithHotReload(false)
         .UseLaunchSettings(false)
         .WithServiceDiscoveryName("application-topology-api")
-        .AddEndpointRequest(
-            "http",
-            graphApiEndpointUri.Scheme,
+        .WithHttpEndpoint(
             host: graphApiEndpointUri.Host,
-            port: graphApiEndpointUri.Port,
-            exposure: "Local")
+            port: graphApiEndpointUri.Port)
         .WithEnvironmentVariable(
             "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
             traceIngestEndpoint ?? string.Empty)
@@ -191,13 +184,13 @@ cloudShell.DefineResources(resources =>
         .WithReference(sqlServerResource, SqlServerResourceTypeProvider.ResourceTypeId)
         .WithReference(settingsResource, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
         .WithReference(secretsResource, SecretsVaultResourceTypeProvider.ResourceTypeId)
-        .AddHealthCheck(ResourceHealthCheckDefinition.Http(
+        .WithHttpHealthCheck(
             "/health",
-            endpointName: "http"))
-        .AddHealthCheck(ResourceHealthCheckDefinition.HttpLiveness(
+            endpointName: "http")
+        .WithHttpLivenessCheck(
             "/alive",
             endpointName: "http",
-            name: "alive"));
+            name: "alive");
 
     frontendResource = resources
         .AddAspNetCoreProject("application-topology-frontend", graphFrontendProjectPath)
@@ -205,12 +198,9 @@ cloudShell.DefineResources(resources =>
         .DependsOn(apiResource, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
         .WithHotReload(false)
         .UseLaunchSettings(false)
-        .AddEndpointRequest(
-            "http",
-            graphFrontendEndpointUri.Scheme,
+        .WithHttpEndpoint(
             host: graphFrontendEndpointUri.Host,
-            port: graphFrontendEndpointUri.Port,
-            exposure: "Local")
+            port: graphFrontendEndpointUri.Port)
         .WithEnvironmentVariable(
             "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
             traceIngestEndpoint ?? string.Empty)
@@ -221,13 +211,13 @@ cloudShell.DefineResources(resources =>
             "OTEL_SERVICE_NAME",
             "application-topology-frontend")
         .WithReference(apiResource, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
-        .AddHealthCheck(ResourceHealthCheckDefinition.Http(
+        .WithHttpHealthCheck(
             "/healthz",
-            endpointName: "http"))
-        .AddHealthCheck(ResourceHealthCheckDefinition.HttpLiveness(
+            endpointName: "http")
+        .WithHttpLivenessCheck(
             "/alive",
             endpointName: "http",
-            name: "alive"));
+            name: "alive");
 }, AddGraphProjectionState);
 builder.Services
     .AddSingleton<ISqlDatabaseCreationHandler, GraphSqlDatabaseCreationHandler>()

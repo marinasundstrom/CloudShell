@@ -83,12 +83,9 @@ cloudShell.DefineResources(resources =>
         .DependsOn(secretsResource, SecretsVaultResourceTypeProvider.ResourceTypeId)
         .WithHotReload(false)
         .UseLaunchSettings(false)
-        .AddEndpointRequest(
-            "http",
-            apiEndpointUri.Scheme,
+        .WithHttpEndpoint(
             host: apiEndpointUri.Host,
-            port: apiEndpointUri.Port,
-            exposure: "Local")
+            port: apiEndpointUri.Port)
         .WithEnvironmentVariable(
             "CLOUDSHELL_APPLICATION",
             "Settings and Secrets API")

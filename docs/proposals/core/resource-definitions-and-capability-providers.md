@@ -943,9 +943,14 @@ channel and is the native way to declare general resource configuration,
 separate from process or container environment variables.
 Aspire-like ergonomics and old-builder flexibility should be brought back
 primarily as extension-method layers only where they make provider authoring
-clearer without hiding CloudShell's resource semantics. Identity declaration is
-a good example: the core model should keep the explicit resource definition
-shape visible, while convenience extensions can provide shorter host or
+clearer without hiding CloudShell's resource semantics. The builder API should
+remain concept-compatible with the previous programmatic resource API where the
+concepts are the same, but use clearer ResourceDefinition terms where the new
+model intentionally distinguishes concepts. For example,
+`WithEnvironmentVariable(...)` is explicit because `configuration` is now a
+separate native authoring channel. Identity declaration is another good
+example: the core model should keep the explicit resource definition shape
+visible, while convenience extensions can provide shorter host or
 provider-specific authoring forms for common identity bindings, grants, or
 provisioning patterns. This keeps the programmatic API approachable without
 prematurely coupling all providers to one shared toolkit.
@@ -961,9 +966,14 @@ clearly to CloudShell concepts. The ASP.NET Core project builder now has native
 `WithEnvironmentVariable(...)` overloads for literal values,
 configuration-entry references, and secret references. It also has
 provider-owned convenience methods such as `WithServiceDiscovery()`,
-`WithHttpHealthCheck(...)`, and `WithHttpLivenessCheck(...)` over the
-service-discovery-name and health-check resource attributes/capabilities. All
-resource definition builders also expose native
+`WithHttpEndpoint(...)`, `WithHttpsEndpoint(...)`,
+`WithHttpHealthCheck(...)`, and `WithHttpLivenessCheck(...)` over endpoint
+request attributes, service-discovery-name attributes, and health-check
+capabilities. Container application and SQL Server builders also expose
+endpoint-oriented methods such as `WithEndpoint(...)`, `WithHttpEndpoint(...)`,
+and `WithTcpEndpoint(...)` so declarations do not need to hand-author raw
+endpoint request payloads for common cases. All resource definition builders
+also expose native
 `WithConfiguration(sectionName, value)` authoring for the ResourceDefinition
 `configuration` channel.
 `environmentVariables` and `configuration` are separate authoring channels.

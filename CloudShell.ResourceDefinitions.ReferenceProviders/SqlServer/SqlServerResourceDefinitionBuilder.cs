@@ -42,6 +42,23 @@ public sealed class SqlServerResourceDefinitionBuilder(string name) :
             _endpointRequests.ToArray());
     }
 
+    public SqlServerResourceDefinitionBuilder WithEndpoint(
+        string name,
+        int targetPort,
+        int? port = null,
+        string protocol = "tcp",
+        string? host = null,
+        string exposure = "Local") =>
+        AddEndpointRequest(name, protocol, targetPort, host, port, exposure);
+
+    public SqlServerResourceDefinitionBuilder WithTcpEndpoint(
+        string name = "tds",
+        int targetPort = 1433,
+        int? port = null,
+        string? host = null,
+        string exposure = "Local") =>
+        AddEndpointRequest(name, "tcp", targetPort, host, port, exposure);
+
     public SqlServerResourceDefinitionBuilder UseContainerHost(
         IResourceDefinitionBuilder containerHost,
         ResourceTypeId? typeId = null)

@@ -66,12 +66,9 @@ cloudShell.DefineResources(
             .WithReference(configurationResource, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
             .UseLaunchSettings(false)
             .WithHotReload(false)
-            .AddEndpointRequest(
-                "http",
-                apiEndpointUri.Scheme,
+            .WithHttpEndpoint(
                 host: apiEndpointUri.Host,
-                port: apiEndpointUri.Port,
-                exposure: "Local")
+                port: apiEndpointUri.Port)
             .WithEnvironmentVariable(
                 "CLOUDSHELL_APPLICATION",
                 "Keycloak Provisioned API")

@@ -28,6 +28,10 @@ on `git blame --follow`, and then by the broad type of change.
   methods for service discovery, HTTP health checks, and HTTP liveness/probe
   declarations, and moved ProjectReference plus SettingsAndSecrets sample
   declarations onto those APIs.
+- Added concept-compatible graph builder endpoint convenience methods for
+  ASP.NET Core projects, container applications, and SQL Server resources so
+  common HTTP, HTTPS, TCP, and health-check declarations no longer need to
+  hand-author raw endpoint request or health-check payloads.
 - Added native resource graph builder configuration authoring through
   `WithConfiguration(sectionName, value)`, writing to the ResourceDefinition
   `configuration` channel separately from resource environment variables.

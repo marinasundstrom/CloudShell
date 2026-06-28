@@ -62,6 +62,30 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
             _endpointRequests.ToArray());
     }
 
+    public AspNetCoreProjectResourceDefinitionBuilder WithHttpEndpoint(
+        int? port = null,
+        int? targetPort = null,
+        string name = "http",
+        string? host = null,
+        string exposure = "Local") =>
+        AddEndpointRequest(name, "http", targetPort, host, port, exposure);
+
+    public AspNetCoreProjectResourceDefinitionBuilder WithHttpsEndpoint(
+        int? port = null,
+        int? targetPort = null,
+        string name = "https",
+        string? host = null,
+        string exposure = "Local") =>
+        AddEndpointRequest(name, "https", targetPort, host, port, exposure);
+
+    public AspNetCoreProjectResourceDefinitionBuilder WithTcpEndpoint(
+        string name,
+        int targetPort,
+        int? port = null,
+        string? host = null,
+        string exposure = "Local") =>
+        AddEndpointRequest(name, "tcp", targetPort, host, port, exposure);
+
     public AspNetCoreProjectResourceDefinitionBuilder WithEnvironmentVariable(
         string name,
         string? value = null)

@@ -43,12 +43,9 @@ cloudShell.DefineResources(resources =>
         .WithHotReload(false)
         .UseLaunchSettings(false)
         .WithServiceDiscovery()
-        .AddEndpointRequest(
-            "http",
-            apiEndpointUri.Scheme,
+        .WithHttpEndpoint(
             host: apiEndpointUri.Host,
-            port: apiEndpointUri.Port,
-            exposure: "Local")
+            port: apiEndpointUri.Port)
         .WithEnvironmentVariable(
             "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
             traceIngestEndpoint ?? string.Empty)
@@ -73,12 +70,9 @@ cloudShell.DefineResources(resources =>
         .WithReference(
             apiResource,
             AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
-        .AddEndpointRequest(
-            "http",
-            frontendEndpointUri.Scheme,
+        .WithHttpEndpoint(
             host: frontendEndpointUri.Host,
-            port: frontendEndpointUri.Port,
-            exposure: "Local")
+            port: frontendEndpointUri.Port)
         .WithEnvironmentVariable(
             "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
             traceIngestEndpoint ?? string.Empty)

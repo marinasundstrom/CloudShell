@@ -43,13 +43,9 @@ cloudShell.DefineResources(resources =>
     sqlServerResource = resources
         .AddSqlServer("sql-server")
         .WithDisplayName("SQL Server")
-        .AddEndpointRequest(
-            "tds",
-            "tcp",
-            targetPort: 1433,
+        .WithTcpEndpoint(
             host: "localhost",
-            port: sqlServerPort,
-            exposure: "Local")
+            port: sqlServerPort)
         .MountVolume(volumeResource, "/var/opt/mssql");
 });
 builder.Services
