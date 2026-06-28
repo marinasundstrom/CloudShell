@@ -1876,6 +1876,14 @@ the Resource graph and provider/runtime apply seams rather than legacy
 application-provider stores. Sensitive-looking attribute values are redacted by
 key convention until provider-specific configuration editors are rebuilt on the
 new model.
+The graph UI also adds a read-only Environment tab for ported application
+resource types. The first implementation reads the ASP.NET Core project
+`project.environmentVariables` graph attribute, displays literal,
+configuration-entry, and secret-reference declarations, and redacts literal
+values whose variable names indicate secrets, passwords, tokens, or API keys.
+This is intentionally a projection of declared graph state; runtime-derived
+environment variables remain runtime/provider behavior and are not persisted
+back into the graph by this page.
 Small provider-group helpers may be added when they reflect an existing
 switch-readiness boundary, such as local container application support
 requiring both the container app type and its Docker host target type, or a

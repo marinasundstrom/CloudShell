@@ -820,6 +820,13 @@ public sealed class SampleSmokeTests
         Assert.Contains("project.path", graphApiConfigurationHtml);
         Assert.Contains("Capabilities and operations", graphApiConfigurationHtml);
 
+        var graphApiEnvironmentHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Environment.Value)}");
+        Assert.Contains("Environment variables", graphApiEnvironmentHtml);
+        Assert.Contains("CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT", graphApiEnvironmentHtml);
+        Assert.Contains("CLOUDSHELL_IDENTITY_CLIENT_SECRET", graphApiEnvironmentHtml);
+        Assert.Contains("redacted", graphApiEnvironmentHtml);
+
         var graphSqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details");
         Assert.Contains("Application Topology SQL Server", graphSqlDetailsHtml);

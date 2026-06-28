@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
@@ -119,10 +120,10 @@ public static class ResourceModelResourceManagerMapper
         ResourceModelResource resource)
     {
         var attributes = resource.Attributes
-            .Where(attribute => attribute.Value is not null)
+            .Where(attribute => attribute.IsSet)
             .ToDictionary(
                 attribute => attribute.Name.ToString(),
-                attribute => attribute.Value!,
+                FormatResourceManagerAttributeValue,
                 StringComparer.OrdinalIgnoreCase);
 
         attributes[ResourceAttributeNames.ResourceGraphMembership] = ResourceGraphMembershipKinds.Declared;
@@ -130,6 +131,10 @@ public static class ResourceModelResourceManagerMapper
 
         return attributes;
     }
+
+    private static string FormatResourceManagerAttributeValue(ResourceAttributeResolution attribute) =>
+        attribute.Value ??
+        JsonSerializer.Serialize(attribute.AttributeValue);
 
     private static void AddDerivedContainerReplicaAttributes(IDictionary<string, string> attributes)
     {
