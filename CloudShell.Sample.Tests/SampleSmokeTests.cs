@@ -4087,6 +4087,9 @@ public sealed class SampleSmokeTests
         Assert.Equal("application.container-app", graphApp.GetProperty("typeId").GetString());
         Assert.Equal(sampleImage, graphAppAttributes.GetProperty("container.image").GetString());
         Assert.Equal(registryAddress, graphAppAttributes.GetProperty("container.registry").GetString());
+        Assert.Equal("1", graphAppAttributes.GetProperty("container.replicas").GetString());
+        Assert.Equal("false", graphAppAttributes.GetProperty(ResourceAttributeNames.ContainerReplicasEnabled).GetString());
+        Assert.Equal("1", graphAppAttributes.GetProperty(ResourceAttributeNames.DeploymentRequestedReplicaSlots).GetString());
         Assert.Contains(
             "docker:graph-sample",
             graphApp.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
@@ -4164,6 +4167,8 @@ public sealed class SampleSmokeTests
         Assert.Equal(
             "2",
             updatedGraphAttributes.GetProperty("container.replicas").GetString());
+        Assert.Equal("true", updatedGraphAttributes.GetProperty(ResourceAttributeNames.ContainerReplicasEnabled).GetString());
+        Assert.Equal("2", updatedGraphAttributes.GetProperty(ResourceAttributeNames.DeploymentRequestedReplicaSlots).GetString());
 
         var graphReplicaUpdateJson = await host.SendJsonAsync(
             HttpMethod.Put,
@@ -4303,6 +4308,13 @@ public sealed class SampleSmokeTests
         Assert.Equal(
             "3",
             scaledGraphAttributes.GetProperty("container.replicas").GetString());
+        Assert.Equal("true", scaledGraphAttributes.GetProperty(ResourceAttributeNames.ContainerReplicasEnabled).GetString());
+        Assert.Equal("3", scaledGraphAttributes.GetProperty(ResourceAttributeNames.DeploymentRequestedReplicaSlots).GetString());
+
+        var graphDeploymentHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString(graphContainerAppResourceId)}/details?tab={Uri.EscapeDataString("application:deployment")}");
+        Assert.Contains("Replicated", graphDeploymentHtml);
+        Assert.Contains("3 replica slots", graphDeploymentHtml);
     }
 
     [Fact]
