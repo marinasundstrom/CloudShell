@@ -89,10 +89,13 @@ so normal sample projection and smoke coverage do not depend on Docker CLI
 availability or latency. The Docker command runner is sample-local and covered
 by deterministic command-construction tests plus graph-only Docker smoke
 coverage that starts the registry, verifies `/v2/`, and stops/removes the
-container without old provider records. It is not the durable Docker provider
-runtime implementation. Registry status projection uses a bounded, cached
-Docker inspect probe so enabling the materializer does not make normal
-Resource Manager rendering depend on a responsive Docker daemon.
+container without old provider records. The runtime also contributes
+control-plane-scoped workload metadata so graceful host shutdown removes the
+graph registry container through the host-scoped shutdown service. It is not
+the durable Docker provider runtime implementation. Registry status projection
+uses a bounded, cached Docker inspect probe so enabling the materializer does
+not make normal Resource Manager rendering depend on a responsive Docker
+daemon.
 
 Run the sample:
 

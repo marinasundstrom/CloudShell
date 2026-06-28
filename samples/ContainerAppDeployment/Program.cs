@@ -53,7 +53,8 @@ cloudShell.DefineResources(resources =>
 if (builder.Configuration.GetValue("ContainerAppDeployment:EnableGraphDockerRuntime", false))
 {
     builder.Services
-        .AddSingleton<IDockerContainerRuntimeHandler, ContainerAppDeploymentGraphDockerContainerRuntimeHandler>();
+        .AddSingleton<IDockerContainerRuntimeHandler, ContainerAppDeploymentGraphDockerContainerRuntimeHandler>()
+        .AddSingleton<IResourceOrchestrationDescriptorProvider, ContainerAppDeploymentGraphDockerContainerOrchestrationDescriptorProvider>();
 }
 
 builder.Services

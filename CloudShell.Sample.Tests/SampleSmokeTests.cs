@@ -4355,6 +4355,64 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    [Trait("Category", "DockerIntegration")]
+    public async Task ContainerAppDeploymentSample_GraphRegistryRuntimeStopsOnGracefulHostShutdown()
+    {
+        const string graphRegistryResourceId = "docker.container:graph-sample-registry";
+        var registryContainerName =
+            ContainerAppDeploymentGraphDockerContainerRuntimeHandler.GraphRegistryContainerName;
+        if (!await DockerComposeStack.IsAvailableAsync())
+        {
+            return;
+        }
+
+        await DockerComposeStack.RemoveContainerIfExistsAsync(registryContainerName);
+
+        var registryPort = await GetFreePortAsync();
+        var host = await SampleProcess.StartAsync(
+            "samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ContainerAppDeployment__EnableGraphDockerRuntime", "true"),
+                ("ContainerAppDeployment__RegistryPort", registryPort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        try
+        {
+            await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var graphRegistry = Assert.Single(
+                resourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() == graphRegistryResourceId);
+
+            await StartGraphResourceIfAvailableAsync(
+                host,
+                graphRegistry,
+                "ContainerAppDeployment graph registry");
+            await WaitForResourceStateAsync(
+                host,
+                graphRegistryResourceId,
+                ResourceState.Running,
+                StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerExistsAsync(registryContainerName, StartupTimeout),
+                $"Expected Docker container '{registryContainerName}' to be created.");
+
+            await host.StopAsync(StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerRemovedAsync(registryContainerName, StartupTimeout),
+                $"Expected Docker container '{registryContainerName}' to be removed during graceful host shutdown.");
+        }
+        finally
+        {
+            host.Dispose();
+            await DockerComposeStack.RemoveContainerIfExistsAsync(registryContainerName);
+        }
+    }
+
+    [Fact]
     public async Task ReplicatedContainerHealthSample_ProjectsReplicaHealthIntoParentAssessment()
     {
         using var host = await SampleProcess.StartAsync(

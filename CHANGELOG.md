@@ -41,6 +41,10 @@ on `git blame --follow`, and then by the broad type of change.
 - ThirdPartyIdentity graph-only Docker smoke coverage now verifies the
   generated Keycloak compose project is removed after the graph-only workload
   path completes, including compose-managed containers and networks.
+- ContainerAppDeployment now projects its opt-in graph registry Docker runtime
+  into the Resource Manager orchestration catalog with control-plane-scoped
+  lifetime metadata, and Docker smoke coverage verifies graceful host shutdown
+  removes the graph registry container without old Docker provider records.
 
 ### 2026-06-27
 
