@@ -83,7 +83,7 @@ else
         else
         {
             <EmptyState Title="No mounted storage"
-                        Message="No volume mounts or graph volume dependencies are projected for this resource." />
+                        Message="No volume mounts or volume dependencies are projected for this resource." />
         }
     </section>
 }
@@ -161,8 +161,8 @@ else
         if (VolumeDependencies.Count > 0)
         {
             return VolumeDependencies.Count == 1
-                ? "1 volume dependency is declared in the Resource graph."
-                : $"{VolumeDependencies.Count} volume dependencies are declared in the Resource graph.";
+                ? "1 volume dependency is declared for this resource."
+                : $"{VolumeDependencies.Count} volume dependencies are declared for this resource.";
         }
 
         return "No mounted storage is projected for this application resource.";

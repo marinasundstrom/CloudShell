@@ -33,14 +33,14 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
             .AddResourceType<GraphSharedPages.RegisterGraphApplicationResource>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 "Executable application",
-                "Inspect Resource graph executable applications through Resource Manager.",
+                "Inspect executable applications declared through Resource Manager.",
                 "application",
                 20,
                 resourceClass: ResourceManagerResourceClass.Executable)
             .AddResourceType<GraphSharedPages.RegisterGraphApplicationResource>(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
                 "ASP.NET Core project",
-                "Inspect Resource graph ASP.NET Core projects through Resource Manager.",
+                "Inspect ASP.NET Core projects declared through Resource Manager.",
                 "web",
                 21,
                 probeOptions: new ResourceTypeProbeOptions(
@@ -61,7 +61,7 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
             .AddResourceType<GraphContainerAppPages.RegisterGraphContainerApplicationResource>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 "Container app",
-                "Inspect Resource graph container applications through Resource Manager.",
+                "Inspect container applications declared through Resource Manager.",
                 "container",
                 22,
                 probeOptions: new ResourceTypeProbeOptions(SupportsHealth: true),
@@ -69,7 +69,7 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
             .AddResourceType<GraphSharedPages.RegisterGraphApplicationResource>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 "SQL Server",
-                "Inspect Resource graph SQL Server resources through Resource Manager.",
+                "Inspect SQL Server resources declared through Resource Manager.",
                 "database-server",
                 23,
                 probeOptions: new ResourceTypeProbeOptions(
@@ -83,84 +83,84 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
             .AddResourceType<GraphSharedPages.RegisterGraphResource>(
                 SqlDatabaseResourceTypeProvider.ResourceTypeId.ToString(),
                 "SQL Database",
-                "Inspect Resource graph SQL database child resources through Resource Manager.",
+                "Inspect SQL database child resources declared through Resource Manager.",
                 "database-item",
                 24,
                 resourceClass: ResourceManagerResourceClass.Service)
             .AddResourceType<GraphSharedPages.RegisterGraphResource>(
                 ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(),
                 "Configuration Store",
-                "Inspect Resource graph configuration store resources through Resource Manager.",
+                "Inspect configuration store resources declared through Resource Manager.",
                 "settings",
                 25,
                 resourceClass: ResourceManagerResourceClass.Configuration)
             .AddResourceType<GraphSharedPages.RegisterGraphResource>(
                 SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),
                 "Secrets Vault",
-                "Inspect Resource graph secrets vault resources through Resource Manager.",
+                "Inspect secrets vault resources declared through Resource Manager.",
                 "key",
                 26,
                 resourceClass: ResourceManagerResourceClass.SecretsVault)
             .AddResourceType<GraphSharedPages.RegisterGraphResource>(
                 IdentityProvisioningResourceTypeProvider.ResourceTypeId.ToString(),
                 "Identity Provisioning",
-                "Inspect Resource graph identity provisioning resources through Resource Manager.",
+                "Inspect identity provisioning resources declared through Resource Manager.",
                 "identity",
                 27,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<GraphSharedPages.RegisterGraphResource>(
                 ContainerHostResourceTypeProvider.ResourceTypeId.ToString(),
                 "Container Host",
-                "Inspect Resource graph container host resources through Resource Manager.",
+                "Inspect container host resources declared through Resource Manager.",
                 "container-host",
                 28,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<GraphSharedPages.RegisterGraphResource>(
                 DockerHostResourceTypeProvider.ResourceTypeId.ToString(),
                 "Docker Host",
-                "Inspect Resource graph Docker host resources through Resource Manager.",
+                "Inspect Docker host resources declared through Resource Manager.",
                 "container-host",
                 29,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<GraphSharedPages.RegisterGraphResource>(
                 DockerContainerResourceTypeProvider.ResourceTypeId.ToString(),
                 "Docker Container",
-                "Inspect Resource graph Docker container resources through Resource Manager.",
+                "Inspect Docker container resources declared through Resource Manager.",
                 "container",
                 30,
                 resourceClass: ResourceManagerResourceClass.Container)
             .AddResourceType<GraphSharedPages.RegisterGraphResource>(
                 HostConfigurationSourceResourceTypeProvider.ResourceTypeId.ToString(),
                 "Host Configuration Source",
-                "Inspect Resource graph host configuration source resources through Resource Manager.",
+                "Inspect host configuration source resources declared through Resource Manager.",
                 "settings",
                 31,
                 resourceClass: ResourceManagerResourceClass.Configuration)
             .AddResourceType<GraphSharedPages.RegisterGraphResource>(
                 VirtualNetworkResourceTypeProvider.ResourceTypeId.ToString(),
                 "Virtual Network",
-                "Inspect Resource graph virtual network resources through Resource Manager.",
+                "Inspect virtual network resources declared through Resource Manager.",
                 "network",
                 32,
                 resourceClass: ResourceManagerResourceClass.Network)
             .AddResourceType<GraphSharedPages.RegisterGraphResource>(
                 LocalHostNetworkResourceTypeProvider.ResourceTypeId.ToString(),
                 "Local Host Networking",
-                "Inspect Resource graph local host networking resources through Resource Manager.",
+                "Inspect local host networking resources declared through Resource Manager.",
                 "network",
                 33,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<GraphSharedPages.RegisterGraphResource>(
                 MacOSHostNetworkResourceTypeProvider.ResourceTypeId.ToString(),
                 "macOS Host Networking",
-                "Inspect Resource graph macOS host networking resources through Resource Manager.",
+                "Inspect macOS host networking resources declared through Resource Manager.",
                 "network",
                 34,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<GraphSharedPages.RegisterGraphResource>(
                 LocalVolumeResourceTypeProvider.ResourceTypeId.ToString(),
                 "Local Volume",
-                "Inspect Resource graph local volume resources through Resource Manager.",
+                "Inspect local volume resources declared through Resource Manager.",
                 "storage",
                 35,
                 resourceClass: ResourceManagerResourceClass.Storage)

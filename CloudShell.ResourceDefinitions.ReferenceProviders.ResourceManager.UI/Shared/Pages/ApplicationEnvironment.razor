@@ -18,7 +18,7 @@ else
         @if (EnvironmentRows.Count == 0)
         {
             <EmptyState Title="No environment variables"
-                        Message="This resource does not declare environment variables in the Resource graph." />
+                        Message="This resource does not declare environment variables." />
         }
         else
         {
@@ -64,8 +64,8 @@ else
 
     private string GetEnvironmentSummary() =>
         EnvironmentRows.Count == 1
-            ? "1 environment variable is declared in the Resource graph."
-            : $"{EnvironmentRows.Count} environment variables are declared in the Resource graph.";
+            ? "1 environment variable is declared for this resource."
+            : $"{EnvironmentRows.Count} environment variables are declared for this resource.";
 
     private static IReadOnlyList<EnvironmentRow> GetEnvironmentRows(Resource resource)
     {
@@ -98,7 +98,7 @@ else
                 new(
                     AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables.ToString(),
                     "raw",
-                    "unreadable graph value")
+                    "unreadable value")
             ];
         }
     }

@@ -11,7 +11,7 @@ else
         <div class="blade-section-header">
             <div>
                 <h3>Resource model</h3>
-                <p>Configuration projected from the Resource graph.</p>
+                <p>Configuration projected from resource declarations.</p>
             </div>
         </div>
         <dl class="detail-list">
@@ -35,7 +35,7 @@ else
             <dd>@Resource.ManagementMode</dd>
             <dt>Visibility</dt>
             <dd>@Resource.Visibility</dd>
-            <dt>Graph membership</dt>
+            <dt>Resource membership</dt>
             <dd>@Resource.ResourceGraphMembership</dd>
             <dt>Revision</dt>
             <dd>@Resource.Version</dd>
@@ -54,7 +54,7 @@ else
         @if (AttributeRows.Count == 0)
         {
             <EmptyState Title="No attributes"
-                        Message="This resource projection does not expose graph attributes." />
+                        Message="This resource projection does not expose attributes." />
         }
         else
         {
@@ -167,8 +167,8 @@ else
 
     private string GetAttributeSummary() =>
         AttributeRows.Count == 1
-            ? "1 graph attribute is projected for this resource."
-            : $"{AttributeRows.Count} graph attributes are projected for this resource.";
+            ? "1 attribute is projected for this resource."
+            : $"{AttributeRows.Count} attributes are projected for this resource.";
 
     private string GetEndpointSummary() =>
         Resource?.Endpoints.Count == 1

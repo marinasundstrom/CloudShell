@@ -29,7 +29,7 @@ else
     @if (IsLoading)
     {
         <EmptyState Title="Loading databases"
-                    Message="CloudShell is reading projected Resource graph database resources." />
+                    Message="CloudShell is reading projected database resources." />
     }
     else if (DatabaseRows.Count == 0)
     {
@@ -123,8 +123,8 @@ else
     {
         var count = DatabaseRows.Count.ToString(CultureInfo.InvariantCulture);
         return DatabaseRows.Count == 1
-            ? "1 graph-declared database references this SQL Server resource."
-            : $"{count} graph-declared databases reference this SQL Server resource.";
+            ? "1 database declaration references this SQL Server resource."
+            : $"{count} database declarations reference this SQL Server resource.";
     }
 
     private static bool IsDatabaseForServer(Resource database, string serverResourceId) =>
@@ -152,7 +152,7 @@ else
             databaseName,
             source,
             ensureCreated,
-            "Projected from the Resource graph");
+            "Projected from resource declarations");
     }
 
     private static string GetAttribute(
