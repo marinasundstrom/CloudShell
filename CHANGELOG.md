@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Documented the resource graph builder API layering direction: core builders
+  stay aligned with Resource model concepts, while Aspire-like and old-builder
+  convenience shapes should start as extension methods until provider ports
+  prove they belong in the shared builder surface.
 - Resource graph sample declarations now omit explicit resource ids by default
   and use name-first builders plus the host `IResourceIdConvention`; the
   temporary Resource Manager bridge can declare a built graph resource from

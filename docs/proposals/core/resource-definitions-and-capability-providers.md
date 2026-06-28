@@ -931,6 +931,17 @@ secret counts, are not authored into `ResourceDefinition` values. Samples that
 need those values while running in-memory project them into graph
 `ResourceState` after the definition has been converted to state, matching the
 runtime/provider-managed nature of those attributes.
+The basic builder API should stay tied to Resource model concepts:
+resource definitions, attributes, capabilities, operations, references,
+resource type ids, and graph/deployment envelopes. Aspire-like ergonomics and
+old-builder flexibility should be brought back primarily as extension-method
+layers until repeated usage proves a method belongs in a provider builder or
+the shared builder surface. Identity declaration is a good example: the core
+model should keep the explicit resource definition shape visible, while
+convenience extensions can provide shorter host or provider-specific authoring
+forms for common identity bindings, grants, or provisioning patterns. This
+keeps the programmatic API approachable without hiding CloudShell's resource
+graph semantics or prematurely coupling all providers to one shared toolkit.
 Resource authoring should normally use resource names as the stable
 human-authored identifiers. Resource ids are assigned by platform conventions
 or provider conventions and should usually be left implicit. Programmatic
