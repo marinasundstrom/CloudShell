@@ -40,6 +40,67 @@
   code-first SQL Server definition authoring, declared database configuration,
   and volume mount capability setup.
 
+## Example ResourceDefinition
+
+This is the interchange shape for a graph-backed SQL Server declaration that
+mounts a storage-backed CloudShell volume. Runtime SQL startup, database
+creation, and credential reconciliation are delegated to the Control Plane
+runtime integration for the provider.
+
+```json
+{
+  "name": "graph-sql-server",
+  "typeId": "application.sql-server",
+  "resourceId": "application.sql-server:graph-sql-server",
+  "providerId": "applications.sql-server",
+  "displayName": "Graph SQL Server",
+  "dependsOn": [
+    {
+      "value": "docker:graph-sample",
+      "relationship": "dependsOn",
+      "addressingMode": "resourceId",
+      "typeId": "docker.host"
+    }
+  ],
+  "attributes": {
+    "sqlserver.version": "2022",
+    "sqlserver.edition": "Developer",
+    "sqlserver.endpointRequests": [
+      {
+        "name": "tds",
+        "protocol": "tcp",
+        "targetPort": 1433,
+        "host": "localhost",
+        "port": 1433,
+        "exposure": "Local"
+      }
+    ]
+  },
+  "configuration": {
+    "sqlServer": {
+      "databases": [
+        {
+          "name": "application",
+          "displayName": "Application database",
+          "ensureCreated": true
+        }
+      ]
+    }
+  },
+  "capabilities": {
+    "storage.volumeConsumer": {
+      "mounts": [
+        {
+          "volume": "cloudshell.volume:graph-sql-data",
+          "targetPath": "/var/opt/mssql",
+          "readOnly": false
+        }
+      ]
+    }
+  }
+}
+```
+
 ## Switch-over status
 
 Ready to integrate for sample-local graph SQL workloads where the host wires a

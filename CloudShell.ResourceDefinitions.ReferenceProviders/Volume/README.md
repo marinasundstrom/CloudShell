@@ -18,6 +18,37 @@
   code-first storage-backed volume authoring, including typed storage
   dependencies for tests and deployment definitions.
 
+## Example ResourceDefinition
+
+This is the interchange shape for a graph-backed CloudShell volume declaration
+that depends on a storage resource. Runtime materialization remains a
+provider/control-plane concern.
+
+```json
+{
+  "name": "graph-sql-data",
+  "typeId": "cloudshell.volume",
+  "resourceId": "cloudshell.volume:graph-sql-data",
+  "providerId": "cloudshell.storage",
+  "displayName": "Graph SQL Server Data",
+  "dependsOn": [
+    {
+      "value": "cloudshell.storage:graph-local",
+      "relationship": "dependsOn",
+      "addressingMode": "resourceId",
+      "typeId": "cloudshell.storage"
+    }
+  ],
+  "attributes": {
+    "storage.volume.provider": "Local Storage",
+    "storage.volume.medium": "FileSystem",
+    "storage.volume.subPath": "sql",
+    "storage.volume.accessMode": "ReadWriteOnce",
+    "storage.volume.persistent": true
+  }
+}
+```
+
 ## Switch-over status
 
 Ready as a supporting graph resource for the current storage and SQL-backed

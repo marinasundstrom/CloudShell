@@ -58,6 +58,10 @@ on `git blame --follow`, and then by the broad type of change.
   now include `ResourceDefinition` interchange examples that show service
   discovery references and keep configuration/secret values out of graph
   attributes.
+- Storage, CloudShell Volume, and SQL Server provider READMEs now include
+  `ResourceDefinition` interchange examples for the storage-backed SQL chain,
+  including typed storage dependencies, volume mounts, and declared database
+  configuration.
 - Resource graph provider helper coverage now verifies grouped registration
   seams include both change-apply and definition-apply providers, not only type
   providers.

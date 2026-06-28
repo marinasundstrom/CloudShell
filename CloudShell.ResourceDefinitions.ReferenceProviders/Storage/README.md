@@ -16,6 +16,27 @@
 - Manual `ResourceDefinitionGraphBuilder.AddStorage(...)` builder for
   code-first storage definition authoring and test setup.
 
+## Example ResourceDefinition
+
+This is the interchange shape for a graph-backed local storage declaration.
+The graph stores the storage metadata used by volume and runtime providers; it
+does not materialize directories on its own.
+
+```json
+{
+  "name": "graph-local",
+  "typeId": "cloudshell.storage",
+  "resourceId": "cloudshell.storage:graph-local",
+  "providerId": "cloudshell.storage",
+  "displayName": "Graph Local Storage",
+  "attributes": {
+    "storage.provider": "Local Storage",
+    "storage.medium": "FileSystem",
+    "storage.location": "./Data/storage"
+  }
+}
+```
+
 ## Switch-over status
 
 Ready as a supporting graph resource for sample paths that need local storage
