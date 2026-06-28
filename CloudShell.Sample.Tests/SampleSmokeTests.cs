@@ -4682,6 +4682,8 @@ public sealed class SampleSmokeTests
             "cloudshell-application-api:20260622.2",
             graphAppAttributes.GetProperty("container.image").GetString());
         Assert.Equal("3", graphAppAttributes.GetProperty("container.replicas").GetString());
+        Assert.Equal("true", graphAppAttributes.GetProperty(ResourceAttributeNames.ContainerReplicasEnabled).GetString());
+        Assert.Equal("3", graphAppAttributes.GetProperty(ResourceAttributeNames.DeploymentRequestedReplicaSlots).GetString());
         Assert.Equal(
             $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}",
             GetPrimaryEndpointAddress(graphApp));
@@ -4706,6 +4708,8 @@ public sealed class SampleSmokeTests
             $"/resources/{Uri.EscapeDataString("application.container-app:graph-api")}/details?tab={Uri.EscapeDataString("application:deployment")}");
         Assert.Contains("Deploy image", graphDeploymentHtml);
         Assert.Contains("Current image", graphDeploymentHtml);
+        Assert.Contains("Replicated", graphDeploymentHtml);
+        Assert.Contains("3 replica slots", graphDeploymentHtml);
 
         var graphRevisionsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.container-app:graph-api")}/details?tab={Uri.EscapeDataString("application:revisions")}");

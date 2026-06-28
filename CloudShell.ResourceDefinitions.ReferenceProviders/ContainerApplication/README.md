@@ -29,6 +29,11 @@
   POC uses `application.container-app` as the type id trigger for container-app
   deployment, revision, scale, monitoring, and endpoint-action UI instead of
   depending on the legacy application provider's concrete resource model.
+- Resource Manager projection parity for replica-mode UI triggers. Graph state
+  keeps `container.replicas` as the declarative value, while the Resource
+  Manager bridge derives compatibility facts such as
+  `container.replicas.enabled` and `deployment.replicas.requestedSlots` so
+  existing deployment and monitoring views render replicated apps correctly.
 
 ## Runtime Integration
 
@@ -147,3 +152,6 @@ model cleanup work after switch-over.
 - Actual container host orchestration through a runtime handler implementation.
 - Rich revision history, replica runtime state, and old edit surfaces such as
   configuration and storage updates.
+- Continue auditing attribute and capability parity against the old provider
+  and provider-specific UI. Future fixes should prefer stable resource
+  type/class/capability/attribute triggers over concrete old provider classes.

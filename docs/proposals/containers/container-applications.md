@@ -693,6 +693,12 @@ liveness/lifecycle signals, while scaling changes desired capacity.
 * Continue improving update behavior around replica, environment, endpoint,
   identity, and storage changes, deciding which changes belong to active
   revision capacity/configuration and which require a new deployment revision.
+* Keep graph-backed container apps compatible with existing provider-specific
+  UI by projecting the effective replica-mode facts that views use for
+  deployment, monitoring, and scale decisions. The graph should keep
+  `container.replicas` as the declarative configuration; Resource Manager
+  projection can derive `container.replicas.enabled` and requested replica
+  slots for existing runtime/UI consumers.
 * Keep supported samples green with a broad container app scenario that uses
   SQL Server, mounted storage, service discovery, secrets/configuration,
   identity, structured logs, traces, and name/public exposure.

@@ -4112,6 +4112,13 @@ the Resource model becomes a replacement path:
   bridge layer that appears during provider ports. If it mostly translates old
   concepts into new ones, prefer replacing it with a provider-local service
   shaped around the new resource type.
+- Treat Resource Manager and UI trigger parity as part of provider porting.
+  A port is not complete just because the graph declares the right resource
+  type: runtime decisions and provider-specific UI must be able to discover the
+  same effective class, type, capability, operation, and attribute signals they
+  need. When old UI surfaces depend on derived attributes, prefer deriving
+  those facts in the Resource Manager projection instead of storing duplicate
+  configuration in the graph.
 - After enough providers have switched over, run a deliberate Resource model
   cleanup pass for names, class boundaries, and small structural adjustments.
   The POC should avoid renaming or restructuring core graph classes during

@@ -1,3 +1,4 @@
+using System.Globalization;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
@@ -125,8 +126,44 @@ public static class ResourceModelResourceManagerMapper
                 StringComparer.OrdinalIgnoreCase);
 
         attributes[ResourceAttributeNames.ResourceGraphMembership] = ResourceGraphMembershipKinds.Declared;
+        AddDerivedContainerReplicaAttributes(attributes);
 
         return attributes;
+    }
+
+    private static void AddDerivedContainerReplicaAttributes(IDictionary<string, string> attributes)
+    {
+        if (!TryGetReplicaCount(attributes, ResourceAttributeNames.ContainerReplicas, out var replicas))
+        {
+            return;
+        }
+
+        attributes.TryAdd(
+            ResourceAttributeNames.ContainerReplicasEnabled,
+            (replicas > 1).ToString(CultureInfo.InvariantCulture).ToLowerInvariant());
+        attributes.TryAdd(
+            ResourceAttributeNames.DeploymentRequestedReplicaSlots,
+            replicas.ToString(CultureInfo.InvariantCulture));
+        attributes.TryAdd(
+            ResourceAttributeNames.DeploymentRequestedReplicas,
+            replicas.ToString(CultureInfo.InvariantCulture));
+    }
+
+    private static bool TryGetReplicaCount(
+        IDictionary<string, string> attributes,
+        string attributeName,
+        out int replicas)
+    {
+        replicas = 0;
+
+        if (!attributes.TryGetValue(attributeName, out var value) ||
+            !int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedReplicas))
+        {
+            return false;
+        }
+
+        replicas = Math.Max(1, parsedReplicas);
+        return true;
     }
 
     private static ResourceManagerClass ToResourceManagerClass(ResourceClassId classId) =>
