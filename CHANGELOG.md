@@ -34,6 +34,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ThirdPartyIdentity setup-handler coverage now uses the same stable identity,
   provisioning, and API resource identities as the switched sample instead of
   graph-prefixed fixture IDs.
+- ThirdPartyIdentity's graph ASP.NET Core identity environment provider no
+  longer depends on the old application provider options just to resolve the
+  default resource identity scope.
 - Resource graph builder overloads that accept another resource builder now
   infer typed `ResourceReference` metadata from the target builder for
   startup dependencies, project references, service/name-mapping targets, and

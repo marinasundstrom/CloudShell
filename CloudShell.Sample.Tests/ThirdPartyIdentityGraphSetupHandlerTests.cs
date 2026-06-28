@@ -2,7 +2,6 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Client.Authentication;
 using CloudShell.ControlPlane.ResourceManager.Identity;
-using CloudShell.Providers.Applications;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ThirdPartyIdentity;
@@ -110,8 +109,7 @@ public sealed class ThirdPartyIdentityGraphSetupHandlerTests
         var environmentProvider = new GraphAspNetCoreProjectIdentityEnvironmentProvider(
             declarations,
             new ResourceIdentityProviderCatalog(),
-            [new RecordingCredentialEnvironmentProvider()],
-            new ApplicationProviderOptions());
+            [new RecordingCredentialEnvironmentProvider()]);
 
         var variables = await environmentProvider.ResolveAsync(CreateGraphAspNetCoreProjectResource());
 

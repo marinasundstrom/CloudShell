@@ -1,5 +1,4 @@
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.Providers.Applications;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using GraphResource = CloudShell.ResourceDefinitions.Resource;
 
@@ -8,10 +7,11 @@ namespace CloudShell.ThirdPartyIdentity;
 public sealed class GraphAspNetCoreProjectIdentityEnvironmentProvider(
     ResourceDeclarationStore declarations,
     ResourceIdentityProviderCatalog identityProviders,
-    IEnumerable<IResourceIdentityCredentialEnvironmentProvider> credentialEnvironmentProviders,
-    ApplicationProviderOptions? options = null) :
+    IEnumerable<IResourceIdentityCredentialEnvironmentProvider> credentialEnvironmentProviders) :
     IAspNetCoreProjectRuntimeEnvironmentProvider
 {
+    private const string DefaultScope = "ControlPlane.Access";
+
     private readonly IReadOnlyList<IResourceIdentityCredentialEnvironmentProvider> _credentialEnvironmentProviders =
         credentialEnvironmentProviders.ToArray();
 
@@ -48,7 +48,7 @@ public sealed class GraphAspNetCoreProjectIdentityEnvironmentProvider(
             resource.EffectiveResourceId,
             binding.Name);
         var scope = binding.IdentityScopes.Count == 0
-            ? options?.ResourceIdentityDefaultScope ?? "ControlPlane.Access"
+            ? DefaultScope
             : binding.IdentityScopes[0];
         var variables = credentialProvider
             .CreateEnvironment(new ResourceIdentityCredentialEnvironmentRequest(
