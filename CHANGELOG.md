@@ -44,6 +44,10 @@ on `git blame --follow`, and then by the broad type of change.
   and provision-on-startup intent with old-builder-compatible
   `WithIdentity(...)` and `ProvisionIdentityOnStartup(...)` methods, and
   ThirdPartyIdentity now uses that surface for its API resource.
+- SettingsAndSecrets and ApplicationTopology now also declare API identity
+  binding and provision-on-startup intent directly on their Resource graph
+  builders, leaving Resource Manager declarations focused on provider
+  registration and permission grants.
 - Resource graph builder overloads that accept another resource builder now
   infer typed `ResourceReference` metadata from the target builder for
   startup dependencies, project references, service/name-mapping targets, and

@@ -42,6 +42,7 @@ var secretsServiceEndpoint = builder.Configuration["Samples:SettingsAndSecrets:S
 var apiEndpoint = builder.Configuration["Samples:SettingsAndSecrets:ApiEndpoint"] ??
     "http://localhost:5228";
 var apiEndpointUri = new Uri(apiEndpoint);
+const string identityProviderId = "identity:development";
 const string apiIdentityName = "settings-secrets-api";
 const string resourceIdentityClientSecret = "local-development-settings-secrets-api-secret";
 var apiProjectPath = Path.Combine(
@@ -86,6 +87,8 @@ cloudShell.DefineResources(resources =>
         .WithHttpEndpoint(
             host: apiEndpointUri.Host,
             port: apiEndpointUri.Port)
+        .WithIdentity(identityProviderId, name: apiIdentityName)
+        .ProvisionIdentityOnStartup()
         .WithEnvironmentVariable(
             "CLOUDSHELL_APPLICATION",
             "Settings and Secrets API")
@@ -147,8 +150,8 @@ cloudShell.AddApplicationResourceManagerUi();
 
 cloudShell.Resources(resources =>
 {
-    var identityProvider = resources.AddIdentityProvider(
-        "identity:development",
+    resources.AddIdentityProvider(
+        identityProviderId,
         "Development identity",
         ResourceIdentityProviderKind.BuiltIn,
         new Dictionary<string, string>
@@ -160,10 +163,7 @@ cloudShell.Resources(resources =>
 
     var settings = resources.Declare(settingsResource);
     var secrets = resources.Declare(secretsResource);
-    var api = resources
-        .Declare(apiResource)
-        .WithIdentity(identityProvider, name: apiIdentityName)
-        .ProvisionIdentityOnStartup();
+    var api = resources.Declare(apiResource);
     settings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
     secrets.Allow(api.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
 });
