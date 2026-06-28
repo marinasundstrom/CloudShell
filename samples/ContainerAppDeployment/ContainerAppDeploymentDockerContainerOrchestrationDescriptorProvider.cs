@@ -1,7 +1,7 @@
 using System.Text.Json;
 using CloudShell.Abstractions.ResourceManager;
 
-internal sealed class ContainerAppDeploymentGraphDockerContainerOrchestrationDescriptorProvider :
+internal sealed class ContainerAppDeploymentDockerContainerOrchestrationDescriptorProvider :
     IResourceOrchestrationDescriptorProvider
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
@@ -9,7 +9,7 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerOrchestrationDes
     public bool CanDescribe(Resource resource) =>
         string.Equals(
             resource.Id,
-            ContainerAppDeploymentGraphDockerContainerRuntimeHandler.GraphRegistryResourceId,
+            ContainerAppDeploymentDockerContainerRuntimeHandler.RegistryResourceId,
             StringComparison.OrdinalIgnoreCase);
 
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(
@@ -28,7 +28,7 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerOrchestrationDes
             resource.DependsOn,
             [],
             resource.Endpoints,
-            "container-app-deployment.graph-registry-runtime.v1",
+            "container-app-deployment.registry-runtime.v1",
             JsonSerializer.SerializeToElement(workload, SerializerOptions)));
     }
 }

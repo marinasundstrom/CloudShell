@@ -58,7 +58,6 @@ public sealed class SampleSmokeTests
     private static IEnumerable<(string SampleName, string AppSettingsPath, string ConfigurationPath)> SupportedSwitchReadinessSampleGraphOnlySettings()
     {
         yield return ("ApplicationTopology", "samples/ApplicationTopology/Host/appsettings.json", "ApplicationTopology:GraphOnly");
-        yield return ("ContainerAppDeployment", "samples/ContainerAppDeployment/appsettings.json", "ContainerAppDeployment:GraphOnly");
         yield return ("LoadBalancer", "samples/LoadBalancer/appsettings.json", "LoadBalancer:GraphOnly");
         yield return ("ProjectReference", "samples/ProjectReference/Host/appsettings.json", "ProjectReference:GraphOnly");
         yield return ("ReplicatedContainerHealth", "samples/ReplicatedContainerHealth/appsettings.json", "ReplicatedContainerHealth:GraphOnly");
@@ -4004,15 +4003,15 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
-    public async Task ContainerAppDeploymentSample_UpdatesMockImageTagThroughDeploymentApi()
+    public async Task ContainerAppDeploymentSample_UpdatesContainerAppState()
     {
         const string sampleImage = "cloudshell/mock-api:20260608.1";
+        const string containerAppResourceId = "application.container-app:sample-api";
         var registryPort = await GetFreePortAsync();
         using var host = await SampleProcess.StartAsync(
             "samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj",
             await GetFreePortAsync(),
             [
-                ("ContainerAppDeployment__GraphOnly", "false"),
                 ("ContainerAppDeployment__RegistryPort", registryPort.ToString(CultureInfo.InvariantCulture))
             ]);
 
@@ -4021,122 +4020,61 @@ public sealed class SampleSmokeTests
         var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
-        var app = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:sample-api");
+        var docker = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "docker:sample");
         var registry = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "docker.container:sample-registry");
+        var app = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == containerAppResourceId);
+
+        Assert.DoesNotContain(resources, resource =>
             resource.GetProperty("id").GetString() == "docker:container:sample-registry");
-        var graphDocker = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "docker:graph-sample");
-        var graphRegistry = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "docker.container:graph-sample-registry");
-        var graphApp = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.container-app:graph-sample-api");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:sample-api");
 
         var registryAddress = $"localhost:{registryPort.ToString(CultureInfo.InvariantCulture)}";
-        var appAttributes = app.GetProperty("attributes");
+        var dockerAttributes = docker.GetProperty("attributes");
         var registryAttributes = registry.GetProperty("attributes");
-        var graphDockerAttributes = graphDocker.GetProperty("attributes");
-        var graphRegistryAttributes = graphRegistry.GetProperty("attributes");
-        var graphAppAttributes = graphApp.GetProperty("attributes");
-        Assert.Equal(registryAddress, appAttributes.GetProperty("container.registry").GetString());
+        var appAttributes = app.GetProperty("attributes");
+        Assert.Equal("docker.host", docker.GetProperty("typeId").GetString());
+        Assert.Equal(registryAddress, dockerAttributes.GetProperty("container.registry").GetString());
+        Assert.Equal("docker.container", registry.GetProperty("typeId").GetString());
+        Assert.Equal("registry:2", registryAttributes.GetProperty("container.image").GetString());
         Assert.Equal(registryAddress, registryAttributes.GetProperty("container.registry").GetString());
-        Assert.Equal("docker.host", graphDocker.GetProperty("typeId").GetString());
-        Assert.Equal(registryAddress, graphDockerAttributes.GetProperty("container.registry").GetString());
-        Assert.Equal("docker.container", graphRegistry.GetProperty("typeId").GetString());
-        Assert.Equal("registry:2", graphRegistryAttributes.GetProperty("container.image").GetString());
-        Assert.Equal(registryAddress, graphRegistryAttributes.GetProperty("container.registry").GetString());
-        Assert.Contains(
-            "docker:graph-sample",
-            graphRegistry.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.Equal("application.container-app", graphApp.GetProperty("typeId").GetString());
-        Assert.Equal(sampleImage, graphAppAttributes.GetProperty("container.image").GetString());
-        Assert.Equal(registryAddress, graphAppAttributes.GetProperty("container.registry").GetString());
-        Assert.Equal("1", graphAppAttributes.GetProperty("container.replicas").GetString());
-        Assert.Equal("false", graphAppAttributes.GetProperty(ResourceAttributeNames.ContainerReplicasEnabled).GetString());
-        Assert.Equal("1", graphAppAttributes.GetProperty(ResourceAttributeNames.DeploymentRequestedReplicaSlots).GetString());
-        Assert.Contains(
-            "docker:graph-sample",
-            graphApp.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.Contains(
-            "docker.container:graph-sample-registry",
-            graphApp.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.Equal(
-            ResourceDeclarationPersistence.Persisted.ToString(),
-            appAttributes.GetProperty(ResourceAttributeNames.DeclarationPersistence).GetString());
-        Assert.Equal(
-            ResourceDeclarationPersistence.Persisted.ToString(),
-            registryAttributes.GetProperty(ResourceAttributeNames.DeclarationPersistence).GetString());
-
-        var appDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:sample-api")}/details");
-        Assert.Contains("Persisted declaration", appDetailsHtml);
-        Assert.DoesNotContain("Startup declaration", appDetailsHtml);
-        Assert.DoesNotContain("UI changes are temporary until the resource is persisted.", appDetailsHtml);
-
-        var appMonitoringHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:sample-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Monitoring.Value)}");
-        Assert.Contains("Auto-refresh", appMonitoringHtml);
-        Assert.Contains(">Monitoring<", appMonitoringHtml);
-        Assert.DoesNotContain(">Refresh<", appMonitoringHtml);
+        Assert.Equal("application.container-app", app.GetProperty("typeId").GetString());
+        Assert.Equal(sampleImage, appAttributes.GetProperty("container.image").GetString());
+        Assert.Equal(registryAddress, appAttributes.GetProperty("container.registry").GetString());
 
         var updateJson = await host.SendJsonAsync(
             HttpMethod.Post,
-            "/api/container-apps/v1/application%3Asample-api/deployments",
+            $"/api/container-apps/v1/{Uri.EscapeDataString(containerAppResourceId)}/deployments",
             """
             {
-              "image": "cloudshell/mock-api:20260608.2",
-              "triggeredBy": "sample-smoke-test"
+              "image": "cloudshell/mock-api:20260608.4",
+              "triggeredBy": "sample-smoke-test",
+              "requestedReplicas": 2
             }
             """);
         using var updateDocument = JsonDocument.Parse(updateJson);
 
         Assert.Contains(
-            "cloudshell/mock-api:20260608.2",
+            "cloudshell/mock-api:20260608.4",
             updateDocument.RootElement.GetProperty("message").GetString());
 
         var updatedJson = await host.GetStringAsync(
-            "/api/control-plane/v1/resources/application%3Asample-api");
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(containerAppResourceId)}");
         using var updatedDocument = JsonDocument.Parse(updatedJson);
         var updatedAttributes = updatedDocument.RootElement.GetProperty("attributes");
         Assert.Equal(
-            "cloudshell/mock-api:20260608.2",
+            "cloudshell/mock-api:20260608.4",
             updatedAttributes.GetProperty("container.image").GetString());
-        Assert.NotEqual(
-            "unrevisioned",
-            updatedAttributes.GetProperty("container.revision").GetString());
-
-        var graphUpdateJson = await host.SendJsonAsync(
-            HttpMethod.Post,
-            $"/api/container-apps/v1/{Uri.EscapeDataString("application.container-app:graph-sample-api")}/deployments",
-            """
-            {
-              "image": "cloudshell/mock-api:20260608.3",
-              "triggeredBy": "sample-smoke-test",
-              "requestedReplicas": 2
-            }
-            """);
-        using var graphUpdateDocument = JsonDocument.Parse(graphUpdateJson);
-
-        Assert.Contains(
-            "cloudshell/mock-api:20260608.3",
-            graphUpdateDocument.RootElement.GetProperty("message").GetString());
-
-        var updatedGraphJson = await host.GetStringAsync(
-            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application.container-app:graph-sample-api")}");
-        using var updatedGraphDocument = JsonDocument.Parse(updatedGraphJson);
-        var updatedGraphAttributes = updatedGraphDocument.RootElement.GetProperty("attributes");
-        Assert.Equal(
-            "cloudshell/mock-api:20260608.3",
-            updatedGraphAttributes.GetProperty("container.image").GetString());
         Assert.Equal(
             "2",
-            updatedGraphAttributes.GetProperty("container.replicas").GetString());
-        Assert.Equal("true", updatedGraphAttributes.GetProperty(ResourceAttributeNames.ContainerReplicasEnabled).GetString());
-        Assert.Equal("2", updatedGraphAttributes.GetProperty(ResourceAttributeNames.DeploymentRequestedReplicaSlots).GetString());
+            updatedAttributes.GetProperty("container.replicas").GetString());
 
-        var graphReplicaUpdateJson = await host.SendJsonAsync(
+        var replicaUpdateJson = await host.SendJsonAsync(
             HttpMethod.Put,
-            $"/api/container-apps/v1/{Uri.EscapeDataString("application.container-app:graph-sample-api")}/replicas",
+            $"/api/container-apps/v1/{Uri.EscapeDataString(containerAppResourceId)}/replicas",
             """
             {
               "replicas": 3,
@@ -4144,169 +4082,57 @@ public sealed class SampleSmokeTests
               "triggeredBy": "sample-smoke-test"
             }
             """);
-        using var graphReplicaUpdateDocument = JsonDocument.Parse(graphReplicaUpdateJson);
+        using var replicaUpdateDocument = JsonDocument.Parse(replicaUpdateJson);
 
         Assert.Contains(
             "3",
-            graphReplicaUpdateDocument.RootElement.GetProperty("message").GetString());
+            replicaUpdateDocument.RootElement.GetProperty("message").GetString());
 
-        var scaledGraphJson = await host.GetStringAsync(
-            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application.container-app:graph-sample-api")}");
-        using var scaledGraphDocument = JsonDocument.Parse(scaledGraphJson);
-        var scaledGraphAttributes = scaledGraphDocument.RootElement.GetProperty("attributes");
-        Assert.Equal(
-            "cloudshell/mock-api:20260608.3",
-            scaledGraphAttributes.GetProperty("container.image").GetString());
-        Assert.Equal(
-            "3",
-            scaledGraphAttributes.GetProperty("container.replicas").GetString());
-
-        var runtimeAfterGraphUpdateJson = await host.GetStringAsync(
-            "/api/control-plane/v1/resources/application%3Asample-api");
-        using var runtimeAfterGraphUpdateDocument = JsonDocument.Parse(runtimeAfterGraphUpdateJson);
-        var runtimeAfterGraphUpdateAttributes =
-            runtimeAfterGraphUpdateDocument.RootElement.GetProperty("attributes");
-        Assert.Equal(
-            "cloudshell/mock-api:20260608.3",
-            runtimeAfterGraphUpdateAttributes.GetProperty("container.image").GetString());
-        Assert.Equal(
-            "3",
-            runtimeAfterGraphUpdateAttributes.GetProperty(ResourceAttributeNames.ContainerReplicas).GetString());
-    }
-
-    [Fact]
-    public async Task ContainerAppDeploymentSample_GraphOnlyModeUpdatesGraphContainerAppState()
-    {
-        const string sampleImage = "cloudshell/mock-api:20260608.1";
-        const string graphContainerAppResourceId = "application.container-app:graph-sample-api";
-        var registryPort = await GetFreePortAsync();
-        using var host = await SampleProcess.StartAsync(
-            "samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj",
-            await GetFreePortAsync(),
-            [
-                ("ContainerAppDeployment__RegistryPort", registryPort.ToString(CultureInfo.InvariantCulture))
-            ]);
-
-        await host.WaitForHttpOkAsync("/", StartupTimeout);
-
-        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
-        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
-        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
-        var graphDocker = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "docker:graph-sample");
-        var graphRegistry = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "docker.container:graph-sample-registry");
-        var graphApp = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == graphContainerAppResourceId);
-
-        Assert.DoesNotContain(resources, resource =>
-            resource.GetProperty("id").GetString() == "docker:sample");
-        Assert.DoesNotContain(resources, resource =>
-            resource.GetProperty("id").GetString() == "docker:container:sample-registry");
-        Assert.DoesNotContain(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:sample-api");
-
-        var registryAddress = $"localhost:{registryPort.ToString(CultureInfo.InvariantCulture)}";
-        var graphDockerAttributes = graphDocker.GetProperty("attributes");
-        var graphRegistryAttributes = graphRegistry.GetProperty("attributes");
-        var graphAppAttributes = graphApp.GetProperty("attributes");
-        Assert.Equal("docker.host", graphDocker.GetProperty("typeId").GetString());
-        Assert.Equal(registryAddress, graphDockerAttributes.GetProperty("container.registry").GetString());
-        Assert.Equal("docker.container", graphRegistry.GetProperty("typeId").GetString());
-        Assert.Equal("registry:2", graphRegistryAttributes.GetProperty("container.image").GetString());
-        Assert.Equal(registryAddress, graphRegistryAttributes.GetProperty("container.registry").GetString());
-        Assert.Equal("application.container-app", graphApp.GetProperty("typeId").GetString());
-        Assert.Equal(sampleImage, graphAppAttributes.GetProperty("container.image").GetString());
-        Assert.Equal(registryAddress, graphAppAttributes.GetProperty("container.registry").GetString());
-
-        var graphUpdateJson = await host.SendJsonAsync(
-            HttpMethod.Post,
-            $"/api/container-apps/v1/{Uri.EscapeDataString(graphContainerAppResourceId)}/deployments",
-            """
-            {
-              "image": "cloudshell/mock-api:20260608.4",
-              "triggeredBy": "graph-only-smoke-test",
-              "requestedReplicas": 2
-            }
-            """);
-        using var graphUpdateDocument = JsonDocument.Parse(graphUpdateJson);
-
-        Assert.Contains(
-            "cloudshell/mock-api:20260608.4",
-            graphUpdateDocument.RootElement.GetProperty("message").GetString());
-
-        var updatedGraphJson = await host.GetStringAsync(
-            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphContainerAppResourceId)}");
-        using var updatedGraphDocument = JsonDocument.Parse(updatedGraphJson);
-        var updatedGraphAttributes = updatedGraphDocument.RootElement.GetProperty("attributes");
+        var scaledJson = await host.GetStringAsync(
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(containerAppResourceId)}");
+        using var scaledDocument = JsonDocument.Parse(scaledJson);
+        var scaledAttributes = scaledDocument.RootElement.GetProperty("attributes");
         Assert.Equal(
             "cloudshell/mock-api:20260608.4",
-            updatedGraphAttributes.GetProperty("container.image").GetString());
-        Assert.Equal(
-            "2",
-            updatedGraphAttributes.GetProperty("container.replicas").GetString());
-
-        var graphReplicaUpdateJson = await host.SendJsonAsync(
-            HttpMethod.Put,
-            $"/api/container-apps/v1/{Uri.EscapeDataString(graphContainerAppResourceId)}/replicas",
-            """
-            {
-              "replicas": 3,
-              "restartIfRunning": false,
-              "triggeredBy": "graph-only-smoke-test"
-            }
-            """);
-        using var graphReplicaUpdateDocument = JsonDocument.Parse(graphReplicaUpdateJson);
-
-        Assert.Contains(
-            "3",
-            graphReplicaUpdateDocument.RootElement.GetProperty("message").GetString());
-
-        var scaledGraphJson = await host.GetStringAsync(
-            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphContainerAppResourceId)}");
-        using var scaledGraphDocument = JsonDocument.Parse(scaledGraphJson);
-        var scaledGraphAttributes = scaledGraphDocument.RootElement.GetProperty("attributes");
-        Assert.Equal(
-            "cloudshell/mock-api:20260608.4",
-            scaledGraphAttributes.GetProperty("container.image").GetString());
+            scaledAttributes.GetProperty("container.image").GetString());
         Assert.Equal(
             "3",
-            scaledGraphAttributes.GetProperty("container.replicas").GetString());
-        Assert.Equal("true", scaledGraphAttributes.GetProperty(ResourceAttributeNames.ContainerReplicasEnabled).GetString());
-        Assert.Equal("3", scaledGraphAttributes.GetProperty(ResourceAttributeNames.DeploymentRequestedReplicaSlots).GetString());
+            scaledAttributes.GetProperty("container.replicas").GetString());
+        Assert.Equal("true", scaledAttributes.GetProperty(ResourceAttributeNames.ContainerReplicasEnabled).GetString());
+        Assert.Equal("3", scaledAttributes.GetProperty(ResourceAttributeNames.DeploymentRequestedReplicaSlots).GetString());
 
-        var graphDeploymentHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString(graphContainerAppResourceId)}/details?tab={Uri.EscapeDataString("application:deployment")}");
-        Assert.Contains("Replicated", graphDeploymentHtml);
-        Assert.Contains("3 replica slots", graphDeploymentHtml);
+        var deploymentHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString(containerAppResourceId)}/details?tab={Uri.EscapeDataString("application:deployment")}");
+        Assert.Contains("Replicated", deploymentHtml);
+        Assert.Contains("3 replica slots", deploymentHtml);
 
-        var graphScalingHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString(graphContainerAppResourceId)}/details?tab={Uri.EscapeDataString("application:scale-replicas")}");
-        Assert.Contains("Replica slots", graphScalingHtml);
-        Assert.Contains("Slot 1", graphScalingHtml);
-        Assert.Contains("Slot 2", graphScalingHtml);
-        Assert.Contains("Slot 3", graphScalingHtml);
+        var scalingHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString(containerAppResourceId)}/details?tab={Uri.EscapeDataString("application:scale-replicas")}");
+        Assert.Contains("Replica slots", scalingHtml);
+        Assert.Contains("Slot 1", scalingHtml);
+        Assert.Contains("Slot 2", scalingHtml);
+        Assert.Contains("Slot 3", scalingHtml);
     }
 
     [Fact]
     [Trait("Category", "DockerIntegration")]
-    public async Task ContainerAppDeploymentSample_GraphOnlyModeStartsGraphRegistryRuntime()
+    public async Task ContainerAppDeploymentSample_StartsRegistryRuntime()
     {
         var registryContainerName =
-            ContainerAppDeploymentGraphDockerContainerRuntimeHandler.GraphRegistryContainerName;
+            ContainerAppDeploymentDockerContainerRuntimeHandler.RegistryContainerName;
         if (!await DockerComposeStack.IsAvailableAsync() ||
             await DockerComposeStack.ContainerExistsAsync(registryContainerName))
         {
             return;
         }
 
-        const string graphRegistryResourceId = "docker.container:graph-sample-registry";
+        const string registryResourceId = "docker.container:sample-registry";
         var registryPort = await GetFreePortAsync();
         using var host = await SampleProcess.StartAsync(
             "samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj",
             await GetFreePortAsync(),
             [
-                ("ContainerAppDeployment__EnableGraphDockerRuntime", "true"),
+                ("ContainerAppDeployment__EnableDockerRuntime", "true"),
                 ("ContainerAppDeployment__RegistryPort", registryPort.ToString(CultureInfo.InvariantCulture))
             ]);
 
@@ -4317,16 +4143,16 @@ public sealed class SampleSmokeTests
             var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
             using var resourcesDocument = JsonDocument.Parse(resourcesJson);
             var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
-            var graphRegistry = Assert.Single(resources, resource =>
-                resource.GetProperty("id").GetString() == graphRegistryResourceId);
+            var registry = Assert.Single(resources, resource =>
+                resource.GetProperty("id").GetString() == registryResourceId);
 
             Assert.DoesNotContain(resources, resource =>
                 resource.GetProperty("id").GetString() == "docker:container:sample-registry");
 
             await StartGraphResourceIfAvailableAsync(
                 host,
-                graphRegistry,
-                "ContainerAppDeployment graph registry");
+                registry,
+                "ContainerAppDeployment registry");
 
             Assert.True(
                 await WaitForDockerContainerExistsAsync(registryContainerName, StartupTimeout),
@@ -4337,16 +4163,16 @@ public sealed class SampleSmokeTests
                 StartupTimeout);
 
             var startedRegistryJson = await host.GetStringAsync(
-                $"/api/control-plane/v1/resources/{Uri.EscapeDataString(graphRegistryResourceId)}");
+                $"/api/control-plane/v1/resources/{Uri.EscapeDataString(registryResourceId)}");
             using var startedRegistryDocument = JsonDocument.Parse(startedRegistryJson);
             await StopGraphResourceIfAvailableAsync(
                 host,
                 startedRegistryDocument.RootElement,
-                "ContainerAppDeployment graph registry");
+                "ContainerAppDeployment registry");
 
             Assert.True(
                 await WaitForDockerContainerRemovedAsync(registryContainerName, StartupTimeout),
-                $"Expected Docker container '{registryContainerName}' to be removed after graph registry stop.");
+                $"Expected Docker container '{registryContainerName}' to be removed after registry stop.");
         }
         finally
         {
@@ -4356,11 +4182,11 @@ public sealed class SampleSmokeTests
 
     [Fact]
     [Trait("Category", "DockerIntegration")]
-    public async Task ContainerAppDeploymentSample_GraphRegistryRuntimeStopsOnGracefulHostShutdown()
+    public async Task ContainerAppDeploymentSample_RegistryRuntimeStopsOnGracefulHostShutdown()
     {
-        const string graphRegistryResourceId = "docker.container:graph-sample-registry";
+        const string registryResourceId = "docker.container:sample-registry";
         var registryContainerName =
-            ContainerAppDeploymentGraphDockerContainerRuntimeHandler.GraphRegistryContainerName;
+            ContainerAppDeploymentDockerContainerRuntimeHandler.RegistryContainerName;
         if (!await DockerComposeStack.IsAvailableAsync())
         {
             return;
@@ -4373,7 +4199,7 @@ public sealed class SampleSmokeTests
             "samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj",
             await GetFreePortAsync(),
             [
-                ("ContainerAppDeployment__EnableGraphDockerRuntime", "true"),
+                ("ContainerAppDeployment__EnableDockerRuntime", "true"),
                 ("ContainerAppDeployment__RegistryPort", registryPort.ToString(CultureInfo.InvariantCulture))
             ]);
 
@@ -4383,17 +4209,17 @@ public sealed class SampleSmokeTests
 
             var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
             using var resourcesDocument = JsonDocument.Parse(resourcesJson);
-            var graphRegistry = Assert.Single(
+            var registry = Assert.Single(
                 resourcesDocument.RootElement.EnumerateArray(),
-                resource => resource.GetProperty("id").GetString() == graphRegistryResourceId);
+                resource => resource.GetProperty("id").GetString() == registryResourceId);
 
             await StartGraphResourceIfAvailableAsync(
                 host,
-                graphRegistry,
-                "ContainerAppDeployment graph registry");
+                registry,
+                "ContainerAppDeployment registry");
             await WaitForResourceStateAsync(
                 host,
-                graphRegistryResourceId,
+                registryResourceId,
                 ResourceState.Running,
                 StartupTimeout);
             Assert.True(
@@ -5679,7 +5505,6 @@ public sealed class SampleSmokeTests
             ],
             "ContainerAppDeployment" =>
             [
-                "docker:sample",
                 "docker:container:sample-registry",
                 "application:sample-api"
             ],
@@ -5737,7 +5562,7 @@ public sealed class SampleSmokeTests
         else if (sampleName == "ContainerAppDeployment")
         {
             await DockerComposeStack.RemoveContainerIfExistsAsync(
-                "cloudshell-container-app-deployment-graph-registry");
+                ContainerAppDeploymentDockerContainerRuntimeHandler.RegistryContainerName);
         }
         else if (sampleName == "ApplicationTopology")
         {

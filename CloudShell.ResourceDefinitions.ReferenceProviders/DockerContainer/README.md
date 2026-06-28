@@ -41,19 +41,18 @@ through the Resource Manager bridge when needed, and return diagnostics instead
 of throwing for expected runtime outcomes.
 
 The ContainerAppDeployment sample has an opt-in sample-local handler for the
-graph registry container behind
-`ContainerAppDeployment:EnableGraphDockerRuntime=true`. It exists to validate
-the runtime boundary without making normal sample projection shell out to
-Docker on every Resource Manager state projection. A durable Docker handler and
-full lifecycle smoke coverage remain provider work.
-The same sample now uses the Docker host, Docker container, and container app
-builders for its side-by-side graph declarations instead of raw graph state
-dictionaries.
+registry container behind `ContainerAppDeployment:EnableDockerRuntime=true`. It
+exists to validate the runtime boundary without making normal sample projection
+shell out to Docker on every Resource Manager state projection. A durable
+Docker handler and full lifecycle smoke coverage remain provider work. The
+same sample now uses the Docker host, Docker container, and container app
+builders for its switched Resource model declarations instead of raw graph
+state dictionaries.
 
 ## Switch-over status
 
-Partially ready behind the opt-in ContainerAppDeployment graph Docker runtime
-seam. It is useful for validating the runtime boundary for standalone Docker
+Partially ready behind the opt-in ContainerAppDeployment Docker runtime seam.
+It is useful for validating the runtime boundary for standalone Docker
 containers, but it should not block the broader provider switch because normal
 container-app sample workflows are covered by `application.container-app`.
 Durable Docker API integration, runtime discovery, endpoint projection, log

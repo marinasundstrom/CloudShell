@@ -1,21 +1,21 @@
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
-using GraphResource = CloudShell.ResourceDefinitions.Resource;
+using ResourceModelResource = CloudShell.ResourceDefinitions.Resource;
 
-internal interface IContainerAppDeploymentGraphContainerApplicationRuntimeBridge
+internal interface IContainerAppDeploymentContainerApplicationRuntimeBridge
 {
-    ContainerApplicationRuntimeStatus GetStatus(GraphResource resource);
+    ContainerApplicationRuntimeStatus GetStatus(ResourceModelResource resource);
 
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
-        GraphResource resource,
+        ResourceModelResource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default);
 
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyImageAsync(
-        GraphResource resource,
+        ResourceModelResource resource,
         CancellationToken cancellationToken = default);
 
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyReplicasAsync(
-        GraphResource resource,
+        ResourceModelResource resource,
         CancellationToken cancellationToken = default);
 }

@@ -87,12 +87,12 @@ revision-scoped runtime containers and graph stop removes the containers that
 graph start created.
 
 The ContainerAppDeployment sample also wires this seam to a sample-local
-adapter. It maps `application.container-app:graph-sample-api` to the existing
-`application:sample-api` runtime resource so graph image and replica updates can
-be applied through the existing Resource Manager deployment and replicas APIs.
-Those graph operations are adapter hooks for the POC; in the current API path,
-deployment and scale remain Control Plane workflows, and the durable container
-runtime provider remains future work.
+bridge. It accepts image and replica updates for
+`application.container-app:sample-api` through the existing Resource Manager
+deployment and replicas APIs without registering the old application-provider
+resource. Those operations are adapter hooks for the POC; in the current API
+path, deployment and scale remain Control Plane workflows, and the durable
+container runtime provider remains future work.
 
 ## Example ResourceDefinition
 

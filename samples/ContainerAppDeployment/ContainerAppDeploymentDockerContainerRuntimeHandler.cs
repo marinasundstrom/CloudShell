@@ -2,13 +2,13 @@ using System.Diagnostics;
 using System.Globalization;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
-using GraphResource = CloudShell.ResourceDefinitions.Resource;
+using ResourceModelResource = CloudShell.ResourceDefinitions.Resource;
 
-internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
+internal sealed class ContainerAppDeploymentDockerContainerRuntimeHandler :
     IDockerContainerRuntimeHandler
 {
-    internal const string GraphRegistryResourceId = "docker.container:graph-sample-registry";
-    internal const string GraphRegistryContainerName = "cloudshell-container-app-deployment-graph-registry";
+    internal const string RegistryResourceId = "docker.container:sample-registry";
+    internal const string RegistryContainerName = "cloudshell-container-app-deployment-registry";
     private static readonly TimeSpan StatusProbeTimeout = TimeSpan.FromMilliseconds(100);
     private static readonly TimeSpan StatusCacheDuration = TimeSpan.FromSeconds(2);
     private readonly IContainerAppDeploymentDockerCommandRunner _docker;
@@ -16,12 +16,12 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
     private DockerContainerRuntimeStatus? _cachedStatus;
     private DateTimeOffset _cachedStatusTimestamp;
 
-    public ContainerAppDeploymentGraphDockerContainerRuntimeHandler()
+    public ContainerAppDeploymentDockerContainerRuntimeHandler()
         : this(new ProcessContainerAppDeploymentDockerCommandRunner())
     {
     }
 
-    internal ContainerAppDeploymentGraphDockerContainerRuntimeHandler(
+    internal ContainerAppDeploymentDockerContainerRuntimeHandler(
         IContainerAppDeploymentDockerCommandRunner docker)
     {
         ArgumentNullException.ThrowIfNull(docker);
@@ -29,9 +29,9 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
         _docker = docker;
     }
 
-    public DockerContainerRuntimeStatus GetStatus(GraphResource resource)
+    public DockerContainerRuntimeStatus GetStatus(ResourceModelResource resource)
     {
-        if (!IsGraphRegistry(resource))
+        if (!IsSampleRegistry(resource))
         {
             return DockerContainerRuntimeStatus.Unknown;
         }
@@ -59,7 +59,7 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
     private DockerContainerRuntimeStatus ResolveStatus()
     {
         var result = _docker.Run(
-            ["container", "inspect", "--format", "{{.State.Status}}", GraphRegistryContainerName],
+            ["container", "inspect", "--format", "{{.State.Status}}", RegistryContainerName],
             throwOnError: false,
             timeout: StatusProbeTimeout);
         if (result.ExitCode == ContainerAppDeploymentDockerCommandResult.TimeoutExitCode)
@@ -82,11 +82,11 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
     }
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
-        GraphResource resource,
+        ResourceModelResource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default)
     {
-        if (!IsGraphRegistry(resource))
+        if (!IsSampleRegistry(resource))
         {
             return [];
         }
@@ -109,16 +109,16 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
                     ClearStatusCache();
                     break;
                 case "pause":
-                    await _docker.RunAsync(["pause", GraphRegistryContainerName], cancellationToken, throwOnError: false);
+                    await _docker.RunAsync(["pause", RegistryContainerName], cancellationToken, throwOnError: false);
                     ClearStatusCache();
                     break;
                 case "docker.unpause":
-                    await _docker.RunAsync(["unpause", GraphRegistryContainerName], cancellationToken, throwOnError: false);
+                    await _docker.RunAsync(["unpause", RegistryContainerName], cancellationToken, throwOnError: false);
                     ClearStatusCache();
                     break;
                 default:
                     throw new NotSupportedException(
-                        $"The ContainerAppDeployment sample does not map graph Docker container operation '{operationId}' to the registry runtime.");
+                        $"The ContainerAppDeployment sample does not map Docker container operation '{operationId}' to the registry runtime.");
             }
 
             return [];
@@ -145,11 +145,11 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
     }
 
     private async Task StartRegistryAsync(
-        GraphResource resource,
+        ResourceModelResource resource,
         CancellationToken cancellationToken)
     {
         var status = _docker.Run(
-            ["container", "inspect", "--format", "{{.State.Status}}", GraphRegistryContainerName],
+            ["container", "inspect", "--format", "{{.State.Status}}", RegistryContainerName],
             throwOnError: false);
         if (status.ExitCode == 0)
         {
@@ -158,7 +158,7 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
                 return;
             }
 
-            await _docker.RunAsync(["start", GraphRegistryContainerName], cancellationToken);
+            await _docker.RunAsync(["start", RegistryContainerName], cancellationToken);
             return;
         }
 
@@ -166,7 +166,7 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
             DockerContainerResourceTypeProvider.Attributes.ContainerImage);
         if (string.IsNullOrWhiteSpace(image))
         {
-            throw new InvalidOperationException("The graph registry container image must be set before it can be started.");
+            throw new InvalidOperationException("The registry container image must be set before it can be started.");
         }
 
         var port = ResolveRegistryPort(resource);
@@ -175,7 +175,7 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
                 "run",
                 "-d",
                 "--name",
-                GraphRegistryContainerName,
+                RegistryContainerName,
                 "-p",
                 $"127.0.0.1:{port.ToString(CultureInfo.InvariantCulture)}:5000",
                 image
@@ -184,15 +184,15 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
     }
 
     private async Task RemoveRegistryAsync(CancellationToken cancellationToken) =>
-        await _docker.RunAsync(["rm", "-f", GraphRegistryContainerName], cancellationToken, throwOnError: false);
+        await _docker.RunAsync(["rm", "-f", RegistryContainerName], cancellationToken, throwOnError: false);
 
-    private static int ResolveRegistryPort(GraphResource resource)
+    private static int ResolveRegistryPort(ResourceModelResource resource)
     {
         var registry = resource.Attributes.GetString(
             DockerContainerResourceTypeProvider.Attributes.ContainerRegistry);
         if (string.IsNullOrWhiteSpace(registry))
         {
-            throw new InvalidOperationException("The graph registry container registry address must be set before it can be started.");
+            throw new InvalidOperationException("The registry container registry address must be set before it can be started.");
         }
 
         var value = registry.Contains("://", StringComparison.Ordinal)
@@ -202,14 +202,14 @@ internal sealed class ContainerAppDeploymentGraphDockerContainerRuntimeHandler :
             uri.Port <= 0)
         {
             throw new InvalidOperationException(
-                $"The graph registry container registry address '{registry}' does not include a usable port.");
+                $"The registry container registry address '{registry}' does not include a usable port.");
         }
 
         return uri.Port;
     }
 
-    private static bool IsGraphRegistry(GraphResource resource) =>
-        string.Equals(resource.EffectiveResourceId, GraphRegistryResourceId, StringComparison.OrdinalIgnoreCase);
+    private static bool IsSampleRegistry(ResourceModelResource resource) =>
+        string.Equals(resource.EffectiveResourceId, RegistryResourceId, StringComparison.OrdinalIgnoreCase);
 }
 
 internal interface IContainerAppDeploymentDockerCommandRunner

@@ -28,6 +28,12 @@ on `git blame --follow`, and then by the broad type of change.
   sample identities such as `cloudshell.storage:local`,
   `cloudshell.volume:sql-data`, and `application.sql-server:sql-server`, and
   its SQL runtime bridge now creates `cloudshell-container-host-sql-server`.
+- ContainerAppDeployment now uses only Resource Definitions-backed resources
+  with stable sample identities (`docker:sample`,
+  `docker.container:sample-registry`, and
+  `application.container-app:sample-api`), removes the old `GraphOnly`
+  comparison seam, and renames its opt-in registry runtime toggle to
+  `ContainerAppDeployment:EnableDockerRuntime`.
 - Local container application graph samples now use
   `AddLocalContainerApplicationResourceTypes(...)` to register the paired
   container app and Docker host resource types while keeping runtime handlers

@@ -2,7 +2,7 @@
 set -eu
 
 BASE_URL="${CLOUDSHELL_URL:-http://localhost:5007}"
-APP_ID="${1:-application:sample-api}"
+APP_ID="${1:-application.container-app:sample-api}"
 TAG="${2:-$(date -u +%Y%m%d%H%M%S)}"
 IMAGE="cloudshell/mock-api:${TAG}"
 REGISTRY_PORT="${CONTAINER_APP_DEPLOYMENT_REGISTRY_PORT:-5023}"
