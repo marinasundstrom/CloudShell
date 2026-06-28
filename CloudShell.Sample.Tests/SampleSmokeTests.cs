@@ -185,7 +185,15 @@ public sealed class SampleSmokeTests
                             "ControlPlane.Access")
                         : null;
                     using var resourcesDocument = JsonDocument.Parse(await host.GetStringAsync(path, token));
-                    Assert.NotEmpty(resourcesDocument.RootElement.EnumerateArray());
+                    var resourceIds = resourcesDocument.RootElement
+                        .EnumerateArray()
+                        .Select(resource => resource.GetProperty("id").GetString())
+                        .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
+                        .Select(resourceId => resourceId!)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                    Assert.NotEmpty(resourceIds);
+                    AssertNoUnexpectedLegacyResources(projectPath, resourceIds);
                     continue;
                 }
 
@@ -5847,6 +5855,88 @@ public sealed class SampleSmokeTests
         }
 
         throw new InvalidOperationException($"Could not resolve switch-readiness sample name for '{projectPath}'.");
+    }
+
+    private static void AssertNoUnexpectedLegacyResources(
+        string projectPath,
+        IReadOnlySet<string> resourceIds)
+    {
+        foreach (var legacyResourceId in GetUnexpectedLegacyResourceIds(projectPath))
+        {
+            Assert.DoesNotContain(legacyResourceId, resourceIds);
+        }
+    }
+
+    private static IReadOnlyList<string> GetUnexpectedLegacyResourceIds(string projectPath)
+    {
+        return GetSwitchReadinessSampleName(projectPath) switch
+        {
+            "ApplicationTopology" =>
+            [
+                "application:application-topology-sql-server",
+                "application:application-topology-sql-server/database:application-topology",
+                "configuration:application-topology",
+                "secrets-vault:application-topology",
+                "application:application-topology-api",
+                "application:application-topology-frontend"
+            ],
+            "CloudShell.ContainerHost" =>
+            [
+                "storage:local",
+                "volume:sql-data",
+                "application:sql-server"
+            ],
+            "ContainerAppDeployment" =>
+            [
+                "docker:sample",
+                "docker:container:sample-registry",
+                "application:sample-api"
+            ],
+            "HostVirtualNetwork" =>
+            [
+                "networking:host-local",
+                "application:vnet-api",
+                "network:sample-vnet"
+            ],
+            "LoadBalancer" =>
+            [
+                "docker:sample-host",
+                "application:web",
+                "application:api",
+                "application:postgres",
+                "load-balancer:public",
+                "dns:cloudshell-local",
+                "dns:cloudshell-local:name:app-cloudshell-local",
+                "dns:cloudshell-local:name:api-cloudshell-local"
+            ],
+            "ProjectReference" =>
+            [
+                "application:project-reference-api",
+                "application:project-reference-frontend"
+            ],
+            "ReplicatedContainerHealth" =>
+            [
+                "application:api",
+                "docker:sample"
+            ],
+            "SettingsAndSecrets" =>
+            [
+                "configuration:sample-app",
+                "secrets-vault:sample-app",
+                "application:settings-secrets-api"
+            ],
+            "SplitHosting" =>
+            [
+                "network:split-sample"
+            ],
+            "ThirdPartyIdentity" =>
+            [
+                "identity-provisioning:keycloak",
+                "configuration:third-party-identity",
+                "application:keycloak-provisioned-api"
+            ],
+            _ => []
+        };
     }
 
     private static async Task CleanupSwitchReadinessRuntimeArtifactsAsync(string projectPath)
