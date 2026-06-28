@@ -4315,6 +4315,13 @@ public sealed class SampleSmokeTests
             $"/resources/{Uri.EscapeDataString(graphContainerAppResourceId)}/details?tab={Uri.EscapeDataString("application:deployment")}");
         Assert.Contains("Replicated", graphDeploymentHtml);
         Assert.Contains("3 replica slots", graphDeploymentHtml);
+
+        var graphScalingHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString(graphContainerAppResourceId)}/details?tab={Uri.EscapeDataString("application:scale-replicas")}");
+        Assert.Contains("Replica slots", graphScalingHtml);
+        Assert.Contains("Slot 1", graphScalingHtml);
+        Assert.Contains("Slot 2", graphScalingHtml);
+        Assert.Contains("Slot 3", graphScalingHtml);
     }
 
     [Fact]
@@ -4713,7 +4720,11 @@ public sealed class SampleSmokeTests
             $"/resources/{Uri.EscapeDataString("application.container-app:graph-api")}/details?tab={Uri.EscapeDataString("application:scale-replicas")}");
         Assert.Contains("Scale and replicas", graphScalingHtml);
         Assert.Contains("Requested replica slots", graphScalingHtml);
+        Assert.Contains("Replica slots", graphScalingHtml);
         Assert.Contains("Update replicas", graphScalingHtml);
+        Assert.Contains("Slot 1", graphScalingHtml);
+        Assert.Contains("Slot 2", graphScalingHtml);
+        Assert.Contains("Slot 3", graphScalingHtml);
         Assert.Contains(">3</dd>", graphScalingHtml);
 
         var graphDeploymentHtml = await host.GetStringAsync(

@@ -34,6 +34,10 @@ else
             <dd>@GetModeLabel()</dd>
             <dt>Requested replica slots</dt>
             <dd>@RequestedReplicaSlots.ToString(CultureInfo.InvariantCulture)</dd>
+            <dt>Replica slots</dt>
+            <dd>@ReplicaSlots.Count.ToString(CultureInfo.InvariantCulture)</dd>
+            <dt>Occupied slots</dt>
+            <dd>@OccupiedReplicaSlots.ToString(CultureInfo.InvariantCulture)</dd>
             <dt>Materialized slots</dt>
             <dd>@GetAttribute(ResourceAttributeNames.DeploymentMaterializedReplicas, "not projected")</dd>
             <dt>Resource type</dt>
@@ -64,6 +68,76 @@ else
             </ProcedureMessage>
         }
     </section>
+
+    @if (Resource is not null && RequestedReplicaSlots > 1)
+    {
+        <section class="blade-section">
+            <h3>Replica slots</h3>
+            @if (ReplicaSlots.Count == 0)
+            {
+                <EmptyState Title="No replica slots are projected"
+                            Message="The provider has not projected requested replica slots for this app." />
+            }
+            else
+            {
+                <ResourceTable>
+                    <thead>
+                        <tr>
+                            <th>Slot</th>
+                            <th>Occupant</th>
+                            <th>State</th>
+                            <th>Revision</th>
+                            <th>Container</th>
+                            <th>Materialization</th>
+                            <th>Host</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var slot in ReplicaSlots)
+                        {
+                            var replica = slot.Occupant;
+                            <tr>
+                                <td>
+                                    <ResourceTableIdentity IconName="replica"
+                                                           IconTitle="Replica slot"
+                                                           Title="@slot.Label"
+                                                           Summary="@GetSlotSummary(slot)" />
+                                </td>
+                                <td>
+                                    @if (replica is null)
+                                    {
+                                        <strong>Vacant</strong>
+                                        <div class="table-subtext">No active replica</div>
+                                    }
+                                    else
+                                    {
+                                        <strong>@replica.Name</strong>
+                                        <div class="table-subtext">@FormatReplicaOrdinal(replica)</div>
+                                    }
+                                </td>
+                                <td>
+                                    @if (replica is null)
+                                    {
+                                        <span class="table-subtext">Vacant</span>
+                                    }
+                                    else
+                                    {
+                                        <ResourceStateIndicator State="replica.State" Variant="pill" />
+                                    }
+                                </td>
+                                <td>@(replica is null ? "not materialized" : GetAttribute(replica, ResourceAttributeNames.RuntimeRevision, replica.Version))</td>
+                                <td>
+                                    <strong>@(replica is null ? "not materialized" : GetAttribute(replica, ResourceAttributeNames.RuntimeContainerName, replica.Name))</strong>
+                                </td>
+                                <td>@(replica is null ? "vacant slot" : GetMaterializationLabel(replica))</td>
+                                <td>@(replica is null ? "not assigned" : GetAttribute(replica, ResourceAttributeNames.ContainerHostId, "default host"))</td>
+                            </tr>
+                        }
+                    </tbody>
+                </ResourceTable>
+            }
+        </section>
+    }
 }
 
 @code {
@@ -74,6 +148,8 @@ else
     public string? ResourceId { get; set; }
 
     private Resource? Resource { get; set; }
+    private IReadOnlyList<Resource> MaterializedReplicas { get; set; } = [];
+    private IReadOnlyList<ReplicaSlotView> ReplicaSlots { get; set; } = [];
     private int RequestedReplicaSlots { get; set; } = 1;
     private int Replicas { get; set; } = 1;
     private bool IsRefreshing { get; set; }
@@ -104,7 +180,14 @@ else
             Resource = string.IsNullOrWhiteSpace(ResourceId)
                 ? null
                 : await ResourceManager.GetResourceAsync(ResourceId);
+            MaterializedReplicas = Resource is null
+                ? []
+                : (await ResourceManager.ListResourceChildrenAsync(Resource.Id))
+                    .Where(IsReplicaResource)
+                    .OrderBy(GetReplicaOrdinal)
+                    .ToArray();
             RequestedReplicaSlots = Math.Max(1, GetReplicaCount(Resource));
+            ReplicaSlots = CreateReplicaSlots(RequestedReplicaSlots, MaterializedReplicas);
             Replicas = RequestedReplicaSlots;
         }
         finally
@@ -174,12 +257,88 @@ else
     private string GetModeLabel() =>
         RequestedReplicaSlots > 1 ? "Replicated" : "Single instance";
 
+    private int OccupiedReplicaSlots =>
+        ReplicaSlots.Count(slot => slot.Occupant is not null);
+
     private string GetAttribute(string attributeName, string fallback) =>
         Resource is not null &&
         Resource.ResourceAttributes.TryGetValue(attributeName, out var value) &&
         !string.IsNullOrWhiteSpace(value)
             ? value
             : fallback;
+
+    private static string GetAttribute(Resource resource, string attributeName, string fallback) =>
+        resource.ResourceAttributes.TryGetValue(attributeName, out var value) &&
+        !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
+
+    private static bool IsReplicaResource(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, "runtime.container", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(
+            GetAttribute(resource, ResourceAttributeNames.RuntimeKind, string.Empty),
+            "containerReplica",
+            StringComparison.OrdinalIgnoreCase);
+
+    private static int GetReplicaOrdinal(Resource resource) =>
+        int.TryParse(
+            GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaOrdinal, string.Empty),
+            out var ordinal)
+            ? ordinal
+            : int.MaxValue;
+
+    private static IReadOnlyList<ReplicaSlotView> CreateReplicaSlots(
+        int requestedSlots,
+        IReadOnlyList<Resource> replicas)
+    {
+        var maxReplicaOrdinal = replicas
+            .Select(GetReplicaOrdinal)
+            .Where(ordinal => ordinal != int.MaxValue)
+            .DefaultIfEmpty(0)
+            .Max();
+        var slotCount = Math.Max(requestedSlots, maxReplicaOrdinal);
+
+        if (slotCount <= 1)
+        {
+            return [];
+        }
+
+        var replicasByOrdinal = replicas
+            .Where(replica => GetReplicaOrdinal(replica) != int.MaxValue)
+            .GroupBy(GetReplicaOrdinal)
+            .ToDictionary(group => group.Key, group => group.First());
+
+        return Enumerable
+            .Range(1, slotCount)
+            .Select(ordinal =>
+            {
+                replicasByOrdinal.TryGetValue(ordinal, out var occupant);
+                return new ReplicaSlotView(ordinal, slotCount, occupant);
+            })
+            .ToArray();
+    }
+
+    private static string FormatReplicaOrdinal(Resource resource)
+    {
+        var ordinal = GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaOrdinal, "?");
+        var count = GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaCount, "?");
+        return $"{ordinal} of {count}";
+    }
+
+    private static string GetSlotSummary(ReplicaSlotView slot) =>
+        slot.Occupant is null
+            ? "No active replica"
+            : $"Replica {slot.Ordinal.ToString(CultureInfo.InvariantCulture)} of {slot.SlotCount.ToString(CultureInfo.InvariantCulture)}";
+
+    private static string GetMaterializationLabel(Resource resource) =>
+        GetAttribute(resource, ResourceAttributeNames.RuntimeMaterialization, "unknown") switch
+        {
+            "orchestratorMaterialized" => "Materialized",
+            "orchestratorPending" => "Pending",
+            "orchestratorFailed" => "Failed",
+            var materialization when !string.IsNullOrWhiteSpace(materialization) => materialization,
+            _ => "unknown"
+        };
 
     private static int GetReplicaCount(Resource? resource)
     {
@@ -203,5 +362,13 @@ else
     public void Dispose()
     {
         IsDisposed = true;
+    }
+
+    private sealed record ReplicaSlotView(
+        int Ordinal,
+        int SlotCount,
+        Resource? Occupant)
+    {
+        public string Label => $"Slot {Ordinal.ToString(CultureInfo.InvariantCulture)}";
     }
 }
