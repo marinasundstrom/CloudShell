@@ -1,7 +1,7 @@
 using System.Text.Json;
 using CloudShell.Abstractions.ResourceManager;
 
-internal sealed class ReplicatedContainerHealthGraphOnlyOrchestrationDescriptorProvider :
+internal sealed class ReplicatedContainerHealthOrchestrationDescriptorProvider :
     IResourceOrchestrationDescriptorProvider
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
@@ -9,7 +9,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyOrchestrationDescriptorP
     public bool CanDescribe(Resource resource) =>
         string.Equals(
             resource.Id,
-            ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId,
+            ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
             StringComparison.OrdinalIgnoreCase);
 
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(

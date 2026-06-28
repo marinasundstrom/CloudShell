@@ -2,13 +2,13 @@ using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using GraphResource = CloudShell.ResourceDefinitions.Resource;
 
-internal sealed class ReplicatedContainerHealthGraphRuntimeHandler(
-    IReplicatedContainerHealthGraphContainerAppRuntimeBridge bridge) : IContainerApplicationRuntimeHandler
+internal sealed class ReplicatedContainerHealthContainerAppRuntimeHandler(
+    IReplicatedContainerHealthContainerAppRuntimeBridge bridge) : IContainerApplicationRuntimeHandler
 {
     private const string ApiResourceId = "application.container-app:api";
 
     public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource) =>
-        IsGraphApi(resource)
+        IsApiResource(resource)
             ? bridge.GetStatus(resource)
             : ContainerApplicationRuntimeStatus.Unknown;
 
@@ -17,7 +17,7 @@ internal sealed class ReplicatedContainerHealthGraphRuntimeHandler(
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default)
     {
-        if (!IsGraphApi(resource))
+        if (!IsApiResource(resource))
         {
             return [];
         }
@@ -29,7 +29,7 @@ internal sealed class ReplicatedContainerHealthGraphRuntimeHandler(
         GraphResource resource,
         CancellationToken cancellationToken = default)
     {
-        if (!IsGraphApi(resource))
+        if (!IsApiResource(resource))
         {
             return [];
         }
@@ -41,7 +41,7 @@ internal sealed class ReplicatedContainerHealthGraphRuntimeHandler(
         GraphResource resource,
         CancellationToken cancellationToken = default)
     {
-        if (!IsGraphApi(resource))
+        if (!IsApiResource(resource))
         {
             return [];
         }
@@ -49,6 +49,6 @@ internal sealed class ReplicatedContainerHealthGraphRuntimeHandler(
         return await bridge.ApplyReplicasAsync(resource, cancellationToken);
     }
 
-    private static bool IsGraphApi(GraphResource resource) =>
+    private static bool IsApiResource(GraphResource resource) =>
         string.Equals(resource.EffectiveResourceId, ApiResourceId, StringComparison.OrdinalIgnoreCase);
 }

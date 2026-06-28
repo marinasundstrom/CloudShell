@@ -2,7 +2,7 @@ using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using GraphResource = CloudShell.ResourceDefinitions.Resource;
 
-internal interface IReplicatedContainerHealthGraphContainerAppRuntimeBridge
+internal interface IReplicatedContainerHealthContainerAppRuntimeBridge
 {
     ContainerApplicationRuntimeStatus GetStatus(GraphResource resource);
 

@@ -10,12 +10,12 @@ using System.Globalization;
 using System.Text;
 using GraphResource = CloudShell.ResourceDefinitions.Resource;
 
-internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
+internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
     IReplicatedContainerHealthCommandRunner commandRunner,
     IConfiguration configuration,
     IHostEnvironment? hostEnvironment = null,
     string? traceIngestEndpoint = null,
-    string? metricIngestEndpoint = null) : IReplicatedContainerHealthGraphContainerAppRuntimeBridge
+    string? metricIngestEndpoint = null) : IReplicatedContainerHealthContainerAppRuntimeBridge
 {
     private const string DefaultProjectPath = "samples/ReplicatedContainerHealth/Api/CloudShell.ReplicatedContainerHealth.Api.csproj";
     private const string DefaultContainerNetworkName = "cloudshell";
@@ -24,8 +24,8 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
         ? DefaultProjectPath
         : Path.Combine(hostEnvironment.ContentRootPath, "Api", "CloudShell.ReplicatedContainerHealth.Api.csproj");
     private readonly string _ingressConfigurationDirectory = hostEnvironment is null
-        ? Path.Combine("samples", "ReplicatedContainerHealth", "Data", "graph-only-ingress")
-        : Path.Combine(hostEnvironment.ContentRootPath, "Data", "graph-only-ingress");
+        ? Path.Combine("samples", "ReplicatedContainerHealth", "Data", "runtime-ingress")
+        : Path.Combine(hostEnvironment.ContentRootPath, "Data", "runtime-ingress");
     private readonly object _statusGate = new();
     private readonly TimeSpan _statusProbeTimeout = TimeSpan.FromMilliseconds(
         configuration.GetValue<int?>("ReplicatedContainerHealth:RuntimeStatusProbeTimeoutMilliseconds") ?? 50);
@@ -78,7 +78,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
                     "inspect",
                     "--format",
                     "{{.State.Status}}",
-                    ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaContainerName(replica)
+                    ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica)
                 ],
                 throwOnError: false,
                 timeout: _statusProbeTimeout);
@@ -142,7 +142,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
                     break;
                 default:
                     throw new NotSupportedException(
-                        $"The ReplicatedContainerHealth sample does not map graph operation '{operationId}' to the graph-only container runtime.");
+                        $"The ReplicatedContainerHealth sample does not map graph operation '{operationId}' to the sample container runtime.");
             }
 
             return [];
@@ -263,7 +263,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
             [
                 "rm",
                 "-f",
-                ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateIngressContainerName()
+                ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()
             ],
             cancellationToken,
             throwOnError: false);
@@ -286,7 +286,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
             [
                 "rm",
                 "-f",
-                ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaContainerName(replica)
+                ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica)
             ],
             cancellationToken,
             throwOnError: false);
@@ -296,8 +296,8 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
         string image,
         int replica)
     {
-        var replicaResourceId = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(replica);
-        var replicaContainerName = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaContainerName(replica);
+        var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
+        var replicaContainerName = ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica);
         var replicaName = $"Replica {replica.ToString(CultureInfo.InvariantCulture)}";
         var replicaCount = ResolveReplicas(resource);
         var arguments = new List<string>
@@ -310,14 +310,14 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
             "--network",
             DefaultContainerNetworkName,
             "--network-alias",
-            ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaNetworkAlias(replica)
+            ReplicatedContainerHealthRuntimeConventions.CreateReplicaNetworkAlias(replica)
         };
 
         if (TryResolveHttpEndpoint(resource, out var endpoint))
         {
             arguments.Add("-p");
             arguments.Add(
-                $"127.0.0.1:{ReplicatedContainerHealthGraphOnlyRuntimeConventions.ResolveReplicaProbePort(configuration, replica, endpoint.Port!.Value).ToString(CultureInfo.InvariantCulture)}:{(endpoint.TargetPort ?? endpoint.Port.Value).ToString(CultureInfo.InvariantCulture)}");
+                $"127.0.0.1:{ReplicatedContainerHealthRuntimeConventions.ResolveReplicaProbePort(configuration, replica, endpoint.Port!.Value).ToString(CultureInfo.InvariantCulture)}:{(endpoint.TargetPort ?? endpoint.Port.Value).ToString(CultureInfo.InvariantCulture)}");
         }
 
         arguments.Add("-e");
@@ -354,7 +354,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
             "run",
             "-d",
             "--name",
-            ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateIngressContainerName(),
+            ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName(),
             "--network",
             DefaultContainerNetworkName,
             "-p",
@@ -405,7 +405,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
         {
             builder.AppendLine(
                 CultureInfo.InvariantCulture,
-                $"          - url: \"http://{ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaNetworkAlias(replica)}:{targetPort.ToString(CultureInfo.InvariantCulture)}\"");
+                $"          - url: \"http://{ReplicatedContainerHealthRuntimeConventions.CreateReplicaNetworkAlias(replica)}:{targetPort.ToString(CultureInfo.InvariantCulture)}\"");
         }
 
         return builder.ToString();
@@ -442,7 +442,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
     private static string ResolveImage(GraphResource resource) =>
         resource.Attributes.GetString(ContainerApplicationResourceTypeProvider.Attributes.ContainerImage)
         ?? throw new InvalidOperationException(
-            "The graph container app image must be set before graph-only runtime can start it.");
+            "The container app image must be set before sample runtime can start it.");
 
     private static int ResolveReplicas(GraphResource resource) =>
         int.TryParse(
@@ -465,7 +465,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridg
             CreateOtelAttribute("service.instance.id", replicaResourceId),
             CreateOtelAttribute("cloudshell.resource.id", replicaResourceId),
             CreateOtelAttribute("cloudshell.resource.type", "runtime.container"),
-            CreateOtelAttribute(TelemetryAttributeNames.ScopeResourceId, ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId),
+            CreateOtelAttribute(TelemetryAttributeNames.ScopeResourceId, ReplicatedContainerHealthRuntimeConventions.ApiResourceId),
             CreateOtelAttribute(TelemetryAttributeNames.ScopeName, replicaName),
             CreateOtelAttribute(TelemetryAttributeNames.ScopeKind, "runtime"),
             CreateOtelAttribute(TelemetryAttributeNames.RuntimeReplicaOrdinal, replicaOrdinal),

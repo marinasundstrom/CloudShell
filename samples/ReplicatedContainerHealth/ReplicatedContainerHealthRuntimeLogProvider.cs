@@ -3,7 +3,7 @@ using CloudShell.Abstractions.ResourceManager;
 using System.Globalization;
 using System.Text.Json;
 
-internal sealed class ReplicatedContainerHealthGraphOnlyLogProvider(
+internal sealed class ReplicatedContainerHealthRuntimeLogProvider(
     IReplicatedContainerHealthCommandRunner commandRunner,
     IResourceManagerStore resourceManager) : ILogProvider
 {
@@ -15,7 +15,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyLogProvider(
 
     public IReadOnlyList<LogSource> GetLogSources()
     {
-        var resource = resourceManager.GetResource(ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId);
+        var resource = resourceManager.GetResource(ReplicatedContainerHealthRuntimeConventions.ApiResourceId);
         if (resource is null)
         {
             return [];
@@ -33,9 +33,9 @@ internal sealed class ReplicatedContainerHealthGraphOnlyLogProvider(
                 Kind: ResourceLogSourceKind.Container,
                 Format: LogFormat.JsonConsole,
                 Capabilities: LogSourceCapabilities.Read,
-                ResourceId: ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId,
-                ProducerResourceId: ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId,
-                Description: "Graph-only replica container logs.",
+                ResourceId: ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
+                ProducerResourceId: ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
+                Description: "Runtime replica container logs.",
                 Origin: ResourceLogSourceOrigin.ProviderProjected,
                 Purpose: ResourceLogSourcePurpose.Default,
                 Availability: LogSourceAvailability.ProducerRunning))
@@ -44,7 +44,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyLogProvider(
 
     public bool CanOpenLogSource(LogSource source) =>
         string.Equals(source.Provider, DisplayName, StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(source.ResourceId, ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(source.ResourceId, ReplicatedContainerHealthRuntimeConventions.ApiResourceId, StringComparison.OrdinalIgnoreCase) &&
         TryGetReplicaFromLogSourceId(source.Id, out _);
 
     public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
@@ -62,7 +62,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyLogProvider(
     }
 
     internal static string GetLogSourceId(int replica) =>
-        $"{ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId}:replica-{replica.ToString(CultureInfo.InvariantCulture)}:logs";
+        $"{ReplicatedContainerHealthRuntimeConventions.ApiResourceId}:replica-{replica.ToString(CultureInfo.InvariantCulture)}:logs";
 
     private async Task<IReadOnlyList<LogEntry>> ReadReplicaLogsAsync(
         int replica,
@@ -83,7 +83,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyLogProvider(
             arguments.Add(before.Value.AddTicks(-1).UtcDateTime.ToString("O", CultureInfo.InvariantCulture));
         }
 
-        var containerName = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaContainerName(replica);
+        var containerName = ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica);
         arguments.Add(containerName);
 
         var result = await commandRunner.RunAsync(
@@ -106,7 +106,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyLogProvider(
             [
                 new LogEntry(
                     DateTimeOffset.UtcNow,
-                    "Container runtime did not return logs for the graph replica.",
+                    "Container runtime did not return logs for the runtime replica.",
                     "Error",
                     containerName)
             ];
@@ -334,7 +334,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyLogProvider(
         out int replica)
     {
         replica = 0;
-        var prefix = $"{ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId}:replica-";
+        var prefix = $"{ReplicatedContainerHealthRuntimeConventions.ApiResourceId}:replica-";
         const string suffix = ":logs";
         if (!logSourceId.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
             !logSourceId.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))

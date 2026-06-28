@@ -50,15 +50,15 @@ for reaching the host machine.
 These implementation seams remain temporary and should be swept when the
 provider runtime is moved out of the sample:
 
-- `ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge` is the
+- `ReplicatedContainerHealthContainerAppRuntimeBridge` is the
   sample-local Docker runtime bridge. Its behavior should move into the durable
   container-app provider runtime or be replaced by that runtime.
-- `ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider` projects hidden
+- `ReplicatedContainerHealthRuntimeResourceProvider` projects hidden
   runtime-managed replica resources through the existing flat
   `IResourceProvider` adapter. The future provider contract should distinguish
   top-level resources from optional runtime/sub-resource projections.
-- `ReplicatedContainerHealthGraphOnlyLogProvider` and
-  `ReplicatedContainerHealthGraphOnlyMonitoringProvider` provide Docker-backed
+- `ReplicatedContainerHealthRuntimeLogProvider` and
+  `ReplicatedContainerHealthRuntimeMonitoringProvider` provide Docker-backed
   logs and stats for projected runtime replicas.
 - The sample-local image update endpoint exists to exercise
   `ResourceDefinition` overlay apply plus operation delegation. It should be

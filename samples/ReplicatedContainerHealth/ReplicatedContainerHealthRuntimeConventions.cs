@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Configuration;
 using System.Globalization;
 
-internal static class ReplicatedContainerHealthGraphOnlyRuntimeConventions
+internal static class ReplicatedContainerHealthRuntimeConventions
 {
-    public const string GraphApiResourceId = "application.container-app:api";
+    public const string ApiResourceId = "application.container-app:api";
 
     public static string CreateReplicaContainerName(int replica) =>
         $"cloudshell-replicated-health-api-replica-{Math.Max(1, replica).ToString(CultureInfo.InvariantCulture)}";

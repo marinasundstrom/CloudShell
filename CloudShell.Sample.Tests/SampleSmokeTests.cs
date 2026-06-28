@@ -2351,31 +2351,6 @@ public sealed class SampleSmokeTests
         Assert.Contains("127.0.0.1 api.cloudshell.local", hostsFile);
     }
 
-    private static bool ReadBooleanConfigurationValue(string appSettingsPath, string configurationPath)
-    {
-        var fullPath = Path.Combine(SampleProcess.FindRepositoryRoot(), appSettingsPath);
-        using var document = JsonDocument.Parse(File.ReadAllText(fullPath));
-        var current = document.RootElement;
-        foreach (var segment in configurationPath.Split(':', StringSplitOptions.RemoveEmptyEntries))
-        {
-            if (!current.TryGetProperty(segment, out var next))
-            {
-                throw new InvalidOperationException(
-                    $"Configuration path '{configurationPath}' was not found in '{appSettingsPath}'.");
-            }
-
-            current = next;
-        }
-
-        return current.ValueKind switch
-        {
-            JsonValueKind.True => true,
-            JsonValueKind.False => false,
-            _ => throw new InvalidOperationException(
-                $"Configuration path '{configurationPath}' in '{appSettingsPath}' is not a boolean value.")
-        };
-    }
-
     private static async Task<IReadOnlyList<(string Key, string Value)>> CreateSampleHostLaunchEnvironmentAsync(
         string projectPath,
         int hostPort)
@@ -2901,7 +2876,7 @@ public sealed class SampleSmokeTests
             Environment.NewLine,
             lastResponses.Select(response => $"{response.Key}: {response.Value}"));
         throw new TimeoutException(
-            $"Timed out waiting for graph replica log entries for resource '{resourceId}'. Last responses: {lastResponseText}");
+            $"Timed out waiting for runtime replica log entries for resource '{resourceId}'. Last responses: {lastResponseText}");
     }
 
     private static bool HasResourceState(JsonElement resource, ResourceState expected)
@@ -3383,7 +3358,7 @@ public sealed class SampleSmokeTests
                     string.Equals(observation.GetProperty("scopeKind").GetString(), "runtime", StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(
                         observation.GetProperty("resourceId").GetString(),
-                        ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(replica),
+                        ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica),
                         StringComparison.OrdinalIgnoreCase) &&
                     observation.GetProperty("attributes").GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString() == replicaOrdinal))
             {
@@ -3434,7 +3409,7 @@ public sealed class SampleSmokeTests
         int replica,
         int replicaCount = 3)
     {
-        var replicaResourceId = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(replica);
+        var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
         var environment = await DockerComposeStack.GetContainerEnvironmentAsync(containerName);
         Assert.Contains($"CLOUDSHELL_RESOURCE_ID={replicaResourceId}", environment);
         Assert.Contains($"CLOUDSHELL_REPLICA_ORDINAL={replica.ToString(CultureInfo.InvariantCulture)}", environment);
@@ -3451,7 +3426,7 @@ public sealed class SampleSmokeTests
             environment,
             variable => variable.StartsWith("OTEL_RESOURCE_ATTRIBUTES=", StringComparison.Ordinal));
         Assert.Contains($"cloudshell.resource.id={replicaResourceId}", resourceAttributes);
-        Assert.Contains($"telemetry.scope.resourceId={ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId}", resourceAttributes);
+        Assert.Contains($"telemetry.scope.resourceId={ReplicatedContainerHealthRuntimeConventions.ApiResourceId}", resourceAttributes);
         Assert.Contains($"telemetry.scope.name=Replica {replica.ToString(CultureInfo.InvariantCulture)}", resourceAttributes);
         Assert.Contains("telemetry.scope.kind=runtime", resourceAttributes);
         Assert.Contains($"runtime.replica.ordinal={replica.ToString(CultureInfo.InvariantCulture)}", resourceAttributes);
@@ -3463,7 +3438,7 @@ public sealed class SampleSmokeTests
         int replica,
         TimeSpan timeout)
     {
-        var replicaResourceId = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(replica);
+        var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
         var metrics = await WaitForMetricPointsAsync(
             host,
             replicaResourceId,
@@ -3473,7 +3448,7 @@ public sealed class SampleSmokeTests
                 point.GetProperty("resourceId").GetString() == replicaResourceId &&
                 point.TryGetProperty("attributes", out var attributes) &&
                 attributes.TryGetProperty("telemetry.scope.resourceId", out var scopeResourceId) &&
-                scopeResourceId.GetString() == ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId));
+                scopeResourceId.GetString() == ReplicatedContainerHealthRuntimeConventions.ApiResourceId));
         Assert.NotEmpty(metrics);
     }
 
@@ -3489,7 +3464,7 @@ public sealed class SampleSmokeTests
             lastErrors.Clear();
             for (var replica = 1; replica <= expectedReplicas; replica++)
             {
-                var replicaResourceId = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(replica);
+                var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
                 try
                 {
                     var spans = await WaitForTraceSpansByResourceAsync(
@@ -3509,7 +3484,7 @@ public sealed class SampleSmokeTests
         while (DateTimeOffset.UtcNow < deadline);
 
         throw new TimeoutException(
-            $"Graph replica work trace was not ingested by any of {expectedReplicas.ToString(CultureInfo.InvariantCulture)} replica(s)." +
+            $"Runtime replica work trace was not ingested by any of {expectedReplicas.ToString(CultureInfo.InvariantCulture)} replica(s)." +
             $"{Environment.NewLine}{string.Join(Environment.NewLine, lastErrors)}");
     }
 
@@ -3527,7 +3502,7 @@ public sealed class SampleSmokeTests
             return false;
         }
 
-        return scopeResourceId.GetString() == ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId &&
+        return scopeResourceId.GetString() == ReplicatedContainerHealthRuntimeConventions.ApiResourceId &&
             replicaOrdinal.GetString() == replica.ToString(CultureInfo.InvariantCulture);
     }
 
@@ -3535,7 +3510,7 @@ public sealed class SampleSmokeTests
         SampleProcess host,
         int replica)
     {
-        var replicaResourceId = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(replica);
+        var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
         var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var runtimeReplica = Assert.Single(
@@ -3556,7 +3531,7 @@ public sealed class SampleSmokeTests
 
         var attributes = observability.GetProperty("attributes");
         Assert.Equal(
-            ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId,
+            ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
             attributes.GetProperty("telemetry.scope.resourceId").GetString());
         Assert.Equal(
             replica.ToString(CultureInfo.InvariantCulture),
@@ -3564,7 +3539,7 @@ public sealed class SampleSmokeTests
 
         var scope = Assert.Single(observability.GetProperty("scopes").EnumerateArray());
         Assert.Equal(
-            ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId,
+            ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
             scope.GetProperty("scopeResourceId").GetString());
         Assert.Equal($"Replica {replica.ToString(CultureInfo.InvariantCulture)}", scope.GetProperty("name").GetString());
         Assert.Equal("runtime", scope.GetProperty("kind").GetString());

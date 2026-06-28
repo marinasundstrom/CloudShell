@@ -2,7 +2,7 @@ using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
 
-internal sealed class ReplicatedContainerHealthGraphOnlyMonitoringProvider(
+internal sealed class ReplicatedContainerHealthRuntimeMonitoringProvider(
     IReplicatedContainerHealthCommandRunner commandRunner) : IResourceMonitoringProvider
 {
     private const string ProviderDisplayName = "Replicated Container Health";
@@ -28,7 +28,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyMonitoringProvider(
                 timestamp,
                 [],
                 "Unavailable",
-                "Graph replica metrics are available only while the replica is running.");
+                "Runtime replica metrics are available only while the replica is running.");
         }
 
         var containerName = GetAttribute(resource, ResourceAttributeNames.RuntimeContainerName);
@@ -40,7 +40,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyMonitoringProvider(
                 timestamp,
                 [],
                 "Unavailable",
-                "Graph replica metrics require a projected runtime container name.");
+                "Runtime replica metrics require a projected runtime container name.");
         }
 
         var result = await commandRunner.RunAsync(
@@ -61,7 +61,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyMonitoringProvider(
                 [],
                 "Unavailable",
                 string.IsNullOrWhiteSpace(result.Error)
-                    ? "The container runtime did not return a stats snapshot for the graph replica."
+                    ? "The container runtime did not return a stats snapshot for the runtime replica."
                     : result.Error.Trim());
         }
 
@@ -71,14 +71,14 @@ internal sealed class ReplicatedContainerHealthGraphOnlyMonitoringProvider(
             snapshot.Timestamp,
             ApplicationContainerMonitoringMetrics.CreateMetricSamples(snapshot),
             "Available",
-            "Graph replica container runtime metrics.");
+            "Runtime replica container runtime metrics.");
     }
 
     private static bool IsGraphRuntimeReplica(Resource resource) =>
         string.Equals(resource.EffectiveTypeId, "runtime.container", StringComparison.OrdinalIgnoreCase) &&
         string.Equals(
             resource.OwnerResourceId,
-            ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId,
+            ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
             StringComparison.OrdinalIgnoreCase) &&
         string.Equals(
             GetAttribute(resource, ResourceAttributeNames.RuntimeKind),

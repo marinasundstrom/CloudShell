@@ -61,20 +61,20 @@ cloudShell.DefineResources(resources =>
 });
 builder.Services
     .AddSingleton<IReplicatedContainerHealthCommandRunner, ProcessReplicatedContainerHealthCommandRunner>()
-    .AddSingleton<IReplicatedContainerHealthGraphContainerAppRuntimeBridge>(
-        serviceProvider => new ReplicatedContainerHealthGraphOnlyContainerAppRuntimeBridge(
+    .AddSingleton<IReplicatedContainerHealthContainerAppRuntimeBridge>(
+        serviceProvider => new ReplicatedContainerHealthContainerAppRuntimeBridge(
             serviceProvider.GetRequiredService<IReplicatedContainerHealthCommandRunner>(),
             serviceProvider.GetRequiredService<IConfiguration>(),
             serviceProvider.GetRequiredService<IHostEnvironment>(),
             traceIngestEndpoint,
             metricIngestEndpoint))
-    .AddSingleton<IContainerApplicationRuntimeHandler, ReplicatedContainerHealthGraphRuntimeHandler>()
+    .AddSingleton<IContainerApplicationRuntimeHandler, ReplicatedContainerHealthContainerAppRuntimeHandler>()
     .AddLocalContainerApplicationResourceTypes();
 cloudShell.UseResourceGraphIntegration();
-builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider, ReplicatedContainerHealthGraphOnlyOrchestrationDescriptorProvider>();
-builder.Services.AddScoped<IResourceProvider, ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider>();
-builder.Services.AddScoped<ILogProvider, ReplicatedContainerHealthGraphOnlyLogProvider>();
-builder.Services.AddScoped<IResourceMonitoringProvider, ReplicatedContainerHealthGraphOnlyMonitoringProvider>();
+builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider, ReplicatedContainerHealthOrchestrationDescriptorProvider>();
+builder.Services.AddScoped<IResourceProvider, ReplicatedContainerHealthRuntimeResourceProvider>();
+builder.Services.AddScoped<ILogProvider, ReplicatedContainerHealthRuntimeLogProvider>();
+builder.Services.AddScoped<IResourceMonitoringProvider, ReplicatedContainerHealthRuntimeMonitoringProvider>();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
@@ -109,7 +109,7 @@ app.MapPost(
     "/replicated-container-health/resource-graph/resources/{resourceId}/container-image",
     async (
         string resourceId,
-        ReplicatedContainerHealthGraphImageUpdate update,
+        ReplicatedContainerHealthImageUpdate update,
         ResourceModelGraphDefinitionApplyService applyService,
         CancellationToken cancellationToken) =>
     {
@@ -131,7 +131,7 @@ app.MapPost(
                 Timestamp: DateTimeOffset.UtcNow),
             cancellationToken);
 
-        return Results.Ok(ReplicatedContainerHealthGraphApplyResponse.FromResult(result));
+        return Results.Ok(ReplicatedContainerHealthApplyResponse.FromResult(result));
     });
 
 app.Run();
@@ -209,18 +209,18 @@ static string ResolveDockerReachableEndpoint(string endpoint)
     return builder.Uri.GetLeftPart(UriPartial.Authority);
 }
 
-internal sealed record ReplicatedContainerHealthGraphImageUpdate(
+internal sealed record ReplicatedContainerHealthImageUpdate(
     string Image);
 
-internal sealed record ReplicatedContainerHealthGraphApplyResponse(
+internal sealed record ReplicatedContainerHealthApplyResponse(
     bool Committed,
     bool HasErrors,
     long BaseVersion,
     long ResultVersion,
     string Status,
-    IReadOnlyList<ReplicatedContainerHealthGraphApplyDiagnosticResponse> Diagnostics)
+    IReadOnlyList<ReplicatedContainerHealthApplyDiagnosticResponse> Diagnostics)
 {
-    public static ReplicatedContainerHealthGraphApplyResponse FromResult(
+    public static ReplicatedContainerHealthApplyResponse FromResult(
         ResourceModelGraphDefinitionApplyResult result) =>
         new(
             result.IsCommitted,
@@ -229,7 +229,7 @@ internal sealed record ReplicatedContainerHealthGraphApplyResponse(
             result.Commit.Version.Value,
             result.Commit.Summary.Status.ToString(),
             result.Diagnostics
-                .Select(diagnostic => new ReplicatedContainerHealthGraphApplyDiagnosticResponse(
+                .Select(diagnostic => new ReplicatedContainerHealthApplyDiagnosticResponse(
                     diagnostic.Severity.ToString(),
                     diagnostic.Code,
                     diagnostic.Message,
@@ -237,7 +237,7 @@ internal sealed record ReplicatedContainerHealthGraphApplyResponse(
                 .ToArray());
 }
 
-internal sealed record ReplicatedContainerHealthGraphApplyDiagnosticResponse(
+internal sealed record ReplicatedContainerHealthApplyDiagnosticResponse(
     string Severity,
     string Code,
     string Message,

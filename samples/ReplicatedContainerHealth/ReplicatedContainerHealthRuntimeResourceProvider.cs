@@ -10,10 +10,10 @@ using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceCla
 using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 using ResourceManagerState = CloudShell.Abstractions.ResourceManager.ResourceState;
 
-internal sealed class ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider(
+internal sealed class ReplicatedContainerHealthRuntimeResourceProvider(
     ResourceGraphModel graph,
     ResourceResolver resolver,
-    IReplicatedContainerHealthGraphContainerAppRuntimeBridge runtime,
+    IReplicatedContainerHealthContainerAppRuntimeBridge runtime,
     IConfiguration configuration) : IResourceProvider
 {
     public string Id => "replicated-container-health.runtime";
@@ -30,7 +30,7 @@ internal sealed class ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider(
             .GetResult();
         var state = snapshot.Resources.FirstOrDefault(resource => string.Equals(
             resource.EffectiveResourceId,
-            ReplicatedContainerHealthGraphOnlyRuntimeConventions.GraphApiResourceId,
+            ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
             StringComparison.OrdinalIgnoreCase));
         if (state is null)
         {
@@ -68,14 +68,14 @@ internal sealed class ReplicatedContainerHealthGraphOnlyRuntimeResourceProvider(
         int replica,
         int replicaCount)
     {
-        var resourceId = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaResourceId(replica);
-        var containerName = ReplicatedContainerHealthGraphOnlyRuntimeConventions.CreateReplicaContainerName(replica);
+        var resourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
+        var containerName = ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica);
         var replicaOrdinal = replica.ToString(CultureInfo.InvariantCulture);
         var totalReplicas = replicaCount.ToString(CultureInfo.InvariantCulture);
         var replicaName = $"Replica {replicaOrdinal}";
         var protocol = NormalizeProtocol(endpoint.Protocol);
         var targetPort = endpoint.TargetPort ?? endpoint.Port ?? 8080;
-        var probePort = ReplicatedContainerHealthGraphOnlyRuntimeConventions.ResolveReplicaProbePort(
+        var probePort = ReplicatedContainerHealthRuntimeConventions.ResolveReplicaProbePort(
             configuration,
             replica,
             endpoint.Port ?? targetPort);
