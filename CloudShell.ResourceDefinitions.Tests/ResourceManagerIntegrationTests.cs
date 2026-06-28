@@ -1,4 +1,5 @@
 using System.Text.Json;
+using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
@@ -1424,6 +1425,45 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(new ResourceRevision(1), created.Revision);
         Assert.Equal("dotnet", created.ResourceAttributes[
             ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
+    [Fact]
+    public async Task ResourceDefinitionRegistrationService_AppliesSingleResourceDefinitionAndRegistersIt()
+    {
+        var resourceManager = new RecordingResourceManager();
+        var services = new ServiceCollection();
+        services.AddSingleton<IResourceManager>(resourceManager);
+        services.AddInMemoryResourceModelGraph();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<IResourceDefinitionRegistrationService>();
+
+        var result = await service.RegisterAsync(
+            new ExecutableApplicationResourceDefinitionBuilder("api")
+                .WithDisplayName("API")
+                .WithExecutablePath("dotnet"),
+            resourceGroupId: "apps",
+            new ResourceGraphCommitContext(
+                EnvironmentId: "local",
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 28, 10, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.ApplyResult.HasErrors, FormatDiagnostics(result.ApplyResult.Diagnostics));
+        Assert.True(result.ApplyResult.IsCommitted);
+        Assert.True(result.Registered);
+        Assert.Equal("application.executable:api", result.ResourceId);
+
+        var state = Assert.Single(
+            (await serviceProvider.GetRequiredService<ResourceGraphModel>().GetSnapshotAsync()).Resources);
+        Assert.Equal("API", state.DisplayName);
+        Assert.Equal("dotnet", state.ResourceAttributes[
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+
+        var registration = Assert.Single(resourceManager.Registrations);
+        Assert.Equal(ResourceModelResourceProvider.DefaultProviderId, registration.ProviderId);
+        Assert.Equal(result.ResourceId, registration.ResourceId);
+        Assert.Equal("apps", registration.ResourceGroupId);
     }
 
     [Fact]
@@ -5589,6 +5629,192 @@ public sealed class ResourceManagerIntegrationTests
 
             return ValueTask.FromResult(ResourceChangeApplyResult.Accepted(changes));
         }
+    }
+
+    private sealed class RecordingResourceManager : IResourceManager
+    {
+        private readonly List<ResourceRegistration> _registrations = [];
+
+        public event EventHandler<ResourceChangeNotification>? ResourcesChanged;
+
+        public IReadOnlyList<ResourceRegistration> Registrations => _registrations;
+
+        public Task<IReadOnlyList<ResourceRegistration>> ListResourceRegistrationsAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ResourceRegistration>>(_registrations.ToArray());
+
+        public Task<ResourceRegistration?> GetResourceRegistrationAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(_registrations.FirstOrDefault(registration => string.Equals(
+                registration.ResourceId,
+                resourceId,
+                StringComparison.OrdinalIgnoreCase)));
+
+        public Task RegisterResourceAsync(
+            RegisterResourceCommand command,
+            CancellationToken cancellationToken = default)
+        {
+            _registrations.Add(new(
+                command.ResourceId,
+                command.ProviderId,
+                command.ResourceGroupId,
+                DateTimeOffset.UnixEpoch,
+                command.DependsOn ?? []));
+            ResourcesChanged?.Invoke(
+                this,
+                new ResourceChangeNotification(ResourceChangeKind.ResourceRegistered, command.ResourceId));
+            return Task.CompletedTask;
+        }
+
+        public Task AssignResourceGroupAsync(
+            AssignResourceGroupCommand command,
+            CancellationToken cancellationToken = default)
+        {
+            var index = _registrations.FindIndex(registration => string.Equals(
+                registration.ResourceId,
+                command.ResourceId,
+                StringComparison.OrdinalIgnoreCase));
+            if (index >= 0)
+            {
+                var current = _registrations[index];
+                _registrations[index] = current with
+                {
+                    ResourceGroupId = command.ResourceGroupId,
+                    DependsOn = command.DependsOn ?? []
+                };
+            }
+
+            ResourcesChanged?.Invoke(
+                this,
+                new ResourceChangeNotification(ResourceChangeKind.ResourceGroupAssigned, command.ResourceId));
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<ResourceGroup>> ListResourceGroupsAsync(
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<ResourceGroup?> GetResourceGroupForResourceAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<ResourceGroup> CreateResourceGroupAsync(
+            CreateResourceGroupCommand command,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<ResourceManagerResource>> ListAvailableResourcesAsync(
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<ResourceManagerResource>> ListResourcesAsync(
+            ResourceQuery? query = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<ResourceManagerResource?> GetResourceAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<ResourceManagerResource>> ListResourceChildrenAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task CreateResourceAsync(
+            CreateResourceCommand command,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyDictionary<string, ResourceOperationCapabilities>> GetResourceOperationCapabilitiesAsync(
+            IReadOnlyList<string> resourceIds,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<ResourcePrincipal>> QueryResourcePrincipalsAsync(
+            ResourcePrincipalQuery? query = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<ResourcePermissionGrant>> ListResourcePermissionGrantsAsync(
+            ResourcePermissionGrantQuery? query = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<ResourcePermissionGrantStatus>> ListResourcePermissionGrantStatusesAsync(
+            ResourcePermissionGrantQuery? query = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<ResourcePermissionEvaluation> EvaluateResourcePermissionGrantAsync(
+            ResourceIdentityReference identity,
+            string targetResourceId,
+            string permission,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task GrantResourcePermissionAsync(
+            GrantResourcePermissionCommand command,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task RevokeResourcePermissionAsync(
+            RevokeResourcePermissionCommand command,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<ResourceIdentityProvisioningResult> ProvisionResourceIdentityAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<ResourceIdentityProvisioningStatusResult> GetResourceIdentityProvisioningStatusAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<ResourceIdentityProviderSetupResult> SetupResourceIdentityProviderAsync(
+            string providerId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task RemoveResourceRegistrationAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task SetResourceDependenciesAsync(
+            SetResourceDependenciesCommand command,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task SetResourceIdentityAsync(
+            SetResourceIdentityCommand command,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<ResourceProcedureResult> DeleteResourceAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<ResourceProcedureResult> ExecuteResourceActionAsync(
+            ExecuteResourceActionCommand command,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<ResourceProcedureResult> UpdateResourceImageAsync(
+            UpdateResourceImageCommand command,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<ResourceProcedureResult> UpdateResourceReplicasAsync(
+            UpdateResourceReplicasCommand command,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class StaticResourceModelStateProvider(

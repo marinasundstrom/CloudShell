@@ -1204,6 +1204,28 @@ and apply/change handlers needed by that type. It should not grow into a broad
 application-provider aggregate that registers unrelated executable, project,
 container, and database resource types behind one provider identity.
 
+Provider packaging should keep the same separation visible in the project
+layout. A user-facing provider should have one Control Plane/Resource Manager
+integration project for graph projection, runtime handlers, capability and
+operation implementations, apply hooks, state projection, logs, monitoring,
+and other backend behavior. It should have a separate Resource Manager UI
+support project for Add Resource components, update forms, detail tabs,
+predefined-view sections, and provider-owned UI actions. The UI support
+project hooks into the Resource Manager UI module and may use provider-owned
+builders to produce Resource Definitions, but it must not become the owner of
+runtime behavior. This keeps provider UI beside the provider runtime boundary
+without recreating the legacy application-provider aggregate.
+
+`/resources/add` should be treated as an authoring surface over the graph
+model. Creating a resource through the UI is equivalent to applying a
+single-resource deployment: the provider UI gathers input, builds a
+`ResourceDefinition` through the provider's graph builder, applies it through
+the Resource graph apply path, and then records the Resource Manager
+registration/group metadata required for the resource to appear in inventory.
+Only materialization and runtime operations should bypass this declaration
+boundary and execute through Control Plane/resource-manager runtime
+integrations.
+
 The POC should also include at least one second resource type from another
 boundary. A local volume resource type is a useful test because it lets the
 model prove that storage class/type defaults, apply validation, provider-owned
