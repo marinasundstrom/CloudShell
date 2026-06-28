@@ -1332,6 +1332,16 @@ public sealed class SampleSmokeTests
             .GetProperty("identity.provisioning.setup");
         Assert.Equal("POST", setupAction.GetProperty("method").GetString());
         Assert.False(string.IsNullOrWhiteSpace(setupAction.GetProperty("href").GetString()));
+
+        var identityAddHtml = await host.GetStringAsync(
+            "/resources/add?type=cloudshell.identity-provisioning");
+        Assert.Contains("Resource model resources", identityAddHtml);
+        Assert.DoesNotContain("Resource type not found", identityAddHtml);
+
+        var configurationStoreAddHtml = await host.GetStringAsync(
+            "/resources/add?type=configuration.store");
+        Assert.Contains("Resource model resources", configurationStoreAddHtml);
+        Assert.DoesNotContain("Resource type not found", configurationStoreAddHtml);
     }
 
     [Fact]
