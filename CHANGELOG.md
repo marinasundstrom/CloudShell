@@ -25,6 +25,9 @@ on `git blame --follow`, and then by the broad type of change.
   `AddStorageBackedSqlServerResourceTypes(...)` to register storage,
   CloudShell volume, and SQL Server resource types together while keeping SQL
   database children and runtime handlers explicit per sample.
+- The supported sample host launch matrix now assigns a free graph SQL Server
+  port for CloudShell.ContainerHost so switch-readiness startup does not
+  depend on the sample's default SQL port being unused.
 - Graph-default samples now use the builder-level
   `UseResourceGraphIntegration(...)` seam to register generic graph
   services, current graph-provider Resource Manager projections, and the

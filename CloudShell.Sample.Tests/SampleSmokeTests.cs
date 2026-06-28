@@ -5705,6 +5705,10 @@ public sealed class SampleSmokeTests
             environment.Add(("ApplicationTopology__GraphSecretsServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("ApplicationTopology__SqlServer__Port", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
         }
+        else if (projectPath.Contains("/CloudShell.ContainerHost/", StringComparison.OrdinalIgnoreCase))
+        {
+            environment.Add(("ContainerHost__GraphSqlServer__Port", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+        }
         else if (projectPath.Contains("/ContainerAppDeployment/", StringComparison.OrdinalIgnoreCase))
         {
             environment.Add(("ContainerAppDeployment__RegistryPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
