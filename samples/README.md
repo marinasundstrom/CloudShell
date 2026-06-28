@@ -13,7 +13,7 @@ expose that toggle.
 | --- | --- | --- |
 | `ProjectReference` | ASP.NET Core project-to-project service discovery, logs, health, traces, and ResourceDefinition apply flow. | Switched to the Resource model provider path; old application-provider project records are no longer declared. |
 | `SettingsAndSecrets` | Resource model Configuration Store and Secrets Vault consumed by an ASP.NET Core project. | Switched to the Resource model provider path; old application/configuration/secrets provider records are no longer declared. |
-| `ThirdPartyIdentity` | Keycloak-backed identity setup and protected graph Configuration Store access. | Defaults to graph-only; Keycloak setup and graph API identity environment are sample-local runtime seams. |
+| `ThirdPartyIdentity` | Keycloak-backed identity setup and protected Configuration Store access. | Switched to the Resource model provider path; Keycloak setup and API identity environment remain sample-local runtime seams. |
 | `ApplicationTopology` | Multi-resource app topology across storage, SQL, configuration, secrets, identity, DNS, and project resources. | Defaults to graph-only; this remains the broad switch-readiness proof for common provider interactions. |
 | `ReplicatedContainerHealth` | Replicated container app runtime, health/liveness, logs, traces, metrics, and hidden runtime replica projection. | Defaults to graph-only; Docker-backed runtime/log/resource seams remain sample-local until the provider boundary is stabilized. |
 | `ContainerAppDeployment` | Container app image and replica updates through the Control Plane API. | Switched to the Resource model provider path; deployment API updates graph state through a sample-local bridge. |

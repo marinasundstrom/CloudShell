@@ -16,7 +16,6 @@
     <ProjectReference Include="..\..\CloudShell.ControlPlane\CloudShell.ControlPlane.csproj" />
     <ProjectReference Include="..\..\CloudShell.Hosting\CloudShell.Hosting.csproj" />
     <ProjectReference Include="..\..\CloudShell.Providers.Applications\CloudShell.Providers.Applications.csproj" />
-    <ProjectReference Include="..\..\CloudShell.Providers.Configuration\CloudShell.Providers.Configuration.csproj" />
     <ProjectReference Include="..\..\CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager\CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.csproj" />
     <ProjectReference Include="..\..\CloudShell.ResourceDefinitions.ReferenceProviders\CloudShell.ResourceDefinitions.ReferenceProviders.csproj" />
     <ProjectReference Include="..\..\CloudShell.ResourceDefinitions.ResourceManager\CloudShell.ResourceDefinitions.ResourceManager.csproj" />

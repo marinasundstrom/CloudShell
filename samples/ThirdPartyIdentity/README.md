@@ -79,52 +79,39 @@ The sample also declares the external resource identity boundary:
 
 - `identity-provisioning:keycloak` is the provisioning resource boundary.
 - `identity:keycloak` is the CloudShell resource identity provider definition.
-- `application:keycloak-provisioned-api` declares a resource identity bound to
-  that provider.
-- `configuration:third-party-identity` grants that API identity configuration
-  read access.
+- `application.aspnet-core-project:keycloak-provisioned-api` declares a
+  resource identity bound to that provider.
+- `configuration.store:third-party-identity` grants that API identity
+  configuration read access.
 
-The sample also declares `identity-provisioning:graph-keycloak`, a
-side-by-side graph-backed identity provisioning resource through the Resource
-Definitions bridge and the provider-owned identity provisioning builder. It
-proves Resource Manager projection and setup operation execution by attaching a
-graph-specific identity provider definition and a sample-local adapter that
-delegates the graph setup operation to the existing Resource Manager identity
-setup service through an explicit bridge contract. The graph resource stores
-the attached provider id as non-secret configuration, while the provider
-definition remains registered in the Resource Manager declaration model. The
-existing Keycloak integration remains responsible for real provider setup,
-credential materialization, and protected configuration access.
+The Resource model declaration proves Resource Manager projection and setup
+operation execution by attaching a Keycloak identity provider definition and a
+sample-local adapter that delegates the setup operation to the Resource Manager
+identity setup service through an explicit bridge contract. The provisioning
+resource stores the attached provider id as non-secret configuration, while the
+provider definition remains registered in the Resource Manager declaration
+model. The existing Keycloak integration remains responsible for real provider
+setup, credential materialization, and protected configuration access.
 
-The sample now also declares side-by-side graph-backed
-`configuration.store:graph-third-party-identity` and
-`application.aspnet-core-project:graph-keycloak-provisioned-api` resources.
-Those declarations prove the graph shape for the protected configuration store,
-the API project, the API endpoint, the graph startup dependency, the
-provider-owned configuration reference, and the Resource Manager-declared
-identity attached to the graph API. The graph-backed Configuration Store can
-also run with Keycloak `Authentication:ServiceBearer` settings, and the
-graph-backed API can start through the ASP.NET Core project runtime, receive
-the graph API identity credentials from `identity:graph-keycloak`, and read
-the protected graph-backed configuration entry.
-The graph ASP.NET Core runtime also has a sample-local environment adapter
-that resolves the graph API identity declaration from Resource Manager and
-delegates credential environment creation to the existing Keycloak integration.
+The Configuration Store can run with Keycloak `Authentication:ServiceBearer`
+settings, and the API can start through the ASP.NET Core project runtime,
+receive API identity credentials from `identity:keycloak`, and read the
+protected configuration entry. The ASP.NET Core runtime also has a sample-local
+environment adapter that resolves the API identity declaration from Resource
+Manager and delegates credential environment creation to the existing Keycloak
+integration.
 That keeps identity credential materialization in the runtime/Control Plane
-boundary while the graph resource continues to store only declarative project,
+boundary while the resource model continues to store only declarative project,
 endpoint, reference, and identity attachment information.
-`Samples:ThirdPartyIdentity:GraphOnly` defaults to `true` so the sample omits
-the old application/configuration provider registrations and the old
-`identity-provisioning:keycloak`, `configuration:third-party-identity`, and
-`application:keycloak-provisioned-api` resource records. Set it to `false`
-only when running the side-by-side comparison path against the old providers.
-Graph-only mode still uses Resource Manager-owned identity provider
-declarations and the sample-local graph identity credential adapter; those are
-runtime/Control Plane concerns, not graph state. Docker-backed smoke coverage
-now runs the protected graph Configuration Store and graph ASP.NET Core API in
-this mode, executes graph identity-provider setup, and verifies the graph API
-can read protected graph configuration with a Keycloak-issued resource identity
-token without old provider records.
+The sample no longer declares old application/configuration provider records
+such as `configuration:third-party-identity` or
+`application:keycloak-provisioned-api`. It still uses Resource Manager-owned
+identity provider declarations and the sample-local identity credential
+adapter; those are runtime/Control Plane concerns, not graph state.
+Docker-backed smoke coverage now runs the protected Configuration Store and
+ASP.NET Core API through the Resource model provider path, executes
+identity-provider setup, and verifies the API can read protected configuration
+with a Keycloak-issued resource identity token without old provider records.
 
 The sample registers `KeycloakResourceIdentityProvisioner` as the resource
 identity provisioner, provider setup handler, and runtime credential
@@ -156,9 +143,9 @@ This is intentionally still a reference integration. The provisioned Keycloak
 client secret is deterministic for sample-created resource clients so the
 application provider can inject it into a running workload.
 
-The sample configures both the old and graph-backed Configuration Store
-backing services with `Authentication:ServiceBearer` settings derived from the
-Keycloak authority. That lets each service validate Keycloak-issued JWT bearer
+The sample configures the Configuration Store backing service with
+`Authentication:ServiceBearer` settings derived from the Keycloak authority.
+That lets the service validate Keycloak-issued JWT bearer
 tokens before it checks the `cloudshell.resource-permission` claim. Audience
 validation is not set by default because the sample uses Keycloak's
 local-development token shape; production-style hosts should register protected
@@ -166,18 +153,15 @@ API audiences and set `Authentication:ServiceBearer:Audience`.
 
 ## Workload validation
 
-The sample declares `application:keycloak-provisioned-api` as the old ASP.NET
-Core project resource and `application.aspnet-core-project:graph-keycloak-provisioned-api`
-as the graph-backed ASP.NET Core project resource. They are not autostarted.
-After Keycloak and the CloudShell host are running, start either API from
-Resource Manager with its dependencies. The old API listens on
-`http://localhost:5234` by default, and the graph API listens on
-`http://localhost:5235` by default.
+The sample declares
+`application.aspnet-core-project:keycloak-provisioned-api` as the ASP.NET Core
+project resource. It is not autostarted. After Keycloak and the CloudShell host
+are running, start the API from Resource Manager with its dependencies. The API
+listens on `http://localhost:5235` by default.
 
 Open:
 
 ```text
-http://localhost:5234/configuration
 http://localhost:5235/configuration
 ```
 
@@ -188,13 +172,9 @@ The expected response has `status` set to `connected` and includes
 `Sample:Message`.
 
 The sample smoke tests can start Keycloak with Docker Compose, run the
-CloudShell host, verify that `identity-provisioning:keycloak` and
-`identity-provisioning:graph-keycloak` are projected as resource boundaries,
-execute graph provider setup, confirm provisioning status for the old and graph
-workload identities, start the dependent old and graph Configuration Store/API
-resources, and assert both APIs can read protected configuration entries with a
-Keycloak-issued token. A separate graph-only smoke path starts only the graph
-resources and verifies the same protected configuration read without old
-application/configuration provider records. That graph-only path also verifies
-the generated Keycloak Docker Compose project is removed during test cleanup,
-including compose-managed containers and networks.
+CloudShell host, verify that `identity-provisioning:keycloak` is projected as
+the resource boundary, execute provider setup, start the dependent
+Configuration Store/API resources, and assert the API can read protected
+configuration entries with a Keycloak-issued token. The Docker-backed path also
+verifies the generated Keycloak Docker Compose project is removed during test
+cleanup, including compose-managed containers and networks.
