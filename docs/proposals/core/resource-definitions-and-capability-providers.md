@@ -1208,17 +1208,21 @@ and apply/change handlers needed by that type. It should not grow into a broad
 application-provider aggregate that registers unrelated executable, project,
 container, and database resource types behind one provider identity.
 
-Provider packaging should keep the same separation visible in the project
-layout. A user-facing provider should have one Control Plane/Resource Manager
-integration project for graph projection, runtime handlers, capability and
-operation implementations, apply hooks, state projection, logs, monitoring,
-and other backend behavior. It should have a separate Resource Manager UI
-support project for Add Resource components, update forms, detail tabs,
-predefined-view sections, and provider-owned UI actions. The UI support
-project hooks into the Resource Manager UI module and may use provider-owned
-builders to produce Resource Definitions, but it must not become the owner of
-runtime behavior. This keeps provider UI beside the provider runtime boundary
-without recreating the legacy application-provider aggregate.
+Provider packaging should keep the same separation visible even while the POC
+keeps several providers in the same assembly. A user-facing provider should
+have a Control Plane/Resource Manager integration boundary for graph
+projection, runtime handlers, capability and operation implementations, apply
+hooks, state projection, logs, monitoring, and other backend behavior. It
+should have a separate Resource Manager UI support boundary for Add Resource
+components, update forms, detail tabs, predefined-view sections, and
+provider-owned UI actions. Those boundaries may initially be folders inside
+shared transitional projects as long as each provider stays independently
+registered and owned. When the seams stabilize, the same boundaries can become
+separate provider projects. The UI support boundary hooks into the Resource
+Manager UI module and may use provider-owned builders to produce Resource
+Definitions, but it must not become the owner of runtime behavior. This keeps
+provider UI beside the provider runtime boundary without recreating the legacy
+application-provider aggregate.
 
 The starting package model is:
 
@@ -1228,11 +1232,11 @@ The starting package model is:
   helpers provider UI extensions use to contribute resource-specific views,
   forms, sections, and commands. It also uses the Control Plane client when it
   needs to read or invoke Resource Manager behavior.
-- Each provider creates a Control Plane Resource Provider extension for runtime
-  integration and graph/resource projection.
-- Each provider creates a Resource Manager UI extension for its UI integration.
-  This extension depends on the shared Resource Manager UI integration surface,
-  not on provider runtime internals.
+- Each provider creates or contributes to a Control Plane Resource Provider
+  extension for runtime integration and graph/resource projection.
+- Each provider creates or contributes to a Resource Manager UI extension for
+  its UI integration. This extension depends on the shared Resource Manager UI
+  integration surface, not on provider runtime internals.
 
 `/resources/add` should be treated as an authoring surface over the graph
 model. Creating a resource through the UI is equivalent to applying a
@@ -1370,13 +1374,20 @@ The longer-term packaging goal is to group each provider feature with the
 code that belongs to that feature: graph/type definitions, runtime/control
 plane integration, and CloudShell UI integration should live next to each
 other under a shared feature/provider folder, with separate projects for the
-separate runtime and UI surfaces. Shared infrastructure, such as graph model
-primitives, common capability IDs, Resource Manager graph bridge services,
-and reusable UI composition pieces, stays outside those provider folders in
-its own projects. The POC is not reshuffling projects yet because the switch
-needs to expose the real seams first; until then, the known discrepancy is
-that runtime handlers, Resource Manager projection bridges, UI metadata, and
-sample-local adapters still sit in mixed or transitional locations.
+separate runtime and UI surfaces when that split adds value. Shared
+infrastructure, such as graph model primitives, common capability IDs,
+Resource Manager graph bridge services, and reusable UI composition pieces,
+stays outside those provider folders in its own projects. The POC is not
+reshuffling projects yet because the switch needs to expose the real seams
+first. In the current branch, `CloudShell.ResourceDefinitions` and its
+reference-provider companion projects effectively carry the new Control
+Plane/Resource Manager provider integration role, while
+`CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI` carries
+the provider-owned Resource Manager UI integration role. Those names are
+transitional. They can later become application provider and provider UI
+packages, such as an application-provider package and
+`CloudShell.Providers.Application.UI`, without requiring each provider to move
+into a separate assembly before the boundaries are proven.
 
 Each ported resource provider should keep a provider-local `README.md`. The
 README should identify the resource type and provider id, summarize what the
@@ -1852,10 +1863,12 @@ independently registered provider groups. Shared graph infrastructure stays
 outside those groups.
 The temporary Resource Manager UI-support project may keep the
 `ReferenceProviders` name while the switch is in progress so it is clear that
-it still belongs to the POC provider family. Rename that project and namespace
-when the provider split is ready: application workload UI support should move
-to an application-provider UI package, and networking/infrastructure UI
-support should live with their corresponding provider families.
+it still belongs to the POC provider family. Functionally, that project is the
+future provider UI integration package: application workload UI support should
+move toward an application-provider UI package, while
+networking/infrastructure UI support should live with their corresponding
+provider families. The important switch-over rule is provider separation by
+boundary and registration, not immediate one-provider-per-assembly packaging.
 For the current switch-over, provider-specific Resource Manager UI components
 are being extracted into that UI-support project while provider implementations
 remain together. Registration components, endpoint actions, and container app
