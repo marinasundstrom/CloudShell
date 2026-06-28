@@ -814,11 +814,24 @@ public sealed class SampleSmokeTests
         Assert.Contains("Application exposure", graphApiEndpointsHtml);
         Assert.Contains("Add DNS name", graphApiEndpointsHtml);
 
+        var graphApiConfigurationHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Configuration.Value)}");
+        Assert.Contains("Resource model", graphApiConfigurationHtml);
+        Assert.Contains("project.path", graphApiConfigurationHtml);
+        Assert.Contains("Capabilities and operations", graphApiConfigurationHtml);
+
         var graphSqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details");
         Assert.Contains("Application Topology SQL Server", graphSqlDetailsHtml);
         Assert.Contains("SQL Server", graphSqlDetailsHtml);
         Assert.Contains("application.sql-server", graphSqlDetailsHtml);
+
+        var graphSqlConfigurationHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Configuration.Value)}");
+        Assert.Contains("Resource model", graphSqlConfigurationHtml);
+        Assert.Contains("sqlserver.version", graphSqlConfigurationHtml);
+        Assert.Contains("Endpoints", graphSqlConfigurationHtml);
+        Assert.Contains("Capabilities and operations", graphSqlConfigurationHtml);
 
         var graphSqlDatabasesHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details?tab={Uri.EscapeDataString("application:databases")}");

@@ -89,6 +89,18 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
             .AddResourceTypeEndpoint(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourceEndpointDescriptor.Tcp("tds", 1433))
+            .AddResourceTab<GraphSharedPages.ApplicationConfiguration>(
+                ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Configuration,
+                "Configuration",
+                20,
+                groupTitle: ResourceTabGroupTitles.General)
+            .AddResourceTab<GraphSharedPages.ApplicationConfiguration>(
+                AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Configuration,
+                "Configuration",
+                20,
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<GraphSharedPages.ApplicationStorage>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
@@ -128,6 +140,12 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
                 "Monitoring",
                 45,
                 groupTitle: ResourceTabGroupTitles.Management)
+            .AddResourceTab<GraphSharedPages.ApplicationConfiguration>(
+                ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Configuration,
+                "Configuration",
+                50,
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourcePredefinedViewSection<GraphSharedPages.ApplicationEndpointActions>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Endpoints,
@@ -159,6 +177,12 @@ public sealed class ReferenceProviderResourceManagerUiExtension : ICloudShellExt
                 "Storage",
                 30,
                 groupTitle: ResourceTabGroupTitles.Storage)
+            .AddResourceTab<GraphSharedPages.ApplicationConfiguration>(
+                SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Configuration,
+                "Configuration",
+                20,
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<GraphSqlServerPages.SqlServerDatabases>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "databases"),

@@ -1,0 +1,208 @@
+@inject IResourceManager ResourceManager
+
+@if (Resource is null)
+{
+    <EmptyState Title="Configuration is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
+}
+else
+{
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Resource model</h3>
+                <p>Configuration projected from the Resource graph.</p>
+            </div>
+        </div>
+        <dl class="detail-list">
+            <dt>Resource ID</dt>
+            <dd>@Resource.Id</dd>
+            <dt>Name</dt>
+            <dd>@Resource.Name</dd>
+            <dt>Display name</dt>
+            <dd>@Resource.EffectiveDisplayName</dd>
+            <dt>Type</dt>
+            <dd>@Resource.EffectiveTypeId</dd>
+            <dt>Class</dt>
+            <dd>@Resource.ResourceClass</dd>
+            <dt>Provider</dt>
+            <dd>@Resource.Provider</dd>
+            <dt>State</dt>
+            <dd>@(Resource.State?.ToString() ?? "n/a")</dd>
+            <dt>Source</dt>
+            <dd>@Resource.Source</dd>
+            <dt>Management mode</dt>
+            <dd>@Resource.ManagementMode</dd>
+            <dt>Visibility</dt>
+            <dd>@Resource.Visibility</dd>
+            <dt>Graph membership</dt>
+            <dd>@Resource.ResourceGraphMembership</dd>
+            <dt>Revision</dt>
+            <dd>@Resource.Version</dd>
+            <dt>Last updated</dt>
+            <dd>@Resource.LastUpdated.ToLocalTime().ToString("g")</dd>
+        </dl>
+    </section>
+
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Attributes</h3>
+                <p>@GetAttributeSummary()</p>
+            </div>
+        </div>
+        @if (AttributeRows.Count == 0)
+        {
+            <EmptyState Title="No attributes"
+                        Message="This resource projection does not expose graph attributes." />
+        }
+        else
+        {
+            <ResourceTable AriaLabel="Resource attributes">
+                <thead>
+                    <tr>
+                        <th>Attribute</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in AttributeRows)
+                    {
+                        <tr>
+                            <td>@row.Name</td>
+                            <td>@row.Value</td>
+                        </tr>
+                    }
+                </tbody>
+            </ResourceTable>
+        }
+    </section>
+
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Endpoints</h3>
+                <p>@GetEndpointSummary()</p>
+            </div>
+        </div>
+        @if (Resource.Endpoints.Count == 0)
+        {
+            <EmptyState Title="No endpoints"
+                        Message="This resource does not declare endpoints." />
+        }
+        else
+        {
+            <ResourceTable AriaLabel="Resource endpoints">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Protocol</th>
+                        <th>Target port</th>
+                        <th>Exposure</th>
+                        <th>Resolved address</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var endpoint in Resource.Endpoints.OrderBy(endpoint => endpoint.Name, StringComparer.OrdinalIgnoreCase))
+                    {
+                        <tr>
+                            <td>@endpoint.Name</td>
+                            <td>@endpoint.Protocol</td>
+                            <td>@(endpoint.TargetPort?.ToString() ?? "n/a")</td>
+                            <td>@endpoint.Exposure</td>
+                            <td>@(Resource.GetResolvedEndpointAddress(endpoint) ?? "not mapped")</td>
+                        </tr>
+                    }
+                </tbody>
+            </ResourceTable>
+        }
+    </section>
+
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Capabilities and operations</h3>
+                <p>@GetCapabilityOperationSummary()</p>
+            </div>
+        </div>
+        <div class="generated-list">
+            <div>
+                <strong>Capabilities</strong>
+                <span>@FormatList(Resource.ResourceCapabilities.Select(capability => capability.Id))</span>
+            </div>
+            <div>
+                <strong>Operations</strong>
+                <span>@FormatList(Resource.ResourceActions.Select(action => action.Id))</span>
+            </div>
+            @if (Resource.DependsOn.Count > 0)
+            {
+                <div>
+                    <strong>Startup dependencies</strong>
+                    <span>@FormatList(Resource.DependsOn)</span>
+                </div>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private Resource? Resource { get; set; }
+    private IReadOnlyList<AttributeRow> AttributeRows { get; set; } = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Resource = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : await ResourceManager.GetResourceAsync(ResourceId);
+        AttributeRows = Resource is null
+            ? []
+            : Resource.ResourceAttributes
+                .OrderBy(attribute => attribute.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(attribute => new AttributeRow(attribute.Key, FormatAttributeValue(attribute.Key, attribute.Value)))
+                .ToArray();
+    }
+
+    private string GetAttributeSummary() =>
+        AttributeRows.Count == 1
+            ? "1 graph attribute is projected for this resource."
+            : $"{AttributeRows.Count} graph attributes are projected for this resource.";
+
+    private string GetEndpointSummary() =>
+        Resource?.Endpoints.Count == 1
+            ? "1 endpoint is declared for this resource."
+            : $"{Resource?.Endpoints.Count ?? 0} endpoints are declared for this resource.";
+
+    private string GetCapabilityOperationSummary() =>
+        $"{Resource?.ResourceCapabilities.Count ?? 0} capabilities and {Resource?.ResourceActions.Count ?? 0} operations are projected.";
+
+    private static string FormatAttributeValue(string name, string value) =>
+        IsSensitiveAttribute(name)
+            ? "redacted"
+            : string.IsNullOrWhiteSpace(value)
+                ? "unset"
+                : value;
+
+    private static bool IsSensitiveAttribute(string name) =>
+        name.Contains("secret", StringComparison.OrdinalIgnoreCase) ||
+        name.Contains("password", StringComparison.OrdinalIgnoreCase) ||
+        name.Contains("token", StringComparison.OrdinalIgnoreCase) ||
+        name.Contains("apikey", StringComparison.OrdinalIgnoreCase) ||
+        name.Contains("api-key", StringComparison.OrdinalIgnoreCase);
+
+    private static string FormatList(IEnumerable<string> values)
+    {
+        var items = values
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return items.Length == 0
+            ? "none"
+            : string.Join(", ", items);
+    }
+
+    private sealed record AttributeRow(string Name, string Value);
+}

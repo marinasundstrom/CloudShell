@@ -1867,6 +1867,15 @@ cross-boundary abstractions, identifiers, constants, simple contract DTOs, and
 small helpers used by both Control Plane integration and UI integration.
 Runtime stores, background work, orchestration behavior, and provider services
 stay in the Control Plane/provider integration boundary.
+The graph UI also registers a shared read-only Configuration tab for the
+ported application resource types. That page shows identity, graph metadata,
+attributes, endpoints, capabilities, operations, and startup dependencies from
+the Resource Manager projection. It intentionally does not port the old
+provider edit forms yet, because graph apply/update behavior must go through
+the Resource graph and provider/runtime apply seams rather than legacy
+application-provider stores. Sensitive-looking attribute values are redacted by
+key convention until provider-specific configuration editors are rebuilt on the
+new model.
 Small provider-group helpers may be added when they reflect an existing
 switch-readiness boundary, such as local container application support
 requiring both the container app type and its Docker host target type, or a
