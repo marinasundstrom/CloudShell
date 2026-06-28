@@ -35,6 +35,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ApplicationTopology now declares the graph SQL backing storage through the
   Resource Manager bridge as well, so graph-only projection shows the full
   storage -> volume -> SQL Server -> database chain without relying on Docker.
+- ReplicatedContainerHealth graph-only Docker smoke coverage now treats the
+  app-owned ingress container as part of the runtime cleanup contract, verifying
+  graph stop removes it alongside graph-owned replica containers.
 
 ### 2026-06-27
 

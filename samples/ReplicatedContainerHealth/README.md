@@ -101,8 +101,9 @@ Docker smoke coverage now verifies graph-only image update, replica update,
 stale replica removal, ingress-routed graph-declared HTTP health/liveness
 refresh, runtime-scope health aggregation, log source discovery, Docker log
 reading, the running replica container's projected runtime observability
-environment, and live trace/metric ingestion under the projected runtime
-replica resource ID without the old provider records. The hidden runtime replica resource
+environment, live trace/metric ingestion under the projected runtime replica
+resource ID without the old provider records, and graph stop cleanup for both
+the app-owned ingress container and graph-owned replicas. The hidden runtime replica resource
 projection now also advertises Resource Manager logs, traces, metrics, service
 name, and runtime telemetry scope metadata so the projected resource and the
 emitted telemetry line up. Generated Resource Manager telemetry tabs for the

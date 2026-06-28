@@ -4722,8 +4722,12 @@ public sealed class SampleSmokeTests
             "cloudshell-replicated-health-graph-api-replica-1",
             "cloudshell-replicated-health-graph-api-replica-2"
         ];
+        const string ingressContainerName = "cloudshell-replicated-health-graph-api-ingress";
+        var runtimeContainerNames = containerNames
+            .Append(ingressContainerName)
+            .ToArray();
         if (!await DockerComposeStack.IsAvailableAsync() ||
-            await AnyDockerContainerExistsAsync(containerNames))
+            await AnyDockerContainerExistsAsync(runtimeContainerNames))
         {
             return;
         }
@@ -4791,6 +4795,9 @@ public sealed class SampleSmokeTests
                     await WaitForDockerContainerExistsAsync(containerName, graphOnlySmokeTimeout),
                     $"Expected Docker container '{containerName}' to be created.");
             }
+            Assert.True(
+                await WaitForDockerContainerExistsAsync(ingressContainerName, graphOnlySmokeTimeout),
+                $"Expected Docker ingress container '{ingressContainerName}' to be created.");
             var startedContainerIds = await GetDockerContainerIdsAsync(containerNames);
 
             var graphApplyJson = await host.SendJsonAsync(
@@ -4887,11 +4894,23 @@ public sealed class SampleSmokeTests
             Assert.Equal(
                 "2",
                 scaledGraphApp.GetProperty("attributes").GetProperty("container.replicas").GetString());
+
+            await StopGraphResourceIfAvailableAsync(
+                host,
+                scaledGraphApp,
+                "ReplicatedContainerHealth graph-only API");
+
+            foreach (var containerName in runtimeContainerNames)
+            {
+                Assert.True(
+                    await WaitForDockerContainerRemovedAsync(containerName, graphOnlySmokeTimeout),
+                    $"Expected graph-only runtime container '{containerName}' to be removed after graph stop.");
+            }
         }
         finally
         {
             await StopResourceIfRunningAsync(host, graphApiResourceId);
-            foreach (var containerName in containerNames)
+            foreach (var containerName in runtimeContainerNames)
             {
                 await DockerComposeStack.RemoveContainerIfExistsAsync(containerName);
             }
