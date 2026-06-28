@@ -23,10 +23,11 @@ on `git blame --follow`, and then by the broad type of change.
   Resource Manager bridge resolves referenced values when the project resource
   starts, while `configuration` remains a separate general resource
   configuration channel.
-- Added Aspire-like ASP.NET Core project graph-builder convenience extensions
-  for environment variables, service discovery, HTTP health checks, and HTTP
-  liveness/probe declarations, and moved ProjectReference plus
-  SettingsAndSecrets sample declarations onto those aliases.
+- Added native ASP.NET Core project graph-builder environment variable
+  authoring through `WithEnvironment(...)`, plus provider-owned convenience
+  methods for service discovery, HTTP health checks, and HTTP liveness/probe
+  declarations, and moved ProjectReference plus SettingsAndSecrets sample
+  declarations onto those APIs.
 - Added bridge-owned resource graph identity convenience helpers for
   `IResourceDefinitionBuilder`: `Identity(...)`, `Principal(...)`, and
   `IdentityClientId(...)`, and updated graph-backed samples to use the helper

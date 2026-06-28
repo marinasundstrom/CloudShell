@@ -933,26 +933,35 @@ need those values while running in-memory project them into graph
 runtime/provider-managed nature of those attributes.
 The basic builder API should stay tied to Resource model concepts:
 resource definitions, attributes, capabilities, operations, references,
-resource type ids, and graph/deployment envelopes. Aspire-like ergonomics and
-old-builder flexibility should be brought back primarily as extension-method
-layers until repeated usage proves a method belongs in a provider builder or
-the shared builder surface. Identity declaration is a good example: the core
-model should keep the explicit resource definition shape visible, while
-convenience extensions can provide shorter host or provider-specific authoring
-forms for common identity bindings, grants, or provisioning patterns. This
-keeps the programmatic API approachable without hiding CloudShell's resource
-graph semantics or prematurely coupling all providers to one shared toolkit.
+resource type ids, graph/deployment envelopes, and native resource authoring
+channels such as environment variables and configuration. Environment variable
+authoring is not merely an Aspire-compatible alias; it is the native way to
+declare values that a resource runtime should receive as process or container
+environment variables. Future configuration authoring should follow the same
+principle: it is a native resource configuration channel, even if it reuses the
+same literal/reference value constructs.
+Aspire-like ergonomics and old-builder flexibility should be brought back
+primarily as extension-method layers only where they make provider authoring
+clearer without hiding CloudShell's resource semantics. Identity declaration is
+a good example: the core model should keep the explicit resource definition
+shape visible, while convenience extensions can provide shorter host or
+provider-specific authoring forms for common identity bindings, grants, or
+provisioning patterns. This keeps the programmatic API approachable without
+prematurely coupling all providers to one shared toolkit.
 The first bridge-owned convenience helpers project Resource Manager identity
 authoring values from graph builders: `resource.Identity(name)`,
 `resource.Principal(identityName)`, and `resource.IdentityClientId(name)`.
 These mirror the old builder's identity ergonomics for samples and runtime
 environment composition while keeping the actual identity binding and grant
 declarations in the Resource Manager seam for now.
-Provider-owned builder aliases can restore old-builder readability without
-changing the underlying graph shape. The ASP.NET Core project builder now has
-`WithEnvironment(...)`, `WithServiceDiscovery()`, `WithHttpHealthCheck(...)`,
-and `WithHttpLivenessCheck(...)` as extension methods over the existing
-environment-variable, service-discovery-name, and health-check attributes.
+Provider-owned builders should expose native authoring methods for their
+resource shape and may add convenience methods where those methods still map
+clearly to CloudShell concepts. The ASP.NET Core project builder now has native
+`WithEnvironment(...)` overloads for literal values, configuration-entry
+references, and secret references. It also has provider-owned convenience
+methods such as `WithServiceDiscovery()`, `WithHttpHealthCheck(...)`, and
+`WithHttpLivenessCheck(...)` over the service-discovery-name and health-check
+resource attributes/capabilities.
 `environmentVariables` and `configuration` are separate authoring channels.
 Both may use the same kinds of value sources, such as literal values,
 configuration-entry references, or secret references, but they are resolved for
