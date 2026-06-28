@@ -1,55 +1,69 @@
-```json
-// Resource
-{
-    "$artifact": "resource",
+# Resource Definition Sketch
 
-    "name": "acme-api",
-    "type": "application.executable",
+This early sketch records the original JSON authoring direction. The current
+working structure is maintained in
+[resource-definition-structure.md](resource-definition-structure.md).
+
+## Resource
+
+```json
+{
+  "$artifact": "resource",
+  "name": "acme-api",
+  "typeId": "application.executable",
+  "resourceId": "application.executable:acme-api",
+  "providerId": "applications.executable",
+  "attributes": {
     "executable.path": "whatsup.exe",
-    "executable.arguments": "doc",
-    "volumes": [
-        []
-    ]
-
-    // capabilities
-    // attributes
+    "executable.arguments": "doc"
+  },
+  "capabilities": {
+    "storage.volumeConsumer": {
+      "mounts": [
+        {
+          "volume": "cloudshell.volume:data",
+          "targetPath": "/data",
+          "readOnly": false
+        }
+      ]
+    }
+  }
 }
 ```
 
+## Resource Type
+
 ```json
-// Resource type
 {
-    "$artifact": "resource.type",
-
-    "name": "application.executable",
-    "class": "application",
-    "capabilities": [
-        "storage.volumeConsumer"
-    ],
-    "executable.workingDirectory": ".",
-    "custom.data": {
-        // Some complex value
-    },
-    "logSources": [
-        {}
-    ],
-    "operations": [
-        {}
-    ]
-
-    // capabilities
-    // attributes
+  "$artifact": "resource.type",
+  "typeId": "application.executable",
+  "classId": "application",
+  "capabilities": {
+    "storage.volumeConsumer": {}
+  },
+  "attributes": {
+    "executable.workingDirectory": {
+      "defaultValue": ".",
+      "required": false,
+      "valueType": "string"
+    }
+  },
+  "operations": {
+    "start": {},
+    "stop": {},
+    "restart": {}
+  }
 }
 ```
 
+## Resource Class
+
 ```json
-// Resource class
 {
-    "$artifact": "resource.class",
-
-    "name": "application"
-
-    // capabilities
-    // attributes
+  "$artifact": "resource.class",
+  "classId": "application",
+  "attributes": {},
+  "capabilities": {},
+  "operations": {}
 }
 ```

@@ -92,7 +92,7 @@ cloudShell.DefineResources(resources =>
         .WithHostName("app.cloudshell.local")
         .WithTargetEndpointName("http")
         .InDnsZone(dnsZoneResource)
-        .MapsTarget(loadBalancerResource, LoadBalancerResourceTypeProvider.ResourceTypeId);
+        .MapsTarget(loadBalancerResource);
     resources
         .AddNameMapping("api-cloudshell-local")
         .WithDisplayName("api.cloudshell.local")
@@ -100,7 +100,7 @@ cloudShell.DefineResources(resources =>
         .WithHostName("api.cloudshell.local")
         .WithTargetEndpointName("http")
         .InDnsZone(dnsZoneResource)
-        .MapsTarget(loadBalancerResource, LoadBalancerResourceTypeProvider.ResourceTypeId);
+        .MapsTarget(loadBalancerResource);
 });
 builder.Services
     .AddLocalContainerApplicationResourceTypes()

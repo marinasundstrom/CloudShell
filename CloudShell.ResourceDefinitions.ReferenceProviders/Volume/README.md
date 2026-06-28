@@ -36,7 +36,8 @@ provider/control-plane concern.
       "value": "cloudshell.storage:local",
       "relationship": "dependsOn",
       "addressingMode": "resourceId",
-      "typeId": "cloudshell.storage"
+      "typeId": "cloudshell.storage",
+      "providerId": "cloudshell.storage"
     }
   ],
   "attributes": {

@@ -79,8 +79,8 @@ cloudShell.DefineResources(resources =>
 
     api
         .WithDisplayName("Settings and Secrets API")
-        .DependsOn(settingsResource, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
-        .DependsOn(secretsResource, SecretsVaultResourceTypeProvider.ResourceTypeId)
+        .DependsOn(settingsResource)
+        .DependsOn(secretsResource)
         .WithHotReload(false)
         .UseLaunchSettings(false)
         .WithHttpEndpoint(
@@ -110,8 +110,8 @@ cloudShell.DefineResources(resources =>
         .WithEnvironmentVariable(
             "SAMPLE_API_KEY",
             secretsResource.Secret("sample-api-key"))
-        .WithReference(settingsResource, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
-        .WithReference(secretsResource, SecretsVaultResourceTypeProvider.ResourceTypeId)
+        .WithReference(settingsResource)
+        .WithReference(secretsResource)
         .WithHttpHealthCheck(
             "/health",
             endpointName: "http");

@@ -30,11 +30,11 @@ provider/runtime data and must not be stored as ordinary graph attributes.
 
 ```json
 {
-  "name": "graph-secrets",
+  "name": "sample-app",
   "typeId": "secrets.vault",
-  "resourceId": "secrets.vault:graph-secrets",
+  "resourceId": "secrets.vault:sample-app",
   "providerId": "secrets-vault",
-  "displayName": "Graph Secrets",
+  "displayName": "Sample App Secrets",
   "attributes": {
     "secrets.kind": "local",
     "secrets.endpoint": "http://localhost:5102"

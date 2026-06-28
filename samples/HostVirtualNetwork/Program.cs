@@ -48,8 +48,8 @@ cloudShell.DefineResources(resources =>
     resources
         .AddVirtualNetwork("sample-vnet")
         .WithResourceGroup(resourceGroupId)
-        .DependsOn(hostNetworkingResource, LocalHostNetworkResourceTypeProvider.ResourceTypeId)
-        .DependsOn(apiResource, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+        .DependsOn(hostNetworkingResource)
+        .DependsOn(apiResource)
         .AsDefault()
         .WithHostReadiness("providerRequired")
         .WithMappingProviders(hostNetworkingResource.EffectiveResourceId)

@@ -56,10 +56,11 @@ runtime integration for the provider.
   "displayName": "SQL Server",
   "dependsOn": [
     {
-      "value": "docker:graph-sample",
+      "value": "docker.host:sample",
       "relationship": "dependsOn",
       "addressingMode": "resourceId",
-      "typeId": "docker.host"
+      "typeId": "docker.host",
+      "providerId": "docker"
     }
   ],
   "attributes": {

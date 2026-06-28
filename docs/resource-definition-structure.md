@@ -214,7 +214,7 @@ reference is not the same thing as a relationship. It may be used by
 
 ```json
 {
-  "value": "docker:graph-sample",
+  "value": "docker.host:sample",
   "relationship": "dependsOn",
   "addressingMode": "resourceId",
   "typeId": "docker.host",
@@ -251,10 +251,11 @@ objects, or collections when the attribute definition allows it.
     "container.image": "cloudshell-application-api:20260622.2",
     "container.replicas": 3,
     "database.server": {
-      "value": "application.sql-server:graph-sql",
+      "value": "application.sql-server:sql-server",
       "relationship": "belongsTo",
       "addressingMode": "resourceId",
-      "typeId": "application.sql-server"
+      "typeId": "application.sql-server",
+      "providerId": "applications.sql-server"
     }
   }
 }
@@ -368,10 +369,11 @@ configuration, but they should be used deliberately:
 {
   "source": {
     "resource": {
-      "value": "network:public",
+      "value": "cloudshell.virtualNetwork:public",
       "relationship": "reference",
       "addressingMode": "resourceId",
-      "typeId": "cloudshell.virtualNetwork"
+      "typeId": "cloudshell.virtualNetwork",
+      "providerId": "cloudshell.network"
     },
     "endpointName": "api-public"
   },
@@ -380,7 +382,8 @@ configuration, but they should be used deliberately:
       "value": "application.container-app:api",
       "relationship": "reference",
       "addressingMode": "resourceId",
-      "typeId": "application.container-app"
+      "typeId": "application.container-app",
+      "providerId": "applications.container-app"
     },
     "endpointName": "http"
   }

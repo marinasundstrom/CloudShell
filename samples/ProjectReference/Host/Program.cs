@@ -65,9 +65,7 @@ cloudShell.DefineResources(resources =>
         .WithDisplayName("Project Reference Frontend")
         .WithHotReload(false)
         .UseLaunchSettings(false)
-        .WithReference(
-            apiResource,
-            AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+        .WithReference(apiResource)
         .WithHttpEndpoint(
             host: frontendEndpointUri.Host,
             port: frontendEndpointUri.Port)

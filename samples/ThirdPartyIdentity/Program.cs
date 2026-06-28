@@ -63,7 +63,7 @@ cloudShell.DefineResources(
             .AddAspNetCoreProject("keycloak-provisioned-api", apiProjectPath)
             .WithDisplayName("Keycloak Provisioned API")
             .DependsOn(configurationResource)
-            .WithReference(configurationResource, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
+            .WithReference(configurationResource)
             .UseLaunchSettings(false)
             .WithHotReload(false)
             .WithHttpEndpoint(

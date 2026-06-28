@@ -43,13 +43,13 @@ materialization and provider-specific reference modeling remain deferred.
 
 ```json
 {
-  "name": "graph-public",
+  "name": "public",
   "typeId": "cloudshell.loadBalancer",
-  "resourceId": "load-balancer:graph-public",
+  "resourceId": "cloudshell.loadBalancer:public",
   "providerId": "cloudshell.load-balancer",
   "attributes": {
     "loadBalancer.provider": "traefik",
-    "loadBalancer.hostResourceId": "docker:graph-sample-host",
+    "loadBalancer.hostResourceId": "docker.host:sample-host",
     "loadBalancer.entrypointDefinitions": [
       {
         "name": "http",
@@ -66,8 +66,8 @@ materialization and provider-specific reference modeling remain deferred.
     ],
     "loadBalancer.routeDefinitions": [
       {
-        "id": "load-balancer:graph-public:route:app.cloudshell.local:application.container-app:graph-web:80",
-        "name": "app.cloudshell.local to application.container-app:graph-web:80",
+        "id": "cloudshell.loadBalancer:public:route:app.cloudshell.local:application.container-app:web:80",
+        "name": "app.cloudshell.local to application.container-app:web:80",
         "kind": "Http",
         "entrypointName": "http",
         "match": {
@@ -75,9 +75,11 @@ materialization and provider-specific reference modeling remain deferred.
         },
         "target": {
           "resource": {
-            "value": "application.container-app:graph-web",
+            "value": "application.container-app:web",
             "relationship": "reference",
-            "addressingMode": "resourceId"
+            "addressingMode": "resourceId",
+            "typeId": "application.container-app",
+            "providerId": "applications.container-app"
           },
           "port": 80
         }
@@ -86,15 +88,18 @@ materialization and provider-specific reference modeling remain deferred.
   },
   "dependsOn": [
     {
-      "value": "docker:graph-sample-host",
+      "value": "docker.host:sample-host",
       "relationship": "dependsOn",
       "addressingMode": "resourceId",
-      "typeId": "docker.host"
+      "typeId": "docker.host",
+      "providerId": "docker"
     },
     {
-      "value": "application.container-app:graph-web",
+      "value": "application.container-app:web",
       "relationship": "dependsOn",
-      "addressingMode": "resourceId"
+      "addressingMode": "resourceId",
+      "typeId": "application.container-app",
+      "providerId": "applications.container-app"
     }
   ]
 }

@@ -673,7 +673,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
             .WithEnvironmentVariable(
                 "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
                 "http://localhost:5104/api/control-plane/v1/traces/ingest")
-            .WithReference(settings, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
+            .WithReference(settings)
             .MountVolume(volume, "App_Data")
             .WithHttpLivenessCheck(
                 "/alive",
@@ -795,7 +795,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
             .AddNetwork("application-topology-local");
         var apiService = graph
             .AddService("application-topology-api-service")
-            .DependsOnTarget(api, ContainerApplicationResourceTypeProvider.ResourceTypeId)
+            .DependsOnTarget(api)
             .DependsOnNetwork(network)
             .WithRoutingMode("logical");
         var zone = graph
@@ -806,7 +806,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
         graph
             .AddNameMapping("application-topology-api-local")
             .InDnsZone(zone)
-            .MapsTarget(apiService, ServiceResourceTypeProvider.ResourceTypeId)
+            .MapsTarget(apiService)
             .WithHostName("api.application-topology.cloudshell.local")
             .WithTargetEndpointName("http")
             .WithExposure("Public");
@@ -975,8 +975,8 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         graph
             .AddVirtualNetwork("app")
-            .DependsOn(hostNetwork, LocalHostNetworkResourceTypeProvider.ResourceTypeId)
-            .DependsOn(api, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+            .DependsOn(hostNetwork)
+            .DependsOn(api)
             .AsDefault()
             .WithHostReadiness("providerRequired")
             .WithMappingProviders(hostNetwork.EffectiveResourceId);

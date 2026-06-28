@@ -18,7 +18,9 @@ public sealed class ServiceResourceDefinitionBuilder(string name) :
     {
         ArgumentNullException.ThrowIfNull(target);
 
-        return DependsOnTarget(target.EffectiveResourceId, typeId);
+        return DependsOnTarget(
+            target.EffectiveResourceId,
+            typeId ?? target.ResourceTypeId);
     }
 
     public ServiceResourceDefinitionBuilder DependsOnTarget(
@@ -32,7 +34,9 @@ public sealed class ServiceResourceDefinitionBuilder(string name) :
     {
         ArgumentNullException.ThrowIfNull(network);
 
-        return DependsOnNetwork(network.EffectiveResourceId, typeId);
+        return DependsOnNetwork(
+            network.EffectiveResourceId,
+            typeId ?? network.ResourceTypeId);
     }
 
     public ServiceResourceDefinitionBuilder DependsOnNetwork(

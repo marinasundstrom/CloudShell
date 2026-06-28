@@ -50,9 +50,9 @@ explicit startup-order hint and should not be used as the discovery mechanism.
 {
   "name": "api",
   "typeId": "application.aspnet-core-project",
-  "resourceId": "application.aspnet-core-project:graph-api",
+  "resourceId": "application.aspnet-core-project:api",
   "providerId": "applications.aspnet-core-project",
-  "displayName": "Graph API",
+  "displayName": "API",
   "attributes": {
     "project.path": "./Api/CloudShell.Sample.Api.csproj",
     "project.hotReload": false,
@@ -74,29 +74,31 @@ explicit startup-order hint and should not be used as the discovery mechanism.
       },
       "SAMPLE_MESSAGE": {
         "configurationEntryRef": {
-          "storeResourceId": "configuration.store:graph-settings",
+          "storeResourceId": "configuration.store:sample-app",
           "name": "Sample:Message"
         }
       },
       "SERVICE_APIKEY": {
         "secretRef": {
-          "vaultResourceId": "secrets.vault:graph-secrets",
+          "vaultResourceId": "secrets.vault:sample-app",
           "name": "application-topology:api-key"
         }
       }
     },
     "project.references": [
       {
-        "value": "configuration.store:graph-settings",
+        "value": "configuration.store:sample-app",
         "relationship": "reference",
         "addressingMode": "resourceId",
-        "typeId": "configuration.store"
+        "typeId": "configuration.store",
+        "providerId": "configuration"
       },
       {
-        "value": "secrets.vault:graph-secrets",
+        "value": "secrets.vault:sample-app",
         "relationship": "reference",
         "addressingMode": "resourceId",
-        "typeId": "secrets.vault"
+        "typeId": "secrets.vault",
+        "providerId": "secrets-vault"
       }
     ]
   },

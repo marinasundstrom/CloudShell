@@ -36,7 +36,9 @@ public sealed class NameMappingResourceDefinitionBuilder(string name) :
     {
         ArgumentNullException.ThrowIfNull(target);
 
-        return MapsTarget(target.EffectiveResourceId, typeId);
+        return MapsTarget(
+            target.EffectiveResourceId,
+            typeId ?? target.ResourceTypeId);
     }
 
     public NameMappingResourceDefinitionBuilder MapsTarget(

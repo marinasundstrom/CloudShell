@@ -3357,7 +3357,7 @@ public sealed class ResourceManagerIntegrationTests
         var network = graph.AddNetwork("application-topology-local");
         var apiService = graph
             .AddService("application-topology-api-service")
-            .DependsOnTarget(api, ContainerApplicationResourceTypeProvider.ResourceTypeId)
+            .DependsOnTarget(api)
             .DependsOnNetwork(network)
             .WithRoutingMode("logical");
         var zone = graph
@@ -3367,7 +3367,7 @@ public sealed class ResourceManagerIntegrationTests
         var mapping = graph
             .AddNameMapping("application-topology-api-local")
             .InDnsZone(zone)
-            .MapsTarget(apiService, ServiceResourceTypeProvider.ResourceTypeId)
+            .MapsTarget(apiService)
             .WithHostName("api.application-topology.cloudshell.local")
             .WithTargetEndpointName("http")
             .WithExposure("Public");
@@ -3655,7 +3655,7 @@ public sealed class ResourceManagerIntegrationTests
         var network = graph.AddNetwork("default");
         var definition = graph
             .AddService("api-service")
-            .DependsOnTarget(target, ContainerApplicationResourceTypeProvider.ResourceTypeId)
+            .DependsOnTarget(target)
             .DependsOnNetwork(network)
             .WithRoutingMode("logical");
 

@@ -33,7 +33,7 @@ public sealed class LoadBalancerResourceDefinitionBuilder(string name) :
     {
         ArgumentNullException.ThrowIfNull(host);
 
-        return UseHost(host.EffectiveResourceId, typeId);
+        return UseHost(host.EffectiveResourceId, typeId ?? host.ResourceTypeId);
     }
 
     public LoadBalancerResourceDefinitionBuilder UseHost(
@@ -52,7 +52,7 @@ public sealed class LoadBalancerResourceDefinitionBuilder(string name) :
     {
         ArgumentNullException.ThrowIfNull(target);
 
-        return AddBackendTarget(target.EffectiveResourceId, typeId);
+        return AddBackendTarget(target.EffectiveResourceId, typeId ?? target.ResourceTypeId);
     }
 
     public LoadBalancerResourceDefinitionBuilder AddBackendTarget(
@@ -94,7 +94,10 @@ public sealed class LoadBalancerResourceDefinitionBuilder(string name) :
             entrypoint,
             new LoadBalancerRouteMatchValue(Host: host),
             new LoadBalancerRouteTargetValue(
-                ResourceReference.ReferenceResourceId(target.EffectiveResourceId),
+                ResourceReference.ReferenceResourceId(
+                    target.EffectiveResourceId,
+                    target.ResourceTypeId,
+                    target.ResourceProviderId),
                 EndpointName: endpoint),
             target);
     }
@@ -115,7 +118,10 @@ public sealed class LoadBalancerResourceDefinitionBuilder(string name) :
             entrypoint,
             new LoadBalancerRouteMatchValue(Host: host),
             new LoadBalancerRouteTargetValue(
-                ResourceReference.ReferenceResourceId(target.EffectiveResourceId),
+                ResourceReference.ReferenceResourceId(
+                    target.EffectiveResourceId,
+                    target.ResourceTypeId,
+                    target.ResourceProviderId),
                 Port: port),
             target);
     }
@@ -137,7 +143,10 @@ public sealed class LoadBalancerResourceDefinitionBuilder(string name) :
             entrypoint,
             new LoadBalancerRouteMatchValue(Host: host, PathPrefix: pathPrefix),
             new LoadBalancerRouteTargetValue(
-                ResourceReference.ReferenceResourceId(target.EffectiveResourceId),
+                ResourceReference.ReferenceResourceId(
+                    target.EffectiveResourceId,
+                    target.ResourceTypeId,
+                    target.ResourceProviderId),
                 EndpointName: endpoint),
             target);
     }
@@ -159,7 +168,10 @@ public sealed class LoadBalancerResourceDefinitionBuilder(string name) :
             entrypoint,
             new LoadBalancerRouteMatchValue(Host: host, PathPrefix: pathPrefix),
             new LoadBalancerRouteTargetValue(
-                ResourceReference.ReferenceResourceId(target.EffectiveResourceId),
+                ResourceReference.ReferenceResourceId(
+                    target.EffectiveResourceId,
+                    target.ResourceTypeId,
+                    target.ResourceProviderId),
                 Port: port),
             target);
     }
@@ -180,7 +192,10 @@ public sealed class LoadBalancerResourceDefinitionBuilder(string name) :
             entrypoint ?? $"tcp-{port}",
             new LoadBalancerRouteMatchValue(Port: port),
             new LoadBalancerRouteTargetValue(
-                ResourceReference.ReferenceResourceId(target.EffectiveResourceId),
+                ResourceReference.ReferenceResourceId(
+                    target.EffectiveResourceId,
+                    target.ResourceTypeId,
+                    target.ResourceProviderId),
                 EndpointName: endpoint),
             target);
     }
@@ -201,7 +216,10 @@ public sealed class LoadBalancerResourceDefinitionBuilder(string name) :
             entrypoint ?? $"tcp-{port}",
             new LoadBalancerRouteMatchValue(Port: port),
             new LoadBalancerRouteTargetValue(
-                ResourceReference.ReferenceResourceId(target.EffectiveResourceId),
+                ResourceReference.ReferenceResourceId(
+                    target.EffectiveResourceId,
+                    target.ResourceTypeId,
+                    target.ResourceProviderId),
                 Port: targetPort),
             target);
     }

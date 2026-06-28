@@ -134,7 +134,10 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
     {
         ArgumentNullException.ThrowIfNull(resource);
 
-        return WithReference(resource.EffectiveResourceId, typeId, providerId);
+        return WithReference(
+            resource.EffectiveResourceId,
+            typeId ?? resource.ResourceTypeId,
+            providerId ?? resource.ResourceProviderId);
     }
 
     public AspNetCoreProjectResourceDefinitionBuilder WithReference(

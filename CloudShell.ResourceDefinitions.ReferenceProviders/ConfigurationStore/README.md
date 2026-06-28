@@ -35,11 +35,11 @@ are provider/runtime data and are not authored as ordinary graph attributes.
 
 ```json
 {
-  "name": "graph-settings",
+  "name": "sample-app",
   "typeId": "configuration.store",
-  "resourceId": "configuration.store:graph-settings",
+  "resourceId": "configuration.store:sample-app",
   "providerId": "configuration",
-  "displayName": "Graph Settings",
+  "displayName": "Sample App Settings",
   "attributes": {
     "configuration.kind": "local",
     "configuration.endpoint": "http://localhost:5101"

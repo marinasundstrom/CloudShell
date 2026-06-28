@@ -52,8 +52,8 @@ public sealed class HostVirtualNetworkEndpointMappingReconcilerTests
         graph
             .AddVirtualNetwork("sample-vnet")
             .WithResourceId(networkResourceId)
-            .DependsOn(hostNetwork, LocalHostNetworkResourceTypeProvider.ResourceTypeId)
-            .DependsOn(api, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+            .DependsOn(hostNetwork)
+            .DependsOn(api)
             .AsDefault()
             .WithHostReadiness("providerRequired")
             .WithMappingProviders(hostNetworkingResourceId)

@@ -106,7 +106,10 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
     {
         ArgumentNullException.ThrowIfNull(resource);
 
-        return DependsOn(resource.EffectiveResourceId);
+        return DependsOn(
+            resource.EffectiveResourceId,
+            resource.ResourceTypeId,
+            resource.ResourceProviderId);
     }
 
     public TBuilder DependsOn(
@@ -116,7 +119,10 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
     {
         ArgumentNullException.ThrowIfNull(resource);
 
-        return DependsOn(resource.EffectiveResourceId, typeId, providerId);
+        return DependsOn(
+            resource.EffectiveResourceId,
+            typeId ?? resource.ResourceTypeId,
+            providerId ?? resource.ResourceProviderId);
     }
 
     public TBuilder DependsOn(ResourceDefinition definition)

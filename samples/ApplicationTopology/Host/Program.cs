@@ -133,9 +133,9 @@ cloudShell.DefineResources(resources =>
     var graphApiIdentityClientId = apiResource.IdentityClientId(graphApiIdentityName);
     api
         .WithDisplayName("Application Topology API")
-        .DependsOn(databaseResource, SqlDatabaseResourceTypeProvider.ResourceTypeId)
-        .DependsOn(settingsResource, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
-        .DependsOn(secretsResource, SecretsVaultResourceTypeProvider.ResourceTypeId)
+        .DependsOn(databaseResource)
+        .DependsOn(settingsResource)
+        .DependsOn(secretsResource)
         .WithHotReload(false)
         .UseLaunchSettings(false)
         .WithServiceDiscoveryName("application-topology-api")
@@ -181,9 +181,9 @@ cloudShell.DefineResources(resources =>
         .WithEnvironmentVariable(
             "OTEL_SERVICE_NAME",
             "application-topology-api")
-        .WithReference(sqlServerResource, SqlServerResourceTypeProvider.ResourceTypeId)
-        .WithReference(settingsResource, ConfigurationStoreResourceTypeProvider.ResourceTypeId)
-        .WithReference(secretsResource, SecretsVaultResourceTypeProvider.ResourceTypeId)
+        .WithReference(sqlServerResource)
+        .WithReference(settingsResource)
+        .WithReference(secretsResource)
         .WithHttpHealthCheck(
             "/health",
             endpointName: "http")
@@ -195,7 +195,7 @@ cloudShell.DefineResources(resources =>
     frontendResource = resources
         .AddAspNetCoreProject("application-topology-frontend", graphFrontendProjectPath)
         .WithDisplayName("Application Topology Frontend")
-        .DependsOn(apiResource, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+        .DependsOn(apiResource)
         .WithHotReload(false)
         .UseLaunchSettings(false)
         .WithHttpEndpoint(
@@ -210,7 +210,7 @@ cloudShell.DefineResources(resources =>
         .WithEnvironmentVariable(
             "OTEL_SERVICE_NAME",
             "application-topology-frontend")
-        .WithReference(apiResource, AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+        .WithReference(apiResource)
         .WithHttpHealthCheck(
             "/healthz",
             endpointName: "http")

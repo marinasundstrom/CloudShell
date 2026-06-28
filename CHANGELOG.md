@@ -17,6 +17,14 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Resource graph builder overloads that accept another resource builder now
+  infer typed `ResourceReference` metadata from the target builder for
+  startup dependencies, project references, service/name-mapping targets, and
+  load-balancer backend routes. Samples now prefer the builder-based overloads
+  instead of repeating resource type ids at call sites.
+- ResourceDefinition JSON examples now use stable sample resource identities
+  and explicit typed `ResourceReference` metadata where authors would otherwise
+  have to infer relationship, type, and provider information.
 - ASP.NET Core project ResourceDefinition environment variables now use a
   human-authored map shape keyed by environment variable name, with values that
   can be literals, configuration-entry references, or secret references. The

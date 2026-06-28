@@ -73,7 +73,7 @@ runtime it owns, and return diagnostics instead of throwing for expected
 runtime outcomes.
 
 The ReplicatedContainerHealth sample currently proves this seam with a
-sample-local adapter that maps `application.container-app:graph-api` to the
+sample-local adapter that maps `application.container-app:api` to the
 existing `application:api` runtime resource. It covers start, stop, and
 restart delegation, projects graph state from the runtime app through the
 provider bridge so Resource Manager action availability can evaluate lifecycle
@@ -107,15 +107,16 @@ model cleanup work after switch-over.
 {
   "name": "api",
   "typeId": "application.container-app",
-  "resourceId": "application.container-app:graph-api",
+  "resourceId": "application.container-app:api",
   "providerId": "applications.container-app",
-  "displayName": "Graph Replicated API",
+  "displayName": "Replicated API",
   "dependsOn": [
     {
-      "value": "docker:graph-sample",
+      "value": "docker.host:sample",
       "relationship": "dependsOn",
       "addressingMode": "resourceId",
-      "typeId": "docker.host"
+      "typeId": "docker.host",
+      "providerId": "docker"
     }
   ],
   "attributes": {

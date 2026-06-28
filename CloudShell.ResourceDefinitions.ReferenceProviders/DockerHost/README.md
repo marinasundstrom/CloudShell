@@ -26,11 +26,11 @@ flows rather than only being convenient for provider implementation code.
 
 ```json
 {
-  "name": "graph-sample",
+  "name": "sample",
   "typeId": "docker.host",
-  "resourceId": "docker:graph-sample",
+  "resourceId": "docker.host:sample",
   "providerId": "docker",
-  "displayName": "Graph Docker Host",
+  "displayName": "Docker Host",
   "attributes": {
     "docker.host.kind": "local",
     "docker.host.endpoint": "unix:///var/run/docker.sock",
