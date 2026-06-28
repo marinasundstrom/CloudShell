@@ -39,14 +39,14 @@ materialization and provider-specific reference modeling remain deferred.
 - Provider-specific reference modeling if needed.
 - Runtime container materialization and UI registration/update flow.
 
-## Resource Definition Example
+## Example ResourceDefinition
 
 ```json
 {
   "name": "graph-public",
-  "type": "cloudshell.loadBalancer",
+  "typeId": "cloudshell.loadBalancer",
   "resourceId": "load-balancer:graph-public",
-  "provider": "cloudshell.load-balancer",
+  "providerId": "cloudshell.load-balancer",
   "attributes": {
     "loadBalancer.provider": "traefik",
     "loadBalancer.hostResourceId": "docker:graph-sample-host",

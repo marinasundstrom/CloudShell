@@ -43,6 +43,35 @@ public sealed class ReferenceProviderDocumentationTests
         }
     }
 
+    [Fact]
+    public void ResourceTypeProviderReadmeExamples_UseResourceDefinitionInterchangeKeys()
+    {
+        var (repositoryRoot, providerDirectories) = GetResourceTypeProviderDirectories();
+
+        foreach (var providerDirectory in providerDirectories)
+        {
+            var readmePath = Path.Combine(providerDirectory, "README.md");
+            var markdown = File.ReadAllText(readmePath);
+            if (!markdown.Contains("## Example ResourceDefinition", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            Assert.True(
+                markdown.Contains("```json", StringComparison.Ordinal),
+                $"Resource provider README '{Path.GetRelativePath(repositoryRoot, readmePath)}' should include a JSON code block for its ResourceDefinition example.");
+            Assert.True(
+                markdown.Contains("\"typeId\"", StringComparison.Ordinal),
+                $"Resource provider README '{Path.GetRelativePath(repositoryRoot, readmePath)}' should use 'typeId' in ResourceDefinition examples.");
+            Assert.True(
+                markdown.Contains("\"resourceId\"", StringComparison.Ordinal),
+                $"Resource provider README '{Path.GetRelativePath(repositoryRoot, readmePath)}' should use 'resourceId' in ResourceDefinition examples.");
+            Assert.True(
+                markdown.Contains("\"providerId\"", StringComparison.Ordinal),
+                $"Resource provider README '{Path.GetRelativePath(repositoryRoot, readmePath)}' should use 'providerId' in ResourceDefinition examples.");
+        }
+    }
+
     private static (string RepositoryRoot, IReadOnlyList<string> ProviderDirectories)
         GetResourceTypeProviderDirectories()
     {

@@ -62,6 +62,9 @@ on `git blame --follow`, and then by the broad type of change.
   `ResourceDefinition` interchange examples for the storage-backed SQL chain,
   including typed storage dependencies, volume mounts, and declared database
   configuration.
+- Resource graph provider README coverage now checks that documented
+  `ResourceDefinition` examples use the current interchange keys, and the
+  LoadBalancer example was normalized to `typeId`/`providerId`.
 - Resource graph provider helper coverage now verifies grouped registration
   seams include both change-apply and definition-apply providers, not only type
   providers.
