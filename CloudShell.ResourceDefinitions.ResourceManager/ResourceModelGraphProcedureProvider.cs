@@ -207,12 +207,13 @@ public sealed class ResourceModelGraphProcedureProvider :
         await ApplyContainerUpdateAttributesAsync(
             context,
             attributes,
-            ContainerImageUpdateOperationId,
             triggeredBy,
             cancellationToken);
 
-        return ResourceProcedureResult.Completed(
-            $"Updated image for {context.Resource.Name} to '{image}'.");
+        return ResourceProcedureResult.CompletedWithRuntimeReconciliationRequired(
+            $"Updated image for {context.Resource.Name} to '{image}'.",
+            context.Resource.Id,
+            "Container app image deployment must be reconciled.");
     }
 
     public bool CanUpdateReplicas(ResourceManagerResource resource) =>
@@ -247,12 +248,13 @@ public sealed class ResourceModelGraphProcedureProvider :
             {
                 [ContainerReplicasAttributeId] = replicas
             },
-            ContainerReplicasUpdateOperationId,
             triggeredBy,
             cancellationToken);
 
-        return ResourceProcedureResult.Completed(
-            $"Updated replicas for {context.Resource.Name} to '{replicas}'.");
+        return ResourceProcedureResult.CompletedWithRuntimeReconciliationRequired(
+            $"Updated replicas for {context.Resource.Name} to '{replicas}'.",
+            context.Resource.Id,
+            "Container app replica deployment must be reconciled.");
     }
 
     public bool CanEvaluateAction(
@@ -348,7 +350,6 @@ public sealed class ResourceModelGraphProcedureProvider :
     private async Task ApplyContainerUpdateAttributesAsync(
         ResourceProcedureContext context,
         IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValue> attributes,
-        ResourceOperationId operationId,
         string? triggeredBy,
         CancellationToken cancellationToken)
     {
@@ -384,27 +385,6 @@ public sealed class ResourceModelGraphProcedureProvider :
         if (apply.HasErrors || !apply.IsCommitted)
         {
             throw new InvalidOperationException(FormatDiagnostics(apply.Diagnostics));
-        }
-
-        var operation = await ResolveExecutableOperationAsync(
-            context.Resource.Id,
-            operationId,
-            cancellationToken);
-        if (operation.Diagnostics.Count > 0)
-        {
-            throw new InvalidOperationException(FormatDiagnostics(operation.Diagnostics));
-        }
-
-        if (operation.Operation is not IResourceOperationExecutorProjection executableOperation)
-        {
-            throw new NotSupportedException(
-                $"Resource model operation '{operation.OperationId}' does not support execution.");
-        }
-
-        var execution = await executableOperation.ExecuteAsync(cancellationToken);
-        if (execution.HasErrors)
-        {
-            throw new InvalidOperationException(FormatDiagnostics(execution.Diagnostics));
         }
     }
 

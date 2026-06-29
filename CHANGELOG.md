@@ -62,6 +62,10 @@ on `git blame --follow`, and then by the broad type of change.
   prepare, materialization, and scale-in service calls to the container-app
   runtime handler so generated deployments can be driven by the default
   deployment controller.
+- Graph-backed container app image and replica update commands now commit the
+  desired ResourceDefinition state and request runtime reconciliation instead
+  of executing runtime changes directly, allowing ControlPlane to apply the
+  generated deployment through the orchestrator deployment controller.
 - Replica-group deployment definitions now include reconciliation policy for
   scale routing and previous-revision slot retention, and the deployment
   proposal documents both compact container-app update JSON and the normalized

@@ -1898,6 +1898,8 @@ public sealed class ResourceManagerIntegrationTests
             requestedReplicas: 4);
 
         Assert.Equal("Updated image for api to 'ghcr.io/example/api:v2'.", imageUpdate.Message);
+        Assert.True(imageUpdate.RuntimeReconciliationRequired);
+        Assert.Equal(container.EffectiveResourceId, imageUpdate.RuntimeReconciliationResourceId);
 
         var updatedContainer = Assert.Single(provider.GetResources(), resource =>
             resource.Id == container.EffectiveResourceId);
@@ -1912,6 +1914,8 @@ public sealed class ResourceManagerIntegrationTests
             triggeredBy: "test");
 
         Assert.Equal("Updated replicas for api to '5'.", replicaUpdate.Message);
+        Assert.True(replicaUpdate.RuntimeReconciliationRequired);
+        Assert.Equal(container.EffectiveResourceId, replicaUpdate.RuntimeReconciliationResourceId);
 
         var scaledContainer = Assert.Single(provider.GetResources(), resource =>
             resource.Id == container.EffectiveResourceId);
