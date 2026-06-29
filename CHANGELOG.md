@@ -25,6 +25,21 @@ on `git blame --follow`, and then by the broad type of change.
   describes and applies an internal orchestrator deployment when a deployment
   applier is available, instead of invoking direct image or replica runtime
   update operations.
+- ResourceDefinition apply reconciliation for graph-backed container apps now
+  applies generated deployments through the Resource Manager deployment
+  coordinator, preserving deployment records, deployment locking, and previous
+  replica-group lookup for incremental scale and image changes.
+- Graph-backed container app deployment reconciliation now lazily resolves the
+  Resource Manager store and deployment coordinator during post-commit apply,
+  avoiding startup-time dependency cycles in combined hosts that expose graph
+  resources as Control Plane procedure providers.
+- Graph-backed container app service stop now tears down service routing before
+  removing replicas, so the ReplicatedContainerHealth sample removes the
+  `cloudshell-replicated-health-api-ingress` container when the resource stops
+  while still keeping ingress stable during image rollout and scale changes.
+- ApplicationTopology sample smoke assertions now match the ResourceDefinition
+  model for ad-hoc volumes and name mappings instead of expecting the old
+  storage-wrapper resource projection.
 - Container app deployments now carry an explicit replica-group definition
   with a revision-aware replica template, and the default deployment applier
   treats that definition as the desired replica state when reconciling scale

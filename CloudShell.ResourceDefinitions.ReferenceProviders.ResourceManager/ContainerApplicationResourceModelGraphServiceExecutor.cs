@@ -27,19 +27,28 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
         ResourceAction action,
         CancellationToken cancellationToken = default)
     {
-        if (action.Kind != ResourceActionKind.Start)
+        if (_orchestratorRuntimeHandler is not null)
         {
+            var orchestratorDiagnostics = action.Kind switch
+            {
+                ResourceActionKind.Start => await _orchestratorRuntimeHandler.PrepareOrchestratorServiceAsync(
+                    context.GraphResource,
+                    context.Service,
+                    context.ReplicaGroup,
+                    cancellationToken),
+                ResourceActionKind.Stop => await _orchestratorRuntimeHandler.TearDownOrchestratorServiceRoutingAsync(
+                    context.GraphResource,
+                    context.Service,
+                    context.ReplicaGroup,
+                    cancellationToken),
+                _ => []
+            };
+            ThrowIfErrors(orchestratorDiagnostics);
             return;
         }
 
-        if (_orchestratorRuntimeHandler is not null)
+        if (action.Kind != ResourceActionKind.Start)
         {
-            var orchestratorDiagnostics = await _orchestratorRuntimeHandler.PrepareOrchestratorServiceAsync(
-                context.GraphResource,
-                context.Service,
-                context.ReplicaGroup,
-                cancellationToken);
-            ThrowIfErrors(orchestratorDiagnostics);
             return;
         }
 

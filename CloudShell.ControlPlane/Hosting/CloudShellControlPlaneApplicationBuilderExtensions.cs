@@ -122,6 +122,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             InMemoryResourceReplicaGroupReconciliationStore>();
         builder.Services.AddScoped<ResourceReplicaGroupReconciliationService>();
         builder.Services.AddScoped<ResourceDeploymentService>();
+        builder.Services.AddScoped<IResourceOrchestratorDeploymentCoordinator>(
+            serviceProvider => serviceProvider.GetRequiredService<ResourceDeploymentService>());
         builder.Services.AddScoped<ResourceDeclarationStartupService>();
         builder.Services.AddScoped<ResourceIdentityProvisioningService>();
         builder.Services.AddScoped<ResourceIdentityProviderSetupService>();

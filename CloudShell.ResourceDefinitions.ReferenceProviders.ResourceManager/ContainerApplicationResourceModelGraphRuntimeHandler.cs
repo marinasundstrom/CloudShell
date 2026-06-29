@@ -16,6 +16,12 @@ public interface IContainerApplicationOrchestratorRuntimeHandler
         ResourceOrchestratorReplicaGroup? replicaGroup,
         CancellationToken cancellationToken = default);
 
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> TearDownOrchestratorServiceRoutingAsync(
+        Resource resource,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
+        CancellationToken cancellationToken = default);
+
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteOrchestratorServiceInstanceAsync(
         Resource resource,
         ResourceOrchestratorService service,

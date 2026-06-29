@@ -318,6 +318,24 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         }
     }
 
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> TearDownOrchestratorServiceRoutingAsync(
+        GraphResource resource,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await RemoveIngressAsync(cancellationToken);
+            ClearStatusCache();
+            return [];
+        }
+        catch (Exception exception)
+        {
+            return [RuntimeFailed(resource, exception)];
+        }
+    }
+
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteOrchestratorServiceInstanceAsync(
         GraphResource resource,
         ResourceOrchestratorService service,

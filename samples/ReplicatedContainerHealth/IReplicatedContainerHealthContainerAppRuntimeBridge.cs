@@ -32,6 +32,12 @@ internal interface IReplicatedContainerHealthContainerAppRuntimeBridge
         ResourceOrchestratorReplicaGroup? replicaGroup,
         CancellationToken cancellationToken = default);
 
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> TearDownOrchestratorServiceRoutingAsync(
+        GraphResource resource,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
+        CancellationToken cancellationToken = default);
+
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteOrchestratorServiceInstanceAsync(
         GraphResource resource,
         ResourceOrchestratorService service,

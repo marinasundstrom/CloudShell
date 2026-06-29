@@ -89,6 +89,24 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeHandler(
             cancellationToken);
     }
 
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> TearDownOrchestratorServiceRoutingAsync(
+        GraphResource resource,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsApiResource(resource))
+        {
+            return [];
+        }
+
+        return await bridge.TearDownOrchestratorServiceRoutingAsync(
+            resource,
+            service,
+            replicaGroup,
+            cancellationToken);
+    }
+
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteOrchestratorServiceInstanceAsync(
         GraphResource resource,
         ResourceOrchestratorService service,

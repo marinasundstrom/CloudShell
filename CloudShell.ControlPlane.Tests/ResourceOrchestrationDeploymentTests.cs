@@ -342,6 +342,50 @@ public sealed class ResourceOrchestrationDeploymentTests
     }
 
     [Fact]
+    public async Task DeploymentCoordinator_AppliesThroughRecordedDeploymentPath()
+    {
+        var resource = CreateResource();
+        var provider = new RecordingServiceProcedureProvider(resource);
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        IResourceOrchestratorDeploymentCoordinator coordinator =
+            CreateDeployments(resource, provider, deploymentStore: deploymentStore);
+        var initialDeployment = CreateDeployment(resource.Id, "default", replicas: 2);
+        var scaleDeployment = CreateDeployment(resource.Id, "default", replicas: 4);
+
+        Assert.True(coordinator.CanApplyDeployment(resource, initialDeployment));
+
+        var initialResult = await coordinator.ApplyDeploymentAsync(
+            resource,
+            initialDeployment,
+            triggeredBy: "tests",
+            cause: "Initial coordinator deployment.");
+        var scaleResult = await coordinator.ApplyDeploymentAsync(
+            resource,
+            scaleDeployment,
+            triggeredBy: "tests",
+            cause: "Coordinator scale deployment.");
+
+        Assert.Equal(initialResult.Revision.Id, scaleResult.Deployment.BasedOnRevisionId);
+        Assert.Equal(initialResult.Revision.Id, scaleResult.Revision.BasedOnRevisionId);
+        Assert.NotNull(scaleResult.PreviousReplicaGroup);
+        Assert.Equal(2, scaleResult.PreviousReplicaGroup.RequestedReplicaSlots);
+        Assert.Equal(4, scaleResult.Revision.ReplicaGroup?.RequestedReplicaSlots);
+        var records = deploymentStore.List(new ResourceOrchestratorDeploymentQuery(
+            SourceResourceId: resource.Id,
+            DeploymentId: initialDeployment.Id,
+            MaxRecords: 10));
+        Assert.Equal(2, records.Count);
+        Assert.All(records, record =>
+            Assert.Equal(ResourceOrchestratorDeploymentStatus.Active, record.Status));
+        Assert.Equal(
+            [2, 4],
+            records
+                .OrderBy(record => record.CompletedAt ?? record.StartedAt)
+                .Select(record => record.ReplicaGroup?.RequestedReplicaSlots ?? 0)
+                .ToArray());
+    }
+
+    [Fact]
     public async Task ApplyDeploymentAsync_UpdatesRoutingAfterAddingReplicas()
     {
         var resource = CreateResource();

@@ -14,6 +14,7 @@ public sealed class ResourceDeploymentService(
     ResourceOrchestratorSelectionStore selectionStore,
     IResourceEventSink? resourceEvents = null,
     IResourceOrchestratorDeploymentStore? deploymentStore = null)
+    : IResourceOrchestratorDeploymentCoordinator
 {
     private readonly IReadOnlyList<IResourceOrchestrator> orchestrators = orchestrators.ToArray();
     private readonly IReadOnlyList<IResourceOrchestratorDeploymentApplier> deploymentAppliers =
@@ -40,6 +41,31 @@ public sealed class ResourceDeploymentService(
             .Select(ToResourceDeploymentRecord)
             .ToArray();
         return Task.FromResult<IReadOnlyList<ResourceDeploymentRecord>>(records);
+    }
+
+    public bool CanApplyDeployment(
+        Resource resource,
+        ResourceOrchestratorDeployment deployment)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(deployment);
+
+        if (!string.Equals(resource.Id, deployment.SourceResourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var context = CreateContext(resource);
+        var preparedDeployment = PrepareDeploymentBase(deployment);
+        try
+        {
+            _ = SelectDeploymentApplier(context, preparedDeployment);
+            return true;
+        }
+        catch (ControlPlaneException)
+        {
+            return false;
+        }
     }
 
     public async Task<ResourceOrchestratorDeploymentApplyResult> ApplyDeploymentAsync(

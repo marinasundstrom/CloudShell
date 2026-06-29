@@ -1967,8 +1967,8 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphServices();
         services.AddReferenceProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
-        var deploymentApplier = new RecordingResourceOrchestratorDeploymentApplier();
-        services.AddSingleton<IResourceOrchestratorDeploymentApplier>(deploymentApplier);
+        var deploymentCoordinator = new RecordingResourceOrchestratorDeploymentCoordinator();
+        services.AddSingleton<IResourceOrchestratorDeploymentCoordinator>(deploymentCoordinator);
         services.AddScoped<IResourceManagerStore>(serviceProvider =>
             new ProjectedResourceManagerStore(() =>
                 serviceProvider.GetServices<IResourceProvider>().ToArray()));
@@ -1991,7 +1991,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.False(initialApply.HasErrors, FormatDiagnostics(initialApply.Diagnostics));
         Assert.True(initialApply.IsCommitted);
         Assert.Empty(runtimeHandler.Events);
-        Assert.Empty(deploymentApplier.Deployments);
+        Assert.Empty(deploymentCoordinator.Deployments);
 
         var imageApply = await service.ApplyDefinitionsAsync(
             [
@@ -2013,7 +2013,7 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.False(imageApply.HasErrors, FormatDiagnostics(imageApply.Diagnostics));
         Assert.Empty(runtimeHandler.Events);
-        var imageDeployment = Assert.Single(deploymentApplier.Deployments);
+        var imageDeployment = Assert.Single(deploymentCoordinator.Deployments);
         Assert.Equal(container.EffectiveResourceId, imageDeployment.SourceResourceId);
         Assert.Equal("ghcr.io/example/api:v2", imageDeployment.Spec.Service.Workload.Image);
         Assert.Equal(4, imageDeployment.Spec.Service.Workload.Replicas);
@@ -2038,7 +2038,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.False(replicaApply.HasErrors, FormatDiagnostics(replicaApply.Diagnostics));
         Assert.Empty(runtimeHandler.Events);
         Assert.Collection(
-            deploymentApplier.Deployments,
+            deploymentCoordinator.Deployments,
             first => Assert.Equal(imageDeployment.RevisionId, first.RevisionId),
             second =>
             {
@@ -6363,22 +6363,24 @@ public sealed class ResourceManagerIntegrationTests
             GetResource(resourceId) is not null;
     }
 
-    private sealed class RecordingResourceOrchestratorDeploymentApplier :
-        IResourceOrchestratorDeploymentApplier
+    private sealed class RecordingResourceOrchestratorDeploymentCoordinator :
+        IResourceOrchestratorDeploymentCoordinator
     {
         private readonly List<ResourceOrchestratorDeployment> _deployments = [];
 
         public IReadOnlyList<ResourceOrchestratorDeployment> Deployments => _deployments;
 
         public bool CanApplyDeployment(
-            ResourceOrchestrationContext context,
+            ResourceManagerResource resource,
             ResourceOrchestratorDeployment deployment) =>
-            true;
+            string.Equals(resource.Id, deployment.SourceResourceId, StringComparison.OrdinalIgnoreCase);
 
         public Task<ResourceOrchestratorDeploymentApplyResult> ApplyDeploymentAsync(
-            ResourceOrchestrationContext context,
+            ResourceManagerResource resource,
             ResourceOrchestratorDeployment deployment,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            string? triggeredBy = null,
+            string? cause = null)
         {
             _deployments.Add(deployment);
             var applied = deployment with { Status = ResourceOrchestratorDeploymentStatus.Active };
@@ -6395,7 +6397,7 @@ public sealed class ResourceManagerIntegrationTests
                 DateTimeOffset.UtcNow,
                 ResourceOrchestratorRevisionStatus.Active,
                 replicaGroup,
-                ProvisionedBy: context.TriggeredBy,
+                ProvisionedBy: triggeredBy,
                 Definition: deployment.Spec.CreateDeploymentDefinition(deployment.RevisionId));
             return Task.FromResult(new ResourceOrchestratorDeploymentApplyResult(
                 applied,
@@ -6484,6 +6486,16 @@ public sealed class ResourceManagerIntegrationTests
             CancellationToken cancellationToken = default)
         {
             RecordOrchestrator("routing", resource, replicaGroup);
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> TearDownOrchestratorServiceRoutingAsync(
+            Resource resource,
+            ResourceOrchestratorService service,
+            ResourceOrchestratorReplicaGroup? replicaGroup,
+            CancellationToken cancellationToken = default)
+        {
+            RecordOrchestrator("routing-teardown", resource, replicaGroup);
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
 

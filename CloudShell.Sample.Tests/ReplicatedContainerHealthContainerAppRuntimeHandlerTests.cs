@@ -567,6 +567,28 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     }
 
     [Fact]
+    public async Task Handler_DelegatesMappedGraphApiRoutingTearDownToBridge()
+    {
+        var bridge = new RecordingContainerAppRuntimeBridge(ContainerApplicationRuntimeStatus.Running);
+        var handler = new ReplicatedContainerHealthContainerAppRuntimeHandler(bridge);
+        var resource = await CreateGraphAppResourceAsync();
+        var service = CreateOrchestratorService(resource, replicas: 2);
+        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+            service,
+            "rev-test");
+
+        var diagnostics = await handler.TearDownOrchestratorServiceRoutingAsync(
+            resource,
+            service,
+            replicaGroup);
+
+        Assert.Empty(diagnostics);
+        var command = Assert.Single(bridge.OrchestratorCommands);
+        Assert.Equal("routing-teardown", command.Stage);
+        Assert.Equal("application.container-app:api", command.Resource.EffectiveResourceId);
+    }
+
+    [Fact]
     public async Task Handler_IgnoresUnmappedContainerAppWithoutCallingBridge()
     {
         var bridge = new RecordingContainerAppRuntimeBridge(ContainerApplicationRuntimeStatus.Running);
@@ -976,6 +998,16 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             CancellationToken cancellationToken = default)
         {
             OrchestratorCommands.Add(new("routing", resource, null, null));
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> TearDownOrchestratorServiceRoutingAsync(
+            GraphResource resource,
+            ResourceOrchestratorService service,
+            ResourceOrchestratorReplicaGroup? replicaGroup,
+            CancellationToken cancellationToken = default)
+        {
+            OrchestratorCommands.Add(new("routing-teardown", resource, null, null));
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
 
