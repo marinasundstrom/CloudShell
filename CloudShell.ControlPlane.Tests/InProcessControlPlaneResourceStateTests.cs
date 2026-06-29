@@ -13,7 +13,6 @@ using CloudShell.ControlPlane.ResourceManager.Identity;
 using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.ControlPlane.ResourceManager.Recovery;
-using CloudShell.ControlPlane.ResourceManager.Templates;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ResourceManager;
 using Microsoft.AspNetCore.Http;
@@ -3697,7 +3696,7 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         configureDeclarations?.Invoke(declarations);
 
-        var templates = new ResourceTemplateService(resourceManager, resourceGroups, registrations);
+        var templates = CreateResourceDefinitionTemplateService();
         var identityProvisioning = new ResourceIdentityProvisioningService(
             declarations,
             registrations,
@@ -3774,6 +3773,14 @@ public sealed class InProcessControlPlaneResourceStateTests
     private sealed record ControlPlaneTestHost(
         InProcessControlPlane ControlPlane,
         ResourceReplicaGroupReconciliationService ReplicaGroupReconciliation);
+
+    private static ResourceDefinitionTemplateService CreateResourceDefinitionTemplateService()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddResourceModelGraphServices();
+        return services.BuildServiceProvider().GetRequiredService<ResourceDefinitionTemplateService>();
+    }
 
     private static IHttpContextAccessor CreateHttpContextAccessor(params Claim[] claims)
     {

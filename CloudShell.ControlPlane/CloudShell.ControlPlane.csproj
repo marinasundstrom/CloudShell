@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\CloudShell.Abstractions\CloudShell.Abstractions.csproj" />
     <ProjectReference Include="..\CloudShell.Persistence\CloudShell.Persistence.csproj" />
+    <ProjectReference Include="..\CloudShell.ResourceDefinitions.ResourceManager\CloudShell.ResourceDefinitions.ResourceManager.csproj" />
   </ItemGroup>
 
 </Project>

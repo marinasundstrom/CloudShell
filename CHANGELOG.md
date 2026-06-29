@@ -70,6 +70,12 @@ on `git blame --follow`, and then by the broad type of change.
   as the canonical names, document the Resource Manager deployment coordinator
   as the internal graph-backed apply boundary, and update template guidance
   around `ResourceTemplate` envelopes containing `ResourceDefinition` entries.
+- Resource templates now use the ResourceDefinition-native public manager
+  contract: `IResourceTemplateManager` exports and applies `ResourceTemplate`
+  values directly, the Control Plane API/client use `/resource-templates/*`,
+  and the old `ResourceGroupTemplate`, `ResourceTemplateDefinition`,
+  `IResourceTemplateProvider`, and provider-owned template serializer path has
+  been removed.
 - Resource Manager deployment apply now treats replacement replica groups as
   an explicit controller path: it prepares the target group, materializes new
   replicas, applies replacement routing according to policy, and leaves

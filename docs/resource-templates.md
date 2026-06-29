@@ -186,8 +186,8 @@ Near-term migration work should:
 
 - keep graph-backed ResourceTemplate import/export focused on
   `ResourceDefinition` entries
-- remove dependencies on the old `IResourceTemplateProvider` serialization
-  model where graph-backed resource types can round-trip through definitions
+- keep the old provider-specific template serializer path deleted instead of
+  reintroducing compatibility wrappers
 - avoid preserving `ResourceDeploymentDefinition` compatibility wrappers unless
   an internal orchestration API still explicitly needs an orchestration-shaped
   DTO

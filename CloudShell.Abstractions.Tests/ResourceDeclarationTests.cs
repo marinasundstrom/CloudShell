@@ -3129,7 +3129,6 @@ public sealed class ResourceDeclarationTests
                 StringComparison.OrdinalIgnoreCase));
         Assert.IsNotAssignableFrom<IResourceProvider>(applications);
         Assert.IsNotAssignableFrom<IResourceProcedureProvider>(applications);
-        Assert.IsNotAssignableFrom<IResourceTemplateProvider>(applications);
         Assert.IsNotAssignableFrom<IProgrammaticResourceDeclarationProvider>(applications);
         Assert.IsNotAssignableFrom<IResourceOrchestrationDescriptorProvider>(applications);
         Assert.IsNotAssignableFrom<IResourceActionAvailabilityProvider>(applications);
@@ -3209,7 +3208,6 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(CustomApplicationResourceProvider.ProviderId, provider.Id);
         Assert.IsAssignableFrom<IResourceProvider>(provider);
         Assert.IsAssignableFrom<IResourceProcedureProvider>(provider);
-        Assert.IsAssignableFrom<IResourceTemplateProvider>(provider);
         Assert.IsAssignableFrom<IProgrammaticResourceDeclarationProvider>(provider);
         Assert.IsAssignableFrom<IResourceOrchestrationDescriptorProvider>(provider);
         Assert.IsAssignableFrom<IResourceActionAvailabilityProvider>(provider);
@@ -4303,46 +4301,6 @@ public sealed class ResourceDeclarationTests
         Assert.True(resource.HasAction(ResourceActionIds.Start));
         Assert.False(resource.HasAction(ResourceActionIds.Stop));
         Assert.False(resource.HasAction(ResourceActionIds.Restart));
-    }
-
-    [Fact]
-    public async Task SecretsVaultProvider_ExportsSecretNamesWithoutValues()
-    {
-        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
-        var services = new ServiceCollection();
-
-        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
-        services
-            .AddControlPlane()
-            .AddConfigurationProvider()
-            .Resources(resources =>
-            {
-                resources
-                    .AddSecretsVault("secrets-vault:app").WithDisplayName("App Secrets")
-                    .WithSecret("db-password", "local-dev-password");
-            });
-
-        using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider.GetRequiredService<SecretsVaultProvider>();
-        var resource = Assert.Single(provider.GetResources(), resource => resource.IsNormalResource);
-
-        var template = await provider.ExportAsync(
-            resource,
-            new ResourceTemplateExportContext(
-                new ResourceRegistration(
-                    resource.Id,
-                    provider.Id,
-                    null,
-                    DateTimeOffset.UtcNow,
-                    []),
-                null));
-
-        var secret = Assert.Single(template.Configuration.GetProperty("secrets").EnumerateArray());
-
-        Assert.Equal(SecretsVaultProvider.ProviderId, template.ProviderId);
-        Assert.Equal(SecretsVaultProvider.ResourceType, template.ResourceType);
-        Assert.Equal("db-password", secret.GetProperty("name").GetString());
-        Assert.Equal(string.Empty, secret.GetProperty("value").GetString());
     }
 
     [Fact]
@@ -12722,7 +12680,6 @@ public sealed class ResourceDeclarationTests
         IApplicationResourceProjectionSource projections,
         IApplicationResourceDefinitionSource definitions,
         IApplicationResourceProcedureOperations procedures,
-        IApplicationResourceTemplateOperations templates,
         IApplicationResourceDeclarationOperations declarations,
         IApplicationResourceDescriptorOperations descriptors,
         IApplicationResourceActionAvailabilityOperations actions)
@@ -12730,7 +12687,6 @@ public sealed class ResourceDeclarationTests
             projections,
             definitions,
             procedures,
-            templates,
             declarations,
             descriptors,
             actions)

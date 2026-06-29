@@ -5,7 +5,6 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
 using Microsoft.Extensions.Hosting;
 using System.Globalization;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace CloudShell.Providers.Configuration;
@@ -15,13 +14,11 @@ public sealed partial class ConfigurationResourceProvider :
     ILogProvider,
     IResourceMonitoringProvider,
     IResourceProcedureProvider,
-    IResourceTemplateProvider,
     IResourceEnvironmentVariableProvider,
     IConfigurationEntryReferenceResolver,
     IProgrammaticResourceDeclarationProvider,
     IResourceAutoStartPolicyProvider
 {
-    private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly ConfigurationStore store;
     private readonly ConfigurationProviderOptions options;
     private readonly IHostEnvironment environment;
@@ -381,71 +378,6 @@ public sealed partial class ConfigurationResourceProvider :
         return string.IsNullOrWhiteSpace(identity.Name)
             ? identity.ResourceId
             : $"{identity.ResourceId}/{identity.Name}";
-    }
-
-    public bool CanExport(Resource resource) =>
-        string.Equals(resource.EffectiveTypeId, "configuration.store", StringComparison.OrdinalIgnoreCase) &&
-        store.GetStore(resource.Id) is not null;
-
-    public Task<ResourceTemplateDefinition> ExportAsync(
-        Resource resource,
-        ResourceTemplateExportContext context,
-        CancellationToken cancellationToken = default)
-    {
-        var configurationStore = store.GetStore(resource.Id)
-            ?? throw new InvalidOperationException($"Configuration Store '{resource.Id}' is not configured.");
-
-        var configuration = new ConfigurationStoreTemplateConfiguration(
-            configurationStore.Endpoint,
-            configurationStore.Entries);
-
-        return Task.FromResult(new ResourceTemplateDefinition(
-            configurationStore.Name,
-            Id,
-            "configuration.store",
-            resource.DependsOn,
-            "1.0",
-            JsonSerializer.SerializeToElement(configuration, TemplateSerializerOptions),
-            configurationStore.Id));
-    }
-
-    public bool CanImport(ResourceTemplateDefinition template) =>
-        string.Equals(template.ProviderId, Id, StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(template.ResourceType, "configuration.store", StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(template.ProviderConfigurationVersion, "1.0", StringComparison.OrdinalIgnoreCase);
-
-    public async Task<ResourceTemplateImportResult> ImportAsync(
-        ResourceTemplateDefinition template,
-        ResourceTemplateImportContext context,
-        CancellationToken cancellationToken = default)
-    {
-        if (!CanImport(template))
-        {
-            throw new InvalidOperationException("The Configuration Store template is not supported.");
-        }
-
-        var configuration = template.Configuration.Deserialize<ConfigurationStoreTemplateConfiguration>(
-            TemplateSerializerOptions)
-            ?? throw new InvalidOperationException("The Configuration Store template configuration is invalid.");
-
-        var resourceId = string.IsNullOrWhiteSpace(template.ResourceId)
-            ? CreateUniqueImportId(template.Name)
-            : ValidateAvailableImportId(template.ResourceId);
-        var definition = new ConfigurationStoreDefinition(
-            resourceId,
-            template.Name,
-            configuration.Entries,
-            endpoint: configuration.Endpoint);
-
-        await SetupStoreAsync(
-            definition,
-            context.ResourceGroupId,
-            context.Registrations,
-            cancellationToken);
-
-        return new ResourceTemplateImportResult(
-            resourceId,
-            $"Imported Configuration Store '{template.Name}'.");
     }
 
     public static string CreateId(string name)
@@ -912,7 +844,4 @@ public sealed partial class ConfigurationResourceProvider :
     [GeneratedRegex("[^A-Z0-9]+")]
     private static partial Regex EnvironmentNamePattern();
 
-    private sealed record ConfigurationStoreTemplateConfiguration(
-        string? Endpoint,
-        IReadOnlyList<ConfigurationEntry> Entries);
 }

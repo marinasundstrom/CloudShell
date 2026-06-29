@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
+using ResourceDefinitionTemplate = CloudShell.ResourceDefinitions.ResourceTemplate;
 
 namespace CloudShell.ControlPlane.Api;
 
@@ -139,11 +140,11 @@ public static class CloudShellControlPlaneApiExtensions
         api.MapPost("/resource-groups", CreateResourceGroup)
             .WithName("CloudShellControlPlane_CreateResourceGroup");
 
-        api.MapGet("/resource-groups/{resourceGroupId}/template", ExportResourceGroupTemplate)
-            .WithName("CloudShellControlPlane_ExportResourceGroupTemplate");
+        api.MapPost("/resource-templates/export", ExportResourceTemplate)
+            .WithName("CloudShellControlPlane_ExportResourceTemplate");
 
-        api.MapPost("/resource-group-templates/import", ImportResourceGroupTemplate)
-            .WithName("CloudShellControlPlane_ImportResourceGroupTemplate");
+        api.MapPost("/resource-templates/apply", ApplyResourceTemplate)
+            .WithName("CloudShellControlPlane_ApplyResourceTemplate");
 
         api.MapGet("/registrations", ListRegistrations)
             .WithName("CloudShellControlPlane_ListRegistrations");
@@ -828,14 +829,14 @@ public static class CloudShellControlPlaneApiExtensions
         }
     }
 
-    private static async Task<IResult> ExportResourceGroupTemplate(
-        string resourceGroupId,
+    private static async Task<IResult> ExportResourceTemplate(
+        ResourceTemplateExportRequest request,
         IResourceTemplateManager templates,
         CancellationToken cancellationToken)
     {
         try
         {
-            return Results.Ok(await templates.ExportResourceGroupTemplateAsync(resourceGroupId, cancellationToken));
+            return Results.Ok(await templates.ExportResourceTemplateAsync(request, cancellationToken));
         }
         catch (Exception exception) when (exception is ControlPlaneException or InvalidOperationException or UnauthorizedAccessException)
         {
@@ -843,14 +844,14 @@ public static class CloudShellControlPlaneApiExtensions
         }
     }
 
-    private static async Task<IResult> ImportResourceGroupTemplate(
-        ResourceGroupTemplate template,
+    private static async Task<IResult> ApplyResourceTemplate(
+        ResourceDefinitionTemplate template,
         IResourceTemplateManager templates,
         CancellationToken cancellationToken)
     {
         try
         {
-            return Results.Ok(await templates.ImportResourceGroupTemplateAsync(template, cancellationToken));
+            return Results.Ok(await templates.ApplyResourceTemplateAsync(template, cancellationToken));
         }
         catch (Exception exception) when (exception is ControlPlaneException or InvalidOperationException or UnauthorizedAccessException)
         {

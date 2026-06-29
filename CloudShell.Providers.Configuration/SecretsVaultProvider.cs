@@ -5,7 +5,6 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
 using Microsoft.Extensions.Hosting;
 using System.Globalization;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace CloudShell.Providers.Configuration;
@@ -23,11 +22,8 @@ public sealed partial class SecretsVaultProvider(
     ISecretReferenceResolver,
     IResourceEnvironmentVariableProvider,
     IProgrammaticResourceDeclarationProvider,
-    IResourceAutoStartPolicyProvider,
-    IResourceTemplateProvider
+    IResourceAutoStartPolicyProvider
 {
-    private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
-
     public const string ProviderId = "secrets-vault";
 
     public const string ResourceType = "secrets.vault";
@@ -357,69 +353,6 @@ public sealed partial class SecretsVaultProvider(
         return string.IsNullOrWhiteSpace(identity.Name)
             ? identity.ResourceId
             : $"{identity.ResourceId}/{identity.Name}";
-    }
-
-    public bool CanExport(Resource resource) =>
-        string.Equals(resource.EffectiveTypeId, ResourceType, StringComparison.OrdinalIgnoreCase) &&
-        store.GetVault(resource.Id) is not null;
-
-    public Task<ResourceTemplateDefinition> ExportAsync(
-        Resource resource,
-        ResourceTemplateExportContext context,
-        CancellationToken cancellationToken = default)
-    {
-        var vault = store.GetVault(resource.Id)
-            ?? throw new InvalidOperationException($"Secrets Vault '{resource.Id}' is not configured.");
-
-        var configuration = new SecretsVaultTemplateConfiguration(
-            vault.Secrets
-                .Select(secret => secret with { Value = string.Empty })
-                .ToArray());
-
-        return Task.FromResult(new ResourceTemplateDefinition(
-            vault.Name,
-            Id,
-            ResourceType,
-            resource.DependsOn,
-            "1.0",
-            JsonSerializer.SerializeToElement(configuration, TemplateSerializerOptions),
-            vault.Id));
-    }
-
-    public bool CanImport(ResourceTemplateDefinition template) =>
-        string.Equals(template.ProviderId, Id, StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(template.ResourceType, ResourceType, StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(template.ProviderConfigurationVersion, "1.0", StringComparison.OrdinalIgnoreCase);
-
-    public async Task<ResourceTemplateImportResult> ImportAsync(
-        ResourceTemplateDefinition template,
-        ResourceTemplateImportContext context,
-        CancellationToken cancellationToken = default)
-    {
-        if (!CanImport(template))
-        {
-            throw new InvalidOperationException("The Secrets Vault template is not supported.");
-        }
-
-        var configuration = template.Configuration.Deserialize<SecretsVaultTemplateConfiguration>(
-            TemplateSerializerOptions)
-            ?? throw new InvalidOperationException("The Secrets Vault template configuration is invalid.");
-
-        var resourceId = string.IsNullOrWhiteSpace(template.ResourceId)
-            ? CreateId(template.Name)
-            : template.ResourceId.Trim();
-        await SetupVaultAsync(
-            new SecretsVaultDefinition(
-                resourceId,
-                template.Name,
-                configuration.Secrets),
-            context.ResourceGroupId,
-            context.Registrations,
-            cancellationToken);
-
-        return new ResourceTemplateImportResult(
-            resourceId,
-            $"Imported Secrets Vault '{template.Name}'. Secret values must be supplied after import.");
     }
 
     private Resource CreateResource(SecretsVaultDefinition vault) =>
@@ -832,9 +765,6 @@ public sealed partial class SecretsVaultProvider(
         logId.EndsWith(":secrets-vault-service-logs", StringComparison.OrdinalIgnoreCase)
             ? logId[..^":secrets-vault-service-logs".Length]
             : null;
-
-    private sealed record SecretsVaultTemplateConfiguration(
-        IReadOnlyList<SecretsVaultSecret> Secrets);
 
     [GeneratedRegex("[^a-z0-9]+")]
     private static partial Regex SlugPattern();

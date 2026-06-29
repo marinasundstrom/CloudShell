@@ -6,13 +6,11 @@ public abstract class ApplicationResourceTypeProvider(
     IApplicationResourceProjectionSource projections,
     IApplicationResourceDefinitionSource definitions,
     IApplicationResourceProcedureOperations procedures,
-    IApplicationResourceTemplateOperations templates,
     IApplicationResourceDeclarationOperations declarations,
     IApplicationResourceDescriptorOperations descriptors,
     IApplicationResourceActionAvailabilityOperations actions) :
     IResourceProvider,
     IResourceProcedureProvider,
-    IResourceTemplateProvider,
     IProgrammaticResourceDeclarationProvider,
     IResourceAutoStartPolicyProvider,
     IResourceOrchestrationDescriptorProvider,
@@ -39,30 +37,6 @@ public abstract class ApplicationResourceTypeProvider(
         ResourceAction action,
         CancellationToken cancellationToken = default) =>
         procedures.ExecuteActionAsync(context, action, cancellationToken);
-
-    public bool CanExport(Resource resource) =>
-        Projection.CanProject(Definitions.GetApplication(resource.Id) ?? EmptyDefinition(resource)) &&
-        templates.CanExport(resource);
-
-    public async Task<ResourceTemplateDefinition> ExportAsync(
-        Resource resource,
-        ResourceTemplateExportContext context,
-        CancellationToken cancellationToken = default)
-    {
-        var template = await templates.ExportAsync(resource, context, cancellationToken);
-        return template with { ProviderId = Id };
-    }
-
-    public bool CanImport(ResourceTemplateDefinition template) =>
-        string.Equals(template.ProviderId, Id, StringComparison.OrdinalIgnoreCase) &&
-        Projection.CanProject(EmptyDefinition(template.ResourceId ?? template.Name, template.ResourceType)) &&
-        templates.CanImport(template);
-
-    public Task<ResourceTemplateImportResult> ImportAsync(
-        ResourceTemplateDefinition template,
-        ResourceTemplateImportContext context,
-        CancellationToken cancellationToken = default) =>
-        templates.ImportAsync(template, context, cancellationToken);
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
         string.Equals(declaration.ProviderId, Id, StringComparison.OrdinalIgnoreCase);

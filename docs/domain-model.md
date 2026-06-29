@@ -31,7 +31,7 @@ capability packages, and workload terminology, see
 | Product concepts | Users and extension authors | Describe what CloudShell manages and shows | resources, resource groups, lifecycle actions, logs |
 | Public domain abstraction | Shell integrations and remote adapters | Cloud-plane client API for the Control Plane domain without caring about transport | `IResourceManager`, `IResourceTemplateManager`, `ILogManager`, `Resource` |
 | Internal Control Plane services | Control Plane implementation | Coordinate state, providers, persistence, authorization, and procedures | `InProcessControlPlane`, `IResourceManagerStore`, `IResourceRegistrationStore`, `ResourceOrchestrationService` |
-| Provider contracts | Provider and extension packages | Project external systems into CloudShell and execute provider-owned operations | `IResourceProvider`, `IResourceCreationProvider`, `IResourceProcedureProvider`, `IResourceTemplateProvider` |
+| Provider contracts | Provider and extension packages | Project external systems into CloudShell and execute provider-owned operations | `IResourceProvider`, `IResourceCreationProvider`, `IResourceProcedureProvider`, resource-type graph providers |
 | HTTP API projection | Remote Control Plane clients and generated clients | Versioned contract for the same domain entities and relationships | `/api/control-plane/v1/resources`, `ResourceResponse`, `resourceActions` |
 | UI projection | Shell UI and extension views | Render resources and operations for users | Resource Manager pages, detail routes, provider-owned views |
 
@@ -625,7 +625,9 @@ Providers implement contracts such as:
   creation commands.
 - `IResourceProcedureProvider`: executes provider-owned procedures such as
   lifecycle actions.
-- `IResourceTemplateProvider`: exports/imports provider-owned template payloads.
+- ResourceDefinition provider contracts: validate, normalize, project, and
+  apply graph-backed resource intent for resource types that have moved to the
+  Resource model path.
 
 Providers are not a product concept shown directly in the UI. They are part of
 the Control Plane implementation.
@@ -984,22 +986,28 @@ In code:
 
 ### Template
 
-A resource group template is a portable group-level envelope owned by
-CloudShell. Individual resource payloads inside the template are provider-owned.
+A resource template is a portable desired-state envelope owned by CloudShell.
+It contains `ResourceDefinition` entries. Resource definitions are the
+serialization boundary for user-authored resource intent; providers validate
+and normalize the resource state through the Resource model rather than
+receiving provider-specific template payloads.
 
 In code:
 
 - `IResourceTemplateManager` is the public domain abstraction.
-- `ResourceTemplateService` orchestrates import/export.
-- `IResourceTemplateProvider` owns per-resource import/export behavior.
+- `ResourceTemplate` is the graph-backed desired-state envelope.
+- `ResourceDefinitionTemplateService` exports accepted graph state and applies
+  resource definitions through the graph apply path.
 
-This preserves the ownership split: CloudShell owns grouping and orchestration;
-providers own their resource configuration schema.
+This preserves the ownership split: CloudShell owns the portable resource-state
+format and Resource Manager apply path; providers own validation,
+normalization, and runtime planning for their resource types.
 
-Template import follows the same validation posture as resource creation:
-expected invalid states are represented as diagnostics on the import result.
-Invalid template envelopes, such as unsupported kinds or versions, do not create
-resource groups and do not throw from the domain import API.
+Template apply follows the same validation posture as resource creation:
+expected invalid states are represented as ResourceDefinition diagnostics on
+the apply result. Deployment, orchestration service, replica group, replica,
+and routing artifacts are derived later by Resource Manager and the
+orchestrator when accepted resource state requires runtime materialization.
 
 ## Projection into the API
 

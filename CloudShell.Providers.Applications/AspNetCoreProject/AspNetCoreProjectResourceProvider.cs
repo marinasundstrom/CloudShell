@@ -6,7 +6,6 @@ internal sealed class AspNetCoreProjectResourceProvider(
     IApplicationResourceProjectionSource projections,
     IApplicationResourceDefinitionSource definitions,
     IApplicationResourceProcedureOperations procedures,
-    IApplicationResourceTemplateOperations templates,
     IApplicationResourceDeclarationOperations declarations,
     IApplicationResourceDescriptorOperations descriptors,
     IApplicationResourceActionAvailabilityOperations actions)
@@ -14,7 +13,6 @@ internal sealed class AspNetCoreProjectResourceProvider(
         projections,
         definitions,
         procedures,
-        templates,
         declarations,
         descriptors,
         actions)

@@ -9,6 +9,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using ResourceDefinitionTemplate = CloudShell.ResourceDefinitions.ResourceTemplate;
 
 namespace CloudShell.ControlPlane.Client;
 
@@ -505,24 +506,30 @@ public sealed class RemoteControlPlane : IControlPlane
             .ToArray();
     }
 
-    public Task<ResourceGroupTemplateExportResult> ExportResourceGroupTemplateAsync(
-        string resourceGroupId,
-        CancellationToken cancellationToken = default) =>
-        GetRequiredAsync<ResourceGroupTemplateExportResult>(
-            $"resource-groups/{Escape(resourceGroupId)}/template",
-            cancellationToken);
-
-    public async Task<ResourceGroupTemplateImportResult> ImportResourceGroupTemplateAsync(
-        ResourceGroupTemplate template,
+    public async Task<ResourceTemplateExportResult> ExportResourceTemplateAsync(
+        ResourceTemplateExportRequest request,
         CancellationToken cancellationToken = default)
     {
         var response = await httpClient.PostAsJsonAsync(
-            BuildUri("resource-group-templates/import"),
+            BuildUri("resource-templates/export"),
+            request,
+            SerializerOptions,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await ReadRequiredAsync<ResourceTemplateExportResult>(response, cancellationToken);
+    }
+
+    public async Task<ResourceTemplateApplyResult> ApplyResourceTemplateAsync(
+        ResourceDefinitionTemplate template,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsJsonAsync(
+            BuildUri("resource-templates/apply"),
             template,
             SerializerOptions,
             cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return await ReadRequiredAsync<ResourceGroupTemplateImportResult>(response, cancellationToken);
+        return await ReadRequiredAsync<ResourceTemplateApplyResult>(response, cancellationToken);
     }
 
     public async Task<IReadOnlyList<LogSource>> ListLogSourcesAsync(

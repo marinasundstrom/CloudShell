@@ -83,6 +83,11 @@ cleanup without falling back to old provider-specific imperative update paths.
   graph-backed apply paths so accepted ResourceDefinition changes can produce
   orchestrator deployments without bypassing deployment records, locking,
   previous replica-group lookup, routing reconciliation, or cleanup policy.
+- [x] Replace the old provider-specific resource template engine with the
+  ResourceDefinition-native `ResourceTemplate` public manager contract. Remove
+  `ResourceGroupTemplate`, `ResourceTemplateDefinition`,
+  `IResourceTemplateProvider`, and application/configuration/secrets
+  provider-owned template serializers.
 - [x] Investigate `ApplicationResourceService` responsibilities and current
   deployment/orchestration paths.
 - [x] Route deployment-capable `Start` actions through Resource Manager
@@ -293,7 +298,7 @@ cleanup without falling back to old provider-specific imperative update paths.
 
 ## Next Slices
 
-- [ ] Rework the resource template engine around `ResourceTemplate` containing
+- [x] Rework the resource template engine around `ResourceTemplate` containing
   `ResourceDefinition` entries. Remove `ResourceDeploymentDefinition` and
   other deployment-shaped user-authoring wrappers unless an internal
   orchestration API explicitly owns them.

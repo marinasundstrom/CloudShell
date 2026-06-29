@@ -19,6 +19,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
+using ResourceDefinitionTemplate = CloudShell.ResourceDefinitions.ResourceTemplate;
 
 namespace CloudShell.ControlPlane.Client.Tests;
 
@@ -1247,33 +1248,23 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
-    public async Task RemoteControlPlane_ExportsAndImportsResourceGroupTemplates()
+    public async Task RemoteControlPlane_AppliesAndExportsResourceTemplates()
     {
         await using var app = await CreateAppAsync();
         var controlPlane = CreateClient(app);
-        var group = await CreateContractGroupAsync(controlPlane);
 
-        var exported = await controlPlane.ExportResourceGroupTemplateAsync(group.Id);
+        var applied = await controlPlane.ApplyResourceTemplateAsync(
+            new ResourceDefinitionTemplate("Contract template", []));
 
-        Assert.Equal("resourceGroup", exported.Template.Kind);
-        Assert.Equal("Contract Group", exported.Template.Name);
+        Assert.True(applied.IsCommitted);
+        Assert.Empty(applied.Diagnostics);
+
+        var exported = await controlPlane.ExportResourceTemplateAsync(
+            new ResourceTemplateExportRequest("Contract template export"));
+
+        Assert.Equal("Contract template export", exported.Template.Name);
         Assert.Empty(exported.Template.Resources);
-        Assert.Contains(
-            exported.Diagnostics,
-            diagnostic => diagnostic.Severity == "Warning" &&
-                diagnostic.ResourceName == "Contract Network");
-
-        var imported = await controlPlane.ImportResourceGroupTemplateAsync(
-            exported.Template with
-            {
-                Name = "Imported Contract Group",
-                Description = "Imported through the remote control-plane contract."
-            });
-
-        Assert.NotNull(imported.ResourceGroup);
-        Assert.Equal("Imported Contract Group", imported.ResourceGroup.Name);
-        Assert.Empty(imported.ImportedResources);
-        Assert.Empty(imported.Diagnostics);
+        Assert.Empty(exported.Diagnostics);
     }
 
     [Fact]

@@ -1,70 +1,29 @@
-using System.Text.Json;
+using CloudShell.ResourceDefinitions;
 
 namespace CloudShell.Abstractions.ResourceManager;
 
-public sealed record ResourceGroupTemplate(
-    string TemplateVersion,
-    string Kind,
+public sealed record ResourceTemplateExportRequest(
     string Name,
-    string? Description,
-    IReadOnlyList<ResourceTemplateDefinition> Resources);
-
-public sealed record ResourceTemplateDefinition(
-    string Name,
-    string ProviderId,
-    string ResourceType,
-    IReadOnlyList<string> DependsOn,
-    string ProviderConfigurationVersion,
-    JsonElement Configuration,
-    string? ResourceId = null);
-
-public sealed record ResourceTemplateExportContext(
-    ResourceRegistration Registration,
-    ResourceGroup? ResourceGroup);
-
-public sealed record ResourceTemplateImportContext(
-    string ResourceGroupId,
-    IResourceRegistrationStore Registrations,
-    IReadOnlyList<string> DependsOn);
-
-public sealed record ResourceTemplateImportResult(
-    string ResourceId,
-    string Message);
-
-public sealed record ResourceGroupTemplateExportResult(
-    ResourceGroupTemplate Template,
-    IReadOnlyList<ResourceTemplateDiagnostic> Diagnostics);
-
-public sealed record ResourceGroupTemplateImportResult(
-    ResourceGroup? ResourceGroup,
-    IReadOnlyList<ResourceTemplateImportResult> ImportedResources,
-    IReadOnlyList<ResourceTemplateDiagnostic> Diagnostics);
-
-public sealed record ResourceTemplateDiagnostic(
-    string Severity,
-    string ResourceName,
-    string Message)
+    IReadOnlyList<string>? ResourceIds = null,
+    string? EnvironmentId = null,
+    IReadOnlyDictionary<string, string>? Metadata = null)
 {
-    public static ResourceTemplateDiagnostic Warning(string resourceName, string message) =>
-        new("Warning", resourceName, message);
-
-    public static ResourceTemplateDiagnostic Error(string resourceName, string message) =>
-        new("Error", resourceName, message);
+    public IReadOnlyList<string> RequestedResourceIds => ResourceIds ?? [];
 }
 
-public interface IResourceTemplateProvider
+public sealed record ResourceTemplateExportResult(
+    ResourceTemplate Template,
+    IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics)
 {
-    bool CanExport(Resource resource);
+    public bool HasErrors => Diagnostics.Any(diagnostic =>
+        diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);
+}
 
-    Task<ResourceTemplateDefinition> ExportAsync(
-        Resource resource,
-        ResourceTemplateExportContext context,
-        CancellationToken cancellationToken = default);
-
-    bool CanImport(ResourceTemplateDefinition template);
-
-    Task<ResourceTemplateImportResult> ImportAsync(
-        ResourceTemplateDefinition template,
-        ResourceTemplateImportContext context,
-        CancellationToken cancellationToken = default);
+public sealed record ResourceTemplateApplyResult(
+    ResourceTemplate Template,
+    bool IsCommitted,
+    IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics)
+{
+    public bool HasErrors => Diagnostics.Any(diagnostic =>
+        diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);
 }

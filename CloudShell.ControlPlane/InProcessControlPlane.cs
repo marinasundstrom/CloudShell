@@ -10,11 +10,14 @@ using CloudShell.ControlPlane.ResourceManager.Identity;
 using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.ControlPlane.ResourceManager.Recovery;
-using CloudShell.ControlPlane.ResourceManager.Templates;
+using CloudShell.ResourceDefinitions.ResourceManager;
 using Microsoft.AspNetCore.Http;
 using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
+using ResourceDefinition = CloudShell.ResourceDefinitions.ResourceDefinition;
+using ResourceDefinitionTemplate = CloudShell.ResourceDefinitions.ResourceTemplate;
+using ResourceGraphCommitContext = CloudShell.ResourceDefinitions.ResourceGraphCommitContext;
 
 namespace CloudShell.ControlPlane;
 
@@ -28,7 +31,7 @@ public sealed class InProcessControlPlane(
     ResourceReplicaGroupReconciliationService replicaGroupReconciliation,
     ResourceIdentityProvisioningService resourceIdentityProvisioning,
     ResourceIdentityProviderSetupService resourceIdentityProviderSetup,
-    ResourceTemplateService templates,
+    ResourceDefinitionTemplateService templates,
     ILogStore logs,
     ITraceStore traces,
     IMetricStore metrics,
@@ -1112,15 +1115,95 @@ public sealed class InProcessControlPlane(
         return mergedResult;
     }
 
-    public Task<ResourceGroupTemplateExportResult> ExportResourceGroupTemplateAsync(
-        string resourceGroupId,
-        CancellationToken cancellationToken = default) =>
-        templates.ExportGroupAsync(resourceGroupId, cancellationToken);
+    public async Task<ResourceTemplateExportResult> ExportResourceTemplateAsync(
+        ResourceTemplateExportRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var result = await templates.ExportTemplateAsync(
+            request.Name,
+            resourceIds: request.RequestedResourceIds,
+            environmentId: request.EnvironmentId,
+            metadata: request.Metadata,
+            cancellationToken: cancellationToken);
 
-    public Task<ResourceGroupTemplateImportResult> ImportResourceGroupTemplateAsync(
-        ResourceGroupTemplate template,
-        CancellationToken cancellationToken = default) =>
-        templates.ImportGroupAsync(template, cancellationToken);
+        return new ResourceTemplateExportResult(result.Template, result.Diagnostics);
+    }
+
+    public async Task<ResourceTemplateApplyResult> ApplyResourceTemplateAsync(
+        ResourceDefinitionTemplate template,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(template);
+        var apply = await templates.ApplyTemplateAsync(
+            template,
+            new ResourceGraphCommitContext(
+                EnvironmentId: template.EnvironmentId,
+                PrincipalId: ResolveTriggeredBy("resource-template-apply"),
+                Timestamp: DateTimeOffset.UtcNow),
+            ResourceModelGraphDefinitionApplyOptions.CreateMissing,
+            cancellationToken);
+
+        if (!apply.HasErrors && apply.IsCommitted)
+        {
+            await RegisterAppliedDefinitionsAsync(
+                template.Resources,
+                GetTemplateResourceGroupId(template),
+                cancellationToken);
+        }
+
+        return new ResourceTemplateApplyResult(
+            apply.Template,
+            apply.IsCommitted,
+            apply.Diagnostics);
+    }
+
+    private async Task RegisterAppliedDefinitionsAsync(
+        IReadOnlyList<ResourceDefinition> definitions,
+        string? resourceGroupId,
+        CancellationToken cancellationToken)
+    {
+        var existingRegistrations = registrations.GetRegistrations()
+            .Select(registration => registration.ResourceId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var definition in definitions)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var dependencyIds = definition.StartupDependencyIds;
+            if (existingRegistrations.Contains(definition.EffectiveResourceId))
+            {
+                await AssignResourceGroupAsync(
+                    new AssignResourceGroupCommand(
+                        definition.EffectiveResourceId,
+                        resourceGroupId,
+                        dependencyIds),
+                    cancellationToken);
+                continue;
+            }
+
+            await RegisterResourceAsync(
+                new RegisterResourceCommand(
+                    ResourceModelResourceProvider.DefaultProviderId,
+                    definition.EffectiveResourceId,
+                    resourceGroupId,
+                    dependencyIds),
+                cancellationToken);
+            existingRegistrations.Add(definition.EffectiveResourceId);
+        }
+    }
+
+    private static string? GetTemplateResourceGroupId(ResourceDefinitionTemplate template)
+    {
+        if (template.Metadata is null)
+        {
+            return null;
+        }
+
+        return template.Metadata.TryGetValue("resourceGroup.id", out var resourceGroupId)
+            ? NormalizeOptional(resourceGroupId)
+            : null;
+    }
 
     public Task<IReadOnlyList<LogSource>> ListLogSourcesAsync(
         LogQuery? query = null,

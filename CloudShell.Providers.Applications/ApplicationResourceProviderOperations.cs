@@ -72,23 +72,6 @@ public interface IApplicationResourceProcedureOperations
         CancellationToken cancellationToken = default);
 }
 
-public interface IApplicationResourceTemplateOperations
-{
-    bool CanExport(Resource resource);
-
-    Task<ResourceTemplateDefinition> ExportAsync(
-        Resource resource,
-        ResourceTemplateExportContext context,
-        CancellationToken cancellationToken = default);
-
-    bool CanImport(ResourceTemplateDefinition template);
-
-    Task<ResourceTemplateImportResult> ImportAsync(
-        ResourceTemplateDefinition template,
-        ResourceTemplateImportContext context,
-        CancellationToken cancellationToken = default);
-}
-
 public interface IApplicationResourceDeclarationOperations
 {
     ResourceAutoStartPolicy GetAutoStartPolicy(ResourceDeclaration declaration);
