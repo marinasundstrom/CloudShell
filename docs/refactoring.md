@@ -375,7 +375,7 @@ the graph-backed tests that cover the same resource path.
   references rather than declaring their own boundary.
 - [x] Remove `CloudShell.Providers.Applications`,
   `CloudShell.Providers.Configuration`, and `CloudShell.Providers.Docker` from
-  `CloudShell.sln` and `CloudShell.slnx` once no active host, sample, or
+  `CloudShell.slnx` once no active host, sample, or
   service project references them.
 - [x] Audit old provider folders and excluded old-provider tests as the
   migration backlog for the new provider packages. Move forward only reusable
@@ -507,7 +507,7 @@ preserving old provider seams:
   `dotnet test CloudShell.ControlPlane.Client.Tests/CloudShell.ControlPlane.Client.Tests.csproj --no-restore`
   `dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj --no-restore`
   `dotnet test CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj --no-restore`
-  `dotnet build CloudShell.sln --no-restore`
+  `dotnet build CloudShell.slnx --no-restore`
 - If Docker-backed sample tests fail before reaching CloudShell behavior
   because the Docker daemon is unavailable, follow `CONTRIBUTIONS.md`: verify
   with `docker info`, restart or unblock Docker, and record the blocked

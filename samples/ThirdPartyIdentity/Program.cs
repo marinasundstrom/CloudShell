@@ -139,7 +139,7 @@ static string FindRepositoryRoot(string startPath)
     var directory = new DirectoryInfo(startPath);
     while (directory is not null)
     {
-        if (File.Exists(Path.Combine(directory.FullName, "CloudShell.sln")))
+        if (File.Exists(Path.Combine(directory.FullName, "CloudShell.slnx")))
         {
             return directory.FullName;
         }

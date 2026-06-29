@@ -69,6 +69,9 @@ on `git blame --follow`, and then by the broad type of change.
 - README, programmatic resource docs, and application resource docs now point
   at graph-backed ResourceDefinition reference providers instead of the deleted
   legacy provider packages.
+- `CloudShell.sln` has been removed in favor of `CloudShell.slnx`; workflow
+  docs and repository-root discovery helpers now use the `.slnx` solution
+  file.
 - ApplicationTopology sample smoke assertions now match the ResourceDefinition
   model for ad-hoc volumes and name mappings instead of expecting the old
   storage-wrapper resource projection.

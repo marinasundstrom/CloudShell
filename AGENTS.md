@@ -156,5 +156,5 @@ For changes affecting the resource model, Control Plane, API/client layer, or
 samples, run:
 
 ```
-bash dotnet build CloudShell.sln --no-restore  dotnet test CloudShell.ControlPlane.Tests/CloudShell.ControlPlane.Tests.csproj --no-restore  dotnet test CloudShell.ControlPlane.Client.Tests/CloudShell.ControlPlane.Client.Tests.csproj --no-restore  dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj --no-restore  dotnet test CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj --no-restore 
+bash dotnet build CloudShell.slnx --no-restore  dotnet test CloudShell.ControlPlane.Tests/CloudShell.ControlPlane.Tests.csproj --no-restore  dotnet test CloudShell.ControlPlane.Client.Tests/CloudShell.ControlPlane.Client.Tests.csproj --no-restore  dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj --no-restore  dotnet test CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj --no-restore
 ```

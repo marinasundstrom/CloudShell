@@ -607,7 +607,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {
-            if (File.Exists(Path.Combine(directory.FullName, "CloudShell.sln")))
+            if (File.Exists(Path.Combine(directory.FullName, "CloudShell.slnx")))
             {
                 return directory.FullName;
             }

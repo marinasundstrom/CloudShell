@@ -844,7 +844,7 @@ the verification baseline from [AGENTS.md](../AGENTS.md) after targeted tests
 when practical:
 
 ```bash
-dotnet build CloudShell.sln --no-restore
+dotnet build CloudShell.slnx --no-restore
 dotnet test CloudShell.ControlPlane.Tests/CloudShell.ControlPlane.Tests.csproj --no-restore
 dotnet test CloudShell.ControlPlane.Client.Tests/CloudShell.ControlPlane.Client.Tests.csproj --no-restore
 dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj --no-restore
