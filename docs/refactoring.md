@@ -324,10 +324,10 @@ Resource model provider migration.
 - [x] Move the combined development host off the legacy Applications,
   Configuration, and Docker provider extensions and install built-in Resource
   model providers plus graph Resource Manager integration by default.
-- [x] Add a package-owned `AddBuiltInResourceModelProviderTypes(...)`
-  registration seam so the combined development host installs the default
-  built-in provider catalog without hand-maintaining a scattered provider
-  list.
+- [x] Add package-owned `UseBuiltInResourceModelProviders(...)` and
+  `AddBuiltInResourceModelProviderTypes(...)` registration seams so the
+  combined development host installs the default built-in provider catalog and
+  graph bridge without hand-maintaining a scattered provider list.
 - [x] Remove legacy provider project references from remaining samples where
   built-in Resource model providers already cover the scenario.
 - [ ] Move any remaining sample-local gaps behind Resource model

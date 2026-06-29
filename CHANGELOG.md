@@ -89,10 +89,10 @@ on `git blame --follow`, and then by the broad type of change.
   Manager UI in `CloudShell.ControlPlane.Providers.UI`; the transitional
   `ReferenceProviders` package family has been removed.
 - The combined development host now installs the default built-in Resource
-  model provider catalog through `AddBuiltInResourceModelProviderTypes(...)`,
-  keeping provider package composition behind a single registration seam while
-  still allowing hosts to configure Configuration Store and Secrets Vault
-  runtime sidecars.
+  model provider catalog and graph bridge through
+  `UseBuiltInResourceModelProviders(...)`, keeping provider package
+  composition behind a single registration seam while still allowing hosts to
+  configure Configuration Store and Secrets Vault runtime sidecars.
 - ApplicationTopology sample smoke assertions now match the ResourceDefinition
   model for ad-hoc volumes and name mappings instead of expecting the old
   storage-wrapper resource projection.

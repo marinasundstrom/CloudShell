@@ -1900,6 +1900,13 @@ networking, storage, and infrastructure providers may still split into more
 focused packages once their boundaries justify it. Shared graph infrastructure
 stays outside those groups in `CloudShell.ResourceModel` and
 `CloudShell.ControlPlane.ResourceModel`.
+`UseBuiltInResourceModelProviders(...)` is the built-in provider package
+composition seam for hosts that want the default platform catalog. It registers
+the built-in provider types and the graph bridge together, but it does not make
+providers depend on each other. Individual `Add...ResourceType(...)` methods
+remain the narrow seams for samples, tests, split hosts, and future extracted
+provider packages. Runtime behavior still flows through provider-owned adapter
+interfaces supplied by the host or a default runtime integration package.
 For the current switch-over, provider-specific Resource Manager UI components
 are being extracted into the UI-support project while provider implementations
 remain together. Registration components, endpoint actions, and container app

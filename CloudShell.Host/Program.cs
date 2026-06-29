@@ -24,22 +24,21 @@ var repositoryRootPath = Path.GetFullPath("..", builder.Environment.ContentRootP
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 
-builder.Services
-    .AddBuiltInResourceModelProviderTypes(options =>
+cloudShell.UseBuiltInResourceModelProviders(options =>
+{
+    options.ConfigureConfigurationStoreRuntime = runtime =>
     {
-        options.ConfigureConfigurationStoreRuntime = runtime =>
-        {
-            runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
-            runtime.ServiceWorkingDirectory = repositoryRootPath;
-            runtime.Entries.Add(new("SampleMessage", "Hello from CloudShell configuration"));
-            runtime.Entries.Add(new("SampleMode", "Development"));
-        };
-        options.ConfigureSecretsVaultRuntime = runtime =>
-        {
-            runtime.ServiceProjectPath = secretsVaultServiceProjectPath;
-            runtime.ServiceWorkingDirectory = repositoryRootPath;
-        };
-    });
+        runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
+        runtime.ServiceWorkingDirectory = repositoryRootPath;
+        runtime.Entries.Add(new("SampleMessage", "Hello from CloudShell configuration"));
+        runtime.Entries.Add(new("SampleMode", "Development"));
+    };
+    options.ConfigureSecretsVaultRuntime = runtime =>
+    {
+        runtime.ServiceProjectPath = secretsVaultServiceProjectPath;
+        runtime.ServiceWorkingDirectory = repositoryRootPath;
+    };
+});
 
 cloudShell.DefineResources(resources =>
 {
@@ -47,7 +46,6 @@ cloudShell.DefineResources(resources =>
         .AddConfigurationStore("example")
         .WithDisplayName("Example Configuration");
 });
-cloudShell.UseResourceGraphIntegration();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

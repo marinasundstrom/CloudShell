@@ -508,6 +508,50 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public void UseBuiltInResourceModelProviders_RegistersProviderCatalogAndGraphBridge()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        var builder = services.AddCloudShell();
+
+        builder.UseBuiltInResourceModelProviders(options =>
+        {
+            options.ConfigureConfigurationStoreRuntime = runtime =>
+            {
+                runtime.ServiceProjectPath = "services/configuration-store.csproj";
+            };
+            options.ConfigureSecretsVaultRuntime = runtime =>
+            {
+                runtime.ServiceProjectPath = "services/secrets-vault.csproj";
+            };
+        });
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var typeIds = serviceProvider
+            .GetServices<IResourceTypeProvider>()
+            .Select(provider => provider.TypeId)
+            .ToHashSet();
+
+        Assert.Contains(ExecutableApplicationResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(ContainerApplicationResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(ConfigurationStoreResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(SecretsVaultResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Equal(
+            "services/configuration-store.csproj",
+            serviceProvider.GetRequiredService<ConfigurationStoreRuntimeOptions>().ServiceProjectPath);
+        Assert.Equal(
+            "services/secrets-vault.csproj",
+            serviceProvider.GetRequiredService<SecretsVaultRuntimeOptions>().ServiceProjectPath);
+
+        var provider = Assert.IsType<ResourceModelGraphProcedureProvider>(
+            Assert.Single(serviceProvider.GetServices<IResourceProvider>()));
+        var availabilityProvider = Assert.IsType<ResourceModelGraphProcedureProvider>(
+            Assert.Single(serviceProvider.GetServices<IResourceActionAvailabilityProvider>()));
+
+        Assert.Same(provider, availabilityProvider);
+    }
+
+    [Fact]
     public void ResourceModelGraphResourceProvider_DoesNotProjectInvalidTypedDependency()
     {
         var worker = CreateExecutableState(

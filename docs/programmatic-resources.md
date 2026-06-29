@@ -22,7 +22,7 @@ using CloudShell.ControlPlane.ResourceModel;
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 
-builder.Services.AddBuiltInResourceModelProviderTypes();
+cloudShell.UseBuiltInResourceModelProviders();
 
 cloudShell.DefineResources(resources =>
 {
@@ -35,8 +35,6 @@ cloudShell.DefineResources(resources =>
             new("SampleSecret", "local-development-secret", IsSecret: true)
         ]);
 });
-
-cloudShell.UseResourceGraphIntegration();
 ```
 
 Built-in Resource model providers expose specialized extension methods
