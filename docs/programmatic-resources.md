@@ -140,18 +140,18 @@ and advanced scenarios, but new declarations should treat the authored value
 as a resource name unless the API explicitly asks for a resource ID.
 
 The Resource Graph POC is adding a separate `ResourceDefinitionGraphBuilder`
-for code-first authoring of graph resources and deployment inputs. These
+for code-first authoring of graph resources and resource templates. These
 builders emit `ResourceDefinition` values, not Resource Manager declarations,
 so the same authored graph can be serialized, imported, applied as a
-deployment, or used by tests. Provider builders should start as small manual
-implementations next to the resource type provider they target. Source
+`ResourceTemplate`, or used by tests. Provider builders should start as small
+manual implementations next to the resource type provider they target. Source
 generation remains a future option once several manual builders show the
 stable conventions and the customization points providers need.
 For Resource Graph provider ports, creating the provider-owned manual builder
 is part of the porting work unless the provider README explicitly records why
 the builder is deferred. The builder is the first code-first authoring surface
 for the provider's `ResourceDefinition` shape and is used by tests to keep
-deployment setup aligned with the provider-owned interchange contract.
+resource-template setup aligned with the provider-owned interchange contract.
 
 ```csharp
 var graph = new ResourceDefinitionGraphBuilder();
@@ -161,8 +161,14 @@ graph
     .WithDisplayName("App Network")
     .WithHostReadiness("logicalOnly");
 
-var deployment = graph.BuildDeployment("local-app", environmentId: "local");
+var template = graph.BuildTemplate("local-app", environmentId: "local");
 ```
+
+`BuildTemplate(...)` produces desired resource state. It does not produce an
+orchestrator deployment. Resource Manager applies the resource template into the
+graph, providers validate and plan provider-owned changes, and deployment
+planning then projects accepted resource state to orchestrator services,
+replica groups, load-balancer bindings, and the running system.
 
 The initial manual builders cover generic networks, Configuration Store,
 Secrets Vault, storage, CloudShell storage-backed volume, SQL Server, SQL
@@ -171,7 +177,7 @@ application, local volumes, executable application, ASP.NET Core project,
 identity provisioning, load balancer, and host configuration source graph
 resources, plus service, DNS zone, and name mapping exposure resources. They
 are useful for test setup as well as host authoring because provider tests can
-compose realistic deployment definitions without repeating raw attribute
+compose realistic resource templates without repeating raw attribute
 dictionaries, configuration payloads, capability payloads, and typed
 `ResourceReference` values. The SQL builders cover declared database
 configuration, typed server dependencies, and volume mount capability setup.
@@ -791,8 +797,8 @@ The intended flow is:
 1. Start with programmatic declarations in a local combined host.
 2. Persist the resources when the graph is ready to become Control Plane state.
 3. Continue local development against the same model.
-4. Deploy the persisted graph through the orchestrator deployment API when that
-   separate mechanism exists for the target environment.
+4. Apply the persisted graph as a resource template when Resource Manager
+   should converge a target environment from checked-in resource intent.
 
 `Persist()` does not overwrite an existing persisted resource. Use
 `Persist(overwrite: true)` when checked-in configuration should replace the

@@ -34,7 +34,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public void ResourceDefinitionGraphBuilder_BuildDeploymentProjectsGraphIntoDeploymentEnvelope()
+    public void ResourceDefinitionGraphBuilder_BuildTemplateProjectsGraphIntoResourceTemplate()
     {
         var graph = new ResourceDefinitionGraphBuilder()
             .DefineResources(resources =>
@@ -42,19 +42,19 @@ public sealed class ResourceDefinitionGraphBuilderTests
                 resources.AddNetwork("app");
             });
 
-        var deployment = graph.BuildDeployment(
+        var template = graph.BuildTemplate(
             "grouped",
             environmentId: "local",
             metadata: new Dictionary<string, string>
             {
                 ["source"] = "test"
             });
-        var definition = Assert.Single(deployment.Resources);
+        var definition = Assert.Single(template.Resources);
 
-        Assert.Equal("grouped", deployment.Name);
-        Assert.Equal("local", deployment.EnvironmentId);
-        Assert.NotNull(deployment.Metadata);
-        Assert.Equal("test", deployment.Metadata["source"]);
+        Assert.Equal("grouped", template.Name);
+        Assert.Equal("local", template.EnvironmentId);
+        Assert.NotNull(template.Metadata);
+        Assert.Equal("test", template.Metadata["source"]);
         Assert.Equal(NetworkResourceTypeProvider.ResourceTypeId, definition.TypeId);
         Assert.Equal("cloudshell.network:app", definition.EffectiveResourceId);
         Assert.Equal("cloudshell.network:app", definition.ResourceId);
@@ -228,12 +228,12 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public async Task Host_DefineInitialDeploymentRegistersDeploymentInitialGraph()
+    public async Task Host_DefineInitialTemplateRegistersTemplateInitialGraph()
     {
         var services = new ServiceCollection();
         services
             .AddCloudShellControlPlane()
-            .DefineInitialDeployment(
+            .DefineInitialTemplate(
                 "grouped",
                 resources =>
                 {
@@ -290,11 +290,11 @@ public sealed class ResourceDefinitionGraphBuilderTests
             .WithHostReadiness("hostReady")
             .WithMappingProviders("local-host", "dns");
 
-        var deployment = graph.BuildDeployment("app-network", environmentId: "local");
+        var template = graph.BuildTemplate("app-network", environmentId: "local");
 
-        var definition = Assert.Single(deployment.Resources);
-        Assert.Equal("app-network", deployment.Name);
-        Assert.Equal("local", deployment.EnvironmentId);
+        var definition = Assert.Single(template.Resources);
+        Assert.Equal("app-network", template.Name);
+        Assert.Equal("local", template.EnvironmentId);
         Assert.Equal("app", definition.Name);
         Assert.Equal("cloudshell.network:app", definition.EffectiveResourceId);
         Assert.Equal(NetworkResourceTypeProvider.ResourceTypeId, definition.TypeId);
@@ -327,8 +327,8 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         var result = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
-            .ApplyDeploymentAsync(
-                graph.BuildDeployment("app-network", environmentId: "local"),
+            .ApplyTemplateAsync(
+                graph.BuildTemplate("app-network", environmentId: "local"),
                 new ResourceGraphCommitContext(
                     PrincipalId: "developer",
                     Timestamp: new DateTimeOffset(2026, 6, 26, 12, 0, 0, TimeSpan.Zero)));
@@ -375,12 +375,12 @@ public sealed class ResourceDefinitionGraphBuilderTests
             .WithEndpoint("http://localhost:5102/api/secrets/vaults/secrets/secrets")
             .DependsOn(network);
 
-        var deployment = graph.BuildDeployment("settings-and-secrets", environmentId: "local");
+        var template = graph.BuildTemplate("settings-and-secrets", environmentId: "local");
 
-        Assert.Equal(3, deployment.Resources.Count);
-        var settings = Assert.Single(deployment.Resources, resource =>
+        Assert.Equal(3, template.Resources.Count);
+        var settings = Assert.Single(template.Resources, resource =>
             resource.TypeId == ConfigurationStoreResourceTypeProvider.ResourceTypeId);
-        var secrets = Assert.Single(deployment.Resources, resource =>
+        var secrets = Assert.Single(template.Resources, resource =>
             resource.TypeId == SecretsVaultResourceTypeProvider.ResourceTypeId);
 
         Assert.Equal("configuration.store:settings", settings.EffectiveResourceId);
@@ -407,8 +407,8 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         var result = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
-            .ApplyDeploymentAsync(
-                deployment,
+            .ApplyTemplateAsync(
+                template,
                 new ResourceGraphCommitContext(
                     PrincipalId: "developer",
                     Timestamp: new DateTimeOffset(2026, 6, 26, 13, 0, 0, TimeSpan.Zero)));
@@ -440,12 +440,12 @@ public sealed class ResourceDefinitionGraphBuilderTests
             "data",
             subPath: "data");
 
-        var deployment = graph.BuildDeployment("storage-volume", environmentId: "local");
+        var template = graph.BuildTemplate("storage-volume", environmentId: "local");
 
-        Assert.Equal(2, deployment.Resources.Count);
-        var storageDefinition = Assert.Single(deployment.Resources, resource =>
+        Assert.Equal(2, template.Resources.Count);
+        var storageDefinition = Assert.Single(template.Resources, resource =>
             resource.TypeId == StorageResourceTypeProvider.ResourceTypeId);
-        var volumeDefinition = Assert.Single(deployment.Resources, resource =>
+        var volumeDefinition = Assert.Single(template.Resources, resource =>
             resource.TypeId == CloudShellVolumeResourceTypeProvider.ResourceTypeId);
         Assert.Equal("cloudshell.storage:local", storageDefinition.EffectiveResourceId);
         Assert.Equal("local", storageDefinition.ResourceAttributeValues[
@@ -471,8 +471,8 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         var result = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
-            .ApplyDeploymentAsync(
-                deployment,
+            .ApplyTemplateAsync(
+                template,
                 new ResourceGraphCommitContext(
                     PrincipalId: "developer",
                     Timestamp: new DateTimeOffset(2026, 6, 26, 14, 0, 0, TimeSpan.Zero)));
@@ -497,12 +497,12 @@ public sealed class ResourceDefinitionGraphBuilderTests
             accessMode: StorageVolumeAccessMode.ReadWriteMany);
         graph.AddVolume("current");
 
-        var deployment = graph.BuildDeployment("direct-volume", environmentId: "local");
+        var template = graph.BuildTemplate("direct-volume", environmentId: "local");
 
-        Assert.Equal(2, deployment.Resources.Count);
-        var volumeDefinition = Assert.Single(deployment.Resources, resource =>
+        Assert.Equal(2, template.Resources.Count);
+        var volumeDefinition = Assert.Single(template.Resources, resource =>
             resource.Name == "data");
-        var currentDirectoryVolume = Assert.Single(deployment.Resources, resource =>
+        var currentDirectoryVolume = Assert.Single(template.Resources, resource =>
             resource.Name == "current");
         Assert.Equal("cloudshell.volume:data", volumeDefinition.EffectiveResourceId);
         Assert.Equal("local", volumeDefinition.ResourceAttributeValues[
@@ -520,8 +520,8 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         var result = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
-            .ApplyDeploymentAsync(
-                deployment,
+            .ApplyTemplateAsync(
+                template,
                 new ResourceGraphCommitContext(
                     PrincipalId: "developer",
                     Timestamp: new DateTimeOffset(2026, 6, 26, 14, 30, 0, TimeSpan.Zero)));
@@ -564,14 +564,14 @@ public sealed class ResourceDefinitionGraphBuilderTests
             .BelongsToServer(server)
             .EnsureCreated();
 
-        var deployment = graph.BuildDeployment("sql-app", environmentId: "local");
+        var template = graph.BuildTemplate("sql-app", environmentId: "local");
 
-        Assert.Equal(3, deployment.Resources.Count);
-        var volumeDefinition = Assert.Single(deployment.Resources, resource =>
+        Assert.Equal(3, template.Resources.Count);
+        var volumeDefinition = Assert.Single(template.Resources, resource =>
             resource.TypeId == CloudShellVolumeResourceTypeProvider.ResourceTypeId);
-        var sqlServer = Assert.Single(deployment.Resources, resource =>
+        var sqlServer = Assert.Single(template.Resources, resource =>
             resource.TypeId == SqlServerResourceTypeProvider.ResourceTypeId);
-        var sqlDatabase = Assert.Single(deployment.Resources, resource =>
+        var sqlDatabase = Assert.Single(template.Resources, resource =>
             resource.TypeId == SqlDatabaseResourceTypeProvider.ResourceTypeId);
         Assert.Equal("./Data/storage/sql-server", volumeDefinition.ResourceAttributeValues[
             CloudShellVolumeResourceTypeProvider.Attributes.Location].StringValue);
@@ -607,8 +607,8 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         var result = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
-            .ApplyDeploymentAsync(
-                deployment,
+            .ApplyTemplateAsync(
+                template,
                 new ResourceGraphCommitContext(
                     PrincipalId: "developer",
                     Timestamp: new DateTimeOffset(2026, 6, 26, 15, 0, 0, TimeSpan.Zero)));
@@ -654,12 +654,12 @@ public sealed class ResourceDefinitionGraphBuilderTests
                 endpointName: "http"))
             .MountVolume(volume, "/data");
 
-        var deployment = graph.BuildDeployment("container-app", environmentId: "local");
+        var template = graph.BuildTemplate("container-app", environmentId: "local");
 
-        Assert.Equal(3, deployment.Resources.Count);
-        var hostDefinition = Assert.Single(deployment.Resources, resource =>
+        Assert.Equal(3, template.Resources.Count);
+        var hostDefinition = Assert.Single(template.Resources, resource =>
             resource.TypeId == DockerHostResourceTypeProvider.ResourceTypeId);
-        var appDefinition = Assert.Single(deployment.Resources, resource =>
+        var appDefinition = Assert.Single(template.Resources, resource =>
             resource.TypeId == ContainerApplicationResourceTypeProvider.ResourceTypeId);
         Assert.Equal("docker.host:engine", hostDefinition.EffectiveResourceId);
         Assert.Equal("local", hostDefinition.ResourceAttributeValues[
@@ -698,8 +698,8 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         var result = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
-            .ApplyDeploymentAsync(
-                deployment,
+            .ApplyTemplateAsync(
+                template,
                 new ResourceGraphCommitContext(
                     PrincipalId: "developer",
                     Timestamp: new DateTimeOffset(2026, 6, 26, 16, 0, 0, TimeSpan.Zero)));
@@ -753,12 +753,12 @@ public sealed class ResourceDefinitionGraphBuilderTests
                 endpointName: "http",
                 interval: TimeSpan.FromSeconds(10));
 
-        var deployment = graph.BuildDeployment("project-app", environmentId: "local");
+        var template = graph.BuildTemplate("project-app", environmentId: "local");
 
-        Assert.Equal(4, deployment.Resources.Count);
-        var executable = Assert.Single(deployment.Resources, resource =>
+        Assert.Equal(4, template.Resources.Count);
+        var executable = Assert.Single(template.Resources, resource =>
             resource.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId);
-        var project = Assert.Single(deployment.Resources, resource =>
+        var project = Assert.Single(template.Resources, resource =>
             resource.TypeId == AspNetCoreProjectResourceTypeProvider.ResourceTypeId);
         Assert.Equal("application.executable:worker", executable.EffectiveResourceId);
         Assert.Equal("dotnet", executable.ResourceAttributeValues[
@@ -804,8 +804,8 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         var result = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
-            .ApplyDeploymentAsync(
-                deployment,
+            .ApplyTemplateAsync(
+                template,
                 new ResourceGraphCommitContext(
                     PrincipalId: "developer",
                     Timestamp: new DateTimeOffset(2026, 6, 26, 17, 0, 0, TimeSpan.Zero)));
@@ -830,9 +830,9 @@ public sealed class ResourceDefinitionGraphBuilderTests
             .WithIdentityProviderId("built-in")
             .WithProviderKind("built-in");
 
-        var deployment = graph.BuildDeployment("identity", environmentId: "local");
+        var template = graph.BuildTemplate("identity", environmentId: "local");
 
-        var identity = Assert.Single(deployment.Resources);
+        var identity = Assert.Single(template.Resources);
         Assert.Equal("cloudshell.identity-provisioning:built-in", identity.EffectiveResourceId);
         Assert.Equal(IdentityProvisioningResourceTypeProvider.ProviderId, identity.ProviderId);
         Assert.Equal("Built-in Identity", identity.ResourceAttributeValues[
@@ -844,8 +844,8 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         var result = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
-            .ApplyDeploymentAsync(
-                deployment,
+            .ApplyTemplateAsync(
+                template,
                 new ResourceGraphCommitContext(
                     PrincipalId: "developer",
                     Timestamp: new DateTimeOffset(2026, 6, 26, 18, 0, 0, TimeSpan.Zero)));
@@ -888,12 +888,12 @@ public sealed class ResourceDefinitionGraphBuilderTests
             endpointName: "http",
             name: "application-topology-api-local");
 
-        var deployment = graph.BuildDeployment("application-exposure", environmentId: "local");
+        var template = graph.BuildTemplate("application-exposure", environmentId: "local");
 
-        Assert.Equal(5, deployment.Resources.Count);
-        var service = Assert.Single(deployment.Resources, resource =>
+        Assert.Equal(5, template.Resources.Count);
+        var service = Assert.Single(template.Resources, resource =>
             resource.TypeId == ServiceResourceTypeProvider.ResourceTypeId);
-        var nameMapping = Assert.Single(deployment.Resources, resource =>
+        var nameMapping = Assert.Single(template.Resources, resource =>
             resource.TypeId == NameMappingResourceTypeProvider.ResourceTypeId);
         Assert.Equal("cloudshell.service:application-topology-api-service", service.EffectiveResourceId);
         Assert.Equal("logical", service.ResourceAttributeValues[
@@ -919,8 +919,8 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         var result = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
-            .ApplyDeploymentAsync(
-                deployment,
+            .ApplyTemplateAsync(
+                template,
                 new ResourceGraphCommitContext(
                     PrincipalId: "developer",
                     Timestamp: new DateTimeOffset(2026, 6, 26, 19, 0, 0, TimeSpan.Zero)));
@@ -949,12 +949,12 @@ public sealed class ResourceDefinitionGraphBuilderTests
             .AddLocalVolume("data")
             .WithStorageMedium("local");
 
-        var deployment = graph.BuildDeployment("docker-container", environmentId: "local");
+        var template = graph.BuildTemplate("docker-container", environmentId: "local");
 
-        Assert.Equal(2, deployment.Resources.Count);
-        var container = Assert.Single(deployment.Resources, resource =>
+        Assert.Equal(2, template.Resources.Count);
+        var container = Assert.Single(template.Resources, resource =>
             resource.TypeId == DockerContainerResourceTypeProvider.ResourceTypeId);
-        var volume = Assert.Single(deployment.Resources, resource =>
+        var volume = Assert.Single(template.Resources, resource =>
             resource.TypeId == LocalVolumeResourceTypeProvider.ResourceTypeId);
         Assert.Equal("docker.container:api", container.EffectiveResourceId);
         Assert.Equal("example/api:1.0", container.ResourceAttributeValues[
@@ -969,8 +969,8 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         var result = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
-            .ApplyDeploymentAsync(
-                deployment,
+            .ApplyTemplateAsync(
+                template,
                 new ResourceGraphCommitContext(
                     PrincipalId: "developer",
                     Timestamp: new DateTimeOffset(2026, 6, 26, 20, 0, 0, TimeSpan.Zero)));
@@ -1005,12 +1005,12 @@ public sealed class ResourceDefinitionGraphBuilderTests
             .AddHostConfigurationSource("host-settings")
             .WithSource("host");
 
-        var deployment = graph.BuildDeployment("infrastructure", environmentId: "local");
+        var template = graph.BuildTemplate("infrastructure", environmentId: "local");
 
-        Assert.Equal(4, deployment.Resources.Count);
-        var loadBalancer = Assert.Single(deployment.Resources, resource =>
+        Assert.Equal(4, template.Resources.Count);
+        var loadBalancer = Assert.Single(template.Resources, resource =>
             resource.TypeId == LoadBalancerResourceTypeProvider.ResourceTypeId);
-        var hostConfiguration = Assert.Single(deployment.Resources, resource =>
+        var hostConfiguration = Assert.Single(template.Resources, resource =>
             resource.TypeId == HostConfigurationSourceResourceTypeProvider.ResourceTypeId);
         Assert.Equal("cloudshell.loadBalancer:edge", loadBalancer.EffectiveResourceId);
         Assert.Equal("traefik", loadBalancer.ResourceAttributeValues[
@@ -1026,8 +1026,8 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         var result = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
-            .ApplyDeploymentAsync(
-                deployment,
+            .ApplyTemplateAsync(
+                template,
                 new ResourceGraphCommitContext(
                     PrincipalId: "developer",
                     Timestamp: new DateTimeOffset(2026, 6, 26, 21, 0, 0, TimeSpan.Zero)));
@@ -1074,12 +1074,12 @@ public sealed class ResourceDefinitionGraphBuilderTests
             id: "mapping:api-public",
             name: "API public ingress");
 
-        var deployment = graph.BuildDeployment("host-network", environmentId: "local");
+        var template = graph.BuildTemplate("host-network", environmentId: "local");
 
-        Assert.Equal(3, deployment.Resources.Count);
-        var localHost = Assert.Single(deployment.Resources, resource =>
+        Assert.Equal(3, template.Resources.Count);
+        var localHost = Assert.Single(template.Resources, resource =>
             resource.TypeId == LocalHostNetworkResourceTypeProvider.ResourceTypeId);
-        var network = Assert.Single(deployment.Resources, resource =>
+        var network = Assert.Single(template.Resources, resource =>
             resource.TypeId == VirtualNetworkResourceTypeProvider.ResourceTypeId);
         Assert.Equal("cloudshell.hostNetworking.local:host-local", localHost.EffectiveResourceId);
         Assert.Equal("ready", localHost.ResourceAttributeValues[
@@ -1117,8 +1117,8 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         var result = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
-            .ApplyDeploymentAsync(
-                deployment,
+            .ApplyTemplateAsync(
+                template,
                 new ResourceGraphCommitContext(
                     PrincipalId: "developer",
                     Timestamp: new DateTimeOffset(2026, 6, 27, 10, 0, 0, TimeSpan.Zero)));

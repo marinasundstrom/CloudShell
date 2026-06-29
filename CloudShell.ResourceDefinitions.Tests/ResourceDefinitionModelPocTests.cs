@@ -8,26 +8,26 @@ public sealed class ResourceDefinitionModelPocTests
     [Fact]
     public async Task ModelFlow_CanMoveFromDocumentThroughPersistenceToProjectionAndApplyPlan()
     {
-        var authoredDeployment = new ResourceDeploymentDefinition(
+        var authoredTemplate = new ResourceTemplate(
             "local-app",
             [CreateExecutableDefinition()],
             EnvironmentId: "local");
 
-        var document = JsonSerializer.Serialize(authoredDeployment);
-        var fromDocument = JsonSerializer.Deserialize<ResourceDeploymentDefinition>(document);
+        var document = JsonSerializer.Serialize(authoredTemplate);
+        var fromDocument = JsonSerializer.Deserialize<ResourceTemplate>(document);
 
         Assert.NotNull(fromDocument);
 
         var records = fromDocument.Resources
             .Select(ResourceRecord.FromDefinition)
             .ToArray();
-        var deploymentFromPersistence = new ResourceDeploymentDefinition(
+        var templateFromPersistence = new ResourceTemplate(
             fromDocument.Name,
             records.Select(record => record.ToDefinition()).ToArray(),
             fromDocument.EnvironmentId,
             fromDocument.Metadata);
         var validation = await CreateGraphPipeline().ValidateAsync(
-            deploymentFromPersistence,
+            templateFromPersistence,
             new ResourceDefinitionValidationContext(PrincipalId: "developer"));
 
         Assert.False(validation.HasErrors);

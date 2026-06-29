@@ -42,33 +42,33 @@ public sealed class ResourceModelGraphDefinitionApplyService(
         return new(snapshot, changes, commit);
     }
 
-    public async ValueTask<ResourceModelGraphDefinitionApplyResult> ApplyDeploymentAsync(
-        ResourceDeploymentDefinition deployment,
+    public async ValueTask<ResourceModelGraphDefinitionApplyResult> ApplyTemplateAsync(
+        ResourceTemplate template,
         ResourceGraphCommitContext commitContext,
         CancellationToken cancellationToken = default) =>
-        await ApplyDeploymentAsync(
-            deployment,
+        await ApplyTemplateAsync(
+            template,
             commitContext,
             ResourceModelGraphDefinitionApplyOptions.CreateMissing,
             cancellationToken);
 
-    public async ValueTask<ResourceModelGraphDefinitionApplyResult> ApplyDeploymentAsync(
-        ResourceDeploymentDefinition deployment,
+    public async ValueTask<ResourceModelGraphDefinitionApplyResult> ApplyTemplateAsync(
+        ResourceTemplate template,
         ResourceGraphCommitContext commitContext,
         ResourceModelGraphDefinitionApplyOptions options,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(deployment);
+        ArgumentNullException.ThrowIfNull(template);
         ArgumentNullException.ThrowIfNull(commitContext);
         ArgumentNullException.ThrowIfNull(options);
 
         var effectiveCommitContext = string.IsNullOrWhiteSpace(commitContext.EnvironmentId) &&
-            !string.IsNullOrWhiteSpace(deployment.EnvironmentId)
-                ? commitContext with { EnvironmentId = deployment.EnvironmentId }
+            !string.IsNullOrWhiteSpace(template.EnvironmentId)
+                ? commitContext with { EnvironmentId = template.EnvironmentId }
                 : commitContext;
 
         return await ApplyDefinitionsAsync(
-            deployment.Resources,
+            template.Resources,
             effectiveCommitContext,
             options,
             cancellationToken);

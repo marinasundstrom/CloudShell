@@ -30,7 +30,7 @@ public static class ResourceModelGraphBuilderHostExtensions
         return builder;
     }
 
-    public static IControlPlaneBuilder DefineInitialDeployment(
+    public static IControlPlaneBuilder DefineInitialTemplate(
         this IControlPlaneBuilder builder,
         string name,
         Action<ResourceDefinitionGraphBuilder> configure,
@@ -49,13 +49,13 @@ public static class ResourceModelGraphBuilderHostExtensions
         var graph = new ResourceDefinitionGraphBuilder(convention);
         graph.DefineResources(configure);
         RegisterDeclarations(builder, graph);
-        var deployment = graph.BuildDeployment(
+        var template = graph.BuildTemplate(
             name,
             environmentId,
             metadata);
         builder.Services.AddInMemoryResourceModelGraph(
             ProjectStates(
-                deployment.Resources.Select(ResourceState.FromDefinition),
+                template.Resources.Select(ResourceState.FromDefinition),
                 projectState));
 
         return builder;

@@ -1070,19 +1070,15 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
-    public async Task ResourceModelGraphProcedureProvider_ImportsResourceDefinitionTemplate()
+    public async Task ResourceDefinitionTemplateService_AppliesTemplateWithoutProviderSerialization()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([CreateLocalVolumeState()]);
         services.AddLocalVolumeResourceType();
         services.AddExecutableApplicationResourceType();
         services.AddResourceModelGraphServices();
-        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
-        var provider = serviceProvider
-            .GetServices<IResourceProvider>()
-            .OfType<ResourceModelGraphProcedureProvider>()
-            .Single();
+        var templates = serviceProvider.GetRequiredService<ResourceDefinitionTemplateService>();
         var definition = new ResourceDefinition(
             "api",
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
@@ -1099,41 +1095,35 @@ public sealed class ResourceManagerIntegrationTests
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
             });
-        var template = new ResourceTemplateDefinition(
-            definition.Name,
-            "resource-model",
-            definition.TypeId.ToString(),
-            ["template-volume"],
-            ResourceModelGraphProcedureProvider.ResourceDefinitionTemplateConfigurationVersion,
-            ResourceDefinitionJson.FromValue(definition, JsonSerializerOptions.Web),
-            definition.EffectiveResourceId);
-        var registrations = new RecordingResourceRegistrationStore();
+        var template = new ResourceTemplate(
+            "applications",
+            [
+                definition with
+                {
+                    DependsOn =
+                    [
+                        ResourceReference.DependsOnResourceId(
+                            "storage.volume:data",
+                            typeId: LocalVolumeResourceTypeProvider.ResourceTypeId,
+                            providerId: LocalVolumeResourceTypeProvider.ProviderId)
+                    ]
+                }
+            ],
+            EnvironmentId: "local");
 
-        Assert.True(provider.CanImport(template));
-
-        var result = await provider.ImportAsync(
+        var result = await templates.ApplyTemplateAsync(
             template,
-            new ResourceTemplateImportContext("applications", registrations, ["storage.volume:data"]));
+            new ResourceGraphCommitContext(EnvironmentId: "local", PrincipalId: "developer"));
 
-        Assert.Equal("application.executable:api", result.ResourceId);
-        Assert.Equal("Imported resource model graph resource 'api'.", result.Message);
-        var resource = provider.GetResources()
-            .Single(resource => resource.Id == "application.executable:api");
-        Assert.Equal("application.executable:api", resource.Id);
-        Assert.Equal(["storage.volume:data"], resource.DependsOn);
-        Assert.Equal("API", resource.DisplayName);
-        Assert.Equal("dotnet", resource.ResourceAttributes[
-            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
-
-        var registration = registrations.GetRegistration(resource.Id);
-        Assert.NotNull(registration);
-        Assert.Equal("resource-model", registration.ProviderId);
-        Assert.Equal("applications", registration.ResourceGroupId);
-        Assert.Equal(["storage.volume:data"], registration.DependsOn);
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
 
         var graphModel = serviceProvider.GetRequiredService<ResourceGraphModel>();
         var imported = (await graphModel.GetSnapshotAsync()).Resources
             .Single(resource => resource.EffectiveResourceId == "application.executable:api");
+        Assert.Equal("API", imported.DisplayName);
+        Assert.Equal("dotnet", imported.ResourceAttributes[
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
         var dependency = Assert.Single(imported.StartupDependencies);
         Assert.Equal("storage.volume:data", dependency.Value);
         Assert.Equal(LocalVolumeResourceTypeProvider.ResourceTypeId, dependency.TypeId);
@@ -1388,7 +1378,7 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
-    public async Task ResourceModelGraphDefinitionApplyService_AppliesDeploymentAndCreatesMissingResource()
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesTemplateAndCreatesMissingResource()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
@@ -1396,7 +1386,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var deployment = new ResourceDeploymentDefinition(
+        var template = new ResourceTemplate(
             "local-app",
             [
                 new(
@@ -1410,8 +1400,8 @@ public sealed class ResourceManagerIntegrationTests
             ],
             EnvironmentId: "local");
 
-        var result = await service.ApplyDeploymentAsync(
-            deployment,
+        var result = await service.ApplyTemplateAsync(
+            template,
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 24, 16, 30, 0, TimeSpan.Zero)));
@@ -1423,6 +1413,74 @@ public sealed class ResourceManagerIntegrationTests
         Assert.True(Assert.Single(result.Changes.AcceptedResources).ChangeSet.IsNewResource);
         Assert.Equal("application.executable:api", created.EffectiveResourceId);
         Assert.Equal(new ResourceRevision(1), created.Revision);
+        Assert.Equal("dotnet", created.ResourceAttributes[
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
+    [Fact]
+    public async Task ResourceDefinitionTemplateService_ExportsResourceTemplateFromGraph()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState(), CreateExecutableState()]);
+        services.AddLocalVolumeResourceType();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var templates = serviceProvider.GetRequiredService<ResourceDefinitionTemplateService>();
+
+        var result = await templates.ExportTemplateAsync(
+            "local-app",
+            environmentId: "local");
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.Equal("local-app", result.Template.Name);
+        Assert.Equal("local", result.Template.EnvironmentId);
+        Assert.Equal(
+            ["application.executable:api", "storage.volume:data"],
+            result.Template.Resources
+                .Select(resource => resource.EffectiveResourceId)
+                .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
+                .ToArray());
+        var executable = Assert.Single(result.Template.Resources, resource =>
+            resource.EffectiveResourceId == "application.executable:api");
+        Assert.Equal(
+            "dotnet",
+            executable.ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
+    [Fact]
+    public async Task ResourceDefinitionTemplateService_AppliesResourceTemplateThroughGraphApply()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var templates = serviceProvider.GetRequiredService<ResourceDefinitionTemplateService>();
+        var template = new ResourceTemplate(
+            "local-app",
+            [
+                new(
+                    "api",
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
+                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    {
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
+                    })
+            ],
+            EnvironmentId: "local");
+
+        var result = await templates.ApplyTemplateAsync(
+            template,
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 16, 45, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        var created = Assert.Single(result.Apply.Commit.Snapshot!.Resources);
+        Assert.Equal("application.executable:api", created.EffectiveResourceId);
         Assert.Equal("dotnet", created.ResourceAttributes[
             ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
     }
@@ -1484,13 +1542,13 @@ public sealed class ResourceManagerIntegrationTests
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
             });
-        var deployment = new ResourceDeploymentDefinition(
+        var template = new ResourceTemplate(
             "local-app",
             [initialDefinition],
             EnvironmentId: "local");
 
-        var created = await service.ApplyDeploymentAsync(
-            deployment,
+        var created = await service.ApplyTemplateAsync(
+            template,
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 24, 16, 30, 0, TimeSpan.Zero)));
@@ -1658,10 +1716,10 @@ public sealed class ResourceManagerIntegrationTests
             .AddExecutableApplication("api")
             .WithExecutablePath("dotnet")
             .MountVolume(volume, "App_Data");
-        var deployment = graph.BuildDeployment("local-app", environmentId: "local");
+        var template = graph.BuildTemplate("local-app", environmentId: "local");
 
-        var result = await service.ApplyDeploymentAsync(
-            deployment,
+        var result = await service.ApplyTemplateAsync(
+            template,
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 24, 17, 0, 0, TimeSpan.Zero)));
@@ -1739,8 +1797,8 @@ public sealed class ResourceManagerIntegrationTests
                 port: 5092)
             .MountVolume(volume.EffectiveResourceId, "/data");
 
-        var result = await service.ApplyDeploymentAsync(
-            graph.BuildDeployment("container-app", environmentId: "local"),
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("container-app", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 24, 19, 0, 0, TimeSpan.Zero)));
@@ -1859,8 +1917,8 @@ public sealed class ResourceManagerIntegrationTests
             .AddSqlServer("sql")
             .UseContainerHost(host, DockerHostResourceTypeProvider.ResourceTypeId);
 
-        var result = await service.ApplyDeploymentAsync(
-            graph.BuildDeployment("docker-host-workloads", environmentId: "local"),
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("docker-host-workloads", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 20, 0, 0, TimeSpan.Zero)));
@@ -1960,8 +2018,8 @@ public sealed class ResourceManagerIntegrationTests
                     registryAddress
             });
 
-        var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var result = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "container-app-deployment",
                 [host, registry, app],
                 EnvironmentId: "local"),
@@ -2046,8 +2104,8 @@ public sealed class ResourceManagerIntegrationTests
                 name: "alive",
                 interval: TimeSpan.FromSeconds(10));
 
-        var result = await service.ApplyDeploymentAsync(
-            graph.BuildDeployment("project-app", environmentId: "local"),
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("project-app", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 24, 21, 0, 0, TimeSpan.Zero)));
@@ -2183,8 +2241,8 @@ public sealed class ResourceManagerIntegrationTests
                 [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] = "--urls http://localhost:5010"
             });
 
-        var created = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var created = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "project-app",
                 [initial],
                 EnvironmentId: "local"),
@@ -2241,8 +2299,8 @@ public sealed class ResourceManagerIntegrationTests
             .AddContainerHost("docker")
             .UseDocker();
 
-        var result = await service.ApplyDeploymentAsync(
-            graph.BuildDeployment("container-host", environmentId: "local"),
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("container-host", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 24, 23, 0, 0, TimeSpan.Zero)));
@@ -2300,8 +2358,8 @@ public sealed class ResourceManagerIntegrationTests
             .AddDockerHost("engine")
             .UseLocalDocker();
 
-        var result = await service.ApplyDeploymentAsync(
-            graph.BuildDeployment("docker-host", environmentId: "local"),
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("docker-host", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 3, 0, 0, TimeSpan.Zero)));
@@ -2372,8 +2430,8 @@ public sealed class ResourceManagerIntegrationTests
             .WithImage("example/api:1.0")
             .WithRegistry("registry.local");
 
-        var result = await service.ApplyDeploymentAsync(
-            graph.BuildDeployment("docker-container", environmentId: "local"),
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("docker-container", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 4, 0, 0, TimeSpan.Zero)));
@@ -2454,8 +2512,8 @@ public sealed class ResourceManagerIntegrationTests
                 [DockerContainerResourceTypeProvider.Attributes.EndpointCount] = "2"
             });
 
-        var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var result = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "docker-container",
                 [container],
                 EnvironmentId: "local"),
@@ -2491,8 +2549,8 @@ public sealed class ResourceManagerIntegrationTests
             .WithEndpoint("http://localhost:5138")
             .Build();
 
-        var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var result = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "configuration-store",
                 [configurationStore],
                 EnvironmentId: "local"),
@@ -2570,8 +2628,8 @@ public sealed class ResourceManagerIntegrationTests
         var graph = new ResourceDefinitionGraphBuilder();
         var hostConfiguration = graph.AddHostConfigurationSource("host-settings");
 
-        var result = await service.ApplyDeploymentAsync(
-            graph.BuildDeployment("host-configuration", environmentId: "local"),
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("host-configuration", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 2, 0, 0, TimeSpan.Zero)));
@@ -2647,8 +2705,8 @@ public sealed class ResourceManagerIntegrationTests
             .AddBackendTarget(target, ContainerApplicationResourceTypeProvider.ResourceTypeId)
             .WithProvider("traefik");
 
-        var result = await service.ApplyDeploymentAsync(
-            graph.BuildDeployment("load-balancer", environmentId: "local"),
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("load-balancer", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 4, 0, 0, TimeSpan.Zero)));
@@ -2732,8 +2790,8 @@ public sealed class ResourceManagerIntegrationTests
                 [LoadBalancerResourceTypeProvider.Attributes.Provider] = "traefik"
             });
 
-        var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var result = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "invalid-load-balancer",
                 [network, loadBalancer],
                 EnvironmentId: "local"),
@@ -2772,8 +2830,8 @@ public sealed class ResourceManagerIntegrationTests
                 [NetworkResourceTypeProvider.Attributes.MappingProviders] = "traefik"
             });
 
-        var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var result = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "network",
                 [network],
                 EnvironmentId: "local"),
@@ -2853,8 +2911,8 @@ public sealed class ResourceManagerIntegrationTests
                 [VirtualNetworkResourceTypeProvider.Attributes.MappingProviders] = "cloudshell.loadBalancer:edge"
             });
 
-        var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var result = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "virtual-network",
                 [network],
                 EnvironmentId: "local"),
@@ -2933,8 +2991,8 @@ public sealed class ResourceManagerIntegrationTests
             LocalHostNetworkResourceTypeProvider.ResourceTypeId,
             ProviderId: LocalHostNetworkResourceTypeProvider.ProviderId);
 
-        var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var result = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "local-host-network",
                 [network],
                 EnvironmentId: "local"),
@@ -3048,8 +3106,8 @@ public sealed class ResourceManagerIntegrationTests
                     hostNetworking.EffectiveResourceId
             });
 
-        var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var result = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "host-virtual-network",
                 [hostNetworking, api, network],
                 EnvironmentId: "local"),
@@ -3116,8 +3174,8 @@ public sealed class ResourceManagerIntegrationTests
             MacOSHostNetworkResourceTypeProvider.ResourceTypeId,
             ProviderId: MacOSHostNetworkResourceTypeProvider.ProviderId);
 
-        var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var result = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "macos-host-network",
                 [network],
                 EnvironmentId: "local"),
@@ -3196,8 +3254,8 @@ public sealed class ResourceManagerIntegrationTests
             .AddDnsZone("local")
             .WithProvider("hosts-file");
 
-        var result = await service.ApplyDeploymentAsync(
-            graph.BuildDeployment("dns", environmentId: "local"),
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("dns", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 6, 0, 0, TimeSpan.Zero)));
@@ -3278,8 +3336,8 @@ public sealed class ResourceManagerIntegrationTests
             .WithTargetEndpointName("http")
             .WithExposure("Public");
 
-        var result = await service.ApplyDeploymentAsync(
-            graph.BuildDeployment("name-mapping", environmentId: "local"),
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("name-mapping", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 7, 0, 0, TimeSpan.Zero)));
@@ -3368,8 +3426,8 @@ public sealed class ResourceManagerIntegrationTests
                 [NameMappingResourceTypeProvider.Attributes.TargetEndpointName] = "http"
             });
 
-        var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var result = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "invalid-name-mapping",
                 [target, mapping],
                 EnvironmentId: "local"),
@@ -3421,8 +3479,8 @@ public sealed class ResourceManagerIntegrationTests
             .WithTargetEndpointName("http")
             .WithExposure("Public");
 
-        var result = await service.ApplyDeploymentAsync(
-            graph.BuildDeployment("application-exposure", environmentId: "local"),
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("application-exposure", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 14, 0, 0, TimeSpan.Zero)));
@@ -3489,13 +3547,13 @@ public sealed class ResourceManagerIntegrationTests
         var storageBuilder = graph.AddLocalStorage(
             "local",
             "Data/storage/local");
-        var deployment = graph.BuildDeployment(
+        var template = graph.BuildTemplate(
             "storage",
             environmentId: "local");
-        var storage = Assert.Single(deployment.Resources);
+        var storage = Assert.Single(template.Resources);
 
-        var result = await service.ApplyDeploymentAsync(
-            deployment,
+        var result = await service.ApplyTemplateAsync(
+            template,
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 8, 0, 0, TimeSpan.Zero)));
@@ -3572,12 +3630,12 @@ public sealed class ResourceManagerIntegrationTests
         var volume = storage.AddVolume(
             "data",
             subPath: "data");
-        var deployment = graph.BuildDeployment(
+        var template = graph.BuildTemplate(
             "storage-volume",
             environmentId: "local");
 
-        var result = await service.ApplyDeploymentAsync(
-            deployment,
+        var result = await service.ApplyTemplateAsync(
+            template,
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 9, 0, 0, TimeSpan.Zero)));
@@ -3668,8 +3726,8 @@ public sealed class ResourceManagerIntegrationTests
                 [CloudShellVolumeResourceTypeProvider.Attributes.AccessMode] = "ReadWriteOnce"
             });
 
-        var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var result = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "invalid-storage-volume",
                 [localVolume, volume],
                 EnvironmentId: "local"),
@@ -3710,8 +3768,8 @@ public sealed class ResourceManagerIntegrationTests
             .DependsOnNetwork(network)
             .WithRoutingMode("logical");
 
-        var result = await service.ApplyDeploymentAsync(
-            graph.BuildDeployment("service", environmentId: "local"),
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("service", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 10, 0, 0, TimeSpan.Zero)));
@@ -3809,8 +3867,8 @@ public sealed class ResourceManagerIntegrationTests
                 [ServiceResourceTypeProvider.Attributes.RoutingMode] = "logical"
             });
 
-        var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var result = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "invalid-service",
                 [target, notNetwork, definition],
                 EnvironmentId: "local"),
@@ -3843,8 +3901,8 @@ public sealed class ResourceManagerIntegrationTests
             .WithEndpoint("http://localhost:6138")
             .Build();
 
-        var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var result = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "secrets-vault",
                 [vault],
                 EnvironmentId: "local"),
@@ -3925,8 +3983,8 @@ public sealed class ResourceManagerIntegrationTests
             .WithIdentityProvider("Built-in Identity")
             .WithProviderKind("built-in");
 
-        var result = await service.ApplyDeploymentAsync(
-            graph.BuildDeployment("identity-provisioning", environmentId: "local"),
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("identity-provisioning", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 25, 2, 0, 0, TimeSpan.Zero)));
@@ -4006,8 +4064,8 @@ public sealed class ResourceManagerIntegrationTests
             .MountVolume(volume.EffectiveResourceId, "/var/opt/mssql")
             .DeclareDatabase("appdb", "Application DB", ensureCreated: true);
 
-        var result = await service.ApplyDeploymentAsync(
-            graph.BuildDeployment("sql-app", environmentId: "local"),
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("sql-app", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 24, 20, 0, 0, TimeSpan.Zero)));
@@ -4087,8 +4145,8 @@ public sealed class ResourceManagerIntegrationTests
             .BelongsToServer(server)
             .EnsureCreated();
 
-        var result = await service.ApplyDeploymentAsync(
-            graph.BuildDeployment("sql-database-app", environmentId: "local"),
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("sql-database-app", environmentId: "local"),
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 6, 24, 22, 0, 0, TimeSpan.Zero)));
@@ -4212,8 +4270,8 @@ public sealed class ResourceManagerIntegrationTests
                     ]))
             });
 
-        var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var result = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "container-host",
                 [host, storage, volume, sqlServer],
                 EnvironmentId: "local"),
@@ -4371,8 +4429,8 @@ public sealed class ResourceManagerIntegrationTests
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
             });
 
-        var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var result = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "application-topology",
                 [volume, sqlServer, database, settings, secrets, api],
                 EnvironmentId: "local"),
@@ -4551,8 +4609,8 @@ public sealed class ResourceManagerIntegrationTests
                     })
             });
 
-        var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var result = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "application-topology-project",
                 [volume, sqlServer, database, settings, secrets, api],
                 EnvironmentId: "local"),
@@ -4707,8 +4765,8 @@ public sealed class ResourceManagerIntegrationTests
                     bool.FalseString.ToLowerInvariant()
             });
 
-        var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var result = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "settings-and-secrets",
                 [identity, settings, secrets, api],
                 EnvironmentId: "local"),
@@ -4854,8 +4912,8 @@ public sealed class ResourceManagerIntegrationTests
                     ]))
             });
 
-        var result = await service.ApplyDeploymentAsync(
-            new ResourceDeploymentDefinition(
+        var result = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
                 "local-app",
                 [executable],
                 EnvironmentId: "local"),

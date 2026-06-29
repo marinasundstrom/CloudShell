@@ -1,11 +1,13 @@
 namespace CloudShell.ResourceDefinitions;
 
-public sealed record ResourceDeploymentDefinition(
+public sealed record ResourceTemplate(
     string Name,
     IReadOnlyList<ResourceDefinition> Resources,
     string? EnvironmentId = null,
     IReadOnlyDictionary<string, string>? Metadata = null)
 {
+    public const string CurrentTemplateVersion = "1";
+
     public ResourceDefinitionGraph ToGraph() => new(Resources);
 }
 
@@ -55,19 +57,19 @@ public sealed class ResourceDefinitionGraphValidationPipeline
     }
 
     public ValueTask<ResourceDefinitionGraphValidationPipelineResult> ValidateAsync(
-        ResourceDeploymentDefinition deployment,
+        ResourceTemplate template,
         ResourceDefinitionValidationContext context,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(deployment);
+        ArgumentNullException.ThrowIfNull(template);
         ArgumentNullException.ThrowIfNull(context);
 
-        var effectiveContext = string.IsNullOrWhiteSpace(deployment.EnvironmentId)
+        var effectiveContext = string.IsNullOrWhiteSpace(template.EnvironmentId)
             ? context
-            : context with { EnvironmentId = deployment.EnvironmentId };
+            : context with { EnvironmentId = template.EnvironmentId };
 
         return ValidateAsync(
-            deployment.ToGraph(),
+            template.ToGraph(),
             effectiveContext,
             cancellationToken);
     }

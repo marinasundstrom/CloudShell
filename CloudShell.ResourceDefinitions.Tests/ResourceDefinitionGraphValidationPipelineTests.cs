@@ -6,20 +6,20 @@ namespace CloudShell.ResourceDefinitions.Tests;
 public sealed class ResourceDefinitionGraphValidationPipelineTests
 {
     [Fact]
-    public async Task ValidateAsync_DeploymentDefinition_ValidatesProposedResourceGraph()
+    public async Task ValidateAsync_ResourceTemplate_ValidatesProposedResourceGraph()
     {
         var pipeline = CreateGraphPipeline();
         var worker = CreateExecutableDefinition("worker");
         var api = CreateExecutableDefinition(
             "api",
             dependsOn: [worker.EffectiveResourceId]);
-        var deployment = new ResourceDeploymentDefinition(
+        var template = new ResourceTemplate(
             "local-app",
             [worker, api],
             EnvironmentId: "local");
 
         var result = await pipeline.ValidateAsync(
-            deployment,
+            template,
             new ResourceDefinitionValidationContext(PrincipalId: "developer"));
 
         Assert.False(result.HasErrors);

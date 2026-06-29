@@ -30,8 +30,8 @@ public sealed class ResourceDefinitionRegistrationService(
         var graph = new ResourceDefinitionGraphBuilder(convention);
         graph.Add(resource);
         var definition = graph.BuildGraph().Resources.Single();
-        var result = await definitionApply.ApplyDeploymentAsync(
-            graph.BuildDeployment(
+        var result = await definitionApply.ApplyTemplateAsync(
+            graph.BuildTemplate(
                 $"add-resource:{definition.Name}",
                 environmentId: commitContext?.EnvironmentId),
             commitContext ?? new ResourceGraphCommitContext(),

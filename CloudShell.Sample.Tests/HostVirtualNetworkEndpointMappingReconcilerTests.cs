@@ -77,8 +77,8 @@ public sealed class HostVirtualNetworkEndpointMappingReconcilerTests
 
         var apply = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
-            .ApplyDeploymentAsync(
-                graph.BuildDeployment("host-virtual-network", environmentId: "local"),
+            .ApplyTemplateAsync(
+                graph.BuildTemplate("host-virtual-network", environmentId: "local"),
                 new ResourceGraphCommitContext(
                     PrincipalId: "developer",
                     Timestamp: new DateTimeOffset(2026, 6, 27, 12, 0, 0, TimeSpan.Zero)));

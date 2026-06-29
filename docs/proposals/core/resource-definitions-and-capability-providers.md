@@ -913,7 +913,7 @@ Working plan and progress:
 | Pull health and liveness declarations into the graph model | In progress | The graph model now has a `health.checks` capability payload for HTTP health/liveness declarations, and Resource Manager bridge projections map those declarations to `ResourceHealthCheck` plus the derived `liveness` capability. The ProjectReference graph-backed ASP.NET Core project now declares `/health` and `/alive` through this payload and verifies that Control Plane health refresh can evaluate both probes through the projected endpoint mapping. Configuration Store and Secrets Vault graph providers now declare `/healthz` health and liveness checks on their projected service endpoints, with runtime materialization delegated to provider-local backing-service controllers. Polling, observed snapshots, degradation policy, and recovery decisions remain Control Plane concerns. |
 | Project provider-owned endpoint requests into Resource Manager | In progress | The Resource Manager bridge now accepts an endpoint projection resolver and registered endpoint projection providers, allowing a host or provider integration to translate provider-owned endpoint request attributes into `ResourceEndpoint` and `ResourceEndpointNetworkMapping` projections without making endpoints graph-native primitives. ProjectReference uses this for the graph-backed ASP.NET Core project. |
 | Project provider-owned observability declarations into Resource Manager | In progress | The Resource Manager bridge now accepts an observability resolver and registered observability providers, allowing a host or provider integration to declare Resource Manager logs/traces/metrics support for graph resources. ProjectReference uses this for the graph-backed ASP.NET Core project so telemetry tabs are declared by the runtime integration instead of inferred by the generic graph model. |
-| Re-introduce the resource graph builder | In progress | The POC now has a `ResourceDefinitionGraphBuilder` that builds `ResourceDefinitionGraph` and `ResourceDeploymentDefinition` values, and this API is expected to remain important after the POC as the programmatic declaration surface used while porting providers and later as one of the durable authoring surfaces for Resource Graph declarations. Deployment is a host concern, so the Resource Manager integration exposes host-level `DefineResources(...)` for in-memory host resource declarations by default and `DefineInitialDeployment(...)` for deployment-centered seed declarations with name, environment, and metadata. `DefineInitialDeployment(...)` is intended to behave like an initial seed or migration: it applies only for a fresh host that has no accepted deployments. Both methods use the same resource graph builder and register the resulting initial graph state for the host in the current POC. That means a host can start with `DefineResources(...)` while the graph is still an in-memory programmatic declaration, and later switch the same builder block to `DefineInitialDeployment(...)` when it becomes deployment seed material. The graph builder also has a common base for manual definition builders, and provider-owned Network, Configuration Store, Secrets Vault, Storage, CloudShell Volume, Local Volume, SQL Server, SQL Database, Container Host, Docker Host, Docker Container, Container Application, Executable Application, ASP.NET Core Project, Identity Provisioning, Service, DNS Zone, Name Mapping, Load Balancer, and Host Configuration Source builders. Builders should stay provider-owned and hand-written until multiple resource types prove the conventions that source generation should automate. The preferred programmatic API should be similar enough to the old CloudShell builder pattern to make provider porting and user migration straightforward. Aspire-like extension methods can be supplied as compatibility and convenience layers where they make intent clearer, but the core builder should remain a CloudShell Resource Graph builder and should not fundamentally imitate Aspire or hide CloudShell-specific resource semantics. They are also being used to improve provider test and sample setup by replacing raw attribute dictionaries, configuration payloads, capability payloads, and typed reference payloads with provider-shaped builder calls. SQL tests now use builders for declared database configuration, typed server dependencies, and SQL Server volume mount payloads. Container tests and the ContainerAppDeployment, ReplicatedContainerHealth, and LoadBalancer graph declarations now use builders for host dependencies, endpoint requests, replicas, image settings, load-balancer summaries, and volume mount payloads. Executable/project tests and the ProjectReference graph declarations now use builders for command/project settings, endpoint requests, environment variables, service-discovery references, volume mounts, and health-check payloads. Identity tests and the ThirdPartyIdentity graph provisioning declaration now use builders for provider identity and provider-kind attributes. Exposure tests now use builders for service target/network dependencies, DNS zones, name mappings, load balancers, and host configuration sources. Configuration and secrets builders intentionally declare service resources and endpoints, not entry or secret values. |
+| Re-introduce the resource graph builder | In progress | The POC now has a `ResourceDefinitionGraphBuilder` that builds `ResourceDefinitionGraph` and `ResourceTemplate` values, and this API is expected to remain important after the POC as the programmatic declaration surface used while porting providers and later as one of the durable authoring surfaces for Resource Graph declarations. Resource templates are resource-state artifacts, so the Resource Manager integration exposes host-level `DefineResources(...)` for in-memory host resource declarations by default and `DefineInitialTemplate(...)` for seed declarations with name, environment, and metadata. `DefineInitialTemplate(...)` is intended to behave like an initial seed or migration: it applies only for a fresh host that has no accepted resource graph state. Both methods use the same resource graph builder and register the resulting initial graph state for the host in the current POC. That means a host can start with `DefineResources(...)` while the graph is still an in-memory programmatic declaration, and later switch the same builder block to `DefineInitialTemplate(...)` when it becomes template seed material. The graph builder also has a common base for manual definition builders, and provider-owned Network, Configuration Store, Secrets Vault, Storage, CloudShell Volume, Local Volume, SQL Server, SQL Database, Container Host, Docker Host, Docker Container, Container Application, Executable Application, ASP.NET Core Project, Identity Provisioning, Service, DNS Zone, Name Mapping, Load Balancer, and Host Configuration Source builders. Builders should stay provider-owned and hand-written until multiple resource types prove the conventions that source generation should automate. The preferred programmatic API should be similar enough to the old CloudShell builder pattern to make provider porting and user migration straightforward. Aspire-like extension methods can be supplied as compatibility and convenience layers where they make intent clearer, but the core builder should remain a CloudShell Resource Graph builder and should not fundamentally imitate Aspire or hide CloudShell-specific resource semantics. They are also being used to improve provider test and sample setup by replacing raw attribute dictionaries, configuration payloads, capability payloads, and typed reference payloads with provider-shaped builder calls. SQL tests now use builders for declared database configuration, typed server dependencies, and SQL Server volume mount payloads. Container tests and the ContainerAppDeployment, ReplicatedContainerHealth, and LoadBalancer graph declarations now use builders for host dependencies, endpoint requests, replicas, image settings, load-balancer summaries, and volume mount payloads. Executable/project tests and the ProjectReference graph declarations now use builders for command/project settings, endpoint requests, environment variables, service-discovery references, volume mounts, and health-check payloads. Identity tests and the ThirdPartyIdentity graph provisioning declaration now use builders for provider identity and provider-kind attributes. Exposure tests now use builders for service target/network dependencies, DNS zones, name mappings, load balancers, and host configuration sources. Configuration and secrets builders intentionally declare service resources and endpoints, not entry or secret values. |
 | Port the next provider | Deferred | Continue only after the ASP.NET Core vertical slice proves the provider seam and exposes any needed model changes. Provider selection should favor the next concrete integration question over broad type-count coverage. |
 
 Resource graph declarations are declarative regardless of authoring format.
@@ -925,19 +925,16 @@ in-memory resources, which keeps compatibility with the Aspire-style host
 model where resources are declared in code and exist for the lifetime of that
 host. The Resource Manager integration now automatically creates Resource
 Manager declarations for graph resources defined through `DefineResources(...)`
-and `DefineInitialDeployment(...)`, so samples no longer need to re-declare
+and `DefineInitialTemplate(...)`, so samples no longer need to re-declare
 each graph resource through `cloudShell.Resources(...).Declare(...)` just to
 make it visible to Resource Manager. Host-facing declaration metadata, such as
 resource group assignment and autostart policy, is carried by Resource Manager
 builder extensions like `WithResourceGroup(...)`, `WithAutoStart(...)`, and
 `WithDependencyAutoStart(...)`; it is intentionally not part of the
-`ResourceDefinition` interchange format. `DefineInitialDeployment(...)` is the
-deployment seed path: it can use the same builder but represents an initial
-deployment that should only be applied when the host is fresh and there are no
-accepted deployments yet.
-Later, the host may add an in-memory declared-deployment mode for tests that
-need to exercise deployment semantics on top of the implicit graph created by
-`DefineResources(...)`. That is intentionally deferred; samples use
+`ResourceDefinition` interchange format. `DefineInitialTemplate(...)` is the
+resource-template seed path: it can use the same builder but represents an
+initial resource template that should only be applied when the host is fresh
+and there is no accepted resource graph state yet. Samples use
 `DefineResources(...)` as the current programmatic graph declaration API.
 Provider-managed read-only attributes, such as configuration entry counts and
 secret counts, are not authored into `ResourceDefinition` values. Samples that
@@ -2981,7 +2978,7 @@ When it resolves existing resources or create-missing definitions, the graph
 applier also maps the apply context into `ResourceDefinitionResolutionContext`
 so attribute validators can use the same environment and principal as the
 type-owned apply provider.
-When the caller is applying a deployment document rather than a conservative
+When the caller is applying a resource template rather than a conservative
 overlay update, the applier can be explicitly told to create missing
 resources. In that mode the incoming definition is resolved as a new
 `Resource`, represented as a new-resource `ResourceChangeSet`, passed through
@@ -2994,8 +2991,8 @@ commits the resulting change set through `ResourceGraphModel`. The service
 returns both the staged changes and commit result so Control Plane code can
 inspect provider diagnostics, commit summaries, and version conflicts without
 making the low-level resource model own Resource Manager policy.
-Applying a `ResourceDeploymentDefinition` through the bridge opts into
-creating missing resources because deployment documents describe desired graph
+Applying a `ResourceTemplate` through the bridge opts into
+creating missing resources because resource templates describe desired graph
 state, while direct definition-overlay application keeps creation disabled
 unless the caller requests it.
 
@@ -4337,22 +4334,64 @@ External imports, such as Docker Compose, should translate into CloudShell
 resource definitions or graph drafts. External formats remain input dialects,
 not native CloudShell definition formats.
 
-### Deployment projection
+### Resource template projection
 
-The current graph POC has `ResourceDeploymentDefinition` as a narrow grouping
-of `ResourceDefinition` entries that can be validated and applied together.
+The current graph POC has `ResourceTemplate` as a narrow grouping of
+`ResourceDefinition` entries that can be validated and applied together.
 That is separate from the Resource Manager orchestration types such as
 `ResourceOrchestratorDeploymentSpec` and
 `ResourceOrchestratorDeploymentDefinition`, which describe operational runtime
 deployment state.
 
-A fuller deployment interchange artifact remains a future concern. The concept
-will likely be named either `DeploymentDefinition` or
-`DeploymentSpecification`, and it should be able to contain
-`ResourceDefinition` entries as interchange inputs for resource state. In that
-flow, the deployment-level artifact tells CloudShell which resource state
-changes an actor wants applied, while each resource type provider validates,
-plans, and applies the definition to the resource type it owns.
+The user-facing apply artifact should remain `ResourceDefinition`, either as a
+single definition or as a file/envelope containing multiple definitions. That
+keeps create, update, import, export, and portability on one resource-shaped
+contract instead of creating a special CloudShell template language. The
+resource-template grouping, when present, should tell CloudShell how a set of
+definitions is being applied; it should not redefine the resource state being
+applied.
+
+The intended user experience is:
+
+1. Create or modify resources by applying a resource template containing one or
+   more `ResourceDefinition` entries. UI flows such as "Add resource" produce
+   that template automatically.
+2. Start, stop, pause, restart, or run other resource operations by sending a
+   resource command. Providers may later choose to support equivalent desired
+   state in resource templates, but commands remain the explicit lifecycle
+   surface.
+3. Delete resources through Resource Manager delete operations, with providers
+   and orchestrators handling cleanup as internal implementation detail.
+
+In that flow, the apply artifact tells CloudShell which resource state changes
+an actor wants applied, while each resource type provider validates, plans,
+and applies the definition to the resource type it owns. Resource Manager and
+the orchestrator may then create internal deployment records, orchestrator
+services, replica groups, and runtime resources needed to materialize accepted
+state. Those internal projections are not required knowledge for someone
+authoring a resource file.
+
+The intended layering is:
+
+```text
+Desired state
+(ResourceTemplate)
+    |
+    v
+Resource Graph
+    |
+    v
+Resource Providers
+    |
+    v
+Deployment Planning
+    |
+    v
+Orchestrator
+    |
+    v
+Running System
+```
 
 This makes resource definitions useful before a resource has been persisted as
 accepted inventory. The same interchange envelope can describe a new resource

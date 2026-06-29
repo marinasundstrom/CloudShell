@@ -25,6 +25,13 @@ on `git blame --follow`, and then by the broad type of change.
   scale routing and previous-revision slot retention, and the deployment
   proposal documents both compact container-app update JSON and the normalized
   service definition JSON projection.
+- Resource Definition docs now define the ARM-like authoring boundary:
+  users apply resource definitions directly, while Resource Manager and the
+  orchestrator create internal deployment, service, and replica-group state.
+- Resource Definitions now expose `ResourceTemplate` as the graph-built
+  grouping of `ResourceDefinition` entries, with a Resource Manager graph
+  template service that exports from resolved graph resources and applies
+  templates without provider-specific template serialization.
 - ApplicationTopology and CloudShell.ContainerHost SQL Server Docker cleanup now bounds
   container removal and terminates cancelled Docker CLI processes so host shutdown is
   not held by a stuck `docker rm -f`.
@@ -110,7 +117,7 @@ on `git blame --follow`, and then by the broad type of change.
   common HTTP, HTTPS, TCP, and health-check declarations no longer need to
   hand-author raw endpoint request or health-check payloads.
 - Resource Manager graph host integration now automatically declares resources
-  defined through `DefineResources(...)` and `DefineInitialDeployment(...)`,
+  defined through `DefineResources(...)` and `DefineInitialTemplate(...)`,
   with graph-builder metadata helpers for resource groups and autostart policy.
   ProjectReference, ReplicatedContainerHealth, HostVirtualNetwork,
   CloudShell.ContainerHost, ContainerAppDeployment, LoadBalancer, and
@@ -500,11 +507,11 @@ on `git blame --follow`, and then by the broad type of change.
   and graph DNS publishing are the default path.
 - The Resource Manager host integration now exposes `DefineResources(...)` for
   Aspire-compatible in-memory resource declarations and
-  `DefineInitialDeployment(...)` for seed-like deployment declarations with
+  `DefineInitialTemplate(...)` for seed-like resource template declarations with
   name, environment, and metadata, both backed by
   `ResourceDefinitionGraphBuilder`; samples use `DefineResources(...)` for
-  programmatic in-memory graph declarations while deployment-ready hosts can
-  switch the same builder block to `DefineInitialDeployment(...)`.
+  programmatic in-memory graph declarations while template-ready hosts can
+  switch the same builder block to `DefineInitialTemplate(...)`.
 - SplitHosting, ProjectReference, ContainerAppDeployment, ThirdPartyIdentity,
   ReplicatedContainerHealth, LoadBalancer, SettingsAndSecrets,
   ApplicationTopology, HostVirtualNetwork, and CloudShell.ContainerHost now
@@ -810,7 +817,7 @@ on `git blame --follow`, and then by the broad type of change.
   result through the existing action API.
 - Resource Graph programmatic authoring now starts with a manual
   `ResourceDefinitionGraphBuilder` and a provider-owned Network builder that
-  emits `ResourceDefinition` and `ResourceDeploymentDefinition` values for the
+  emits `ResourceDefinition` and `ResourceTemplate` values for the
   same apply pipeline used by interchange documents.
 - Resource Graph programmatic builders now share common resource id, display
   name, dependency, and attribute emission, and Configuration Store plus

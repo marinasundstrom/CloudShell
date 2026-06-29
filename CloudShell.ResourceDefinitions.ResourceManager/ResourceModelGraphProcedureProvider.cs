@@ -1,4 +1,3 @@
-using System.Text.Json;
 using CloudShell.Abstractions.ResourceManager;
 using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 
@@ -10,12 +9,8 @@ public sealed class ResourceModelGraphProcedureProvider :
     IResourceProcedureProvider,
     IResourceActionAvailabilityProvider,
     IResourceImageUpdateProvider,
-    IResourceReplicaUpdateProvider,
-    IResourceTemplateProvider
+    IResourceReplicaUpdateProvider
 {
-    public const string ResourceDefinitionTemplateConfigurationVersion = "resource-definition.v1";
-
-    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerOptions.Web);
     private static readonly ResourceOperationId ContainerImageUpdateOperationId = "container.image.update";
     private static readonly ResourceOperationId ContainerReplicasUpdateOperationId = "container.replicas.update";
     private static readonly ResourceAttributeId ContainerImageAttributeId = "container.image";
@@ -47,148 +42,6 @@ public sealed class ResourceModelGraphProcedureProvider :
 
     public IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics() =>
         _resourceProvider.GetResourceModelDiagnostics();
-
-    public bool CanExport(ResourceManagerResource resource) =>
-        IsBridgeResource(resource);
-
-    public async Task<ResourceTemplateDefinition> ExportAsync(
-        ResourceManagerResource resource,
-        ResourceTemplateExportContext context,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(resource);
-        ArgumentNullException.ThrowIfNull(context);
-
-        var resolution = await _resourceResolver.ResolveAsync(
-            resource.Id,
-            _resolutionContext,
-            cancellationToken);
-        if (resolution.Target is null)
-        {
-            throw new InvalidOperationException(
-                $"Resource model graph resource '{resource.Id}' could not be resolved.");
-        }
-
-        if (resolution.HasErrors)
-        {
-            throw new InvalidOperationException(FormatDiagnostics(resolution.Diagnostics));
-        }
-
-        var definition = resolution.Target.ToDefinition();
-
-        return new ResourceTemplateDefinition(
-            definition.Name,
-            Id,
-            definition.TypeId.ToString(),
-            definition.StartupDependencyIds,
-            ResourceDefinitionTemplateConfigurationVersion,
-            ResourceDefinitionJson.FromValue(definition, SerializerOptions),
-            definition.EffectiveResourceId);
-    }
-
-    public bool CanImport(ResourceTemplateDefinition template) =>
-        string.Equals(template.ProviderId, Id, StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(
-            template.ProviderConfigurationVersion,
-            ResourceDefinitionTemplateConfigurationVersion,
-            StringComparison.OrdinalIgnoreCase);
-
-    public async Task<ResourceTemplateImportResult> ImportAsync(
-        ResourceTemplateDefinition template,
-        ResourceTemplateImportContext context,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(template);
-        ArgumentNullException.ThrowIfNull(context);
-
-        if (!CanImport(template))
-        {
-            throw new InvalidOperationException("The resource model graph template is not supported.");
-        }
-
-        var definition = template.Configuration.Deserialize<ResourceDefinition>(SerializerOptions)
-            ?? throw new InvalidOperationException("The resource model graph template configuration is invalid.");
-        if (!string.Equals(definition.TypeId.ToString(), template.ResourceType, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException(
-                $"Resource definition type '{definition.TypeId}' does not match template resource type '{template.ResourceType}'.");
-        }
-
-        var resourceId = string.IsNullOrWhiteSpace(template.ResourceId)
-            ? definition.EffectiveResourceId
-            : template.ResourceId.Trim();
-        if (_resourceProvider.GetResources().Any(resource =>
-            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase)))
-        {
-            throw new InvalidOperationException($"Resource id '{resourceId}' is already in use.");
-        }
-
-        var importDefinition = definition with
-        {
-            ResourceId = resourceId,
-            DependsOn = RemapStartupDependencies(definition, template, context)
-        };
-        var result = await _definitionApply.ApplyDefinitionsAsync(
-            [importDefinition],
-            new ResourceGraphCommitContext(),
-            ResourceModelGraphDefinitionApplyOptions.CreateMissing,
-            cancellationToken);
-
-        if (result.HasErrors || !result.IsCommitted)
-        {
-            throw new InvalidOperationException(FormatDiagnostics(result.Diagnostics));
-        }
-
-        await context.Registrations.RegisterAsync(
-            Id,
-            resourceId,
-            context.ResourceGroupId,
-            importDefinition.StartupDependencyIds,
-            cancellationToken);
-
-        return new ResourceTemplateImportResult(
-            resourceId,
-            $"Imported resource model graph resource '{template.Name}'.");
-    }
-
-    private static IReadOnlyList<ResourceReference> RemapStartupDependencies(
-        ResourceDefinition definition,
-        ResourceTemplateDefinition template,
-        ResourceTemplateImportContext context)
-    {
-        var dependencyMap = template.DependsOn
-            .Zip(context.DependsOn)
-            .ToDictionary(pair => pair.First, pair => pair.Second, StringComparer.OrdinalIgnoreCase);
-        var references = new List<ResourceReference>();
-        var dependencyIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var reference in definition.StartupDependencies)
-        {
-            if (reference.TryGetDependsOnResourceId(out var dependency) &&
-                dependencyMap.TryGetValue(dependency, out var mappedDependency))
-            {
-                references.Add(reference with { Value = mappedDependency });
-                dependencyIds.Add(mappedDependency);
-                continue;
-            }
-
-            references.Add(reference);
-            if (reference.TryGetDependsOnResourceId(out dependency))
-            {
-                dependencyIds.Add(dependency);
-            }
-        }
-
-        foreach (var dependency in context.DependsOn)
-        {
-            if (dependencyIds.Add(dependency))
-            {
-                references.Add(ResourceReference.DependsOnResourceId(dependency));
-            }
-        }
-
-        return references;
-    }
 
     public Task<ResourceProcedureResult> DeleteAsync(
         ResourceProcedureContext context,

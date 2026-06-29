@@ -98,27 +98,41 @@ runtime-observed value. Provider-managed or read-only attributes may be
 filtered from interchange output unless a provider explicitly makes them part
 of the authored contract.
 
-## Deployment Groupings
+## Resource Templates
 
-The graph POC currently has `ResourceDeploymentDefinition` as a small grouping
-of `ResourceDefinition` values that can be validated and applied together. It
-is intentionally narrow.
+The graph POC currently has `ResourceTemplate` as a small grouping of
+`ResourceDefinition` values that can be validated and applied together. It is
+intentionally narrow.
 
-A fuller deployment interchange artifact is a separate future concern. The
-concept will likely be named either `DeploymentDefinition` or
-`DeploymentSpecification`, and it may group resource definitions with other
-deployment-centered artifacts, parameters, environment data, resource group
-placement, or rollout policy. It should also stay distinct from the existing
-Resource Manager orchestration types such as
+The public apply model should stay close to Azure ARM in spirit: an actor
+declares resource state and sends one or more `ResourceDefinition` entries to
+Resource Manager. The "Add resource" page produces a `ResourceDefinition` for
+the new resource. Editing an existing resource produces an incremental
+`ResourceDefinition` overlay for that resource. Applying a file with multiple
+resources is the same model with more entries, not a separate template system.
+Any outer grouping is transport and apply metadata around resource
+definitions, not a second resource-state language.
+
+The user experience follows that boundary:
+
+1. To create or modify resources, the UI or caller sends a resource template
+   with one or more `ResourceDefinition` entries to Resource Manager.
+2. To start, stop, pause, restart, or run another resource operation, the caller
+   sends a resource command. A provider may also support applying a resource
+   template whose accepted state implies the same transition, but the command
+   remains the direct operation surface.
+3. To delete a resource, the caller asks Resource Manager to delete that
+   resource. Deletion is not modeled as an orchestrator deployment authored by
+   the user.
+
+The important boundary is that `ResourceDefinition` remains the resource
+interchange unit. A resource template describes how a set of resource
+definitions is authored, grouped, ordered, parameterized, or applied together;
+it should not invent a second resource state model. It should also stay
+distinct from the existing Resource Manager orchestration types such as
 `ResourceOrchestratorDeploymentSpec` and
 `ResourceOrchestratorDeploymentDefinition`, which describe operational runtime
 deployment state.
-
-The important boundary is that `ResourceDefinition` remains the resource
-interchange unit. A deployment grouping or future deployment specification
-describes how a set of resource definitions is authored, grouped, ordered,
-parameterized, or applied together; it should not invent a second resource
-state model.
 
 Operational deployment concepts such as orchestrator services, replica groups,
 and runtime deployment revisions are internal orchestration projections unless
@@ -129,30 +143,48 @@ and replica group it controls.
 
 ## Template Export And Import
 
-The current POC can render graph-backed Resource Manager resources through the
-existing resource group template export API and import those same payloads back
-through the template import path. A graph resource is represented as a template
-resource whose provider is `resource-model`, whose provider configuration
-version is `resource-definition.v1`, and whose `configuration` payload is a
-JSON `ResourceDefinition`.
+The graph POC exports graph-backed Resource Manager resources as
+`ResourceTemplate` values containing `ResourceDefinition` entries. It imports
+the same shape through the graph apply path. The template is desired resource
+state, not an orchestrator deployment artifact.
 
-The name and shape of the outer container for exported and imported resource
-templates remains undecided. It may stay close to the current Resource Manager
-template API or evolve into another artifact shape. The inner resource payload
-should still be based on `ResourceDefinition`, because that format is tied to
-resource shape, validation, and incremental apply semantics.
+The apply flow is:
+
+```text
+Desired state
+(ResourceTemplate)
+    |
+    v
+Resource Graph
+    |
+    v
+Resource Providers
+    |
+    v
+Deployment Planning
+    |
+    v
+Orchestrator
+    |
+    v
+Running System
+```
+
+The name and shape of a file-level resource template container may evolve, but
+the inner resource payload should stay based on `ResourceDefinition`, because
+that format is tied to resource shape, validation, and incremental apply
+semantics.
+Exporting existing resources back to `ResourceDefinition` is the portability
+mechanism: the exported definition can be moved, reviewed, edited, and applied
+again without converting through a special CloudShell template language.
 
 Template import delegates to the graph apply path with create-missing-resource
 semantics. Applying resource definitions remains owned by that graph apply
 path so each resource type provider can validate and accept or reject changes
-before they become graph state.
-
-When template import remaps startup dependencies, the graph bridge should
-preserve the richer `ResourceReference` metadata from the embedded
-`ResourceDefinition` where possible. The template container may translate a
-dependency key to a concrete resource id, but expected resource type,
-provider, relationship, and addressing mode still belong to the graph
-reference.
+before they become graph state. Deployment planning happens after providers
+accept resource intent, so orchestrator services, replica groups, load-balancer
+bindings, and runtime revisions remain internal projections of accepted
+resource graph state.
 
 ## Core Envelope
 

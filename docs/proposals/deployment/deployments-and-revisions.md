@@ -80,13 +80,15 @@ that can contain service routing or loader materialization plus a replica
 group with requested slots for a specific workload version and replicated
 configuration.
 
-As the resource-definition model matures, deployment definitions should be
-able to carry `ResourceDefinition` entries as desired resource state. Resource
-Manager can validate the graph and then call the owning resource type
-providers to plan and apply those definitions. The orchestrator deployment
-remains the runtime materialization record; the resource definitions describe
-the desired state that providers translate into executable, container,
-database, network, storage, or other provider-owned targets.
+As the resource-definition model matures, user-facing apply should start with
+`ResourceDefinition` entries, either individually or grouped in a
+`ResourceTemplate` as desired resource state. Resource Manager validates and
+accepts graph state, then calls the owning resource type providers to plan
+runtime changes. The orchestrator deployment remains the internal runtime
+materialization record derived from accepted resource state; resource
+definitions describe the desired state that providers translate into
+executable, container, database, network, storage, or other provider-owned
+targets.
 
 The Control Plane also records internal orchestrator deployment history for
 apply attempts, successful orchestrator revisions, and failed apply results.
@@ -552,7 +554,12 @@ represent provider-private imperative commands, and it should not be the full
 user-facing resource graph. It should also not become the default file format
 users author. The user-facing apply artifact remains Resource Definition
 state: resources plus provider-owned attributes and definition payloads. The
-orchestrator deployment model is the normalized internal state produced by
+Resource Manager can accept a single resource definition or an envelope of
+multiple definitions. The envelope may carry apply metadata, but it should not
+be a second template language. Add-resource flows, edit-resource flows, and
+file-based apply flows all converge on Resource Definition entries.
+
+The orchestrator deployment model is the normalized internal state produced by
 providers and controllers after that resource intent is accepted. Its durable
 internal shape should be a deployment specification, or deployment definition,
 containing versioned typed service and resource definitions or deltas.
@@ -624,6 +631,22 @@ tracks. Deployment, orchestrator service, and replica group contracts remain
 internal orchestration API concepts unless a later workload-builder scenario
 justifies exposing them deliberately.
 
+The flow is therefore:
+
+1. A user or UI authors a `ResourceDefinition` for a new resource, or an
+   incremental `ResourceDefinition` for an existing resource.
+2. Resource Manager validates the definition with the owning resource type
+   provider and accepts the normalized resource state.
+3. The orchestrator creates or updates an internal deployment record for the
+   accepted resource change when runtime materialization is required.
+4. Provider-owned orchestration translates that deployment into services,
+   replica groups, load-balancer bindings, and runtime resources.
+
+For a container app, the resource itself continues to exist as the user-facing
+API object. It keeps track of the internal orchestrator service that
+materializes it, but callers still interact with the container app definition:
+image, replicas, ports, references, volumes, and other app-owned state.
+
 For simple changes, the caller should be able to submit an incremental
 resource patch that says what changed, such as a new image or a new replica
 count:
@@ -638,7 +661,7 @@ count:
       "definitionVersion": "1",
       "attributes": {
         "container.image": "ghcr.io/example/api:20260629.1",
-        "container.replicas": "3"
+        "container.replicas": 3
       }
     }
   ]
