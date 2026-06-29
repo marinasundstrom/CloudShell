@@ -2075,6 +2075,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app deployment description now lives in
   `ContainerApplicationDeploymentDescriptionOperations`, separating
   Resource Manager deployment shape projection from runtime service execution.
+- Container app orchestrator deployment planning is now a provider-owned
+  service consumed by deployment description operations, so the internal
+  deployment-controller boundary can be extended without static helpers.
 - Container app orchestrator service description now lives in
   `ContainerApplicationOrchestratorServiceDescriptionOperations`, separating
   Resource Manager service capability and service shape creation from runtime
