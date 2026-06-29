@@ -62,6 +62,13 @@ on `git blame --follow`, and then by the broad type of change.
 - The refactoring tracker now records `ResourceDefinitions` as the POC package
   name and defers package renaming until after the old provider model has been
   removed.
+- The old Applications, Configuration, and Docker provider implementation
+  folders and their excluded legacy tests have been removed after active hosts,
+  samples, services, solution files, and tests moved to the ResourceDefinitions
+  reference-provider stack.
+- README, programmatic resource docs, and application resource docs now point
+  at graph-backed ResourceDefinition reference providers instead of the deleted
+  legacy provider packages.
 - ApplicationTopology sample smoke assertions now match the ResourceDefinition
   model for ad-hoc volumes and name mappings instead of expecting the old
   storage-wrapper resource projection.

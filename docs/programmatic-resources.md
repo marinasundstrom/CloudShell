@@ -1,29 +1,37 @@
 # Programmatic Resources
 
 CloudShell resources can be declared in code as an alternative to the Add
-Resource UI. Declarations are a Control Plane concern: install the providers you
-need in the Control Plane host, then declare provider-specific resources inside
-`Resources`. This lets a host check in its baseline configuration
-instead of relying on every developer or operator to add the same resources by
-hand.
+Resource UI or a serialized `ResourceTemplate`. Declarations are a Control
+Plane concern: install the resource types you need in the Control Plane host,
+then declare `ResourceDefinition` entries through the Resource model builder.
+This lets a host check in its baseline configuration instead of relying on
+every developer or operator to add the same resources by hand.
 
 For local development, those declarations commonly live in a combined host
 application that runs both the Control Plane and the CloudShell UI in one
 process. In that shape, declared executable, project, and container-backed
 resources can run from the same host process context, but they are still
 managed by the same local Control Plane. The declarations and lifecycle policy
-belong to the Control Plane; the host process composes the environment and gives
-provider implementations local process context to work from.
+belong to the Control Plane; the host process composes the environment and
+registers runtime adapter implementations for the installed providers.
 
 ```csharp
-var controlPlane = builder
-    .AddCloudShell()
-    .AddConfigurationProvider()
-    .AddSecretsProvider()
-    .AddApplicationProvider()
-    .UseDocker();
+using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
+using CloudShell.ResourceDefinitions.ResourceManager;
 
-controlPlane.Resources(resources =>
+var cloudShell = builder.AddCloudShellControlPlane();
+builder.AddCloudShell();
+
+builder.Services
+    .AddConfigurationStoreResourceType()
+    .AddSecretsVaultResourceType()
+    .AddExecutableApplicationResourceType()
+    .AddAspNetCoreProjectResourceType()
+    .AddLocalContainerApplicationResourceTypes()
+    .AddDockerContainerResourceType();
+
+cloudShell.DefineResources(resources =>
 {
     resources
         .AddConfigurationStore("example")
@@ -34,60 +42,42 @@ controlPlane.Resources(resources =>
             new("SampleSecret", "local-development-secret", IsSecret: true)
         ]);
 });
+
+cloudShell.UseResourceGraphIntegration();
 ```
 
-Provider packages expose specialized extension methods for their own resource
-types. Built-in methods include:
+ResourceDefinitions reference providers expose specialized extension methods
+for their own resource types. Current reference-provider methods include:
 
-- `AddNetwork(...)` and `AddService(...)` from the core Resource Manager.
-- `AddConfigurationStore(...)` from `CloudShell.Providers.Configuration`.
-- `AddSecretsVault(...)` from `CloudShell.Providers.Configuration`.
-- `AddExecutable(...)`, `AddExecutableApplication(...)`,
-  and `AddAspNetCoreProject(...)` from `CloudShell.Providers.Applications`.
-  Executable builders configure command execution; project builders can also
-  attach container execution metadata.
-- `AddContainer(...)` from `CloudShell.Providers.Applications`.
-- `AddDocker(...)` from `CloudShell.Providers.Docker` when Docker should be an
-  explicit managed resource.
+- `AddConfigurationStore(...)` from the configuration-store reference
+  provider.
+- `AddSecretsVault(...)` from the secrets-vault reference provider.
+- `AddExecutableApplication(...)` from the executable application reference
+  provider.
+- `AddAspNetCoreProject(...)` from the ASP.NET Core project reference
+  provider.
+- `AddContainerApplication(...)` from the container application reference
+  provider.
+- `AddDockerHost(...)` and Docker container declarations from the Docker host
+  and container reference providers.
 
-Common workload builder contracts live in `CloudShell.Abstractions`.
-`IResourceDeclarationBuilder` is the provider-facing declaration entry point
-for `ConfigureResources(...)` and `AddResources(...)`. `IResourceBuilder` is
-the common graph builder returned by generic declarations.
-`IExecutableResourceBuilder`, `IProjectResourceBuilder`, and
-`IContainerResourceBuilder` describe authoring affordances for executable,
-project, and container-backed resources. Provider packages still own the
-extension methods and builder implementations that translate those calls into
-uniform `Resource` projections plus provider-owned configuration.
+The active authoring shape is a `ResourceTemplate` or builder-created
+`ResourceDefinition` list. Provider packages own the extension methods and
+builder implementations that translate fluent calls into uniform resource
+definitions with provider-owned attributes and relationships.
 
-For built-in application resources, those builders feed the shared
-application-resource infrastructure. The declaration describes the stable
-resource and its runtime intent; the application provider handles common
-process and container lifecycle management, log capture, runtime state, and
-host-scoped cleanup. A single application resource can be backed by multiple
-executables or containers, and provider or orchestrator sub-resources should
-remain contained under the application resource unless the user intentionally
-models them as independent resources. See
-[Application resources](resources/application-resources.md).
+For built-in application resources, those definitions describe the stable
+resource and its runtime intent. Reference providers handle projection and
+operation semantics, while the host/runtime supplies adapter implementations
+for local process, project, Docker, networking, configuration, secrets, and
+orchestration behavior. See [Application resources](resources/application-resources.md).
 
-Application-like provider packages can reuse the first shared application
-provider seam by subclassing `ApplicationResourceTypeProvider` and supplying an
-`ApplicationResourceProjection` for their own resource type. The shared
-projection source keeps custom application resources on the same declaration,
-template, lifecycle, log, monitoring, and orchestration descriptor path as the
-built-in application providers while the custom provider keeps its own provider
-identity and resource type. The base provider depends on separate
-provider-facing contracts for definitions, procedures, templates,
-declarations, descriptors, and action availability; specialized providers can
-add only the role-specific contracts they need instead of depending on the
-whole built-in application provider facade.
-
-The intended end state is a set of composable application-resource primitives:
-an external provider declares its stable resource, chooses whether the runtime
-is a local executable, ad-hoc container, or managed sub-resource set, and then
-uses default services for the common lifecycle, logs, telemetry, endpoint,
-health, liveness, configuration, storage, and cleanup behavior. Provider
-authors should only implement the parts that make their resource distinct.
+The intended end state is a set of composable Resource model primitives: an
+external provider declares its stable resource, chooses whether the runtime is
+a local executable, project, container, or managed sub-resource set, and then
+uses adapter contracts for common lifecycle, logs, telemetry, endpoint, health,
+liveness, configuration, storage, and cleanup behavior. Provider authors should
+only implement the parts that make their resource distinct.
 
 ## Declarative Resource Graph
 
@@ -254,19 +244,21 @@ Application resources also expose basic Aspire-compatible observability. When
 enabled, CloudShell marks the resource as log-, trace-, and metric-capable and
 injects standard `OTEL_*` variables when the resource starts. Generated
 observability variables are applied before explicit resource environment
-variables, so `WithEnvironment("OTEL_EXPORTER_OTLP_ENDPOINT", "...")` can
-override provider defaults for a single resource.
+variables, so `WithEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT", "...")`
+can override provider defaults for a single resource.
 
 ```csharp
 resources
     .AddAspNetCoreProject(
         "api",
         "src/API/API.csproj")
-    .WithOtlpExporter("http://localhost:4317");
+    .WithRuntimeMonitoring()
+    .WithEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317");
 
 resources
-    .AddContainer("worker", "example/worker:dev")
-    .WithObservability(false);
+    .AddContainerApplication("worker")
+    .WithImage("example/worker:dev")
+    .WithRuntimeMonitoring();
 ```
 
 Applications can depend on any declared resource builder, including sub-resources

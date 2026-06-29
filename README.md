@@ -119,9 +119,9 @@ represented through the same resource model.
 - `CloudShell.ConfigurationService`: standalone ASP.NET Core configuration service application.
 - `CloudShell.Secrets.Client`: SDK client and `IConfiguration` integration for Secrets Vault service APIs.
 - `CloudShell.Persistence`: EF Core SQLite or SQL Server persistence for resources and local Identity.
-- `CloudShell.Providers.Applications`: extension for executable application resources on a local development machine.
-- `CloudShell.Providers.Configuration`: extension for local configuration service resources.
-- `CloudShell.Providers.Docker`: reference extension for local Docker Engine and containers.
+- `CloudShell.ResourceDefinitions`: experimental Resource model and ResourceDefinition graph contracts.
+- `CloudShell.ResourceDefinitions.ReferenceProviders`: reference resource providers for local development resources.
+- `CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager`: Resource Manager integration for graph-backed providers.
 - `CloudShell.Abstractions.Tests`: extension registration and validation tests.
 
 ## Contributing

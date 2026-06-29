@@ -354,19 +354,19 @@ the graph-backed tests that cover the same resource path.
   or `CloudShell.Providers.Docker`. It installs ResourceDefinitions reference
   providers and graph Resource Manager integration by default.
 - [x] `CloudShell.ConfigurationStoreService` and
-  `CloudShell.SecretsVaultService` still reference
+  `CloudShell.SecretsVaultService` referenced
   `CloudShell.Providers.Configuration` for old DTOs. Move the service file
   contracts to service-local DTOs or shared ResourceDefinitions runtime
   contracts, then remove the old project reference.
-- [x] `samples/ApplicationTopology/Host` still references the old
+- [x] `samples/ApplicationTopology/Host` referenced the old
   Configuration and Docker provider projects. Verify whether these are stale
   project references/usings after the ResourceDefinitions sample migration,
   remove them, and run ApplicationTopology graph smoke coverage.
-- [x] `samples/CloudShell.ContainerHost` still references the old Docker
+- [x] `samples/CloudShell.ContainerHost` referenced the old Docker
   provider project. Verify whether the sample-local Docker bridge already
   covers the runtime behavior, remove the stale dependency, and run
   ContainerHost graph smoke coverage.
-- [ ] `CloudShell.Abstractions.Tests` still contains broad tests for the old
+- [x] `CloudShell.Abstractions.Tests` contained broad tests for the old
   provider model. Move behavior that must survive to
   `CloudShell.ResourceDefinitions.Tests` or sample tests, then delete tests
   that only preserve old provider registration/template behavior. Removing the
@@ -375,9 +375,9 @@ the graph-backed tests that cover the same resource path.
   references rather than declaring their own boundary.
 - [x] Remove `CloudShell.Providers.Applications`,
   `CloudShell.Providers.Configuration`, and `CloudShell.Providers.Docker` from
-  `CloudShell.sln` once no active host, sample, or service project references
-  them.
-- [ ] Audit old provider folders and excluded old-provider tests as the
+  `CloudShell.sln` and `CloudShell.slnx` once no active host, sample, or
+  service project references them.
+- [x] Audit old provider folders and excluded old-provider tests as the
   migration backlog for the new provider packages. Move forward only reusable
   runtime/toolkit pieces that the ResourceDefinitions providers still need:
   local process execution, container command helpers, log parsing, runtime
@@ -389,6 +389,10 @@ the graph-backed tests that cover the same resource path.
   stores, template serializers, registration pages, direct host/runtime
   dependencies, or `ApplicationResourceDefinition` as the public declaration
   shape.
+- [x] Delete the old `CloudShell.Providers.Applications`,
+  `CloudShell.Providers.Configuration`, and `CloudShell.Providers.Docker`
+  implementation folders after active hosts, samples, services, solution files,
+  and tests moved off them.
 - [ ] Keep `CloudShell.Providers.DockerCompose` out of this deletion pass
   unless it starts exposing the old resource provider model. It is currently an
   orchestrator/provider integration, not one of the old resource-provider

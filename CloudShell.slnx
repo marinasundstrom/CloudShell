@@ -95,9 +95,6 @@
   <Project Path="CloudShell.UI.Composition.Blazor/CloudShell.UI.Composition.Blazor.csproj" />
   <Project Path="CloudShell.UI.Composition.Tests/CloudShell.UI.Composition.Tests.csproj" />
   <Project Path="CloudShell.UI.Composition/CloudShell.UI.Composition.csproj" />
-  <Project Path="CloudShell.Providers.Applications/CloudShell.Providers.Applications.csproj" />
-  <Project Path="CloudShell.Providers.Configuration/CloudShell.Providers.Configuration.csproj" />
-  <Project Path="CloudShell.Providers.Docker/CloudShell.Providers.Docker.csproj" />
   <Project Path="CloudShell.Providers.DockerCompose/CloudShell.Providers.DockerCompose.csproj" />
   <Project Path="CloudShell.Providers.Traefik/CloudShell.Providers.Traefik.csproj" />
   <Project Path="CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager/CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.csproj" />
