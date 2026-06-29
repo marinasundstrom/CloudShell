@@ -9,6 +9,34 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-06-29
+
+### ADR-20260629-001: Name the environment resource and runtime models
+
+CloudShell should use **Environment Resource Model** for the lighter host
+environment model that contains resources, dependencies, endpoints, and
+endpoint mappings or names. This is the model most users need when asking what
+resources run in an environment and how they connect.
+
+CloudShell should use **Environment Runtime Model** for the fuller management
+and orchestration model of the same environment. This model contains
+environment artifacts: resources, orchestration services, replica groups,
+replicas, routing bindings, retained or superseded runtime revisions, and
+environment revisions.
+
+Services, replica groups, replicas, and routing bindings are environment
+artifacts in the Environment Runtime Model. They are not only deployment
+internals. A deployment definition may define, update, replace, or retire
+those artifacts, and an environment revision records the versioned outcome of
+that realization.
+
+The canonical vocabulary lives in
+[CloudShell Terminology](docs/terminology.md). Domain, resource, architecture,
+proposal, and roadmap docs should link to that document instead of redefining
+shared terms locally.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ## 2026-06-24
 
 ### ADR-20260624-001: Prove resource definitions in an isolated experimental project

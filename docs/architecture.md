@@ -10,6 +10,8 @@ not the same as design or implementation. Design documents explain how the
 architecture is expressed in APIs, UI flows, validation, and behavior.
 Implementation and project-structure documents describe the concrete assemblies,
 folders, components, services, and migration steps used to realize that design.
+For canonical product and domain vocabulary, see
+[CloudShell Terminology](terminology.md).
 
 ## Application surfaces
 

@@ -10,6 +10,8 @@ resource modeling, and implementation choices.
 
 For a concept-by-concept explanation of the domain model, abstraction levels,
 and API projection, see [Domain model](domain-model.md).
+For canonical product and domain vocabulary, see
+[CloudShell Terminology](terminology.md).
 For artifact-by-artifact implementation and verification expectations, see
 [Artifact implementation guidelines](artifact-implementation-guidelines.md).
 For active cross-cutting boundary cleanup, see the living

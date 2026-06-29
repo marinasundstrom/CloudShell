@@ -17,6 +17,7 @@ Plane API.
 
 Useful references:
 
+- [CloudShell Terminology](terminology.md)
 - [Domain model](domain-model.md)
 - [Resource capabilities](capabilities.md)
 - [System design guidelines](system-design-guidelines.md)
@@ -668,8 +669,20 @@ listed here before pulling in broader proposal work.
 - The Environment page now includes an interactive environment state map that
   projects resources, orchestrator service boundaries, active replica groups,
   load-balancer routes, name mappings, and routing bindings from current
-  Resource Manager state. Follow-up work should feed it richer controller
-  state as service routing rebinding becomes reactive.
+  Resource Manager state. Treat those services, replica groups, replicas, and
+  routing bindings as
+  [environment artifacts](terminology.md#environment-artifact) in the
+  [Environment Runtime Model](terminology.md#environment-runtime-model), not
+  merely as deployment internals. Follow-up work should feed it richer
+  controller state as service routing rebinding becomes reactive.
+  Next refinement slices should keep the service boundary as the primary
+  visual unit, render managed workload resources such as container apps as
+  attached cards on their orchestration service group, nest replica groups and
+  replica resources inside that boundary, and show load balancers only when a
+  load balancer is represented by an actual CloudShell resource. As the runtime
+  model becomes more complete, extend the map with live deployment and scaling
+  state: revision switch-over, retained previous replica groups, readiness,
+  draining, route rebinding, and failure or rollback progress.
 - Treat programmatic declarations as the normal starting point for local
   distributed-app development, and `Persist()` as the handoff into
   Control Plane-owned environment state. `Persist()` is not deployment: it

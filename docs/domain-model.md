@@ -7,6 +7,8 @@ API.
 For the focused definition of what a CloudShell resource is, how resources
 relate to services, and how the resource object model maps endpoint and
 relationship concepts, see [Resource model](resource-model.md).
+For canonical product and domain vocabulary, see
+[CloudShell Terminology](terminology.md).
 
 CloudShell deliberately uses different levels of abstraction, but those levels
 should use the same established concepts. Internal Control Plane services are
@@ -55,25 +57,14 @@ other.
 ### Resource and service terminology
 
 CloudShell is a resource-oriented model over infrastructure that often provides
-network-addressable services. Use these terms deliberately:
-
-- **Resource**: the CloudShell management artifact. A resource is what the
-  Control Plane registers, authorizes, groups, displays, operates, and exposes
-  through the Resource Manager and Control Plane API.
-- **Service**: the runtime or infrastructure capability contained in or
-  provided by a resource, such as a Web API, SQL Server process, DNS publisher,
-  load-balancer runtime, identity provisioner, configuration API, or Secrets
-  Vault API.
-- **Service resource**: the specific `cloudshell.service` resource kind. It is
-  a resource that can model a service facade, service unit, imported service,
-  or advanced routing target. It is not a synonym for every resource that
-  provides a service.
-
-When in doubt, use **resource** for the thing CloudShell manages and **service**
-for the capability, process, API, or runtime behavior behind that resource.
-For example, a container app resource may provide an application service, and a
-SQL Server resource may provide a database service, but both are still
-resources in the CloudShell model.
+network-addressable services. The canonical definitions of **resource**,
+**service**, and **service resource** live in
+[CloudShell Terminology](terminology.md#resource-terms). Use those terms
+deliberately. When in doubt, use **resource** for the thing CloudShell manages
+and **service** for the capability, process, API, or runtime behavior behind
+that resource. For example, a container app resource may provide an application
+service, and a SQL Server resource may provide a database service, but both are
+still resources in the CloudShell model.
 
 ### Resource
 
@@ -271,6 +262,63 @@ relationship integrity. The stable user-facing resource remains the
 application, storage resource, load balancer, or other modeled resource that
 owns the behavior.
 
+The **[Environment Resource Model](terminology.md#environment-resource-model)**
+starts with a host environment that runs
+resources. It answers what is in the environment, which resources depend on
+each other, how endpoints connect, which endpoint mappings or names expose
+those endpoints when present, and which resources the user can inspect or
+operate. CloudShell also has an
+**[Environment Runtime Model](terminology.md#environment-runtime-model)** for
+the same environment: the runtime realization that Resource Manager and
+orchestrators materialize. In that model,
+**[environment artifacts](terminology.md#environment-artifact)** include resources plus
+orchestration artifacts such as service boundaries, replica groups,
+materialized replicas, routing bindings, retained previous revisions, and
+other runtime state. These artifacts are not only deployment internals. A
+deployment may define, change, or retire services, replica groups, replicas,
+and routing artifacts, while environment revisions record the versioned outcome
+of those changes. The Environment Runtime Model is often less important to
+application developers than the Environment Resource Model, but it becomes
+important for operations, diagnostics, deployment progress, scaling behavior,
+versioning the environment, and understanding why a running system changed.
+
+```mermaid
+flowchart TB
+    host["Host environment"]
+
+    subgraph resourceModel["Environment Resource Model"]
+        resources["Resources"]
+        dependencies["Dependencies"]
+        endpoints["Endpoints"]
+        mappings["Endpoint mappings and names"]
+    end
+
+    subgraph runtimeModel["Environment Runtime Model"]
+        runtimeResources["Resources"]
+        services["Orchestration services"]
+        replicaGroups["Replica groups"]
+        replicas["Replicas"]
+        routing["Routing bindings"]
+        revisions["Environment revisions"]
+    end
+
+    host --> resources
+    resources --> dependencies
+    resources --> endpoints
+    endpoints --> mappings
+
+    host --> runtimeResources
+    runtimeResources --> services
+    services --> replicaGroups
+    replicaGroups --> replicas
+    services --> routing
+    revisions --> runtimeResources
+    revisions --> services
+    revisions --> replicaGroups
+    revisions --> replicas
+    revisions --> routing
+```
+
 The default orchestration mode is managing standalone resources. A resource
 provider can expose lifecycle procedures for a single executable, container,
 database helper, volume, network, host, or other runtime resource where the
@@ -318,6 +366,44 @@ ReplicaSet copied into the CloudShell domain model. The structure is
 intentionally similar only where the problem is similar: CloudShell tracks
 resource instances as the materialized units instead of introducing a pod
 concept.
+
+Resource Manager may still visualize this internal orchestration state when it
+helps explain a running environment. A container app should appear in the
+environment map as a managed orchestration service boundary rather than as a
+separate peer node beside that service. The service group is the primary visual
+unit; the container app resource identity can be shown as an attached
+managed-resource card on that group so users understand which user-facing
+resource owns the runtime service. Replica groups should appear as nested
+groups inside the service boundary, with materialized replica resources inside
+their replica group. Load balancers, routes, and other routing participants
+should be shown only when they are represented by actual CloudShell resources
+or explicit routing artifacts; otherwise the visualization should defer them
+until the runtime model projects those facts.
+
+```mermaid
+flowchart TB
+    app["Container app resource"]
+
+    subgraph service["Orchestration service boundary"]
+        card["Managed-resource card: Container app"]
+        group["Replica group"]
+        replica1["Replica 1"]
+        replica2["Replica 2"]
+        replica3["Replica 3"]
+    end
+
+    lb["Load balancer resource"]
+    route["Routing binding or route"]
+
+    app -. "owns runtime service" .-> card
+    card -. "identifies owner" .-> app
+    card --> group
+    group --> replica1
+    group --> replica2
+    group --> replica3
+    lb --> route
+    route --> group
+```
 
 The orchestrator deployment and revision abstractions are the shared lower
 layer for applying runtime intent inside Resource Manager. Resource Manager is

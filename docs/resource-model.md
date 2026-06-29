@@ -6,6 +6,8 @@ objects such as endpoints, mappings, actions, capabilities, ownership metadata,
 and attributes fit together.
 
 For broader product concepts, see [Domain model](domain-model.md).
+For canonical product and domain vocabulary, see
+[CloudShell Terminology](terminology.md).
 For the Resource Graph POC interchange shape, see
 [Resource Definition Structure](resource-definition-structure.md).
 

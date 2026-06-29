@@ -1184,6 +1184,59 @@ reference, and route or mapping id. That keeps the default orchestrator an
 abstraction over potential runtime backends instead of exposing any one
 backend's selector model as the CloudShell domain model.
 
+The Resource Manager environment map should project this internal runtime state
+as service grouping, not as a second user-authored resource model. The
+[Environment Runtime Model](../../terminology.md#environment-runtime-model) has
+[environment artifacts](../../terminology.md#environment-artifact): resources,
+orchestration services, replica groups, replicas, routing bindings, and other
+materialized runtime state. Deployment is one way to define or change those
+artifacts, but the artifacts exist as part of the environment realization and
+can be versioned by environment revisions independently of a single deployment
+request. A managed workload such as a container app can be rendered as an
+orchestration service boundary with an attached resource card that identifies
+the container app. The resource and service therefore read as one operational
+unit: the resource is the stable user-facing handle, while the service
+boundary contains the runtime implementation. Replica groups should be nested
+inside that boundary, and materialized replica resources should be nested
+inside the replica group that owns their requested slot or revision. The map
+can later add richer live controller state, such as deployment progress,
+scale-out/scale-in, retained previous revisions, readiness, draining, and
+route switch-over, without making deployment, service, or replica-group
+artifacts part of resource authoring. Load-balancer nodes should appear only
+when a load balancer is projected as an actual CloudShell resource; otherwise
+routing can remain an edge or binding until the Environment Runtime Model
+exposes a resource-backed participant.
+
+```mermaid
+flowchart LR
+    desired["Desired state change"]
+    deployment["Deployment definition"]
+    orchestrator["Orchestrator apply"]
+    revision["Environment revision"]
+
+    subgraph artifacts["Environment artifacts"]
+        resources["Resources"]
+        services["Orchestration services"]
+        replicaGroups["Replica groups"]
+        replicas["Replicas"]
+        routing["Routing bindings"]
+    end
+
+    desired --> deployment
+    deployment --> orchestrator
+    orchestrator --> resources
+    orchestrator --> services
+    orchestrator --> replicaGroups
+    orchestrator --> replicas
+    orchestrator --> routing
+
+    resources --> revision
+    services --> revision
+    replicaGroups --> revision
+    replicas --> revision
+    routing --> revision
+```
+
 ## Resource Relationship
 
 User-managed resources should not directly manage replica creation.

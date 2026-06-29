@@ -75,8 +75,9 @@ Resources represent things CloudShell can manage, such as applications,
 containers, databases, networks, storage, identities, configuration services,
 and infrastructure components.
 
-See [Resource model](docs/resource-model.md) for the resource/service
-terminology, projected object model, endpoint mappings, and ownership rules.
+See [CloudShell Terminology](docs/terminology.md) for canonical vocabulary and
+[Resource model](docs/resource-model.md) for the projected object model,
+endpoint mappings, and ownership rules.
 
 ### Resource Providers
 
@@ -185,6 +186,7 @@ dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj -
 - [Why CloudShell](docs/why-cloudshell.md)
 - [CloudShell and Aspire](docs/cloudshell-and-aspire.md)
 - [Domain model](docs/domain-model.md)
+- [CloudShell Terminology](docs/terminology.md)
 - [System design guidelines](docs/system-design-guidelines.md)
 - [Roadmap](docs/roadmap.md)
 - [Architecture decision log](ADR.md)
