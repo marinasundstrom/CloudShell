@@ -54,6 +54,14 @@ on `git blame --follow`, and then by the broad type of change.
   Configuration or Docker provider projects, and the old Applications,
   Configuration, and Docker provider projects have been removed from the active
   solution build while their folders remain as migration inventory.
+- ResourceDefinitions provider guidance now records the provider/runtime
+  adapter boundary in ADR-20260629-002: providers own resource semantics and
+  call focused adapter interfaces, while hosts, samples, or default runtime
+  packages register concrete process, Docker, filesystem, networking, sidecar,
+  or orchestration implementations.
+- The refactoring tracker now records `ResourceDefinitions` as the POC package
+  name and defers package renaming until after the old provider model has been
+  removed.
 - ApplicationTopology sample smoke assertions now match the ResourceDefinition
   model for ad-hoc volumes and name mappings instead of expecting the old
   storage-wrapper resource projection.

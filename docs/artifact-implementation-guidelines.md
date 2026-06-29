@@ -32,6 +32,11 @@ verification path.
   provider coordination.
 - Providers own provider-specific configuration, runtime state, external
   system calls, and provider template payloads.
+- Providers must access concrete host/runtime behavior through focused adapter
+  interfaces registered by the host, sample, or default runtime package. A
+  provider may own the contract for the operation it needs, but it should not
+  depend directly on a concrete process launcher, Docker bridge, filesystem
+  materializer, network reconciler, sidecar host, or orchestrator controller.
 - API DTOs are versioned transport projections of established domain artifacts.
   They may add affordances such as `href` and `method`, but should not rename
   domain concepts into parallel Web API concepts.
@@ -141,6 +146,10 @@ resource.
      or declarations.
    - Add procedure, image update, endpoint mapping, template, log, or
      orchestration providers only when the type owns that behavior.
+   - Define focused runtime adapter interfaces for host/runtime actions the
+     provider needs, and require the host/sample/default runtime package to
+     register concrete implementations. Test providers with fake adapters so
+     resource semantics stay separate from runtime plumbing.
 3. Define the projected resource shape.
    - Project stable identity, class, type, state, parent, dependencies,
      endpoints, attributes, capabilities, actions, health checks,

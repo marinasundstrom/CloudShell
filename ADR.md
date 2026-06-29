@@ -47,6 +47,33 @@ shared terms locally.
 
 Related changes: [Changelog](CHANGELOG.md).
 
+### ADR-20260629-002: Keep provider runtime integration behind adapter contracts
+
+ResourceDefinitions providers are extension packages. They own resource
+semantics: type IDs, accepted attributes, validation, graph projection,
+resource actions, and provider-owned operation descriptions. They should not
+depend directly on host/runtime implementations such as local process
+launching, Docker command execution, filesystem materialization, network
+reconciliation, sidecar process hosting, or orchestrator controllers.
+
+Runtime integration flows through adapter contracts shared by the provider
+package and the host or default runtime integration package. A provider invokes
+an interface that represents the provider-owned operation it needs, while the
+host/runtime package registers the concrete implementation. This preserves the
+extension dependency direction: providers register themselves and declare what
+runtime capabilities they can use; the hosting environment decides which
+concrete adapters are available.
+
+Default reference implementations may live beside reference providers while
+the Resource Graph POC is being migrated. When those implementations become
+host-shaped or reusable across providers, they should move behind a default
+runtime integration package rather than becoming direct dependencies from
+providers to the host. Missing adapters should surface clear diagnostics or
+unavailable actions instead of causing providers to silently reach across the
+runtime boundary.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ## 2026-06-24
 
 ### ADR-20260624-001: Prove resource definitions in an isolated experimental project

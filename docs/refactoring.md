@@ -12,6 +12,9 @@ desired state should become the normal Resource Manager create/update/export
 path. The active priority is switching hosts, samples, tests, and UI surfaces
 to the new ResourceDefinitions reference providers, then deleting the old
 provider model implementations when no active host depends on them.
+`ResourceDefinitions` is the migration/POC package name; after the old provider
+model is removed, rename those packages to the final Resource model/provider
+package names so the codebase no longer presents the new model as a POC.
 
 Container app orchestration remains an important internal runtime direction,
 but it is on hold until the provider migration is finished. Keep the already
@@ -30,6 +33,13 @@ ResourceDefinitions provider migration.
   availability, resource projection/listing, logs, monitoring,
   attribute-to-runtime mapping, and provider-specific commands can be separate
   concerns coordinated under that umbrella.
+- ResourceDefinitions providers integrate with host/runtime behavior through
+  focused adapter contracts. Providers own resource semantics and call
+  contracts such as runtime controllers, inspectors, reconcilers, command
+  runners, and deployment handlers. Hosts, samples, or default runtime
+  integration packages register the concrete process, Docker, filesystem,
+  networking, sidecar, or orchestrator implementations. Providers should not
+  depend directly on concrete runtime services.
 - Declared resources and projected resources are related but not identical.
   Declared resources are stable authored, persisted, imported, or accepted
   resource identities. `GetResources()` currently also projects provider-
@@ -325,6 +335,9 @@ ResourceDefinitions provider migration.
 - [ ] Delete the old provider implementation folders once no active host,
   sample, or test requires `CloudShell.Providers.Applications`,
   `CloudShell.Providers.Configuration`, or `CloudShell.Providers.Docker`.
+- [ ] Rename `CloudShell.ResourceDefinitions*` packages after the migration is
+  complete so the new provider stack is presented as the default Resource
+  model implementation rather than as a POC.
 - [ ] Define the Resource Manager apply path for incremental
   `ResourceDefinition` updates: target resolution, provider validation,
   accepted graph-state commit, runtime-planning trigger, diagnostics, and
@@ -370,10 +383,12 @@ the graph-backed tests that cover the same resource path.
   local process execution, container command helpers, log parsing, runtime
   monitoring, endpoint/probe projection, environment-variable resolution,
   volume mount materialization, container host resolution, and any
-  provider-owned runtime handlers that have not yet been rebuilt. Do not bring
-  forward old provider-owned definition stores, template serializers,
-  registration pages, or `ApplicationResourceDefinition` as the public
-  declaration shape.
+  provider-owned runtime handlers that have not yet been rebuilt. Bring those
+  pieces forward only behind provider adapter contracts or a default runtime
+  integration package. Do not bring forward old provider-owned definition
+  stores, template serializers, registration pages, direct host/runtime
+  dependencies, or `ApplicationResourceDefinition` as the public declaration
+  shape.
 - [ ] Keep `CloudShell.Providers.DockerCompose` out of this deletion pass
   unless it starts exposing the old resource provider model. It is currently an
   orchestrator/provider integration, not one of the old resource-provider
@@ -457,6 +472,10 @@ preserving old provider seams:
   own how validated resource intent maps to its runtime target, whether that
   target is an executable, container, orchestrator service, database, or other
   managed resource.
+- [ ] Audit POC reference-provider runtime implementations and move reusable
+  or host-shaped implementations behind default runtime integration
+  registrations, leaving provider packages dependent only on adapter contracts
+  and fakeable abstractions.
 - [ ] Feed the schema/validation/apply model into orchestrator deployment
   planning so accepted ResourceDefinition state can be translated consistently
   across resource types while leaving type-specific reconciliation to the
