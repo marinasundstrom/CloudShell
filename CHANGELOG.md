@@ -99,6 +99,9 @@ on `git blame --follow`, and then by the broad type of change.
   `AddCloudShellControlPlane()`, and combined hosts use `AddCloudShell()` plus
   the matching combined `UseCloudShellAsync()` and `MapCloudShell(...)`
   methods.
+- Hosting composition tests now lock the split-host boundary by verifying that
+  UI-only registration does not install Control Plane services, while combined
+  registration composes both CloudShell UI and Control Plane services.
 - ApplicationTopology sample smoke assertions now match the ResourceDefinition
   model for ad-hoc volumes and name mappings instead of expecting the old
   storage-wrapper resource projection.
