@@ -253,6 +253,7 @@ public sealed class ResourceModelGraphProcedureProvider :
                 PrincipalId: string.IsNullOrWhiteSpace(triggeredBy)
                     ? _resolutionContext.PrincipalId
                     : triggeredBy),
+            ResourceModelGraphDefinitionApplyOptions.Default.WithoutRuntimeReconciliation(),
             cancellationToken);
         if (apply.HasErrors || !apply.IsCommitted)
         {

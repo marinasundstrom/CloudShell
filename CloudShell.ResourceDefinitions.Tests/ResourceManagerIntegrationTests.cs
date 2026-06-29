@@ -1896,6 +1896,90 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_ReconcilesContainerApplicationRuntimeFromTemplateChanges()
+    {
+        var runtimeHandler = new RecordingContainerApplicationRuntimeHandler(
+            ContainerApplicationRuntimeStatus.Running);
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddContainerHostResourceType();
+        services.AddSingleton<IContainerApplicationRuntimeHandler>(runtimeHandler);
+        services.AddContainerApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddReferenceProviderResourceManagerProjections();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceDefinitionGraphBuilder();
+        var host = graph
+            .AddContainerHost("docker")
+            .UseDocker();
+        var container = graph
+            .AddContainerApplication("api")
+            .UseContainerHost(host)
+            .WithImage("ghcr.io/example/api:latest")
+            .WithReplicas(2);
+
+        var initialApply = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("container-app", environmentId: "local"),
+            new ResourceGraphCommitContext(PrincipalId: "developer"));
+
+        Assert.False(initialApply.HasErrors, FormatDiagnostics(initialApply.Diagnostics));
+        Assert.True(initialApply.IsCommitted);
+        Assert.Empty(runtimeHandler.Events);
+
+        var imageApply = await service.ApplyDefinitionsAsync(
+            [
+                new ResourceDefinition(
+                    container.Name,
+                    ContainerApplicationResourceTypeProvider.ResourceTypeId,
+                    ResourceId: container.EffectiveResourceId,
+                    Attributes: new ResourceAttributeValueMap(
+                        new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+                        {
+                            [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] =
+                                "ghcr.io/example/api:v2",
+                            [ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas] = 4
+                        }))
+            ],
+            new ResourceGraphCommitContext(
+                EnvironmentId: "local",
+                PrincipalId: "developer"));
+
+        Assert.False(imageApply.HasErrors, FormatDiagnostics(imageApply.Diagnostics));
+        var imageEvent = Assert.Single(runtimeHandler.Events);
+        Assert.Equal(ContainerApplicationResourceTypeProvider.Operations.UpdateImage, imageEvent.OperationId);
+        Assert.Equal("ghcr.io/example/api:v2", imageEvent.Image);
+        Assert.Equal(4, imageEvent.Replicas);
+
+        var replicaApply = await service.ApplyDefinitionsAsync(
+            [
+                new ResourceDefinition(
+                    container.Name,
+                    ContainerApplicationResourceTypeProvider.ResourceTypeId,
+                    ResourceId: container.EffectiveResourceId,
+                    Attributes: new ResourceAttributeValueMap(
+                        new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+                        {
+                            [ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas] = 5
+                        }))
+            ],
+            new ResourceGraphCommitContext(
+                EnvironmentId: "local",
+                PrincipalId: "developer"));
+
+        Assert.False(replicaApply.HasErrors, FormatDiagnostics(replicaApply.Diagnostics));
+        Assert.Collection(
+            runtimeHandler.Events,
+            first => Assert.Equal(ContainerApplicationResourceTypeProvider.Operations.UpdateImage, first.OperationId),
+            second =>
+            {
+                Assert.Equal(ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas, second.OperationId);
+                Assert.Equal("ghcr.io/example/api:v2", second.Image);
+                Assert.Equal(5, second.Replicas);
+            });
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AcceptsDockerHostForContainerBackedWorkloads()
     {
         var services = new ServiceCollection();
@@ -5921,6 +6005,58 @@ public sealed class ResourceManagerIntegrationTests
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
     }
+
+    private sealed class RecordingContainerApplicationRuntimeHandler(
+        ContainerApplicationRuntimeStatus status) : IContainerApplicationRuntimeHandler
+    {
+        private readonly List<ContainerApplicationRuntimeEvent> _events = [];
+
+        public IReadOnlyList<ContainerApplicationRuntimeEvent> Events => _events;
+
+        public ContainerApplicationRuntimeStatus GetStatus(Resource resource) =>
+            status;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
+            Resource resource,
+            ResourceOperationId operationId,
+            CancellationToken cancellationToken = default)
+        {
+            Record(resource, operationId);
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyImageAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default)
+        {
+            Record(resource, ContainerApplicationResourceTypeProvider.Operations.UpdateImage);
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyReplicasAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default)
+        {
+            Record(resource, ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas);
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+
+        private void Record(
+            Resource resource,
+            ResourceOperationId operationId)
+        {
+            var container = new ContainerApplicationResource(resource);
+            _events.Add(new ContainerApplicationRuntimeEvent(
+                operationId,
+                container.Image,
+                container.Replicas));
+        }
+    }
+
+    private sealed record ContainerApplicationRuntimeEvent(
+        ResourceOperationId OperationId,
+        string? Image,
+        int Replicas);
 
     private sealed class StaticResourceModelEndpointProjectionProvider(
         string resourceId) : IResourceModelResourceManagerEndpointProjectionProvider

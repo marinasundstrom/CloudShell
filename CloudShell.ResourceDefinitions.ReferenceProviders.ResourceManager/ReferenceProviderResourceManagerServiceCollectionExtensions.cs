@@ -98,6 +98,10 @@ public static class ReferenceProviderResourceManagerServiceCollectionExtensions
                 IResourceModelResourceManagerEndpointProjectionProvider,
                 ContainerApplicationResourceManagerEndpointProjectionProvider>());
         services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IResourceModelGraphApplyReconciler,
+                ContainerApplicationResourceModelGraphApplyReconciler>());
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerEndpointProjectionProvider,
                 ConfigurationStoreResourceManagerEndpointProjectionProvider>());

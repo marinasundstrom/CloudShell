@@ -2,8 +2,12 @@ namespace CloudShell.ResourceDefinitions.ResourceManager;
 
 public sealed class ResourceModelGraphDefinitionApplyService(
     ResourceGraphModel graphModel,
-    ResourceDefinitionGraphChangeApplier changeApplier)
+    ResourceDefinitionGraphChangeApplier changeApplier,
+    IEnumerable<IResourceModelGraphApplyReconciler>? reconcilers = null)
 {
+    private readonly IReadOnlyList<IResourceModelGraphApplyReconciler> _reconcilers =
+        (reconcilers ?? []).ToArray();
+
     public async ValueTask<ResourceModelGraphDefinitionApplyResult> ApplyDefinitionsAsync(
         IEnumerable<ResourceDefinition> definitions,
         ResourceGraphCommitContext commitContext,
@@ -39,7 +43,15 @@ public sealed class ResourceModelGraphDefinitionApplyService(
             commitContext,
             cancellationToken);
 
-        return new(snapshot, changes, commit);
+        var reconciliation = await ReconcileAsync(
+            snapshot,
+            changes,
+            commit,
+            commitContext,
+            options,
+            cancellationToken);
+
+        return new(snapshot, changes, commit, reconciliation);
     }
 
     public async ValueTask<ResourceModelGraphDefinitionApplyResult> ApplyTemplateAsync(
@@ -73,28 +85,90 @@ public sealed class ResourceModelGraphDefinitionApplyService(
             options,
             cancellationToken);
     }
+
+    private async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAsync(
+        ResourceGraphSnapshot snapshot,
+        ResourceGraphChangeSet changes,
+        ResourceGraphCommitResult commit,
+        ResourceGraphCommitContext commitContext,
+        ResourceModelGraphDefinitionApplyOptions options,
+        CancellationToken cancellationToken)
+    {
+        if (!options.ReconcileRuntime ||
+            !commit.IsCommitted ||
+            commit.Summary.Status != ResourceGraphCommitStatus.Committed ||
+            _reconcilers.Count == 0)
+        {
+            return [];
+        }
+
+        var context = new ResourceModelGraphDefinitionApplyReconciliationContext(
+            snapshot,
+            changes,
+            commit,
+            commitContext);
+        var diagnostics = new List<ResourceDefinitionDiagnostic>();
+
+        foreach (var reconciler in _reconcilers)
+        {
+            diagnostics.AddRange(await reconciler.ReconcileAsync(
+                context,
+                cancellationToken));
+        }
+
+        return diagnostics;
+    }
 }
 
 public sealed record ResourceModelGraphDefinitionApplyOptions(
-    bool CreateMissingResources = false)
+    bool CreateMissingResources = false,
+    bool ReconcileRuntime = true)
 {
     public static ResourceModelGraphDefinitionApplyOptions Default { get; } = new();
 
     public static ResourceModelGraphDefinitionApplyOptions CreateMissing { get; } =
         new(CreateMissingResources: true);
+
+    public ResourceModelGraphDefinitionApplyOptions WithoutRuntimeReconciliation() =>
+        this with { ReconcileRuntime = false };
 }
 
 public sealed record ResourceModelGraphDefinitionApplyResult(
     ResourceGraphSnapshot BaseSnapshot,
     ResourceGraphChangeSet Changes,
-    ResourceGraphCommitResult Commit)
+    ResourceGraphCommitResult Commit,
+    IReadOnlyList<ResourceDefinitionDiagnostic>? ReconciliationDiagnostics = null)
 {
     public ResourceGraphVersion BaseVersion => BaseSnapshot.Version;
 
-    public bool HasErrors => Changes.HasErrors || Commit.HasErrors;
+    public bool HasErrors =>
+        Changes.HasErrors ||
+        Commit.HasErrors ||
+        ReconciliationDiagnosticsOrEmpty.Any(diagnostic =>
+            diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);
 
     public bool IsCommitted => Commit.IsCommitted;
 
     public IReadOnlyList<ResourceDefinitionDiagnostic> Diagnostics =>
-        Commit.Diagnostics.Count > 0 ? Commit.Diagnostics : Changes.Diagnostics;
+        ReconciliationDiagnosticsOrEmpty.Count > 0
+            ? [.. Commit.Diagnostics, .. Changes.Diagnostics, .. ReconciliationDiagnosticsOrEmpty]
+            : Commit.Diagnostics.Count > 0
+                ? Commit.Diagnostics
+                : Changes.Diagnostics;
+
+    private IReadOnlyList<ResourceDefinitionDiagnostic> ReconciliationDiagnosticsOrEmpty =>
+        ReconciliationDiagnostics ?? [];
 }
+
+public interface IResourceModelGraphApplyReconciler
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAsync(
+        ResourceModelGraphDefinitionApplyReconciliationContext context,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed record ResourceModelGraphDefinitionApplyReconciliationContext(
+    ResourceGraphSnapshot BaseSnapshot,
+    ResourceGraphChangeSet Changes,
+    ResourceGraphCommitResult Commit,
+    ResourceGraphCommitContext CommitContext);

@@ -49,6 +49,10 @@ on `git blame --follow`, and then by the broad type of change.
   ReplicatedContainerHealth sample runtime now applies image updates by
   replacing desired replicas without removing ingress, and replica scaling
   keeps retained replicas running.
+- ResourceDefinition graph apply now supports post-commit runtime
+  reconciliation hooks, and container-app image or replica changes applied
+  through ResourceDefinition templates now execute the same runtime
+  reconciliation operations as explicit image and replica commands.
 - Replica-group deployment definitions now include reconciliation policy for
   scale routing and previous-revision slot retention, and the deployment
   proposal documents both compact container-app update JSON and the normalized
