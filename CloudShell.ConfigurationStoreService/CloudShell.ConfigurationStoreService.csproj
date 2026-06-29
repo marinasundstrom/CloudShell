@@ -2,7 +2,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CloudShell.ControlPlane\CloudShell.ControlPlane.csproj" />
-    <ProjectReference Include="..\CloudShell.Providers.Configuration\CloudShell.Providers.Configuration.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

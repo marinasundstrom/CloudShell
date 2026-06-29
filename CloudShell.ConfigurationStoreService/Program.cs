@@ -1,7 +1,6 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.ConfigurationStoreService;
 using CloudShell.ControlPlane.Authentication;
-using CloudShell.Providers.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 

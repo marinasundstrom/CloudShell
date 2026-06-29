@@ -45,6 +45,15 @@ on `git blame --follow`, and then by the broad type of change.
   focused `ContainerApplicationContainerRunCommandFactory`, keeping container
   command translation separate from runtime process tracking, readiness, and
   lifecycle coordination.
+- The combined development host now installs ResourceDefinitions reference
+  providers and graph Resource Manager integration by default instead of
+  loading the legacy Applications, Configuration, and Docker provider
+  extensions.
+- Configuration and secrets sidecar services now own their small file-contract
+  DTOs directly, graph-backed samples no longer reference the legacy
+  Configuration or Docker provider projects, and the old Applications,
+  Configuration, and Docker provider projects have been removed from the active
+  solution build while their folders remain as migration inventory.
 - ApplicationTopology sample smoke assertions now match the ResourceDefinition
   model for ad-hoc volumes and name mappings instead of expecting the old
   storage-wrapper resource projection.

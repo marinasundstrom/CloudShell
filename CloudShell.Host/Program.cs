@@ -7,18 +7,13 @@ using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.Host.Shell;
-using CloudShell.Providers.Applications;
-using CloudShell.Providers.Configuration;
-using CloudShell.Providers.Docker;
+using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
+using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI;
+using CloudShell.ResourceDefinitions.ResourceManager;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var configurationStoreDefinitionsPath = Path.GetFullPath(
-    "Data/configuration-stores.json",
-    builder.Environment.ContentRootPath);
-var secretsVaultDefinitionsPath = Path.GetFullPath(
-    "Data/secrets-vaults.json",
-    builder.Environment.ContentRootPath);
 var configurationStoreServiceProjectPath = Path.GetFullPath(
     "../CloudShell.ConfigurationStoreService/CloudShell.ConfigurationStoreService.csproj",
     builder.Environment.ContentRootPath);
@@ -30,35 +25,42 @@ var repositoryRootPath = Path.GetFullPath("..", builder.Environment.ContentRootP
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 
+builder.Services
+    .AddStorageBackedSqlServerResourceTypes()
+    .AddSqlDatabaseResourceType()
+    .AddConfigurationStoreResourceType(options =>
+    {
+        options.ServiceProjectPath = configurationStoreServiceProjectPath;
+        options.ServiceWorkingDirectory = repositoryRootPath;
+        options.Entries.Add(new("SampleMessage", "Hello from CloudShell configuration"));
+        options.Entries.Add(new("SampleMode", "Development"));
+    })
+    .AddSecretsVaultResourceType(options =>
+    {
+        options.ServiceProjectPath = secretsVaultServiceProjectPath;
+        options.ServiceWorkingDirectory = repositoryRootPath;
+    })
+    .AddHostConfigurationSourceResourceType()
+    .AddDnsZoneResourceType()
+    .AddNameMappingResourceType()
+    .AddExecutableApplicationResourceType()
+    .AddAspNetCoreProjectResourceType()
+    .AddLocalContainerApplicationResourceTypes()
+    .AddDockerContainerResourceType();
+
+cloudShell.DefineResources(resources =>
+{
+    resources
+        .AddConfigurationStore("example")
+        .WithDisplayName("Example Configuration");
+});
+cloudShell.UseResourceGraphIntegration();
+
 cloudShell
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>()
-    .AddExtension<DevelopmentShellExtension>()
-    .AddConfigurationProvider(options =>
-    {
-        options.DefinitionsPath = configurationStoreDefinitionsPath;
-        options.ServiceProjectPath = configurationStoreServiceProjectPath;
-        options.ServiceWorkingDirectory = repositoryRootPath;
-    })
-    .AddSecretsProvider(options =>
-    {
-        options.SecretsVaultDefinitionsPath = secretsVaultDefinitionsPath;
-        options.SecretsServiceProjectPath = secretsVaultServiceProjectPath;
-        options.SecretsServiceWorkingDirectory = repositoryRootPath;
-    })
-    .AddApplicationProvider(activationPolicy: CloudShellExtensionActivationPolicy.UserManaged)
-    .AddDockerProvider(activationPolicy: CloudShellExtensionActivationPolicy.UserManaged);
-
-cloudShell.Resources(resources =>
-{
-    resources
-        .AddConfigurationStore("configuration:example")
-        .WithEntries(
-        [
-            new("SampleMessage", "Hello from CloudShell configuration"),
-            new("SampleMode", "Development")
-        ]);
-});
+    .AddExtension<DevelopmentShellExtension>();
+cloudShell.AddReferenceProviderResourceManagerUi();
 
 var app = builder.Build();
 

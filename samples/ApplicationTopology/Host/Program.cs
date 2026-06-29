@@ -9,8 +9,6 @@ using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
-using CloudShell.Providers.Configuration;
-using CloudShell.Providers.Docker;
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
@@ -310,8 +308,6 @@ cloudShell
     .AddExtension<ObservabilityExtension>();
 
 cloudShell.AddReferenceProviderResourceManagerUi();
-
-cloudShell.UseLocalDevelopmentDefaults();
 
 var app = builder.Build();
 
