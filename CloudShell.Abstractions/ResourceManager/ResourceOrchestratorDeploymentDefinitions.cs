@@ -35,6 +35,14 @@ public sealed record ResourceOrchestratorDeploymentDefinition(
 
         var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
 
+        var resources = new List<ResourceOrchestratorResourceDefinition>
+        {
+            ResourceOrchestratorReplicaGroupDefinition
+                .FromReplicaGroup(replicaGroup, workloadVersion)
+                .ToResourceDefinition()
+        };
+        resources.AddRange(CreateRoutingBindings(service, replicaGroup));
+
         return new ResourceOrchestratorDeploymentDefinition(
             CurrentDefinitionVersion,
             Services:
@@ -44,13 +52,45 @@ public sealed record ResourceOrchestratorDeploymentDefinition(
                     ResourceOrchestratorDeploymentDefinitionTypes.Service,
                     CurrentDefinitionVersion,
                     Attributes: attributes,
-                    Resources:
-                    [
-                        ResourceOrchestratorReplicaGroupDefinition
-                            .FromReplicaGroup(replicaGroup, workloadVersion)
-                            .ToResourceDefinition()
-                    ])
+                    Resources: resources)
             ]);
+    }
+
+    private static IEnumerable<ResourceOrchestratorResourceDefinition> CreateRoutingBindings(
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup)
+    {
+        foreach (var servicePort in service.ServicePorts)
+        {
+            if (string.IsNullOrWhiteSpace(servicePort.Name))
+            {
+                continue;
+            }
+
+            yield return new ResourceOrchestratorServiceRoutingBindingDefinition(
+                CreateRoutingBindingName(replicaGroup.Id, servicePort.Name),
+                CurrentDefinitionVersion,
+                service.Name,
+                replicaGroup.Id,
+                ResourceEndpointReference.ForEndpoint(service.ResourceId, servicePort.Name))
+                .ToResourceDefinition();
+        }
+    }
+
+    private static string CreateRoutingBindingName(
+        string replicaGroupId,
+        string endpointName)
+    {
+        var normalizedEndpointName = new string(endpointName
+            .Trim()
+            .ToLowerInvariant()
+            .Select(character => char.IsLetterOrDigit(character) ? character : '-')
+            .ToArray())
+            .Trim('-');
+
+        return string.IsNullOrWhiteSpace(normalizedEndpointName)
+            ? $"{replicaGroupId}-routing"
+            : $"{replicaGroupId}-{normalizedEndpointName}-routing";
     }
 }
 

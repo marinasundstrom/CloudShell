@@ -416,9 +416,12 @@ preserving old provider seams:
   from accepted graph resource state. Image and replica-slot updates now enter
   that path through ResourceDefinition apply; lifecycle and cleanup seams still
   need consolidation.
-- [ ] Define the routing/load-balancer reaction boundary for replica-group
-  changes. Prefer an orchestrator/controller-owned routing reconciliation
-  hook over container-app-specific ingress and backend remapping logic.
+- [x] Define the routing/load-balancer reaction boundary for replica-group
+  changes by carrying service-routing binding definitions into the
+  orchestrator routing reconciliation context.
+- [ ] Make the default orchestrator controller and load-balancer providers
+  react to service-routing binding definitions instead of inferring replica
+  membership from container-app-specific runtime names.
 - [ ] Continue splitting `ApplicationResourceRuntimeOperations` by separating
   remaining resource-type concerns: lifecycle procedure execution, container
   app orchestration hooks, and endpoint/probe materialization. The shared

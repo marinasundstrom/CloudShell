@@ -1274,10 +1274,11 @@ listed here before pulling in broader proposal work.
   predecessor cleanup.
 - Orchestrator-owned service routing binding definitions now connect a service
   endpoint, current replica group, and optional route, endpoint-mapping, or
-  load-balancer resource by explicit CloudShell ids. Follow-up work should make
-  the default orchestrator controller and load-balancer providers react to
-  those bindings instead of inferring replica membership from labels or
-  container-app-specific runtime names.
+  load-balancer resource by explicit CloudShell ids, and routing
+  reconciliation providers receive the matching binding set in their procedure
+  context. Follow-up work should make the default orchestrator controller and
+  load-balancer providers react to those bindings instead of inferring replica
+  membership from labels or container-app-specific runtime names.
 - Decide which runtime artifacts become runtime-managed resources versus
   provider-owned state: replicas, implementation containers, images, endpoint
   registrations, backend registrations, health probes, and revisions.

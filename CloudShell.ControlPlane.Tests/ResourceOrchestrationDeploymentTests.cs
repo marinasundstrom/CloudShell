@@ -52,11 +52,19 @@ public sealed class ResourceOrchestrationDeploymentTests
         Assert.NotNull(result.Revision.Definition);
         var revisionServiceDefinition = Assert.Single(result.Revision.Definition.DeploymentServices);
         Assert.Equal(deployment.Spec.Service.Name, revisionServiceDefinition.Name);
-        var revisionReplicaGroupDefinition = Assert.Single(revisionServiceDefinition.ServiceResources);
+        Assert.Equal(2, revisionServiceDefinition.ServiceResources.Count);
+        var revisionReplicaGroupDefinition = Assert.Single(revisionServiceDefinition.ServiceResources, resource =>
+            resource.Type == ResourceOrchestratorDeploymentDefinitionTypes.ReplicaGroup);
         Assert.Equal(result.Revision.ReplicaGroup.Id, revisionReplicaGroupDefinition.Name);
         Assert.Equal(
             ResourceOrchestratorDeploymentDefinitionTypes.ReplicaGroup,
             revisionReplicaGroupDefinition.Type);
+        var revisionRoutingBinding = Assert.Single(revisionServiceDefinition.RoutingBindingDefinitions);
+        Assert.Equal("cloudshell-application-api-rev-2-replicas-http-routing", revisionRoutingBinding.Name);
+        Assert.Equal(deployment.Spec.Service.Name, revisionRoutingBinding.ServiceName);
+        Assert.Equal(result.Revision.ReplicaGroup.Id, revisionRoutingBinding.ReplicaGroupName);
+        Assert.Equal(resource.Id, revisionRoutingBinding.SourceEndpoint.ResourceId);
+        Assert.Equal("http", revisionRoutingBinding.SourceEndpoint.EndpointName);
         var preparedService = Assert.Single(provider.PreparedServices);
         Assert.Equal(deployment.Spec.Service.Name, preparedService.Name);
         Assert.Equal(deployment.RevisionId, preparedService.RuntimeRevisionId);
@@ -92,6 +100,10 @@ public sealed class ResourceOrchestrationDeploymentTests
         Assert.All(
             provider.ExecutedInstances,
             instance => Assert.Equal(deployment.Spec.Service.Name, instance.Service.Name));
+        var routedContext = Assert.Single(provider.RoutedContexts);
+        Assert.Equal(result.Revision.ReplicaGroup.Id, routedContext.RoutingBinding?.ReplicaGroupName);
+        Assert.Equal(resource.Id, routedContext.RoutingBinding?.SourceEndpoint.ResourceId);
+        Assert.Equal("http", routedContext.RoutingBinding?.SourceEndpoint.EndpointName);
         var events = resourceEvents
             .GetEvents(new ResourceEventQuery(ResourceId: resource.Id))
             .Reverse()
@@ -205,6 +217,67 @@ public sealed class ResourceOrchestrationDeploymentTests
             provider.Operations
                 .Where(operation => operation.StartsWith("Route:", StringComparison.Ordinal))
                 .ToArray());
+    }
+
+    [Fact]
+    public async Task ApplyDeploymentAsync_PassesRoutingBindingToRoutingReconciliation()
+    {
+        var resource = CreateResource();
+        var provider = new RecordingServiceProcedureProvider(resource);
+        var deployments = CreateDeployments(resource, provider);
+        var baseDeployment = CreateDeployment(resource.Id, "default", replicas: 2);
+        var service = baseDeployment.Spec.Service with
+        {
+            RuntimeRevisionId = baseDeployment.RevisionId
+        };
+        var replicaGroup = ResourceOrchestratorReplicaGroupDefinition
+            .FromReplicaGroup(
+                ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service),
+                baseDeployment.Spec.WorkloadVersion);
+        var binding = new ResourceOrchestratorServiceRoutingBindingDefinition(
+            "api-public-http-routing",
+            ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+            service.Name,
+            replicaGroup.Name,
+            ResourceEndpointReference.ForEndpoint(resource.Id, "http"),
+            LoadBalancerResourceId: "cloudshell.loadBalancer:public",
+            RouteId: "cloudshell.loadBalancer:public/routes/api",
+            EndpointMappingId: "cloudshell.virtualNetwork:default/endpointMappings/api-http");
+        var deployment = baseDeployment with
+        {
+            Spec = baseDeployment.Spec with
+            {
+                Definition = new ResourceOrchestratorDeploymentDefinition(
+                    ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+                    Services:
+                    [
+                        new ResourceOrchestratorServiceDefinition(
+                            service.Name,
+                            ResourceOrchestratorDeploymentDefinitionTypes.Service,
+                            ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+                            Resources:
+                            [
+                                replicaGroup.ToResourceDefinition(),
+                                binding.ToResourceDefinition()
+                            ])
+                    ])
+            }
+        };
+
+        await deployments.ApplyDeploymentAsync(resource, deployment);
+
+        var routedContext = Assert.Single(provider.RoutedContexts);
+        var routedBinding = Assert.Single(routedContext.ServiceRoutingBindings);
+        Assert.NotNull(routedContext.RoutingBinding);
+        Assert.Equal(binding.Name, routedContext.RoutingBinding.Name);
+        Assert.Same(routedBinding, routedContext.RoutingBinding);
+        Assert.Equal(service.Name, routedContext.RoutingBinding.ServiceName);
+        Assert.Equal(replicaGroup.Name, routedContext.RoutingBinding.ReplicaGroupName);
+        Assert.Equal("cloudshell.loadBalancer:public", routedContext.RoutingBinding.LoadBalancerResourceId);
+        Assert.Equal("cloudshell.loadBalancer:public/routes/api", routedContext.RoutingBinding.RouteId);
+        Assert.Equal(
+            "cloudshell.virtualNetwork:default/endpointMappings/api-http",
+            routedContext.RoutingBinding.EndpointMappingId);
     }
 
     [Fact]

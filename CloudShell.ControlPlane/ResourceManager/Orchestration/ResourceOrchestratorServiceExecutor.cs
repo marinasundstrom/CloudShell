@@ -13,7 +13,8 @@ internal static class ResourceOrchestratorServiceExecutor
         ResourceAction action,
         CancellationToken cancellationToken,
         ResourceOrchestratorDeployment? deployment = null,
-        ResourceOrchestratorReplicaGroup? replicaGroup = null)
+        ResourceOrchestratorReplicaGroup? replicaGroup = null,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition>? routingBindings = null)
     {
         if (deployment is not null)
         {
@@ -26,7 +27,11 @@ internal static class ResourceOrchestratorServiceExecutor
         replicaGroup ??= ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
 
         await provider.PrepareOrchestratorServiceAsync(
-            new ResourceOrchestratorServiceProcedureContext(resourceContext, service, replicaGroup),
+            new ResourceOrchestratorServiceProcedureContext(
+                resourceContext,
+                service,
+                replicaGroup,
+                routingBindings),
             action,
             cancellationToken);
 
@@ -55,7 +60,11 @@ internal static class ResourceOrchestratorServiceExecutor
                 ResourceEventTypes.Events.Deployment.RoutingUpdating,
                 $"Updating routing for orchestrator service '{deployment.ServiceId}' to revision '{deployment.RevisionId}' for deployment '{deployment.Id}'.");
             await provider.ReconcileOrchestratorServiceRoutingAsync(
-                new ResourceOrchestratorServiceProcedureContext(resourceContext, service, replicaGroup),
+                new ResourceOrchestratorServiceProcedureContext(
+                    resourceContext,
+                    service,
+                    replicaGroup,
+                    routingBindings),
                 cancellationToken);
             AppendDeploymentEvent(
                 resourceContext,

@@ -39,6 +39,7 @@ public sealed class DefaultResourceDeploymentService(
         };
         var targetReplicaGroup = ResolveTargetReplicaGroup(deploymentDefinition, service);
         var replicaGroup = targetReplicaGroup.ReplicaGroup;
+        var routingBindings = targetReplicaGroup.RoutingBindings;
         var previousReplicaGroup = GetLatestActiveReplicaGroup(deployment);
         try
         {
@@ -52,6 +53,7 @@ public sealed class DefaultResourceDeploymentService(
                     service,
                     previousReplicaGroup,
                     replicaGroup,
+                    routingBindings,
                     targetReplicaGroup.ReconciliationPolicy,
                     deployment,
                     cancellationToken);
@@ -65,6 +67,7 @@ public sealed class DefaultResourceDeploymentService(
                     service,
                     previousReplicaGroup,
                     replicaGroup,
+                    routingBindings,
                     targetReplicaGroup.ReconciliationPolicy,
                     deployment,
                     cancellationToken);
@@ -78,7 +81,8 @@ public sealed class DefaultResourceDeploymentService(
                     ResourceAction.Start,
                     cancellationToken,
                     deployment,
-                    replicaGroup);
+                    replicaGroup,
+                    routingBindings);
             }
 
             EnsureRequestedReplicaSlotsMaterialized(replicaGroup, deployment);
@@ -206,21 +210,45 @@ public sealed class DefaultResourceDeploymentService(
         ResourceOrchestratorDeploymentDefinition definition,
         ResourceOrchestratorService service)
     {
-        var replicaGroupDefinition = definition
+        var serviceDefinition = definition
             .DeploymentServices
             .FirstOrDefault(candidate =>
-                string.Equals(candidate.Name, service.Name, StringComparison.OrdinalIgnoreCase))
+                string.Equals(candidate.Name, service.Name, StringComparison.OrdinalIgnoreCase));
+        var replicaGroupDefinition = serviceDefinition
             ?.ReplicaGroupDefinitions
             .FirstOrDefault();
 
+        var replicaGroup = replicaGroupDefinition is null
+            ? ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service)
+            : replicaGroupDefinition.ToReplicaGroup(service);
+        var routingBindings = ResolveRoutingBindings(serviceDefinition, replicaGroup);
+
         return replicaGroupDefinition is null
             ? new TargetReplicaGroup(
-                ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service),
-                ResourceOrchestratorReplicaGroupReconciliationPolicy.Default)
+                replicaGroup,
+                ResourceOrchestratorReplicaGroupReconciliationPolicy.Default,
+                routingBindings)
             : new TargetReplicaGroup(
-                replicaGroupDefinition.ToReplicaGroup(service),
+                replicaGroup,
                 replicaGroupDefinition.ReconciliationPolicy ??
-                    ResourceOrchestratorReplicaGroupReconciliationPolicy.Default);
+                    ResourceOrchestratorReplicaGroupReconciliationPolicy.Default,
+                routingBindings);
+    }
+
+    private static IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> ResolveRoutingBindings(
+        ResourceOrchestratorServiceDefinition? serviceDefinition,
+        ResourceOrchestratorReplicaGroup replicaGroup)
+    {
+        if (serviceDefinition is null)
+        {
+            return [];
+        }
+
+        return serviceDefinition
+            .RoutingBindingDefinitions
+            .Where(binding =>
+                string.Equals(binding.ReplicaGroupName, replicaGroup.Id, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
     }
 
     private static IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest> CreateRetiredReplicaGroups(
@@ -288,6 +316,7 @@ public sealed class DefaultResourceDeploymentService(
         ResourceOrchestratorService service,
         ResourceOrchestratorReplicaGroup previousReplicaGroup,
         ResourceOrchestratorReplicaGroup targetReplicaGroup,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         ResourceOrchestratorReplicaGroupReconciliationPolicy reconciliationPolicy,
         ResourceOrchestratorDeployment deployment,
         CancellationToken cancellationToken)
@@ -308,12 +337,17 @@ public sealed class DefaultResourceDeploymentService(
                     resourceContext,
                     service,
                     targetReplicaGroup,
+                    routingBindings,
                     deployment,
                     cancellationToken);
             }
 
             await provider.PrepareOrchestratorServiceAsync(
-                new ResourceOrchestratorServiceProcedureContext(resourceContext, service, targetReplicaGroup),
+                new ResourceOrchestratorServiceProcedureContext(
+                    resourceContext,
+                    service,
+                    targetReplicaGroup,
+                    routingBindings),
                 ResourceAction.Start,
                 cancellationToken);
 
@@ -341,6 +375,7 @@ public sealed class DefaultResourceDeploymentService(
                     resourceContext,
                     service,
                     targetReplicaGroup,
+                    routingBindings,
                     deployment,
                     cancellationToken);
             }
@@ -355,6 +390,7 @@ public sealed class DefaultResourceDeploymentService(
                 resourceContext,
                 service,
                 targetReplicaGroup,
+                routingBindings,
                 deployment,
                 cancellationToken);
         }
@@ -376,6 +412,7 @@ public sealed class DefaultResourceDeploymentService(
                 resourceContext,
                 service,
                 targetReplicaGroup,
+                routingBindings,
                 deployment,
                 cancellationToken);
         }
@@ -392,6 +429,7 @@ public sealed class DefaultResourceDeploymentService(
         ResourceOrchestratorService service,
         ResourceOrchestratorReplicaGroup previousReplicaGroup,
         ResourceOrchestratorReplicaGroup targetReplicaGroup,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         ResourceOrchestratorReplicaGroupReconciliationPolicy reconciliationPolicy,
         ResourceOrchestratorDeployment deployment,
         CancellationToken cancellationToken)
@@ -409,12 +447,17 @@ public sealed class DefaultResourceDeploymentService(
                 resourceContext,
                 service,
                 targetReplicaGroup,
+                routingBindings,
                 deployment,
                 cancellationToken);
         }
 
         await provider.PrepareOrchestratorServiceAsync(
-            new ResourceOrchestratorServiceProcedureContext(resourceContext, service, targetReplicaGroup),
+            new ResourceOrchestratorServiceProcedureContext(
+                resourceContext,
+                service,
+                targetReplicaGroup,
+                routingBindings),
             ResourceAction.Start,
             cancellationToken);
 
@@ -442,6 +485,7 @@ public sealed class DefaultResourceDeploymentService(
                 resourceContext,
                 service,
                 targetReplicaGroup,
+                routingBindings,
                 deployment,
                 cancellationToken);
         }
@@ -457,6 +501,7 @@ public sealed class DefaultResourceDeploymentService(
         ResourceProcedureContext resourceContext,
         ResourceOrchestratorService service,
         ResourceOrchestratorReplicaGroup targetReplicaGroup,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         ResourceOrchestratorDeployment deployment,
         CancellationToken cancellationToken)
     {
@@ -470,7 +515,11 @@ public sealed class DefaultResourceDeploymentService(
             ResourceEventTypes.Events.Deployment.RoutingUpdating,
             $"Updating routing for orchestrator service '{deployment.ServiceId}' to replica group '{targetReplicaGroup.Id}' for deployment '{deployment.Id}'.");
         await provider.ReconcileOrchestratorServiceRoutingAsync(
-            new ResourceOrchestratorServiceProcedureContext(resourceContext, service, targetReplicaGroup),
+            new ResourceOrchestratorServiceProcedureContext(
+                resourceContext,
+                service,
+                targetReplicaGroup,
+                routingBindings),
             cancellationToken);
         ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
             resourceContext,
@@ -553,5 +602,6 @@ public sealed class DefaultResourceDeploymentService(
 
     private sealed record TargetReplicaGroup(
         ResourceOrchestratorReplicaGroup ReplicaGroup,
-        ResourceOrchestratorReplicaGroupReconciliationPolicy ReconciliationPolicy);
+        ResourceOrchestratorReplicaGroupReconciliationPolicy ReconciliationPolicy,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> RoutingBindings);
 }

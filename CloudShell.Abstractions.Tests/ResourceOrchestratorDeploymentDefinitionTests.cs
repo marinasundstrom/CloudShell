@@ -28,7 +28,9 @@ public sealed class ResourceOrchestratorDeploymentDefinitionTests
             ResourceOrchestratorDeploymentDefinitionTypes.Service,
             serviceDefinition.Type);
         Assert.Equal("image-update", serviceDefinition.ServiceAttributes["deployment.reason"]);
-        var replicaGroup = Assert.Single(serviceDefinition.ServiceResources);
+        Assert.Equal(2, serviceDefinition.ServiceResources.Count);
+        var replicaGroup = Assert.Single(serviceDefinition.ServiceResources, resource =>
+            resource.Type == ResourceOrchestratorDeploymentDefinitionTypes.ReplicaGroup);
         Assert.Equal("cloudshell-application-api-rev-2-replicas", replicaGroup.Name);
         Assert.Equal(
             ResourceOrchestratorDeploymentDefinitionTypes.ReplicaGroup,
@@ -71,6 +73,12 @@ public sealed class ResourceOrchestratorDeploymentDefinitionTests
         Assert.Equal(
             "rev-2",
             replicaGroupDefinition.Template.ResourceAttributes[ResourceAttributeNames.RuntimeRevision]);
+        var routingBinding = Assert.Single(serviceDefinition.RoutingBindingDefinitions);
+        Assert.Equal("cloudshell-application-api-rev-2-replicas-http-routing", routingBinding.Name);
+        Assert.Equal(service.Name, routingBinding.ServiceName);
+        Assert.Equal(replicaGroup.Name, routingBinding.ReplicaGroupName);
+        Assert.Equal(service.ResourceId, routingBinding.SourceEndpoint.ResourceId);
+        Assert.Equal("http", routingBinding.SourceEndpoint.EndpointName);
     }
 
     [Fact]
@@ -85,8 +93,9 @@ public sealed class ResourceOrchestratorDeploymentDefinitionTests
         };
         var spec = new ResourceOrchestratorDeploymentSpec(service, "rev-2");
 
-        var replicaGroup = Assert.Single(
-            Assert.Single(spec.DeploymentDefinition.DeploymentServices).ServiceResources);
+        var serviceDefinition = Assert.Single(spec.DeploymentDefinition.DeploymentServices);
+        var replicaGroup = Assert.Single(serviceDefinition.ServiceResources, resource =>
+            resource.Type == ResourceOrchestratorDeploymentDefinitionTypes.ReplicaGroup);
 
         Assert.Equal("2", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentRequestedReplicaSlots]);
         Assert.Equal(
@@ -219,7 +228,8 @@ public sealed class ResourceOrchestratorDeploymentDefinitionTests
         var definition = spec.CreateDeploymentDefinition("rev-3");
 
         var serviceDefinition = Assert.Single(definition.DeploymentServices);
-        var replicaGroup = Assert.Single(serviceDefinition.ServiceResources);
+        var replicaGroup = Assert.Single(serviceDefinition.ServiceResources, resource =>
+            resource.Type == ResourceOrchestratorDeploymentDefinitionTypes.ReplicaGroup);
         Assert.Equal("cloudshell-application-api-rev-3-replicas", replicaGroup.Name);
         Assert.Equal("rev-3", replicaGroup.ResourceAttributes[ResourceAttributeNames.RuntimeRevision]);
         Assert.Equal("rev-2", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentWorkloadVersion]);

@@ -133,6 +133,10 @@ on `git blame --follow`, and then by the broad type of change.
   group, and optional load-balancer route or endpoint mapping by CloudShell
   resource ids, giving routing controllers an explicit contract for
   re-binding without exposing deployment artifacts through ResourceTemplate.
+- Generated orchestrator service definitions now include a service-routing
+  binding for each service port, and routing reconciliation providers receive
+  the matching binding set in their service procedure context so future
+  load-balancer controllers can rebind from explicit resource and route ids.
 - The Environment page now includes an interactive environment state map,
   using the same zoomable graph interaction pattern as the Resource graph while
   projecting resources, orchestrator service boundaries, replica groups,
