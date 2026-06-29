@@ -48,6 +48,10 @@ on `git blame --follow`, and then by the broad type of change.
   `ResourceOrchestratorDeploymentDefinition`, keeping revision-scoped replica
   group planning in one provider-owned boundary before Resource Manager applies
   the deployment.
+- Resource Manager deployment apply now serializes concurrent applies for the
+  same source resource, preserving parallel deployment for different resources
+  while ensuring later container-app deployments resolve `BasedOnRevisionId`
+  after earlier same-resource deployments finish.
 - ApplicationTopology and CloudShell.ContainerHost SQL Server Docker cleanup now bounds
   container removal and terminates cancelled Docker CLI processes so host shutdown is
   not held by a stuck `docker rm -f`.

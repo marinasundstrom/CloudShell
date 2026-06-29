@@ -1214,9 +1214,10 @@ listed here before pulling in broader proposal work.
   authoritative desired runtime state for services and replica groups.
   `ResourceOrchestratorDeploymentSpec.Service` can remain a migration bridge,
   but long-term orchestration should reconcile the versioned definition.
-- Add per-source-resource deployment serialization or optimistic concurrency so
-  overlapping updates for one container app cannot both apply as though they
-  were based on the latest active revision.
+- Same-resource deployment serialization now prevents overlapping in-process
+  deployment applies for one container app from both resolving against the same
+  latest active revision. Follow-up work should add persisted optimistic
+  concurrency for distributed Control Plane instances.
 - Track retained, draining, superseded, and deleted replica groups as explicit
   runtime state. Retained previous slots should be inspectable and later
   drainable instead of existing only as omitted tear-down targets.

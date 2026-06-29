@@ -1759,13 +1759,16 @@ The current container app orchestration progress is:
   replica-slot retention, failed candidate rollback, deployment history,
   based-on environment revision tracking, post-apply tear-down requests, and
   visible deployment/replica-group projection for Resource Manager surfaces.
+  Resource Manager deployment apply also serializes concurrent same-resource
+  deployments so later applies resolve `BasedOnRevisionId` after earlier
+  applies complete.
 * In progress: converging image update, replica resize, and start
   materialization on the same internal deployment path while resource-template
   apply remains the user-facing desired-state entry point.
 * Not done: a first-class provider deployment-planning service that compares
   accepted resource graph state with current runtime state and emits the
-  normalized `ResourceOrchestratorDeploymentDefinition`; per-resource
-  deployment serialization or optimistic concurrency; explicit retained,
+  normalized `ResourceOrchestratorDeploymentDefinition`; persisted optimistic
+  concurrency for distributed Control Plane instances; explicit retained,
   draining, superseded, and deleted replica-group runtime statuses; and
   readiness-gate policy encoded directly in the replica group definition.
 
@@ -1781,9 +1784,9 @@ The next MVP changes should stay focused:
    runtime state over time. `ResourceOrchestratorDeploymentSpec.Service` can
    remain a migration convenience, but the long-term source of truth should be
    the versioned service and replica-group definitions.
-4. Add per-source-resource deployment serialization or optimistic concurrency
-   so two updates for the same container app cannot both apply as though they
-   were based on the latest active revision.
+4. Extend the current same-resource deployment serialization with persisted
+   optimistic concurrency when deployment apply can run across distributed
+   Control Plane instances.
 5. Record retained and superseded replica groups as explicit runtime state,
    not only as tear-down requests, so retained previous slots can be inspected,
    drained, or cleaned up later.

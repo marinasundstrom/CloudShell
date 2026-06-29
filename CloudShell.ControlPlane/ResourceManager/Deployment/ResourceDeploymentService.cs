@@ -2,6 +2,7 @@ using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Orchestration;
+using System.Collections.Concurrent;
 
 namespace CloudShell.ControlPlane.ResourceManager.Deployment;
 
@@ -17,6 +18,8 @@ public sealed class ResourceDeploymentService(
     private readonly IReadOnlyList<IResourceOrchestrator> orchestrators = orchestrators.ToArray();
     private readonly IReadOnlyList<IResourceOrchestratorDeploymentApplier> deploymentAppliers =
         deploymentAppliers.ToArray();
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> sourceResourceDeploymentLocks =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public Task<IReadOnlyList<ResourceDeploymentRecord>> ListResourceDeploymentsAsync(
         ResourceDeploymentQuery? query = null,
@@ -56,6 +59,32 @@ public sealed class ResourceDeploymentService(
                     $"Deployment '{deployment.Id}' belongs to resource '{deployment.SourceResourceId}', not '{resource.Id}'."));
         }
 
+        var sourceResourceLock = sourceResourceDeploymentLocks.GetOrAdd(
+            resource.Id,
+            _ => new SemaphoreSlim(1, 1));
+        await sourceResourceLock.WaitAsync(cancellationToken);
+        try
+        {
+            return await ApplyDeploymentCoreAsync(
+                resource,
+                deployment,
+                cancellationToken,
+                triggeredBy,
+                cause);
+        }
+        finally
+        {
+            sourceResourceLock.Release();
+        }
+    }
+
+    private async Task<ResourceOrchestratorDeploymentApplyResult> ApplyDeploymentCoreAsync(
+        Resource resource,
+        ResourceOrchestratorDeployment deployment,
+        CancellationToken cancellationToken,
+        string? triggeredBy,
+        string? cause)
+    {
         var context = CreateContext(resource, triggeredBy, cause);
         var preparedDeployment = PrepareDeploymentBase(deployment);
         var applier = SelectDeploymentApplier(context, preparedDeployment);

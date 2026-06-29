@@ -756,6 +756,36 @@ public sealed class ResourceOrchestrationDeploymentTests
     }
 
     [Fact]
+    public async Task ApplyDeploymentAsync_SerializesDeploymentsForSameResource()
+    {
+        var resource = CreateResource();
+        var probe = new DeploymentConcurrencyProbe(TimeSpan.FromMilliseconds(100));
+        var provider = new RecordingServiceProcedureProvider([resource], concurrencyProbe: probe);
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var deployments = CreateDeployments(resource, provider, deploymentStore: deploymentStore);
+        var firstDeployment = CreateDeployment(resource.Id, "default", replicas: 1);
+        var secondDeployment = CreateDeployment(resource.Id, "default", replicas: 1) with
+        {
+            RevisionId = "rev-3"
+        };
+
+        var firstApply = deployments.ApplyDeploymentAsync(resource, firstDeployment);
+        await probe.FirstEntered.WaitAsync(TimeSpan.FromSeconds(5));
+        var secondApply = deployments.ApplyDeploymentAsync(resource, secondDeployment);
+        var results = await Task.WhenAll(firstApply, secondApply)
+            .WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(1, probe.MaxConcurrentPreparations);
+        Assert.Null(results[0].Deployment.BasedOnRevisionId);
+        Assert.Equal(results[0].Revision.Id, results[1].Deployment.BasedOnRevisionId);
+        Assert.Equal(results[0].Revision.Id, results[1].Revision.BasedOnRevisionId);
+        Assert.Equal([1, 2], results.Select(result => result.Revision.RevisionNumber).ToArray());
+        Assert.Equal(
+            ["rev-2", "rev-3"],
+            results.Select(result => result.Deployment.RevisionId).ToArray());
+    }
+
+    [Fact]
     public async Task TearDownServiceAsync_TearsDownProvidedServiceSpec()
     {
         var resource = CreateResource();
@@ -1251,7 +1281,8 @@ public sealed class ResourceOrchestrationDeploymentTests
     private sealed class RecordingServiceProcedureProvider(
         IReadOnlyList<Resource> resources,
         ConcurrentDeploymentGate? gate = null,
-        bool failOnStart = false) :
+        bool failOnStart = false,
+        DeploymentConcurrencyProbe? concurrencyProbe = null) :
         IResourceProvider,
         IResourceOrchestratorServiceProcedureProvider
     {
@@ -1312,6 +1343,11 @@ public sealed class ResourceOrchestrationDeploymentTests
             if (gate is not null)
             {
                 await gate.SignalAndWaitAsync(cancellationToken);
+            }
+
+            if (concurrencyProbe is not null)
+            {
+                await concurrencyProbe.EnterAndDelayAsync(cancellationToken);
             }
         }
 
@@ -1383,6 +1419,53 @@ public sealed class ResourceOrchestrationDeploymentTests
             }
 
             await allArrived.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+        }
+    }
+
+    private sealed class DeploymentConcurrencyProbe(TimeSpan delay)
+    {
+        private readonly TaskCompletionSource firstEntered =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int activePreparations;
+        private int maxConcurrentPreparations;
+
+        public Task FirstEntered => firstEntered.Task;
+
+        public int MaxConcurrentPreparations => maxConcurrentPreparations;
+
+        public async Task EnterAndDelayAsync(CancellationToken cancellationToken)
+        {
+            var active = Interlocked.Increment(ref activePreparations);
+            UpdateMax(active);
+            firstEntered.TrySetResult();
+            try
+            {
+                await Task.Delay(delay, cancellationToken);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref activePreparations);
+            }
+        }
+
+        private void UpdateMax(int active)
+        {
+            while (true)
+            {
+                var current = maxConcurrentPreparations;
+                if (active <= current)
+                {
+                    return;
+                }
+
+                if (Interlocked.CompareExchange(
+                        ref maxConcurrentPreparations,
+                        active,
+                        current) == current)
+                {
+                    return;
+                }
+            }
         }
     }
 
