@@ -147,6 +147,11 @@ class EnvironmentStateMap {
                 stateLabel: node.stateLabel,
                 stateClass: node.stateClass,
                 detailUrl: node.detailUrl,
+                artifactKind: node.artifactKind,
+                resourceId: node.resourceId,
+                serviceId: node.serviceId,
+                replicaGroupId: node.replicaGroupId,
+                runtimeRevisionId: node.runtimeRevisionId,
                 degree: degreeMap.get(node.id) || 1
             };
         });
@@ -159,6 +164,11 @@ class EnvironmentStateMap {
                 parentGroupId: group.parentGroupId,
                 badgeLabel: group.badgeLabel,
                 detailUrl: group.detailUrl,
+                artifactKind: group.artifactKind,
+                resourceId: group.resourceId,
+                serviceId: group.serviceId,
+                replicaGroupId: group.replicaGroupId,
+                runtimeRevisionId: group.runtimeRevisionId,
                 nodeIds: group.nodeIds || []
             }))
             .filter(group => group.nodeIds.some(nodeId => visibleIds.has(nodeId)));
@@ -169,7 +179,12 @@ class EnvironmentStateMap {
                 source: link.source,
                 target: link.target,
                 label: link.label,
-                kind: link.kind
+                kind: link.kind,
+                artifactKind: link.artifactKind,
+                resourceId: link.resourceId,
+                serviceId: link.serviceId,
+                replicaGroupId: link.replicaGroupId,
+                runtimeRevisionId: link.runtimeRevisionId
             }));
 
         this.renderGroups();

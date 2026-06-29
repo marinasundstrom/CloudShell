@@ -262,15 +262,16 @@ relationship integrity. The stable user-facing resource remains the
 application, storage resource, load balancer, or other modeled resource that
 owns the behavior.
 
-The **[Environment Resource Model](terminology.md#environment-resource-model)**
-starts with a host environment that runs
-resources. It answers what is in the environment, which resources depend on
-each other, how endpoints connect, which endpoint mappings or names expose
-those endpoints when present, and which resources the user can inspect or
-operate. CloudShell also has an
+The **[Host Environment Model](terminology.md#host-environment-model)** is the
+broader model of a CloudShell host environment. The
+**[Environment Resource Model](terminology.md#environment-resource-model)** is
+its resource-focused subset: resources running in the environment, their
+dependencies, endpoints, and endpoint mappings or names when present. It
+answers what resources are in the environment, how they connect, and which
+resources the user can inspect or operate. CloudShell also has an
 **[Environment Runtime Model](terminology.md#environment-runtime-model)** for
-the same environment: the runtime realization that Resource Manager and
-orchestrators materialize. In that model,
+the same host environment: the runtime realization that Resource Manager and
+orchestrators materialize from the broader Host Environment Model. In that model,
 **[environment artifacts](terminology.md#environment-artifact)** include resources plus
 orchestration artifacts such as service boundaries, replica groups,
 materialized replicas, routing bindings, retained previous revisions, and

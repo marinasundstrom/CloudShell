@@ -13,13 +13,16 @@ link to the decision so the dependency is visible.
 
 ### ADR-20260629-001: Name the environment resource and runtime models
 
-CloudShell should use **Environment Resource Model** for the lighter host
-environment model that contains resources, dependencies, endpoints, and
-endpoint mappings or names. This is the model most users need when asking what
-resources run in an environment and how they connect.
+CloudShell should use **Host Environment Model** for the broad model of a
+CloudShell host environment.
+
+CloudShell should use **Environment Resource Model** for the resource-focused
+subset of the Host Environment Model that contains resources, dependencies,
+endpoints, and endpoint mappings or names. This is the model most users need
+when asking what resources run in an environment and how they connect.
 
 CloudShell should use **Environment Runtime Model** for the fuller management
-and orchestration model of the same environment. This model contains
+and orchestration model of the same host environment. This model contains
 environment artifacts: resources, orchestration services, replica groups,
 replicas, routing bindings, retained or superseded runtime revisions, and
 environment revisions.

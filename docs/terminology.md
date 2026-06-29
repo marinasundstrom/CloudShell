@@ -6,15 +6,26 @@ terms.
 
 ## Environment Models
 
+### Host Environment Model
+
+The **Host Environment Model** is the broad model of a CloudShell host
+environment. It represents the environment as a whole: its resources, runtime
+realization, operational state, and the artifacts Resource Manager can use to
+explain or operate that environment.
+
+The Environment Resource Model is a resource-focused subset of the Host
+Environment Model. The Environment Runtime Model is the management and
+orchestration realization of the same host environment.
+
 ### Environment Resource Model
 
-The **Environment Resource Model** is the lighter model of a host environment.
-It describes the resources running in that environment and the relationships
-that application developers and Resource Manager users usually need first.
+The **Environment Resource Model** is the resource-focused subset of the Host
+Environment Model. It describes the resources running in that environment and
+the relationships that application developers and Resource Manager users
+usually need first.
 
 It contains:
 
-- host environment
 - resources
 - dependencies
 - endpoints
@@ -33,9 +44,9 @@ confused with the lower-level projected resource object model documented in
 ### Environment Runtime Model
 
 The **Environment Runtime Model** is the fuller management and orchestration
-model of the same host environment. It describes how the environment is
-actually materialized and operated by Resource Manager, providers, and
-orchestrators.
+model of the same host environment. It describes how the Host Environment
+Model is actually materialized and operated by Resource Manager, providers,
+and orchestrators.
 
 It contains:
 
