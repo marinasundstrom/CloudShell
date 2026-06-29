@@ -48,6 +48,10 @@ on `git blame --follow`, and then by the broad type of change.
   state into the replica-group reconciliation store and remove stale
   same-resource slot states on scale-in, giving the Environment view a normal
   desired-slot baseline before liveness repair observations arrive.
+- Replica-group reconciliation now honors the active replica group's failure
+  threshold and maximum repair-attempt policy, deferring repair until enough
+  unhealthy observations arrive and emitting exhausted repair state instead of
+  repeatedly invoking provider repair operations.
 - Container app replicated ingress configuration, start/update, and stop
   handling now lives in a focused `ContainerApplicationIngressOperations`
   boundary used by runtime service execution and service preparation, instead

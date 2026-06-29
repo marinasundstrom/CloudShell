@@ -37,7 +37,8 @@ public sealed record ResourceReplicaSlotRuntimeState(
     DateTimeOffset? LastCompletedAt = null,
     int AttemptCount = 0,
     string? TriggeredBy = null,
-    string? LastResult = null);
+    string? LastResult = null,
+    int ObservationCount = 0);
 
 public enum ResourceReplicaSlotRuntimeStatus
 {
@@ -69,13 +70,15 @@ public sealed class InMemoryResourceReplicaGroupReconciliationStore : IResourceR
                 ResourceReplicaSlotRuntimeStatus.Unhealthy,
                 request.Detail,
                 request.ObservedAt,
-                TriggeredBy: request.TriggeredBy),
+                TriggeredBy: request.TriggeredBy,
+                ObservationCount: 1),
             (_, current) => current with
             {
                 Status = ResourceReplicaSlotRuntimeStatus.Unhealthy,
                 Detail = request.Detail,
                 ObservedAt = request.ObservedAt,
-                TriggeredBy = request.TriggeredBy
+                TriggeredBy = request.TriggeredBy,
+                ObservationCount = current.ObservationCount + 1
             });
     }
 

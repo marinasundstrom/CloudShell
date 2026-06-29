@@ -1120,6 +1120,70 @@ public sealed class ResourceOrchestrationDeploymentTests
     }
 
     [Fact]
+    public async Task ReplicaGroupReconciliationService_WaitsUntilFailureThresholdBeforeRepairingSlot()
+    {
+        var resource = CreateResource();
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var reconciliationStore = new InMemoryResourceReplicaGroupReconciliationStore();
+        var deploymentProvider = new RecordingServiceProcedureProvider(resource);
+        var deployments = CreateDeployments(
+            resource,
+            deploymentProvider,
+            deploymentStore: deploymentStore,
+            reconciliationStore: reconciliationStore);
+        await deployments.ApplyDeploymentAsync(
+            resource,
+            WithReplicaManagementPolicy(
+                CreateDeployment(resource.Id, "default", replicas: 3),
+                new ResourceOrchestratorReplicaManagementPolicy(FailureThreshold: 2)),
+            triggeredBy: "tests");
+        var repairProvider = new RecordingServiceProcedureProvider(resource);
+        var (reconciliation, store) = CreateReplicaGroupReconciliation(
+            resource,
+            repairProvider,
+            deploymentStore: deploymentStore,
+            reconciliationStore: reconciliationStore);
+
+        reconciliation.ObserveUnhealthyReplicaSlot(
+            resource,
+            2,
+            "First failed observation.",
+            "tests");
+        await reconciliation.ProcessPendingAsync();
+
+        var observed = AssertReplicaSlotState(
+            store,
+            resource.Id,
+            2,
+            ResourceReplicaSlotRuntimeStatus.Unhealthy);
+        Assert.Equal(0, observed.AttemptCount);
+        Assert.Equal(1, observed.ObservationCount);
+        Assert.Contains("1/2 unhealthy observations", observed.LastResult, StringComparison.Ordinal);
+        Assert.Empty(repairProvider.ExecutedInstanceActions);
+
+        reconciliation.ObserveUnhealthyReplicaSlot(
+            resource,
+            2,
+            "Second failed observation.",
+            "tests");
+        await reconciliation.ProcessPendingAsync();
+
+        var repaired = AssertReplicaSlotState(
+            store,
+            resource.Id,
+            2,
+            ResourceReplicaSlotRuntimeStatus.Repaired);
+        Assert.Equal(1, repaired.AttemptCount);
+        Assert.Equal(0, repaired.ObservationCount);
+        Assert.Equal(
+            [
+                "Stop:cloudshell-application-api-rev-2-replica-2",
+                "Start:cloudshell-application-api-rev-2-replica-2"
+            ],
+            repairProvider.ExecutedInstanceActions.ToArray());
+    }
+
+    [Fact]
     public async Task ReplicaGroupReconciliationService_StampsActiveReplicaGroupOnSlotRepairState()
     {
         var resource = CreateResource();
@@ -1203,6 +1267,70 @@ public sealed class ResourceOrchestrationDeploymentTests
                 StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task ReplicaGroupReconciliationService_DoesNotRepairAfterMaxAttempts()
+    {
+        var resource = CreateResource();
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var reconciliationStore = new InMemoryResourceReplicaGroupReconciliationStore();
+        var deploymentProvider = new RecordingServiceProcedureProvider(resource);
+        var deployments = CreateDeployments(
+            resource,
+            deploymentProvider,
+            deploymentStore: deploymentStore,
+            reconciliationStore: reconciliationStore);
+        await deployments.ApplyDeploymentAsync(
+            resource,
+            WithReplicaManagementPolicy(
+                CreateDeployment(resource.Id, "default", replicas: 3),
+                new ResourceOrchestratorReplicaManagementPolicy(MaxAttempts: 1)),
+            triggeredBy: "tests");
+        var repairProvider = new RecordingServiceProcedureProvider(resource, failOnStart: true);
+        var resourceEvents = new InMemoryResourceEventStore();
+        var (reconciliation, store) = CreateReplicaGroupReconciliation(
+            resource,
+            repairProvider,
+            resourceEvents,
+            deploymentStore,
+            reconciliationStore);
+
+        reconciliation.ObserveUnhealthyReplicaSlot(
+            resource,
+            2,
+            "Container exited.",
+            "tests");
+        await reconciliation.ProcessPendingAsync();
+
+        var failed = AssertReplicaSlotState(
+            store,
+            resource.Id,
+            2,
+            ResourceReplicaSlotRuntimeStatus.RepairFailed);
+        Assert.Equal(1, failed.AttemptCount);
+        Assert.Equal(["Stop:cloudshell-application-api-rev-2-replica-2"], repairProvider.ExecutedInstanceActions.ToArray());
+
+        reconciliation.ObserveUnhealthyReplicaSlot(
+            resource,
+            2,
+            "Container exited again.",
+            "tests");
+        await reconciliation.ProcessPendingAsync();
+
+        var exhausted = AssertReplicaSlotState(
+            store,
+            resource.Id,
+            2,
+            ResourceReplicaSlotRuntimeStatus.RepairFailed);
+        Assert.Equal(1, exhausted.AttemptCount);
+        Assert.Contains("repair exhausted", exhausted.LastResult, StringComparison.Ordinal);
+        Assert.Equal(["Stop:cloudshell-application-api-rev-2-replica-2"], repairProvider.ExecutedInstanceActions.ToArray());
+        Assert.Contains(
+            resourceEvents.GetEvents(new ResourceEventQuery(
+                ResourceId: resource.Id,
+                EventType: ResourceEventTypes.Events.ReplicaManagement.ReconciliationExhausted)),
+            resourceEvent => resourceEvent.Message.Contains("repair exhausted", StringComparison.Ordinal));
+    }
+
     private static ResourceDeploymentService CreateDeployments(
         Resource resource,
         RecordingServiceProcedureProvider provider,
@@ -1238,7 +1366,8 @@ public sealed class ResourceOrchestrationDeploymentTests
             Resource resource,
             RecordingServiceProcedureProvider provider,
             IResourceEventSink? resourceEvents = null,
-            IResourceOrchestratorDeploymentStore? deploymentStore = null)
+            IResourceOrchestratorDeploymentStore? deploymentStore = null,
+            InMemoryResourceReplicaGroupReconciliationStore? reconciliationStore = null)
     {
         var resourceManager = new TestResourceManagerStore([resource], provider);
         var registrations = new TestResourceRegistrationStore(
@@ -1254,7 +1383,7 @@ public sealed class ResourceOrchestrationDeploymentTests
             CreateSelectionStore(),
             resourceEvents: resourceEvents,
             deploymentStore: deploymentStore);
-        var store = new InMemoryResourceReplicaGroupReconciliationStore();
+        var store = reconciliationStore ?? new InMemoryResourceReplicaGroupReconciliationStore();
         return (
             new ResourceReplicaGroupReconciliationService(
                 orchestration,
@@ -1366,6 +1495,40 @@ public sealed class ResourceOrchestrationDeploymentTests
             with
             {
                 ReconciliationPolicy = policy
+            };
+        return deployment with
+        {
+            Spec = deployment.Spec with
+            {
+                Definition = new ResourceOrchestratorDeploymentDefinition(
+                    ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+                    Services:
+                    [
+                        new ResourceOrchestratorServiceDefinition(
+                            service.Name,
+                            ResourceOrchestratorDeploymentDefinitionTypes.Service,
+                            ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+                            Resources: [replicaGroup.ToResourceDefinition()])
+                    ])
+            }
+        };
+    }
+
+    private static ResourceOrchestratorDeployment WithReplicaManagementPolicy(
+        ResourceOrchestratorDeployment deployment,
+        ResourceOrchestratorReplicaManagementPolicy policy)
+    {
+        var service = deployment.Spec.Service with
+        {
+            RuntimeRevisionId = deployment.RevisionId
+        };
+        var replicaGroup = ResourceOrchestratorReplicaGroupDefinition
+            .FromReplicaGroup(
+                ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service),
+                deployment.Spec.WorkloadVersion)
+            with
+            {
+                ManagementPolicy = policy
             };
         return deployment with
         {
