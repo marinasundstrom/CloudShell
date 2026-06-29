@@ -146,8 +146,15 @@ public interface IResourceTemplateManager
         CancellationToken cancellationToken = default);
 
     Task<ResourceTemplateApplyResult> ApplyResourceTemplateAsync(
-        ResourceDefinitionTemplate template,
+        ResourceTemplateApplyRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<ResourceTemplateApplyResult> ApplyResourceTemplateAsync(
+        ResourceDefinitionTemplate template,
+        CancellationToken cancellationToken = default) =>
+        ApplyResourceTemplateAsync(
+            new ResourceTemplateApplyRequest(template),
+            cancellationToken);
 }
 
 public interface ILogManager

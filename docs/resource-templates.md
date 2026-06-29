@@ -101,6 +101,19 @@ how those accepted changes affect the internal orchestrator service, replica
 group, routing bindings, load balancer, runtime replicas, readiness gates, and
 cleanup policy.
 
+The public apply contract is `ResourceTemplateApplyRequest`. It carries the
+template and an apply mode:
+
+- `CreateOrUpdate` is the default for template apply. Missing resources are
+  created, and matching resources are updated incrementally.
+- `UpdateExisting` only updates resources already present in the graph. Missing
+  targets produce diagnostics and do not mutate graph state.
+- `CreateOnly` only creates missing resources. Existing targets produce
+  diagnostics and do not mutate graph state.
+
+In all modes, provider validation runs before graph state is committed.
+Runtime reconciliation runs only after accepted state has been committed.
+
 ## Export And Portability
 
 Exporting resources produces a resource template containing

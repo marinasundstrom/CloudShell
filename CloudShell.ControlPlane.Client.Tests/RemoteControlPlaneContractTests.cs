@@ -19,6 +19,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
+using ResourceDefinitionApplyMode = CloudShell.ResourceModel.ResourceDefinitionApplyMode;
 using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
 
 namespace CloudShell.ControlPlane.Client.Tests;
@@ -1255,9 +1256,15 @@ public sealed class RemoteControlPlaneContractTests
 
         var applied = await controlPlane.ApplyResourceTemplateAsync(
             new ResourceDefinitionTemplate("Contract template", []));
+        var appliedRequest = await controlPlane.ApplyResourceTemplateAsync(
+            new ResourceTemplateApplyRequest(
+                new ResourceDefinitionTemplate("Contract template request", []),
+                ResourceDefinitionApplyMode.CreateOnly));
 
         Assert.True(applied.IsCommitted);
         Assert.Empty(applied.Diagnostics);
+        Assert.True(appliedRequest.IsCommitted);
+        Assert.Empty(appliedRequest.Diagnostics);
 
         var exported = await controlPlane.ExportResourceTemplateAsync(
             new ResourceTemplateExportRequest("Contract template export"));

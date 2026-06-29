@@ -335,7 +335,7 @@ Resource model provider migration.
 - [x] Rename `CloudShell.ResourceModel*` packages after the migration is
   complete so the new provider stack is presented as the default Resource
   model implementation rather than as a POC.
-- [ ] Define the Resource Manager apply path for incremental
+- [x] Define the Resource Manager apply path for incremental
   `ResourceDefinition` updates: target resolution, provider validation,
   accepted graph-state commit, runtime-planning trigger, diagnostics, and
   rollback behavior for failed validation or failed runtime materialization.

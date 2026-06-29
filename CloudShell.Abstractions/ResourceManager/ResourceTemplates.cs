@@ -27,3 +27,7 @@ public sealed record ResourceTemplateApplyResult(
     public bool HasErrors => Diagnostics.Any(diagnostic =>
         diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);
 }
+
+public sealed record ResourceTemplateApplyRequest(
+    ResourceTemplate Template,
+    ResourceDefinitionApplyMode Mode = ResourceDefinitionApplyMode.CreateOrUpdate);

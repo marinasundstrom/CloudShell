@@ -241,7 +241,8 @@ public sealed class ResourceDefinitionGraphChangeApplier(
 
             if (target.State is null)
             {
-                if (options.CreateMissingResources)
+                if (options.Mode == ResourceDefinitionApplyMode.CreateOrUpdate ||
+                    options.Mode == ResourceDefinitionApplyMode.CreateOnly)
                 {
                     var createdResource = resolver.Resolve(
                         definition,
@@ -260,6 +261,15 @@ public sealed class ResourceDefinitionGraphChangeApplier(
                     ResourceDefinitionDiagnosticCodes.ResourceGraphResourceMissing,
                     $"Resource '{definition.EffectiveResourceId}' does not exist in the resource graph.",
                     definition.EffectiveResourceId));
+                continue;
+            }
+
+            if (options.Mode == ResourceDefinitionApplyMode.CreateOnly)
+            {
+                tracker.TrackDiagnostic(ResourceDefinitionDiagnostic.Error(
+                    ResourceDefinitionDiagnosticCodes.ResourceGraphResourceAlreadyExists,
+                    $"Resource '{target.State.EffectiveResourceId}' already exists in the resource graph.",
+                    target.State.EffectiveResourceId));
                 continue;
             }
 
@@ -425,10 +435,17 @@ internal sealed record ResourceDefinitionTargetState(
     bool IsAmbiguous);
 
 public sealed record ResourceDefinitionGraphChangeApplierOptions(
-    bool CreateMissingResources = false)
+    ResourceDefinitionApplyMode Mode = ResourceDefinitionApplyMode.UpdateExisting)
 {
     public static ResourceDefinitionGraphChangeApplierOptions Default { get; } = new();
 
     public static ResourceDefinitionGraphChangeApplierOptions CreateMissing { get; } =
-        new(CreateMissingResources: true);
+        new(ResourceDefinitionApplyMode.CreateOrUpdate);
+}
+
+public enum ResourceDefinitionApplyMode
+{
+    UpdateExisting,
+    CreateOrUpdate,
+    CreateOnly
 }

@@ -1132,23 +1132,31 @@ public sealed class InProcessControlPlane(
 
     public async Task<ResourceTemplateApplyResult> ApplyResourceTemplateAsync(
         ResourceDefinitionTemplate template,
+        CancellationToken cancellationToken = default) =>
+        await ApplyResourceTemplateAsync(
+            new ResourceTemplateApplyRequest(template),
+            cancellationToken);
+
+    public async Task<ResourceTemplateApplyResult> ApplyResourceTemplateAsync(
+        ResourceTemplateApplyRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(template);
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.Template);
         var apply = await templates.ApplyTemplateAsync(
-            template,
+            request.Template,
             new ResourceGraphCommitContext(
-                EnvironmentId: template.EnvironmentId,
+                EnvironmentId: request.Template.EnvironmentId,
                 PrincipalId: ResolveTriggeredBy("resource-template-apply"),
                 Timestamp: DateTimeOffset.UtcNow),
-            ResourceModelGraphDefinitionApplyOptions.CreateMissing,
+            new ResourceModelGraphDefinitionApplyOptions(request.Mode),
             cancellationToken);
 
         if (!apply.HasErrors && apply.IsCommitted)
         {
             await RegisterAppliedDefinitionsAsync(
-                template.Resources,
-                GetTemplateResourceGroupId(template),
+                request.Template.Resources,
+                GetTemplateResourceGroupId(request.Template),
                 cancellationToken);
         }
 

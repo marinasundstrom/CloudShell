@@ -36,7 +36,7 @@ public sealed class ResourceModelGraphDefinitionApplyService(
                 commitContext.EnvironmentId,
                 commitContext.PrincipalId,
                 Commit: true),
-            new ResourceDefinitionGraphChangeApplierOptions(options.CreateMissingResources),
+            new ResourceDefinitionGraphChangeApplierOptions(options.Mode),
             cancellationToken);
         var commit = await graphModel.CommitAsync(
             changes,
@@ -121,13 +121,13 @@ public sealed class ResourceModelGraphDefinitionApplyService(
 }
 
 public sealed record ResourceModelGraphDefinitionApplyOptions(
-    bool CreateMissingResources = false,
+    ResourceDefinitionApplyMode Mode = ResourceDefinitionApplyMode.UpdateExisting,
     bool ReconcileRuntime = true)
 {
     public static ResourceModelGraphDefinitionApplyOptions Default { get; } = new();
 
     public static ResourceModelGraphDefinitionApplyOptions CreateMissing { get; } =
-        new(CreateMissingResources: true);
+        new(ResourceDefinitionApplyMode.CreateOrUpdate);
 
     public ResourceModelGraphDefinitionApplyOptions WithoutRuntimeReconciliation() =>
         this with { ReconcileRuntime = false };

@@ -79,6 +79,10 @@ on `git blame --follow`, and then by the broad type of change.
   `CloudShell.Providers.DockerCompose` as retained because it integrates
   through the orchestrator boundary rather than the deleted old resource
   provider model.
+- Resource template apply now uses an explicit `ResourceTemplateApplyRequest`
+  with `CreateOrUpdate`, `UpdateExisting`, and `CreateOnly` modes, and graph
+  apply coverage verifies provider validation rejects without mutation while
+  runtime reconcilers run only after accepted state is committed.
 - ApplicationTopology sample smoke assertions now match the ResourceDefinition
   model for ad-hoc volumes and name mappings instead of expecting the old
   storage-wrapper resource projection.

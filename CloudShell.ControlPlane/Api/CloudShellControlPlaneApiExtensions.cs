@@ -845,13 +845,13 @@ public static class CloudShellControlPlaneApiExtensions
     }
 
     private static async Task<IResult> ApplyResourceTemplate(
-        ResourceDefinitionTemplate template,
+        ResourceTemplateApplyRequest request,
         IResourceTemplateManager templates,
         CancellationToken cancellationToken)
     {
         try
         {
-            return Results.Ok(await templates.ApplyResourceTemplateAsync(template, cancellationToken));
+            return Results.Ok(await templates.ApplyResourceTemplateAsync(request, cancellationToken));
         }
         catch (Exception exception) when (exception is ControlPlaneException or InvalidOperationException or UnauthorizedAccessException)
         {

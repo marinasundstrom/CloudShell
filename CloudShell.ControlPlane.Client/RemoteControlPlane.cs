@@ -521,11 +521,19 @@ public sealed class RemoteControlPlane : IControlPlane
 
     public async Task<ResourceTemplateApplyResult> ApplyResourceTemplateAsync(
         ResourceDefinitionTemplate template,
+        CancellationToken cancellationToken = default) =>
+        await ApplyResourceTemplateAsync(
+            new ResourceTemplateApplyRequest(template),
+            cancellationToken);
+
+    public async Task<ResourceTemplateApplyResult> ApplyResourceTemplateAsync(
+        ResourceTemplateApplyRequest request,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
         var response = await httpClient.PostAsJsonAsync(
             BuildUri("resource-templates/apply"),
-            template,
+            request,
             SerializerOptions,
             cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);

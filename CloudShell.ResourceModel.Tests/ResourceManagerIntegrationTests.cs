@@ -469,7 +469,8 @@ public sealed class ResourceManagerIntegrationTests
     public void ReferenceProviderResourceManagerIntegration_RegistersProjectionsAndGraphProcedureBridge()
     {
         var services = new ServiceCollection();
-        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState(), CreateExecutableState()]);
+        services.AddLocalVolumeResourceType();
         services.AddExecutableApplicationResourceType();
         services.AddResourceModelGraphServices();
 
@@ -1416,6 +1417,124 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(new ResourceRevision(1), created.Revision);
         Assert.Equal("dotnet", created.ResourceAttributes[
             ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_HonorsExplicitApplyModes()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var createTemplate = new ResourceTemplate(
+            "create-worker",
+            [
+                new(
+                    "worker",
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    {
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet-worker"
+                    })
+            ]);
+
+        var updateOnlyCreate = await service.ApplyTemplateAsync(
+            createTemplate,
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 16, 45, 0, TimeSpan.Zero)),
+            ResourceModelGraphDefinitionApplyOptions.Default);
+
+        var missingDiagnostic = Assert.Single(updateOnlyCreate.Diagnostics);
+        Assert.True(updateOnlyCreate.HasErrors);
+        Assert.False(updateOnlyCreate.IsCommitted);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ResourceGraphResourceMissing, missingDiagnostic.Code);
+        Assert.Equal("application.executable:worker", missingDiagnostic.Target);
+
+        var createOnlyExisting = await service.ApplyDefinitionsAsync(
+            [
+                new(
+                    "api",
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    {
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet-watch"
+                    })
+            ],
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 16, 46, 0, TimeSpan.Zero)),
+            new ResourceModelGraphDefinitionApplyOptions(ResourceDefinitionApplyMode.CreateOnly));
+
+        var existsDiagnostic = Assert.Single(createOnlyExisting.Diagnostics);
+        Assert.True(createOnlyExisting.HasErrors);
+        Assert.False(createOnlyExisting.IsCommitted);
+        Assert.Equal(ResourceDefinitionDiagnosticCodes.ResourceGraphResourceAlreadyExists, existsDiagnostic.Code);
+        Assert.Equal("application.executable:api", existsDiagnostic.Target);
+
+        var graphModel = serviceProvider.GetRequiredService<ResourceGraphModel>();
+        var snapshot = await graphModel.GetSnapshotAsync();
+        var state = snapshot.Resources.Single(resource =>
+            resource.EffectiveResourceId == "application.executable:api");
+        Assert.Equal("application.executable:api", state.EffectiveResourceId);
+        Assert.Equal("dotnet", state.ResourceAttributes[
+            ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_ReconcilesOnlyAfterCommittedAcceptedState()
+    {
+        var reconciler = new RecordingGraphApplyReconciler();
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState(), CreateExecutableState()]);
+        services.AddLocalVolumeResourceType();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddSingleton<IResourceModelGraphApplyReconciler>(reconciler);
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+
+        var rejected = await service.ApplyDefinitionsAsync(
+            [
+                new(
+                    "api",
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    {
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = ""
+                    })
+            ],
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 16, 47, 0, TimeSpan.Zero)));
+
+        Assert.True(rejected.HasErrors);
+        Assert.False(rejected.IsCommitted);
+        Assert.Empty(reconciler.Contexts);
+
+        var accepted = await service.ApplyDefinitionsAsync(
+            [
+                new(
+                    "api",
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    {
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet-watch"
+                    })
+            ],
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 24, 16, 48, 0, TimeSpan.Zero)));
+
+        Assert.False(accepted.HasErrors, FormatDiagnostics(accepted.Diagnostics));
+        Assert.True(accepted.IsCommitted);
+        var context = Assert.Single(reconciler.Contexts);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, context.Commit.Summary.Status);
+        Assert.Equal("application.executable:api", Assert.Single(context.Changes.AcceptedResources)
+            .AcceptedState!
+            .EffectiveResourceId);
     }
 
     [Fact]
@@ -6594,5 +6713,20 @@ public sealed class ResourceManagerIntegrationTests
                     Metrics: true,
                     ServiceName: resource.Name)
                 : null;
+    }
+
+    private sealed class RecordingGraphApplyReconciler : IResourceModelGraphApplyReconciler
+    {
+        private readonly List<ResourceModelGraphDefinitionApplyReconciliationContext> _contexts = [];
+
+        public IReadOnlyList<ResourceModelGraphDefinitionApplyReconciliationContext> Contexts => _contexts;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAsync(
+            ResourceModelGraphDefinitionApplyReconciliationContext context,
+            CancellationToken cancellationToken = default)
+        {
+            _contexts.Add(context);
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
     }
 }

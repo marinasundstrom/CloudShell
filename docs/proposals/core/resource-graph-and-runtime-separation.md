@@ -126,6 +126,9 @@ The active POC migration scope is:
 
 - Resource templates use `ResourceDefinition` entries as their only resource
   state language.
+- Resource template apply uses explicit create/update modes so create-or-update
+  imports, update-only edits, and create-only seed operations have
+  predictable diagnostics and mutation behavior.
 - Add-resource and edit-resource UI paths produce full or incremental resource
   definitions and call Resource Manager apply.
 - Export renders accepted graph state back to resource definitions without
