@@ -25,6 +25,63 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public void AddBuiltInResourceModelProviderTypes_RegistersDefaultProviderCatalog()
+    {
+        var services = new ServiceCollection();
+        services.AddBuiltInResourceModelProviderTypes(options =>
+        {
+            options.ConfigureConfigurationStoreRuntime = runtime =>
+            {
+                runtime.ServiceProjectPath = "services/configuration-store.csproj";
+                runtime.Entries.Add(new("Sample:Message", "Hello from graph"));
+            };
+            options.ConfigureSecretsVaultRuntime = runtime =>
+            {
+                runtime.ServiceProjectPath = "services/secrets-vault.csproj";
+                runtime.Secrets.Add(new("sample-api-key", "secret-value", "v1"));
+            };
+        });
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var typeIds = serviceProvider
+            .GetServices<IResourceTypeProvider>()
+            .Select(provider => provider.TypeId)
+            .ToHashSet();
+
+        Assert.Contains(ExecutableApplicationResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(AspNetCoreProjectResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(ContainerApplicationResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(DockerHostResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(DockerContainerResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(ContainerHostResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(StorageResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(CloudShellVolumeResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(LocalVolumeResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(SqlServerResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(SqlDatabaseResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(ConfigurationStoreResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(SecretsVaultResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(HostConfigurationSourceResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(IdentityProvisioningResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(NetworkResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(VirtualNetworkResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(LocalHostNetworkResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(MacOSHostNetworkResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(DnsZoneResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(NameMappingResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(LoadBalancerResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(ServiceResourceTypeProvider.ResourceTypeId, typeIds);
+
+        var configurationStore = serviceProvider.GetRequiredService<ConfigurationStoreRuntimeOptions>();
+        Assert.Equal("services/configuration-store.csproj", configurationStore.ServiceProjectPath);
+        Assert.Equal("Sample:Message", Assert.Single(configurationStore.Entries).Name);
+
+        var secretsVault = serviceProvider.GetRequiredService<SecretsVaultRuntimeOptions>();
+        Assert.Equal("services/secrets-vault.csproj", secretsVault.ServiceProjectPath);
+        Assert.Equal("sample-api-key", Assert.Single(secretsVault.Secrets).Name);
+    }
+
+    [Fact]
     public void AddResourceModelResolver_AcceptsExplicitClassDefinitions()
     {
         var services = new ServiceCollection();

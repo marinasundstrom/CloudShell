@@ -25,27 +25,21 @@ var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 
 builder.Services
-    .AddStorageBackedSqlServerResourceTypes()
-    .AddSqlDatabaseResourceType()
-    .AddConfigurationStoreResourceType(options =>
+    .AddBuiltInResourceModelProviderTypes(options =>
     {
-        options.ServiceProjectPath = configurationStoreServiceProjectPath;
-        options.ServiceWorkingDirectory = repositoryRootPath;
-        options.Entries.Add(new("SampleMessage", "Hello from CloudShell configuration"));
-        options.Entries.Add(new("SampleMode", "Development"));
-    })
-    .AddSecretsVaultResourceType(options =>
-    {
-        options.ServiceProjectPath = secretsVaultServiceProjectPath;
-        options.ServiceWorkingDirectory = repositoryRootPath;
-    })
-    .AddHostConfigurationSourceResourceType()
-    .AddDnsZoneResourceType()
-    .AddNameMappingResourceType()
-    .AddExecutableApplicationResourceType()
-    .AddAspNetCoreProjectResourceType()
-    .AddLocalContainerApplicationResourceTypes()
-    .AddDockerContainerResourceType();
+        options.ConfigureConfigurationStoreRuntime = runtime =>
+        {
+            runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
+            runtime.ServiceWorkingDirectory = repositoryRootPath;
+            runtime.Entries.Add(new("SampleMessage", "Hello from CloudShell configuration"));
+            runtime.Entries.Add(new("SampleMode", "Development"));
+        };
+        options.ConfigureSecretsVaultRuntime = runtime =>
+        {
+            runtime.ServiceProjectPath = secretsVaultServiceProjectPath;
+            runtime.ServiceWorkingDirectory = repositoryRootPath;
+        };
+    });
 
 cloudShell.DefineResources(resources =>
 {

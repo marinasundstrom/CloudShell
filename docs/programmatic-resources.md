@@ -17,19 +17,12 @@ registers runtime adapter implementations for the installed providers.
 
 ```csharp
 using CloudShell.ControlPlane.Providers;
-using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
 
-builder.Services
-    .AddConfigurationStoreResourceType()
-    .AddSecretsVaultResourceType()
-    .AddExecutableApplicationResourceType()
-    .AddAspNetCoreProjectResourceType()
-    .AddLocalContainerApplicationResourceTypes()
-    .AddDockerContainerResourceType();
+builder.Services.AddBuiltInResourceModelProviderTypes();
 
 cloudShell.DefineResources(resources =>
 {
