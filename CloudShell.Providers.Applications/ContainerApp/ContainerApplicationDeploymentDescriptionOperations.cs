@@ -11,9 +11,7 @@ internal sealed class ContainerApplicationDeploymentDescriptionOperations(
     IContainerApplicationDeploymentDescriptionOperations
 {
     private static readonly TimeSpan StartingStateTimeout = TimeSpan.FromMinutes(5);
-    private static readonly ApplicationContainerRevisionService RevisionService = new();
-    private static readonly ContainerApplicationRuntimeRevisionPolicy RuntimeRevisionPolicy = new();
-    private static readonly ApplicationContainerOrchestratorDeploymentFactory OrchestratorDeploymentFactory = new();
+    private static readonly ContainerApplicationOrchestratorDeploymentPlanner DeploymentPlanner = new();
 
     public bool CanDescribeDeployment(Resource resource) =>
         ApplicationResourceTypes.IsContainerApp(resource.EffectiveTypeId) &&
@@ -26,22 +24,14 @@ internal sealed class ContainerApplicationDeploymentDescriptionOperations(
         cancellationToken.ThrowIfCancellationRequested();
         var application = GetContainerApplication(context.Resource.Id);
         var state = context.Resource.State ?? GetState(application.Id);
-        var revision = RevisionService.GetEffectiveRevision(application);
         return Task.FromResult<ResourceOrchestratorDeployment?>(
-            OrchestratorDeploymentFactory.CreateDeployment(
+            DeploymentPlanner.PlanDeployment(
                 application,
                 state,
                 workloadConfigurations.Create(application),
-                useRuntimeRevisionScopedInstances: ShouldUseRevisionScopedRuntimeInstances(application, revision)));
+                containerDeployments.ListRevisions(application.Id))
+                .Deployment);
     }
-
-    private bool ShouldUseRevisionScopedRuntimeInstances(
-        ApplicationResourceDefinition application,
-        string revision) =>
-        RuntimeRevisionPolicy.ShouldUseRevisionScopedRuntimeInstances(
-            application,
-            revision,
-            containerDeployments.ListRevisions(application.Id));
 
     private ResourceState GetState(string applicationId) =>
         new ApplicationRuntimeStateTracker(

@@ -43,6 +43,11 @@ on `git blame --follow`, and then by the broad type of change.
   operate the stable container app while Resource Manager reconciles related
   internal deployment, replica, routing, endpoint, and cleanup artifacts below
   it.
+- Container app deployment description now flows through an internal
+  orchestrator deployment planner that emits an explicit
+  `ResourceOrchestratorDeploymentDefinition`, keeping revision-scoped replica
+  group planning in one provider-owned boundary before Resource Manager applies
+  the deployment.
 - ApplicationTopology and CloudShell.ContainerHost SQL Server Docker cleanup now bounds
   container removal and terminates cancelled Docker CLI processes so host shutdown is
   not held by a stuck `docker rm -f`.
