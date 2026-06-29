@@ -665,6 +665,11 @@ listed here before pulling in broader proposal work.
   endpoint or load balancer -> DNS/name mapping. The UI should let users see
   and operate that path from the application resource configuration experience
   without requiring programmatic-only sample knowledge.
+- The Environment page now includes an interactive environment state map that
+  projects resources, orchestrator service boundaries, active replica groups,
+  load-balancer routes, name mappings, and routing bindings from current
+  Resource Manager state. Follow-up work should feed it richer controller
+  state as service routing rebinding becomes reactive.
 - Treat programmatic declarations as the normal starting point for local
   distributed-app development, and `Persist()` as the handoff into
   Control Plane-owned environment state. `Persist()` is not deployment: it

@@ -1,0 +1,449 @@
+import './d3.v7.min.js';
+
+let graph = null;
+
+export function initializeEnvironmentStateMap(selector, environmentInterop) {
+    disposeEnvironmentStateMap();
+    graph = new EnvironmentStateMap(selector, environmentInterop);
+}
+
+export function updateEnvironmentStateMap(map) {
+    if (graph) {
+        graph.update(map || { nodes: [], links: [] });
+    }
+}
+
+export function disposeEnvironmentStateMap() {
+    if (graph) {
+        graph.dispose();
+        graph = null;
+    }
+}
+
+class EnvironmentStateMap {
+    constructor(selector, environmentInterop) {
+        this.environmentInterop = environmentInterop;
+        this.map = { nodes: [], links: [] };
+        this.nodes = [];
+        this.links = [];
+        this.selectedNode = null;
+        this.svg = d3.select(selector);
+        this.svg.selectAll("*").remove();
+        this.baseGroup = this.svg.append("g").attr("class", "environment-map-stage");
+        this.linkGroup = this.baseGroup.append("g").attr("class", "environment-map-links");
+        this.linkLabelGroup = this.baseGroup.append("g").attr("class", "environment-map-link-labels");
+        this.nodeGroup = this.baseGroup.append("g").attr("class", "environment-map-nodes");
+
+        const defs = this.svg.append("defs");
+        defs.append("marker")
+            .attr("id", "environment-map-arrow")
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 98)
+            .attr("refY", 0)
+            .attr("markerWidth", 9)
+            .attr("markerHeight", 9)
+            .attr("orient", "auto")
+            .append("path")
+            .attr("d", "M0,-5L10,0L0,5")
+            .attr("class", "environment-map-arrow");
+
+        this.zoom = d3.zoom()
+            .scaleExtent([0.25, 4])
+            .on("zoom", event => {
+                this.baseGroup.attr("transform", event.transform);
+            });
+        this.svg.call(this.zoom);
+
+        this.linkForce = d3.forceLink()
+            .id(node => node.id)
+            .strength(link => link.kind === "orchestration" ? 1 : 0.72)
+            .distance(link => link.kind === "orchestration" ? 170 : 215);
+
+        this.simulation = d3.forceSimulation()
+            .force("link", this.linkForce)
+            .force("charge", d3.forceManyBody().strength(node => node.nodeKind === "service" ? -1350 : -920))
+            .force("collide", d3.forceCollide(node => getNodeRadius(node) + 22).iterations(8))
+            .force("x", d3.forceX(node => getLaneX(node.nodeKind)).strength(0.22))
+            .force("y", d3.forceY().strength(0.18))
+            .force("center", d3.forceCenter().strength(0.015))
+            .on("tick", () => this.onTick());
+
+        this.drag = d3.drag()
+            .on("start", event => {
+                if (!event.active) {
+                    this.simulation.alphaTarget(0.15).restart();
+                }
+                event.subject.fx = event.subject.x;
+                event.subject.fy = event.subject.y;
+            })
+            .on("drag", event => {
+                event.subject.fx = event.x;
+                event.subject.fy = event.y;
+            })
+            .on("end", event => {
+                if (!event.active) {
+                    this.simulation.alphaTarget(0);
+                }
+                event.subject.fx = null;
+                event.subject.fy = null;
+            });
+
+        this.registerControls();
+        this.resizeObserver = new ResizeObserver(() => this.resize());
+        const container = this.svg.node()?.closest(".environment-state-map-shell");
+        if (container) {
+            this.resizeObserver.observe(container);
+        }
+        this.resize();
+    }
+
+    registerControls() {
+        d3.select(".environment-map-zoom-in").on("click.environmentMap", () => this.zoomBy(1.35));
+        d3.select(".environment-map-zoom-out").on("click.environmentMap", () => this.zoomBy(1 / 1.35));
+        d3.select(".environment-map-reset").on("click.environmentMap", () => this.resetZoom());
+    }
+
+    zoomBy(scale) {
+        this.svg.transition().duration(160).call(this.zoom.scaleBy, scale);
+    }
+
+    resetZoom() {
+        this.svg.transition().duration(180).call(this.zoom.transform, d3.zoomIdentity);
+    }
+
+    resize() {
+        const element = this.svg.node();
+        const container = element?.closest(".environment-state-map-shell");
+        if (!element || !container) {
+            return;
+        }
+
+        const width = Math.max(container.clientWidth, 360);
+        const height = Math.max(container.clientHeight, 430);
+        this.svg.attr("viewBox", `${-width / 2} ${-height / 2} ${width} ${height}`);
+    }
+
+    update(map) {
+        const nodes = map.nodes || [];
+        const links = map.links || [];
+        const changed = this.hasStructureChanged(nodes, links);
+        const previousNodes = new Map(this.nodes.map(node => [node.id, node]));
+        const degreeMap = this.getDegrees(nodes, links);
+
+        this.map = map;
+        this.nodes = nodes.map(node => {
+            const existing = previousNodes.get(node.id);
+            return {
+                ...existing,
+                id: node.id,
+                label: node.label,
+                type: node.type,
+                resourceClass: node.resourceClass,
+                nodeKind: node.nodeKind,
+                summary: node.summary,
+                stateLabel: node.stateLabel,
+                stateClass: node.stateClass,
+                detailUrl: node.detailUrl,
+                degree: degreeMap.get(node.id) || 1
+            };
+        });
+        const visibleIds = new Set(this.nodes.map(node => node.id));
+        this.links = links
+            .filter(link => visibleIds.has(link.source) && visibleIds.has(link.target))
+            .map(link => ({
+                id: `${link.source}->${link.label}->${link.target}`,
+                source: link.source,
+                target: link.target,
+                label: link.label,
+                kind: link.kind
+            }));
+
+        this.renderLinks();
+        this.renderNodes();
+
+        this.simulation.nodes(this.nodes);
+        this.linkForce.links(this.links);
+
+        if (changed) {
+            this.simulation.stop();
+            this.simulation.alpha(1);
+            for (let i = 0; i < 240; i++) {
+                this.simulation.tick();
+            }
+        }
+
+        this.simulation.alpha(0.55).restart();
+        this.updateHighlights();
+    }
+
+    hasStructureChanged(nodes, links) {
+        if (nodes.length !== (this.map.nodes || []).length ||
+            links.length !== (this.map.links || []).length) {
+            return true;
+        }
+
+        const oldIds = new Set((this.map.nodes || []).map(node => node.id));
+        if (nodes.some(node => !oldIds.has(node.id))) {
+            return true;
+        }
+
+        const oldLinks = new Set((this.map.links || []).map(link =>
+            `${link.source}->${link.label}->${link.target}`));
+        return links.some(link => !oldLinks.has(`${link.source}->${link.label}->${link.target}`));
+    }
+
+    getDegrees(nodes, links) {
+        const degrees = new Map(nodes.map(node => [node.id, 0]));
+        links.forEach(link => {
+            degrees.set(link.source, (degrees.get(link.source) || 0) + 1);
+            degrees.set(link.target, (degrees.get(link.target) || 0) + 1);
+        });
+        return degrees;
+    }
+
+    renderLinks() {
+        this.linkElements = this.linkGroup
+            .selectAll("line")
+            .data(this.links, link => link.id);
+
+        this.linkElements.exit()
+            .transition()
+            .duration(140)
+            .attr("opacity", 0)
+            .remove();
+
+        const newLinks = this.linkElements.enter()
+            .append("line")
+            .attr("class", link => `environment-map-link ${getClassName(link.kind)}`)
+            .attr("opacity", 0);
+
+        newLinks.transition()
+            .duration(140)
+            .attr("opacity", 1);
+
+        this.linkElements = newLinks.merge(this.linkElements)
+            .attr("class", link => `environment-map-link ${getClassName(link.kind)}`);
+
+        this.linkLabelElements = this.linkLabelGroup
+            .selectAll("text")
+            .data(this.links, link => link.id);
+
+        this.linkLabelElements.exit()
+            .transition()
+            .duration(140)
+            .attr("opacity", 0)
+            .remove();
+
+        const newLabels = this.linkLabelElements.enter()
+            .append("text")
+            .attr("class", "environment-map-link-label")
+            .attr("opacity", 0);
+
+        newLabels.transition()
+            .duration(140)
+            .attr("opacity", 1);
+
+        this.linkLabelElements = newLabels.merge(this.linkLabelElements)
+            .text(link => trimText(link.label, 16));
+    }
+
+    renderNodes() {
+        this.nodeElements = this.nodeGroup
+            .selectAll(".environment-map-node")
+            .data(this.nodes, node => node.id);
+
+        this.nodeElements.exit()
+            .transition()
+            .duration(140)
+            .attr("opacity", 0)
+            .remove();
+
+        const newNodes = this.nodeElements.enter()
+            .append("g")
+            .attr("class", "environment-map-node")
+            .attr("opacity", 0)
+            .call(this.drag)
+            .on("click", (_event, node) => this.selectNode(node))
+            .on("dblclick", (_event, node) => this.openNode(node))
+            .on("mouseover", (_event, node) => {
+                this.hoveredNode = node;
+                this.updateHighlights();
+            })
+            .on("mouseout", () => {
+                this.hoveredNode = null;
+                this.updateHighlights();
+            });
+
+        newNodes.append("rect")
+            .attr("class", "environment-map-node-card")
+            .attr("x", -90)
+            .attr("y", -52)
+            .attr("width", 180)
+            .attr("height", 104)
+            .attr("rx", 6);
+
+        newNodes.append("circle")
+            .attr("class", "environment-map-node-icon")
+            .attr("cx", -59)
+            .attr("cy", -18)
+            .attr("r", 20);
+
+        newNodes.append("text")
+            .attr("class", "environment-map-node-initials")
+            .attr("x", -59)
+            .attr("y", -13);
+
+        newNodes.append("circle")
+            .attr("class", "environment-map-status")
+            .attr("cx", 72)
+            .attr("cy", -37)
+            .attr("r", 9)
+            .append("title");
+
+        newNodes.append("text")
+            .attr("class", "environment-map-node-label")
+            .attr("x", 0)
+            .attr("y", 13);
+
+        newNodes.append("text")
+            .attr("class", "environment-map-node-kind")
+            .attr("x", 0)
+            .attr("y", 31);
+
+        newNodes.append("title")
+            .attr("class", "environment-map-node-title");
+
+        newNodes.transition()
+            .duration(140)
+            .attr("opacity", 1);
+
+        this.nodeElements = newNodes.merge(this.nodeElements);
+        this.nodeElements
+            .attr("class", node => `environment-map-node ${getClassName(node.nodeKind)}`);
+        this.nodeElements.select(".environment-map-node-icon")
+            .attr("class", node => `environment-map-node-icon ${getClassName(node.nodeKind)} ${getClassName(node.resourceClass)}`);
+        this.nodeElements.select(".environment-map-node-initials")
+            .text(node => getInitials(node.label));
+        this.nodeElements.select(".environment-map-status")
+            .attr("class", node => `environment-map-status ${node.stateClass || "state-unknown"}`)
+            .select("title")
+            .text(node => node.stateLabel);
+        this.nodeElements.select(".environment-map-node-label")
+            .text(node => trimText(node.label, 25));
+        this.nodeElements.select(".environment-map-node-kind")
+            .text(node => trimText(node.type, 28));
+        this.nodeElements.select(".environment-map-node-title")
+            .text(node => `${node.label}\n${node.type}\n${node.summary}\n${node.stateLabel}`);
+    }
+
+    selectNode(node) {
+        this.selectedNode = this.selectedNode?.id === node.id ? null : node;
+        this.updateHighlights();
+    }
+
+    openNode(node) {
+        if (node.detailUrl) {
+            this.environmentInterop.invokeMethodAsync("OpenEnvironmentMapNode", node.detailUrl);
+        }
+    }
+
+    updateHighlights() {
+        const activeNode = this.hoveredNode || this.selectedNode;
+        const neighborIds = activeNode ? new Set(this.getNeighborIds(activeNode)) : null;
+
+        this.nodeElements
+            ?.classed("selected", node => this.selectedNode?.id === node.id)
+            .classed("related", node => neighborIds?.has(node.id) === true)
+            .classed("dimmed", node => neighborIds !== null && !neighborIds.has(node.id));
+
+        this.linkElements
+            ?.classed("related", link => activeNode && this.isNeighborLink(activeNode, link))
+            .classed("dimmed", link => activeNode && !this.isNeighborLink(activeNode, link));
+
+        this.linkLabelElements
+            ?.classed("related", link => activeNode && this.isNeighborLink(activeNode, link))
+            .classed("dimmed", link => activeNode && !this.isNeighborLink(activeNode, link));
+    }
+
+    getNeighborIds(node) {
+        const neighbors = [node.id];
+        this.links.forEach(link => {
+            const sourceId = getNodeId(link.source);
+            const targetId = getNodeId(link.target);
+            if (sourceId === node.id) {
+                neighbors.push(targetId);
+            } else if (targetId === node.id) {
+                neighbors.push(sourceId);
+            }
+        });
+        return neighbors;
+    }
+
+    isNeighborLink(node, link) {
+        return getNodeId(link.source) === node.id || getNodeId(link.target) === node.id;
+    }
+
+    onTick() {
+        this.nodeElements?.attr("transform", node => `translate(${node.x},${node.y})`);
+        this.linkElements
+            ?.attr("x1", link => link.source.x)
+            .attr("y1", link => link.source.y)
+            .attr("x2", link => link.target.x)
+            .attr("y2", link => link.target.y);
+        this.linkLabelElements
+            ?.attr("x", link => (link.source.x + link.target.x) / 2)
+            .attr("y", link => (link.source.y + link.target.y) / 2 - 6);
+    }
+
+    dispose() {
+        this.simulation.stop();
+        this.resizeObserver?.disconnect();
+        d3.select(".environment-map-zoom-in").on("click.environmentMap", null);
+        d3.select(".environment-map-zoom-out").on("click.environmentMap", null);
+        d3.select(".environment-map-reset").on("click.environmentMap", null);
+        this.svg.on(".zoom", null);
+        this.svg.selectAll("*").remove();
+    }
+}
+
+function getLaneX(nodeKind) {
+    switch (nodeKind) {
+        case "resource":
+            return -260;
+        case "service":
+            return -40;
+        case "replica-group":
+            return 185;
+        case "routing":
+            return 360;
+        default:
+            return 0;
+    }
+}
+
+function getNodeRadius(node) {
+    return node.nodeKind === "service" ? 98 : 86;
+}
+
+function getNodeId(value) {
+    return typeof value === "string" ? value : value.id;
+}
+
+function getClassName(value) {
+    return String(value || "generic").toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
+}
+
+function getInitials(value) {
+    return String(value || "?")
+        .split(/[\s:_-]+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(part => part[0])
+        .join("")
+        .toUpperCase() || "?";
+}
+
+function trimText(value, maxLength) {
+    const text = String(value || "");
+    return text.length > maxLength ? `${text.slice(0, maxLength - 1)}...` : text;
+}

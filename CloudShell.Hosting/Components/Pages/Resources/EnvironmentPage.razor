@@ -1,11 +1,14 @@
 @page "/environment"
 @rendermode InteractiveServer
+@implements IAsyncDisposable
 @using System.Globalization
 @inject IResourceManager ResourceManager
 @inject IResourceEventManager ResourceEvents
 @inject IResourceDeploymentManager Deployments
 @inject IResourceReplicaSlotStateManager ReplicaSlots
 @inject IStringLocalizer<SharedResource> L
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
 @inject CloudShell.UI.Composition.CompositionRegistry Composition
 
 <PageTitle>@L["Environment"]</PageTitle>
@@ -47,6 +50,71 @@
 </SummaryMetricGrid>
 
 <section class="environment-page-grid">
+    <ShellPanel Wide="true" Class="environment-panel-full environment-map-panel">
+        <ShellPanelHeader Title="@L["Environment map"].Value"
+                          Description="@L["Significant resource, orchestration, and routing relationships for the active host environment."].Value">
+            <Actions>
+                <span class="toolbar-meta">@L["{0} relationship(s)", EnvironmentMap.Links.Count]</span>
+            </Actions>
+        </ShellPanelHeader>
+
+        @if (EnvironmentMap.Nodes.Count == 0)
+        {
+            <EmptyState Title="@L["No environment state"].Value"
+                        Message="@L["Resources, orchestrator services, and routing relationships will appear here when the Resource Manager has environment state to project."].Value"
+                        Compact="true" />
+        }
+        else
+        {
+            <div class="environment-map-summary" aria-label="@L["Environment map summary"].Value">
+                <span><strong>@EnvironmentMap.ResourceCount</strong> @L["resources"]</span>
+                <span><strong>@EnvironmentMap.ServiceCount</strong> @L["orchestrator service(s)"]</span>
+                <span><strong>@EnvironmentMap.RoutingCount</strong> @L["routing artifact(s)"]</span>
+            </div>
+
+            <div class="resource-graph-shell environment-state-map-shell">
+                <svg class="environment-state-map-canvas" role="img" aria-label="@L["Environment state map"]"></svg>
+                <div class="resource-graph-controls" aria-label="@L["Map controls"]">
+                    <FluentButton Appearance="Appearance.Stealth"
+                                  Class="environment-map-zoom-in"
+                                  Title="@L["Zoom in"]"
+                                  aria-label="@L["Zoom in"]">
+                        <FluentIcon Value="@(new Icons.Regular.Size20.ZoomIn())" />
+                    </FluentButton>
+                    <FluentButton Appearance="Appearance.Stealth"
+                                  Class="environment-map-zoom-out"
+                                  Title="@L["Zoom out"]"
+                                  aria-label="@L["Zoom out"]">
+                        <FluentIcon Value="@(new Icons.Regular.Size20.ZoomOut())" />
+                    </FluentButton>
+                    <FluentButton Appearance="Appearance.Stealth"
+                                  Class="environment-map-reset"
+                                  Title="@L["Reset view"]"
+                                  aria-label="@L["Reset view"]">
+                        <FluentIcon Value="@(new Icons.Regular.Size20.ArrowReset())" />
+                    </FluentButton>
+                </div>
+            </div>
+
+            @if (EnvironmentMap.Links.Count > 0)
+            {
+                <section class="environment-relationship-strip" aria-label="@L["Significant relationships"].Value">
+                    <h3>@L["Significant relationships"]</h3>
+                    <div class="environment-relationship-list">
+                        @foreach (var relationship in EnvironmentMap.Links.Take(12))
+                        {
+                            <div class="environment-relationship-row">
+                                <span>@GetEnvironmentMapNodeLabel(relationship.Source)</span>
+                                <strong>@relationship.Label</strong>
+                                <span>@GetEnvironmentMapNodeLabel(relationship.Target)</span>
+                            </div>
+                        }
+                    </div>
+                </section>
+            }
+        }
+    </ShellPanel>
+
     <ShellPanel Wide="true" Class="environment-panel-full">
         <ShellPanelHeader Title="@L["Environment revisions"].Value"
                           Description="@L["Projected revisions for deployment-produced environment state, plus the current declared resource graph baseline."].Value">
@@ -398,6 +466,9 @@
     private IReadOnlyList<EnvironmentReplicaGroupRow> ReplicaGroupRows { get; set; } = [];
     private IReadOnlyList<ResourceReplicaSlotState> ReplicaSlotStates { get; set; } = [];
     private IReadOnlyList<ResourceEvent> DeploymentEvents { get; set; } = [];
+    private EnvironmentMapViewModel EnvironmentMap { get; set; } = EnvironmentMapViewModel.Empty;
+    private IJSObjectReference? EnvironmentMapModule { get; set; }
+    private DotNetObjectReference<EnvironmentPage>? EnvironmentMapReference { get; set; }
     private DateTimeOffset LoadedAt { get; set; }
 
     private int ReplicaGroupCount => ReplicaGroupRows.Count;
@@ -410,6 +481,33 @@
 
     protected override async Task OnInitializedAsync() =>
         await RefreshAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        EnvironmentMapReference = DotNetObjectReference.Create(this);
+        EnvironmentMapModule = await JS.InvokeAsync<IJSObjectReference>(
+            "import",
+            "./_content/CloudShell.Hosting/environment-state-map.js");
+        await EnvironmentMapModule.InvokeVoidAsync(
+            "initializeEnvironmentStateMap",
+            ".environment-state-map-canvas",
+            EnvironmentMapReference);
+        await UpdateEnvironmentMapAsync();
+    }
+
+    [JSInvokable]
+    public void OpenEnvironmentMapNode(string? detailUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(detailUrl))
+        {
+            Navigation.NavigateTo(detailUrl);
+        }
+    }
 
     private async Task RefreshAsync()
     {
@@ -424,11 +522,21 @@
         EnvironmentRevisionRows = EnvironmentRevisionProjection.CreateRows(Resources, DeploymentRecords);
         ReplicaSlotStates = await ReplicaSlots.ListReplicaSlotStatesAsync(new ResourceReplicaSlotStateQuery(MaxRecords: 100));
         ReplicaGroupRows = CreateReplicaGroupRows(DeploymentRecords, ReplicaSlotStates);
+        EnvironmentMap = CreateEnvironmentMap(Resources, DeploymentRecords, ReplicaGroupRows);
         DeploymentEvents = (await ResourceEvents.ListResourceEventsAsync(new ResourceEventQuery(MaxEvents: 100)))
             .Where(IsEnvironmentActivityEvent)
             .Take(15)
             .ToArray();
         LoadedAt = DateTimeOffset.UtcNow;
+        await UpdateEnvironmentMapAsync();
+    }
+
+    private async Task UpdateEnvironmentMapAsync()
+    {
+        if (EnvironmentMapModule is not null)
+        {
+            await EnvironmentMapModule.InvokeVoidAsync("updateEnvironmentStateMap", EnvironmentMap);
+        }
     }
 
     private string GetLoadedAtLabel() =>
@@ -537,6 +645,10 @@
     private static string GetOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "not projected" : value;
 
+    private string GetEnvironmentMapNodeLabel(string nodeId) =>
+        EnvironmentMap.Nodes.FirstOrDefault(node =>
+            string.Equals(node.Id, nodeId, StringComparison.OrdinalIgnoreCase))?.Label ?? nodeId;
+
     private static bool IsEnvironmentActivityEvent(ResourceEvent resourceEvent) =>
         resourceEvent.EventType.StartsWith(
             ResourceEventTypes.Events.Deployment.Prefix,
@@ -547,6 +659,299 @@
 
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+    private EnvironmentMapViewModel CreateEnvironmentMap(
+        IReadOnlyList<Resource> resources,
+        IReadOnlyList<ResourceDeploymentRecord> deployments,
+        IReadOnlyList<EnvironmentReplicaGroupRow> replicaGroups)
+    {
+        var nodes = new Dictionary<string, EnvironmentMapNode>(StringComparer.OrdinalIgnoreCase);
+        var links = new Dictionary<string, EnvironmentMapLink>(StringComparer.OrdinalIgnoreCase);
+        var resourceNodeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var serviceNodeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var replicaGroupNodeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var routingNodeCount = 0;
+
+        foreach (var resource in resources.OrderBy(resource => resource.EffectiveDisplayName, StringComparer.CurrentCultureIgnoreCase))
+        {
+            var nodeId = CreateEnvironmentMapNodeId("resource", resource.Id);
+            resourceNodeIds[resource.Id] = nodeId;
+            nodes[nodeId] = new EnvironmentMapNode(
+                nodeId,
+                resource.EffectiveDisplayName,
+                resource.EffectiveTypeId,
+                resource.ResourceClass.ToString(),
+                "resource",
+                CreateResourceMapSummary(resource),
+                resource.State?.ToString() ?? L["No lifecycle status"].Value,
+                ResourceStateDisplay.GetStateClass(resource.State),
+                ResourceManagerCompositionLinks.ResourceDetails(Composition, resource.Id));
+        }
+
+        foreach (var deployment in deployments.Where(deployment => IsProjected(deployment.ServiceId)))
+        {
+            var serviceNodeId = CreateEnvironmentMapNodeId("service", deployment.ServiceId);
+            serviceNodeIds[deployment.ServiceId] = serviceNodeId;
+            nodes[serviceNodeId] = nodes.TryGetValue(serviceNodeId, out var existing)
+                ? existing
+                : new EnvironmentMapNode(
+                    serviceNodeId,
+                    deployment.ServiceId,
+                    "Orchestrator service",
+                    ResourceClass.Service.ToString(),
+                    "service",
+                    deployment.EnvironmentRevisionNumber is { } revisionNumber
+                        ? L["Revision {0}", revisionNumber].Value
+                        : GetOptional(deployment.EnvironmentRevisionId),
+                    deployment.Status.ToString(),
+                    "state-running",
+                    resourceNodeIds.TryGetValue(deployment.SourceResourceId, out var sourceNodeId)
+                        ? nodes[sourceNodeId].DetailUrl
+                        : null);
+
+            if (resourceNodeIds.TryGetValue(deployment.SourceResourceId, out var sourceResourceNodeId))
+            {
+                AddEnvironmentMapLink(
+                    links,
+                    sourceResourceNodeId,
+                    serviceNodeId,
+                    L["deploys to"].Value,
+                    "deployment");
+            }
+        }
+
+        foreach (var replicaGroup in replicaGroups)
+        {
+            var replicaNodeId = CreateEnvironmentMapNodeId("replica-group", replicaGroup.ReplicaGroupId);
+            replicaGroupNodeIds[replicaGroup.ReplicaGroupId] = replicaNodeId;
+            nodes[replicaNodeId] = new EnvironmentMapNode(
+                replicaNodeId,
+                replicaGroup.ReplicaGroupId,
+                "Replica group",
+                ResourceClass.Container.ToString(),
+                "replica-group",
+                L[
+                    "{0} of {1} slot(s), {2} materialized",
+                    replicaGroup.OccupiedSlots,
+                    replicaGroup.RequestedSlots,
+                    replicaGroup.MaterializedReplicas].Value,
+                GetOptional(replicaGroup.RuntimeRevisionId),
+                replicaGroup.RepairFailedCount > 0
+                    ? "state-degraded"
+                    : replicaGroup.RepairingCount > 0
+                        ? "state-starting"
+                        : "state-running",
+                serviceNodeIds.TryGetValue(replicaGroup.ServiceId, out var serviceNodeId) &&
+                    nodes.TryGetValue(serviceNodeId, out var serviceNode)
+                        ? serviceNode.DetailUrl
+                        : null);
+
+            if (serviceNodeIds.TryGetValue(replicaGroup.ServiceId, out var owningServiceNodeId))
+            {
+                AddEnvironmentMapLink(
+                    links,
+                    owningServiceNodeId,
+                    replicaNodeId,
+                    L["owns"].Value,
+                    "orchestration");
+            }
+        }
+
+        AddResourceRelationshipLinks(resources, links, resourceNodeIds);
+        AddRoutingNodes(resources, deployments, nodes, links, resourceNodeIds, replicaGroupNodeIds, ref routingNodeCount);
+
+        return new EnvironmentMapViewModel(
+            nodes.Values
+                .OrderBy(node => GetEnvironmentMapNodeSortOrder(node.NodeKind))
+                .ThenBy(node => node.Label, StringComparer.CurrentCultureIgnoreCase)
+                .ToArray(),
+            links.Values
+                .OrderBy(link => link.Kind, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(link => link.Label, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(link => link.Source, StringComparer.OrdinalIgnoreCase)
+                .ToArray(),
+            resources.Count,
+            serviceNodeIds.Count,
+            routingNodeCount);
+    }
+
+    private string CreateResourceMapSummary(Resource resource)
+    {
+        var parts = new List<string>();
+        if (resource.DependsOn.Count > 0)
+        {
+            parts.Add(L["{0} dependency/dependencies", resource.DependsOn.Count].Value);
+        }
+
+        if (resource.Endpoints.Count > 0)
+        {
+            parts.Add(L["{0} endpoint(s)", resource.Endpoints.Count].Value);
+        }
+
+        if (resource.ResourceLoadBalancerRoutes.Count > 0)
+        {
+            parts.Add(L["{0} route(s)", resource.ResourceLoadBalancerRoutes.Count].Value);
+        }
+
+        if (ResourceNameMappingDisplay.IsNameMappingResource(resource))
+        {
+            parts.Add(ResourceNameMappingDisplay.GetHostName(resource));
+        }
+
+        return parts.Count == 0
+            ? resource.PrimaryEndpoint
+            : string.Join(" / ", parts);
+    }
+
+    private void AddRoutingNodes(
+        IReadOnlyList<Resource> resources,
+        IReadOnlyList<ResourceDeploymentRecord> deployments,
+        IDictionary<string, EnvironmentMapNode> nodes,
+        IDictionary<string, EnvironmentMapLink> links,
+        IReadOnlyDictionary<string, string> resourceNodeIds,
+        IReadOnlyDictionary<string, string> replicaGroupNodeIds,
+        ref int routingNodeCount)
+    {
+        foreach (var deployment in deployments
+            .OrderByDescending(deployment => deployment.CompletedAt ?? deployment.StartedAt))
+        {
+            foreach (var binding in deployment.Definition?.DeploymentServices
+                .SelectMany(service => service.RoutingBindingDefinitions) ?? [])
+            {
+                var bindingNodeId = CreateEnvironmentMapNodeId("routing", binding.Name);
+                nodes[bindingNodeId] = new EnvironmentMapNode(
+                    bindingNodeId,
+                    binding.Name,
+                    "Routing binding",
+                    ResourceClass.Network.ToString(),
+                    "routing",
+                    $"{binding.SourceEndpoint.ResourceId}/{binding.SourceEndpoint.EndpointName} -> {binding.ReplicaGroupName}",
+                    L["Binding"].Value,
+                    "state-running",
+                    null);
+                routingNodeCount++;
+
+                if (resourceNodeIds.TryGetValue(binding.SourceEndpoint.ResourceId, out var sourceNodeId))
+                {
+                    AddEnvironmentMapLink(links, sourceNodeId, bindingNodeId, L["binds"].Value, "routing");
+                }
+
+                if (replicaGroupNodeIds.TryGetValue(binding.ReplicaGroupName, out var replicaNodeId))
+                {
+                    AddEnvironmentMapLink(links, bindingNodeId, replicaNodeId, L["targets"].Value, "routing");
+                }
+            }
+        }
+
+        foreach (var loadBalancer in resources.Where(resource => resource.ResourceLoadBalancerRoutes.Count > 0))
+        {
+            foreach (var route in loadBalancer.ResourceLoadBalancerRoutes)
+            {
+                var routeNodeId = CreateEnvironmentMapNodeId("route", $"{loadBalancer.Id}:{route.Id}");
+                var endpoint = string.IsNullOrWhiteSpace(route.Target.EndpointName)
+                    ? route.Target.Port?.ToString(CultureInfo.InvariantCulture)
+                    : route.Target.EndpointName;
+                nodes[routeNodeId] = new EnvironmentMapNode(
+                    routeNodeId,
+                    route.Name,
+                    "Load-balancer route",
+                    loadBalancer.EffectiveTypeId,
+                    "routing",
+                    $"{loadBalancer.EffectiveDisplayName} -> {route.Target.ResourceId}/{GetOptional(endpoint)}",
+                    route.Kind.ToString(),
+                    "state-running",
+                    ResourceManagerCompositionLinks.ResourceDetails(Composition, loadBalancer.Id));
+                routingNodeCount++;
+
+                if (resourceNodeIds.TryGetValue(loadBalancer.Id, out var loadBalancerNodeId))
+                {
+                    AddEnvironmentMapLink(links, loadBalancerNodeId, routeNodeId, L["has route"].Value, "routing");
+                }
+
+                if (resourceNodeIds.TryGetValue(route.Target.ResourceId, out var targetNodeId))
+                {
+                    AddEnvironmentMapLink(links, routeNodeId, targetNodeId, L["routes to"].Value, "routing");
+                }
+            }
+        }
+
+        foreach (var mapping in resources.Where(ResourceNameMappingDisplay.IsNameMappingResource))
+        {
+            var mappingNodeId = CreateEnvironmentMapNodeId("name-mapping", mapping.Id);
+            nodes[mappingNodeId] = new EnvironmentMapNode(
+                mappingNodeId,
+                ResourceNameMappingDisplay.GetHostName(mapping),
+                "Name mapping",
+                mapping.EffectiveTypeId,
+                "routing",
+                $"{ResourceNameMappingDisplay.GetTargetResourceId(mapping)}/{ResourceNameMappingDisplay.GetTargetEndpointName(mapping)}",
+                ResourceNameMappingDisplay.GetMaterializationLabel(mapping, Localize),
+                "state-running",
+                ResourceManagerCompositionLinks.ResourceDetails(Composition, mapping.Id));
+            routingNodeCount++;
+
+            if (resourceNodeIds.TryGetValue(mapping.Id, out var mappingResourceNodeId))
+            {
+                AddEnvironmentMapLink(links, mappingResourceNodeId, mappingNodeId, L["projects"].Value, "routing");
+            }
+
+            if (resourceNodeIds.TryGetValue(ResourceNameMappingDisplay.GetTargetResourceId(mapping), out var targetNodeId))
+            {
+                AddEnvironmentMapLink(links, mappingNodeId, targetNodeId, L["names"].Value, "routing");
+            }
+        }
+    }
+
+    private static void AddResourceRelationshipLinks(
+        IReadOnlyList<Resource> resources,
+        IDictionary<string, EnvironmentMapLink> links,
+        IReadOnlyDictionary<string, string> resourceNodeIds)
+    {
+        foreach (var resource in resources)
+        {
+            foreach (var dependencyId in resource.DependsOn)
+            {
+                if (resourceNodeIds.TryGetValue(resource.Id, out var sourceNodeId) &&
+                    resourceNodeIds.TryGetValue(dependencyId, out var targetNodeId))
+                {
+                    AddEnvironmentMapLink(links, sourceNodeId, targetNodeId, "depends on", "dependency");
+                }
+            }
+        }
+    }
+
+    private static void AddEnvironmentMapLink(
+        IDictionary<string, EnvironmentMapLink> links,
+        string source,
+        string target,
+        string label,
+        string kind)
+    {
+        if (string.IsNullOrWhiteSpace(source) ||
+            string.IsNullOrWhiteSpace(target) ||
+            string.Equals(source, target, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var id = string.Join('\u001f', source, label, target);
+        links[id] = new EnvironmentMapLink(source, target, label, kind);
+    }
+
+    private static string CreateEnvironmentMapNodeId(string prefix, string value) =>
+        $"{prefix}:{value.Trim()}";
+
+    private static int GetEnvironmentMapNodeSortOrder(string nodeKind) =>
+        nodeKind switch
+        {
+            "resource" => 0,
+            "service" => 1,
+            "replica-group" => 2,
+            "routing" => 3,
+            _ => 4
+        };
+
+    private string Localize(string value) => L[value].Value;
 
     private sealed record EnvironmentDeploymentRow(
         Resource Resource,
@@ -674,4 +1079,42 @@
     private static bool IsProjected(string value) =>
         !string.IsNullOrWhiteSpace(value) &&
         !string.Equals(value, "not projected", StringComparison.OrdinalIgnoreCase);
+
+    public async ValueTask DisposeAsync()
+    {
+        if (EnvironmentMapModule is not null)
+        {
+            await EnvironmentMapModule.InvokeVoidAsync("disposeEnvironmentStateMap");
+            await EnvironmentMapModule.DisposeAsync();
+        }
+
+        EnvironmentMapReference?.Dispose();
+    }
+
+    private sealed record EnvironmentMapViewModel(
+        IReadOnlyList<EnvironmentMapNode> Nodes,
+        IReadOnlyList<EnvironmentMapLink> Links,
+        int ResourceCount,
+        int ServiceCount,
+        int RoutingCount)
+    {
+        public static EnvironmentMapViewModel Empty { get; } = new([], [], 0, 0, 0);
+    }
+
+    private sealed record EnvironmentMapNode(
+        string Id,
+        string Label,
+        string Type,
+        string ResourceClass,
+        string NodeKind,
+        string Summary,
+        string StateLabel,
+        string StateClass,
+        string? DetailUrl);
+
+    private sealed record EnvironmentMapLink(
+        string Source,
+        string Target,
+        string Label,
+        string Kind);
 }

@@ -1333,6 +1333,194 @@ h3 {
     text-anchor: middle;
 }
 
+.environment-state-map-shell {
+    min-height: 34rem;
+}
+
+.environment-state-map-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: inherit;
+    cursor: grab;
+}
+
+.environment-state-map-canvas:active {
+    cursor: grabbing;
+}
+
+.environment-map-link {
+    stroke: color-mix(in srgb, var(--cloudshell-text-muted) 55%, transparent);
+    stroke-width: 1.5;
+    marker-end: url("#environment-map-arrow");
+}
+
+.environment-map-link.deployment,
+.environment-map-link.orchestration {
+    stroke: color-mix(in srgb, var(--cloudshell-accent) 72%, transparent);
+}
+
+.environment-map-link.routing {
+    stroke-dasharray: 5 4;
+}
+
+.environment-map-link.related {
+    stroke: var(--cloudshell-accent);
+    stroke-width: 2.5;
+}
+
+.environment-map-link.dimmed,
+.environment-map-link-label.dimmed {
+    opacity: .18;
+}
+
+.environment-map-arrow {
+    fill: color-mix(in srgb, var(--cloudshell-text-muted) 70%, transparent);
+}
+
+.environment-map-link-label {
+    fill: var(--cloudshell-text-muted);
+    font-size: .66rem;
+    pointer-events: none;
+    text-anchor: middle;
+    paint-order: stroke;
+    stroke: var(--cloudshell-surface-muted);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+}
+
+.environment-map-link-label.related {
+    fill: var(--cloudshell-accent);
+    font-weight: 650;
+}
+
+.environment-map-node {
+    cursor: pointer;
+}
+
+.environment-map-node-card {
+    fill: var(--cloudshell-surface);
+    stroke: var(--cloudshell-stroke);
+    stroke-width: 1;
+    filter: drop-shadow(0 5px 12px rgba(0, 0, 0, .12));
+}
+
+.environment-map-node.service .environment-map-node-card {
+    fill: color-mix(in srgb, var(--cloudshell-accent) 8%, var(--cloudshell-surface));
+    stroke: color-mix(in srgb, var(--cloudshell-accent) 54%, var(--cloudshell-stroke));
+    stroke-dasharray: 6 4;
+}
+
+.environment-map-node.replica-group .environment-map-node-card {
+    fill: color-mix(in srgb, #0f766e 8%, var(--cloudshell-surface));
+}
+
+.environment-map-node.routing .environment-map-node-card {
+    fill: color-mix(in srgb, #2563eb 7%, var(--cloudshell-surface));
+}
+
+.environment-map-node:hover .environment-map-node-card,
+.environment-map-node.selected .environment-map-node-card {
+    stroke: var(--cloudshell-accent);
+    stroke-width: 2;
+}
+
+.environment-map-node.dimmed {
+    opacity: .28;
+}
+
+.environment-map-node.related,
+.environment-map-node.selected {
+    opacity: 1;
+}
+
+.environment-map-node-icon {
+    fill: #64748b;
+}
+
+.environment-map-node-icon.service {
+    fill: #d97706;
+}
+
+.environment-map-node-icon.replica-group,
+.environment-map-node-icon.container {
+    fill: #0f766e;
+}
+
+.environment-map-node-icon.routing,
+.environment-map-node-icon.network {
+    fill: #2563eb;
+}
+
+.environment-map-node-icon.storage {
+    fill: #0891b2;
+}
+
+.environment-map-node-icon.configuration {
+    fill: #9333ea;
+}
+
+.environment-map-node-icon.secretsvault {
+    fill: #be123c;
+}
+
+.environment-map-node-initials {
+    fill: white;
+    font-size: .72rem;
+    font-weight: 700;
+    pointer-events: none;
+    text-anchor: middle;
+}
+
+.environment-map-status {
+    fill: #8b5cf6;
+    stroke: var(--cloudshell-surface);
+    stroke-width: 3;
+}
+
+.environment-map-status.state-running {
+    fill: #16a34a;
+}
+
+.environment-map-status.state-starting {
+    fill: #f59e0b;
+}
+
+.environment-map-status.state-stopping {
+    fill: #f97316;
+}
+
+.environment-map-status.state-paused {
+    fill: #7c3aed;
+}
+
+.environment-map-status.state-degraded {
+    fill: #dc2626;
+}
+
+.environment-map-status.state-stopped {
+    fill: #64748b;
+}
+
+.environment-map-status.state-unknown {
+    fill: #8b5cf6;
+}
+
+.environment-map-node-label {
+    fill: var(--cloudshell-text);
+    font-size: .82rem;
+    font-weight: 650;
+    pointer-events: none;
+    text-anchor: middle;
+}
+
+.environment-map-node-kind {
+    fill: var(--cloudshell-text-muted);
+    font-size: .7rem;
+    pointer-events: none;
+    text-anchor: middle;
+}
+
 @media (max-width: 860px) {
     .resource-relationship-graph {
         grid-template-columns: minmax(0, 1fr);

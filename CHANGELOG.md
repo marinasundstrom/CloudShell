@@ -26,6 +26,10 @@ on `git blame --follow`, and then by the broad type of change.
   group, and optional load-balancer route or endpoint mapping by CloudShell
   resource ids, giving routing controllers an explicit contract for
   re-binding without exposing deployment artifacts through ResourceTemplate.
+- The Environment page now includes an interactive environment state map,
+  using the same zoomable graph interaction pattern as the Resource graph while
+  projecting resources, orchestrator service boundaries, replica groups,
+  routing artifacts, and significant environment relationships.
 - Replica-group deployment definitions now include reconciliation policy for
   scale routing and previous-revision slot retention, and the deployment
   proposal documents both compact container-app update JSON and the normalized
