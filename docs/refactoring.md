@@ -76,6 +76,13 @@ cleanup without falling back to old provider-specific imperative update paths.
 
 ## Active Slice
 
+- [x] Revise the graph POC migration plan and keep `docs/roadmap.md`,
+  `docs/proposals/README.md`, resource template docs, deployment docs, and
+  container app docs aligned around the same architecture story.
+- [x] Add an internal Resource Manager deployment coordinator boundary for
+  graph-backed apply paths so accepted ResourceDefinition changes can produce
+  orchestrator deployments without bypassing deployment records, locking,
+  previous replica-group lookup, routing reconciliation, or cleanup policy.
 - [x] Investigate `ApplicationResourceService` responsibilities and current
   deployment/orchestration paths.
 - [x] Route deployment-capable `Start` actions through Resource Manager
@@ -286,9 +293,6 @@ cleanup without falling back to old provider-specific imperative update paths.
 
 ## Next Slices
 
-- [ ] Revise the graph POC migration plan and keep `docs/roadmap.md`,
-  `docs/proposals/README.md`, resource template docs, deployment docs, and
-  container app docs aligned around the same architecture story.
 - [ ] Rework the resource template engine around `ResourceTemplate` containing
   `ResourceDefinition` entries. Remove `ResourceDeploymentDefinition` and
   other deployment-shaped user-authoring wrappers unless an internal
@@ -297,9 +301,11 @@ cleanup without falling back to old provider-specific imperative update paths.
   `ResourceDefinition` updates: target resolution, provider validation,
   accepted graph-state commit, runtime-planning trigger, diagnostics, and
   rollback behavior for failed validation or failed runtime materialization.
-- [ ] Move container app image updates, replica-slot updates, first start,
-  scale-in, scale-out, routing rebinding, and cleanup onto one internal
-  deployment-controller path derived from accepted graph resource state.
+- [ ] Finish moving container app first start, scale-in, scale-out, routing
+  rebinding, and cleanup onto the internal deployment-controller path derived
+  from accepted graph resource state. Image and replica-slot updates now enter
+  that path through ResourceDefinition apply; lifecycle and cleanup seams still
+  need consolidation.
 - [ ] Define the routing/load-balancer reaction boundary for replica-group
   changes. Prefer an orchestrator/controller-owned routing reconciliation
   hook over container-app-specific ingress and backend remapping logic.
@@ -363,15 +369,13 @@ cleanup without falling back to old provider-specific imperative update paths.
   own how validated resource intent maps to its runtime target, whether that
   target is an executable, container, orchestrator service, database, or other
   managed resource.
-- [ ] Feed the schema/validation/apply model into orchestrator deployments so
-  deployment definitions can describe resource intent consistently
+- [ ] Feed the schema/validation/apply model into orchestrator deployment
+  planning so accepted ResourceDefinition state can be translated consistently
   across resource types while leaving type-specific reconciliation to the
-  owning provider. Conceptually, a deployment definition contains resource
-  definitions: resource identity, resource type/kind/class, and provider-owned
-  attributes such as `executable.path`, `executable.arguments`, or future
-  complex typed values. The deployment definition tells CloudShell what the
-  actor wants the runtime to materialize; providers validate and apply that
-  intent to their runtime target.
+  owning provider. Deployment definitions may reference accepted resource
+  state or carry normalized runtime definitions for services, replica groups,
+  replicas, and routing bindings, but user-authored resource intent remains in
+  `ResourceDefinition` entries and `ResourceTemplate` envelopes.
 
 ## Environment and UI Follow-Ups
 

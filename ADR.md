@@ -11,27 +11,34 @@ link to the decision so the dependency is visible.
 
 ## 2026-06-29
 
-### ADR-20260629-001: Name the environment resource and runtime models
+### ADR-20260629-001: Name the Resource model and Runtime model
 
-CloudShell should use **Host Environment Model** for the broad model of a
-CloudShell host environment.
+CloudShell should use **Host Environment** for the managed environment where
+the complete realized model exists. The term describes the environment that
+CloudShell manages, not the ASP.NET Core web host process.
 
-CloudShell should use **Environment Resource Model** for the resource-focused
-subset of the Host Environment Model that contains resources, dependencies,
-endpoints, and endpoint mappings or names. This is the model most users need
-when asking what resources run in an environment and how they connect.
+CloudShell should use **Resource model** for the resource-focused subset of
+the realized model. It contains resources, dependencies, endpoints, and
+endpoint mappings or names. This is the model most users need when asking what
+resources run in an environment and how they connect. Its graph representation
+is the **Resource graph**.
 
-CloudShell should use **Environment Runtime Model** for the fuller management
-and orchestration model of the same host environment. This model contains
-environment artifacts: resources, orchestration services, replica groups,
-replicas, routing bindings, retained or superseded runtime revisions, and
-environment revisions.
+CloudShell should use **Runtime model** for the fuller management and
+orchestration model of the same host environment. The Runtime model includes
+the Resource model as a subset and adds environment artifacts: orchestration
+services, replica groups, replicas, routing bindings, retained or superseded
+runtime revisions, and environment revisions. Its graph representation is the
+**Environment Map** or runtime graph.
 
-Services, replica groups, replicas, and routing bindings are environment
-artifacts in the Environment Runtime Model. They are not only deployment
+Resources, services, replica groups, replicas, and routing bindings are
+environment artifacts in the Runtime model. They are not only deployment
 internals. A deployment definition may define, update, replace, or retire
 those artifacts, and an environment revision records the versioned outcome of
 that realization.
+
+Earlier draft terms such as **Host Environment Model**, **Environment Resource
+Model**, and **Environment Runtime Model** are deprecated aliases for the
+realized model, Resource model, and Runtime model respectively.
 
 The canonical vocabulary lives in
 [CloudShell Terminology](docs/terminology.md). Domain, resource, architecture,

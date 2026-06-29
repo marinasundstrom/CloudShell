@@ -62,10 +62,14 @@ on `git blame --follow`, and then by the broad type of change.
   environment artifacts as the canonical terms for the managed environment, its
   resource-focused subset, and its fuller runtime/orchestration view. See
   ADR-20260629-001.
-- Environment Runtime Model projection for the Environment page now lives in a
+- Runtime model projection for the Environment page now lives in a
   focused Resource Manager projection class with explicit artifact metadata for
   resources, orchestration services, replica groups, replicas, routing
   bindings, runtime revisions, and source resource ownership.
+- ADR, proposal, and refactoring docs now use Resource model and Runtime model
+  as the canonical names, document the Resource Manager deployment coordinator
+  as the internal graph-backed apply boundary, and update template guidance
+  around `ResourceTemplate` envelopes containing `ResourceDefinition` entries.
 - Resource Manager deployment apply now treats replacement replica groups as
   an explicit controller path: it prepares the target group, materializes new
   replicas, applies replacement routing according to policy, and leaves

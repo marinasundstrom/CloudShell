@@ -660,23 +660,36 @@ Verification:
 
 ### Template
 
-`ResourceGroupTemplate` is the portable group-level envelope owned by
-CloudShell. `ResourceTemplateDefinition.Configuration` is provider-owned.
+`ResourceTemplate` is the portable desired-state envelope owned by
+CloudShell. It contains one or more `ResourceDefinition` entries. The
+resource definition is the serialization boundary for user-authored resource
+intent; runtime deployment artifacts are produced later by Resource Manager
+and orchestrator planning.
 
 Implementation:
 
-- Keep group name, description, kind, version, resources, dependencies, and
-  provider IDs in the platform envelope.
-- Keep per-resource schema validation in `IResourceTemplateProvider`.
-- Import invalid envelopes or invalid resource payloads as diagnostics without
-  creating partial platform state for envelope-level failures.
-- Preserve provider configuration versions.
+- Keep the template envelope focused on apply metadata and resource
+  definitions. Do not wrap normal authoring in deployment-shaped DTOs such as
+  `ResourceDeploymentDefinition`.
+- Validate the envelope in Resource Manager and validate each resource
+  definition through the owning resource type provider or graph apply
+  contract.
+- Commit accepted graph state before runtime materialization. When accepted
+  state affects runtime, provider-owned planners should describe internal
+  deployment work for Resource Manager to coordinate.
+- Export accepted graph state back to resource definitions without dumping
+  provider runtime caches, logs, live container IDs, secret values, or
+  internal deployment records.
+- Retire provider-specific template serializers for graph-backed resource
+  types once those resource types can round-trip through definitions.
 
 Verification:
 
-- Add template service tests for export/import orchestration, diagnostics,
-  invalid envelopes, dependency handling, and no-partial-state guarantees.
-- Add provider tests for provider-specific template validation.
+- Add template service tests for export/apply diagnostics, invalid envelopes,
+  dependency/reference handling, graph-state commit behavior, and
+  no-partial-state guarantees for envelope-level failures.
+- Add provider or graph-apply tests for resource-definition validation,
+  normalization, incremental updates, and export round trips.
 - Add API/client tests if template endpoints or DTOs change.
 
 ### Programmatic declaration

@@ -42,6 +42,13 @@ Initial implementation now adds internal data contracts for
 `ResourceOrchestratorRevision` in the orchestration abstractions, plus an
 opt-in `IResourceOrchestratorDeploymentApplier` boundary and Control Plane
 dispatcher for applying a deployment through the selected orchestrator.
+Resource Manager also exposes an internal deployment coordinator boundary for
+graph-backed apply paths. A provider or graph reconciler that has accepted
+resource state should describe the required runtime deployment and hand that
+definition back to Resource Manager, rather than calling low-level
+orchestrator appliers directly. This keeps deployment locking, deployment
+history, previous replica-group lookup, routing reconciliation, and
+post-apply cleanup in the Resource Manager deployment path.
 These are CloudShell runtime concepts: the orchestrator manages resources and
 their runtime configuration, and deployment/revisioning records the desired and
 materialized CloudShell runtime state rather than exposing a Kubernetes,
@@ -142,8 +149,11 @@ deferred.
 
 ```mermaid
 flowchart TD
-    Resource["CloudShell resource\nfor example container app"] --> Provider["Resource provider\nprojects workload intent"]
-    Provider --> Deployment["Orchestrator deployment\ndesired runtime state"]
+    Definition["ResourceDefinition apply\nuser or UI intent"] --> Graph["Resource graph\naccepted resource state"]
+    Graph --> Resource["CloudShell resource\nfor example container app"]
+    Resource --> Provider["Resource provider\nplans runtime intent"]
+    Provider --> Coordinator["Resource Manager deployment coordinator"]
+    Coordinator --> Deployment["Orchestrator deployment\ndesired runtime state"]
 
     subgraph ResourceManager["Resource Manager"]
         DeploymentService["Deployment service\nrecords apply attempt"]
