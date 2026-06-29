@@ -244,6 +244,10 @@ public static class ResourceAttributeNames
     public const string DeploymentMaterializedReplicas = "deployment.replicas.materialized";
     public const string DeploymentProjectedReplicas = "deployment.replicas.projected";
     public const string DeploymentReplicaGroupId = "deployment.replicaGroup.id";
+    public const string DeploymentRoutingScaleOutMode = "deployment.routing.scaleOutMode";
+    public const string DeploymentRoutingScaleInMode = "deployment.routing.scaleInMode";
+    public const string DeploymentRoutingReplacementMode = "deployment.routing.replacementMode";
+    public const string DeploymentReplacementRetainPreviousReplicaSlots = "deployment.replacement.retainPreviousReplicaSlots";
     public const string DeploymentReplicaRestartMode = "deployment.replica.restartMode";
     public const string DeploymentReplicaFailureThreshold = "deployment.replica.failureThreshold";
     public const string DeploymentReplicaMaxAttempts = "deployment.replica.maxAttempts";

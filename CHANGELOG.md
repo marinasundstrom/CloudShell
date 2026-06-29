@@ -21,6 +21,10 @@ on `git blame --follow`, and then by the broad type of change.
   with a revision-aware replica template, and the default deployment applier
   treats that definition as the desired replica state when reconciling scale
   and image changes.
+- Replica-group deployment definitions now include reconciliation policy for
+  scale routing and previous-revision slot retention, and the deployment
+  proposal documents both compact container-app update JSON and the normalized
+  service definition JSON projection.
 - ApplicationTopology and CloudShell.ContainerHost SQL Server Docker cleanup now bounds
   container removal and terminates cancelled Docker CLI processes so host shutdown is
   not held by a stuck `docker rm -f`.

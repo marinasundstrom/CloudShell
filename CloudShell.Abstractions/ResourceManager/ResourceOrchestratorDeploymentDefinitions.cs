@@ -52,6 +52,36 @@ public sealed record ResourceOrchestratorDeploymentDefinition(
     }
 }
 
+public enum ResourceOrchestratorScaleOutRoutingMode
+{
+    AfterAddedReplicas,
+    BeforeAddedReplicas
+}
+
+public enum ResourceOrchestratorScaleInRoutingMode
+{
+    BeforeRemovedReplicas,
+    AfterRemovedReplicas
+}
+
+public enum ResourceOrchestratorReplacementRoutingMode
+{
+    AfterNewReplicaGroupMaterialized,
+    BeforeNewReplicaGroupMaterialized
+}
+
+public sealed record ResourceOrchestratorReplicaGroupReconciliationPolicy(
+    ResourceOrchestratorScaleOutRoutingMode ScaleOutRoutingMode =
+        ResourceOrchestratorScaleOutRoutingMode.AfterAddedReplicas,
+    ResourceOrchestratorScaleInRoutingMode ScaleInRoutingMode =
+        ResourceOrchestratorScaleInRoutingMode.BeforeRemovedReplicas,
+    ResourceOrchestratorReplacementRoutingMode ReplacementRoutingMode =
+        ResourceOrchestratorReplacementRoutingMode.AfterNewReplicaGroupMaterialized,
+    int RetainPreviousReplicaSlots = 0)
+{
+    public static ResourceOrchestratorReplicaGroupReconciliationPolicy Default { get; } = new();
+}
+
 public sealed record ResourceOrchestratorReplicaGroupDefinition(
     string Name,
     string DefinitionVersion,
@@ -60,6 +90,7 @@ public sealed record ResourceOrchestratorReplicaGroupDefinition(
     int RequestedReplicaSlots,
     int RequestedReplicas,
     ResourceOrchestratorReplicaManagementPolicy? ManagementPolicy = null,
+    ResourceOrchestratorReplicaGroupReconciliationPolicy? ReconciliationPolicy = null,
     ResourceOrchestratorResourceDefinition? Template = null,
     IReadOnlyDictionary<string, string>? Attributes = null)
 {
@@ -92,6 +123,7 @@ public sealed record ResourceOrchestratorReplicaGroupDefinition(
             replicaGroup.RequestedReplicaSlots,
             replicaGroup.RequestedReplicas,
             replicaGroup.EffectiveManagementPolicy,
+            ResourceOrchestratorReplicaGroupReconciliationPolicy.Default,
             CreateReplicaTemplate(replicaGroup, workloadVersion, mergedAttributes),
             mergedAttributes);
     }
@@ -99,6 +131,7 @@ public sealed record ResourceOrchestratorReplicaGroupDefinition(
     public ResourceOrchestratorResourceDefinition ToResourceDefinition()
     {
         var policy = ManagementPolicy ?? ResourceOrchestratorReplicaManagementPolicy.Default;
+        var reconciliation = ReconciliationPolicy ?? ResourceOrchestratorReplicaGroupReconciliationPolicy.Default;
         var attributes = new Dictionary<string, string>(
             ReplicaGroupAttributes,
             StringComparer.OrdinalIgnoreCase)
@@ -109,6 +142,14 @@ public sealed record ResourceOrchestratorReplicaGroupDefinition(
                 RequestedReplicaSlots.ToString(CultureInfo.InvariantCulture),
             [ResourceAttributeNames.DeploymentRequestedReplicas] =
                 RequestedReplicas.ToString(CultureInfo.InvariantCulture),
+            [ResourceAttributeNames.DeploymentRoutingScaleOutMode] =
+                reconciliation.ScaleOutRoutingMode.ToString(),
+            [ResourceAttributeNames.DeploymentRoutingScaleInMode] =
+                reconciliation.ScaleInRoutingMode.ToString(),
+            [ResourceAttributeNames.DeploymentRoutingReplacementMode] =
+                reconciliation.ReplacementRoutingMode.ToString(),
+            [ResourceAttributeNames.DeploymentReplacementRetainPreviousReplicaSlots] =
+                Math.Max(0, reconciliation.RetainPreviousReplicaSlots).ToString(CultureInfo.InvariantCulture),
             [ResourceAttributeNames.DeploymentReplicaRestartMode] =
                 policy.RestartMode.ToString(),
             [ResourceAttributeNames.DeploymentReplicaFailureThreshold] =
@@ -191,6 +232,23 @@ public sealed record ResourceOrchestratorReplicaGroupDefinition(
                     attributes,
                     ResourceAttributeNames.DeploymentReplicaMaxAttempts,
                     ResourceOrchestratorReplicaManagementPolicy.Default.MaxAttempts)),
+            ReconciliationPolicy: new ResourceOrchestratorReplicaGroupReconciliationPolicy(
+                ScaleOutRoutingMode: GetEnum(
+                    attributes,
+                    ResourceAttributeNames.DeploymentRoutingScaleOutMode,
+                    ResourceOrchestratorReplicaGroupReconciliationPolicy.Default.ScaleOutRoutingMode),
+                ScaleInRoutingMode: GetEnum(
+                    attributes,
+                    ResourceAttributeNames.DeploymentRoutingScaleInMode,
+                    ResourceOrchestratorReplicaGroupReconciliationPolicy.Default.ScaleInRoutingMode),
+                ReplacementRoutingMode: GetEnum(
+                    attributes,
+                    ResourceAttributeNames.DeploymentRoutingReplacementMode,
+                    ResourceOrchestratorReplicaGroupReconciliationPolicy.Default.ReplacementRoutingMode),
+                RetainPreviousReplicaSlots: GetNonNegativeInt(
+                    attributes,
+                    ResourceAttributeNames.DeploymentReplacementRetainPreviousReplicaSlots,
+                    ResourceOrchestratorReplicaGroupReconciliationPolicy.Default.RetainPreviousReplicaSlots)),
             Template: TryReadTemplate(resource.Definition),
             Attributes: attributes);
         return true;
@@ -243,12 +301,31 @@ public sealed record ResourceOrchestratorReplicaGroupDefinition(
             ? Math.Max(1, parsed)
             : fallback;
 
+    private static int GetNonNegativeInt(
+        IReadOnlyDictionary<string, string> attributes,
+        string name,
+        int fallback) =>
+        attributes.TryGetValue(name, out var value) &&
+        int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+            ? Math.Max(0, parsed)
+            : fallback;
+
     private static ResourceOrchestratorReplicaRestartMode GetRestartMode(
         IReadOnlyDictionary<string, string> attributes) =>
-        attributes.TryGetValue(ResourceAttributeNames.DeploymentReplicaRestartMode, out var value) &&
-        Enum.TryParse<ResourceOrchestratorReplicaRestartMode>(value, ignoreCase: true, out var parsed)
+        GetEnum(
+            attributes,
+            ResourceAttributeNames.DeploymentReplicaRestartMode,
+            ResourceOrchestratorReplicaManagementPolicy.Default.RestartMode);
+
+    private static TValue GetEnum<TValue>(
+        IReadOnlyDictionary<string, string> attributes,
+        string name,
+        TValue fallback)
+        where TValue : struct =>
+        attributes.TryGetValue(name, out var value) &&
+        Enum.TryParse<TValue>(value, ignoreCase: true, out var parsed)
             ? parsed
-            : ResourceOrchestratorReplicaManagementPolicy.Default.RestartMode;
+            : fallback;
 }
 
 public sealed record ResourceOrchestratorServiceDefinition(

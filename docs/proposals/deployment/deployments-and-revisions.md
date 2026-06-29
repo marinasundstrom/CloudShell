@@ -549,13 +549,17 @@ public sealed class OrchestratorRevision
 The deployment model should represent resource intent in the CloudShell
 environment: what the actor wants the runtime to materialize. It should not
 represent provider-private imperative commands, and it should not be the full
-user-facing resource graph. The durable shape should be a deployment
-specification, or deployment definition, containing versioned typed service
-and resource definitions or deltas. Services are first-class orchestrator
-grouping and boundary objects. A service can group related runtime resources
-such as a load balancer, replica group, and materialized replicas. The same
-deployment can also include standalone resources that are not grouped under a
-service.
+user-facing resource graph. It should also not become the default file format
+users author. The user-facing apply artifact remains Resource Definition
+state: resources plus provider-owned attributes and definition payloads. The
+orchestrator deployment model is the normalized internal state produced by
+providers and controllers after that resource intent is accepted. Its durable
+internal shape should be a deployment specification, or deployment definition,
+containing versioned typed service and resource definitions or deltas.
+Services are first-class orchestrator grouping and boundary objects. A service
+can group related runtime resources such as a load balancer, replica group,
+and materialized replicas. The same internal deployment can also include
+standalone resources that are not grouped under a service.
 
 Each resource entry names the resource being reconciled, declares its resource
 type, and carries resource intent that can be validated by the owning resource
@@ -611,12 +615,103 @@ deployment specification into Docker, Docker Compose, Kubernetes, or a custom
 runtime without exposing those backend models as the common CloudShell
 contract.
 
-For example, a serialized projection of a deployment definition might contain
-a resource definition for an executable application with attributes such as
-`executable.path`, `executable.arguments`, `executable.workingDirectory`, and
-a future complex `custom.data` value. The JSON shape is only one projection;
-the model concept is a resource definition that states intent for a named
-resource of a known type.
+The user-facing authoring input should remain Resource Definition intent, not
+an exposed orchestrator deployment model. A user should declare resources and
+the state they want those resources in, such as a container app image and
+replica count. The container app resource remains the visible resource and
+acts as the control surface for the internal orchestrator service it owns or
+tracks. Deployment, orchestrator service, and replica group contracts remain
+internal orchestration API concepts unless a later workload-builder scenario
+justifies exposing them deliberately.
+
+For simple changes, the caller should be able to submit an incremental
+resource patch that says what changed, such as a new image or a new replica
+count:
+
+```json
+{
+  "definitionVersion": "1",
+  "resources": [
+    {
+      "name": "sample-api",
+      "type": "application.container-app",
+      "definitionVersion": "1",
+      "attributes": {
+        "container.image": "ghcr.io/example/api:20260629.1",
+        "container.replicas": "3"
+      }
+    }
+  ]
+}
+```
+
+That compact input is still declarative: it updates resource intent, not a
+runtime procedure list. The container app provider and orchestrator deployment
+controller resolve the patch against the accepted deployment state, provider
+defaults, policy, and runtime revision naming rules, then record a normalized
+internal deployment definition for apply and history.
+
+For a container app, that internal JSON projection can map the app definition
+to one orchestrator service with one service-owned replica-group resource. The
+replica group describes the desired state that the orchestrator controller
+reconciles. The load balancer and runtime provider then react to that desired
+state instead of the caller issuing imperative "delete all and recreate"
+operations:
+
+```json
+{
+  "definitionVersion": "1",
+  "services": [
+    {
+      "name": "cloudshell-application-api",
+      "type": "cloudshell.orchestrator.service",
+      "definitionVersion": "1",
+      "attributes": {
+        "deployment.reason": "image-update"
+      },
+      "resources": [
+        {
+          "name": "cloudshell-application-api-rev-3-replicas",
+          "type": "cloudshell.replica-group",
+          "definitionVersion": "1",
+          "definition": {
+            "name": "cloudshell-application-api-rev-3-replicas-replica-template",
+            "type": "cloudshell.replica",
+            "definitionVersion": "1",
+            "attributes": {
+              "deployment.replicaGroupId": "cloudshell-application-api-rev-3-replicas",
+              "deployment.workloadVersion": "rev-3",
+              "runtime.revision": "rev-3"
+            }
+          },
+          "attributes": {
+            "runtime.revision": "rev-3",
+            "deployment.workloadVersion": "rev-3",
+            "deployment.requestedReplicaSlots": "3",
+            "deployment.requestedReplicas": "3",
+            "deployment.routing.scaleOutMode": "AfterAddedReplicas",
+            "deployment.routing.scaleInMode": "BeforeRemovedReplicas",
+            "deployment.routing.replacementMode": "AfterNewReplicaGroupMaterialized",
+            "deployment.replacement.retainPreviousReplicaSlots": "1",
+            "deployment.replica.restartMode": "ReplaceOccupant",
+            "deployment.replica.failureThreshold": "1",
+            "deployment.replica.maxAttempts": "10"
+          }
+        }
+      ]
+    }
+  ],
+  "resources": []
+}
+```
+
+The internal JSON shape is only one projection; the model concept is a service
+definition with resource definitions that state intent for named resources of
+known types. The same structure can later be projected through YAML, a builder
+API, database records, or generated DTOs without changing the underlying
+orchestration contract. That does not make it the default user-facing file
+format; the default user-facing file format remains Resource Definition
+entries that the Control Plane applies.
 
 Lifecycle and materialization intent should be part of the requested resource
 or replica state in the deployment definition. This follows the same model as

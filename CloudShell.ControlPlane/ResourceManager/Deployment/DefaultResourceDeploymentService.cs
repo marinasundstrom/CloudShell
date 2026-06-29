@@ -28,7 +28,8 @@ public sealed class DefaultResourceDeploymentService(
         {
             RuntimeRevisionId = deployment.RevisionId
         };
-        var replicaGroup = ResolveTargetReplicaGroup(deployment, service);
+        var targetReplicaGroup = ResolveTargetReplicaGroup(deployment, service);
+        var replicaGroup = targetReplicaGroup.ReplicaGroup;
         var previousReplicaGroup = GetLatestActiveReplicaGroup(deployment);
         try
         {
@@ -42,6 +43,7 @@ public sealed class DefaultResourceDeploymentService(
                     service,
                     previousReplicaGroup,
                     replicaGroup,
+                    targetReplicaGroup.ReconciliationPolicy,
                     deployment,
                     cancellationToken);
             }
@@ -77,6 +79,7 @@ public sealed class DefaultResourceDeploymentService(
             service,
             previousReplicaGroup,
             replicaGroup,
+            targetReplicaGroup.ReconciliationPolicy,
             applied);
         var revisionCreatedAt = DateTimeOffset.UtcNow;
         var revision = deploymentStore?.CreateRevision(
@@ -128,7 +131,7 @@ public sealed class DefaultResourceDeploymentService(
             .FirstOrDefault();
     }
 
-    private static ResourceOrchestratorReplicaGroup ResolveTargetReplicaGroup(
+    private static TargetReplicaGroup ResolveTargetReplicaGroup(
         ResourceOrchestratorDeployment deployment,
         ResourceOrchestratorService service)
     {
@@ -142,14 +145,20 @@ public sealed class DefaultResourceDeploymentService(
             .FirstOrDefault();
 
         return replicaGroupDefinition is null
-            ? ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service)
-            : replicaGroupDefinition.ToReplicaGroup(service);
+            ? new TargetReplicaGroup(
+                ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service),
+                ResourceOrchestratorReplicaGroupReconciliationPolicy.Default)
+            : new TargetReplicaGroup(
+                replicaGroupDefinition.ToReplicaGroup(service),
+                replicaGroupDefinition.ReconciliationPolicy ??
+                    ResourceOrchestratorReplicaGroupReconciliationPolicy.Default);
     }
 
     private static IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest> CreateRetiredReplicaGroups(
         ResourceOrchestratorService targetService,
         ResourceOrchestratorReplicaGroup? previousReplicaGroup,
         ResourceOrchestratorReplicaGroup targetReplicaGroup,
+        ResourceOrchestratorReplicaGroupReconciliationPolicy reconciliationPolicy,
         ResourceOrchestratorDeployment deployment)
     {
         if (previousReplicaGroup is null ||
@@ -158,21 +167,49 @@ public sealed class DefaultResourceDeploymentService(
             return [];
         }
 
+        var retainedSlots = Math.Clamp(
+            reconciliationPolicy.RetainPreviousReplicaSlots,
+            0,
+            previousReplicaGroup.RequestedReplicaSlots);
+        if (retainedSlots == previousReplicaGroup.RequestedReplicaSlots)
+        {
+            return [];
+        }
+
+        var replicaGroupToTearDown = previousReplicaGroup;
+        if (retainedSlots > 0)
+        {
+            var tearDownSlots = Math.Max(1, previousReplicaGroup.RequestedReplicaSlots - retainedSlots);
+            var instancesToTearDown = previousReplicaGroup
+                .Instances
+                .OrderByDescending(instance => instance.ReplicaOrdinal)
+                .Take(tearDownSlots)
+                .OrderBy(instance => instance.ReplicaOrdinal)
+                .ToArray();
+            replicaGroupToTearDown = previousReplicaGroup with
+            {
+                RequestedReplicaSlots = instancesToTearDown.Length,
+                Instances = instancesToTearDown
+            };
+        }
+
         var previousService = targetService with
         {
             RuntimeRevisionId = previousReplicaGroup.RuntimeRevisionId,
             Workload = targetService.Workload with
             {
-                Replicas = Math.Max(1, previousReplicaGroup.RequestedReplicas),
-                ReplicasEnabled = Math.Max(1, previousReplicaGroup.RequestedReplicas) > 1
+                Replicas = Math.Max(1, replicaGroupToTearDown.RequestedReplicas),
+                ReplicasEnabled = Math.Max(1, replicaGroupToTearDown.RequestedReplicas) > 1
             }
         };
         return
         [
             new ResourceOrchestratorReplicaGroupTearDownRequest(
                 previousService,
-                previousReplicaGroup,
-                $"Deployment '{deployment.Id}' replaced runtime replica group '{previousReplicaGroup.Id}' with '{targetReplicaGroup.Id}'.")
+                replicaGroupToTearDown,
+                retainedSlots == 0
+                    ? $"Deployment '{deployment.Id}' replaced runtime replica group '{previousReplicaGroup.Id}' with '{targetReplicaGroup.Id}'."
+                    : $"Deployment '{deployment.Id}' replaced runtime replica group '{previousReplicaGroup.Id}' with '{targetReplicaGroup.Id}' and retained {retainedSlots.ToString(CultureInfo.InvariantCulture)} previous replica slot{Pluralize(retainedSlots)}.")
         ];
     }
 
@@ -182,6 +219,7 @@ public sealed class DefaultResourceDeploymentService(
         ResourceOrchestratorService service,
         ResourceOrchestratorReplicaGroup previousReplicaGroup,
         ResourceOrchestratorReplicaGroup targetReplicaGroup,
+        ResourceOrchestratorReplicaGroupReconciliationPolicy reconciliationPolicy,
         ResourceOrchestratorDeployment deployment,
         CancellationToken cancellationToken)
     {
@@ -193,6 +231,18 @@ public sealed class DefaultResourceDeploymentService(
 
         if (change.AddedInstances.Count > 0)
         {
+            if (reconciliationPolicy.ScaleOutRoutingMode ==
+                ResourceOrchestratorScaleOutRoutingMode.BeforeAddedReplicas)
+            {
+                await ReconcileRoutingAsync(
+                    provider,
+                    resourceContext,
+                    service,
+                    targetReplicaGroup,
+                    deployment,
+                    cancellationToken);
+            }
+
             await provider.PrepareOrchestratorServiceAsync(
                 new ResourceOrchestratorServiceProcedureContext(resourceContext, service, targetReplicaGroup),
                 ResourceAction.Start,
@@ -213,22 +263,31 @@ public sealed class DefaultResourceDeploymentService(
                     ResourceEventTypes.Events.Deployment.ReplicaMaterialized,
                     $"Materialized replica {FormatReplicaPosition(instance)} '{instance.Name}' for deployment '{deployment.Id}'.");
             }
+
+            if (reconciliationPolicy.ScaleOutRoutingMode ==
+                ResourceOrchestratorScaleOutRoutingMode.AfterAddedReplicas)
+            {
+                await ReconcileRoutingAsync(
+                    provider,
+                    resourceContext,
+                    service,
+                    targetReplicaGroup,
+                    deployment,
+                    cancellationToken);
+            }
         }
 
-        if (change.HasChanges &&
-            service.ServicePorts.Count > 0)
+        if (change.RemovedInstances.Count > 0 &&
+            reconciliationPolicy.ScaleInRoutingMode ==
+                ResourceOrchestratorScaleInRoutingMode.BeforeRemovedReplicas)
         {
-            ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
+            await ReconcileRoutingAsync(
+                provider,
                 resourceContext,
-                ResourceEventTypes.Events.Deployment.RoutingUpdating,
-                $"Updating routing for orchestrator service '{deployment.ServiceId}' to replica group '{targetReplicaGroup.Id}' for deployment '{deployment.Id}'.");
-            await provider.ReconcileOrchestratorServiceRoutingAsync(
-                new ResourceOrchestratorServiceProcedureContext(resourceContext, service, targetReplicaGroup),
+                service,
+                targetReplicaGroup,
+                deployment,
                 cancellationToken);
-            ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
-                resourceContext,
-                ResourceEventTypes.Events.Deployment.RoutingUpdated,
-                $"Updated routing for orchestrator service '{deployment.ServiceId}' to replica group '{targetReplicaGroup.Id}' for deployment '{deployment.Id}'.");
         }
 
         foreach (var instance in change.RemovedInstances.OrderByDescending(instance => instance.ReplicaOrdinal))
@@ -239,10 +298,49 @@ public sealed class DefaultResourceDeploymentService(
                 cancellationToken);
         }
 
+        if (change.RemovedInstances.Count > 0 &&
+            reconciliationPolicy.ScaleInRoutingMode ==
+                ResourceOrchestratorScaleInRoutingMode.AfterRemovedReplicas)
+        {
+            await ReconcileRoutingAsync(
+                provider,
+                resourceContext,
+                service,
+                targetReplicaGroup,
+                deployment,
+                cancellationToken);
+        }
+
         ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
             resourceContext,
             ResourceEventTypes.Events.Deployment.ServiceReconciled,
             $"Reconciled orchestrator service '{deployment.ServiceId}' replica group '{targetReplicaGroup.Id}' to {targetReplicaGroup.OccupiedReplicaSlots.ToString(CultureInfo.InvariantCulture)}/{targetReplicaGroup.RequestedReplicaSlots.ToString(CultureInfo.InvariantCulture)} occupied replica slots for deployment '{deployment.Id}'.");
+    }
+
+    private static async Task ReconcileRoutingAsync(
+        IResourceOrchestratorServiceProcedureProvider provider,
+        ResourceProcedureContext resourceContext,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup targetReplicaGroup,
+        ResourceOrchestratorDeployment deployment,
+        CancellationToken cancellationToken)
+    {
+        if (service.ServicePorts.Count == 0)
+        {
+            return;
+        }
+
+        ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
+            resourceContext,
+            ResourceEventTypes.Events.Deployment.RoutingUpdating,
+            $"Updating routing for orchestrator service '{deployment.ServiceId}' to replica group '{targetReplicaGroup.Id}' for deployment '{deployment.Id}'.");
+        await provider.ReconcileOrchestratorServiceRoutingAsync(
+            new ResourceOrchestratorServiceProcedureContext(resourceContext, service, targetReplicaGroup),
+            cancellationToken);
+        ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
+            resourceContext,
+            ResourceEventTypes.Events.Deployment.RoutingUpdated,
+            $"Updated routing for orchestrator service '{deployment.ServiceId}' to replica group '{targetReplicaGroup.Id}' for deployment '{deployment.Id}'.");
     }
 
     private static void EnsureRequestedReplicaSlotsMaterialized(
@@ -263,6 +361,9 @@ public sealed class DefaultResourceDeploymentService(
         string.Create(
             CultureInfo.InvariantCulture,
             $"{instance.ReplicaOrdinal}/{instance.ReplicaCount}");
+
+    private static string Pluralize(int count) =>
+        count == 1 ? string.Empty : "s";
 
     private static async Task RollBackFailedDeploymentAsync(
         IResourceOrchestratorServiceProcedureProvider provider,
@@ -314,4 +415,8 @@ public sealed class DefaultResourceDeploymentService(
             string.Create(
                 CultureInfo.InvariantCulture,
                 $"env-{deployment.Id}-{createdAt:yyyyMMddHHmmssfff}"));
+
+    private sealed record TargetReplicaGroup(
+        ResourceOrchestratorReplicaGroup ReplicaGroup,
+        ResourceOrchestratorReplicaGroupReconciliationPolicy ReconciliationPolicy);
 }

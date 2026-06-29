@@ -38,6 +38,18 @@ public sealed class ResourceOrchestratorDeploymentDefinitionTests
         Assert.Equal("3", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentRequestedReplicaSlots]);
         Assert.Equal("3", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentRequestedReplicas]);
         Assert.Equal(
+            ResourceOrchestratorScaleOutRoutingMode.AfterAddedReplicas.ToString(),
+            replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentRoutingScaleOutMode]);
+        Assert.Equal(
+            ResourceOrchestratorScaleInRoutingMode.BeforeRemovedReplicas.ToString(),
+            replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentRoutingScaleInMode]);
+        Assert.Equal(
+            ResourceOrchestratorReplacementRoutingMode.AfterNewReplicaGroupMaterialized.ToString(),
+            replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentRoutingReplacementMode]);
+        Assert.Equal(
+            "0",
+            replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentReplacementRetainPreviousReplicaSlots]);
+        Assert.Equal(
             ResourceOrchestratorReplicaRestartMode.ReplaceOccupant.ToString(),
             replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaRestartMode]);
         Assert.Equal("1", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaFailureThreshold]);

@@ -120,6 +120,13 @@ describes how a set of resource definitions is authored, grouped, ordered,
 parameterized, or applied together; it should not invent a second resource
 state model.
 
+Operational deployment concepts such as orchestrator services, replica groups,
+and runtime deployment revisions are internal orchestration projections unless
+they are deliberately exposed for a specific workload-builder scenario later.
+For normal authoring, a container app remains a container app resource: the
+provider maps its accepted resource intent to the internal orchestrator service
+and replica group it controls.
+
 ## Template Export And Import
 
 The current POC can render graph-backed Resource Manager resources through the

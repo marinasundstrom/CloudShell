@@ -369,6 +369,40 @@ public sealed class ResourceOrchestrationDeploymentTests
     }
 
     [Fact]
+    public async Task ApplyDeploymentAsync_CanUpdateRoutingBeforeAddingReplicasWhenPolicyRequires()
+    {
+        var resource = CreateResource();
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var initialProvider = new RecordingServiceProcedureProvider(resource);
+        var initialDeployments = CreateDeployments(resource, initialProvider, deploymentStore: deploymentStore);
+        await initialDeployments.ApplyDeploymentAsync(
+            resource,
+            CreateDeployment(resource.Id, "default", replicas: 2));
+
+        var scaleProvider = new RecordingServiceProcedureProvider(resource);
+        var scaleDeployments = CreateDeployments(resource, scaleProvider, deploymentStore: deploymentStore);
+        var policy = ResourceOrchestratorReplicaGroupReconciliationPolicy.Default with
+        {
+            ScaleOutRoutingMode = ResourceOrchestratorScaleOutRoutingMode.BeforeAddedReplicas
+        };
+
+        await scaleDeployments.ApplyDeploymentAsync(
+            resource,
+            WithReconciliationPolicy(
+                CreateDeployment(resource.Id, "default", replicas: 4),
+                policy));
+
+        Assert.Equal(
+            [
+                "Route:cloudshell-application-api-rev-2-replicas",
+                "Prepare:Start:cloudshell-application-api-rev-2-replicas",
+                "Start:cloudshell-application-api-rev-2-replica-3",
+                "Start:cloudshell-application-api-rev-2-replica-4"
+            ],
+            scaleProvider.Operations.ToArray());
+    }
+
+    [Fact]
     public async Task ApplyDeploymentAsync_UpdatesRoutingBeforeRemovingReplicas()
     {
         var resource = CreateResource();
@@ -395,6 +429,39 @@ public sealed class ResourceOrchestrationDeploymentTests
             scaleProvider.Operations.ToArray());
         Assert.Empty(scaleProvider.PreparedActions);
         Assert.Equal("cloudshell-application-api-rev-2-replicas", Assert.Single(scaleProvider.RoutedContexts).ReplicaGroup?.Id);
+    }
+
+    [Fact]
+    public async Task ApplyDeploymentAsync_CanUpdateRoutingAfterRemovingReplicasWhenPolicyRequires()
+    {
+        var resource = CreateResource();
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var initialProvider = new RecordingServiceProcedureProvider(resource);
+        var initialDeployments = CreateDeployments(resource, initialProvider, deploymentStore: deploymentStore);
+        await initialDeployments.ApplyDeploymentAsync(
+            resource,
+            CreateDeployment(resource.Id, "default", replicas: 4));
+
+        var scaleProvider = new RecordingServiceProcedureProvider(resource);
+        var scaleDeployments = CreateDeployments(resource, scaleProvider, deploymentStore: deploymentStore);
+        var policy = ResourceOrchestratorReplicaGroupReconciliationPolicy.Default with
+        {
+            ScaleInRoutingMode = ResourceOrchestratorScaleInRoutingMode.AfterRemovedReplicas
+        };
+
+        await scaleDeployments.ApplyDeploymentAsync(
+            resource,
+            WithReconciliationPolicy(
+                CreateDeployment(resource.Id, "default", replicas: 2),
+                policy));
+
+        Assert.Equal(
+            [
+                "Stop:cloudshell-application-api-rev-2-replica-4",
+                "Stop:cloudshell-application-api-rev-2-replica-3",
+                "Route:cloudshell-application-api-rev-2-replicas"
+            ],
+            scaleProvider.Operations.ToArray());
     }
 
     [Fact]
@@ -438,6 +505,66 @@ public sealed class ResourceOrchestrationDeploymentTests
         Assert.Contains(
             provider.Operations,
             operation => string.Equals(operation, "Route:cloudshell-application-api-rev-3-replicas", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ApplyDeploymentAsync_RetainsConfiguredPreviousReplicaSlotsWhenRuntimeRevisionChanges()
+    {
+        var resource = CreateResource();
+        var provider = new RecordingServiceProcedureProvider(resource);
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var deployments = CreateDeployments(resource, provider, deploymentStore: deploymentStore);
+        var firstDeployment = CreateDeployment(resource.Id, "default", replicas: 3);
+        var replacementPolicy = ResourceOrchestratorReplicaGroupReconciliationPolicy.Default with
+        {
+            RetainPreviousReplicaSlots = 1
+        };
+        var secondDeployment = WithReconciliationPolicy(
+            CreateDeployment(resource.Id, "default", replicas: 3) with
+            {
+                RevisionId = "rev-3"
+            },
+            replacementPolicy);
+
+        await deployments.ApplyDeploymentAsync(resource, firstDeployment);
+        var secondResult = await deployments.ApplyDeploymentAsync(resource, secondDeployment);
+
+        var tearDown = Assert.Single(secondResult.ReplicaGroupsToTearDown);
+        Assert.NotNull(tearDown.ReplicaGroup);
+        Assert.Equal(2, tearDown.ReplicaGroup.RequestedReplicaSlots);
+        Assert.Equal(2, tearDown.Service.Replicas);
+        Assert.Equal(
+            [
+                "cloudshell-application-api-rev-2-replica-2",
+                "cloudshell-application-api-rev-2-replica-3"
+            ],
+            tearDown.ReplicaGroup.Instances.Select(instance => instance.Name).ToArray());
+        Assert.Contains("retained 1 previous replica slot", tearDown.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ApplyDeploymentAsync_DoesNotRetirePreviousReplicaGroupWhenAllPreviousSlotsAreRetained()
+    {
+        var resource = CreateResource();
+        var provider = new RecordingServiceProcedureProvider(resource);
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var deployments = CreateDeployments(resource, provider, deploymentStore: deploymentStore);
+        var firstDeployment = CreateDeployment(resource.Id, "default", replicas: 3);
+        var replacementPolicy = ResourceOrchestratorReplicaGroupReconciliationPolicy.Default with
+        {
+            RetainPreviousReplicaSlots = 3
+        };
+        var secondDeployment = WithReconciliationPolicy(
+            CreateDeployment(resource.Id, "default", replicas: 3) with
+            {
+                RevisionId = "rev-3"
+            },
+            replacementPolicy);
+
+        await deployments.ApplyDeploymentAsync(resource, firstDeployment);
+        var secondResult = await deployments.ApplyDeploymentAsync(resource, secondDeployment);
+
+        Assert.Empty(secondResult.ReplicaGroupsToTearDown);
     }
 
     [Fact]
@@ -1080,6 +1207,40 @@ public sealed class ResourceOrchestrationDeploymentTests
             "rev-2",
             new ResourceOrchestratorDeploymentSpec(service, "rev-2"),
             ResourceOrchestratorDeploymentStatus.Pending);
+    }
+
+    private static ResourceOrchestratorDeployment WithReconciliationPolicy(
+        ResourceOrchestratorDeployment deployment,
+        ResourceOrchestratorReplicaGroupReconciliationPolicy policy)
+    {
+        var service = deployment.Spec.Service with
+        {
+            RuntimeRevisionId = deployment.RevisionId
+        };
+        var replicaGroup = ResourceOrchestratorReplicaGroupDefinition
+            .FromReplicaGroup(
+                ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service),
+                deployment.Spec.WorkloadVersion)
+            with
+            {
+                ReconciliationPolicy = policy
+            };
+        return deployment with
+        {
+            Spec = deployment.Spec with
+            {
+                Definition = new ResourceOrchestratorDeploymentDefinition(
+                    ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+                    Services:
+                    [
+                        new ResourceOrchestratorServiceDefinition(
+                            service.Name,
+                            ResourceOrchestratorDeploymentDefinitionTypes.Service,
+                            ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+                            Resources: [replicaGroup.ToResourceDefinition()])
+                    ])
+            }
+        };
     }
 
     private static ResourceOrchestratorSelectionStore CreateSelectionStore() =>
