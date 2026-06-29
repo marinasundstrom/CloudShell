@@ -2018,7 +2018,7 @@ public sealed class SampleSmokeTests
 
     [Fact]
     [Trait("Category", "DockerIntegration")]
-    public async Task ReplicatedContainerHealthSample_ImageAndReplicaUpdatesRestartContainers()
+    public async Task ReplicatedContainerHealthSample_ImageRolloutAndReplicaUpdatesReconcileRuntime()
     {
         const string graphApiResourceId = "application.container-app:api";
         const string updatedImage = "cloudshell-application-api:20260622.3";
@@ -2215,14 +2215,10 @@ public sealed class SampleSmokeTests
                 graphApiResourceId,
                 expectedReplicas: 2,
                 graphOnlySmokeTimeout);
+            var scaledContainerIds = await GetDockerContainerIdsAsync(scaledContainerNames);
             foreach (var containerName in scaledContainerNames)
             {
-                Assert.True(
-                    await WaitForDockerContainerIdChangedAsync(
-                        containerName,
-                        imageUpdatedContainerIds[containerName],
-                        graphOnlySmokeTimeout),
-                    $"Expected Docker container '{containerName}' to be recreated after replica update.");
+                Assert.Equal(imageUpdatedContainerIds[containerName], scaledContainerIds[containerName]);
             }
 
             Assert.True(

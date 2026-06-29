@@ -750,7 +750,8 @@ public static class EnvironmentRuntimeMapProjection
         string? resourceId,
         string? serviceId,
         string? replicaGroupId,
-        string? runtimeRevisionId)
+        string? runtimeRevisionId,
+        string? scope = null)
     {
         if (string.IsNullOrWhiteSpace(source) ||
             string.IsNullOrWhiteSpace(target) ||
@@ -769,8 +770,14 @@ public static class EnvironmentRuntimeMapProjection
             resourceId,
             serviceId,
             replicaGroupId,
-            runtimeRevisionId);
+            runtimeRevisionId,
+            scope ?? GetDefaultLinkScope(kind));
     }
+
+    private static string GetDefaultLinkScope(string kind) =>
+        string.Equals(kind, "orchestration", StringComparison.OrdinalIgnoreCase)
+            ? EnvironmentRuntimeMapLinkScopes.Internal
+            : EnvironmentRuntimeMapLinkScopes.External;
 
     private static string CreateNodeId(string prefix, string value) =>
         $"{prefix}:{value.Trim()}";
@@ -861,7 +868,8 @@ public sealed record EnvironmentRuntimeMapLink(
     string? ResourceId,
     string? ServiceId,
     string? ReplicaGroupId,
-    string? RuntimeRevisionId);
+    string? RuntimeRevisionId,
+    string Scope);
 
 public sealed record EnvironmentRuntimeMapReplicaGroup(
     string SourceResourceId,
@@ -896,6 +904,12 @@ public static class EnvironmentRuntimeArtifactKinds
     public const string LoadBalancerRoute = "load-balancer-route";
     public const string EndpointMapping = "endpoint-mapping";
     public const string Deployment = "deployment";
+}
+
+public static class EnvironmentRuntimeMapLinkScopes
+{
+    public const string External = "external";
+    public const string Internal = "internal";
 }
 
 internal sealed class EnvironmentRuntimeMapGroupBuilder(

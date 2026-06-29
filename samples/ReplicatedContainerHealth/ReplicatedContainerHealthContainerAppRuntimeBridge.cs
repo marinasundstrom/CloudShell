@@ -168,15 +168,55 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         GraphResource resource,
         CancellationToken cancellationToken = default)
     {
-        if (GetStatus(resource) == ContainerApplicationRuntimeStatus.Running)
+        try
         {
-            return await ExecuteLifecycleAsync(
-                resource,
-                ContainerApplicationResourceTypeProvider.Operations.Restart,
+            var desiredReplicas = ResolveReplicas(resource);
+            var inspectedReplicas = await InspectReplicasAsync(
+                Math.Max(desiredReplicas, _replicaCleanupLimit),
                 cancellationToken);
-        }
+            if (!inspectedReplicas.Any(replica => IsMaterialized(replica.Status)))
+            {
+                return [];
+            }
 
-        return [];
+            var image = ResolveImage(resource);
+            await PublishImageAsync(image, cancellationToken);
+            await EnsureContainerNetworkAsync(cancellationToken);
+
+            for (var replica = 1; replica <= desiredReplicas; replica++)
+            {
+                var status = inspectedReplicas.FirstOrDefault(candidate => candidate.Ordinal == replica)?.Status ??
+                    RuntimeContainerStatus.Missing;
+                if (IsMaterialized(status))
+                {
+                    await RemoveReplicaAsync(replica, cancellationToken);
+                }
+
+                await commandRunner.RunAsync(
+                    "docker",
+                    CreateRunArguments(resource, image, replica),
+                    cancellationToken);
+            }
+
+            await StartIngressAsync(
+                resource,
+                cancellationToken,
+                createWhenMissing: desiredReplicas > 1);
+
+            foreach (var replica in inspectedReplicas
+                         .Where(candidate => candidate.Ordinal > desiredReplicas && IsMaterialized(candidate.Status))
+                         .OrderByDescending(candidate => candidate.Ordinal))
+            {
+                await RemoveReplicaAsync(replica.Ordinal, cancellationToken);
+            }
+
+            ClearStatusCache();
+            return [];
+        }
+        catch (Exception exception)
+        {
+            return [RuntimeFailed(resource, exception)];
+        }
     }
 
     private void ClearStatusCache()
@@ -245,22 +285,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         bool cleanExistingReplicas = true)
     {
         var image = ResolveImage(resource);
-        var (repository, tag) = SplitImage(image);
-
-        await commandRunner.RunAsync(
-            "dotnet",
-            [
-                "publish",
-                _projectPath,
-                "--os",
-                "linux",
-                "--arch",
-                "x64",
-                "/t:PublishContainer",
-                $"-p:ContainerRepository={repository}",
-                $"-p:ContainerImageTag={tag}"
-            ],
-            cancellationToken);
+        await PublishImageAsync(image, cancellationToken);
 
         try
         {
@@ -290,6 +315,27 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             await RemoveAsync(resource, cancellationToken);
             throw;
         }
+    }
+
+    private async Task PublishImageAsync(
+        string image,
+        CancellationToken cancellationToken)
+    {
+        var (repository, tag) = SplitImage(image);
+        await commandRunner.RunAsync(
+            "dotnet",
+            [
+                "publish",
+                _projectPath,
+                "--os",
+                "linux",
+                "--arch",
+                "x64",
+                "/t:PublishContainer",
+                $"-p:ContainerRepository={repository}",
+                $"-p:ContainerImageTag={tag}"
+            ],
+            cancellationToken);
     }
 
     private async Task RemoveAsync(

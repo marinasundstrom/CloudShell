@@ -96,12 +96,12 @@
                 </div>
             </div>
 
-            @if (EnvironmentMap.Links.Count > 0)
+            @if (SignificantEnvironmentMapLinks.Count > 0)
             {
                 <section class="environment-relationship-strip" aria-label="@L["Significant relationships"].Value">
                     <h3>@L["Significant relationships"]</h3>
                     <div class="environment-relationship-list">
-                        @foreach (var relationship in EnvironmentMap.Links.Take(12))
+                        @foreach (var relationship in SignificantEnvironmentMapLinks)
                         {
                             <div class="environment-relationship-row">
                                 <span>@GetEnvironmentMapNodeLabel(relationship.Source)</span>
@@ -478,6 +478,15 @@
             state.Status is ResourceReplicaSlotReconciliationStatus.Unhealthy
                 or ResourceReplicaSlotReconciliationStatus.Repairing
                 or ResourceReplicaSlotReconciliationStatus.RepairFailed);
+
+    private IReadOnlyList<EnvironmentRuntimeMapLink> SignificantEnvironmentMapLinks =>
+        EnvironmentMap.Links
+            .Where(link => !string.Equals(
+                link.Scope,
+                EnvironmentRuntimeMapLinkScopes.Internal,
+                StringComparison.OrdinalIgnoreCase))
+            .Take(12)
+            .ToArray();
 
     protected override async Task OnInitializedAsync() =>
         await RefreshAsync();

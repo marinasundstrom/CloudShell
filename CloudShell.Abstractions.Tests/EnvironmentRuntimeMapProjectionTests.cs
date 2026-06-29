@@ -63,7 +63,8 @@ public sealed class EnvironmentRuntimeMapProjectionTests
         Assert.Contains(map.Links, link =>
             link.Source == serviceNode.Id &&
             link.Target == $"replica-group:{replicaGroupId}" &&
-            link.ArtifactKind == EnvironmentRuntimeArtifactKinds.OrchestrationService);
+            link.ArtifactKind == EnvironmentRuntimeArtifactKinds.OrchestrationService &&
+            link.Scope == EnvironmentRuntimeMapLinkScopes.Internal);
     }
 
     private static Resource CreateContainerApp() =>

@@ -55,6 +55,19 @@ public sealed class DefaultResourceDeploymentService(
                     deployment,
                     cancellationToken);
             }
+            else if (context.Resource.State is ResourceState.Running or ResourceState.Degraded &&
+                previousReplicaGroup is not null)
+            {
+                await ApplyReplicaGroupReplacementAsync(
+                    provider,
+                    resourceContext,
+                    service,
+                    previousReplicaGroup,
+                    replicaGroup,
+                    targetReplicaGroup.ReconciliationPolicy,
+                    deployment,
+                    cancellationToken);
+            }
             else
             {
                 await ResourceOrchestratorServiceExecutor.ExecuteServiceActionAsync(
@@ -321,6 +334,72 @@ public sealed class DefaultResourceDeploymentService(
             resourceContext,
             ResourceEventTypes.Events.Deployment.ServiceReconciled,
             $"Reconciled orchestrator service '{deployment.ServiceId}' replica group '{targetReplicaGroup.Id}' to {targetReplicaGroup.OccupiedReplicaSlots.ToString(CultureInfo.InvariantCulture)}/{targetReplicaGroup.RequestedReplicaSlots.ToString(CultureInfo.InvariantCulture)} occupied replica slots for deployment '{deployment.Id}'.");
+    }
+
+    private static async Task ApplyReplicaGroupReplacementAsync(
+        IResourceOrchestratorServiceProcedureProvider provider,
+        ResourceProcedureContext resourceContext,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup previousReplicaGroup,
+        ResourceOrchestratorReplicaGroup targetReplicaGroup,
+        ResourceOrchestratorReplicaGroupReconciliationPolicy reconciliationPolicy,
+        ResourceOrchestratorDeployment deployment,
+        CancellationToken cancellationToken)
+    {
+        ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
+            resourceContext,
+            ResourceEventTypes.Events.Deployment.ServiceReconciling,
+            $"Replacing orchestrator service '{deployment.ServiceId}' replica group '{previousReplicaGroup.Id}' with '{targetReplicaGroup.Id}' for deployment '{deployment.Id}'.");
+
+        if (reconciliationPolicy.ReplacementRoutingMode ==
+            ResourceOrchestratorReplacementRoutingMode.BeforeNewReplicaGroupMaterialized)
+        {
+            await ReconcileRoutingAsync(
+                provider,
+                resourceContext,
+                service,
+                targetReplicaGroup,
+                deployment,
+                cancellationToken);
+        }
+
+        await provider.PrepareOrchestratorServiceAsync(
+            new ResourceOrchestratorServiceProcedureContext(resourceContext, service, targetReplicaGroup),
+            ResourceAction.Start,
+            cancellationToken);
+
+        foreach (var instance in targetReplicaGroup.Instances)
+        {
+            ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
+                resourceContext,
+                ResourceEventTypes.Events.Deployment.ReplicaMaterializing,
+                $"Materializing replacement replica {FormatReplicaPosition(instance)} '{instance.Name}' for deployment '{deployment.Id}'.");
+            await provider.ExecuteOrchestratorServiceInstanceAsync(
+                new ResourceOrchestratorServiceInstanceContext(resourceContext, service, instance, targetReplicaGroup),
+                ResourceAction.Start,
+                cancellationToken);
+            ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
+                resourceContext,
+                ResourceEventTypes.Events.Deployment.ReplicaMaterialized,
+                $"Materialized replacement replica {FormatReplicaPosition(instance)} '{instance.Name}' for deployment '{deployment.Id}'.");
+        }
+
+        if (reconciliationPolicy.ReplacementRoutingMode ==
+            ResourceOrchestratorReplacementRoutingMode.AfterNewReplicaGroupMaterialized)
+        {
+            await ReconcileRoutingAsync(
+                provider,
+                resourceContext,
+                service,
+                targetReplicaGroup,
+                deployment,
+                cancellationToken);
+        }
+
+        ResourceOrchestratorServiceExecutor.AppendDeploymentEvent(
+            resourceContext,
+            ResourceEventTypes.Events.Deployment.ServiceReconciled,
+            $"Replaced orchestrator service '{deployment.ServiceId}' replica group '{previousReplicaGroup.Id}' with '{targetReplicaGroup.Id}' for deployment '{deployment.Id}'.");
     }
 
     private static async Task ReconcileRoutingAsync(

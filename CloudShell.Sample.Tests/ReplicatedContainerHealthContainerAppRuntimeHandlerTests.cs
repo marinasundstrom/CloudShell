@@ -259,17 +259,18 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     }
 
     [Fact]
-    public async Task RuntimeBridge_ApplyImageRestartsWhenRunning()
+    public async Task RuntimeBridge_ApplyImageReplacesReplicasWithoutRemovingIngress()
     {
         var commandRunner = new RecordingCommandRunner();
         var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
             commandRunner,
-            CreateConfiguration(replicaCleanupLimit: 1));
-        var resource = await CreateGraphAppResourceAsync(replicas: 1);
-        await bridge.ExecuteLifecycleAsync(
-            resource,
-            ContainerApplicationResourceTypeProvider.Operations.Start);
-        commandRunner.Commands.Clear();
+            CreateConfiguration(replicaCleanupLimit: 2));
+        var resource = await CreateGraphAppResourceAsync(
+            replicas: 2,
+            endpointPort: 5092);
+        commandRunner.Enqueue(new(0, "running", string.Empty));
+        commandRunner.Enqueue(new(0, "running", string.Empty));
+        commandRunner.EnqueueSuccess(6);
         commandRunner.Enqueue(new(0, "running", string.Empty));
 
         var diagnostics = await bridge.ApplyImageAsync(resource);
@@ -278,19 +279,26 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         Assert.Collection(
             commandRunner.Commands,
             command => AssertDockerInspect(command, "cloudshell-replicated-health-api-replica-1"),
-            command => AssertDockerRemove(command, ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()),
-            command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-1"),
+            command => AssertDockerInspect(command, "cloudshell-replicated-health-api-replica-2"),
             command =>
             {
                 Assert.Equal("dotnet", command.FileName);
                 Assert.Equal("publish", command.Arguments[0]);
             },
             AssertDockerNetworkCreate,
+            command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-1"),
             command => AssertDockerRun(
                 command,
                 "cloudshell-replicated-health-api-replica-1",
                 replica: 1,
-                expectedReplicaCount: 1));
+                expectedProbePort: 5192),
+            command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-2"),
+            command => AssertDockerRun(
+                command,
+                "cloudshell-replicated-health-api-replica-2",
+                replica: 2,
+                expectedProbePort: 5193),
+            command => AssertDockerInspect(command, ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()));
     }
 
     [Fact]

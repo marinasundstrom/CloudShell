@@ -42,6 +42,13 @@ on `git blame --follow`, and then by the broad type of change.
   focused Resource Manager projection class with explicit artifact metadata for
   resources, orchestration services, replica groups, replicas, routing
   bindings, runtime revisions, and source resource ownership.
+- Resource Manager deployment apply now treats replacement replica groups as
+  an explicit controller path: it prepares the target group, materializes new
+  replicas, applies replacement routing according to policy, and leaves
+  previous replica-group retirement to post-apply cleanup. The
+  ReplicatedContainerHealth sample runtime now applies image updates by
+  replacing desired replicas without removing ingress, and replica scaling
+  keeps retained replicas running.
 - Replica-group deployment definitions now include reconciliation policy for
   scale routing and previous-revision slot retention, and the deployment
   proposal documents both compact container-app update JSON and the normalized

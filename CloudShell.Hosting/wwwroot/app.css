@@ -1364,9 +1364,19 @@ h3 {
     stroke-dasharray: 5 4;
 }
 
+.environment-map-link.internal {
+    opacity: .52;
+    stroke-width: 1.2;
+}
+
+.environment-map-link.external {
+    stroke-width: 1.8;
+}
+
 .environment-map-link.related {
     stroke: var(--cloudshell-accent);
     stroke-width: 2.5;
+    opacity: 1;
 }
 
 .environment-map-link.dimmed,
@@ -1392,6 +1402,14 @@ h3 {
 .environment-map-link-label.related {
     fill: var(--cloudshell-accent);
     font-weight: 650;
+}
+
+.environment-map-link-label.internal {
+    opacity: .42;
+}
+
+.environment-map-link-label.external {
+    font-weight: 600;
 }
 
 .environment-map-group {

@@ -58,15 +58,15 @@ class EnvironmentStateMap {
 
         this.linkForce = d3.forceLink()
             .id(node => node.id)
-            .strength(link => link.kind === "orchestration" ? 1 : 0.72)
-            .distance(link => link.kind === "orchestration" ? 170 : 215);
+            .strength(link => link.scope === "internal" ? 0.88 : 0.62)
+            .distance(link => link.scope === "internal" ? 155 : 230);
 
         this.simulation = d3.forceSimulation()
             .force("link", this.linkForce)
             .force("charge", d3.forceManyBody().strength(node => node.nodeKind === "service" ? -1350 : -920))
             .force("collide", d3.forceCollide(node => getNodeRadius(node) + 22).iterations(8))
-            .force("x", d3.forceX(node => getLaneX(node.nodeKind)).strength(0.22))
-            .force("y", d3.forceY().strength(0.18))
+            .force("x", d3.forceX(node => Number.isFinite(node.targetX) ? node.targetX : getLaneX(node.nodeKind)).strength(0.36))
+            .force("y", d3.forceY(node => Number.isFinite(node.targetY) ? node.targetY : 0).strength(0.24))
             .force("center", d3.forceCenter().strength(0.015))
             .on("tick", () => this.onTick());
 
@@ -184,8 +184,11 @@ class EnvironmentStateMap {
                 resourceId: link.resourceId,
                 serviceId: link.serviceId,
                 replicaGroupId: link.replicaGroupId,
-                runtimeRevisionId: link.runtimeRevisionId
+                runtimeRevisionId: link.runtimeRevisionId,
+                scope: link.scope || "external"
             }));
+
+        this.applyLayoutTargets(changed);
 
         this.renderGroups();
         this.renderLinks();
@@ -227,6 +230,96 @@ class EnvironmentStateMap {
         const oldLinks = new Set((this.map.links || []).map(link =>
             `${link.source}->${link.label}->${link.target}`));
         return links.some(link => !oldLinks.has(`${link.source}->${link.label}->${link.target}`));
+    }
+
+    applyLayoutTargets(resetPositions) {
+        const nodeMap = new Map(this.nodes.map(node => [node.id, node]));
+        const serviceGroups = this.groups
+            .filter(group => group.kind === "service")
+            .sort(compareLabels);
+        const assigned = new Set();
+        const serviceYById = new Map();
+        const serviceSpacing = 390;
+        const firstServiceY = -((serviceGroups.length - 1) * serviceSpacing) / 2;
+
+        serviceGroups.forEach((group, serviceIndex) => {
+            const baseY = firstServiceY + serviceIndex * serviceSpacing;
+            const memberNodes = [...new Set(group.nodeIds)]
+                .map(nodeId => nodeMap.get(nodeId))
+                .filter(Boolean)
+                .sort(compareLabels);
+
+            if (group.serviceId) {
+                serviceYById.set(group.serviceId, baseY);
+            }
+
+            const serviceNode = memberNodes.find(node => node.nodeKind === "service") ||
+                this.nodes.find(node => node.nodeKind === "service" && node.serviceId === group.serviceId);
+            if (serviceNode) {
+                setLayoutTarget(serviceNode, -285, baseY, resetPositions);
+                assigned.add(serviceNode.id);
+            }
+
+            const replicaGroupNodes = memberNodes
+                .filter(node => node.nodeKind === "replica-group")
+                .sort(compareLabels);
+            const replicaGroupCount = Math.max(replicaGroupNodes.length, 1);
+            replicaGroupNodes.forEach((replicaGroupNode, replicaGroupIndex) => {
+                const groupY = baseY + (replicaGroupIndex - (replicaGroupCount - 1) / 2) * 215;
+                setLayoutTarget(replicaGroupNode, 5, groupY, resetPositions);
+                assigned.add(replicaGroupNode.id);
+
+                const replicaNodes = this.nodes
+                    .filter(node =>
+                        node.nodeKind === "replica" &&
+                        node.replicaGroupId &&
+                        node.replicaGroupId === replicaGroupNode.replicaGroupId)
+                    .sort(compareLabels);
+                const rowCount = Math.min(replicaNodes.length, 4);
+                replicaNodes.forEach((replicaNode, replicaIndex) => {
+                    const row = rowCount === 0 ? 0 : replicaIndex % 4;
+                    const column = Math.floor(replicaIndex / 4);
+                    const visibleRows = Math.min(replicaNodes.length - column * 4, 4);
+                    setLayoutTarget(
+                        replicaNode,
+                        300 + column * 215,
+                        groupY + (row - (visibleRows - 1) / 2) * 132,
+                        resetPositions);
+                    assigned.add(replicaNode.id);
+                });
+            });
+        });
+
+        const routingNodes = this.nodes
+            .filter(node => node.nodeKind === "routing" && !assigned.has(node.id))
+            .sort(compareLabels);
+        const routingByService = d3.group(routingNodes, node => node.serviceId || "");
+        routingByService.forEach((nodes, serviceId) => {
+            const baseY = serviceYById.get(serviceId) ?? getStackBaseY(nodes.length);
+            nodes.forEach((node, index) => {
+                setLayoutTarget(node, 560, baseY + getStackOffset(index, nodes.length, 126), resetPositions);
+                assigned.add(node.id);
+            });
+        });
+
+        const resourceNodes = this.nodes
+            .filter(node => node.nodeKind === "resource" && !assigned.has(node.id))
+            .sort(compareLabels);
+        resourceNodes.forEach((node, index) => {
+            setLayoutTarget(node, -560, getStackOffset(index, resourceNodes.length, 150), resetPositions);
+            assigned.add(node.id);
+        });
+
+        const remainingNodes = this.nodes
+            .filter(node => !assigned.has(node.id))
+            .sort(compareLabels);
+        remainingNodes.forEach((node, index) => {
+            setLayoutTarget(
+                node,
+                getLaneX(node.nodeKind),
+                getStackOffset(index, remainingNodes.length, 150),
+                resetPositions);
+        });
     }
 
     getDegrees(nodes, links) {
@@ -300,7 +393,7 @@ class EnvironmentStateMap {
 
         const newLinks = this.linkElements.enter()
             .append("line")
-            .attr("class", link => `environment-map-link ${getClassName(link.kind)}`)
+            .attr("class", link => `environment-map-link ${getClassName(link.kind)} ${getClassName(link.scope)}`)
             .attr("opacity", 0);
 
         newLinks.transition()
@@ -308,7 +401,7 @@ class EnvironmentStateMap {
             .attr("opacity", 1);
 
         this.linkElements = newLinks.merge(this.linkElements)
-            .attr("class", link => `environment-map-link ${getClassName(link.kind)}`);
+            .attr("class", link => `environment-map-link ${getClassName(link.kind)} ${getClassName(link.scope)}`);
 
         this.linkLabelElements = this.linkLabelGroup
             .selectAll("text")
@@ -330,6 +423,7 @@ class EnvironmentStateMap {
             .attr("opacity", 1);
 
         this.linkLabelElements = newLabels.merge(this.linkLabelElements)
+            .attr("class", link => `environment-map-link-label ${getClassName(link.kind)} ${getClassName(link.scope)}`)
             .text(link => trimText(link.label, 16));
     }
 
@@ -419,7 +513,7 @@ class EnvironmentStateMap {
         this.nodeElements.select(".environment-map-node-kind")
             .text(node => trimText(node.type, 28));
         this.nodeElements.select(".environment-map-node-title")
-            .text(node => `${node.label}\n${node.type}\n${node.summary}\n${node.stateLabel}`);
+            .text(formatNodeTitle);
     }
 
     selectNode(node) {
@@ -547,18 +641,60 @@ class EnvironmentStateMap {
 function getLaneX(nodeKind) {
     switch (nodeKind) {
         case "resource":
-            return -330;
+            return -560;
         case "service":
-            return -95;
+            return -285;
         case "replica-group":
-            return 135;
+            return 5;
         case "replica":
-            return 360;
+            return 300;
         case "routing":
-            return 520;
+            return 560;
         default:
             return 0;
     }
+}
+
+function setLayoutTarget(node, x, y, resetPosition) {
+    node.targetX = x;
+    node.targetY = y;
+    if (resetPosition || !Number.isFinite(node.x) || !Number.isFinite(node.y)) {
+        node.x = x;
+        node.y = y;
+        node.vx = 0;
+        node.vy = 0;
+    }
+}
+
+function getStackBaseY(count) {
+    return -((count - 1) * 150) / 2;
+}
+
+function getStackOffset(index, count, spacing) {
+    return (index - (count - 1) / 2) * spacing;
+}
+
+function compareLabels(left, right) {
+    return String(left?.label || left?.id || "").localeCompare(
+        String(right?.label || right?.id || ""),
+        undefined,
+        { sensitivity: "base" });
+}
+
+function formatNodeTitle(node) {
+    return [
+        node.label,
+        node.type,
+        node.summary,
+        `State: ${node.stateLabel}`,
+        node.artifactKind ? `Artifact: ${node.artifactKind}` : "",
+        node.resourceId ? `Resource: ${node.resourceId}` : "",
+        node.serviceId ? `Service: ${node.serviceId}` : "",
+        node.replicaGroupId ? `Replica group: ${node.replicaGroupId}` : "",
+        node.runtimeRevisionId ? `Revision: ${node.runtimeRevisionId}` : ""
+    ]
+        .filter(Boolean)
+        .join("\n");
 }
 
 function getNodeRadius(node) {
