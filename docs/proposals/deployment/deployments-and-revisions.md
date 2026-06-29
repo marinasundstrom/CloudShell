@@ -654,6 +654,13 @@ For a container app, the resource itself continues to exist as the user-facing
 API object. It keeps track of the internal orchestrator service that
 materializes it, but callers still interact with the container app definition:
 image, replicas, ports, references, volumes, and other app-owned state.
+The container app is therefore a Resource Manager resource and a managed
+workload facade at the same time: it is the stable interface for related
+orchestration artifacts that may include deployment records, orchestrator
+services, replica groups, runtime replicas, endpoint mappings, load-balancer
+bindings, and cleanup targets. This deployment-centric related-resource model
+is what separates container apps from simpler resources that usually map to one
+provider-managed thing.
 
 For container apps, this internal planning boundary is the important refinement:
 image changes, replica-slot changes, start materialization, restore, rollback,

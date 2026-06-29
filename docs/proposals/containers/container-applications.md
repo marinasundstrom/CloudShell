@@ -14,6 +14,20 @@ environment by asking Resource Manager orchestration to deploy and reconcile
 runtime resources such as services, replica groups, routing, and runtime
 containers.
 
+That makes a container app a managed workload facade, not just a one-to-one
+resource projection. The container app still exists as a normal Resource
+Manager resource: it has a stable identity, resource definition, lifecycle
+actions, update surface, permissions, logs, health, and UI pages. What makes it
+different is that it is the user-facing interface for a related set of
+container-app-owned runtime and orchestration artifacts. Resource Manager and
+the provider can create, update, retain, drain, or delete orchestrator services,
+replica groups, runtime replicas, endpoint mappings, load-balancer bindings,
+deployment records, and app revision history below that stable resource. Users
+operate the container app; the platform reconciles the contained runtime shape.
+Other resource types may have lifecycle operations or provider-owned runtime
+state, but most do not need this deployment-centric set of versioned related
+resources.
+
 This proposal tracks the container app resource itself. Related proposals own
 adjacent subdomains:
 

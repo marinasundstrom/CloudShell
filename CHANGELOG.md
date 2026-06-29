@@ -38,6 +38,11 @@ on `git blame --follow`, and then by the broad type of change.
   planner/controller boundary, make deployment definitions the authoritative
   runtime desired state, serialize same-resource deployment applies, and track
   retained/superseded replica groups plus readiness gates explicitly.
+- The container application and deployment proposals now state that a container
+  app is both a Resource Manager resource and a managed workload facade: users
+  operate the stable container app while Resource Manager reconciles related
+  internal deployment, replica, routing, endpoint, and cleanup artifacts below
+  it.
 - ApplicationTopology and CloudShell.ContainerHost SQL Server Docker cleanup now bounds
   container removal and terminates cancelled Docker CLI processes so host shutdown is
   not held by a stuck `docker rm -f`.
