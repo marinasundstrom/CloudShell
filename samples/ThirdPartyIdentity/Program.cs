@@ -40,8 +40,7 @@ var apiEndpointUri = new Uri(apiEndpoint);
 const string identityProviderId = "identity:keycloak";
 const string apiIdentityName = "keycloak-provisioned-api";
 
-var cloudShell = builder.AddCloudShellControlPlane();
-builder.AddCloudShell();
+var cloudShell = builder.AddCloudShell();
 IResourceDefinitionBuilder identityProvisioningResource = null!;
 IResourceDefinitionBuilder configurationResource = null!;
 IResourceDefinitionBuilder apiResource = null!;
@@ -126,9 +125,7 @@ builder.Services.TryAddEnumerable(
 
 var app = builder.Build();
 
-await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
-app.MapCloudShellControlPlane();
 app.MapCloudShell<App>();
 
 app.Run();

@@ -493,7 +493,7 @@ public sealed class ResourceManagerIntegrationTests
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
         services.AddExecutableApplicationResourceType();
-        var builder = services.AddCloudShell();
+        var builder = services.AddCloudShellControlPlane();
 
         builder.UseResourceGraphIntegration();
         using var serviceProvider = services.BuildServiceProvider();
@@ -512,7 +512,7 @@ public sealed class ResourceManagerIntegrationTests
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
-        var builder = services.AddCloudShell();
+        var builder = services.AddCloudShellControlPlane();
 
         builder.UseBuiltInResourceModelProviders(options =>
         {

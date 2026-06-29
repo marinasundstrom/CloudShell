@@ -28,8 +28,7 @@ if (!string.IsNullOrWhiteSpace(localHostsFilePath))
         .LocalHostNameHostsFilePath = localHostsFilePath;
 }
 
-var cloudShell = builder.AddCloudShellControlPlane();
-builder.AddCloudShell();
+var cloudShell = builder.AddCloudShell();
 cloudShell.AddResourceGroup(
     resourceGroupId,
     "Load Balancer POC",
@@ -125,9 +124,7 @@ cloudShell
 
 var app = builder.Build();
 
-await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
-app.MapCloudShellControlPlane();
 app.MapCloudShell<App>();
 
 app.Run();

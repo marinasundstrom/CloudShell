@@ -26,8 +26,7 @@ var traceIngestEndpoint = builder.Configuration["Observability:TraceIngestEndpoi
 var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndpoint"]
     ?? $"{runtimeControlPlaneEndpoint}/api/control-plane/v1/metrics/ingest";
 
-var cloudShell = builder.AddCloudShellControlPlane();
-builder.AddCloudShell();
+var cloudShell = builder.AddCloudShell();
 cloudShell.AddResourceGroup(
     resourceGroupId,
     "Replicated Container Health POC",
@@ -87,9 +86,7 @@ cloudShell.AddBuiltInProviderResourceManagerUi();
 
 var app = builder.Build();
 
-await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
-app.MapCloudShellControlPlane();
 app.MapCloudShell<App>();
 app.MapPost(
     "/replicated-container-health/resource-graph/resources/{resourceId}/container-image",

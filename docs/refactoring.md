@@ -326,8 +326,14 @@ Resource model provider migration.
   model providers plus graph Resource Manager integration by default.
 - [x] Add package-owned `UseBuiltInResourceModelProviders(...)` and
   `AddBuiltInResourceModelProviderTypes(...)` registration seams so the
-  combined development host installs the default built-in provider catalog and
-  graph bridge without hand-maintaining a scattered provider list.
+  Control Plane side of the combined development host installs the default
+  built-in provider catalog and graph bridge without hand-maintaining a
+  scattered provider list.
+- [x] Split hosting registration names so UI-only hosts use
+  `AddCloudShellUi()`, `UseCloudShellUiAsync()`, and `MapCloudShellUi(...)`,
+  Control Plane hosts use the Control Plane methods, and the plain
+  `AddCloudShell()`, `UseCloudShellAsync()`, and `MapCloudShell(...)` methods
+  live in the combined host surface that composes both sides.
 - [x] Remove legacy provider project references from remaining samples where
   built-in Resource model providers already cover the scenario.
 - [ ] Move any remaining sample-local gaps behind Resource model

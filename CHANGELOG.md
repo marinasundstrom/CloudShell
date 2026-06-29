@@ -90,9 +90,15 @@ on `git blame --follow`, and then by the broad type of change.
   `ReferenceProviders` package family has been removed.
 - The combined development host now installs the default built-in Resource
   model provider catalog and graph bridge through
-  `UseBuiltInResourceModelProviders(...)`, keeping provider package
-  composition behind a single registration seam while still allowing hosts to
-  configure Configuration Store and Secrets Vault runtime sidecars.
+  `UseBuiltInResourceModelProviders(...)` on the Control Plane builder,
+  keeping provider package composition behind a single registration seam while
+  still allowing hosts to configure Configuration Store and Secrets Vault
+  runtime sidecars.
+- Hosting registration now separates split and combined host seams:
+  UI-only hosts use `AddCloudShellUi()`, Control Plane hosts use
+  `AddCloudShellControlPlane()`, and combined hosts use `AddCloudShell()` plus
+  the matching combined `UseCloudShellAsync()` and `MapCloudShell(...)`
+  methods.
 - ApplicationTopology sample smoke assertions now match the ResourceDefinition
   model for ad-hoc volumes and name mappings instead of expecting the old
   storage-wrapper resource projection.

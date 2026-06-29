@@ -16,8 +16,7 @@ var builder = CloudShellApplication.CreateBuilder(args);
 const string resourceGroupId = "container-host-poc";
 var sqlServerPort = builder.Configuration.GetValue<int?>("ContainerHost:SqlServer:Port") ?? 14334;
 
-var cloudShell = builder.AddCloudShellControlPlane();
-builder.AddCloudShell();
+var cloudShell = builder.AddCloudShell();
 cloudShell.AddResourceGroup(
     resourceGroupId,
     "Container Host POC",
@@ -56,9 +55,7 @@ cloudShell.AddBuiltInProviderResourceManagerUi();
 
 var app = builder.Build();
 
-await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
-app.MapCloudShellControlPlane();
 app.MapCloudShell<App>();
 
 app.Run();

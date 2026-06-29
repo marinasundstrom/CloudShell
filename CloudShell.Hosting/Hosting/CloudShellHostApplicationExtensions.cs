@@ -14,9 +14,6 @@ namespace CloudShell.Hosting;
 
 public static class CloudShellHostApplicationExtensions
 {
-    public static Task<WebApplication> UseCloudShellAsync(this WebApplication app) =>
-        app.UseCloudShellUiAsync();
-
     public static Task<WebApplication> UseCloudShellUiAsync(this WebApplication app) =>
         UseCloudShellUiCoreAsync(app);
 
@@ -44,11 +41,6 @@ public static class CloudShellHostApplicationExtensions
 
         return Task.FromResult(app);
     }
-
-    public static RazorComponentsEndpointConventionBuilder MapCloudShell<TRootComponent>(
-        this WebApplication app)
-        where TRootComponent : IComponent =>
-        app.MapCloudShellUi<TRootComponent>();
 
     public static RazorComponentsEndpointConventionBuilder MapCloudShellUi<TRootComponent>(
         this WebApplication app)

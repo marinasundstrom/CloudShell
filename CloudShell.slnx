@@ -79,6 +79,7 @@
   </Folder>
   <Project Path="CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj" />
   <Project Path="CloudShell.Abstractions/CloudShell.Abstractions.csproj" />
+  <Project Path="CloudShell.AppHost/CloudShell.AppHost.csproj" />
   <Project Path="CloudShell.Client.Tests/CloudShell.Client.Tests.csproj" />
   <Project Path="CloudShell.Client/CloudShell.Client.csproj" />
   <Project Path="CloudShell.Components/CloudShell.Components.csproj" />

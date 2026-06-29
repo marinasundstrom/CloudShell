@@ -124,7 +124,7 @@ public sealed class ShellNavigationTests
     {
         var services = new ServiceCollection();
         services
-            .AddCloudShell()
+            .AddCloudShellUi()
             .AddExtension<CoreShellExtension>();
         var module = services
             .Where(descriptor => descriptor.ServiceType == typeof(CompositionModule))
@@ -152,7 +152,7 @@ public sealed class ShellNavigationTests
         var services = new ServiceCollection();
         services.TryAddSingleton<ShellCompositionHostContext>();
         services
-            .AddCloudShell()
+            .AddCloudShellUi()
             .AddExtension<CoreShellExtension>()
             .AddExtension(new ResourceManagerExtension());
 
@@ -210,7 +210,7 @@ public sealed class ShellNavigationTests
     {
         var services = new ServiceCollection();
         services
-            .AddCloudShell()
+            .AddCloudShellUi()
             .AddExtension<CoreShellExtension>()
             .AddExtension(new ResourceManagerExtension(includeSettings: false));
         var registry = Assert.IsType<CloudShellExtensionRegistry>(
@@ -242,7 +242,7 @@ public sealed class ShellNavigationTests
     {
         var services = new ServiceCollection();
         services
-            .AddCloudShell()
+            .AddCloudShellUi()
             .AddExtension<ObservabilityExtension>();
         var module = services
             .Where(descriptor => descriptor.ServiceType == typeof(CompositionModule))
@@ -330,7 +330,7 @@ public sealed class ShellNavigationTests
     {
         var services = new ServiceCollection();
         services
-            .AddCloudShell()
+            .AddCloudShellUi()
             .AddExtension(new ResourceManagerExtension(includeSettings: false));
 
         var module = services
@@ -399,7 +399,7 @@ public sealed class ShellNavigationTests
     {
         var services = new ServiceCollection();
         services
-            .AddCloudShell()
+            .AddCloudShellUi()
             .AddExtension<TExtension>();
 
         var registry = Assert.IsType<CloudShellExtensionRegistry>(

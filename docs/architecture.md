@@ -29,6 +29,15 @@ presenters and predefined integrations.
 CloudShell UI may run inside a host application by itself, or it may run in the
 same host process as the Control Plane for local development.
 
+The hosting methods mirror that boundary. `AddCloudShellUi()`,
+`UseCloudShellUiAsync()`, and `MapCloudShellUi<TRootComponent>()` are UI-only
+composition points. `AddCloudShellControlPlane()`,
+`UseCloudShellControlPlaneAsync()`, and `MapCloudShellControlPlane()` are
+Control Plane composition points. Plain `AddCloudShell()`,
+`UseCloudShellAsync()`, and `MapCloudShell<TRootComponent>()` belong to the
+combined host surface and compose both sides explicitly; they should not live
+in a UI-only package that can be referenced by a split CloudShell UI host.
+
 CoreShell acts as a shell for integrations. It owns common visual structure and
 shell services:
 
@@ -89,6 +98,11 @@ Fluent UI renderers over CoreShell contracts.
 The Control Plane is the backend application. It may be hosted with
 CloudShell UI in a combined local-development host, or independently in split
 and on-premise deployments.
+
+Control Plane provider and runtime registration belongs to the Control Plane
+host. UI hosts may reference UI integration packages and remote client
+adapters, but they should not install provider runtime integrations unless the
+host is deliberately the combined CloudShell host.
 
 The Control Plane owns backend state and operations:
 

@@ -18,8 +18,7 @@ string registryAddress = $"{registryHost}:{registryPort}";
 const string sampleImage = "cloudshell/mock-api:20260608.1";
 const string resourceGroupId = "container-app-deployment-poc";
 
-var cloudShell = builder.AddCloudShellControlPlane();
-builder.AddCloudShell();
+var cloudShell = builder.AddCloudShell();
 cloudShell.AddResourceGroup(
     resourceGroupId,
     "Container App Deployment POC",
@@ -74,9 +73,7 @@ cloudShell.AddBuiltInProviderResourceManagerUi();
 
 var app = builder.Build();
 
-await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
-app.MapCloudShellControlPlane();
 app.MapCloudShell<App>();
 
 app.Run();

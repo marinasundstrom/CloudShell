@@ -12,6 +12,7 @@
     <ProjectReference Include="..\..\..\CloudShell.ControlPlane.Providers.UI\CloudShell.ControlPlane.Providers.UI.csproj" />
     <ProjectReference Include="..\..\..\CloudShell.ControlPlane.Providers\CloudShell.ControlPlane.Providers.csproj" />
     <ProjectReference Include="..\..\..\CloudShell.ControlPlane.ResourceModel\CloudShell.ControlPlane.ResourceModel.csproj" />
+    <ProjectReference Include="..\..\..\CloudShell.AppHost\CloudShell.AppHost.csproj" />
   </ItemGroup>
 
 </Project>

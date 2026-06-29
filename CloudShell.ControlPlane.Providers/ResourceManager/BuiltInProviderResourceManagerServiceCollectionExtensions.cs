@@ -10,8 +10,8 @@ namespace CloudShell.ControlPlane.Providers;
 
 public static class BuiltInProviderResourceManagerServiceCollectionExtensions
 {
-    public static ICloudShellBuilder UseResourceGraphIntegration(
-        this ICloudShellBuilder builder,
+    public static IControlPlaneBuilder UseResourceGraphIntegration(
+        this IControlPlaneBuilder builder,
         string id = ResourceModelResourceProvider.DefaultProviderId,
         string displayName = "Resource model",
         ResourceDefinitionResolutionContext? resolutionContext = null,
@@ -20,22 +20,6 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(builder);
 
         builder.Services.AddResourceGraphIntegration(
-            id,
-            displayName,
-            resolutionContext,
-            projectionOptions);
-
-        return builder;
-    }
-
-    public static IControlPlaneBuilder UseResourceGraphIntegration(
-        this IControlPlaneBuilder builder,
-        string id = ResourceModelResourceProvider.DefaultProviderId,
-        string displayName = "Resource model",
-        ResourceDefinitionResolutionContext? resolutionContext = null,
-        ResourceModelResourceManagerProjectionOptions? projectionOptions = null)
-    {
-        ((ICloudShellBuilder)builder).UseResourceGraphIntegration(
             id,
             displayName,
             resolutionContext,

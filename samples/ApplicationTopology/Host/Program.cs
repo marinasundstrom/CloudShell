@@ -85,8 +85,7 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
     ["Authentication:BuiltInAuthority:SigningKeyPem"] = identitySigningKeyPem
 });
 
-var cloudShell = builder.AddCloudShellControlPlane();
-builder.AddCloudShell();
+var cloudShell = builder.AddCloudShell();
 cloudShell.AddResourceGroup(
     resourceGroupId,
     "Application Topology",
@@ -310,9 +309,7 @@ cloudShell.AddBuiltInProviderResourceManagerUi();
 
 var app = builder.Build();
 
-await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
-app.MapCloudShellControlPlane();
 app.MapApplicationTopologyResourceModelSqlCredentialApi();
 app.MapCloudShell<App>();
 

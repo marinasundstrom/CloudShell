@@ -29,8 +29,7 @@ var frontendProjectPath = Path.GetFullPath(
     "../Frontend/CloudShell.ProjectReferenceFrontend.csproj",
     builder.Environment.ContentRootPath);
 
-var cloudShell = builder.AddCloudShellControlPlane();
-builder.AddCloudShell();
+var cloudShell = builder.AddCloudShell();
 IResourceDefinitionBuilder apiResource = null!;
 cloudShell.DefineResources(resources =>
 {
@@ -95,9 +94,7 @@ cloudShell.AddBuiltInProviderResourceManagerUi();
 
 var app = builder.Build();
 
-await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
-app.MapCloudShellControlPlane();
 app.MapCloudShell<App>();
 app.MapPost(
     "/project-reference/resource-graph/resources/{resourceId}/environment-variables",

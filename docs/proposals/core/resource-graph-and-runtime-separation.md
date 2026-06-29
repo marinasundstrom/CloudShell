@@ -1882,16 +1882,18 @@ resource types belong together; each resource type provider package keeps that
 boundary.
 
 The first switch-over integration seam is
-`UseResourceGraphIntegration(...)` on the CloudShell/Control Plane
-builder. It composes the generic Resource model graph services,
+`UseResourceGraphIntegration(...)` on the Control Plane builder. It composes
+the generic Resource model graph services,
 built-in-provider Resource Manager projections, and graph procedure provider
 using the default graph bridge provider identity. Lower-level service
 registration helpers remain available for tests and specialized hosts, but
-sample hosts should use the builder seam so the Resource graph integration is
-visible as host composition instead of scattered `IServiceCollection`
-plumbing. This does not make the built-in providers a single provider
-package; it only removes repeated sample registration boilerplate while the
-individual provider type registrations and runtime handlers remain explicit.
+sample and combined hosts should use the Control Plane builder seam so the
+Resource graph integration is visible as host composition instead of scattered
+`IServiceCollection` plumbing. UI-only hosts do not register this bridge; they
+use UI integrations and a local or remote Control Plane client. This does not
+make the built-in providers a single provider package; it only removes repeated
+sample registration boilerplate while the individual provider type
+registrations and runtime handlers remain explicit.
 The current package boundary is `CloudShell.ControlPlane.Providers` for the
 ported built-in providers and `CloudShell.ControlPlane.Providers.UI` for their
 Resource Manager UI integration. Those packages are allowed to group multiple
@@ -1901,12 +1903,13 @@ focused packages once their boundaries justify it. Shared graph infrastructure
 stays outside those groups in `CloudShell.ResourceModel` and
 `CloudShell.ControlPlane.ResourceModel`.
 `UseBuiltInResourceModelProviders(...)` is the built-in provider package
-composition seam for hosts that want the default platform catalog. It registers
-the built-in provider types and the graph bridge together, but it does not make
-providers depend on each other. Individual `Add...ResourceType(...)` methods
-remain the narrow seams for samples, tests, split hosts, and future extracted
-provider packages. Runtime behavior still flows through provider-owned adapter
-interfaces supplied by the host or a default runtime integration package.
+composition seam for Control Plane hosts that want the default platform
+catalog. It registers the built-in provider types and the graph bridge
+together, but it does not make providers depend on each other. Individual
+`Add...ResourceType(...)` methods remain the narrow seams for tests,
+specialized Control Plane hosts, and future extracted provider packages.
+Runtime behavior still flows through provider-owned adapter interfaces supplied
+by the host or a default runtime integration package.
 For the current switch-over, provider-specific Resource Manager UI components
 are being extracted into the UI-support project while provider implementations
 remain together. Registration components, endpoint actions, and container app

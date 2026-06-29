@@ -22,8 +22,8 @@ public sealed class BuiltInResourceModelProviderOptions
 
 public static class BuiltInResourceModelProviderServiceCollectionExtensions
 {
-    public static ICloudShellBuilder UseBuiltInResourceModelProviders(
-        this ICloudShellBuilder builder,
+    public static IControlPlaneBuilder UseBuiltInResourceModelProviders(
+        this IControlPlaneBuilder builder,
         Action<BuiltInResourceModelProviderOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -35,15 +35,6 @@ public static class BuiltInResourceModelProviderServiceCollectionExtensions
             options.ResourceGraphProviderDisplayName,
             options.ResourceDefinitionResolutionContext,
             options.ResourceManagerProjectionOptions);
-
-        return builder;
-    }
-
-    public static IControlPlaneBuilder UseBuiltInResourceModelProviders(
-        this IControlPlaneBuilder builder,
-        Action<BuiltInResourceModelProviderOptions>? configure = null)
-    {
-        ((ICloudShellBuilder)builder).UseBuiltInResourceModelProviders(configure);
 
         return builder;
     }

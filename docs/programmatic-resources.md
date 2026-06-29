@@ -16,11 +16,11 @@ belong to the Control Plane; the host process composes the environment and
 registers runtime adapter implementations for the installed providers.
 
 ```csharp
+using CloudShell.Hosting;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
 
-var cloudShell = builder.AddCloudShellControlPlane();
-builder.AddCloudShell();
+var cloudShell = builder.AddCloudShell();
 
 cloudShell.UseBuiltInResourceModelProviders();
 
@@ -36,6 +36,11 @@ cloudShell.DefineResources(resources =>
         ]);
 });
 ```
+
+`UseBuiltInResourceModelProviders(...)` is a Control Plane registration seam.
+Use it from a Control Plane host or from the Control Plane builder returned by
+the combined `AddCloudShell()` host method. A split UI host installs UI
+integrations and remote client adapters instead of provider runtime packages.
 
 Built-in Resource model providers expose specialized extension methods
 for their own resource types. Current provider methods include:
