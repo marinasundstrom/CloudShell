@@ -5,10 +5,13 @@ using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource
 namespace CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 
 public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
-    IContainerApplicationRuntimeHandler? runtimeHandler = null) : IResourceModelGraphOrchestratorServiceExecutor
+    IContainerApplicationRuntimeHandler? runtimeHandler = null,
+    IContainerApplicationOrchestratorRuntimeHandler? orchestratorRuntimeHandler = null) : IResourceModelGraphOrchestratorServiceExecutor
 {
     private readonly IContainerApplicationRuntimeHandler _runtimeHandler =
         runtimeHandler ?? new NoopContainerApplicationRuntimeHandler();
+    private readonly IContainerApplicationOrchestratorRuntimeHandler? _orchestratorRuntimeHandler =
+        orchestratorRuntimeHandler;
 
     public bool CanExecuteOrchestratorService(
         ResourceManagerResource resource,
@@ -29,6 +32,17 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
             return;
         }
 
+        if (_orchestratorRuntimeHandler is not null)
+        {
+            var orchestratorDiagnostics = await _orchestratorRuntimeHandler.PrepareOrchestratorServiceAsync(
+                context.GraphResource,
+                context.Service,
+                context.ReplicaGroup,
+                cancellationToken);
+            ThrowIfErrors(orchestratorDiagnostics);
+            return;
+        }
+
         var diagnostics = _runtimeHandler.GetStatus(context.GraphResource) == ContainerApplicationRuntimeStatus.Running
             ? await _runtimeHandler.ApplyImageAsync(
                 context.GraphResource,
@@ -40,11 +54,41 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
         ThrowIfErrors(diagnostics);
     }
 
+    public async ValueTask ReconcileOrchestratorServiceRoutingAsync(
+        ResourceModelGraphOrchestratorServiceProcedureContext context,
+        CancellationToken cancellationToken = default)
+    {
+        if (_orchestratorRuntimeHandler is null)
+        {
+            return;
+        }
+
+        var diagnostics = await _orchestratorRuntimeHandler.ReconcileOrchestratorServiceRoutingAsync(
+            context.GraphResource,
+            context.Service,
+            context.ReplicaGroup,
+            cancellationToken);
+        ThrowIfErrors(diagnostics);
+    }
+
     public async ValueTask ExecuteOrchestratorServiceInstanceAsync(
         ResourceModelGraphOrchestratorServiceInstanceContext context,
         ResourceAction action,
         CancellationToken cancellationToken = default)
     {
+        if (_orchestratorRuntimeHandler is not null)
+        {
+            var orchestratorDiagnostics = await _orchestratorRuntimeHandler.ExecuteOrchestratorServiceInstanceAsync(
+                context.GraphResource,
+                context.Service,
+                context.Instance,
+                action,
+                context.ReplicaGroup,
+                cancellationToken);
+            ThrowIfErrors(orchestratorDiagnostics);
+            return;
+        }
+
         if (action.Kind != ResourceActionKind.Stop ||
             !IsFirstInstanceInGroup(context))
         {

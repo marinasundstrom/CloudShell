@@ -1,5 +1,6 @@
 using CloudShell.ResourceDefinitions;
 using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.Abstractions.ResourceManager;
 using GraphResource = CloudShell.ResourceDefinitions.Resource;
 
 internal interface IReplicatedContainerHealthContainerAppRuntimeBridge
@@ -17,5 +18,25 @@ internal interface IReplicatedContainerHealthContainerAppRuntimeBridge
 
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyReplicasAsync(
         GraphResource resource,
+        CancellationToken cancellationToken = default);
+
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> PrepareOrchestratorServiceAsync(
+        GraphResource resource,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
+        CancellationToken cancellationToken = default);
+
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileOrchestratorServiceRoutingAsync(
+        GraphResource resource,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
+        CancellationToken cancellationToken = default);
+
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteOrchestratorServiceInstanceAsync(
+        GraphResource resource,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorServiceInstance instance,
+        ResourceAction action,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
         CancellationToken cancellationToken = default);
 }

@@ -72,6 +72,7 @@ builder.Services
             traceIngestEndpoint,
             metricIngestEndpoint))
     .AddSingleton<IContainerApplicationRuntimeHandler, ReplicatedContainerHealthContainerAppRuntimeHandler>()
+    .AddSingleton<IContainerApplicationOrchestratorRuntimeHandler, ReplicatedContainerHealthContainerAppRuntimeHandler>()
     .AddLocalContainerApplicationResourceTypes();
 cloudShell.UseResourceGraphIntegration();
 builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider, ReplicatedContainerHealthOrchestrationDescriptorProvider>();

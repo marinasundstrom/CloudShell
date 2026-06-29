@@ -2102,6 +2102,120 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphProcedureProvider_UsesContainerApplicationOrchestratorRuntimePrimitives()
+    {
+        var runtimeHandler = new RecordingContainerApplicationRuntimeHandler(
+            ContainerApplicationRuntimeStatus.Running);
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddContainerHostResourceType();
+        services.AddSingleton<IContainerApplicationRuntimeHandler>(runtimeHandler);
+        services.AddSingleton<IContainerApplicationOrchestratorRuntimeHandler>(runtimeHandler);
+        services.AddContainerApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddReferenceProviderResourceManagerProjections();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var apply = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceDefinitionGraphBuilder();
+        var host = graph
+            .AddContainerHost("docker")
+            .UseDocker();
+        var container = graph
+            .AddContainerApplication("api")
+            .UseContainerHost(host)
+            .WithImage("ghcr.io/example/api:latest")
+            .WithReplicas(2);
+        var result = await apply.ApplyTemplateAsync(
+            graph.BuildTemplate("container-app", environmentId: "local"),
+            new ResourceGraphCommitContext(PrincipalId: "developer"));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedContainer = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == container.EffectiveResourceId);
+        var serviceProviderBridge = Assert.IsAssignableFrom<IResourceOrchestratorServiceProcedureProvider>(provider);
+        var procedure = new ResourceProcedureContext(
+            projectedContainer,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+        var service = await serviceProviderBridge.CreateOrchestratorServiceAsync(procedure);
+        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+            service,
+            "rev-test");
+        var previousReplicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+            service with
+            {
+                Workload = service.Workload with
+                {
+                    Replicas = 3,
+                    ReplicasEnabled = true
+                }
+            },
+            "rev-previous");
+
+        await serviceProviderBridge.PrepareOrchestratorServiceAsync(
+            new ResourceOrchestratorServiceProcedureContext(procedure, service, replicaGroup),
+            ResourceAction.Start);
+        foreach (var instance in replicaGroup.Instances)
+        {
+            await serviceProviderBridge.ExecuteOrchestratorServiceInstanceAsync(
+                new ResourceOrchestratorServiceInstanceContext(procedure, service, instance, replicaGroup),
+                ResourceAction.Start);
+        }
+
+        await serviceProviderBridge.ReconcileOrchestratorServiceRoutingAsync(
+            new ResourceOrchestratorServiceProcedureContext(procedure, service, replicaGroup));
+        foreach (var instance in previousReplicaGroup.Instances)
+        {
+            await serviceProviderBridge.ExecuteOrchestratorServiceInstanceAsync(
+                new ResourceOrchestratorServiceInstanceContext(procedure, service, instance, previousReplicaGroup),
+                ResourceAction.Stop);
+        }
+
+        Assert.Empty(runtimeHandler.Events);
+        Assert.Collection(
+            runtimeHandler.OrchestratorEvents,
+            first => Assert.Equal("prepare", first.Stage),
+            second =>
+            {
+                Assert.Equal("instance", second.Stage);
+                Assert.Equal(ResourceActionKind.Start, second.ActionKind);
+                Assert.Equal(1, second.ReplicaOrdinal);
+            },
+            third =>
+            {
+                Assert.Equal("instance", third.Stage);
+                Assert.Equal(ResourceActionKind.Start, third.ActionKind);
+                Assert.Equal(2, third.ReplicaOrdinal);
+            },
+            fourth => Assert.Equal("routing", fourth.Stage),
+            fifth =>
+            {
+                Assert.Equal("instance", fifth.Stage);
+                Assert.Equal(ResourceActionKind.Stop, fifth.ActionKind);
+                Assert.Equal(1, fifth.ReplicaOrdinal);
+            },
+            sixth =>
+            {
+                Assert.Equal("instance", sixth.Stage);
+                Assert.Equal(ResourceActionKind.Stop, sixth.ActionKind);
+                Assert.Equal(2, sixth.ReplicaOrdinal);
+            },
+            seventh =>
+            {
+                Assert.Equal("instance", seventh.Stage);
+                Assert.Equal(ResourceActionKind.Stop, seventh.ActionKind);
+                Assert.Equal(3, seventh.ReplicaOrdinal);
+            });
+    }
+
+    [Fact]
     public async Task ResourceModelGraphProcedureProvider_StartsStoppedContainerApplicationService()
     {
         var runtimeHandler = new RecordingContainerApplicationRuntimeHandler(
@@ -6186,11 +6300,16 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     private sealed class RecordingContainerApplicationRuntimeHandler(
-        ContainerApplicationRuntimeStatus status) : IContainerApplicationRuntimeHandler
+        ContainerApplicationRuntimeStatus status) :
+        IContainerApplicationRuntimeHandler,
+        IContainerApplicationOrchestratorRuntimeHandler
     {
         private readonly List<ContainerApplicationRuntimeEvent> _events = [];
+        private readonly List<ContainerApplicationOrchestratorRuntimeEvent> _orchestratorEvents = [];
 
         public IReadOnlyList<ContainerApplicationRuntimeEvent> Events => _events;
+
+        public IReadOnlyList<ContainerApplicationOrchestratorRuntimeEvent> OrchestratorEvents => _orchestratorEvents;
 
         public ContainerApplicationRuntimeStatus GetStatus(Resource resource) =>
             status;
@@ -6220,6 +6339,38 @@ public sealed class ResourceManagerIntegrationTests
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
 
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> PrepareOrchestratorServiceAsync(
+            Resource resource,
+            ResourceOrchestratorService service,
+            ResourceOrchestratorReplicaGroup? replicaGroup,
+            CancellationToken cancellationToken = default)
+        {
+            RecordOrchestrator("prepare", resource, replicaGroup);
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileOrchestratorServiceRoutingAsync(
+            Resource resource,
+            ResourceOrchestratorService service,
+            ResourceOrchestratorReplicaGroup? replicaGroup,
+            CancellationToken cancellationToken = default)
+        {
+            RecordOrchestrator("routing", resource, replicaGroup);
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteOrchestratorServiceInstanceAsync(
+            Resource resource,
+            ResourceOrchestratorService service,
+            ResourceOrchestratorServiceInstance instance,
+            ResourceAction action,
+            ResourceOrchestratorReplicaGroup? replicaGroup,
+            CancellationToken cancellationToken = default)
+        {
+            RecordOrchestrator("instance", resource, replicaGroup, instance, action.Kind);
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+
         private void Record(
             Resource resource,
             ResourceOperationId operationId)
@@ -6230,10 +6381,35 @@ public sealed class ResourceManagerIntegrationTests
                 container.Image,
                 container.Replicas));
         }
+
+        private void RecordOrchestrator(
+            string stage,
+            Resource resource,
+            ResourceOrchestratorReplicaGroup? replicaGroup,
+            ResourceOrchestratorServiceInstance? instance = null,
+            ResourceActionKind? actionKind = null)
+        {
+            var container = new ContainerApplicationResource(resource);
+            _orchestratorEvents.Add(new ContainerApplicationOrchestratorRuntimeEvent(
+                stage,
+                actionKind,
+                instance?.ReplicaOrdinal,
+                replicaGroup?.RequestedReplicas,
+                container.Image,
+                container.Replicas));
+        }
     }
 
     private sealed record ContainerApplicationRuntimeEvent(
         ResourceOperationId OperationId,
+        string? Image,
+        int Replicas);
+
+    private sealed record ContainerApplicationOrchestratorRuntimeEvent(
+        string Stage,
+        ResourceActionKind? ActionKind,
+        int? ReplicaOrdinal,
+        int? RequestedReplicas,
         string? Image,
         int Replicas);
 

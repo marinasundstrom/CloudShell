@@ -279,6 +279,83 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         }
     }
 
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> PrepareOrchestratorServiceAsync(
+        GraphResource resource,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await PublishImageAsync(ResolveImage(resource), cancellationToken);
+            await EnsureContainerNetworkAsync(cancellationToken);
+            return [];
+        }
+        catch (Exception exception)
+        {
+            return [RuntimeFailed(resource, exception)];
+        }
+    }
+
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileOrchestratorServiceRoutingAsync(
+        GraphResource resource,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await StartIngressAsync(
+                resource,
+                cancellationToken,
+                createWhenMissing: ResolveReplicas(resource) > 1);
+            ClearStatusCache();
+            return [];
+        }
+        catch (Exception exception)
+        {
+            return [RuntimeFailed(resource, exception)];
+        }
+    }
+
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteOrchestratorServiceInstanceAsync(
+        GraphResource resource,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorServiceInstance instance,
+        ResourceAction action,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            switch (action.Kind)
+            {
+                case ResourceActionKind.Start:
+                    await StartReplicaAsync(
+                        resource,
+                        ResolveImage(resource),
+                        instance.ReplicaOrdinal,
+                        cancellationToken);
+                    break;
+                case ResourceActionKind.Stop:
+                    await RemoveReplicaAsync(
+                        instance.ReplicaOrdinal,
+                        cancellationToken);
+                    break;
+                default:
+                    throw new NotSupportedException(
+                        $"The ReplicatedContainerHealth sample does not map graph action '{action.Id}' to an orchestrator service instance operation.");
+            }
+
+            ClearStatusCache();
+            return [];
+        }
+        catch (Exception exception)
+        {
+            return [RuntimeFailed(resource, exception)];
+        }
+    }
+
     private async Task StartAsync(
         GraphResource resource,
         CancellationToken cancellationToken,
@@ -299,10 +376,12 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             await EnsureContainerNetworkAsync(cancellationToken);
             for (var replica = 1; replica <= replicas; replica++)
             {
-                await commandRunner.RunAsync(
-                    "docker",
-                    CreateRunArguments(resource, image, replica),
-                    cancellationToken);
+                await StartReplicaAsync(
+                    resource,
+                    image,
+                    replica,
+                    cancellationToken,
+                    replaceExisting: false);
             }
 
             await StartIngressAsync(
@@ -315,6 +394,24 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             await RemoveAsync(resource, cancellationToken);
             throw;
         }
+    }
+
+    private async Task StartReplicaAsync(
+        GraphResource resource,
+        string image,
+        int replica,
+        CancellationToken cancellationToken,
+        bool replaceExisting = true)
+    {
+        if (replaceExisting)
+        {
+            await RemoveReplicaAsync(replica, cancellationToken);
+        }
+
+        await commandRunner.RunAsync(
+            "docker",
+            CreateRunArguments(resource, image, replica),
+            cancellationToken);
     }
 
     private async Task PublishImageAsync(

@@ -589,7 +589,12 @@ listed here before pulling in broader proposal work.
    visibility, cleanup, and internal orchestrator deployment/revision contracts
    are in place. Deployment apply now materializes the requested runtime state,
    and container apps describe superseded local runtime replicas as explicit
-   post-apply replica-group tear-down targets. Container apps now materialize
+   post-apply replica-group tear-down targets. The Resource Manager graph
+   bridge now exposes container-app-specific deployment-controller primitives
+   for service preparation, per-instance materialization/removal, and routing
+   reconciliation; keep this provider-owned until another resource type needs
+   the same orchestration hook, then lift the seam into a generic resource
+   orchestration contract. Container apps now materialize
    requested replica resources as hidden runtime-managed children parented to the
    app, with Resource Manager visibility controlled separately for hidden
    resources and hidden runtime-managed artifacts. Docker host raw container

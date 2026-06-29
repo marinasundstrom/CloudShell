@@ -376,6 +376,66 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     }
 
     [Fact]
+    public async Task RuntimeBridge_OrchestratorPrimitivesStartReplicaAndReconcileIngressWithoutSweepingRuntime()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+            commandRunner,
+            CreateConfiguration(replicaCleanupLimit: 4));
+        var resource = await CreateGraphAppResourceAsync(
+            replicas: 2,
+            endpointPort: 5092);
+        var service = CreateOrchestratorService(resource, replicas: 2);
+        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+            service,
+            "rev-test");
+        commandRunner.EnqueueSuccess(4);
+        commandRunner.Enqueue(new(0, "running", string.Empty));
+
+        var prepareDiagnostics = await bridge.PrepareOrchestratorServiceAsync(
+            resource,
+            service,
+            replicaGroup);
+        var startDiagnostics = await bridge.ExecuteOrchestratorServiceInstanceAsync(
+            resource,
+            service,
+            replicaGroup.Instances[1],
+            ResourceAction.Start,
+            replicaGroup);
+        var routingDiagnostics = await bridge.ReconcileOrchestratorServiceRoutingAsync(
+            resource,
+            service,
+            replicaGroup);
+
+        Assert.Empty(prepareDiagnostics);
+        Assert.Empty(startDiagnostics);
+        Assert.Empty(routingDiagnostics);
+        Assert.Collection(
+            commandRunner.Commands,
+            command =>
+            {
+                Assert.Equal("dotnet", command.FileName);
+                Assert.Equal("publish", command.Arguments[0]);
+            },
+            AssertDockerNetworkCreate,
+            command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-2"),
+            command => AssertDockerRun(
+                command,
+                "cloudshell-replicated-health-api-replica-2",
+                replica: 2,
+                expectedProbePort: 5193),
+            command => AssertDockerInspect(command, ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()));
+        Assert.DoesNotContain(
+            commandRunner.Commands,
+            command => command.Arguments.SequenceEqual(
+                ["rm", "-f", ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()]));
+        Assert.DoesNotContain(
+            commandRunner.Commands,
+            command => command.Arguments.SequenceEqual(
+                ["rm", "-f", "cloudshell-replicated-health-api-replica-1"]));
+    }
+
+    [Fact]
     public void RuntimeLogProvider_ProjectsReplicaLogSourcesFromGraphState()
     {
         var provider = new ReplicatedContainerHealthRuntimeLogProvider(
@@ -707,6 +767,19 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             .Build();
     }
 
+    private static ResourceOrchestratorService CreateOrchestratorService(
+        GraphResource resource,
+        int replicas) =>
+        new(
+            resource.EffectiveResourceId,
+            "cloudshell-application-container-app-api",
+            new ResourceWorkloadConfiguration(
+                ResourceWorkloadKind.ContainerImage,
+                "api",
+                Image: resource.Attributes.GetString(ContainerApplicationResourceTypeProvider.Attributes.ContainerImage),
+                Replicas: replicas,
+                ReplicasEnabled: replicas > 1));
+
     private static void AssertDockerRemove(
         RecordingCommand command,
         string containerName)
@@ -863,6 +936,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         ContainerApplicationRuntimeStatus status) : IReplicatedContainerHealthContainerAppRuntimeBridge
     {
         public List<LifecycleCommand> LifecycleCommands { get; } = [];
+        public List<OrchestratorCommand> OrchestratorCommands { get; } = [];
 
         public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource) => status;
 
@@ -884,11 +958,49 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             GraphResource resource,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> PrepareOrchestratorServiceAsync(
+            GraphResource resource,
+            ResourceOrchestratorService service,
+            ResourceOrchestratorReplicaGroup? replicaGroup,
+            CancellationToken cancellationToken = default)
+        {
+            OrchestratorCommands.Add(new("prepare", resource, null, null));
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileOrchestratorServiceRoutingAsync(
+            GraphResource resource,
+            ResourceOrchestratorService service,
+            ResourceOrchestratorReplicaGroup? replicaGroup,
+            CancellationToken cancellationToken = default)
+        {
+            OrchestratorCommands.Add(new("routing", resource, null, null));
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteOrchestratorServiceInstanceAsync(
+            GraphResource resource,
+            ResourceOrchestratorService service,
+            ResourceOrchestratorServiceInstance instance,
+            ResourceAction action,
+            ResourceOrchestratorReplicaGroup? replicaGroup,
+            CancellationToken cancellationToken = default)
+        {
+            OrchestratorCommands.Add(new("instance", resource, instance.ReplicaOrdinal, action.Kind));
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
     }
 
     private sealed record LifecycleCommand(
         GraphResource Resource,
         ResourceOperationId OperationId);
+
+    private sealed record OrchestratorCommand(
+        string Stage,
+        GraphResource Resource,
+        int? ReplicaOrdinal,
+        ResourceActionKind? ActionKind);
 
     private sealed class RecordingResourceManagerStore(
         CloudShell.Abstractions.ResourceManager.Resource resource) : IResourceManagerStore

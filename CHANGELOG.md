@@ -66,6 +66,11 @@ on `git blame --follow`, and then by the broad type of change.
   desired ResourceDefinition state and request runtime reconciliation instead
   of executing runtime changes directly, allowing ControlPlane to apply the
   generated deployment through the orchestrator deployment controller.
+- Container app runtimes can now opt into deployment-controller primitives for
+  service preparation, per-instance materialization or removal, and routing
+  reconciliation. The ReplicatedContainerHealth sample uses that path so
+  generated deployments avoid hidden all-replica teardown when changing image
+  or replica slots.
 - Replica-group deployment definitions now include reconciliation policy for
   scale routing and previous-revision slot retention, and the deployment
   proposal documents both compact container-app update JSON and the normalized
