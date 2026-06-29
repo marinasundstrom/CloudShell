@@ -726,7 +726,7 @@ operations:
             "type": "cloudshell.replica",
             "definitionVersion": "1",
             "attributes": {
-              "deployment.replicaGroupId": "cloudshell-application-api-rev-3-replicas",
+              "deployment.replicaGroup.id": "cloudshell-application-api-rev-3-replicas",
               "deployment.workloadVersion": "rev-3",
               "runtime.revision": "rev-3"
             }
@@ -734,8 +734,8 @@ operations:
           "attributes": {
             "runtime.revision": "rev-3",
             "deployment.workloadVersion": "rev-3",
-            "deployment.requestedReplicaSlots": "3",
-            "deployment.requestedReplicas": "3",
+            "deployment.replicas.requestedSlots": "3",
+            "deployment.replicas.requested": "3",
             "deployment.routing.scaleOutMode": "AfterAddedReplicas",
             "deployment.routing.scaleInMode": "BeforeRemovedReplicas",
             "deployment.routing.replacementMode": "AfterNewReplicaGroupMaterialized",
@@ -743,6 +743,19 @@ operations:
             "deployment.replica.restartMode": "ReplaceOccupant",
             "deployment.replica.failureThreshold": "1",
             "deployment.replica.maxAttempts": "10"
+          }
+        },
+        {
+          "name": "cloudshell-application-api-http-binding",
+          "type": "cloudshell.service-routing-binding",
+          "definitionVersion": "1",
+          "attributes": {
+            "deployment.serviceId": "cloudshell-application-api",
+            "deployment.replicaGroup.id": "cloudshell-application-api-rev-3-replicas",
+            "deployment.routing.sourceResourceId": "application:api",
+            "deployment.routing.endpointName": "http",
+            "deployment.routing.loadBalancerResourceId": "cloudshell.loadBalancer:public",
+            "deployment.routing.routeId": "cloudshell.loadBalancer:public/routes/api"
           }
         }
       ]
@@ -759,6 +772,12 @@ API, database records, or generated DTOs without changing the underlying
 orchestration contract. That does not make it the default user-facing file
 format; the default user-facing file format remains Resource Definition
 entries that the Control Plane applies.
+
+The POC now includes the replica-group and service-routing-binding definition
+contracts in the internal orchestration API. The binding is intentionally
+identity based: controllers receive the source resource id, service id,
+replica-group id, endpoint name, and optional route, endpoint-mapping, or
+load-balancer resource id instead of inferring membership from labels.
 
 Lifecycle and materialization intent should be part of the requested resource
 or replica state in the deployment definition. This follows the same model as

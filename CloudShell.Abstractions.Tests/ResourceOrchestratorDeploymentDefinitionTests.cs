@@ -97,6 +97,78 @@ public sealed class ResourceOrchestratorDeploymentDefinitionTests
     }
 
     [Fact]
+    public void ServiceDefinition_ProjectsRoutingBindingDefinitions()
+    {
+        var service = CreateService(replicas: 3);
+        var binding = new ResourceOrchestratorServiceRoutingBindingDefinition(
+            "cloudshell-application-api-http-binding",
+            ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+            service.Name,
+            "cloudshell-application-api-rev-2-replicas",
+            ResourceEndpointReference.ForEndpoint(service.ResourceId, "http"),
+            LoadBalancerResourceId: "cloudshell.loadBalancer:public",
+            RouteId: "cloudshell.loadBalancer:public/routes/api",
+            EndpointMappingId: "cloudshell.virtualNetwork:default/endpointMappings/api-http",
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["deployment.routing.strategy"] = "gradual"
+            });
+        var serviceDefinition = new ResourceOrchestratorServiceDefinition(
+            service.Name,
+            ResourceOrchestratorDeploymentDefinitionTypes.Service,
+            ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+            Resources:
+            [
+                binding.ToResourceDefinition()
+            ]);
+
+        var projected = Assert.Single(serviceDefinition.RoutingBindingDefinitions);
+
+        Assert.Equal(binding.Name, projected.Name);
+        Assert.Equal(service.Name, projected.ServiceName);
+        Assert.Equal("cloudshell-application-api-rev-2-replicas", projected.ReplicaGroupName);
+        Assert.Equal(service.ResourceId, projected.SourceEndpoint.ResourceId);
+        Assert.Equal("http", projected.SourceEndpoint.EndpointName);
+        Assert.Equal("cloudshell.loadBalancer:public", projected.LoadBalancerResourceId);
+        Assert.Equal("cloudshell.loadBalancer:public/routes/api", projected.RouteId);
+        Assert.Equal("cloudshell.virtualNetwork:default/endpointMappings/api-http", projected.EndpointMappingId);
+        Assert.Equal("gradual", projected.RoutingBindingAttributes["deployment.routing.strategy"]);
+        Assert.Equal(
+            ResourceOrchestratorDeploymentDefinitionTypes.ServiceRoutingBinding,
+            Assert.Single(serviceDefinition.ServiceResources).Type);
+        Assert.Equal(
+            "cloudshell-application-api-rev-2-replicas",
+            Assert.Single(serviceDefinition.ServiceResources)
+                .ResourceAttributes[ResourceAttributeNames.DeploymentReplicaGroupId]);
+    }
+
+    [Fact]
+    public void ServiceDefinition_IgnoresIncompleteRoutingBindingDefinitions()
+    {
+        var service = CreateService(replicas: 1);
+        var serviceDefinition = new ResourceOrchestratorServiceDefinition(
+            service.Name,
+            ResourceOrchestratorDeploymentDefinitionTypes.Service,
+            ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+            Resources:
+            [
+                new ResourceOrchestratorResourceDefinition(
+                    "cloudshell-application-api-http-binding",
+                    ResourceOrchestratorDeploymentDefinitionTypes.ServiceRoutingBinding,
+                    ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+                    Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [ResourceAttributeNames.DeploymentReplicaGroupId] =
+                            "cloudshell-application-api-rev-2-replicas",
+                        [ResourceAttributeNames.DeploymentRoutingSourceResourceId] =
+                            service.ResourceId
+                    })
+            ]);
+
+        Assert.Empty(serviceDefinition.RoutingBindingDefinitions);
+    }
+
+    [Fact]
     public void DeploymentDefinition_PreservesExplicitDefinitionStructure()
     {
         var service = CreateService(replicas: 1);

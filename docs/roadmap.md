@@ -1225,11 +1225,12 @@ listed here before pulling in broader proposal work.
   expanding rollout controls. The controller should know which materialization
   signal is required before routing rebinding, revision activation, and
   predecessor cleanup.
-- Define orchestrator-owned service routing bindings that connect a service
-  endpoint, current replica group, and route/load-balancer mapping by explicit
-  CloudShell ids. Load-balancer providers should react to those bindings
-  instead of inferring replica membership from labels or container-app-specific
-  runtime names.
+- Orchestrator-owned service routing binding definitions now connect a service
+  endpoint, current replica group, and optional route, endpoint-mapping, or
+  load-balancer resource by explicit CloudShell ids. Follow-up work should make
+  the default orchestrator controller and load-balancer providers react to
+  those bindings instead of inferring replica membership from labels or
+  container-app-specific runtime names.
 - Decide which runtime artifacts become runtime-managed resources versus
   provider-owned state: replicas, implementation containers, images, endpoint
   registrations, backend registrations, health probes, and revisions.

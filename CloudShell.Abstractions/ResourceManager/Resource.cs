@@ -247,6 +247,11 @@ public static class ResourceAttributeNames
     public const string DeploymentRoutingScaleOutMode = "deployment.routing.scaleOutMode";
     public const string DeploymentRoutingScaleInMode = "deployment.routing.scaleInMode";
     public const string DeploymentRoutingReplacementMode = "deployment.routing.replacementMode";
+    public const string DeploymentRoutingSourceResourceId = "deployment.routing.sourceResourceId";
+    public const string DeploymentRoutingEndpointName = "deployment.routing.endpointName";
+    public const string DeploymentRoutingRouteId = "deployment.routing.routeId";
+    public const string DeploymentRoutingEndpointMappingId = "deployment.routing.endpointMappingId";
+    public const string DeploymentRoutingLoadBalancerResourceId = "deployment.routing.loadBalancerResourceId";
     public const string DeploymentReplacementRetainPreviousReplicaSlots = "deployment.replacement.retainPreviousReplicaSlots";
     public const string DeploymentReplicaRestartMode = "deployment.replica.restartMode";
     public const string DeploymentReplicaFailureThreshold = "deployment.replica.failureThreshold";

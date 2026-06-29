@@ -9,6 +9,8 @@ public static class ResourceOrchestratorDeploymentDefinitionTypes
 
     public const string ReplicaGroup = "cloudshell.replica-group";
 
+    public const string ServiceRoutingBinding = "cloudshell.service-routing-binding";
+
     public const string Replica = "cloudshell.replica";
 }
 
@@ -328,6 +330,153 @@ public sealed record ResourceOrchestratorReplicaGroupDefinition(
             : fallback;
 }
 
+public sealed record ResourceOrchestratorServiceRoutingBindingDefinition(
+    string Name,
+    string DefinitionVersion,
+    string ServiceName,
+    string ReplicaGroupName,
+    ResourceEndpointReference SourceEndpoint,
+    string? LoadBalancerResourceId = null,
+    string? RouteId = null,
+    string? EndpointMappingId = null,
+    IReadOnlyDictionary<string, string>? Attributes = null)
+{
+    private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    public IReadOnlyDictionary<string, string> RoutingBindingAttributes => Attributes ?? EmptyAttributes;
+
+    public ResourceOrchestratorResourceDefinition ToResourceDefinition()
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(Name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(DefinitionVersion);
+        ArgumentException.ThrowIfNullOrWhiteSpace(ServiceName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(ReplicaGroupName);
+        ArgumentNullException.ThrowIfNull(SourceEndpoint);
+
+        var attributes = new Dictionary<string, string>(
+            RoutingBindingAttributes,
+            StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.DeploymentServiceId] = ServiceName,
+            [ResourceAttributeNames.DeploymentReplicaGroupId] = ReplicaGroupName,
+            [ResourceAttributeNames.DeploymentRoutingSourceResourceId] = SourceEndpoint.ResourceId,
+            [ResourceAttributeNames.DeploymentRoutingEndpointName] = SourceEndpoint.EndpointName
+        };
+
+        AddOptionalAttribute(
+            attributes,
+            ResourceAttributeNames.DeploymentRoutingLoadBalancerResourceId,
+            LoadBalancerResourceId);
+        AddOptionalAttribute(
+            attributes,
+            ResourceAttributeNames.DeploymentRoutingRouteId,
+            RouteId);
+        AddOptionalAttribute(
+            attributes,
+            ResourceAttributeNames.DeploymentRoutingEndpointMappingId,
+            EndpointMappingId);
+
+        return new(
+            Name,
+            ResourceOrchestratorDeploymentDefinitionTypes.ServiceRoutingBinding,
+            DefinitionVersion,
+            Attributes: attributes);
+    }
+
+    public static bool TryFromResourceDefinition(
+        ResourceOrchestratorServiceDefinition service,
+        ResourceOrchestratorResourceDefinition resource,
+        out ResourceOrchestratorServiceRoutingBindingDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(service);
+        ArgumentNullException.ThrowIfNull(resource);
+
+        definition = null!;
+        if (!string.Equals(
+                resource.Type,
+                ResourceOrchestratorDeploymentDefinitionTypes.ServiceRoutingBinding,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var attributes = resource.ResourceAttributes;
+        if (!TryGetRequiredAttribute(
+                attributes,
+                ResourceAttributeNames.DeploymentReplicaGroupId,
+                out var replicaGroupName) ||
+            !TryGetRequiredAttribute(
+                attributes,
+                ResourceAttributeNames.DeploymentRoutingSourceResourceId,
+                out var sourceResourceId) ||
+            !TryGetRequiredAttribute(
+                attributes,
+                ResourceAttributeNames.DeploymentRoutingEndpointName,
+                out var endpointName))
+        {
+            return false;
+        }
+
+        var serviceName = TryGetOptionalAttribute(
+            attributes,
+            ResourceAttributeNames.DeploymentServiceId) ?? service.Name;
+
+        definition = new(
+            resource.Name,
+            resource.DefinitionVersion,
+            serviceName,
+            replicaGroupName,
+            ResourceEndpointReference.ForEndpoint(sourceResourceId, endpointName),
+            LoadBalancerResourceId: TryGetOptionalAttribute(
+                attributes,
+                ResourceAttributeNames.DeploymentRoutingLoadBalancerResourceId),
+            RouteId: TryGetOptionalAttribute(
+                attributes,
+                ResourceAttributeNames.DeploymentRoutingRouteId),
+            EndpointMappingId: TryGetOptionalAttribute(
+                attributes,
+                ResourceAttributeNames.DeploymentRoutingEndpointMappingId),
+            Attributes: attributes);
+        return true;
+    }
+
+    private static void AddOptionalAttribute(
+        IDictionary<string, string> attributes,
+        string name,
+        string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            attributes[name] = value.Trim();
+        }
+    }
+
+    private static bool TryGetRequiredAttribute(
+        IReadOnlyDictionary<string, string> attributes,
+        string name,
+        out string value)
+    {
+        value = string.Empty;
+        if (!attributes.TryGetValue(name, out var candidate) ||
+            string.IsNullOrWhiteSpace(candidate))
+        {
+            return false;
+        }
+
+        value = candidate.Trim();
+        return true;
+    }
+
+    private static string? TryGetOptionalAttribute(
+        IReadOnlyDictionary<string, string> attributes,
+        string name) =>
+        attributes.TryGetValue(name, out var value) &&
+        !string.IsNullOrWhiteSpace(value)
+            ? value.Trim()
+            : null;
+}
+
 public sealed record ResourceOrchestratorServiceDefinition(
     string Name,
     string Type,
@@ -352,6 +501,22 @@ public sealed record ResourceOrchestratorServiceDefinition(
             .Select(resource =>
             {
                 ResourceOrchestratorReplicaGroupDefinition.TryFromResourceDefinition(
+                    this,
+                    resource,
+                    out var definition);
+                return definition;
+            })
+            .ToArray();
+
+    public IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> RoutingBindingDefinitions =>
+        ServiceResources
+            .Where(resource => ResourceOrchestratorServiceRoutingBindingDefinition.TryFromResourceDefinition(
+                this,
+                resource,
+                out _))
+            .Select(resource =>
+            {
+                ResourceOrchestratorServiceRoutingBindingDefinition.TryFromResourceDefinition(
                     this,
                     resource,
                     out var definition);

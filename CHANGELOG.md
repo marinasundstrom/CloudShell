@@ -21,6 +21,11 @@ on `git blame --follow`, and then by the broad type of change.
   with a revision-aware replica template, and the default deployment applier
   treats that definition as the desired replica state when reconciling scale
   and image changes.
+- Orchestrator service deployment definitions now include an internal
+  service-routing binding resource that links a service endpoint, replica
+  group, and optional load-balancer route or endpoint mapping by CloudShell
+  resource ids, giving routing controllers an explicit contract for
+  re-binding without exposing deployment artifacts through ResourceTemplate.
 - Replica-group deployment definitions now include reconciliation policy for
   scale routing and previous-revision slot retention, and the deployment
   proposal documents both compact container-app update JSON and the normalized
