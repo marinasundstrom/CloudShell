@@ -5,8 +5,6 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Client.Authentication;
 using System.Diagnostics;
 using System.Globalization;
-using System.Text;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -41,7 +39,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
     private static readonly SemaphoreSlim AspNetCoreProjectBuildLock = new(1, 1);
     private static readonly HttpClient ContainerReadinessHttpClient = new();
     private static readonly ApplicationContainerOrchestratorDeploymentFactory ContainerOrchestratorDeploymentFactory = new();
-    private const string DefaultContainerNetworkName = "cloudshell";
     public const string HiddenResourceEnvironmentVariable = "CloudShell__ResourceManager__Hidden";
 
     private readonly ILogger dockerHostLogger =
@@ -93,8 +90,9 @@ public sealed partial class ApplicationResourceRuntimeOperations(
                 options,
                 environment,
                 loggerFactory),
-            options,
-            loggerFactory);
+            loggerFactory,
+            serviceProvider.GetService<ContainerApplicationIngressOperations>() ??
+                new ContainerApplicationIngressOperations(options, environment, loggerFactory));
     private readonly ApplicationContainerProcessTracker _containerProcesses =
         serviceProvider.GetService<ApplicationContainerProcessTracker>() ?? new ApplicationContainerProcessTracker(
             runtimeStates,
@@ -111,6 +109,9 @@ public sealed partial class ApplicationResourceRuntimeOperations(
                 environment,
                 loggerFactory),
             loggerFactory);
+    private readonly ContainerApplicationIngressOperations _containerIngress =
+        serviceProvider.GetService<ContainerApplicationIngressOperations>() ??
+        new ContainerApplicationIngressOperations(options, environment, loggerFactory);
     private readonly ApplicationResourceProjectionSource _projectionSource =
         serviceProvider.GetService<ApplicationResourceProjectionSource>() ?? new ApplicationResourceProjectionSource(
             new ApplicationResourceDefinitionSource(
@@ -337,7 +338,7 @@ public sealed partial class ApplicationResourceRuntimeOperations(
         ResourceOrchestratorServiceProcedureContext context,
         CancellationToken cancellationToken = default)
     {
-        if (!ShouldUseContainerAppIngress(context.Service))
+        if (!_containerIngress.ShouldUseIngress(context.Service))
         {
             return;
         }
@@ -349,11 +350,12 @@ public sealed partial class ApplicationResourceRuntimeOperations(
             context.ResourceContext.PreferredContainerHostId,
             ContainerHostCapabilityIds.ContainerImage,
             cancellationToken);
-        await StartContainerAppIngressAsync(
+        await _containerIngress.StartAsync(
             application,
             engine,
             context.Service,
             _containerProcesses.GetProcessLog(application.Id),
+            Id,
             cancellationToken,
             context.ResourceContext);
     }
@@ -682,7 +684,7 @@ public sealed partial class ApplicationResourceRuntimeOperations(
             startInfo.ArgumentList.Add("--rm");
         }
 
-        var useIngress = ShouldUseContainerAppIngress(service);
+        var useIngress = _containerIngress.ShouldUseIngress(service);
         var network = service.ServiceNetworks.FirstOrDefault(candidate => !string.IsNullOrWhiteSpace(candidate));
         if (!string.IsNullOrWhiteSpace(network))
         {
@@ -691,13 +693,13 @@ public sealed partial class ApplicationResourceRuntimeOperations(
             if (useIngress)
             {
                 startInfo.ArgumentList.Add("--network-alias");
-                startInfo.ArgumentList.Add(CreateContainerAppIngressTargetName(service, instance));
+                startInfo.ArgumentList.Add(ContainerApplicationIngressOperations.CreateIngressTargetName(service, instance));
             }
         }
 
         if (instance.ReplicaOrdinal == 1)
         {
-            foreach (var port in service.ServicePorts.Where(port => !useIngress || !IsContainerAppIngressPort(port)))
+            foreach (var port in service.ServicePorts.Where(port => !useIngress || !ContainerApplicationIngressOperations.IsIngressPort(port)))
             {
                 var hostPort = ResolveLocalPort(definition.Id, port);
                 startInfo.ArgumentList.Add("-p");
@@ -879,13 +881,14 @@ public sealed partial class ApplicationResourceRuntimeOperations(
         if (instance.ReplicaOrdinal == instance.ReplicaCount &&
             useIngress)
         {
-            await StartContainerAppIngressAsync(
+            await _containerIngress.StartAsync(
                 definition,
                 engine,
                 service,
                 processLog,
-            cancellationToken,
-            procedureContext);
+                Id,
+                cancellationToken,
+                procedureContext);
         }
     }
 
@@ -1006,12 +1009,14 @@ public sealed partial class ApplicationResourceRuntimeOperations(
         ResourceProcedureContext? procedureContext = null)
     {
         var service = CreateActiveContainerOrchestratorService(definition);
-        if (ShouldUseContainerAppIngress(service))
+        if (_containerIngress.ShouldUseIngress(service))
         {
-            await StopContainerAppIngressAsync(
+            await _containerIngress.StopAsync(
                 definition,
+                service,
                 engine,
                 log,
+                Id,
                 cancellationToken,
                 procedureContext);
         }
@@ -1100,293 +1105,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
             Id,
             "application.container.instance.stopped",
             $"Application provider stopped container replica '{instance.Name}' for '{definition.Name}'.");
-    }
-
-    private async Task StartContainerAppIngressAsync(
-        ApplicationResourceDefinition definition,
-        ContainerHostDescriptor engine,
-        ResourceOrchestratorService service,
-        ApplicationProcessLog log,
-        CancellationToken cancellationToken,
-        ResourceProcedureContext? procedureContext = null)
-    {
-        var ingressPorts = service.ServicePorts
-            .Where(IsContainerAppIngressPort)
-            .ToArray();
-        if (ingressPorts.Length == 0)
-        {
-            return;
-        }
-
-        var ingressName = GetContainerAppIngressName(service);
-        var configurationDirectory = await WriteContainerAppIngressConfigurationAsync(
-            definition,
-            service,
-            cancellationToken,
-            procedureContext);
-
-        var runningStatus = await TryGetContainerRunningStatusAsync(
-            engine,
-            ingressName,
-            cancellationToken);
-        if (runningStatus == true)
-        {
-            log.Append(
-                $"Updated replicated container app ingress mapping '{ingressName}' for {definition.Name}.",
-                "process",
-                "Information");
-            procedureContext?.AppendProviderEvent(
-                Id,
-                "application.container.ingress.updated",
-                $"Application provider updated ingress '{ingressName}' for '{definition.Name}'.");
-            return;
-        }
-
-        if (runningStatus == false)
-        {
-            procedureContext?.AppendProviderEvent(
-                Id,
-                "application.container.ingress.starting",
-                $"Application provider is starting existing ingress '{ingressName}' for '{definition.Name}'.");
-            await ApplicationContainerHostCommands.RunAsync(
-                engine,
-                ["start", ingressName],
-                log,
-                cancellationToken,
-                dockerHostLogger);
-            log.Append(
-                $"Started existing replicated container app ingress '{ingressName}' for {definition.Name}.",
-                "process",
-                "Information");
-            procedureContext?.AppendProviderEvent(
-                Id,
-                "application.container.ingress.started",
-                $"Application provider started existing ingress '{ingressName}' for '{definition.Name}'.");
-            return;
-        }
-
-        var arguments = new List<string>
-        {
-            "run",
-            "-d",
-            "--name",
-            ingressName,
-            "--network",
-            DefaultContainerNetworkName
-        };
-
-        foreach (var port in ingressPorts)
-        {
-            var hostPort = ResolveLocalPort(definition.Id, port);
-            arguments.Add("-p");
-            arguments.Add($"{hostPort.ToString(CultureInfo.InvariantCulture)}:{hostPort.ToString(CultureInfo.InvariantCulture)}/{NormalizeContainerPublishProtocol(port.Protocol)}");
-        }
-
-        arguments.Add("-v");
-        arguments.Add($"{configurationDirectory}:/etc/traefik/dynamic:ro");
-        arguments.Add(options.ReplicatedContainerAppIngressImage);
-        arguments.Add("--providers.file.directory=/etc/traefik/dynamic");
-        arguments.Add("--providers.file.watch=true");
-
-        foreach (var port in ingressPorts)
-        {
-            var entrypoint = CreateContainerAppIngressEntrypoint(port);
-            var hostPort = ResolveLocalPort(definition.Id, port);
-            arguments.Add($"--entrypoints.{entrypoint}.address=:{hostPort.ToString(CultureInfo.InvariantCulture)}");
-        }
-
-        procedureContext?.AppendProviderEvent(
-            Id,
-            "application.container.ingress.starting",
-            $"Application provider is starting ingress '{ingressName}' for '{definition.Name}'.");
-        await ApplicationContainerHostCommands.RunAsync(
-            engine,
-            arguments,
-            log,
-            cancellationToken,
-            dockerHostLogger);
-        log.Append(
-            $"Started replicated container app ingress '{ingressName}' for {definition.Name}.",
-            "process",
-            "Information");
-        procedureContext?.AppendProviderEvent(
-            Id,
-            "application.container.ingress.started",
-            $"Application provider started ingress '{ingressName}' for '{definition.Name}'.");
-    }
-
-    private static async Task<bool?> TryGetContainerRunningStatusAsync(
-        ContainerHostDescriptor engine,
-        string containerName,
-        CancellationToken cancellationToken)
-    {
-        var result = await ApplicationContainerHostCommands.CaptureAsync(
-            engine,
-            ["inspect", "--format", "{{.State.Running}}", containerName],
-            cancellationToken);
-        if (result.ExitCode != 0)
-        {
-            return null;
-        }
-
-        var output = result.Output.Trim();
-        if (bool.TryParse(output, out var running))
-        {
-            return running;
-        }
-
-        return null;
-    }
-
-    private async Task<string> WriteContainerAppIngressConfigurationAsync(
-        ApplicationResourceDefinition definition,
-        ResourceOrchestratorService service,
-        CancellationToken cancellationToken,
-        ResourceProcedureContext? procedureContext = null)
-    {
-        var ingressPorts = service.ServicePorts
-            .Where(IsContainerAppIngressPort)
-            .ToArray();
-        var configurationDirectory = GetContainerAppIngressConfigurationDirectory(definition.Id);
-        Directory.CreateDirectory(configurationDirectory);
-        var configurationPath = Path.Combine(configurationDirectory, "dynamic.yml");
-        procedureContext?.AppendProviderEvent(
-            Id,
-            "application.container.ingress.configuring",
-            $"Application provider is writing ingress configuration for '{definition.Name}'.");
-        await File.WriteAllTextAsync(
-            configurationPath,
-            CreateContainerAppIngressConfiguration(service, ingressPorts),
-            cancellationToken);
-
-        return configurationDirectory;
-    }
-
-    private async Task StopContainerAppIngressAsync(
-        ApplicationResourceDefinition definition,
-        ContainerHostDescriptor engine,
-        ApplicationProcessLog log,
-        CancellationToken cancellationToken,
-        ResourceProcedureContext? procedureContext = null)
-    {
-        var service = CreateDefaultContainerOrchestratorService(definition);
-        procedureContext?.AppendProviderEvent(
-            Id,
-            "application.container.ingress.stopping",
-            $"Application provider is stopping ingress '{GetContainerAppIngressName(service)}' for '{definition.Name}'.");
-        await StopContainerAppIngressAsync(
-            service,
-            engine,
-            log,
-            cancellationToken,
-            dockerHostLogger);
-        procedureContext?.AppendProviderEvent(
-            Id,
-            "application.container.ingress.stopped",
-            $"Application provider stopped ingress '{GetContainerAppIngressName(service)}' for '{definition.Name}'.");
-    }
-
-    private static async Task StopContainerAppIngressAsync(
-        ResourceOrchestratorService service,
-        ContainerHostDescriptor engine,
-        ApplicationProcessLog log,
-        CancellationToken cancellationToken,
-        ILogger? logger = null)
-    {
-        await ApplicationContainerHostCommands.RunAsync(
-            engine,
-            ["rm", "-f", GetContainerAppIngressName(service)],
-            log,
-            cancellationToken,
-            logger);
-    }
-
-    private string GetContainerAppIngressConfigurationDirectory(string resourceId)
-    {
-        var root = Path.IsPathRooted(options.IngressConfigurationDirectory)
-            ? options.IngressConfigurationDirectory
-            : Path.GetFullPath(options.IngressConfigurationDirectory, environment.ContentRootPath);
-        var directoryName = SlugPattern()
-            .Replace(resourceId.ToLowerInvariant(), "-")
-            .Trim('-');
-
-        return Path.Combine(root, string.IsNullOrWhiteSpace(directoryName) ? "container-app" : directoryName);
-    }
-
-    private static string CreateContainerAppIngressConfiguration(
-        ResourceOrchestratorService service,
-        IReadOnlyList<ServicePort> ports)
-    {
-        var httpPorts = ports
-            .Where(port => NormalizeProtocol(port.Protocol) == "http")
-            .ToArray();
-        var tcpPorts = ports
-            .Where(port => NormalizeProtocol(port.Protocol) == "tcp")
-            .ToArray();
-        var builder = new StringBuilder();
-
-        if (httpPorts.Length > 0)
-        {
-            builder.AppendLine("http:");
-            builder.AppendLine("  routers:");
-            foreach (var port in httpPorts)
-            {
-                var routeId = CreateContainerAppIngressRouteId(service, port);
-                builder.AppendLine(CultureInfo.InvariantCulture, $"    {routeId}:");
-                builder.AppendLine(CultureInfo.InvariantCulture, $"      entryPoints: [\"{CreateContainerAppIngressEntrypoint(port)}\"]");
-                builder.AppendLine("      rule: \"PathPrefix(`/`)\"");
-                builder.AppendLine(CultureInfo.InvariantCulture, $"      service: \"{routeId}\"");
-            }
-
-            builder.AppendLine("  services:");
-            foreach (var port in httpPorts)
-            {
-                var routeId = CreateContainerAppIngressRouteId(service, port);
-                builder.AppendLine(CultureInfo.InvariantCulture, $"    {routeId}:");
-                builder.AppendLine("      loadBalancer:");
-                builder.AppendLine("        servers:");
-                var replicaGroup = CreateDefaultContainerReplicaGroup(service);
-                foreach (var instance in replicaGroup.Instances)
-                {
-                    builder.AppendLine(CultureInfo.InvariantCulture, $"          - url: \"http://{CreateContainerAppIngressTargetName(service, instance)}:{port.TargetPort.ToString(CultureInfo.InvariantCulture)}\"");
-                }
-            }
-        }
-
-        if (tcpPorts.Length > 0)
-        {
-            if (builder.Length > 0)
-            {
-                builder.AppendLine();
-            }
-
-            builder.AppendLine("tcp:");
-            builder.AppendLine("  routers:");
-            foreach (var port in tcpPorts)
-            {
-                var routeId = CreateContainerAppIngressRouteId(service, port);
-                builder.AppendLine(CultureInfo.InvariantCulture, $"    {routeId}:");
-                builder.AppendLine(CultureInfo.InvariantCulture, $"      entryPoints: [\"{CreateContainerAppIngressEntrypoint(port)}\"]");
-                builder.AppendLine("      rule: \"HostSNI(`*`)\"");
-                builder.AppendLine(CultureInfo.InvariantCulture, $"      service: \"{routeId}\"");
-            }
-
-            builder.AppendLine("  services:");
-            foreach (var port in tcpPorts)
-            {
-                var routeId = CreateContainerAppIngressRouteId(service, port);
-                builder.AppendLine(CultureInfo.InvariantCulture, $"    {routeId}:");
-                builder.AppendLine("      loadBalancer:");
-                builder.AppendLine("        servers:");
-                var replicaGroup = CreateDefaultContainerReplicaGroup(service);
-                foreach (var instance in replicaGroup.Instances)
-                {
-                    builder.AppendLine(CultureInfo.InvariantCulture, $"          - address: \"{CreateContainerAppIngressTargetName(service, instance)}:{port.TargetPort.ToString(CultureInfo.InvariantCulture)}\"");
-                }
-            }
-        }
-
-        return builder.ToString();
     }
 
     private static void AddIfNotEmpty(
@@ -1637,11 +1355,6 @@ public sealed partial class ApplicationResourceRuntimeOperations(
     private static string CreateDefaultContainerOrchestratorDeploymentId(string resourceId) =>
         ApplicationContainerOrchestratorDeploymentFactory.CreateDeploymentId(resourceId);
 
-    private bool ShouldUseContainerAppIngress(ResourceOrchestratorService service) =>
-        options.EnableReplicatedContainerAppIngress &&
-        service.ReplicasEnabled &&
-        service.ServicePorts.Any(IsContainerAppIngressPort);
-
     private static IReadOnlyList<ServicePort> GetRuntimeContainerProbePorts(
         ApplicationResourceDefinition application,
         ResourceOrchestratorService service)
@@ -1680,30 +1393,8 @@ public sealed partial class ApplicationResourceRuntimeOperations(
         ShouldProjectRuntimeContainerProbeTargets(application) &&
         state is ResourceState.Running or ResourceState.Starting or ResourceState.Degraded;
 
-    private static bool IsContainerAppIngressPort(ServicePort port) =>
-        NormalizeProtocol(port.Protocol) is "http" or "tcp";
-
     private static bool IsHttpProbePort(ServicePort port) =>
         NormalizeProtocol(port.Protocol) is "http" or "https";
-
-    private static string GetContainerAppIngressName(ResourceOrchestratorService service) =>
-        $"{service.Name}-ingress";
-
-    private static string CreateContainerAppIngressTargetName(
-        ResourceOrchestratorService service,
-        ResourceOrchestratorServiceInstance instance) =>
-        ApplicationResourceNames.CreateRuntimeNetworkAlias(
-            service.Name,
-            instance.Name,
-            instance.ReplicaOrdinal);
-
-    private static string CreateContainerAppIngressEntrypoint(ServicePort port) =>
-        CreateStableIdentifier(string.IsNullOrWhiteSpace(port.Name) ? $"port-{port.TargetPort}" : port.Name);
-
-    private static string CreateContainerAppIngressRouteId(
-        ResourceOrchestratorService service,
-        ServicePort port) =>
-        CreateStableIdentifier($"{service.Name}-{port.Name}-{port.TargetPort.ToString(CultureInfo.InvariantCulture)}");
 
     private static string CreateStableIdentifier(string value)
         => ApplicationResourceNames.CreateStableIdentifier(value);
@@ -2131,8 +1822,5 @@ public sealed partial class ApplicationResourceRuntimeOperations(
         ResourceId.TryParse(resourceId, out var id) && !string.IsNullOrWhiteSpace(id.Name)
             ? id.Name
             : resourceId;
-
-    [GeneratedRegex("[^a-z0-9]+")]
-    private static partial Regex SlugPattern();
 
 }

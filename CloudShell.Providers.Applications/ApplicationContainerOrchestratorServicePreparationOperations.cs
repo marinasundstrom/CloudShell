@@ -10,13 +10,15 @@ internal sealed class ApplicationContainerOrchestratorServicePreparationOperatio
     ApplicationResourceStore store,
     ApplicationContainerHostResolver containerHosts,
     ApplicationContainerProcessTracker containerProcesses,
-    ApplicationProviderOptions options,
-    ILoggerFactory? loggerFactory = null) :
+    ILoggerFactory? loggerFactory = null,
+    ContainerApplicationIngressOperations? ingress = null) :
     IApplicationContainerOrchestratorServicePreparationOperations
 {
     private readonly ILogger dockerHostLogger =
         loggerFactory?.CreateLogger(CloudShellLogCategories.DockerHostLifecycle) ??
         NullLogger.Instance;
+    private readonly ContainerApplicationIngressOperations _ingress =
+        ingress ?? throw new ArgumentNullException(nameof(ingress));
 
     public async Task PrepareOrchestratorServiceAsync(
         ResourceOrchestratorServiceProcedureContext context,
@@ -25,7 +27,7 @@ internal sealed class ApplicationContainerOrchestratorServicePreparationOperatio
     {
         var application = GetContainerBackedApplication(context.ResourceContext.Resource.Id);
 
-        if (action.Kind is ResourceActionKind.Stop && ShouldUseContainerAppIngress(context.Service))
+        if (action.Kind is ResourceActionKind.Stop && _ingress.ShouldUseIngress(context.Service))
         {
             var stopEngine = await ResolveRequiredContainerHostAsync(
                 application,
@@ -33,11 +35,12 @@ internal sealed class ApplicationContainerOrchestratorServicePreparationOperatio
                 context.ResourceContext.PreferredContainerHostId,
                 ContainerHostCapabilityIds.ContainerImage,
                 cancellationToken);
-            await StopContainerAppIngressAsync(
+            await _ingress.StopAsync(
                 application,
                 context.Service,
                 stopEngine,
                 containerProcesses.GetProcessLog(application.Id),
+                ApplicationResourceProviderIds.Applications,
                 cancellationToken,
                 context.ResourceContext);
             return;
@@ -112,36 +115,6 @@ internal sealed class ApplicationContainerOrchestratorServicePreparationOperatio
             cancellationToken)
             ?? throw new InvalidOperationException(
                 $"Resource '{definition.Name}' is container-backed but no default container host is registered. Use UseDocker(), UseContainerHost(...), or set WithContainerHost(...).");
-    }
-
-    private bool ShouldUseContainerAppIngress(ResourceOrchestratorService service) =>
-        options.EnableReplicatedContainerAppIngress &&
-        service.ReplicasEnabled &&
-        service.ServicePorts.Any(IsContainerAppIngressPort);
-
-    private async Task StopContainerAppIngressAsync(
-        ApplicationResourceDefinition definition,
-        ResourceOrchestratorService service,
-        ContainerHostDescriptor engine,
-        ApplicationProcessLog log,
-        CancellationToken cancellationToken,
-        ResourceProcedureContext? procedureContext = null)
-    {
-        var ingressName = GetContainerAppIngressName(service);
-        procedureContext?.AppendProviderEvent(
-            ApplicationResourceProviderIds.Applications,
-            "application.container.ingress.stopping",
-            $"Application provider is stopping ingress '{ingressName}' for '{definition.Name}'.");
-        await ApplicationContainerHostCommands.RunAsync(
-            engine,
-            ["rm", "-f", ingressName],
-            log,
-            cancellationToken,
-            dockerHostLogger);
-        procedureContext?.AppendProviderEvent(
-            ApplicationResourceProviderIds.Applications,
-            "application.container.ingress.stopped",
-            $"Application provider stopped ingress '{ingressName}' for '{definition.Name}'.");
     }
 
     private static async Task EnsureContainerNetworkAsync(
@@ -237,17 +210,6 @@ internal sealed class ApplicationContainerOrchestratorServicePreparationOperatio
             process.Dispose();
         }
     }
-
-    private static bool IsContainerAppIngressPort(ServicePort port) =>
-        IsHttpProbePort(port) ||
-        string.Equals(port.Name, "http", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(port.Name, "https", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsHttpProbePort(ServicePort port) =>
-        string.Equals(port.Name, "http-probe", StringComparison.OrdinalIgnoreCase);
-
-    private static string GetContainerAppIngressName(ResourceOrchestratorService service) =>
-        $"{service.Name}-ingress";
 
     private static string GetEffectiveContainerRegistry(ApplicationResourceDefinition application) =>
         NormalizeNullable(application.ContainerRegistry) ?? ContainerRegistryDefaults.Default;

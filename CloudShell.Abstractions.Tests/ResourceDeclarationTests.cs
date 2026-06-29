@@ -10876,9 +10876,6 @@ public sealed class ResourceDeclarationTests
     [Fact]
     public void ContainerApplicationProvider_CreatesReplicatedContainerAppIngressConfiguration()
     {
-        var method = typeof(ApplicationResourceRuntimeOperations).GetMethod(
-            "CreateContainerAppIngressConfiguration",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
         var service = new ResourceOrchestratorService(
             "application:api",
             "cloudshell-application-api",
@@ -10892,13 +10889,9 @@ public sealed class ResourceDeclarationTests
                 new ServicePort("http", 80, 5081, "http")
             ]);
 
-        Assert.NotNull(method);
-        var yaml = Assert.IsType<string>(method.Invoke(
-            null,
-            [
-                service,
-                service.ServicePorts
-            ]));
+        var yaml = ContainerApplicationIngressOperations.CreateIngressConfiguration(
+            service,
+            service.ServicePorts);
 
         Assert.Contains("PathPrefix(`/`)", yaml);
         Assert.Contains("url: \"http://cloudshell-application-api-replica-1:80\"", yaml);

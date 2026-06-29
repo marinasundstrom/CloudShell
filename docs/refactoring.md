@@ -295,6 +295,10 @@ cleanup without falling back to old provider-specific imperative update paths.
 - [x] Move container app deployment outcome handling into
   `ContainerApplicationDeploymentOutcomeOperations`, separating post-apply,
   failed-apply, and tear-down planning from runtime service execution.
+- [x] Move replicated container-app ingress configuration, start, update, and
+  stop handling into `ContainerApplicationIngressOperations` so routing
+  reconciliation has a container-app-owned boundary instead of living in the
+  shared runtime/procedure coordinator or service-preparation code.
 
 ## Next Slices
 
@@ -352,6 +356,8 @@ cleanup without falling back to old provider-specific imperative update paths.
   from the runtime/procedure coordinator.
 - [x] Split container app deployment outcome handling behind
   `IContainerApplicationDeploymentOutcomeOperations`.
+- [x] Extract container app ingress/routing reconciliation support from the
+  shared runtime/procedure coordinator.
 - [x] Extract the container app orchestrator deployment factory from the shared
   service so deployment description is independently testable.
 - [ ] Revisit post-apply teardown ownership. Prefer Resource Manager

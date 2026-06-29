@@ -37,6 +37,10 @@ on `git blame --follow`, and then by the broad type of change.
   removing replicas, so the ReplicatedContainerHealth sample removes the
   `cloudshell-replicated-health-api-ingress` container when the resource stops
   while still keeping ingress stable during image rollout and scale changes.
+- Container app replicated ingress configuration, start/update, and stop
+  handling now lives in a focused `ContainerApplicationIngressOperations`
+  boundary used by runtime service execution and service preparation, instead
+  of being duplicated inside the shared application runtime coordinator.
 - ApplicationTopology sample smoke assertions now match the ResourceDefinition
   model for ad-hoc volumes and name mappings instead of expecting the old
   storage-wrapper resource projection.
