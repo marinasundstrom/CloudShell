@@ -111,7 +111,8 @@ on `git blame --follow`, and then by the broad type of change.
   still block execution.
 - Sample smoke tests now perform collection-level cleanup for
   ReplicatedContainerHealth runtime containers and LoadBalancer temporary host
-  files so normal failed test runs do not leave local runtime artifacts behind.
+  files with bounded Docker removal so normal failed test runs do not leave
+  local runtime artifacts behind or hang on stuck Docker cleanup.
 - Replica-group deployment definitions now include reconciliation policy for
   scale routing and previous-revision slot retention, and the deployment
   proposal documents both compact container-app update JSON and the normalized

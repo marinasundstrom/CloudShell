@@ -39,6 +39,8 @@ public sealed class SampleSmokeCollection
 
 public sealed class SampleSmokeRuntimeCleanupFixture : IAsyncLifetime
 {
+    private static readonly TimeSpan DockerCleanupTimeout = TimeSpan.FromSeconds(5);
+
     public async Task InitializeAsync() =>
         await CleanupAsync();
 
@@ -71,6 +73,7 @@ public sealed class SampleSmokeRuntimeCleanupFixture : IAsyncLifetime
 
     private static async Task RemoveContainerIfExistsAsync(string containerName)
     {
+        var output = new StringBuilder();
         var startInfo = new ProcessStartInfo("docker")
         {
             RedirectStandardOutput = true,
@@ -89,11 +92,39 @@ public sealed class SampleSmokeRuntimeCleanupFixture : IAsyncLifetime
                 return;
             }
 
-            await process.WaitForExitAsync();
+            var outputTask = CaptureAsync(process.StandardOutput, output);
+            var errorTask = CaptureAsync(process.StandardError, output);
+            try
+            {
+                await process.WaitForExitAsync().WaitAsync(DockerCleanupTimeout);
+                await Task.WhenAll(outputTask, errorTask);
+            }
+            catch (TimeoutException)
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                    await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(1));
+                }
+            }
         }
-        catch
+        catch (Exception exception) when (
+            exception is InvalidOperationException or
+            System.ComponentModel.Win32Exception or
+            TimeoutException)
         {
             // Docker may be unavailable for non-Docker sample tests.
+        }
+
+        static async Task CaptureAsync(StreamReader reader, StringBuilder output)
+        {
+            while (await reader.ReadLineAsync() is { } line)
+            {
+                lock (output)
+                {
+                    output.AppendLine(line);
+                }
+            }
         }
     }
 }
@@ -3901,6 +3932,7 @@ public sealed class SampleSmokeTests
         private readonly string root;
         private readonly string composeFile;
         private readonly string projectName;
+        private static readonly TimeSpan DockerCleanupTimeout = TimeSpan.FromSeconds(5);
         private bool disposed;
 
         private DockerComposeStack(string root, string composeFile, string projectName)
@@ -4007,7 +4039,7 @@ public sealed class SampleSmokeTests
                     SampleProcess.FindRepositoryRoot(),
                     ["rm", "-f", containerName],
                     null,
-                    TimeSpan.FromSeconds(30),
+                    DockerCleanupTimeout,
                     throwOnError: false);
             }
             catch
@@ -4159,7 +4191,7 @@ public sealed class SampleSmokeTests
                 workingDirectory,
                 ["rm", "-f", .. containerIds],
                 null,
-                TimeSpan.FromSeconds(30),
+                DockerCleanupTimeout,
                 throwOnError: false);
         }
 
