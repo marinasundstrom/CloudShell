@@ -16,9 +16,9 @@ belong to the Control Plane; the host process composes the environment and
 registers runtime adapter implementations for the installed providers.
 
 ```csharp
-using CloudShell.ResourceDefinitions.ReferenceProviders;
-using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
-using CloudShell.ResourceDefinitions.ResourceManager;
+using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ResourceModel.ReferenceProviders.ResourceManager;
+using CloudShell.ResourceModel.ResourceManager;
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
@@ -46,7 +46,7 @@ cloudShell.DefineResources(resources =>
 cloudShell.UseResourceGraphIntegration();
 ```
 
-ResourceDefinitions reference providers expose specialized extension methods
+Resource model reference providers expose specialized extension methods
 for their own resource types. Current reference-provider methods include:
 
 - `AddConfigurationStore(...)` from the configuration-store reference

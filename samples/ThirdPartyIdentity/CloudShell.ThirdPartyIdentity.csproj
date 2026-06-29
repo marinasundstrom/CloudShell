@@ -16,11 +16,11 @@
     <ProjectReference Include="..\..\CloudShell.ControlPlane\CloudShell.ControlPlane.csproj" />
     <ProjectReference Include="..\..\CloudShell.Client\CloudShell.Client.csproj" />
     <ProjectReference Include="..\..\CloudShell.Hosting\CloudShell.Hosting.csproj" />
-    <ProjectReference Include="..\..\CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI\CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI.csproj" />
-    <ProjectReference Include="..\..\CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager\CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.csproj" />
-    <ProjectReference Include="..\..\CloudShell.ResourceDefinitions.ReferenceProviders\CloudShell.ResourceDefinitions.ReferenceProviders.csproj" />
-    <ProjectReference Include="..\..\CloudShell.ResourceDefinitions.ResourceManager\CloudShell.ResourceDefinitions.ResourceManager.csproj" />
-    <ProjectReference Include="..\..\CloudShell.ResourceDefinitions\CloudShell.ResourceDefinitions.csproj" />
+    <ProjectReference Include="..\..\CloudShell.ResourceModel.ReferenceProviders.ResourceManager.UI\CloudShell.ResourceModel.ReferenceProviders.ResourceManager.UI.csproj" />
+    <ProjectReference Include="..\..\CloudShell.ResourceModel.ReferenceProviders.ResourceManager\CloudShell.ResourceModel.ReferenceProviders.ResourceManager.csproj" />
+    <ProjectReference Include="..\..\CloudShell.ResourceModel.ReferenceProviders\CloudShell.ResourceModel.ReferenceProviders.csproj" />
+    <ProjectReference Include="..\..\CloudShell.ResourceModel.ResourceManager\CloudShell.ResourceModel.ResourceManager.csproj" />
+    <ProjectReference Include="..\..\CloudShell.ResourceModel\CloudShell.ResourceModel.csproj" />
   </ItemGroup>
 
 </Project>

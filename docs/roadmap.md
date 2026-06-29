@@ -683,7 +683,7 @@ listed here before pulling in broader proposal work.
    formal resource definition pipeline integration, external-format resource
    graph import and code generation, IoT device provisioning, edge/device
    resource management, container application environments, and the initial
-   on-premise hosting scenario. The isolated `CloudShell.ResourceDefinitions`
+   on-premise hosting scenario. The isolated `CloudShell.ResourceModel`
    POC can continue proving the model, but it should not displace MVP
    convergence or imply that Control Plane persistence, API, or provider
    migration work has started.

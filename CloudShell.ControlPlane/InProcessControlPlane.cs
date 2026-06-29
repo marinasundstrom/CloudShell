@@ -10,14 +10,14 @@ using CloudShell.ControlPlane.ResourceManager.Identity;
 using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.ControlPlane.ResourceManager.Recovery;
-using CloudShell.ResourceDefinitions.ResourceManager;
+using CloudShell.ResourceModel.ResourceManager;
 using Microsoft.AspNetCore.Http;
 using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
-using ResourceDefinition = CloudShell.ResourceDefinitions.ResourceDefinition;
-using ResourceDefinitionTemplate = CloudShell.ResourceDefinitions.ResourceTemplate;
-using ResourceGraphCommitContext = CloudShell.ResourceDefinitions.ResourceGraphCommitContext;
+using ResourceDefinition = CloudShell.ResourceModel.ResourceDefinition;
+using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
+using ResourceGraphCommitContext = CloudShell.ResourceModel.ResourceGraphCommitContext;
 
 namespace CloudShell.ControlPlane;
 

@@ -1,8 +1,8 @@
 using CloudShell.ApplicationTopologyHost;
-using CloudShell.ResourceDefinitions;
-using CloudShell.ResourceDefinitions.ReferenceProviders;
-using ResourceModelResource = CloudShell.ResourceDefinitions.Resource;
-using ResourceModelResourceState = CloudShell.ResourceDefinitions.ResourceState;
+using CloudShell.ResourceModel;
+using CloudShell.ResourceModel.ReferenceProviders;
+using ResourceModelResource = CloudShell.ResourceModel.Resource;
+using ResourceModelResourceState = CloudShell.ResourceModel.ResourceState;
 
 namespace CloudShell.Sample.Tests;
 

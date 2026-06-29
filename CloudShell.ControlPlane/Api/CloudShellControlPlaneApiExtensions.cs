@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
-using ResourceDefinitionTemplate = CloudShell.ResourceDefinitions.ResourceTemplate;
+using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
 
 namespace CloudShell.ControlPlane.Api;
 

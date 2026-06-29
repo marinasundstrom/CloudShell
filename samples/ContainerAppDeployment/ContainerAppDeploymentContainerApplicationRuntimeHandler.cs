@@ -1,6 +1,6 @@
-using CloudShell.ResourceDefinitions;
-using CloudShell.ResourceDefinitions.ReferenceProviders;
-using ResourceModelResource = CloudShell.ResourceDefinitions.Resource;
+using CloudShell.ResourceModel;
+using CloudShell.ResourceModel.ReferenceProviders;
+using ResourceModelResource = CloudShell.ResourceModel.Resource;
 
 internal sealed class ContainerAppDeploymentContainerApplicationRuntimeHandler(
     IContainerAppDeploymentContainerApplicationRuntimeBridge bridge) : IContainerApplicationRuntimeHandler

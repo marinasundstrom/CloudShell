@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" Version="4.14.2" />
+    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components.Icons" Version="4.14.2" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\CloudShell.Abstractions\CloudShell.Abstractions.csproj" />
+    <ProjectReference Include="..\CloudShell.Components\CloudShell.Components.csproj" />
+    <ProjectReference Include="..\CloudShell.ResourceModel.ReferenceProviders\CloudShell.ResourceModel.ReferenceProviders.csproj" />
+  </ItemGroup>
+
+</Project>

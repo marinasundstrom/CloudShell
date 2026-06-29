@@ -1,13 +1,13 @@
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ResourceDefinitions;
-using CloudShell.ResourceDefinitions.ReferenceProviders;
-using CloudShell.ResourceDefinitions.ResourceManager;
+using CloudShell.ResourceModel;
+using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ResourceModel.ResourceManager;
 using Microsoft.Extensions.Configuration;
 using System.Globalization;
 using System.Text.Json;
-using GraphResource = CloudShell.ResourceDefinitions.Resource;
+using GraphResource = CloudShell.ResourceModel.Resource;
 
 namespace CloudShell.Sample.Tests;
 

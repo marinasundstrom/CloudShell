@@ -2,13 +2,13 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Networking;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.LoadBalancer;
-using CloudShell.ResourceDefinitions;
-using CloudShell.ResourceDefinitions.ReferenceProviders;
-using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
-using CloudShell.ResourceDefinitions.ResourceManager;
+using CloudShell.ResourceModel;
+using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ResourceModel.ReferenceProviders.ResourceManager;
+using CloudShell.ResourceModel.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using ResourceGraphState = CloudShell.ResourceDefinitions.ResourceState;
+using ResourceGraphState = CloudShell.ResourceModel.ResourceState;
 
 namespace CloudShell.Sample.Tests;
 

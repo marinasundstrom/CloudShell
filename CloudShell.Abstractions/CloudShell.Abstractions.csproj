@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CloudShell.ResourceDefinitions\CloudShell.ResourceDefinitions.csproj" />
+    <ProjectReference Include="..\CloudShell.ResourceModel\CloudShell.ResourceModel.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,7 +1,7 @@
-using CloudShell.ResourceDefinitions;
-using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceModel;
+using CloudShell.ResourceModel.ReferenceProviders;
 using CloudShell.Abstractions.ResourceManager;
-using GraphResource = CloudShell.ResourceDefinitions.Resource;
+using GraphResource = CloudShell.ResourceModel.Resource;
 
 internal interface IReplicatedContainerHealthContainerAppRuntimeBridge
 {

@@ -20,7 +20,7 @@ using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.ControlPlane.ResourceManager.Recovery;
 using CloudShell.ControlPlane.Shell;
 using CloudShell.Persistence;
-using CloudShell.ResourceDefinitions.ResourceManager;
+using CloudShell.ResourceModel.ResourceManager;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;

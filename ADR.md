@@ -49,7 +49,7 @@ Related changes: [Changelog](CHANGELOG.md).
 
 ### ADR-20260629-002: Keep provider runtime integration behind adapter contracts
 
-ResourceDefinitions providers are extension packages. They own resource
+Resource model providers are extension packages. They own resource
 semantics: type IDs, accepted attributes, validation, graph projection,
 resource actions, and provider-owned operation descriptions. They should not
 depend directly on host/runtime implementations such as local process
@@ -79,7 +79,7 @@ Related changes: [Changelog](CHANGELOG.md).
 ### ADR-20260624-001: Prove resource definitions in an isolated experimental project
 
 CloudShell should prove the formal resource-definition model in a separate
-`CloudShell.ResourceDefinitions` project before moving the contracts into the
+`CloudShell.ResourceModel` project before moving the contracts into the
 public `CloudShell.Abstractions` surface or integrating them into the Control
 Plane pipeline.
 

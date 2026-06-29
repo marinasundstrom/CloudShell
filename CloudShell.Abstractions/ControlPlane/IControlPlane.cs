@@ -2,7 +2,7 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using System.Text.Json;
-using ResourceDefinitionTemplate = CloudShell.ResourceDefinitions.ResourceTemplate;
+using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
 
 namespace CloudShell.Abstractions.ControlPlane;
 

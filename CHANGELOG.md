@@ -45,7 +45,7 @@ on `git blame --follow`, and then by the broad type of change.
   focused `ContainerApplicationContainerRunCommandFactory`, keeping container
   command translation separate from runtime process tracking, readiness, and
   lifecycle coordination.
-- The combined development host now installs ResourceDefinitions reference
+- The combined development host now installs Resource model reference
   providers and graph Resource Manager integration by default instead of
   loading the legacy Applications, Configuration, and Docker provider
   extensions.
@@ -54,17 +54,16 @@ on `git blame --follow`, and then by the broad type of change.
   Configuration or Docker provider projects, and the old Applications,
   Configuration, and Docker provider projects have been removed from the active
   solution build while their folders remain as migration inventory.
-- ResourceDefinitions provider guidance now records the provider/runtime
+- Resource model provider guidance now records the provider/runtime
   adapter boundary in ADR-20260629-002: providers own resource semantics and
   call focused adapter interfaces, while hosts, samples, or default runtime
   packages register concrete process, Docker, filesystem, networking, sidecar,
   or orchestration implementations.
-- The refactoring tracker now records `ResourceDefinitions` as the POC package
-  name and defers package renaming until after the old provider model has been
-  removed.
+- The refactoring tracker now records the Resource model package family as the
+  successor to the old provider model after the old provider model was removed.
 - The old Applications, Configuration, and Docker provider implementation
   folders and their excluded legacy tests have been removed after active hosts,
-  samples, services, solution files, and tests moved to the ResourceDefinitions
+  samples, services, solution files, and tests moved to the Resource model
   reference-provider stack.
 - README, programmatic resource docs, and application resource docs now point
   at graph-backed ResourceDefinition reference providers instead of the deleted
@@ -72,6 +71,9 @@ on `git blame --follow`, and then by the broad type of change.
 - `CloudShell.sln` has been removed in favor of `CloudShell.slnx`; workflow
   docs and repository-root discovery helpers now use the `.slnx` solution
   file.
+- The former `CloudShell.ResourceDefinitions*` package family has been renamed
+  to `CloudShell.ResourceModel*`, keeping `ResourceDefinition` as the resource
+  intent contract name while removing the POC package label.
 - ApplicationTopology sample smoke assertions now match the ResourceDefinition
   model for ad-hoc volumes and name mappings instead of expecting the old
   storage-wrapper resource projection.
@@ -1012,7 +1014,7 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
-- The Resource definitions proposal has been reframed as the Resource Graph
+- The Resource model proposal has been reframed as the Resource Graph
   and Runtime Separation proposal, making the graph/configuration contract,
   `ResourceDefinition` interchange role, and Control Plane runtime boundary
   explicit for the POC.
@@ -1211,12 +1213,12 @@ on `git blame --follow`, and then by the broad type of change.
   behavior to an injected provider-owned process runtime controller by default,
   with tests for missing command diagnostics and no-op controller overrides for
   unit-level bridge dispatch.
-- ResourceDefinitions now include a serializer-neutral `logs.sources`
+- The Resource model now includes a serializer-neutral `logs.sources`
   capability payload for graph-declared log-source metadata, and executable
   application plus ASP.NET Core project providers project their default console
   source into Resource Manager `ResourceLogSource` metadata while leaving log
   read/stream sessions in Control Plane providers.
-- ResourceDefinitions now include a serializer-neutral `health.checks`
+- The Resource model now includes a serializer-neutral `health.checks`
   capability payload for graph-declared HTTP health and liveness probes, and
   Resource Manager bridge projections map those declarations to
   `ResourceHealthCheck` plus the derived `liveness` capability while leaving
@@ -1317,7 +1319,7 @@ on `git blame --follow`, and then by the broad type of change.
   `--no-launch-profile` when launch settings are disabled.
 - The ASP.NET Core project process runtime controller now cleans up tracked
   child processes when the DI container or host disposes the provider service.
-- ResourceDefinitions integration tests now prove the graph-backed ASP.NET
+- Resource model integration tests now prove the graph-backed ASP.NET
   Core project provider can start the ProjectReference API and reach its
   `/health` endpoint through provider-owned runtime behavior.
 - The ProjectReference sample now registers a graph-backed ASP.NET Core
@@ -1393,11 +1395,11 @@ on `git blame --follow`, and then by the broad type of change.
 - ASP.NET Core project graph resources can now declare provider-owned typed
   endpoint requests, and the process runtime derives `dotnet run --urls` from
   those requests when explicit project arguments are not supplied.
-- ResourceDefinitions integration coverage now starts the ProjectReference API
+- Resource model integration coverage now starts the ProjectReference API
   from typed ASP.NET Core endpoint request attributes and verifies those complex
   attributes survive graph apply/projection without being flattened into scalar
   Resource Manager attributes.
-- ResourceDefinitions integration coverage now verifies the deployment flow can
+- Resource model integration coverage now verifies the deployment flow can
   create a graph resource from a `ResourceDefinition`, then apply a changed
   `ResourceDefinition` to the existing graph resource with revision and graph
   version updates.
@@ -1548,10 +1550,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Current dependency providers, Resource model tests, and Control Plane
   projection tests now use the explicit `DependsOnResourceId` factory instead
   of relying on the generic `ResourceReference` default relationship.
-- The resource definitions proposal now clarifies that `ResourceReference` is
+- The Resource model proposal now clarifies that `ResourceReference` is
   an addressing primitive that may carry a relationship qualifier in the POC,
   not a complete relationship model on its own.
-- The resource definitions proposal now marks service, load-balancer, and
+- The Resource model proposal now marks service, load-balancer, and
   name-mapping target dependencies as temporary POC encodings pending concrete
   provider-specific reference requirements.
 - Resource definitions now expose `StartupDependencies` and
@@ -1566,25 +1568,25 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager store projection tests now cover persisted Resource model
   records for an ApplicationTopology-shaped graph, proving the bridge can
   project stored graph records alongside Resource Manager registrations.
-- The resource definitions proposal now clarifies that versioned Resource
+- The Resource model proposal now clarifies that versioned Resource
   graph state must map to graph primitives, while runtime-only and Control
   Plane operational state stay outside the graph unless deliberately promoted
   to provider-managed attributes.
-- The resource definitions proposal now clarifies that a Resource graph record
+- The Resource model proposal now clarifies that a Resource graph record
   may be stored beside the Control Plane resource record, while the resolved
   `Resource` remains a short-lived working projection over stored graph state.
-- The resource definitions proposal now narrows the POC scope to stored
+- The Resource model proposal now narrows the POC scope to stored
   graph-state records and projection-on-demand, avoiding new graph context,
   session, transaction, or control-service abstractions until Resource Manager
   integration proves they are needed.
-- The resource definitions proposal now records the near-term POC path:
+- The Resource model proposal now records the near-term POC path:
   stabilize the current model enough to port real provider behavior, and
   propose new abstractions only when provider ports expose concrete gaps.
-- The resource definitions proposal now clarifies that resource type providers
+- The Resource model proposal now clarifies that resource type providers
   are integration points that may receive injected services, but should not own
   recurring runtime tasks, watchers, polling loops, or reconciliation schedulers
   in the POC.
-- The Resource definitions POC removed the experimental graph transaction and
+- The Resource model POC removed the experimental graph transaction and
   exclusive-lock APIs, keeping graph versions, change tracking, and commit
   contexts as the minimal write boundary while the proposal refocuses
   integration on custom projection from Resource Manager operational records.
@@ -1595,7 +1597,7 @@ on `git blame --follow`, and then by the broad type of change.
 - Name mapping reference-provider validation now requires mappings to compose
   a DNS zone reference and a target resource reference, keeping the simpler
   networking provider path aligned with the DNS/name-mapping proposal.
-- The resource definitions proposal now frames the POC as a resource graph and
+- The Resource model proposal now frames the POC as a resource graph and
   configuration model: stored graph/configuration state lives in the model,
   while capabilities and operations are behavior integration points over that
   state.
@@ -1617,7 +1619,7 @@ on `git blame --follow`, and then by the broad type of change.
   container-host references, validating selected container hosts through the
   SQL Server provider boundary while leaving default/preferred host resolution
   to later Resource Manager integration.
-- The resource definitions proposal now records centralized versus
+- The Resource model proposal now records centralized versus
   distributed graph storage as a future projection concern, keeping the POC
   focused on the logical Resource model and provider integration contracts.
 - Container application and SQL Server reference providers now accept typed
@@ -1626,7 +1628,7 @@ on `git blame --follow`, and then by the broad type of change.
 - Container application reference resources now model `container.registry`,
   and integration coverage includes a ContainerAppDeployment-inspired Docker
   host, registry container, and container app graph.
-- The resource definitions proposal now includes a Resource model layer-stack
+- The Resource model proposal now includes a Resource model layer-stack
   diagram that separates integrations, behavior, resolved projections,
   interchange, state records, future transactions, and persistence.
 
@@ -1634,36 +1636,36 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
-- The resource definitions POC now includes a resource definition graph and
+- The Resource model POC now includes a resource definition graph and
   deployment definition shape so proposed deployments can carry desired
   resource state before providers validate and apply it.
-- The resource definitions POC now includes resource definition apply planning
+- The Resource model POC now includes resource definition apply planning
   so validated graphs can resolve resource type apply providers and return
   explicit definition/runtime materialization steps before mutation.
-- The resource definitions POC now includes a string-keyed
+- The Resource model POC now includes a string-keyed
   `ResourceDefinitionRecord` persistence projection that rehydrates into the
   domain `ResourceDefinition` before validation and provider behavior.
-- The resource definitions POC now includes a record-backed in-memory resource
+- The Resource model POC now includes a record-backed in-memory resource
   state provider, proving that Resource Manager bridge projections can resolve
   from stripped `ResourceRecord` persistence data instead of storing resolved
   Resource model projections.
-- The resource definitions POC now has an end-to-end model flow test covering
+- The Resource model POC now has an end-to-end model flow test covering
   document serialization, persistence projection, graph validation,
   type-specific projection, capability resolution, and apply planning.
-- The resource definitions POC now includes graph-to-resource projection
+- The Resource model POC now includes graph-to-resource projection
   resolution so validated definitions can be listed as generated-style upper
   domain wrappers without deciding the final `IResourceProvider` contract.
-- The resource definitions POC now removes the redundant
+- The Resource model POC now removes the redundant
   `ResourceDefinitionProjection` wrapper so capability providers, operation
   providers, apply planning, and typed resource wrappers operate on resolved
   `Resource` projections, while `ResourceDefinition` remains the interchange
   document applied to or rendered from resource state.
-- The resource definitions POC now binds projected capability and operation
+- The Resource model POC now binds projected capability and operation
   work units to their owning `Resource`, adds a `ResourceOperationResolver`,
   and exposes projected behavior through `Resource.Capabilities.Get<T>()` and
   `Resource.Operations.Get<T>()` so wrappers can resolve volume capability
   behavior and start operation behavior from the same resource projection.
-- The resource definitions POC now gives projected capabilities and operations
+- The Resource model POC now gives projected capabilities and operations
   a resource-local execution context, so they can create scoped resource
   changes from the target resource without owning graph scope or commit
   boundaries.
@@ -1681,7 +1683,7 @@ on `git blame --follow`, and then by the broad type of change.
 - The Resource model Resource Manager bridge can now resolve declared
   capability IDs to registered capability projections and report diagnostics
   when the consuming boundary has not registered a capability implementation.
-- The Resource definitions POC now documents and tests the current rule that
+- The Resource model POC now documents and tests the current rule that
   capability and operation work units may perform integration logic but should
   stage direct Resource model graph changes only for their attached resource
   until a future scoped graph isolation model is defined.
@@ -1715,7 +1717,7 @@ on `git blame --follow`, and then by the broad type of change.
   and executable application across separate provider boundaries, then project
   both resources through the Resource Manager bridge and resolve the executable
   dependency closure from the graph.
-- The resource definitions POC now has graph-level validators that run against
+- The Resource model POC now has graph-level validators that run against
   resolved proposed graph state before commit, and the reference volume
   consumer validator rejects missing or non-volume mount targets without
   moving graph scope into the resource-local capability projection.
@@ -1891,7 +1893,7 @@ on `git blame --follow`, and then by the broad type of change.
   folders, with shared capability behavior in a dedicated capability folder,
   so provider-owned constants, validators, operations, projections, and
   registration stay inside clear management boundaries.
-- The resource definitions POC now tracks pending resource projection changes
+- The Resource model POC now tracks pending resource projection changes
   through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
   render either full proposed or incremental `ResourceDefinition` change
   documents without implying graph-wide commit semantics.
@@ -1904,11 +1906,11 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource definition overlays now return a target-mismatch diagnostic instead
   of creating changes when the interchange definition points at another
   resource identity or type.
-- The resource definitions POC now routes staged `ResourceChangeSet` instances
+- The Resource model POC now routes staged `ResourceChangeSet` instances
   through provider-owned change apply providers, so a resource type can accept
   or reject proposed projection state before any future Resource Manager or
   persistence layer treats it as committed state.
-- The resource definitions POC now includes a graph-level definition change
+- The Resource model POC now includes a graph-level definition change
   applier that stages incoming `ResourceDefinition` overlays against a graph
   snapshot, runs type-owned apply providers, and returns one commit-ready
   `ResourceGraphChangeSet`.
@@ -1921,7 +1923,7 @@ on `git blame --follow`, and then by the broad type of change.
 - The Resource Manager bridge now exposes a definition apply service that
   applies incoming `ResourceDefinition` overlays through the graph model and
   returns staged changes plus the graph commit result for integration callers.
-- ResourceDefinitions integration tests now prove provider or Control
+- Resource model integration tests now prove provider or Control
   Plane-owned apply policy can reject a `ResourceDefinition` overlay while a
   resource is running, or save the same proposed graph change while reporting
   that the resource type requires restart before the live resource
@@ -1930,70 +1932,70 @@ on `git blame --follow`, and then by the broad type of change.
   when runtime-shaping project attributes are changed while the project is
   running, keeping the saved graph configuration separate from live resource
   materialization.
-- The resource definitions POC now supports explicit create-missing behavior
+- The Resource model POC now supports explicit create-missing behavior
   for deployment-definition apply flows, representing new resources as graph
   change sets and routing their initial state through type-owned apply
   providers before commit.
-- The resource definitions proposal now documents a store-backed graph
+- The Resource model proposal now documents a store-backed graph
   projector option where Resource Manager-owned resource records can carry the
   Resource model graph payload and hydrate it through the same graph boundary.
-- The resource definitions POC now includes a generic graph store projector
+- The Resource model POC now includes a generic graph store projector
   and in-memory projected state provider, proving that Resource Manager-owned
   records can preserve operational fields while JSON graph payloads are loaded
   and committed through the Resource model boundary.
-- The resource definitions POC now groups accepted resource changes into a
+- The Resource model POC now groups accepted resource changes into a
   versioned resource graph change set and proves persistence through an
   in-memory state provider that commits all accepted resource states under one
   graph version.
-- The resource definitions POC now includes an in-memory `ResourceGraphModel`
+- The Resource model POC now includes an in-memory `ResourceGraphModel`
   for server-hosted graph state that stays synchronized with the state
   provider through explicit reload and commit boundaries.
-- The resource definitions POC now distinguishes graph version from persisted
+- The Resource model POC now distinguishes graph version from persisted
   resource revision, with `ResourceRevision` mapped through the existing
   serialized resource `Version` field and advanced only for committed changed
   resources; committed resources also expose creation and last-modified
   timestamps through the resource projection and persistence record.
-- The resource definitions proposal now documents a hybrid event-history
+- The Resource model proposal now documents a hybrid event-history
   direction where graph commits can append durable events for audit,
   changelog, debugging, and future replay without making pure event sourcing
   the POC source of truth.
-- The resource definitions POC now returns a structured graph commit summary
+- The Resource model POC now returns a structured graph commit summary
   with commit status, changed resource counts, changed attribute and
   capability counts, and per-resource revision movement so consumers can act
   on committed, rejected, no-op, or stale changes.
-- The resource definitions POC now refreshes the stored resource graph version
+- The Resource model POC now refreshes the stored resource graph version
   before a server-hosted graph model commits changes, keeping per-resource
   edits staged until the graph commit boundary can reject stale state or write
   through the state provider.
-- The resource definitions POC now exposes explicit graph refresh semantics on
+- The Resource model POC now exposes explicit graph refresh semantics on
   `ResourceGraphModel`, including full refreshes that advance the cached graph
   version and selected-resource refreshes that update resource data without
   making stale graph commits valid.
-- The resource definitions proposal now documents staged changes as
+- The Resource model proposal now documents staged changes as
   unversioned transaction proposals, with graph versions and resource
   revisions assigned only when the resource graph commit boundary accepts
   changes.
-- The resource definitions POC now includes a small `ResourceGraphTransaction`
+- The Resource model POC now includes a small `ResourceGraphTransaction`
   facade that stages accepted resource changes against a graph snapshot and
   commits them once through `ResourceGraphModel`.
-- The resource definitions POC now supports an opt-in exclusive graph change
+- The Resource model POC now supports an opt-in exclusive graph change
   boundary that holds the in-process `ResourceGraphModel` lock until the
   boundary commits or is disposed, while the proposal keeps the final
   transaction/change-context terminology open.
-- The resource definitions POC now separates graph change tracking, graph
+- The Resource model POC now separates graph change tracking, graph
   commit results, graph model transactions, graph state snapshots, and
   persistence providers into focused infrastructure files, and the proposal
   clarifies that Control Plane resource manager state remains a complementary
   operational model around the resource graph.
-- The resource definitions proposal now clarifies that the Resource model owns
+- The Resource model proposal now clarifies that the Resource model owns
   graph structure and resolvable behavior declarations, while Resource Manager
   owns the Control Plane operational model and composes API projections from
   both models when graph-aware behavior is needed.
-- The resource definitions proposal now documents the expected advantages of
+- The Resource model proposal now documents the expected advantages of
   the new Resource model, including cleaner provider boundaries, lazy graph
   resolution, deliberate interchange formats, typed wrapper support, better
   persistence choices, and a safer Resource Manager replacement path.
-- The resource definitions POC now includes a separate Resource Manager bridge
+- The Resource model POC now includes a separate Resource Manager bridge
   project that maps resolved Resource model resources to the existing
   `CloudShell.Abstractions.ResourceManager.Resource` projection and exposes
   them through `IResourceProvider`, proving the first integration seam without
@@ -2006,41 +2008,41 @@ on `git blame --follow`, and then by the broad type of change.
   resolves `ResourceGraphSnapshot` state through `ResourceResolver` at the
   provider boundary before projecting resources into the existing Resource
   Manager shape.
-- The resource definitions POC now includes a graph resolver that resolves a
+- The Resource model POC now includes a graph resolver that resolves a
   target resource and its declared dependency closure from a
   `ResourceGraphSnapshot`, returning resolved resources and diagnostics for
   missing graph nodes or dependency cycles.
-- The resource definitions proposal now documents identity and authorization
+- The Resource model proposal now documents identity and authorization
   hooks as Resource model graph data, such as a `principal` field or a
   structured `attributes.principal` value that identity capabilities can
   interpret while operational realization stays in Resource Manager or the
   broader Control Plane.
-- The resource definitions POC now lets `ResourceClassDefinition` and
+- The Resource model POC now lets `ResourceClassDefinition` and
   `ResourceTypeDefinition` carry `ResourceAttributeDefinition` declarations
   for scalar default values and required-attribute rules, while keeping custom
   validation in provider or platform validator hooks.
-- The resource definitions POC now adds serializer-neutral value type and
+- The Resource model POC now adds serializer-neutral value type and
   `ResourceAttributeValueShape` metadata so attribute definitions can describe
   primitive values and complex nested attribute definitions without making JSON
   the core definition contract.
-- The resource definitions POC now represents `ResourceClassDefinition` and
+- The Resource model POC now represents `ResourceClassDefinition` and
   `ResourceTypeDefinition` attributes as definition maps keyed by attribute
   ID, keeps `ResourceDefinition` attributes as value maps, and documents `:`
   as the stable ID namespace separator with `.` reserved for local hierarchy.
-- The resource definitions POC now validates class/type attribute default
+- The Resource model POC now validates class/type attribute default
   values against declared `ResourceAttributeValueShape` metadata, returning
   diagnostics for mismatched scalar kinds and missing required object fields.
-- The Resource Manager bridge for the resource definitions POC now exposes
+- The Resource Manager bridge for the Resource model POC now exposes
   resolved Resource model diagnostics through the existing
   `GetResourceModelDiagnostics()` Control Plane store surface.
-- The Resource Manager bridge for the resource definitions POC now includes
+- The Resource Manager bridge for the Resource model POC now includes
   `IServiceCollection` registration helpers so hosts can register a graph
   backed Resource model provider through the existing `IResourceProvider`
   composition path.
-- The Resource Manager bridge for the resource definitions POC now includes a
+- The Resource Manager bridge for the Resource model POC now includes a
   DI helper that builds `ResourceResolver` from registered class definitions,
   `IResourceTypeProvider` implementations, and attribute validators.
-- The resource definitions proposal now documents the expected provider
+- The Resource model proposal now documents the expected provider
   migration path: port each resource type boundary completely, including
   definitions, validation, capabilities, operations, and provider behavior,
   before removing the older resource provider infrastructure.
@@ -2048,35 +2050,35 @@ on `git blame --follow`, and then by the broad type of change.
   application resource type as a singular provider boundary, including type,
   capability, operation, projection, apply, and change handlers, without
   introducing a broad application-provider aggregate.
-- The Resource Manager bridge for the resource definitions POC now includes a
+- The Resource Manager bridge for the Resource model POC now includes a
   generic graph-service DI helper that composes validation, projection, apply,
   operation, capability, and change services from separately registered
   resource-type providers.
-- The Resource Manager bridge for the resource definitions POC now includes an
+- The Resource Manager bridge for the Resource model POC now includes an
   in-memory Resource graph registration helper so hosts can back the bridge
   with `ResourceGraphModel` instead of ad hoc snapshot delegates.
-- The resource definitions proposal now clarifies that capabilities and
+- The Resource model proposal now clarifies that capabilities and
   operations are integration points whose implementations may be owned by
   Resource Manager, orchestrators, provider packages, or other Control Plane
   services when those owners need to inject their own services and logic.
-- The resource definitions POC now includes a capability resolver so
+- The Resource model POC now includes a capability resolver so
   provider-owned capability behavior can be composed into type-specific
   resource projections without making the definition stop being the persisted
   data container.
-- The resource definitions POC now includes a validation pipeline that resolves
+- The Resource model POC now includes a validation pipeline that resolves
   definitions from registered resource type providers and then runs
   type-provider, capability-provider, and operation-provider validation with
   combined diagnostics.
-- The resource definitions POC now uses strongly typed class, type,
+- The Resource model POC now uses strongly typed class, type,
   attribute, capability, and operation IDs, adds an isolated resource type
   provider validation path, and introduces a separate
-  `CloudShell.ResourceDefinitions.ReferenceProviders` project for the
+  `CloudShell.ResourceModel.ReferenceProviders` project for the
   executable reference provider. The infrastructure project no longer
   references the broad `CloudShell.Abstractions` project just to borrow
   resource classes or attribute constants, keeping the experiment aligned with
   provider-boundary detangling.
-- Added the experimental `CloudShell.ResourceDefinitions` infrastructure
-  project and `CloudShell.ResourceDefinitions.Tests` POC test project for
+- Added the experimental `CloudShell.ResourceModel` infrastructure
+  project and `CloudShell.ResourceModel.Tests` POC test project for
   resource-definition envelopes, class/type inheritance, effective
   attribute/capability/operation resolution, diagnostics, and attached
   capability/operation provider dispatch. This follows
@@ -2086,15 +2088,15 @@ on `git blame --follow`, and then by the broad type of change.
   persisted `ResourceDefinition` intent, including DI-backed capability and
   operation providers as attached behavior over definition payloads and
   resource commands.
-- The resource definitions proposal now tracks inherited
+- The Resource model proposal now tracks inherited
   `ResourceClassDefinition` and `ResourceTypeDefinition` expectations,
   effective attribute/capability/operation resolution, and common plus
   provider-owned attribute validators.
-- The resource definitions proposal now clarifies that operations are declared
+- The Resource model proposal now clarifies that operations are declared
   resource behavior resolved like attributes and capabilities, with operation
   providers implementing matching resolved operations and optional source
   generators as a future facade/builder aid.
-- The resource definitions proposal now distinguishes capabilities from
+- The Resource model proposal now distinguishes capabilities from
   operations and sketches resource type provider change planning for
   definition updates using resolved diffs and runtime state.
 - SQL Server declared database child-resource projection now lives in

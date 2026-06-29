@@ -9,18 +9,15 @@ belong in `CHANGELOG.md`; feature shape belongs in the relevant proposal.
 
 Finish the Resource Graph POC migration boundary: ResourceDefinition-based
 desired state should become the normal Resource Manager create/update/export
-path. The active priority is switching hosts, samples, tests, and UI surfaces
-to the new ResourceDefinitions reference providers, then deleting the old
-provider model implementations when no active host depends on them.
-`ResourceDefinitions` is the migration/POC package name; after the old provider
-model is removed, rename those packages to the final Resource model/provider
-package names so the codebase no longer presents the new model as a POC.
+path. The active priority is finishing the switch to the `CloudShell.ResourceModel`
+package family after hosts, samples, tests, UI surfaces, and active solution
+files moved off the old provider model.
 
 Container app orchestration remains an important internal runtime direction,
 but it is on hold until the provider migration is finished. Keep the already
 landed deployment/reconciliation seams stable, but do not make orchestrator
 controller consolidation the next active slice unless it directly unblocks the
-ResourceDefinitions provider migration.
+Resource model provider migration.
 
 ## Boundary Decisions
 
@@ -33,7 +30,7 @@ ResourceDefinitions provider migration.
   availability, resource projection/listing, logs, monitoring,
   attribute-to-runtime mapping, and provider-specific commands can be separate
   concerns coordinated under that umbrella.
-- ResourceDefinitions providers integrate with host/runtime behavior through
+- Resource model providers integrate with host/runtime behavior through
   focused adapter contracts. Providers own resource semantics and call
   contracts such as runtime controllers, inspectors, reconcilers, command
   runners, and deployment handlers. Hosts, samples, or default runtime
@@ -325,17 +322,17 @@ ResourceDefinitions provider migration.
   other deployment-shaped user-authoring wrappers unless an internal
   orchestration API explicitly owns them.
 - [x] Move the combined development host off the legacy Applications,
-  Configuration, and Docker provider extensions and install ResourceDefinitions
+  Configuration, and Docker provider extensions and install Resource model
   reference providers plus graph Resource Manager integration by default.
 - [x] Remove legacy provider project references from remaining samples where
-  ResourceDefinitions reference providers already cover the scenario.
-- [ ] Move any remaining sample-local gaps behind ResourceDefinitions
+  Resource model reference providers already cover the scenario.
+- [ ] Move any remaining sample-local gaps behind Resource model
   provider-owned runtime seams instead of keeping the old provider projects
   installed for general host behavior.
-- [ ] Delete the old provider implementation folders once no active host,
+- [x] Delete the old provider implementation folders once no active host,
   sample, or test requires `CloudShell.Providers.Applications`,
   `CloudShell.Providers.Configuration`, or `CloudShell.Providers.Docker`.
-- [ ] Rename `CloudShell.ResourceDefinitions*` packages after the migration is
+- [x] Rename `CloudShell.ResourceModel*` packages after the migration is
   complete so the new provider stack is presented as the default Resource
   model implementation rather than as a POC.
 - [ ] Define the Resource Manager apply path for incremental
@@ -351,16 +348,16 @@ the graph-backed tests that cover the same resource path.
 
 - [x] Combined development host no longer references
   `CloudShell.Providers.Applications`, `CloudShell.Providers.Configuration`,
-  or `CloudShell.Providers.Docker`. It installs ResourceDefinitions reference
+  or `CloudShell.Providers.Docker`. It installs Resource model reference
   providers and graph Resource Manager integration by default.
 - [x] `CloudShell.ConfigurationStoreService` and
   `CloudShell.SecretsVaultService` referenced
   `CloudShell.Providers.Configuration` for old DTOs. Move the service file
-  contracts to service-local DTOs or shared ResourceDefinitions runtime
+  contracts to service-local DTOs or shared Resource model runtime
   contracts, then remove the old project reference.
 - [x] `samples/ApplicationTopology/Host` referenced the old
   Configuration and Docker provider projects. Verify whether these are stale
-  project references/usings after the ResourceDefinitions sample migration,
+  project references/usings after the Resource model sample migration,
   remove them, and run ApplicationTopology graph smoke coverage.
 - [x] `samples/CloudShell.ContainerHost` referenced the old Docker
   provider project. Verify whether the sample-local Docker bridge already
@@ -368,7 +365,7 @@ the graph-backed tests that cover the same resource path.
   ContainerHost graph smoke coverage.
 - [x] `CloudShell.Abstractions.Tests` contained broad tests for the old
   provider model. Move behavior that must survive to
-  `CloudShell.ResourceDefinitions.Tests` or sample tests, then delete tests
+  `CloudShell.ResourceModel.Tests` or sample tests, then delete tests
   that only preserve old provider registration/template behavior. Removing the
   old provider references from `CloudShell.Host` exposed this coupling because
   those tests were relying on the combined host's transitive provider
@@ -379,7 +376,7 @@ the graph-backed tests that cover the same resource path.
   service project references them.
 - [x] Audit old provider folders and excluded old-provider tests as the
   migration backlog for the new provider packages. Move forward only reusable
-  runtime/toolkit pieces that the ResourceDefinitions providers still need:
+  runtime/toolkit pieces that the Resource model providers still need:
   local process execution, container command helpers, log parsing, runtime
   monitoring, endpoint/probe projection, environment-variable resolution,
   volume mount materialization, container host resolution, and any

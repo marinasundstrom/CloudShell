@@ -1,8 +1,8 @@
-using CloudShell.ResourceDefinitions;
-using CloudShell.ResourceDefinitions.ReferenceProviders;
-using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
+using CloudShell.ResourceModel;
+using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ResourceModel.ReferenceProviders.ResourceManager;
 using CloudShell.Abstractions.ResourceManager;
-using GraphResource = CloudShell.ResourceDefinitions.Resource;
+using GraphResource = CloudShell.ResourceModel.Resource;
 
 internal sealed class ReplicatedContainerHealthContainerAppRuntimeHandler(
     IReplicatedContainerHealthContainerAppRuntimeBridge bridge) :

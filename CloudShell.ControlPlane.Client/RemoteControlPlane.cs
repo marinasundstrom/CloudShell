@@ -9,7 +9,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
-using ResourceDefinitionTemplate = CloudShell.ResourceDefinitions.ResourceTemplate;
+using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
 
 namespace CloudShell.ControlPlane.Client;
 

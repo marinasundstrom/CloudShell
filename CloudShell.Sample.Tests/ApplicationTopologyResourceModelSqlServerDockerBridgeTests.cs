@@ -1,13 +1,13 @@
 using System.Text.Json;
 using CloudShell.ApplicationTopologyHost;
-using CloudShell.ResourceDefinitions;
-using CloudShell.ResourceDefinitions.ReferenceProviders;
-using CloudShell.ResourceDefinitions.ResourceManager;
+using CloudShell.ResourceModel;
+using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ResourceModel.ResourceManager;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
-using ResourceModelResource = CloudShell.ResourceDefinitions.Resource;
+using ResourceModelResource = CloudShell.ResourceModel.Resource;
 
 namespace CloudShell.Sample.Tests;
 

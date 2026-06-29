@@ -13,8 +13,8 @@ using CloudShell.ControlPlane.ResourceManager.Identity;
 using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.ControlPlane.ResourceManager.Recovery;
-using CloudShell.ResourceDefinitions.ReferenceProviders;
-using CloudShell.ResourceDefinitions.ResourceManager;
+using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ResourceModel.ResourceManager;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -24,11 +24,11 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
-using GraphResource = CloudShell.ResourceDefinitions.Resource;
-using GraphResourceAttributeId = CloudShell.ResourceDefinitions.ResourceAttributeId;
-using GraphResourceDefinitionDiagnostic = CloudShell.ResourceDefinitions.ResourceDefinitionDiagnostic;
-using GraphResourceOperationId = CloudShell.ResourceDefinitions.ResourceOperationId;
-using GraphResourceState = CloudShell.ResourceDefinitions.ResourceState;
+using GraphResource = CloudShell.ResourceModel.Resource;
+using GraphResourceAttributeId = CloudShell.ResourceModel.ResourceAttributeId;
+using GraphResourceDefinitionDiagnostic = CloudShell.ResourceModel.ResourceDefinitionDiagnostic;
+using GraphResourceOperationId = CloudShell.ResourceModel.ResourceOperationId;
+using GraphResourceState = CloudShell.ResourceModel.ResourceState;
 
 namespace CloudShell.ControlPlane.Tests;
 

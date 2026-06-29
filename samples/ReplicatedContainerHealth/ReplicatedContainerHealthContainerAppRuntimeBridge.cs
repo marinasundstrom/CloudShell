@@ -1,14 +1,14 @@
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ResourceDefinitions;
-using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceModel;
+using CloudShell.ResourceModel.ReferenceProviders;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
-using GraphResource = CloudShell.ResourceDefinitions.Resource;
+using GraphResource = CloudShell.ResourceModel.Resource;
 
 internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
     IReplicatedContainerHealthCommandRunner commandRunner,

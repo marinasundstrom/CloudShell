@@ -1,15 +1,15 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ResourceDefinitions;
-using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceModel;
+using CloudShell.ResourceModel.ReferenceProviders;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using ResourceModelResource = CloudShell.ResourceDefinitions.Resource;
-using ResourceModelResourceState = CloudShell.ResourceDefinitions.ResourceState;
+using ResourceModelResource = CloudShell.ResourceModel.Resource;
+using ResourceModelResourceState = CloudShell.ResourceModel.ResourceState;
 
 namespace CloudShell.ApplicationTopologyHost;
 

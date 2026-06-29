@@ -1,5 +1,5 @@
-using CloudShell.ResourceDefinitions;
-using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceModel;
+using CloudShell.ResourceModel.ReferenceProviders;
 using Microsoft.Data.SqlClient;
 
 namespace CloudShell.ApplicationTopologyHost;

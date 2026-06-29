@@ -1,9 +1,9 @@
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ResourceDefinitions;
-using CloudShell.ResourceDefinitions.ReferenceProviders;
-using CloudShell.ResourceDefinitions.ResourceManager;
+using CloudShell.ResourceModel;
+using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ResourceModel.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
-using ResourceModelResource = CloudShell.ResourceDefinitions.Resource;
+using ResourceModelResource = CloudShell.ResourceModel.Resource;
 using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
 using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 

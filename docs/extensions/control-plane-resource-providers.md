@@ -42,7 +42,7 @@ Providers are part of the extension model, so their dependency direction should
 point toward CloudShell abstractions and provider-owned adapter contracts, not
 toward a concrete host or runtime implementation.
 
-A ResourceDefinitions provider owns the resource type semantics: accepted
+A Resource model provider owns the resource type semantics: accepted
 attributes, validation, graph projection, actions, log declarations, and
 operation descriptions. When the provider needs to start a process, run a
 container, reconcile a network mapping, write local files, inspect a runtime

@@ -1,4 +1,4 @@
-using CloudShell.ResourceDefinitions;
+using CloudShell.ResourceModel;
 
 namespace CloudShell.Abstractions.ResourceManager;
 

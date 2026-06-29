@@ -1,10 +1,10 @@
 using CloudShell.Abstractions.Hosting;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
-using CloudShell.ResourceDefinitions;
-using CloudShell.ResourceDefinitions.ReferenceProviders;
-using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
-using CloudShell.ResourceDefinitions.ResourceManager;
+using CloudShell.ResourceModel;
+using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ResourceModel.ReferenceProviders.ResourceManager;
+using CloudShell.ResourceModel.ResourceManager;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 

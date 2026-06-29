@@ -1,11 +1,11 @@
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ResourceDefinitions;
-using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceModel;
+using CloudShell.ResourceModel.ReferenceProviders;
 using System.Diagnostics;
 using System.Globalization;
 using Microsoft.Extensions.Hosting;
-using ResourceModelResource = CloudShell.ResourceDefinitions.Resource;
+using ResourceModelResource = CloudShell.ResourceModel.Resource;
 
 namespace CloudShell.ApplicationTopologyHost;
 

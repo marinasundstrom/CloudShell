@@ -1,8 +1,8 @@
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ResourceDefinitions;
-using CloudShell.ResourceDefinitions.ReferenceProviders;
-using ResourceModelResource = CloudShell.ResourceDefinitions.Resource;
+using CloudShell.ResourceModel;
+using CloudShell.ResourceModel.ReferenceProviders;
+using ResourceModelResource = CloudShell.ResourceModel.Resource;
 
 namespace CloudShell.ContainerHost;
 

@@ -109,8 +109,8 @@ Plane deployments without changing the model primitives.
 
 ## POC Scope
 
-The first implementation slice is isolated in `CloudShell.ResourceDefinitions`
-with tests in `CloudShell.ResourceDefinitions.Tests`. It proves the
+The first implementation slice is isolated in `CloudShell.ResourceModel`
+with tests in `CloudShell.ResourceModel.Tests`. It proves the
 interchange envelope, class/type inheritance, effective
 attribute/capability/operation resolution, diagnostics, apply seams, and
 provider-dispatch contracts without replacing the current Control Plane
@@ -1413,10 +1413,10 @@ infrastructure, such as graph model primitives, common capability IDs,
 Resource Manager graph bridge services, and reusable UI composition pieces,
 stays outside those provider folders in its own projects. The POC is not
 reshuffling projects yet because the switch needs to expose the real seams
-first. In the current branch, `CloudShell.ResourceDefinitions` and its
+first. In the current branch, `CloudShell.ResourceModel` and its
 reference-provider companion projects effectively carry the new Control
 Plane/Resource Manager provider integration role, while
-`CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI` carries
+`CloudShell.ResourceModel.ReferenceProviders.ResourceManager.UI` carries
 the provider-owned Resource Manager UI integration role. Those names are
 transitional. They can later become application provider and provider UI
 packages, such as an application-provider package and

@@ -97,10 +97,12 @@
   <Project Path="CloudShell.UI.Composition/CloudShell.UI.Composition.csproj" />
   <Project Path="CloudShell.Providers.DockerCompose/CloudShell.Providers.DockerCompose.csproj" />
   <Project Path="CloudShell.Providers.Traefik/CloudShell.Providers.Traefik.csproj" />
-  <Project Path="CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager/CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.csproj" />
-  <Project Path="CloudShell.ResourceDefinitions.ReferenceProviders/CloudShell.ResourceDefinitions.ReferenceProviders.csproj" />
-  <Project Path="CloudShell.ResourceDefinitions.Tests/CloudShell.ResourceDefinitions.Tests.csproj" />
-  <Project Path="CloudShell.ResourceDefinitions/CloudShell.ResourceDefinitions.csproj" />
+  <Project Path="CloudShell.ResourceModel.ReferenceProviders.ResourceManager.UI/CloudShell.ResourceModel.ReferenceProviders.ResourceManager.UI.csproj" />
+  <Project Path="CloudShell.ResourceModel.ReferenceProviders.ResourceManager/CloudShell.ResourceModel.ReferenceProviders.ResourceManager.csproj" />
+  <Project Path="CloudShell.ResourceModel.ReferenceProviders/CloudShell.ResourceModel.ReferenceProviders.csproj" />
+  <Project Path="CloudShell.ResourceModel.ResourceManager/CloudShell.ResourceModel.ResourceManager.csproj" />
+  <Project Path="CloudShell.ResourceModel.Tests/CloudShell.ResourceModel.Tests.csproj" />
+  <Project Path="CloudShell.ResourceModel/CloudShell.ResourceModel.csproj" />
   <Project Path="CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj" />
   <Project Path="CloudShell.Secrets.Client/CloudShell.Secrets.Client.csproj" />
   <Project Path="CloudShell.SecretsVaultService/CloudShell.SecretsVaultService.csproj" />

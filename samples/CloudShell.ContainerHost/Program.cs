@@ -6,11 +6,11 @@ using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
-using CloudShell.ResourceDefinitions;
-using CloudShell.ResourceDefinitions.ReferenceProviders;
-using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
-using CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager.UI;
-using CloudShell.ResourceDefinitions.ResourceManager;
+using CloudShell.ResourceModel;
+using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ResourceModel.ReferenceProviders.ResourceManager;
+using CloudShell.ResourceModel.ReferenceProviders.ResourceManager.UI;
+using CloudShell.ResourceModel.ResourceManager;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 

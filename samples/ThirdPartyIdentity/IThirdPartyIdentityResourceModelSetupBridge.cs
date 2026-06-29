@@ -1,5 +1,5 @@
-using CloudShell.ResourceDefinitions;
-using GraphResource = CloudShell.ResourceDefinitions.Resource;
+using CloudShell.ResourceModel;
+using GraphResource = CloudShell.ResourceModel.Resource;
 
 namespace CloudShell.ThirdPartyIdentity;
 

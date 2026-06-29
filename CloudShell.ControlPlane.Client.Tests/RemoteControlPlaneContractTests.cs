@@ -19,7 +19,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
-using ResourceDefinitionTemplate = CloudShell.ResourceDefinitions.ResourceTemplate;
+using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
 
 namespace CloudShell.ControlPlane.Client.Tests;
 

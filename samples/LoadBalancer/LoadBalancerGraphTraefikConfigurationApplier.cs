@@ -1,9 +1,9 @@
 using System.Globalization;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Traefik;
-using CloudShell.ResourceDefinitions;
-using CloudShell.ResourceDefinitions.ReferenceProviders;
-using ResourceModelResource = CloudShell.ResourceDefinitions.Resource;
+using CloudShell.ResourceModel;
+using CloudShell.ResourceModel.ReferenceProviders;
+using ResourceModelResource = CloudShell.ResourceModel.Resource;
 using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
 using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 

@@ -2,12 +2,12 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Client.Authentication;
 using CloudShell.ControlPlane.ResourceManager.Identity;
-using CloudShell.ResourceDefinitions;
-using CloudShell.ResourceDefinitions.ReferenceProviders;
+using CloudShell.ResourceModel;
+using CloudShell.ResourceModel.ReferenceProviders;
 using CloudShell.ThirdPartyIdentity;
 using Microsoft.Extensions.DependencyInjection;
-using GraphResource = CloudShell.ResourceDefinitions.Resource;
-using GraphResourceState = CloudShell.ResourceDefinitions.ResourceState;
+using GraphResource = CloudShell.ResourceModel.Resource;
+using GraphResourceState = CloudShell.ResourceModel.ResourceState;
 
 namespace CloudShell.Sample.Tests;
 
