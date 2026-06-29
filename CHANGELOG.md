@@ -74,6 +74,11 @@ on `git blame --follow`, and then by the broad type of change.
 - The former `CloudShell.ResourceDefinitions*` package family has been renamed
   to `CloudShell.ResourceModel*`, keeping `ResourceDefinition` as the resource
   intent contract name while removing the POC package label.
+- The Resource graph and runtime separation proposal file now matches the
+  current proposal title, and the migration tracker records
+  `CloudShell.Providers.DockerCompose` as retained because it integrates
+  through the orchestrator boundary rather than the deleted old resource
+  provider model.
 - ApplicationTopology sample smoke assertions now match the ResourceDefinition
   model for ad-hoc volumes and name mappings instead of expecting the old
   storage-wrapper resource projection.

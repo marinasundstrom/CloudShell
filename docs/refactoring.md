@@ -390,7 +390,7 @@ the graph-backed tests that cover the same resource path.
   `CloudShell.Providers.Configuration`, and `CloudShell.Providers.Docker`
   implementation folders after active hosts, samples, services, solution files,
   and tests moved off them.
-- [ ] Keep `CloudShell.Providers.DockerCompose` out of this deletion pass
+- [x] Keep `CloudShell.Providers.DockerCompose` out of this deletion pass
   unless it starts exposing the old resource provider model. It is currently an
   orchestrator/provider integration, not one of the old resource-provider
   packages being removed.
