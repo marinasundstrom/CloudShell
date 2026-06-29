@@ -37,6 +37,9 @@ on `git blame --follow`, and then by the broad type of change.
   removing replicas, so the ReplicatedContainerHealth sample removes the
   `cloudshell-replicated-health-api-ingress` container when the resource stops
   while still keeping ingress stable during image rollout and scale changes.
+- Start-triggered resource deployments now run the same post-apply cleanup path
+  as image and replica updates, allowing deployment-capable providers to retire
+  superseded replica groups after the new deployment revision is applied.
 - Container app replicated ingress configuration, start/update, and stop
   handling now lives in a focused `ContainerApplicationIngressOperations`
   boundary used by runtime service execution and service preparation, instead

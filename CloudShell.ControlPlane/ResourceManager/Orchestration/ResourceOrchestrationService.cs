@@ -540,9 +540,111 @@ public sealed class ResourceOrchestrationService(
                 cancellationToken);
         }
 
-        return ResourceProcedureResult.Completed(
+        var result = ResourceProcedureResult.Completed(
             $"Started {context.Resource.Name}. {applyResult.ProcedureResult.Message}");
+        return await RunPostApplyDeploymentTearDownAsync(
+            context,
+            resourceContext,
+            applyResult,
+            result,
+            cancellationToken);
     }
+
+    private async Task<ResourceProcedureResult> RunPostApplyDeploymentTearDownAsync(
+        ResourceOrchestrationContext context,
+        ResourceProcedureContext resourceContext,
+        ResourceOrchestratorDeploymentApplyResult applyResult,
+        ResourceProcedureResult result,
+        CancellationToken cancellationToken)
+    {
+        var tearDowns = applyResult.ReplicaGroupsToTearDown;
+        if (tearDowns.Count == 0)
+        {
+            var tearDownProvider = ResourceOrchestratorProviderResolver.GetDeploymentTearDownProvider(context);
+            if (tearDownProvider is not null)
+            {
+                tearDowns = await tearDownProvider.DescribeDeploymentTearDownAsync(
+                    resourceContext,
+                    applyResult,
+                    cancellationToken);
+            }
+        }
+
+        if (tearDowns.Count == 0)
+        {
+            return result;
+        }
+
+        var mergedResult = result;
+        foreach (var tearDown in tearDowns)
+        {
+            var replicaGroup = tearDown.ReplicaGroup ??
+                ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(tearDown.Service);
+            var reason = tearDown.Reason ?? "Deployment retired superseded replica group.";
+            var tearDownHandler = TrySelectReplicaGroupTearDown(context, tearDown.Service, replicaGroup);
+            if (tearDownHandler is null)
+            {
+                var warning =
+                    $"Post-apply cleanup for deployment '{applyResult.Deployment.Id}' could not tear down replica group '{replicaGroup.Id}'. Reason: no orchestrator can tear down the replica group.";
+                AppendDeploymentEvent(
+                    context.Resource,
+                    ResourceEventTypes.Events.Deployment.CleanupWarning,
+                    warning,
+                    context.TriggeredBy,
+                    ResourceSignalSeverity.Warning);
+                mergedResult = AddProcedureWarning(mergedResult, warning);
+                continue;
+            }
+
+            AppendDeploymentEvent(
+                context.Resource,
+                ResourceEventTypes.Events.Deployment.CleanupRunning,
+                $"Cleaning up superseded replica group '{replicaGroup.Id}' for deployment '{applyResult.Deployment.Id}'. Reason: {reason}",
+                context.TriggeredBy,
+                ResourceSignalSeverity.Info);
+            try
+            {
+                var tearDownResult = await tearDownHandler.TearDownReplicaGroupAsync(
+                    context with { Cause = reason },
+                    tearDown.Service,
+                    replicaGroup,
+                    cancellationToken);
+                AppendDeploymentEvent(
+                    context.Resource,
+                    ResourceEventTypes.Events.Deployment.CleanupCompleted,
+                    $"Cleaned up superseded replica group '{replicaGroup.Id}' for deployment '{applyResult.Deployment.Id}'. Result: {tearDownResult.Message}",
+                    context.TriggeredBy,
+                    ResourceSignalSeverity.Info);
+                mergedResult = ResourceProcedureResult.Combine(
+                    [mergedResult, tearDownResult],
+                    mergedResult.Message);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                var warning =
+                    $"Post-apply cleanup for deployment '{applyResult.Deployment.Id}' could not tear down replica group '{replicaGroup.Id}'. Reason: {exception.Message}";
+                AppendDeploymentEvent(
+                    context.Resource,
+                    ResourceEventTypes.Events.Deployment.CleanupWarning,
+                    warning,
+                    context.TriggeredBy,
+                    ResourceSignalSeverity.Warning);
+                mergedResult = AddProcedureWarning(mergedResult, warning);
+            }
+        }
+
+        return mergedResult;
+    }
+
+    private static ResourceProcedureResult AddProcedureWarning(
+        ResourceProcedureResult result,
+        string warning) =>
+        result with
+        {
+            Signals = result.Signals
+                .Append(ResourceProcedureSignal.Warning(warning))
+                .ToArray()
+        };
 
     private void LogLifecycle(ResourceAction action, Resource resource, string message, params object?[] args)
     {
@@ -968,6 +1070,20 @@ public sealed class ResourceOrchestrationService(
             triggeredBy,
             severity));
 
+    private void AppendDeploymentEvent(
+        Resource resource,
+        string eventType,
+        string message,
+        string? triggeredBy,
+        ResourceSignalSeverity severity) =>
+        resourceEvents?.Append(new ResourceEvent(
+            resource.Id,
+            eventType,
+            message,
+            DateTimeOffset.UtcNow,
+            triggeredBy,
+            severity));
+
     private static string FormatReplicaSlot(ResourceOrchestratorReplicaSlot slot) =>
         string.Create(
             CultureInfo.InvariantCulture,
@@ -1163,10 +1279,16 @@ public sealed class ResourceOrchestrationService(
         ResourceOrchestrationContext context,
         ResourceOrchestratorService service,
         ResourceOrchestratorReplicaGroup replicaGroup) =>
-        SelectPreferredReplicaGroupTearDown((_, tearDown) =>
-            tearDown.CanTearDownReplicaGroup(context, service, replicaGroup))
+        TrySelectReplicaGroupTearDown(context, service, replicaGroup)
         ?? throw new ControlPlaneException(
             ControlPlaneError.ResourceActionUnsupported(context.Resource.Name));
+
+    private IResourceOrchestratorReplicaGroupTearDown? TrySelectReplicaGroupTearDown(
+        ResourceOrchestrationContext context,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup) =>
+        SelectPreferredReplicaGroupTearDown((_, tearDown) =>
+            tearDown.CanTearDownReplicaGroup(context, service, replicaGroup));
 
     private IResourceOrchestratorServiceTearDown? SelectPreferredServiceTearDown(
         Func<IResourceOrchestrator, IResourceOrchestratorServiceTearDown, bool> predicate)

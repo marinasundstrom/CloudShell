@@ -143,6 +143,33 @@ internal static class ResourceOrchestratorProviderResolver
             as IResourceOrchestratorDeploymentAppliedProvider;
     }
 
+    public static IResourceOrchestratorDeploymentTearDownProvider? GetDeploymentTearDownProvider(
+        ResourceOrchestrationContext context)
+    {
+        var bridgeProvider = GetBridgeProvider<IResourceOrchestratorDeploymentTearDownProvider>(
+            context,
+            provider => provider.CanDescribeDeploymentTearDown(context.Resource));
+        if (bridgeProvider is not null)
+        {
+            return bridgeProvider;
+        }
+
+        if (context.Registration is not null)
+        {
+            return context.ResourceManager.Providers.FirstOrDefault(provider =>
+                string.Equals(provider.Id, context.Registration.ProviderId, StringComparison.OrdinalIgnoreCase) &&
+                provider is IResourceOrchestratorDeploymentTearDownProvider tearDownProvider &&
+                tearDownProvider.CanDescribeDeploymentTearDown(context.Resource))
+                as IResourceOrchestratorDeploymentTearDownProvider;
+        }
+
+        return context.ResourceManager.Providers.FirstOrDefault(provider =>
+            string.Equals(provider.DisplayName, context.Resource.Provider, StringComparison.OrdinalIgnoreCase) &&
+            provider is IResourceOrchestratorDeploymentTearDownProvider tearDownProvider &&
+            tearDownProvider.CanDescribeDeploymentTearDown(context.Resource))
+            as IResourceOrchestratorDeploymentTearDownProvider;
+    }
+
     public static IResourceOrchestratorDeploymentFailureProvider? GetDeploymentFailureProvider(
         ResourceOrchestrationContext context)
     {

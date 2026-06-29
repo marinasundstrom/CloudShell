@@ -2770,12 +2770,14 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Contains("Applied deployment 'target-deployment'", result.Message, StringComparison.Ordinal);
         Assert.Empty(provider.ExecutedActions);
         Assert.Equal(["target"], provider.DescribedDeployments);
+        Assert.Equal(["target-deployment:revision-2"], provider.DescribedTearDowns);
         Assert.Single(provider.AppliedDeployments);
         Assert.Equal(["start:target-service"], provider.PreparedActions);
         Assert.Equal(
             [
                 "start:target-service-revision-2-replica-1:1/2",
-                "start:target-service-revision-2-replica-2:2/2"
+                "start:target-service-revision-2-replica-2:2/2",
+                "stop:target-service-revision-1:1/1"
             ],
             provider.InstanceActions);
 
@@ -2793,6 +2795,14 @@ public sealed class InProcessControlPlaneResourceStateTests
                 EventType: ResourceEventTypes.Events.Deployment.Applied,
                 TriggeredBy: "operator")),
             resourceEvent => resourceEvent.Message.Contains("target-deployment", StringComparison.Ordinal));
+        Assert.Contains(
+            resourceEvents.GetEvents(new ResourceEventQuery(
+                ResourceId: "target",
+                EventType: ResourceEventTypes.Events.Deployment.CleanupCompleted,
+                TriggeredBy: "operator")),
+            resourceEvent => resourceEvent.Message.Contains(
+                "target-service-revision-1-replicas",
+                StringComparison.Ordinal));
     }
 
     [Fact]
