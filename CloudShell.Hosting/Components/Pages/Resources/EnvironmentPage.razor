@@ -366,12 +366,12 @@
 
     <ShellPanel Wide="true" Class="environment-panel-full">
         <ShellPanelHeader Title="@L["Replica slot reconciliation"].Value"
-                          Description="@L["Current Resource Manager replica slot observations and repair outcomes for active replica groups."].Value" />
+                          Description="@L["Current Resource Manager replica slot state and repair outcomes for active replica groups."].Value" />
 
         @if (ReplicaSlotStates.Count == 0)
         {
-            <EmptyState Title="@L["No replica slot observations"].Value"
-                        Message="@L["Replica slot reconciliation state will appear here after liveness or runtime observations report an unhealthy requested slot."].Value"
+            <EmptyState Title="@L["No replica slot state"].Value"
+                        Message="@L["Replica slot state will appear here after Resource Manager materializes a deployment with requested replica slots."].Value"
                         Compact="true" />
         }
         else
@@ -643,6 +643,7 @@
             ResourceReplicaSlotReconciliationStatus.Repairing => L["Repairing"].Value,
             ResourceReplicaSlotReconciliationStatus.Repaired => L["Repaired"].Value,
             ResourceReplicaSlotReconciliationStatus.RepairFailed => L["Repair failed"].Value,
+            ResourceReplicaSlotReconciliationStatus.Materialized => L["Materialized"].Value,
             _ => status.ToString()
         };
 

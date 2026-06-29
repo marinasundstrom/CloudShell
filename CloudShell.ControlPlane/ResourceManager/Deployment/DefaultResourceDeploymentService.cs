@@ -7,7 +7,8 @@ using System.Globalization;
 namespace CloudShell.ControlPlane.ResourceManager.Deployment;
 
 public sealed class DefaultResourceDeploymentService(
-    IResourceOrchestratorDeploymentStore? deploymentStore = null) :
+    IResourceOrchestratorDeploymentStore? deploymentStore = null,
+    IResourceReplicaGroupReconciliationStore? replicaGroupReconciliationStore = null) :
     IResourceOrchestratorDeploymentApplier
 {
     public bool CanApplyDeployment(
@@ -121,6 +122,12 @@ public sealed class DefaultResourceDeploymentService(
                 applied.BasedOnRevisionId,
                 context.TriggeredBy,
                 applied.Spec.CreateDeploymentDefinition(applied.RevisionId));
+        RecordMaterializedReplicaSlots(
+            context.Resource.Id,
+            service,
+            replicaGroup,
+            revisionCreatedAt,
+            context.TriggeredBy);
         return new ResourceOrchestratorDeploymentApplyResult(
             applied,
             revision,
@@ -128,6 +135,49 @@ public sealed class DefaultResourceDeploymentService(
                 $"Applied deployment '{deployment.Id}' for runtime revision '{deployment.RevisionId}'."),
             retiredReplicaGroups,
             previousReplicaGroup);
+    }
+
+    private void RecordMaterializedReplicaSlots(
+        string resourceId,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup,
+        DateTimeOffset observedAt,
+        string? triggeredBy)
+    {
+        if (replicaGroupReconciliationStore is null)
+        {
+            return;
+        }
+
+        var activeSlotOrdinals = replicaGroup
+            .Slots
+            .Select(slot => slot.Ordinal)
+            .ToHashSet();
+        foreach (var state in replicaGroupReconciliationStore.ListRuntimeStates(resourceId))
+        {
+            if (!activeSlotOrdinals.Contains(state.SlotOrdinal))
+            {
+                replicaGroupReconciliationStore.DeleteRuntimeState(resourceId, state.SlotOrdinal);
+            }
+        }
+
+        foreach (var slot in replicaGroup.Slots)
+        {
+            replicaGroupReconciliationStore.SetRuntimeState(new ResourceReplicaSlotRuntimeState(
+                resourceId,
+                slot.Ordinal,
+                ResourceReplicaSlotRuntimeStatus.Materialized,
+                slot.IsOccupied
+                    ? $"Replica slot {slot.Ordinal.ToString(CultureInfo.InvariantCulture)} is materialized."
+                    : $"Replica slot {slot.Ordinal.ToString(CultureInfo.InvariantCulture)} is requested but has no occupant.",
+                observedAt,
+                service.Name,
+                replicaGroup.Id,
+                replicaGroup.RuntimeRevisionId,
+                LastCompletedAt: observedAt,
+                TriggeredBy: triggeredBy,
+                LastResult: $"Deployment materialized replica slot {slot.Ordinal.ToString(CultureInfo.InvariantCulture)}."));
+        }
     }
 
     private ResourceOrchestratorReplicaGroup? GetLatestActiveReplicaGroup(

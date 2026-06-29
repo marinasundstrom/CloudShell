@@ -44,6 +44,10 @@ on `git blame --follow`, and then by the broad type of change.
   coordinator used by start, image-update, and replica-update deployment
   flows, keeping cleanup events, warnings, and retired replica group teardown
   behavior consistent across entry points.
+- Successful orchestrator deployments now stamp materialized replica slot
+  state into the replica-group reconciliation store and remove stale
+  same-resource slot states on scale-in, giving the Environment view a normal
+  desired-slot baseline before liveness repair observations arrive.
 - Container app replicated ingress configuration, start/update, and stop
   handling now lives in a focused `ContainerApplicationIngressOperations`
   boundary used by runtime service execution and service preparation, instead

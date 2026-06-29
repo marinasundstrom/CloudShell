@@ -3717,9 +3717,10 @@ public sealed class InProcessControlPlaneResourceStateTests
             new ResourceIdentityProviderCatalog(identityProviders ?? []),
             identityProviderSetupHandlers ?? []);
         var orchestrators = new IResourceOrchestrator[] { new DefaultResourceOrchestrator() };
+        var replicaReconciliationStore = new InMemoryResourceReplicaGroupReconciliationStore();
         var deploymentAppliers = new IResourceOrchestratorDeploymentApplier[]
         {
-            new DefaultResourceDeploymentService(deploymentStore)
+            new DefaultResourceDeploymentService(deploymentStore, replicaReconciliationStore)
         };
         var selectionStore = CreateSelectionStore();
         var orchestration = new ResourceOrchestrationService(
@@ -3733,7 +3734,6 @@ public sealed class InProcessControlPlaneResourceStateTests
             actionAvailabilityProviders: actionAvailabilityProviders ?? [],
             resourceEvents: resourceEvents,
             deploymentStore: deploymentStore);
-        var replicaReconciliationStore = new InMemoryResourceReplicaGroupReconciliationStore();
         var replicaGroupReconciliation = new ResourceReplicaGroupReconciliationService(
             orchestration,
             resourceManager,

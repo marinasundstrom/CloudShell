@@ -589,6 +589,70 @@ public sealed class ResourceOrchestrationDeploymentTests
     }
 
     [Fact]
+    public async Task ApplyDeploymentAsync_RecordsMaterializedReplicaSlotStates()
+    {
+        var resource = CreateResource();
+        var provider = new RecordingServiceProcedureProvider(resource);
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var reconciliationStore = new InMemoryResourceReplicaGroupReconciliationStore();
+        var deployments = CreateDeployments(
+            resource,
+            provider,
+            deploymentStore: deploymentStore,
+            reconciliationStore: reconciliationStore);
+
+        var result = await deployments.ApplyDeploymentAsync(
+            resource,
+            CreateDeployment(resource.Id, "default", replicas: 3),
+            triggeredBy: "tests");
+
+        var slotStates = reconciliationStore.ListRuntimeStates(resource.Id);
+        Assert.Equal([1, 2, 3], slotStates.Select(state => state.SlotOrdinal).ToArray());
+        Assert.All(slotStates, state =>
+        {
+            Assert.Equal(ResourceReplicaSlotRuntimeStatus.Materialized, state.Status);
+            Assert.Equal(result.Revision.ServiceId, state.ServiceId);
+            Assert.Equal(result.Revision.ReplicaGroup?.Id, state.ReplicaGroupId);
+            Assert.Equal(result.Revision.ReplicaGroup?.RuntimeRevisionId, state.RuntimeRevisionId);
+            Assert.Equal("tests", state.TriggeredBy);
+            Assert.Equal(0, state.AttemptCount);
+            Assert.NotNull(state.LastCompletedAt);
+            Assert.Contains("Deployment materialized replica slot", state.LastResult, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public async Task ApplyDeploymentAsync_RemovesStaleReplicaSlotStatesWhenScalingIn()
+    {
+        var resource = CreateResource();
+        var provider = new RecordingServiceProcedureProvider(resource);
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var reconciliationStore = new InMemoryResourceReplicaGroupReconciliationStore();
+        var deployments = CreateDeployments(
+            resource,
+            provider,
+            deploymentStore: deploymentStore,
+            reconciliationStore: reconciliationStore);
+        await deployments.ApplyDeploymentAsync(
+            resource,
+            CreateDeployment(resource.Id, "default", replicas: 4),
+            triggeredBy: "tests");
+
+        await deployments.ApplyDeploymentAsync(
+            resource,
+            CreateDeployment(resource.Id, "default", replicas: 2),
+            triggeredBy: "tests");
+
+        var slotStates = reconciliationStore.ListRuntimeStates(resource.Id);
+        Assert.Equal([1, 2], slotStates.Select(state => state.SlotOrdinal).ToArray());
+        Assert.All(slotStates, state =>
+        {
+            Assert.Equal(ResourceReplicaSlotRuntimeStatus.Materialized, state.Status);
+            Assert.Equal("cloudshell-application-api-rev-2-replicas", state.ReplicaGroupId);
+        });
+    }
+
+    [Fact]
     public async Task ApplyDeploymentAsync_DoesNotRetirePreviousReplicaGroupWhenAllPreviousSlotsAreRetained()
     {
         var resource = CreateResource();
@@ -1144,22 +1208,24 @@ public sealed class ResourceOrchestrationDeploymentTests
         RecordingServiceProcedureProvider provider,
         IResourceEventSink? resourceEvents = null,
         IResourceOrchestratorDeploymentStore? deploymentStore = null,
-        IReadOnlyList<IResourceOrchestrator>? orchestrators = null) =>
-        CreateDeployments([resource], provider, resourceEvents, deploymentStore, orchestrators);
+        IReadOnlyList<IResourceOrchestrator>? orchestrators = null,
+        IResourceReplicaGroupReconciliationStore? reconciliationStore = null) =>
+        CreateDeployments([resource], provider, resourceEvents, deploymentStore, orchestrators, reconciliationStore);
 
     private static ResourceDeploymentService CreateDeployments(
         IReadOnlyList<Resource> resources,
         RecordingServiceProcedureProvider provider,
         IResourceEventSink? resourceEvents = null,
         IResourceOrchestratorDeploymentStore? deploymentStore = null,
-        IReadOnlyList<IResourceOrchestrator>? orchestrators = null)
+        IReadOnlyList<IResourceOrchestrator>? orchestrators = null,
+        IResourceReplicaGroupReconciliationStore? reconciliationStore = null)
     {
         var registrations = new TestResourceRegistrationStore(
             resources.Select(resource =>
                 new ResourceRegistration(resource.Id, provider.Id, null, DateTimeOffset.UtcNow, resource.DependsOn)));
         return new ResourceDeploymentService(
             orchestrators ?? [new DefaultResourceOrchestrator()],
-            [new DefaultResourceDeploymentService(deploymentStore)],
+            [new DefaultResourceDeploymentService(deploymentStore, reconciliationStore)],
             new TestResourceManagerStore(resources, provider),
             registrations,
             CreateSelectionStore(),

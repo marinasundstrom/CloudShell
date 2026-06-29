@@ -340,7 +340,8 @@ public enum ResourceReplicaSlotReconciliationStatus
     Unhealthy,
     Repairing,
     Repaired,
-    RepairFailed
+    RepairFailed,
+    Materialized
 }
 
 public sealed record ResourcePrincipalQuery(

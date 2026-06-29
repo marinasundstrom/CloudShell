@@ -162,6 +162,7 @@ public sealed class ResourceReplicaGroupReconciliationService(
             ResourceReplicaSlotRuntimeStatus.Repairing => ResourceReplicaSlotReconciliationStatus.Repairing,
             ResourceReplicaSlotRuntimeStatus.Repaired => ResourceReplicaSlotReconciliationStatus.Repaired,
             ResourceReplicaSlotRuntimeStatus.RepairFailed => ResourceReplicaSlotReconciliationStatus.RepairFailed,
+            ResourceReplicaSlotRuntimeStatus.Materialized => ResourceReplicaSlotReconciliationStatus.Materialized,
             _ => ResourceReplicaSlotReconciliationStatus.Unhealthy
         };
 

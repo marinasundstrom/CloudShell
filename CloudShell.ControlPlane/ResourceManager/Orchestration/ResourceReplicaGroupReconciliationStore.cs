@@ -13,6 +13,8 @@ public interface IResourceReplicaGroupReconciliationStore
     IReadOnlyList<ResourceReplicaSlotRuntimeState> ListRuntimeStates(string? resourceId = null);
 
     void SetRuntimeState(ResourceReplicaSlotRuntimeState state);
+
+    void DeleteRuntimeState(string resourceId, int slotOrdinal);
 }
 
 public sealed record ResourceReplicaSlotReconciliationRequest(
@@ -42,7 +44,8 @@ public enum ResourceReplicaSlotRuntimeStatus
     Unhealthy,
     Repairing,
     Repaired,
-    RepairFailed
+    RepairFailed,
+    Materialized
 }
 
 public sealed class InMemoryResourceReplicaGroupReconciliationStore : IResourceReplicaGroupReconciliationStore
@@ -137,6 +140,17 @@ public sealed class InMemoryResourceReplicaGroupReconciliationStore : IResourceR
         }
 
         runtimeStates[CreateKey(state.ResourceId, state.SlotOrdinal)] = state;
+    }
+
+    public void DeleteRuntimeState(string resourceId, int slotOrdinal)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId) ||
+            slotOrdinal < 1)
+        {
+            return;
+        }
+
+        runtimeStates.TryRemove(CreateKey(resourceId, slotOrdinal), out _);
     }
 
     private static string CreateKey(string resourceId, int slotOrdinal) =>
