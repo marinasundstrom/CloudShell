@@ -20,6 +20,14 @@ public sealed class DefaultResourceDeploymentService(
         ResourceOrchestratorDeployment deployment,
         CancellationToken cancellationToken = default)
     {
+        var deploymentDefinition = deployment.Spec.CreateDeploymentDefinition(deployment.RevisionId);
+        deployment = deployment with
+        {
+            Spec = deployment.Spec with
+            {
+                Definition = deploymentDefinition
+            }
+        };
         var provider = ResourceOrchestratorProviderResolver.GetServiceProcedureProvider(context, ResourceAction.Start)
             ?? throw new ControlPlaneException(
                 ControlPlaneError.ResourceActionUnsupported(context.Resource.Name));
@@ -28,7 +36,7 @@ public sealed class DefaultResourceDeploymentService(
         {
             RuntimeRevisionId = deployment.RevisionId
         };
-        var targetReplicaGroup = ResolveTargetReplicaGroup(deployment, service);
+        var targetReplicaGroup = ResolveTargetReplicaGroup(deploymentDefinition, service);
         var replicaGroup = targetReplicaGroup.ReplicaGroup;
         var previousReplicaGroup = GetLatestActiveReplicaGroup(deployment);
         try
@@ -132,12 +140,10 @@ public sealed class DefaultResourceDeploymentService(
     }
 
     private static TargetReplicaGroup ResolveTargetReplicaGroup(
-        ResourceOrchestratorDeployment deployment,
+        ResourceOrchestratorDeploymentDefinition definition,
         ResourceOrchestratorService service)
     {
-        var replicaGroupDefinition = deployment
-            .Spec
-            .CreateDeploymentDefinition(deployment.RevisionId)
+        var replicaGroupDefinition = definition
             .DeploymentServices
             .FirstOrDefault(candidate =>
                 string.Equals(candidate.Name, service.Name, StringComparison.OrdinalIgnoreCase))

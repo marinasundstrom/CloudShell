@@ -2078,6 +2078,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app orchestrator deployment planning is now a provider-owned
   service consumed by deployment description operations, so the internal
   deployment-controller boundary can be extended without static helpers.
+- Orchestrator deployment apply now normalizes the deployment definition once
+  and stores it on the applied deployment before materialization, keeping the
+  revision record aligned with the desired runtime state used for replica
+  group reconciliation.
 - Container app orchestrator service description now lives in
   `ContainerApplicationOrchestratorServiceDescriptionOperations`, separating
   Resource Manager service capability and service shape creation from runtime

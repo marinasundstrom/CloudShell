@@ -31,6 +31,7 @@ public sealed class ResourceOrchestrationDeploymentTests
             cause: "Container app deployment.");
 
         Assert.Equal(ResourceOrchestratorDeploymentStatus.Active, result.Deployment.Status);
+        Assert.NotNull(result.Deployment.Spec.Definition);
         Assert.NotEqual(deployment.RevisionId, result.Revision.Id.ToString());
         Assert.StartsWith("env-", result.Revision.Id.ToString(), StringComparison.Ordinal);
         Assert.Equal(deployment.Id, result.Revision.DeploymentId);
@@ -41,6 +42,7 @@ public sealed class ResourceOrchestrationDeploymentTests
         Assert.Equal("tests", result.Revision.ProvisionedBy);
         Assert.Equal(1, result.Revision.RevisionNumber);
         Assert.Equal(ResourceOrchestratorRevisionStatus.Active, result.Revision.Status);
+        Assert.Same(result.Deployment.Spec.Definition, result.Revision.Definition);
         Assert.NotNull(result.Revision.ReplicaGroup);
         Assert.Equal("cloudshell-application-api-rev-2-replicas", result.Revision.ReplicaGroup.Id);
         Assert.Equal(deployment.ServiceId, result.Revision.ReplicaGroup.ServiceId);
