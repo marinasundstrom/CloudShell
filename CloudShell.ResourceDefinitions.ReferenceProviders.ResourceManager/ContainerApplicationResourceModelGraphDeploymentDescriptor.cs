@@ -1,6 +1,8 @@
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceDefinitions.ResourceManager;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 
 namespace CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
@@ -28,7 +30,7 @@ public sealed class ContainerApplicationResourceModelGraphDeploymentDescriptor :
             return null;
         }
 
-        var revisionId = CreateRuntimeRevisionId(context.GraphResource);
+        var revisionId = CreateRuntimeRevisionId(container);
         var service = new ResourceOrchestratorService(
             context.GraphResource.EffectiveResourceId,
             ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(
@@ -123,8 +125,17 @@ public sealed class ContainerApplicationResourceModelGraphDeploymentDescriptor :
                     mount.ReadOnly))
             .ToArray();
 
-    private static string CreateRuntimeRevisionId(Resource graphResource) =>
-        $"rev-{Math.Max(1, graphResource.Revision.Value).ToString(CultureInfo.InvariantCulture)}";
+    private static string CreateRuntimeRevisionId(ContainerApplicationResource container)
+    {
+        var registry = string.IsNullOrWhiteSpace(container.Registry)
+            ? ContainerRegistryDefaults.Default
+            : container.Registry.Trim();
+        var image = container.Image?.Trim() ?? string.Empty;
+        var revisionKey = $"{registry}\n{image}";
+        Span<byte> hash = stackalloc byte[32];
+        SHA256.HashData(Encoding.UTF8.GetBytes(revisionKey), hash);
+        return $"rev-img-{Convert.ToHexString(hash[..6]).ToLowerInvariant()}";
+    }
 
     private static TEnum ParseEnum<TEnum>(
         string? value,

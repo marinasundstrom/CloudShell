@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Graph-backed container app deployment descriptors now derive runtime revision
+  ids from the effective container image instead of the graph resource
+  revision, so replica-only updates reconcile as same-revision scale changes
+  and keep the existing replica group/routing boundary stable.
 - Container app deployments now carry an explicit replica-group definition
   with a revision-aware replica template, and the default deployment applier
   treats that definition as the desired replica state when reconciling scale
@@ -34,10 +38,11 @@ on `git blame --follow`, and then by the broad type of change.
   boundary, nests replica groups and replica resources inside those services,
   and renders container-app-managed services as service groups with an attached
   managed-resource card instead of as separate container app nodes.
-- CloudShell terminology now defines the Host Environment Model, Environment
-  Resource Model, Environment Runtime Model, and environment artifacts as the
-  canonical terms for the broad host environment, its resource-focused subset,
-  and its fuller runtime/orchestration view. See ADR-20260629-001.
+- CloudShell terminology now defines the host environment, realized model,
+  Resource model, Runtime model, Resource graph, Environment Map, and
+  environment artifacts as the canonical terms for the managed environment, its
+  resource-focused subset, and its fuller runtime/orchestration view. See
+  ADR-20260629-001.
 - Environment Runtime Model projection for the Environment page now lives in a
   focused Resource Manager projection class with explicit artifact metadata for
   resources, orchestration services, replica groups, replicas, routing

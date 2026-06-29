@@ -1853,12 +1853,15 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(2, deployment.Spec.Service.Workload.Replicas);
         Assert.True(deployment.Spec.Service.Workload.ReplicasEnabled);
         Assert.Equal(host.EffectiveResourceId, deployment.Spec.Service.Workload.ContainerHostId);
-        Assert.Equal("rev-1", deployment.RevisionId);
+        var initialRuntimeRevisionId = deployment.RevisionId;
+        Assert.StartsWith("rev-img-", initialRuntimeRevisionId, StringComparison.Ordinal);
         Assert.NotNull(deployment.Spec.Definition);
         var deploymentService = Assert.Single(deployment.Spec.Definition.DeploymentServices);
         var replicaGroupDefinition = Assert.Single(deploymentService.ReplicaGroupDefinitions);
-        Assert.Equal("cloudshell-application-container-app-api-rev-1-replicas", replicaGroupDefinition.Name);
-        Assert.Equal("rev-1", replicaGroupDefinition.RuntimeRevisionId);
+        Assert.Equal(
+            $"cloudshell-application-container-app-api-{initialRuntimeRevisionId}-replicas",
+            replicaGroupDefinition.Name);
+        Assert.Equal(initialRuntimeRevisionId, replicaGroupDefinition.RuntimeRevisionId);
         Assert.Equal(2, replicaGroupDefinition.RequestedReplicaSlots);
         Assert.Equal(2, replicaGroupDefinition.RequestedReplicas);
 
@@ -1905,6 +1908,19 @@ public sealed class ResourceManagerIntegrationTests
             resource.Id == container.EffectiveResourceId);
         Assert.Equal("ghcr.io/example/api:v2", updatedContainer.ResourceAttributes["container.image"]);
         Assert.Equal("4", updatedContainer.ResourceAttributes["container.replicas"]);
+        var imageDeployment = await deploymentProvider.DescribeDeploymentAsync(
+            new ResourceProcedureContext(
+                updatedContainer,
+                null,
+                null,
+                new EmptyResourceRegistrationStore()));
+
+        Assert.NotNull(imageDeployment);
+        Assert.NotEqual(initialRuntimeRevisionId, imageDeployment.RevisionId);
+        var imageReplicaGroupDefinition = Assert.Single(
+            Assert.Single(imageDeployment.Spec.Definition!.DeploymentServices).ReplicaGroupDefinitions);
+        Assert.Equal(imageDeployment.RevisionId, imageReplicaGroupDefinition.RuntimeRevisionId);
+        Assert.Equal(4, imageReplicaGroupDefinition.RequestedReplicaSlots);
 
         Assert.True(provider.CanUpdateReplicas(updatedContainer));
         var replicaUpdate = await provider.UpdateReplicasAsync(
@@ -1921,6 +1937,20 @@ public sealed class ResourceManagerIntegrationTests
             resource.Id == container.EffectiveResourceId);
         Assert.Equal("ghcr.io/example/api:v2", scaledContainer.ResourceAttributes["container.image"]);
         Assert.Equal("5", scaledContainer.ResourceAttributes["container.replicas"]);
+        var scaleDeployment = await deploymentProvider.DescribeDeploymentAsync(
+            new ResourceProcedureContext(
+                scaledContainer,
+                null,
+                null,
+                new EmptyResourceRegistrationStore()));
+
+        Assert.NotNull(scaleDeployment);
+        Assert.Equal(imageDeployment.RevisionId, scaleDeployment.RevisionId);
+        var scaleReplicaGroupDefinition = Assert.Single(
+            Assert.Single(scaleDeployment.Spec.Definition!.DeploymentServices).ReplicaGroupDefinitions);
+        Assert.Equal(imageReplicaGroupDefinition.Name, scaleReplicaGroupDefinition.Name);
+        Assert.Equal(imageDeployment.RevisionId, scaleReplicaGroupDefinition.RuntimeRevisionId);
+        Assert.Equal(5, scaleReplicaGroupDefinition.RequestedReplicaSlots);
     }
 
     [Fact]
