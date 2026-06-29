@@ -1,10 +1,18 @@
 using CloudShell.ResourceDefinitions.ReferenceProviders;
 using CloudShell.ResourceDefinitions.ResourceManager;
+using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.ResourceManager;
+using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 
 namespace CloudShell.ResourceDefinitions.ReferenceProviders.ResourceManager;
 
 public sealed class ContainerApplicationResourceModelGraphApplyReconciler(
-    ResourceModelGraphResourceResolver resourceResolver) : IResourceModelGraphApplyReconciler
+    ResourceModelGraphResourceResolver resourceResolver,
+    IEnumerable<IResourceModelGraphDeploymentDescriptor>? deploymentDescriptors = null,
+    IEnumerable<IResourceOrchestratorDeploymentApplier>? deploymentAppliers = null,
+    IResourceManagerStore? resourceManager = null,
+    IResourceRegistrationStore? registrations = null,
+    IResourceEventSink? resourceEvents = null) : IResourceModelGraphApplyReconciler
 {
     private static readonly ResourceAttributeId ContainerImageAttributeId =
         ContainerApplicationResourceTypeProvider.Attributes.ContainerImage;
@@ -13,6 +21,14 @@ public sealed class ContainerApplicationResourceModelGraphApplyReconciler(
 
     private readonly ResourceModelGraphResourceResolver _resourceResolver =
         resourceResolver ?? throw new ArgumentNullException(nameof(resourceResolver));
+    private readonly IReadOnlyList<IResourceModelGraphDeploymentDescriptor> _deploymentDescriptors =
+        (deploymentDescriptors ?? []).ToArray();
+    private readonly IReadOnlyList<IResourceOrchestratorDeploymentApplier> _deploymentAppliers =
+        (deploymentAppliers ?? []).ToArray();
+    private readonly IResourceManagerStore? _resourceManager = resourceManager;
+    private readonly IResourceRegistrationStore _registrations =
+        registrations ?? EmptyResourceRegistrationStore.Instance;
+    private readonly IResourceEventSink? _resourceEvents = resourceEvents;
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAsync(
         ResourceModelGraphDefinitionApplyReconciliationContext context,
@@ -30,15 +46,13 @@ public sealed class ContainerApplicationResourceModelGraphApplyReconciler(
                 continue;
             }
 
-            var operationId = GetRuntimeReconciliationOperation(changeSet);
-            if (operationId is null)
+            if (!RequiresRuntimeReconciliation(changeSet))
             {
                 continue;
             }
 
-            diagnostics.AddRange(await ExecuteOperationAsync(
+            diagnostics.AddRange(await ApplyDeploymentAsync(
                 changeSet.Resource.EffectiveResourceId,
-                operationId.Value,
                 context,
                 cancellationToken));
         }
@@ -46,68 +60,184 @@ public sealed class ContainerApplicationResourceModelGraphApplyReconciler(
         return diagnostics;
     }
 
-    private async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteOperationAsync(
+    private async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyDeploymentAsync(
         string resourceId,
-        ResourceOperationId operationId,
         ResourceModelGraphDefinitionApplyReconciliationContext context,
         CancellationToken cancellationToken)
     {
-        var resolution = await _resourceResolver.ResolveOperationAsync(
+        if (_resourceManager is null ||
+            _deploymentAppliers.Count == 0)
+        {
+            return
+            [
+                ResourceDefinitionDiagnostic.Warning(
+                    "application.container.deploymentReconciliationUnavailable",
+                    "Container application runtime reconciliation requires a Resource Manager deployment applier.",
+                    resourceId)
+            ];
+        }
+
+        var resource = _resourceManager.GetResource(resourceId);
+        if (resource is null)
+        {
+            return
+            [
+                ResourceDefinitionDiagnostic.Warning(
+                    "application.container.deploymentResourceMissing",
+                    $"Container application resource '{resourceId}' is not available through Resource Manager projection.",
+                    resourceId)
+            ];
+        }
+
+        var resolution = await _resourceResolver.ResolveAsync(
             resourceId,
-            operationId,
             new ResourceDefinitionResolutionContext(
                 context.CommitContext.EnvironmentId,
                 context.CommitContext.PrincipalId),
             cancellationToken);
-        if (resolution.Diagnostics.Count > 0)
+        if (resolution.HasErrors)
         {
             return resolution.Diagnostics;
         }
 
-        if (resolution.Operation is not IResourceOperationExecutorProjection executableOperation)
+        if (resolution.Target is null)
         {
             return
             [
                 ResourceDefinitionDiagnostic.Error(
-                    ResourceDefinitionDiagnosticCodes.ResourceOperationProjectionMissing,
-                    $"Operation '{operationId}' does not support runtime reconciliation.",
+                    ResourceDefinitionDiagnosticCodes.ResourceGraphResourceMissing,
+                    $"Container application resource '{resourceId}' could not be resolved for deployment reconciliation.",
                     resourceId)
             ];
         }
 
-        if (!await executableOperation.CanExecuteAsync(cancellationToken))
+        var descriptor = _deploymentDescriptors.FirstOrDefault(descriptor =>
+            descriptor.CanDescribeDeployment(resource, resolution.Target));
+        if (descriptor is null)
+        {
+            return
+            [
+                ResourceDefinitionDiagnostic.Warning(
+                    "application.container.deploymentDescriptorMissing",
+                    $"Container application resource '{resourceId}' does not have a deployment descriptor.",
+                    resourceId)
+            ];
+        }
+
+        var cause = CreateCause(context);
+        var deployment = await descriptor.DescribeDeploymentAsync(
+            new ResourceModelGraphDeploymentDescriptionContext(
+                resource,
+                resolution.Target,
+                new ResourceProcedureContext(
+                    resource,
+                    _registrations.GetRegistration(resource.Id),
+                    _resourceManager.GetGroupForResource(resource.Id)?.Id,
+                    _registrations,
+                    _resourceManager,
+                    PreferredContainerHostId: null,
+                    context.CommitContext.PrincipalId,
+                    cause,
+                    _resourceEvents)),
+            cancellationToken);
+        if (deployment is null)
+        {
+            return [];
+        }
+
+        var orchestrationContext = new ResourceOrchestrationContext(
+            resource,
+            _registrations.GetRegistration(resource.Id),
+            _resourceManager.GetGroupForResource(resource.Id),
+            _resourceManager,
+            _registrations,
+            PreferredContainerHostId: null,
+            context.CommitContext.PrincipalId,
+            cause,
+            _resourceEvents);
+        var applier = _deploymentAppliers.FirstOrDefault(applier =>
+            applier.CanApplyDeployment(orchestrationContext, deployment));
+        if (applier is null)
+        {
+            return
+            [
+                ResourceDefinitionDiagnostic.Warning(
+                    "application.container.deploymentApplierMissing",
+                    $"Container application resource '{resourceId}' does not have a deployment applier for orchestrator '{deployment.OrchestratorId}'.",
+                    resourceId)
+            ];
+        }
+
+        try
+        {
+            await applier.ApplyDeploymentAsync(
+                orchestrationContext,
+                deployment,
+                cancellationToken);
+            return [];
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
             return
             [
                 ResourceDefinitionDiagnostic.Error(
-                    ResourceDefinitionDiagnosticCodes.ResourceOperationProjectionMissing,
-                    $"Operation '{operationId}' cannot execute for runtime reconciliation.",
+                    "application.container.deploymentReconciliationFailed",
+                    $"Container application deployment reconciliation failed. Reason: {exception.Message}",
                     resourceId)
             ];
         }
-
-        var execution = await executableOperation.ExecuteAsync(cancellationToken);
-        return execution.Diagnostics;
     }
 
-    private static ResourceOperationId? GetRuntimeReconciliationOperation(
+    private static bool RequiresRuntimeReconciliation(
         ResourceChangeSet changeSet)
     {
-        if (HasChangedAttribute(changeSet, ContainerImageAttributeId))
-        {
-            return ContainerApplicationResourceTypeProvider.Operations.UpdateImage;
-        }
-
-        if (HasChangedAttribute(changeSet, ContainerReplicasAttributeId))
-        {
-            return ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas;
-        }
-
-        return null;
+        return HasChangedAttribute(changeSet, ContainerImageAttributeId) ||
+            HasChangedAttribute(changeSet, ContainerReplicasAttributeId);
     }
 
     private static bool HasChangedAttribute(
         ResourceChangeSet changeSet,
         ResourceAttributeId attributeId) =>
         changeSet.AttributeChanges.Any(change => change.AttributeId == attributeId);
+
+    private static string CreateCause(
+        ResourceModelGraphDefinitionApplyReconciliationContext context) =>
+        string.IsNullOrWhiteSpace(context.CommitContext.PrincipalId)
+            ? "ResourceDefinition apply requested runtime reconciliation."
+            : $"ResourceDefinition apply requested runtime reconciliation for principal '{context.CommitContext.PrincipalId.Trim()}'.";
+
+    private sealed class EmptyResourceRegistrationStore : IResourceRegistrationStore
+    {
+        public static EmptyResourceRegistrationStore Instance { get; } = new();
+
+        public IReadOnlyList<ResourceRegistration> GetRegistrations() => [];
+
+        public ResourceRegistration? GetRegistration(string resourceId) => null;
+
+        public Task RegisterAsync(
+            string providerId,
+            string resourceId,
+            string? resourceGroupId = null,
+            IReadOnlyList<string>? dependsOn = null,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task RemoveAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task AssignToGroupAsync(
+            string resourceId,
+            string? resourceGroupId,
+            IReadOnlyList<string>? dependsOn = null,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task SetDependenciesAsync(
+            string resourceId,
+            IReadOnlyList<string> dependsOn,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+    }
 }

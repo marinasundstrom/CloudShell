@@ -21,6 +21,10 @@ on `git blame --follow`, and then by the broad type of change.
   ids from the effective container image instead of the graph resource
   revision, so replica-only updates reconcile as same-revision scale changes
   and keep the existing replica group/routing boundary stable.
+- ResourceDefinition apply reconciliation for graph-backed container apps now
+  describes and applies an internal orchestrator deployment when a deployment
+  applier is available, instead of invoking direct image or replica runtime
+  update operations.
 - Container app deployments now carry an explicit replica-group definition
   with a revision-aware replica template, and the default deployment applier
   treats that definition as the desired replica state when reconciling scale

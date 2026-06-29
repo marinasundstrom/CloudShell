@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Hosting;
@@ -1965,6 +1966,12 @@ public sealed class ResourceManagerIntegrationTests
         services.AddContainerApplicationResourceType();
         services.AddResourceModelGraphServices();
         services.AddReferenceProviderResourceManagerProjections();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        var deploymentApplier = new RecordingResourceOrchestratorDeploymentApplier();
+        services.AddSingleton<IResourceOrchestratorDeploymentApplier>(deploymentApplier);
+        services.AddScoped<IResourceManagerStore>(serviceProvider =>
+            new ProjectedResourceManagerStore(() =>
+                serviceProvider.GetServices<IResourceProvider>().ToArray()));
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
         var graph = new ResourceDefinitionGraphBuilder();
@@ -1984,6 +1991,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.False(initialApply.HasErrors, FormatDiagnostics(initialApply.Diagnostics));
         Assert.True(initialApply.IsCommitted);
         Assert.Empty(runtimeHandler.Events);
+        Assert.Empty(deploymentApplier.Deployments);
 
         var imageApply = await service.ApplyDefinitionsAsync(
             [
@@ -2004,10 +2012,12 @@ public sealed class ResourceManagerIntegrationTests
                 PrincipalId: "developer"));
 
         Assert.False(imageApply.HasErrors, FormatDiagnostics(imageApply.Diagnostics));
-        var imageEvent = Assert.Single(runtimeHandler.Events);
-        Assert.Equal(ContainerApplicationResourceTypeProvider.Operations.UpdateImage, imageEvent.OperationId);
-        Assert.Equal("ghcr.io/example/api:v2", imageEvent.Image);
-        Assert.Equal(4, imageEvent.Replicas);
+        Assert.Empty(runtimeHandler.Events);
+        var imageDeployment = Assert.Single(deploymentApplier.Deployments);
+        Assert.Equal(container.EffectiveResourceId, imageDeployment.SourceResourceId);
+        Assert.Equal("ghcr.io/example/api:v2", imageDeployment.Spec.Service.Workload.Image);
+        Assert.Equal(4, imageDeployment.Spec.Service.Workload.Replicas);
+        Assert.StartsWith("rev-img-", imageDeployment.RevisionId, StringComparison.Ordinal);
 
         var replicaApply = await service.ApplyDefinitionsAsync(
             [
@@ -2026,14 +2036,22 @@ public sealed class ResourceManagerIntegrationTests
                 PrincipalId: "developer"));
 
         Assert.False(replicaApply.HasErrors, FormatDiagnostics(replicaApply.Diagnostics));
+        Assert.Empty(runtimeHandler.Events);
         Assert.Collection(
-            runtimeHandler.Events,
-            first => Assert.Equal(ContainerApplicationResourceTypeProvider.Operations.UpdateImage, first.OperationId),
+            deploymentApplier.Deployments,
+            first => Assert.Equal(imageDeployment.RevisionId, first.RevisionId),
             second =>
             {
-                Assert.Equal(ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas, second.OperationId);
-                Assert.Equal("ghcr.io/example/api:v2", second.Image);
-                Assert.Equal(5, second.Replicas);
+                Assert.Equal(imageDeployment.RevisionId, second.RevisionId);
+                Assert.Equal("ghcr.io/example/api:v2", second.Spec.Service.Workload.Image);
+                Assert.Equal(5, second.Spec.Service.Workload.Replicas);
+                var replicaGroup = Assert.Single(
+                    Assert.Single(second.Spec.Definition!.DeploymentServices).ReplicaGroupDefinitions);
+                Assert.Equal(
+                    Assert.Single(
+                        Assert.Single(imageDeployment.Spec.Definition!.DeploymentServices).ReplicaGroupDefinitions).Name,
+                    replicaGroup.Name);
+                Assert.Equal(5, replicaGroup.RequestedReplicaSlots);
             });
     }
 
@@ -6304,6 +6322,86 @@ public sealed class ResourceManagerIntegrationTests
                 StringComparison.OrdinalIgnoreCase)
                 ? state
                 : null;
+    }
+
+    private sealed class ProjectedResourceManagerStore(
+        Func<IReadOnlyList<IResourceProvider>> getProviders) : IResourceManagerStore
+    {
+        public IReadOnlyList<IResourceProvider> Providers => getProviders();
+
+        public IReadOnlyList<ResourceGroup> GetResourceGroups() => [];
+
+        public IReadOnlyList<ResourceManagerResource> GetAvailableResources() =>
+            GetResources();
+
+        public IReadOnlyList<ResourceManagerResource> GetResources() =>
+            Providers
+                .SelectMany(provider => provider.GetResources())
+                .ToArray();
+
+        public IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics() =>
+            Providers
+                .OfType<IResourceModelDiagnosticProvider>()
+                .SelectMany(provider => provider.GetResourceModelDiagnostics())
+                .ToArray();
+
+        public ResourceManagerClass? GetResourceTypeClass(string resourceType) => null;
+
+        public ResourceManagerResource? GetResource(string id) =>
+            GetResources().FirstOrDefault(resource =>
+                string.Equals(resource.Id, id, StringComparison.OrdinalIgnoreCase));
+
+        public IReadOnlyList<ResourceManagerResource> GetChildren(string resourceId) =>
+            GetResources()
+                .Where(resource =>
+                    string.Equals(resource.ParentResourceId, resourceId, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
+        public ResourceGroup? GetGroupForResource(string resourceId) => null;
+
+        public bool IsRegistered(string resourceId) =>
+            GetResource(resourceId) is not null;
+    }
+
+    private sealed class RecordingResourceOrchestratorDeploymentApplier :
+        IResourceOrchestratorDeploymentApplier
+    {
+        private readonly List<ResourceOrchestratorDeployment> _deployments = [];
+
+        public IReadOnlyList<ResourceOrchestratorDeployment> Deployments => _deployments;
+
+        public bool CanApplyDeployment(
+            ResourceOrchestrationContext context,
+            ResourceOrchestratorDeployment deployment) =>
+            true;
+
+        public Task<ResourceOrchestratorDeploymentApplyResult> ApplyDeploymentAsync(
+            ResourceOrchestrationContext context,
+            ResourceOrchestratorDeployment deployment,
+            CancellationToken cancellationToken = default)
+        {
+            _deployments.Add(deployment);
+            var applied = deployment with { Status = ResourceOrchestratorDeploymentStatus.Active };
+            var replicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+                deployment.Spec.Service,
+                deployment.RevisionId);
+            var revision = new ResourceOrchestratorRevision(
+                new ResourceOrchestratorEnvironmentRevisionId(
+                    $"env-{deployment.Id}-{_deployments.Count.ToString(CultureInfo.InvariantCulture)}"),
+                deployment.Id,
+                deployment.SourceResourceId,
+                deployment.ServiceId,
+                _deployments.Count,
+                DateTimeOffset.UtcNow,
+                ResourceOrchestratorRevisionStatus.Active,
+                replicaGroup,
+                ProvisionedBy: context.TriggeredBy,
+                Definition: deployment.Spec.CreateDeploymentDefinition(deployment.RevisionId));
+            return Task.FromResult(new ResourceOrchestratorDeploymentApplyResult(
+                applied,
+                revision,
+                ResourceProcedureResult.Completed($"Applied deployment '{deployment.Id}'.")));
+        }
     }
 
     private sealed class StaticContainerApplicationRuntimeHandler(
