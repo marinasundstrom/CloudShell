@@ -17,6 +17,11 @@ internal sealed class ContainerApplicationDeploymentTearDownPlanner
         ArgumentNullException.ThrowIfNull(defaultService);
         ArgumentNullException.ThrowIfNull(hasVisibleLegacyReplicaGroup);
 
+        if (applyResult.PreviousReplicaGroup is not null)
+        {
+            return [];
+        }
+
         var basedOnRevisionId = NormalizeNullable(appDeployment?.BasedOnRevisionId);
         if (basedOnRevisionId is null ||
             string.Equals(basedOnRevisionId, applyResult.Deployment.RevisionId, StringComparison.OrdinalIgnoreCase))

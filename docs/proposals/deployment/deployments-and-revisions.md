@@ -1145,6 +1145,26 @@ describe which superseded replica group should be retired after deployment
 setup, and Resource Manager orchestration asks the selected orchestrator to tear
 that group down separately from the deployment apply operation.
 
+Service routing and load-balancer rebinding should follow the same boundary.
+An orchestration service is not required for ordinary single-resource
+lifecycle, but it is the right runtime boundary when several materialized
+resources need to move together, such as a load balancer route and the replica
+group that backs it. The deployment definition should describe the service,
+its active or candidate replica group, and any routing bindings that must be
+reconciled as that group changes. The default orchestrator can then ask the
+selected load-balancer or routing provider to bind an explicit service target
+to the current replica group during scale-out, scale-in, replacement, and
+cleanup.
+
+CloudShell should not use Kubernetes-style labels as the primary contract
+between services and load balancers. Labels can remain diagnostic metadata or a
+provider adapter detail when a backend requires them, but the common
+orchestration contract should use explicit CloudShell identities:
+source resource id, orchestrator service id, replica group id, endpoint
+reference, and route or mapping id. That keeps the default orchestrator an
+abstraction over potential runtime backends instead of exposing any one
+backend's selector model as the CloudShell domain model.
+
 ## Resource Relationship
 
 User-managed resources should not directly manage replica creation.

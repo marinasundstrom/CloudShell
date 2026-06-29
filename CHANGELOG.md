@@ -2082,6 +2082,10 @@ on `git blame --follow`, and then by the broad type of change.
   and stores it on the applied deployment before materialization, keeping the
   revision record aligned with the desired runtime state used for replica
   group reconciliation.
+- Container app post-apply cleanup now skips the legacy stable-replica
+  teardown bridge when deployment apply already had previous replica-group
+  state, so scale-only reconciliations do not tear down orchestrator-managed
+  replicas or ingress after the replica-group controller has handled the diff.
 - Container app orchestrator service description now lives in
   `ContainerApplicationOrchestratorServiceDescriptionOperations`, separating
   Resource Manager service capability and service shape creation from runtime

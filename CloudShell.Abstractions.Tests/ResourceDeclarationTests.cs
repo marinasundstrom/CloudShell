@@ -11441,6 +11441,93 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ContainerApplicationProvider_SkipsLegacyStableReplicaTearDownAfterScaleReconciliation()
+    {
+        var services = new ServiceCollection();
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services.AddSingleton(new ApplicationProviderOptions());
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var store = serviceProvider.GetRequiredService<ApplicationResourceStore>();
+        store.Save(
+            new ApplicationResourceDefinition(
+                "application:api",
+                "api",
+                executablePath: string.Empty,
+                containerImage: "example/api:20260622",
+                containerRevision: "20260622.2",
+                containerHostId: "docker:dev",
+                replicas: 2,
+                resourceType: ApplicationResourceTypes.ContainerApp,
+                replicasEnabled: true,
+                containerRevisions:
+                [
+                    new ApplicationContainerRevision(
+                        "20260622.2",
+                        "example/api:20260622",
+                        4,
+                        DateTimeOffset.UtcNow.AddMinutes(-5),
+                        ApplicationContainerRevisionChangeKinds.Initial)
+                ],
+                deploymentEnvironmentRevisionId: "env-test-1"),
+            persist: false);
+
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceRuntimeOperations>(serviceProvider);
+        var deploymentDescriptions = serviceProvider.GetRequiredService<IContainerApplicationDeploymentDescriptionOperations>();
+        var deploymentOutcomes = serviceProvider.GetRequiredService<IContainerApplicationDeploymentOutcomeOperations>();
+        var registrations = new DeclarationRegistrationStore(
+            serviceProvider.GetRequiredService<ResourceDeclarationStore>());
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:api");
+        var deployment = await deploymentDescriptions.DescribeDeploymentAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations));
+
+        Assert.NotNull(deployment);
+
+        var appliedService = deployment.Spec.Service with { RuntimeRevisionId = deployment.RevisionId };
+        var previousService = appliedService with
+        {
+            Workload = appliedService.Workload with
+            {
+                Replicas = 4,
+                ReplicasEnabled = true
+            }
+        };
+        var appliedReplicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(appliedService);
+        var previousReplicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(previousService);
+        var tearDowns = await deploymentOutcomes.DescribeDeploymentTearDownAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations),
+            new ResourceOrchestratorDeploymentApplyResult(
+                deployment,
+                new ResourceOrchestratorRevision(
+                    new ResourceOrchestratorEnvironmentRevisionId("env-test-2"),
+                    deployment.Id,
+                    deployment.SourceResourceId,
+                    deployment.ServiceId,
+                    RevisionNumber: 2,
+                    DateTimeOffset.UtcNow,
+                    ResourceOrchestratorRevisionStatus.Active,
+                    ReplicaGroup: appliedReplicaGroup),
+                ResourceProcedureResult.Completed("Applied deployment."),
+                PreviousReplicaGroup: previousReplicaGroup));
+
+        Assert.Empty(tearDowns);
+    }
+
+    [Fact]
     public async Task ContainerApplicationProvider_RecordsRunningImageUpdateWithoutRestartPreflight()
     {
         var services = new ServiceCollection();

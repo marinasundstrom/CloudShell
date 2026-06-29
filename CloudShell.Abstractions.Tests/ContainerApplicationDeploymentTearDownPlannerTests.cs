@@ -98,6 +98,40 @@ public sealed class ContainerApplicationDeploymentTearDownPlannerTests
         Assert.Empty(requests);
     }
 
+    [Fact]
+    public void PlanTearDown_SkipsProviderFallbackWhenPreviousReplicaGroupExists()
+    {
+        var planner = new ContainerApplicationDeploymentTearDownPlanner();
+        var application = CreateApplication();
+        var defaultService = CreateService(replicas: 2);
+        var previousService = defaultService with
+        {
+            RuntimeRevisionId = "rev-2",
+            Workload = defaultService.Workload with
+            {
+                Replicas = 3,
+                ReplicasEnabled = true
+            }
+        };
+        var appliedService = defaultService with { RuntimeRevisionId = "rev-2" };
+        var previousReplicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(previousService);
+        var appliedReplicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(appliedService);
+
+        var requests = planner.PlanTearDown(
+            application,
+            CreateApplyResult(
+                "orchestrator-dep",
+                "rev-2",
+                appliedReplicaGroup,
+                previousReplicaGroup),
+            appDeployment: null,
+            basedOnRevision: null,
+            defaultService: defaultService,
+            hasVisibleLegacyReplicaGroup: _ => true);
+
+        Assert.Empty(requests);
+    }
+
     private static ApplicationResourceDefinition CreateApplication() =>
         new(
             "application:api",
@@ -141,7 +175,8 @@ public sealed class ContainerApplicationDeploymentTearDownPlannerTests
     private static ResourceOrchestratorDeploymentApplyResult CreateApplyResult(
         string deploymentId,
         string revisionId,
-        ResourceOrchestratorReplicaGroup? replicaGroup) =>
+        ResourceOrchestratorReplicaGroup? replicaGroup,
+        ResourceOrchestratorReplicaGroup? previousReplicaGroup = null) =>
         new(
             new ResourceOrchestratorDeployment(
                 deploymentId,
@@ -162,5 +197,6 @@ public sealed class ContainerApplicationDeploymentTearDownPlannerTests
                 Now,
                 ResourceOrchestratorRevisionStatus.Active,
                 replicaGroup),
-            ResourceProcedureResult.Completed("Applied deployment."));
+            ResourceProcedureResult.Completed("Applied deployment."),
+            PreviousReplicaGroup: previousReplicaGroup);
 }
