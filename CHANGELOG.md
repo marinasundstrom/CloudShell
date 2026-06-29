@@ -57,6 +57,11 @@ on `git blame --follow`, and then by the broad type of change.
   with a service and replica-group definition through the Resource Manager
   bridge, and ControlPlane deployment provider resolution now honors the
   graph bridge provider id for deployment and service procedure boundaries.
+- The Resource Manager graph bridge now exposes a generic orchestrator service
+  execution hook, with graph-backed container apps delegating deployment
+  prepare, materialization, and scale-in service calls to the container-app
+  runtime handler so generated deployments can be driven by the default
+  deployment controller.
 - Replica-group deployment definitions now include reconciliation policy for
   scale routing and previous-revision slot retention, and the deployment
   proposal documents both compact container-app update JSON and the normalized

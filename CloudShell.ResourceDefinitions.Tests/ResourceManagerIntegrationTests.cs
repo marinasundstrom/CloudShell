@@ -2004,6 +2004,157 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphProcedureProvider_ExecutesContainerApplicationOrchestratorService()
+    {
+        var runtimeHandler = new RecordingContainerApplicationRuntimeHandler(
+            ContainerApplicationRuntimeStatus.Running);
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddContainerHostResourceType();
+        services.AddSingleton<IContainerApplicationRuntimeHandler>(runtimeHandler);
+        services.AddContainerApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddReferenceProviderResourceManagerProjections();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var apply = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceDefinitionGraphBuilder();
+        var host = graph
+            .AddContainerHost("docker")
+            .UseDocker();
+        var container = graph
+            .AddContainerApplication("api")
+            .UseContainerHost(host)
+            .WithImage("ghcr.io/example/api:latest")
+            .WithReplicas(2);
+        var result = await apply.ApplyTemplateAsync(
+            graph.BuildTemplate("container-app", environmentId: "local"),
+            new ResourceGraphCommitContext(PrincipalId: "developer"));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.Empty(runtimeHandler.Events);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedContainer = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == container.EffectiveResourceId);
+        var serviceProviderBridge = Assert.IsAssignableFrom<IResourceOrchestratorServiceProcedureProvider>(provider);
+        var procedure = new ResourceProcedureContext(
+            projectedContainer,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+        var service = await serviceProviderBridge.CreateOrchestratorServiceAsync(procedure);
+        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+            service,
+            "rev-test");
+        var previousReplicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+            service with
+            {
+                Workload = service.Workload with
+                {
+                    Replicas = 3,
+                    ReplicasEnabled = true
+                }
+            },
+            "rev-previous");
+
+        Assert.True(serviceProviderBridge.CanExecuteOrchestratorService(
+            projectedContainer,
+            ResourceAction.Start));
+
+        await serviceProviderBridge.PrepareOrchestratorServiceAsync(
+            new ResourceOrchestratorServiceProcedureContext(procedure, service, replicaGroup),
+            ResourceAction.Start);
+        foreach (var instance in replicaGroup.Instances)
+        {
+            await serviceProviderBridge.ExecuteOrchestratorServiceInstanceAsync(
+                new ResourceOrchestratorServiceInstanceContext(procedure, service, instance, replicaGroup),
+                ResourceAction.Start);
+        }
+        foreach (var instance in previousReplicaGroup.Instances)
+        {
+            await serviceProviderBridge.ExecuteOrchestratorServiceInstanceAsync(
+                new ResourceOrchestratorServiceInstanceContext(procedure, service, instance, previousReplicaGroup),
+                ResourceAction.Stop);
+        }
+
+        Assert.Collection(
+            runtimeHandler.Events,
+            first =>
+            {
+                Assert.Equal(ContainerApplicationResourceTypeProvider.Operations.UpdateImage, first.OperationId);
+                Assert.Equal("ghcr.io/example/api:latest", first.Image);
+                Assert.Equal(2, first.Replicas);
+            },
+            second =>
+            {
+                Assert.Equal(ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas, second.OperationId);
+                Assert.Equal("ghcr.io/example/api:latest", second.Image);
+                Assert.Equal(2, second.Replicas);
+            });
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphProcedureProvider_StartsStoppedContainerApplicationService()
+    {
+        var runtimeHandler = new RecordingContainerApplicationRuntimeHandler(
+            ContainerApplicationRuntimeStatus.Stopped);
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddContainerHostResourceType();
+        services.AddSingleton<IContainerApplicationRuntimeHandler>(runtimeHandler);
+        services.AddContainerApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddReferenceProviderResourceManagerProjections();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var apply = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceDefinitionGraphBuilder();
+        var host = graph
+            .AddContainerHost("docker")
+            .UseDocker();
+        var container = graph
+            .AddContainerApplication("api")
+            .UseContainerHost(host)
+            .WithImage("ghcr.io/example/api:latest")
+            .WithReplicas(2);
+        var result = await apply.ApplyTemplateAsync(
+            graph.BuildTemplate("container-app", environmentId: "local"),
+            new ResourceGraphCommitContext(PrincipalId: "developer"));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedContainer = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == container.EffectiveResourceId);
+        var serviceProviderBridge = Assert.IsAssignableFrom<IResourceOrchestratorServiceProcedureProvider>(provider);
+        var procedure = new ResourceProcedureContext(
+            projectedContainer,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+        var service = await serviceProviderBridge.CreateOrchestratorServiceAsync(procedure);
+        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+            service,
+            "rev-test");
+
+        await serviceProviderBridge.PrepareOrchestratorServiceAsync(
+            new ResourceOrchestratorServiceProcedureContext(procedure, service, replicaGroup),
+            ResourceAction.Start);
+
+        var lifecycle = Assert.Single(runtimeHandler.Events);
+        Assert.Equal(ResourceActionIds.Start, lifecycle.OperationId.ToString());
+        Assert.Equal("ghcr.io/example/api:latest", lifecycle.Image);
+        Assert.Equal(2, lifecycle.Replicas);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AcceptsDockerHostForContainerBackedWorkloads()
     {
         var services = new ServiceCollection();

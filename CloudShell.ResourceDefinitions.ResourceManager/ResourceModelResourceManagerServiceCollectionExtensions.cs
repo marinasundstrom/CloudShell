@@ -241,12 +241,15 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
                 serviceProvider.GetRequiredService<ResourceModelGraphResourceResolver>(),
                 serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>(),
                 resolutionContext,
-                serviceProvider.GetServices<IResourceModelGraphDeploymentDescriptor>()));
+                serviceProvider.GetServices<IResourceModelGraphDeploymentDescriptor>(),
+                serviceProvider.GetServices<IResourceModelGraphOrchestratorServiceExecutor>()));
         services.AddScoped<IResourceProvider>(
             serviceProvider => serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>());
         services.AddScoped<IResourceActionAvailabilityProvider>(
             serviceProvider => serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>());
         services.AddScoped<IResourceOrchestratorDeploymentProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>());
+        services.AddScoped<IResourceOrchestratorServiceProcedureProvider>(
             serviceProvider => serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>());
 
         return services;

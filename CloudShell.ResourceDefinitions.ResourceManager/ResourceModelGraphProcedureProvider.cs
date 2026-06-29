@@ -10,7 +10,8 @@ public sealed class ResourceModelGraphProcedureProvider :
     IResourceActionAvailabilityProvider,
     IResourceImageUpdateProvider,
     IResourceReplicaUpdateProvider,
-    IResourceOrchestratorDeploymentProvider
+    IResourceOrchestratorDeploymentProvider,
+    IResourceOrchestratorServiceProcedureProvider
 {
     private static readonly ResourceOperationId ContainerImageUpdateOperationId = "container.image.update";
     private static readonly ResourceOperationId ContainerReplicasUpdateOperationId = "container.replicas.update";
@@ -22,19 +23,22 @@ public sealed class ResourceModelGraphProcedureProvider :
     private readonly ResourceModelGraphDefinitionApplyService _definitionApply;
     private readonly ResourceDefinitionResolutionContext _resolutionContext;
     private readonly IReadOnlyList<IResourceModelGraphDeploymentDescriptor> _deploymentDescriptors;
+    private readonly IReadOnlyList<IResourceModelGraphOrchestratorServiceExecutor> _serviceExecutors;
 
     public ResourceModelGraphProcedureProvider(
         ResourceModelGraphResourceProvider resourceProvider,
         ResourceModelGraphResourceResolver resourceResolver,
         ResourceModelGraphDefinitionApplyService definitionApply,
         ResourceDefinitionResolutionContext? resolutionContext = null,
-        IEnumerable<IResourceModelGraphDeploymentDescriptor>? deploymentDescriptors = null)
+        IEnumerable<IResourceModelGraphDeploymentDescriptor>? deploymentDescriptors = null,
+        IEnumerable<IResourceModelGraphOrchestratorServiceExecutor>? serviceExecutors = null)
     {
         _resourceProvider = resourceProvider ?? throw new ArgumentNullException(nameof(resourceProvider));
         _resourceResolver = resourceResolver ?? throw new ArgumentNullException(nameof(resourceResolver));
         _definitionApply = definitionApply ?? throw new ArgumentNullException(nameof(definitionApply));
         _resolutionContext = resolutionContext ?? ResourceDefinitionResolutionContext.Empty;
         _deploymentDescriptors = (deploymentDescriptors ?? []).ToArray();
+        _serviceExecutors = (serviceExecutors ?? []).ToArray();
     }
 
     public string Id => _resourceProvider.Id;
@@ -94,6 +98,80 @@ public sealed class ResourceModelGraphProcedureProvider :
                 context.Resource,
                 resolution.Target,
                 context),
+            cancellationToken);
+    }
+
+    public bool CanExecuteOrchestratorService(
+        ResourceManagerResource resource,
+        ResourceAction action) =>
+        IsBridgeResource(resource) &&
+        _serviceExecutors.Any(executor =>
+            executor.CanExecuteOrchestratorService(resource, action));
+
+    public async Task<ResourceOrchestratorService> CreateOrchestratorServiceAsync(
+        ResourceProcedureContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var deployment = await DescribeDeploymentAsync(context, cancellationToken);
+        if (deployment is null)
+        {
+            throw new NotSupportedException(
+                $"Resource model graph resource '{context.Resource.Id}' does not describe an orchestrator service.");
+        }
+
+        return deployment.Spec.Service;
+    }
+
+    public async Task PrepareOrchestratorServiceAsync(
+        ResourceOrchestratorServiceProcedureContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(action);
+
+        var graphContext = await CreateServiceProcedureContextAsync(
+            context,
+            action,
+            cancellationToken);
+        await graphContext.Executor.PrepareOrchestratorServiceAsync(
+            graphContext.Context,
+            action,
+            cancellationToken);
+    }
+
+    public async Task ReconcileOrchestratorServiceRoutingAsync(
+        ResourceOrchestratorServiceProcedureContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var graphContext = await CreateServiceProcedureContextAsync(
+            context,
+            ResourceAction.Start,
+            cancellationToken);
+        await graphContext.Executor.ReconcileOrchestratorServiceRoutingAsync(
+            graphContext.Context,
+            cancellationToken);
+    }
+
+    public async Task ExecuteOrchestratorServiceInstanceAsync(
+        ResourceOrchestratorServiceInstanceContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(action);
+
+        var graphContext = await CreateServiceInstanceContextAsync(
+            context,
+            action,
+            cancellationToken);
+        await graphContext.Executor.ExecuteOrchestratorServiceInstanceAsync(
+            graphContext.Context,
+            action,
             cancellationToken);
     }
 
@@ -365,6 +443,75 @@ public sealed class ResourceModelGraphProcedureProvider :
             .ToArray();
     }
 
+    private async ValueTask<ResourceModelGraphServiceExecutorResolution> CreateServiceProcedureContextAsync(
+        ResourceOrchestratorServiceProcedureContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken)
+    {
+        var graphResource = await ResolveGraphResourceOrThrowAsync(
+            context.ResourceContext.Resource.Id,
+            cancellationToken);
+        var executor = ResolveServiceExecutor(context.ResourceContext.Resource, action);
+        return new(
+            executor,
+            new ResourceModelGraphOrchestratorServiceProcedureContext(
+                context.ResourceContext.Resource,
+                graphResource,
+                context.ResourceContext,
+                context.Service,
+                context.ReplicaGroup));
+    }
+
+    private async ValueTask<ResourceModelGraphServiceInstanceExecutorResolution> CreateServiceInstanceContextAsync(
+        ResourceOrchestratorServiceInstanceContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken)
+    {
+        var graphResource = await ResolveGraphResourceOrThrowAsync(
+            context.ResourceContext.Resource.Id,
+            cancellationToken);
+        var executor = ResolveServiceExecutor(context.ResourceContext.Resource, action);
+        return new(
+            executor,
+            new ResourceModelGraphOrchestratorServiceInstanceContext(
+                context.ResourceContext.Resource,
+                graphResource,
+                context.ResourceContext,
+                context.Service,
+                context.Instance,
+                context.ReplicaGroup));
+    }
+
+    private async ValueTask<Resource> ResolveGraphResourceOrThrowAsync(
+        string resourceId,
+        CancellationToken cancellationToken)
+    {
+        var resolution = await _resourceResolver.ResolveAsync(
+            resourceId,
+            _resolutionContext,
+            cancellationToken);
+        if (resolution.Target is null)
+        {
+            throw new InvalidOperationException(
+                $"Resource model graph resource '{resourceId}' could not be resolved.");
+        }
+
+        if (resolution.HasErrors)
+        {
+            throw new InvalidOperationException(FormatDiagnostics(resolution.Diagnostics));
+        }
+
+        return resolution.Target;
+    }
+
+    private IResourceModelGraphOrchestratorServiceExecutor ResolveServiceExecutor(
+        ResourceManagerResource resource,
+        ResourceAction action) =>
+        _serviceExecutors.FirstOrDefault(executor =>
+            executor.CanExecuteOrchestratorService(resource, action)) ??
+        throw new NotSupportedException(
+            $"Resource model graph resource '{resource.Id}' does not support orchestrator service action '{action.Id}'.");
+
     private static string FormatDiagnostics(
         IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics) =>
         string.Join(
@@ -402,3 +549,11 @@ public sealed class ResourceModelGraphProcedureProvider :
             out var bridgeProviderId) &&
         string.Equals(bridgeProviderId, Id, StringComparison.OrdinalIgnoreCase);
 }
+
+internal sealed record ResourceModelGraphServiceExecutorResolution(
+    IResourceModelGraphOrchestratorServiceExecutor Executor,
+    ResourceModelGraphOrchestratorServiceProcedureContext Context);
+
+internal sealed record ResourceModelGraphServiceInstanceExecutorResolution(
+    IResourceModelGraphOrchestratorServiceExecutor Executor,
+    ResourceModelGraphOrchestratorServiceInstanceContext Context);
