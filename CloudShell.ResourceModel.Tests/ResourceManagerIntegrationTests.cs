@@ -2218,6 +2218,76 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_TearsDownRetiredReplicaGroupsAfterDeploymentReconciliation()
+    {
+        var runtimeHandler = new RecordingContainerApplicationRuntimeHandler(
+            ContainerApplicationRuntimeStatus.Running);
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddContainerHostResourceType();
+        services.AddSingleton<IContainerApplicationRuntimeHandler>(runtimeHandler);
+        services.AddContainerApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddBuiltInProviderResourceManagerProjections();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        var deploymentCoordinator = new RecordingResourceOrchestratorDeploymentCoordinator(
+            retirePreviousReplicaGroup: true);
+        var tearDownOrchestrator = new RecordingReplicaGroupTearDownOrchestrator();
+        services.AddSingleton<IResourceOrchestratorDeploymentCoordinator>(deploymentCoordinator);
+        services.AddSingleton<IResourceOrchestrator>(tearDownOrchestrator);
+        services.AddScoped<IResourceManagerStore>(serviceProvider =>
+            new ProjectedResourceManagerStore(() =>
+                serviceProvider.GetServices<IResourceProvider>().ToArray()));
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceDefinitionGraphBuilder();
+        var host = graph
+            .AddContainerHost("docker")
+            .UseDocker();
+        var container = graph
+            .AddContainerApplication("api")
+            .UseContainerHost(host)
+            .WithImage("ghcr.io/example/api:latest")
+            .WithReplicas(2);
+
+        var initialApply = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("container-app", environmentId: "local"),
+            new ResourceGraphCommitContext(PrincipalId: "developer"));
+
+        Assert.False(initialApply.HasErrors, FormatDiagnostics(initialApply.Diagnostics));
+        Assert.Empty(deploymentCoordinator.Deployments);
+        Assert.Empty(tearDownOrchestrator.TornDownReplicaGroups);
+
+        var imageApply = await service.ApplyDefinitionsAsync(
+            [
+                new ResourceDefinition(
+                    container.Name,
+                    ContainerApplicationResourceTypeProvider.ResourceTypeId,
+                    ResourceId: container.EffectiveResourceId,
+                    Attributes: new ResourceAttributeValueMap(
+                        new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+                        {
+                            [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] =
+                                "ghcr.io/example/api:v2"
+                        }))
+            ],
+            new ResourceGraphCommitContext(
+                EnvironmentId: "local",
+                PrincipalId: "developer"));
+
+        Assert.False(imageApply.HasErrors, FormatDiagnostics(imageApply.Diagnostics));
+        Assert.Empty(imageApply.Diagnostics);
+        Assert.Single(deploymentCoordinator.Deployments);
+        var tearDown = Assert.Single(tearDownOrchestrator.TornDownReplicaGroups);
+        Assert.Contains("previous-revision-replicas", tearDown, StringComparison.Ordinal);
+        Assert.Contains(":developer:", tearDown, StringComparison.Ordinal);
+        Assert.Contains(
+            "ResourceDefinition apply requested runtime reconciliation for principal 'developer'.",
+            tearDown,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphProcedureProvider_ExecutesContainerApplicationOrchestratorService()
     {
         var runtimeHandler = new RecordingContainerApplicationRuntimeHandler(
@@ -6525,7 +6595,8 @@ public sealed class ResourceManagerIntegrationTests
             GetResource(resourceId) is not null;
     }
 
-    private sealed class RecordingResourceOrchestratorDeploymentCoordinator :
+    private sealed class RecordingResourceOrchestratorDeploymentCoordinator(
+        bool retirePreviousReplicaGroup = false) :
         IResourceOrchestratorDeploymentCoordinator
     {
         private readonly List<ResourceOrchestratorDeployment> _deployments = [];
@@ -6561,10 +6632,98 @@ public sealed class ResourceManagerIntegrationTests
                 replicaGroup,
                 ProvisionedBy: triggeredBy,
                 Definition: deployment.Spec.CreateDeploymentDefinition(deployment.RevisionId));
+            var previousReplicaGroup = retirePreviousReplicaGroup
+                ? CreatePreviousReplicaGroup(deployment)
+                : null;
+            IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest> retiredReplicaGroups =
+                retirePreviousReplicaGroup && previousReplicaGroup is not null
+                ?
+                [
+                    new ResourceOrchestratorReplicaGroupTearDownRequest(
+                        deployment.Spec.Service with
+                        {
+                            RuntimeRevisionId = previousReplicaGroup.RuntimeRevisionId,
+                            Workload = deployment.Spec.Service.Workload with
+                            {
+                                Replicas = previousReplicaGroup.RequestedReplicas,
+                                ReplicasEnabled = previousReplicaGroup.RequestedReplicas > 1
+                            }
+                        },
+                        previousReplicaGroup,
+                        "Retire previous graph apply revision.")
+                ]
+                : [];
             return Task.FromResult(new ResourceOrchestratorDeploymentApplyResult(
                 applied,
                 revision,
-                ResourceProcedureResult.Completed($"Applied deployment '{deployment.Id}'.")));
+                ResourceProcedureResult.Completed($"Applied deployment '{deployment.Id}'."),
+                retiredReplicaGroups,
+                previousReplicaGroup));
+        }
+
+        private static ResourceOrchestratorReplicaGroup? CreatePreviousReplicaGroup(
+            ResourceOrchestratorDeployment deployment)
+        {
+            var service = deployment.Spec.Service with
+            {
+                RuntimeRevisionId = "previous-revision",
+                Workload = deployment.Spec.Service.Workload with
+                {
+                    Replicas = 1,
+                    ReplicasEnabled = false
+                }
+            };
+            return ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+                service,
+                "previous-revision");
+        }
+    }
+
+    private sealed class RecordingReplicaGroupTearDownOrchestrator :
+        IResourceOrchestrator,
+        IResourceOrchestratorReplicaGroupTearDown
+    {
+        public string Id => "default";
+
+        public string DisplayName => "Default";
+
+        public List<string> TornDownReplicaGroups { get; } = [];
+
+        public bool CanExecute(
+            ResourceOrchestrationContext context,
+            ResourceAction action) =>
+            false;
+
+        public Task<ResourceProcedureResult> ExecuteActionAsync(
+            ResourceOrchestrationContext context,
+            ResourceAction action,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public bool CanDelete(ResourceOrchestrationContext context) => false;
+
+        public Task<ResourceProcedureResult> DeleteAsync(
+            ResourceOrchestrationContext context,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public bool CanTearDownReplicaGroup(
+            ResourceOrchestrationContext context,
+            ResourceOrchestratorService service,
+            ResourceOrchestratorReplicaGroup replicaGroup) =>
+            string.Equals(context.Resource.Id, service.ResourceId, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(service.Name, replicaGroup.ServiceId, StringComparison.OrdinalIgnoreCase);
+
+        public Task<ResourceProcedureResult> TearDownReplicaGroupAsync(
+            ResourceOrchestrationContext context,
+            ResourceOrchestratorService service,
+            ResourceOrchestratorReplicaGroup replicaGroup,
+            CancellationToken cancellationToken = default)
+        {
+            TornDownReplicaGroups.Add(
+                $"{service.Name}:{replicaGroup.Id}:{context.TriggeredBy}:{context.Cause}");
+            return Task.FromResult(ResourceProcedureResult.Completed(
+                $"Tore down replica group '{replicaGroup.Id}'."));
         }
     }
 

@@ -170,13 +170,19 @@ public sealed class ContainerApplicationResourceModelGraphApplyReconciler(
 
         try
         {
-            await coordinator.ApplyDeploymentAsync(
+            var applyResult = await coordinator.ApplyDeploymentAsync(
                 resource,
                 deployment,
                 cancellationToken,
                 context.CommitContext.PrincipalId,
                 cause);
-            return [];
+            return await RunPostApplyDeploymentTearDownAsync(
+                resource,
+                resourceManager,
+                applyResult,
+                context.CommitContext.PrincipalId,
+                cause,
+                cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -189,6 +195,130 @@ public sealed class ContainerApplicationResourceModelGraphApplyReconciler(
             ];
         }
     }
+
+    private async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> RunPostApplyDeploymentTearDownAsync(
+        ResourceManagerResource resource,
+        IResourceManagerStore resourceManager,
+        ResourceOrchestratorDeploymentApplyResult applyResult,
+        string? triggeredBy,
+        string cause,
+        CancellationToken cancellationToken)
+    {
+        if (applyResult.ReplicaGroupsToTearDown.Count == 0)
+        {
+            return [];
+        }
+
+        var diagnostics = new List<ResourceDefinitionDiagnostic>();
+        var context = new ResourceOrchestrationContext(
+            resource,
+            _registrations.GetRegistration(resource.Id),
+            resourceManager.GetGroupForResource(resource.Id),
+            resourceManager,
+            _registrations,
+            PreferredContainerHostId: null,
+            triggeredBy,
+            cause,
+            _resourceEvents);
+        foreach (var tearDown in applyResult.ReplicaGroupsToTearDown)
+        {
+            var replicaGroup = tearDown.ReplicaGroup ??
+                ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(tearDown.Service);
+            var reason = tearDown.Reason ?? "Deployment retired superseded replica group.";
+            var tearDownHandler = SelectReplicaGroupTearDown(
+                context,
+                applyResult.Deployment.OrchestratorId,
+                tearDown.Service,
+                replicaGroup);
+            if (tearDownHandler is null)
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Warning(
+                    "application.container.deploymentCleanupUnavailable",
+                    $"Container application deployment applied, but superseded replica group '{replicaGroup.Id}' could not be torn down because no orchestrator can tear it down.",
+                    resource.Id));
+                continue;
+            }
+
+            AppendDeploymentEvent(
+                resource,
+                ResourceEventTypes.Events.Deployment.CleanupRunning,
+                $"Cleaning up superseded replica group '{replicaGroup.Id}' for deployment '{applyResult.Deployment.Id}'. Reason: {reason}",
+                triggeredBy,
+                ResourceSignalSeverity.Info);
+            try
+            {
+                var result = await tearDownHandler.TearDownReplicaGroupAsync(
+                    context,
+                    tearDown.Service,
+                    replicaGroup,
+                    cancellationToken);
+                AppendDeploymentEvent(
+                    resource,
+                    ResourceEventTypes.Events.Deployment.CleanupCompleted,
+                    $"Cleaned up superseded replica group '{replicaGroup.Id}' for deployment '{applyResult.Deployment.Id}'. Result: {result.Message}",
+                    triggeredBy,
+                    ResourceSignalSeverity.Info);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                var message =
+                    $"Container application deployment applied, but superseded replica group '{replicaGroup.Id}' could not be torn down. Reason: {exception.Message}";
+                diagnostics.Add(ResourceDefinitionDiagnostic.Warning(
+                    "application.container.deploymentCleanupFailed",
+                    message,
+                    resource.Id));
+                AppendDeploymentEvent(
+                    resource,
+                    ResourceEventTypes.Events.Deployment.CleanupWarning,
+                    message,
+                    triggeredBy,
+                    ResourceSignalSeverity.Warning);
+            }
+        }
+
+        return diagnostics;
+    }
+
+    private IResourceOrchestratorReplicaGroupTearDown? SelectReplicaGroupTearDown(
+        ResourceOrchestrationContext context,
+        string orchestratorId,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup)
+    {
+        var orchestrators = _serviceProvider?
+            .GetServices<IResourceOrchestrator>()
+            .ToArray() ?? [];
+        var explicitOrchestrator = orchestrators.FirstOrDefault(orchestrator =>
+            string.Equals(
+                orchestrator.Id,
+                orchestratorId,
+                StringComparison.OrdinalIgnoreCase) &&
+            orchestrator is IResourceOrchestratorReplicaGroupTearDown tearDown &&
+            tearDown.CanTearDownReplicaGroup(context, service, replicaGroup));
+        if (explicitOrchestrator is IResourceOrchestratorReplicaGroupTearDown explicitTearDown)
+        {
+            return explicitTearDown;
+        }
+
+        return orchestrators.FirstOrDefault(orchestrator =>
+            orchestrator is IResourceOrchestratorReplicaGroupTearDown tearDown &&
+            tearDown.CanTearDownReplicaGroup(context, service, replicaGroup))
+            as IResourceOrchestratorReplicaGroupTearDown;
+    }
+
+    private void AppendDeploymentEvent(
+        ResourceManagerResource resource,
+        string eventType,
+        string message,
+        string? triggeredBy,
+        ResourceSignalSeverity severity) =>
+        _resourceEvents?.Append(new ResourceEvent(
+            resource.Id,
+            eventType,
+            message,
+            DateTimeOffset.UtcNow,
+            triggeredBy,
+            severity));
 
     private static bool RequiresRuntimeReconciliation(
         ResourceChangeSet changeSet)

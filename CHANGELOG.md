@@ -102,6 +102,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Hosting composition tests now lock the split-host boundary by verifying that
   UI-only registration does not install Control Plane services, while combined
   registration composes both CloudShell UI and Control Plane services.
+- ResourceTemplate apply for graph-backed container apps now tears down
+  retired replica groups returned by deployment reconciliation, so image
+  updates applied through the Resource model can switch routing to the new
+  replica group and then clean up superseded replicas.
 - ApplicationTopology sample smoke assertions now match the ResourceDefinition
   model for ad-hoc volumes and name mappings instead of expecting the old
   storage-wrapper resource projection.
