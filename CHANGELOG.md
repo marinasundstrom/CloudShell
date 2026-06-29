@@ -40,6 +40,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Start-triggered resource deployments now run the same post-apply cleanup path
   as image and replica updates, allowing deployment-capable providers to retire
   superseded replica groups after the new deployment revision is applied.
+- Post-apply deployment cleanup now runs through a shared Control Plane
+  coordinator used by start, image-update, and replica-update deployment
+  flows, keeping cleanup events, warnings, and retired replica group teardown
+  behavior consistent across entry points.
 - Container app replicated ingress configuration, start/update, and stop
   handling now lives in a focused `ContainerApplicationIngressOperations`
   boundary used by runtime service execution and service preparation, instead

@@ -46,7 +46,8 @@ public sealed class InProcessControlPlane(
     IHttpContextAccessor? httpContextAccessor = null,
     ResourceIdentityProviderCatalog? identityProviders = null,
     IEnumerable<IResourceIdentityDirectoryProvider>? identityDirectoryProviders = null,
-    IEnumerable<IResourcePermissionGrantStatusProvider>? permissionGrantStatusProviders = null) : IControlPlane
+    IEnumerable<IResourcePermissionGrantStatusProvider>? permissionGrantStatusProviders = null,
+    ResourceOrchestratorDeploymentCleanupCoordinator? deploymentCleanup = null) : IControlPlane
 {
     private const string PreferredUsernameClaimType = "preferred_username";
     private const string UnauthenticatedRequestActor = "user";
@@ -64,6 +65,8 @@ public sealed class InProcessControlPlane(
 
     private readonly IReadOnlyList<IResourcePermissionGrantStatusProvider> permissionGrantStatusProviders =
         (permissionGrantStatusProviders ?? []).ToArray();
+    private readonly ResourceOrchestratorDeploymentCleanupCoordinator deploymentCleanup =
+        deploymentCleanup ?? new ResourceOrchestratorDeploymentCleanupCoordinator(resourceEvents);
 
     public Task<IReadOnlyList<ResourceGroup>> ListResourceGroupsAsync(
         CancellationToken cancellationToken = default)
@@ -864,30 +867,6 @@ public sealed class InProcessControlPlane(
                 .Concat(applyResult.Signals)
                 .ToArray());
 
-    private static ResourceProcedureResult AddProcedureWarning(
-        ResourceProcedureResult result,
-        string warning) =>
-        result with
-        {
-            Signals = result.Signals
-                .Append(ResourceProcedureSignal.Warning(warning))
-                .ToArray()
-        };
-
-    private void AppendDeploymentEvent(
-        Resource resource,
-        string eventType,
-        string message,
-        string? triggeredBy,
-        ResourceSignalSeverity severity) =>
-        resourceEvents?.Append(new ResourceEvent(
-            resource.Id,
-            eventType,
-            message,
-            DateTimeOffset.UtcNow,
-            triggeredBy,
-            severity));
-
     private static string FormatRequestedReplicas(int? requestedReplicas) =>
         requestedReplicas is { } value
             ? value.ToString(CultureInfo.InvariantCulture)
@@ -1048,72 +1027,36 @@ public sealed class InProcessControlPlane(
         ResourceProcedureResult result,
         string? triggeredBy,
         string cause,
-        CancellationToken cancellationToken)
-    {
-        var tearDowns = applyResult.ReplicaGroupsToTearDown;
-        if (tearDowns.Count == 0)
-        {
-            var tearDownProvider = GetDeploymentTearDownProvider(resource);
-            if (tearDownProvider is not null &&
-                tearDownProvider.CanDescribeDeploymentTearDown(resource))
+        CancellationToken cancellationToken) =>
+        await deploymentCleanup.RunPostApplyCleanupAsync(
+            resource,
+            applyResult,
+            result,
+            triggeredBy,
+            async (appliedDeployment, token) =>
             {
-                tearDowns = await tearDownProvider.DescribeDeploymentTearDownAsync(
+                var tearDownProvider = GetDeploymentTearDownProvider(resource);
+                if (tearDownProvider is null ||
+                    !tearDownProvider.CanDescribeDeploymentTearDown(resource))
+                {
+                    return [];
+                }
+
+                return await tearDownProvider.DescribeDeploymentTearDownAsync(
                     CreateProcedureContext(resource, triggeredBy, cause),
-                    applyResult,
-                    cancellationToken);
-            }
-        }
-
-        if (tearDowns.Count == 0)
-        {
-            return result;
-        }
-
-        var mergedResult = result;
-        foreach (var tearDown in tearDowns)
-        {
-            var replicaGroup = tearDown.ReplicaGroup ??
-                ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(tearDown.Service);
-            var reason = tearDown.Reason ?? "Deployment retired superseded replica group.";
-            AppendDeploymentEvent(
-                resource,
-                ResourceEventTypes.Events.Deployment.CleanupRunning,
-                $"Cleaning up superseded replica group '{replicaGroup.Id}' for deployment '{applyResult.Deployment.Id}'. Reason: {reason}",
-                triggeredBy,
-                ResourceSignalSeverity.Info);
-            try
-            {
-                var tearDownResult = await orchestration.TearDownReplicaGroupAsync(
+                    appliedDeployment,
+                    token);
+            },
+            async (tearDown, replicaGroup, reason, token) =>
+                await orchestration.TearDownReplicaGroupAsync(
                     resource,
                     tearDown.Service,
                     replicaGroup,
-                    cancellationToken,
+                    token,
                     triggeredBy,
-                    reason);
-                AppendDeploymentEvent(
-                    resource,
-                    ResourceEventTypes.Events.Deployment.CleanupCompleted,
-                    $"Cleaned up superseded replica group '{replicaGroup.Id}' for deployment '{applyResult.Deployment.Id}'. Result: {tearDownResult.Message}",
-                    triggeredBy,
-                    ResourceSignalSeverity.Info);
-                mergedResult = MergeAppliedDeploymentResult(mergedResult, tearDownResult);
-            }
-            catch (Exception exception) when (exception is not OperationCanceledException)
-            {
-                var warning =
-                    $"Post-apply cleanup for deployment '{applyResult.Deployment.Id}' could not tear down replica group '{replicaGroup.Id}'. Reason: {exception.Message}";
-                AppendDeploymentEvent(
-                    resource,
-                    ResourceEventTypes.Events.Deployment.CleanupWarning,
-                    warning,
-                    triggeredBy,
-                    ResourceSignalSeverity.Warning);
-                mergedResult = AddProcedureWarning(mergedResult, warning);
-            }
-        }
-
-        return mergedResult;
-    }
+                    reason),
+            MergeAppliedDeploymentResult,
+            cancellationToken);
 
     public async Task<ResourceTemplateExportResult> ExportResourceTemplateAsync(
         ResourceTemplateExportRequest request,
