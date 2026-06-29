@@ -271,15 +271,31 @@ front. When choosing work, prefer the slice that most improves a developer's
 ability to run, understand, diagnose, and persist a realistic distributed
 application from Resource Manager.
 
+The immediate planning anchor is the Resource Graph POC migration. Supported
+samples should continue moving from the old provider-definition path to
+graph-backed `ResourceDefinition` state and the Resource Manager bridge. The
+goal is not to expose deployments publicly yet; it is to make resource
+definitions the normal create/update/export/apply contract while Resource
+Manager and the orchestrator derive internal deployment work from accepted
+resource state. Container apps are the highest-risk proof because a single
+container app resource controls image, replica slots, endpoints, runtime
+replicas, load-balancer/routing behavior, revision correlation, and cleanup.
+Those concerns should converge on the same deployment-controller path instead
+of remaining split across provider-specific image update, replica update,
+lifecycle, and sample runtime code.
+
 After the recent action-readiness and container deployment hardening, including
 the first HTTP readiness gate for container app deployment materialization and
 Deployment/Revisions UI separation for deploying versus inspecting materialized
 states, keep Control Plane feedback and Resource Manager surfacing as core MVP
 quality, but judge that work through the full developer experience rather than
-as an isolated backend checklist. The next urgent MVP slice is to prove the
-Application Topology sample end to end and make the app-centric Resource
-Manager path explain the runtime model without requiring sample-specific
-knowledge.
+as an isolated backend checklist. The next urgent MVP slice is to finish
+documenting and then executing the graph-backed provider migration plan:
+resource template apply/export, container app orchestration, load-balancer
+rebinding, provider-owned runtime projection, and the cleanup of old
+provider-template seams. Application Topology remains the broad sample proof,
+but it should prove the graph-backed path rather than keep both provider
+models equally alive.
 
 Plan and verify MVP work through use cases. The priority use cases are:
 
@@ -298,13 +314,13 @@ Plan and verify MVP work through use cases. The priority use cases are:
 6. Persist the resource graph deliberately and understand what changes from
    transient code-first declarations to durable Control Plane state.
 
-The most urgent near-term slice is Application Topology end-to-end confidence:
-run the sample as the standing proof, identify where the Resource Manager
-experience still requires sample-specific knowledge, and close those gaps with
-small app-centric improvements. The first relationship graph and related
-health/action surfacing are now in place, so the next work should use them as
-part of the app workflow rather than expanding into broad environment topology
-tooling.
+The most urgent near-term slice is Resource Graph POC convergence:
+run the graph-backed switch-readiness samples as the standing proof, identify
+where old provider/template/runtime behavior is still required, and close
+those gaps with small provider or Resource Manager bridge changes. Application
+Topology remains the broad end-to-end proof once the graph-backed provider
+path is stable enough to carry the app environment without sample-specific
+compatibility code.
 
 The current re-alignment keeps the MVP in stabilization mode. Recent work has
 made the main surfaces credible, so the next useful work is not a new feature
@@ -420,31 +436,39 @@ external-format import/code generation, and initial on-premise hosting.
 
 For the next run, prefer these slices in order:
 
-1. Inventory and tighten the current UI foundation used by Resource Manager
-   and Settings: shared local navigation, route-backed resource views,
-   selector/search behavior, resource/principal reference labels, action bars,
-   status pills, alert boxes, generated detail rows, tables, empty/loading/error
-   states, and icon usage. Extract or consolidate only where current MVP views
-   already repeat the same behavior.
-2. Run Application Topology as the standing proof and record only concrete
-   sample setup, startup, auth, lifecycle, resource projection, or smoke-test
-   gaps that prevent repeatable local use.
-3. Fix Resource Manager naming and exposure clarity in the app path: user-facing
+1. Finish Resource Graph POC alignment for the supported samples: keep the
+   `ResourceTemplate` envelope ResourceDefinition-based, remove remaining old
+   resource-template serialization dependencies where graph-backed providers
+   can round-trip definitions, and document non-parity rather than preserving
+   compatibility wrappers that no longer match the model.
+2. Refactor container app runtime changes onto the deployment/controller path:
+   image updates, replica-slot changes, first start materialization, scale-in,
+   scale-out, routing rebinding, readiness, retained previous slots, and
+   cleanup should all be planned from accepted resource state before runtime
+   resources change.
+3. Define the load-balancer/routing reaction boundary for replica-group
+   changes. Prefer an orchestrator/controller-owned routing reconciliation
+   hook over container-app-specific imperative remapping code, and keep the
+   Environment Map as a read model over those artifacts.
+4. Run Application Topology as the broad proof and record only concrete sample
+   setup, startup, auth, lifecycle, resource projection, graph apply/export, or
+   smoke-test gaps that prevent repeatable graph-backed local use.
+5. Fix Resource Manager naming and exposure clarity in the app path: user-facing
    messages should lead with resource names, DNS/name mappings should be
    convenient anchors where a concrete endpoint can be resolved, and generated
    details should distinguish reachable addresses from muted source metadata.
-4. Harden lifecycle and provider feedback for the supported local flow:
+6. Harden lifecycle and provider feedback for the supported local flow:
    host-scoped shutdown, detached/re-attach behavior, process and Docker command
    diagnostics, occupied ports, missing hosts, and provider warnings should be
    visible at the right logging level and surfaced as actionable resource
    feedback when they affect the UI.
-5. Tighten readiness and failure feedback for the supported start/restart,
+7. Tighten readiness and failure feedback for the supported start/restart,
    SQL Server, storage, settings/secrets, identity, DNS/name, and exposure
    paths that the sample actually exercises.
-6. Keep resource-scoped health, logs, traces, monitoring, activity, and
+8. Keep resource-scoped health, logs, traces, monitoring, activity, and
    relationship views coherent from the app page before adding broader global
    views or new shell-platform features.
-7. Update sample documentation where the verified local-development flow
+9. Update sample documentation where the verified local-development flow
    depends on explicit startup, auth, logging, Docker, or host prerequisites.
 
 ### Immediate Proposal Order
@@ -677,8 +701,8 @@ listed here before pulling in broader proposal work.
   Resource Manager state. Treat those services, replica groups, replicas, and
   routing bindings as
   [environment artifacts](terminology.md#environment-artifact) in the
-  [Environment Runtime Model](terminology.md#environment-runtime-model), not
-  merely as deployment internals. Follow-up work should feed it richer
+  [Runtime model](terminology.md#runtime-model), not merely as deployment
+  internals. Follow-up work should feed it richer
   controller state as service routing rebinding becomes reactive.
   Next refinement slices should keep the service boundary as the primary
   visual unit, render managed workload resources such as container apps as

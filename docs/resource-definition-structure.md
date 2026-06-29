@@ -104,6 +104,23 @@ The graph POC currently has `ResourceTemplate` as a small grouping of
 `ResourceDefinition` values that can be validated and applied together. It is
 intentionally narrow.
 
+The file-level shape should remain a desired-state envelope:
+
+```yaml
+resources:
+  - type: application.container-app
+    name: api
+    attributes:
+      container.image: api:latest
+      container.replicas: 3
+```
+
+This shape is called a **ResourceTemplate** because it contains resource
+definitions. It should not be wrapped in `ResourceDeploymentDefinition` or any
+other deployment-shaped user authoring object. If Resource Manager or an
+orchestrator needs a deployment definition, that definition is an internal
+orchestration artifact produced after Resource Manager accepts resource state.
+
 The public apply model should stay close to Azure ARM in spirit: an actor
 declares resource state and sends one or more `ResourceDefinition` entries to
 Resource Manager. The "Add resource" page produces a `ResourceDefinition` for

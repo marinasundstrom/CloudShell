@@ -1,144 +1,195 @@
 # Resource Templates
 
-Resource templates export and import an entire resource group without moving
-provider-owned runtime configuration into the CloudShell database.
+Resource templates are the user-facing desired-state authoring format for the
+Resource Graph POC. A template is a small envelope around one or more
+`ResourceDefinition` entries. It is not an orchestrator deployment artifact and
+it is not a second provider-specific template system.
 
-CloudShell owns the group-level template envelope, dependency ordering, and
-import/export orchestration. Providers decide whether they support templates for
-their resource types, and providers own the schema and validation of their
-configuration payloads.
+The Resource Manager apply path owns template orchestration: it validates the
+envelope, applies each resource definition through the resource graph and the
+owning resource type provider, then lets deployment planning decide whether the
+accepted resource-state change requires runtime materialization.
 
 ## Template Shape
 
-A resource group template uses a common envelope:
+The canonical model is:
+
+```yaml
+resources:
+  - type: application.container-app
+    name: api
+    attributes:
+      container.image: api:latest
+      container.replicas: 3
+```
+
+The equivalent JSON projection is:
 
 ```json
 {
-  "templateVersion": "1.0",
-  "kind": "resourceGroup",
-  "name": "Local Development",
-  "description": "Frontend, API, and supporting services",
   "resources": [
     {
-      "name": "Example Web API",
-      "providerId": "applications.aspnet-core-project",
-      "resourceType": "application.aspnet-core-project",
-      "dependsOn": [],
-      "providerConfigurationVersion": "1.0",
-      "resourceId": "application:example-web-api",
-      "configuration": {
-        "executablePath": "dotnet",
-        "arguments": "watch --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj run --no-launch-profile",
-        "workingDirectory": null,
-        "endpoint": null,
-        "environmentVariables": [],
-        "lifetime": "Detached",
-        "references": [],
-        "useServiceDiscovery": false,
-        "endpointPorts": [
-          {
-            "name": "http",
-            "targetPort": 80,
-            "port": null,
-            "protocol": "http",
-            "exposure": "Local"
-          }
-        ]
+      "type": "application.container-app",
+      "name": "api",
+      "attributes": {
+        "container.image": "api:latest",
+        "container.replicas": 3
       }
     }
   ]
 }
 ```
 
-The `configuration` object is provider-owned JSON. CloudShell carries it in the
-template document, but does not interpret the provider-specific fields.
+The file-level envelope may later grow apply metadata such as environment,
+mode, validation options, or parameters. The inner resource entries should stay
+based on `ResourceDefinition` so add-resource flows, edit-resource flows,
+exports, imports, and file-based apply all use the same resource-state model.
 
-The application provider package preserves specific application-backed resource types,
-including `application.executable`, `application.aspnet-core-project`,
-`application.container-app`, and `application.sql-server`.
+## Apply Semantics
 
-New exports use the resource-type-specific provider id, such as
-`applications.executable`, `applications.aspnet-core-project`,
-`applications.container-app`, or `applications.sql-server`. Older templates
-may still contain the legacy aggregate `applications` provider id; that id is
-accepted only as a compatibility boundary and is not an active built-in
-provider registration.
+Applying a template means applying resource intent:
 
-Application provider templates also preserve app settings and environment
-variables, including literal values, configuration-entry references, and
-Secrets Vault references. Reference-backed entries keep the referenced store or
-vault resource ID, entry or secret name, and optional version. Secret values are
-not embedded in application templates; only the `SecretReference` is preserved.
-Templates should include the referenced configuration store or Secrets Vault
-resources, or the imported application should keep dependencies pointing to
-equivalent resources in the target environment.
+1. Resource Manager receives one or more `ResourceDefinition` entries.
+2. The Resource Graph resolves identities, references, class/type defaults,
+   attributes, capabilities, and operations.
+3. The owning resource type provider validates and accepts or rejects the
+   proposed resource state.
+4. Accepted state is committed to the Resource Graph.
+5. Deployment planning decides whether runtime state must change.
+6. The orchestrator materializes runtime changes when needed.
 
-`name` is the friendly display name. `resourceId` is the stable resource
-identifier used by registrations, links, logs, configuration endpoints, and
-authorization. New exports include `resourceId`; older templates without it are
-still accepted and providers allocate a unique ID from the friendly name.
-Explicit `resourceId` values must not already exist in the target CloudShell
-instance.
+This keeps resource authoring separate from runtime orchestration. Users
+declare resources and the state they want those resources in. They do not need
+to author orchestrator deployments, orchestrator services, replica groups, or
+runtime replicas for normal workflows.
 
-Configuration service templates include non-secret entry values. Secret entries
-are exported as empty placeholders so templates do not leak secrets by default.
-Secrets Vault templates export secret names and empty placeholders only; secret
-material stays provider-owned and must be supplied after import.
+For example, changing a container app image should be an incremental resource
+definition:
+
+```json
+{
+  "resources": [
+    {
+      "type": "application.container-app",
+      "name": "api",
+      "attributes": {
+        "container.image": "ghcr.io/example/api:20260629.1"
+      }
+    }
+  ]
+}
+```
+
+Changing the requested replica slots is the same resource-state operation:
+
+```json
+{
+  "resources": [
+    {
+      "type": "application.container-app",
+      "name": "api",
+      "attributes": {
+        "container.replicas": 4
+      }
+    }
+  ]
+}
+```
+
+The container app provider and Resource Manager deployment controller decide
+how those accepted changes affect the internal orchestrator service, replica
+group, routing bindings, load balancer, runtime replicas, readiness gates, and
+cleanup policy.
+
+## Export And Portability
+
+Exporting resources produces a resource template containing
+`ResourceDefinition` entries. Export should prefer the graph-owned resource
+state that can be reviewed, moved, edited, and applied again. It should not
+dump provider runtime caches, live container IDs, logs, health snapshots,
+secret values, or internal orchestrator deployment records.
+
+Provider-owned configuration that is part of the resource contract can appear
+as resource attributes, typed capability payloads, or provider-owned
+configuration fields when the resource type defines them. Secret material must
+not be exported. References to configuration entries or secrets can be
+exported when they are non-secret intent.
+
+## Relationship To Orchestration
+
+Resource templates are desired resource state. Orchestrator deployments are
+internal runtime materialization records derived from accepted resource state.
+
+The boundary is:
+
+```text
+Desired state
+(ResourceTemplate)
+    |
+    v
+Resource Graph
+    |
+    v
+Resource Providers
+    |
+    v
+Deployment Planning
+    |
+    v
+Orchestrator
+    |
+    v
+Running System
+```
+
+Do not wrap normal resource templates in `ResourceDeploymentDefinition` or any
+deployment-shaped user authoring envelope. If an internal orchestration API
+needs a deployment definition, it should use an orchestration-specific
+contract such as `ResourceOrchestratorDeploymentDefinition` and it should be
+produced by Resource Manager or a provider-owned planner after resource
+definitions have been accepted.
 
 ## Provider Contract
 
-Providers opt in by implementing `IResourceTemplateProvider`.
+The old provider-specific template engine is being replaced by graph-backed
+resource definitions. Providers should move template support toward these
+responsibilities:
 
-- `CanExport` determines whether a current resource can be written into a
-  template.
-- `ExportAsync` returns a `ResourceTemplateDefinition` with a provider-owned
-  configuration payload.
-- `CanImport` determines whether a resource template entry is supported.
-- `ImportAsync` creates the provider-owned configuration and registers the
-  imported resource in the target group.
+- define the resource type, attributes, capabilities, operations, and value
+  shapes they accept
+- validate a proposed `ResourceDefinition`
+- normalize provider-owned defaults into accepted graph state
+- render accepted graph state back to `ResourceDefinition`
+- plan runtime deployment changes when accepted resource state affects the
+  running system
 
-Unsupported resources are skipped and reported as diagnostics. This lets a
-group template preserve every supported resource without requiring all providers
-to implement import/export at the same time.
+Resource Manager should no longer need provider-specific serializer and
+deserializer logic for each resource type just to export or import a resource.
+The resource definition shape is the serialization boundary; provider logic is
+validation, normalization, and runtime planning.
 
-Template envelope validation is also reported through import diagnostics. An
-unsupported `kind` or `templateVersion` does not create a resource group and
-does not throw from the domain import API.
+## Commands And Delete
 
-## UI
+Templates are not the only way to operate resources.
 
-Open `/resources/templates` or use the **Templates** button on `/resources`.
+- Start, stop, pause, restart, and provider-specific operations remain resource
+  commands.
+- A provider may also treat an accepted resource-state change as implying a
+  runtime transition, but the direct command surface remains available for
+  operational actions.
+- Delete remains a Resource Manager delete operation. It is not modeled as a
+  user-authored deployment template.
 
-The page can:
+## Migration Notes
 
-- Export a selected resource group to formatted JSON.
-- Paste a resource group template and import it as a new group.
-- Show warnings and errors for unsupported providers, invalid payloads, or
-  dependency-order fallbacks.
+Near-term migration work should:
 
-Import creates a new resource group only after the template envelope is valid.
-Providers create new resource definitions using their own storage and
-registration flow.
-
-Resource dependencies are treated as resource communication boundaries by
-default. In the built-in application forms, dependency candidates are limited to
-the selected resource group; resources in the default group only see other
-default-group resources.
-
-## Persistence Boundary
-
-Templates do not add a resource configuration column to the core database.
-
-The core database remains responsible for platform metadata:
-
-- Explicitly registered root resources.
-- Resource group definitions.
-- Resource-to-group assignments.
-
-Provider configuration remains provider-owned. For example, the application
-provider continues to store executable application definitions in
-`CloudShell.Host/Data/application-resources.json`.
-
-The configuration provider stores configuration service definitions in
-`CloudShell.Host/Data/configuration-stores.json`. Secrets Vault definitions are
-stored separately in `CloudShell.Host/Data/secrets-vaults.json`.
+- keep graph-backed ResourceTemplate import/export focused on
+  `ResourceDefinition` entries
+- remove dependencies on the old `IResourceTemplateProvider` serialization
+  model where graph-backed resource types can round-trip through definitions
+- avoid preserving `ResourceDeploymentDefinition` compatibility wrappers unless
+  an internal orchestration API still explicitly needs an orchestration-shaped
+  DTO
+- document non-parity for old provider templates while the POC is switching
+  samples to the graph path

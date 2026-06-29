@@ -6,23 +6,31 @@ terms.
 
 ## Environment Models
 
-### Host Environment Model
+### Host Environment
 
-The **Host Environment Model** is the broad model of a CloudShell host
-environment. It represents the environment as a whole: its resources, runtime
-realization, operational state, and the artifacts Resource Manager can use to
-explain or operate that environment.
+The **host environment** is the environment CloudShell manages. It is where the
+complete realized model exists: resources, relationships, runtime artifacts,
+operational state, deployment history, and the provider or orchestrator facts
+Resource Manager can use to explain or operate that environment.
 
-The Environment Resource Model is a resource-focused subset of the Host
-Environment Model. The Environment Runtime Model is the management and
-orchestration realization of the same host environment.
+A host environment may be local, self-hosted, team-managed, or backed by a
+provider integration. The term describes the managed environment, not the
+CloudShell web host process.
 
-### Environment Resource Model
+### Realized Model
 
-The **Environment Resource Model** is the resource-focused subset of the Host
-Environment Model. It describes the resources running in that environment and
-the relationships that application developers and Resource Manager users
-usually need first.
+The **realized model** is the complete model of a host environment as known by
+CloudShell. It includes the Resource model and the Runtime model together.
+
+The Resource model is the resource-focused subset of the realized model. The
+Runtime model is the fuller management, orchestration, and deployment view of
+the same realized environment.
+
+### Resource Model
+
+The **Resource model** represents the resources in a host environment and the
+relationships between them. It is the part of the realized model that
+application developers and Resource Manager users usually need first.
 
 It contains:
 
@@ -35,18 +43,19 @@ It answers:
 
 > What resources are running in this environment, and how are they connected?
 
-The graph representation of this model is the **Resource Graph**.
+The graph representation of this model is the **Resource graph**.
 
-Do not shorten this term to **Resource Model** in contexts where it could be
-confused with the lower-level projected resource object model documented in
-[Resource Model](resource-model.md).
+This term intentionally overlaps with the lower-level projected resource object
+model documented in [Resource Model](resource-model.md). Use **Resource graph**
+when the graph representation needs to be distinguished from individual
+resource records, projections, or definitions.
 
-### Environment Runtime Model
+### Runtime Model
 
-The **Environment Runtime Model** is the fuller management and orchestration
-model of the same host environment. It describes how the Host Environment
-Model is actually materialized and operated by Resource Manager, providers,
-and orchestrators.
+The **Runtime model** is the fuller management, orchestration, and deployment
+model of the same host environment. It includes the Resource model as a subset
+and adds the runtime artifacts that explain how resources are materialized,
+operated, versioned, routed, and changed over time.
 
 It contains:
 
@@ -64,13 +73,15 @@ It answers:
 > How is the environment realized, versioned, deployed, scaled, routed, and
 > operated?
 
-The graph representation of this model is the **Environment Map** or, when the
-distinction matters, the **Runtime Graph**.
+The Runtime model is where CloudShell talks about host state, orchestration,
+deployments, service boundaries, replica groups, replicas, routing bindings,
+retained revisions, and environment revisions. The graph representation of
+this model is the **Environment Map** or, when the distinction matters, the
+**Runtime graph**.
 
 ### Environment Artifact
 
-An **environment artifact** is any item that participates in the Environment
-Runtime Model.
+An **environment artifact** is any item that participates in the Runtime model.
 
 Examples:
 
@@ -132,17 +143,16 @@ observed shape associated with a resource.
 An **endpoint mapping** connects an endpoint to a concrete reachable address,
 published name, route, or other environment-specific access path.
 
-Endpoint mappings can appear in the Environment Resource Model when they help
-explain how resources connect. They can also appear as environment artifacts in
-the Environment Runtime Model when routing or publishing is managed by the
-runtime.
+Endpoint mappings can appear in the Resource model when they help explain how
+resources connect. They can also appear as environment artifacts in the Runtime
+model when routing or publishing is managed by the runtime.
 
 ## Runtime and Deployment Terms
 
 ### Orchestration Service
 
-An **orchestration service** is an Environment Runtime Model boundary that
-groups the artifacts needed to run and operate a runtime service. For a
+An **orchestration service** is a Runtime model boundary that groups the
+artifacts needed to run and operate a runtime service. For a
 container app, the orchestration service is the runtime boundary that contains
 its replica groups, replicas, routing bindings, and related runtime state.
 
@@ -151,9 +161,9 @@ several materialized artifacts need to behave as one runtime service.
 
 ### Replica Group
 
-A **replica group** is the Environment Runtime Model artifact that represents a
-requested set of replicas for a service, usually scoped to a service revision
-or runtime version.
+A **replica group** is the Runtime model artifact that represents a requested
+set of replicas for a service, usually scoped to a service revision or runtime
+version.
 
 CloudShell uses **replica group** as the durable term. It is intentionally not
 named after a Kubernetes ReplicaSet, even though it solves a similar class of
@@ -178,12 +188,23 @@ deployment definitions when runtime realization requires it.
 
 ### Resource Graph
 
-The **Resource Graph** is the graph representation of the Environment Resource
-Model.
+The **Resource graph** is the graph representation of the Resource model.
 
 ### Environment Map
 
-The **Environment Map** is the Resource Manager visualization of the
-Environment Runtime Model. It should emphasize service boundaries, replica
-groups, replicas, routing, and managed-resource ownership when those details
-matter for understanding the running environment.
+The **Environment Map** is the Resource Manager visualization of the Runtime
+model. It should emphasize service boundaries, replica groups, replicas,
+routing, and managed-resource ownership when those details matter for
+understanding the running environment.
+
+## Deprecated Term Aliases
+
+These aliases may appear in older docs and code comments while the POC is being
+renamed:
+
+- **Host Environment Model** means the realized model scoped to a host
+  environment.
+- **Environment Resource Model** means the Resource model.
+- **Environment Runtime Model** means the Runtime model.
+- **Runtime Graph** means the runtime graph representation used by the
+  Environment Map.

@@ -262,57 +262,58 @@ relationship integrity. The stable user-facing resource remains the
 application, storage resource, load balancer, or other modeled resource that
 owns the behavior.
 
-The **[Host Environment Model](terminology.md#host-environment-model)** is the
-broader model of a CloudShell host environment. The
-**[Environment Resource Model](terminology.md#environment-resource-model)** is
-its resource-focused subset: resources running in the environment, their
+The **[host environment](terminology.md#host-environment)** is where the
+complete realized model exists. The **[Resource model](terminology.md#resource-model)**
+represents the resources in that environment, their relationships,
 dependencies, endpoints, and endpoint mappings or names when present. It
 answers what resources are in the environment, how they connect, and which
-resources the user can inspect or operate. CloudShell also has an
-**[Environment Runtime Model](terminology.md#environment-runtime-model)** for
-the same host environment: the runtime realization that Resource Manager and
-orchestrators materialize from the broader Host Environment Model. In that model,
-**[environment artifacts](terminology.md#environment-artifact)** include resources plus
-orchestration artifacts such as service boundaries, replica groups,
-materialized replicas, routing bindings, retained previous revisions, and
+resources the user can inspect or operate. Its graph representation is the
+**[Resource graph](terminology.md#resource-graph)**.
+
+The **[Runtime model](terminology.md#runtime-model)** is the fuller management,
+orchestration, and deployment model of the same host environment. It contains
+the Resource model as a subset and adds **[environment artifacts](terminology.md#environment-artifact)**
+such as orchestration service boundaries, replica groups, materialized
+replicas, routing bindings, retained previous revisions, deployments, and
 other runtime state. These artifacts are not only deployment internals. A
 deployment may define, change, or retire services, replica groups, replicas,
 and routing artifacts, while environment revisions record the versioned outcome
-of those changes. The Environment Runtime Model is often less important to
-application developers than the Environment Resource Model, but it becomes
-important for operations, diagnostics, deployment progress, scaling behavior,
-versioning the environment, and understanding why a running system changed.
+of those changes. The Runtime model is often less important to application
+developers than the Resource model, but it becomes important for operations,
+diagnostics, deployment progress, scaling behavior, versioning the environment,
+and understanding why a running system changed.
 
 ```mermaid
 flowchart TB
     host["Host environment"]
 
-    subgraph resourceModel["Environment Resource Model"]
-        resources["Resources"]
-        dependencies["Dependencies"]
-        endpoints["Endpoints"]
-        mappings["Endpoint mappings and names"]
-    end
+    subgraph runtimeModel["Runtime model"]
+        subgraph resourceModel["Resource model"]
+            runtimeResources["Resources"]
+            dependencies["Dependencies"]
+            endpoints["Endpoints"]
+            mappings["Endpoint mappings and names"]
+        end
 
-    subgraph runtimeModel["Environment Runtime Model"]
-        runtimeResources["Resources"]
         services["Orchestration services"]
         replicaGroups["Replica groups"]
         replicas["Replicas"]
         routing["Routing bindings"]
+        deployments["Deployments"]
         revisions["Environment revisions"]
     end
 
-    host --> resources
-    resources --> dependencies
-    resources --> endpoints
-    endpoints --> mappings
-
     host --> runtimeResources
+    runtimeResources --> dependencies
+    runtimeResources --> endpoints
+    endpoints --> mappings
     runtimeResources --> services
     services --> replicaGroups
     replicaGroups --> replicas
     services --> routing
+    deployments --> services
+    deployments --> replicaGroups
+    deployments --> routing
     revisions --> runtimeResources
     revisions --> services
     revisions --> replicaGroups

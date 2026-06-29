@@ -28,6 +28,18 @@ Other resource types may have lifecycle operations or provider-owned runtime
 state, but most do not need this deployment-centric set of versioned related
 resources.
 
+The current implementation direction is to finish moving container apps onto
+the Resource Graph POC path. User-facing creation and updates should be
+expressed as full or incremental `ResourceDefinition` entries: image, replica
+slots, endpoints, volume mounts, references, and other app-owned intent. After
+Resource Manager accepts that graph state, the container app provider should
+produce internal deployment-planning input for the orchestrator. Runtime
+replica creation, scale-in, scale-out, readiness, routing rebinding,
+load-balancer/ingress updates, retained previous slots, and cleanup should be
+handled by the orchestrator/controller path. Separate provider-specific paths
+that directly remove all replicas, recreate ingress, or remap backends during
+image and replica updates are temporary POC seams to remove.
+
 This proposal tracks the container app resource itself. Related proposals own
 adjacent subdomains:
 
@@ -292,6 +304,16 @@ replicas should exist or whether a failed slot should restart or be replaced.
 That decision belongs to the replica group reconciler because it has the active
 deployment, replica group, slot policy, liveness observations, and environment
 revision context.
+
+Likewise, service routing should be reconciled from replica-group state. A
+load balancer or ingress provider should rebind to the target replica group
+through an orchestrator/controller routing hook instead of requiring the
+container app image-update or replica-update operation to know how backends are
+registered. Scale-out can add replicas before routing changes when policy
+requires readiness first. Scale-in can remove routing membership before
+stopping stale replicas when policy requires draining. Image replacement can
+materialize the new group, rebind, then retire the previous group according to
+retention and cleanup policy.
 
 Liveness evaluation should observe and record unhealthy or vacant replica
 slots, then hand those observations to replica management. Health refresh must

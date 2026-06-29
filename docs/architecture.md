@@ -115,6 +115,61 @@ Orchestrators are execution adapters inside Resource Manager: they materialize
 runtime state for resources and services, but they do not own the resource
 graph or replace Resource Manager as the authority.
 
+### Runtime and orchestration boundary
+
+The host application runs CloudShell. The host environment is what CloudShell
+manages. The Control Plane owns Resource Manager backend behavior for that
+environment: resource graph state, provider registrations, authorization,
+commands, lifecycle, health, telemetry, events, persistence, and API
+projection.
+
+Resource Manager is the management facade. It accepts resource intent through
+resource definitions, persists or projects the accepted graph state, and
+coordinates operations against resources. Orchestration is a Resource Manager
+execution subsystem, not a separate product surface. It is used when accepted
+resource state must be materialized into runtime artifacts such as services,
+replica groups, replicas, routing bindings, load-balancer mappings, or
+provider-managed runtime resources.
+
+Most resources can remain standalone orchestrated resources: the resource is
+the unit Resource Manager starts, stops, inspects, and diagnoses. Container
+apps are different because one stable resource represents a managed workload
+facade over several runtime artifacts. In that case the container app resource
+stays the user-facing API object, while Resource Manager derives internal
+orchestrator deployments and service boundaries from accepted app resource
+state. Users apply resource intent; orchestrators reconcile runtime artifacts.
+
+The runtime model is therefore layered:
+
+```text
+Host application
+    hosts CloudShell UI and/or Control Plane
+
+Host environment
+    contains resources and runtime artifacts
+
+Control Plane / Resource Manager
+    owns resource graph state, commands, API, events, health, telemetry
+
+Resource providers
+    validate resource definitions and implement provider-owned behavior
+
+Orchestration
+    plans and reconciles runtime materialization when resource state requires it
+
+Runtime providers and hosts
+    execute processes, containers, routing, storage, network, or provider APIs
+```
+
+The [Resource model](terminology.md#resource-model) is the resource-focused
+subset users usually need first. The [Runtime model](terminology.md#runtime-model)
+is the fuller management model that includes the Resource model plus
+orchestration services, replica groups, replicas, routing bindings, retained
+revisions, and environment revisions. Resource Manager may visualize the
+Runtime model in the [Environment Map](terminology.md#environment-map), but
+that map is a read model over Control Plane and orchestrator state, not another
+source of truth.
+
 ```mermaid
 flowchart TD
     User["User or automation"] --> ResourceManagerUi["Resource Manager UI\nshell extension"]

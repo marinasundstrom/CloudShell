@@ -90,6 +90,24 @@ definitions describe the desired state that providers translate into
 executable, container, database, network, storage, or other provider-owned
 targets.
 
+This is now the intended POC migration path, not only a later design note.
+Resource Manager should receive resource definitions from UI create/edit
+flows, API apply, imports, and template files. Once the graph accepts the new
+resource state, provider-owned planners produce internal orchestration work
+when the accepted state affects runtime. A container app image update or
+replica-slot update is therefore first a ResourceDefinition apply, then a
+deployment-planning event, then an orchestrator/controller reconciliation.
+The caller should not have to know which orchestrator service, replica group,
+replicas, routing bindings, or load-balancer backend changes are required.
+
+The internal controller boundary is the critical cleanup target for container
+apps. First start, image update, scale-out, scale-in, readiness wait,
+load-balancer or ingress rebinding, retained previous replica groups, and
+post-apply cleanup should all flow through the same deployment/reconciliation
+model. Separate provider-specific imperative paths are acceptable only as
+temporary POC seams; they should be removed as the graph-backed provider path
+becomes the default.
+
 The Control Plane also records internal orchestrator deployment history for
 apply attempts, successful orchestrator revisions, and failed apply results.
 When the default orchestrator applies a deployment, it now materializes service
@@ -671,6 +689,15 @@ That keeps gradual rollout, retained previous slots, readiness gates, ingress
 rebinding, and cleanup rules in one orchestration model instead of spreading
 them across image-update, scale, lifecycle, and provider-runtime code paths.
 
+The load balancer should react to the orchestrator runtime state rather than
+being manually rebuilt by every caller. In the default implementation this can
+be a Resource Manager/orchestrator routing reconciliation hook that receives
+the target service and replica group. Future external orchestrators can map
+the same event into provider-native routing constructs. The Environment Map
+can visualize the resulting service boundary, replica group, replicas, and
+routing bindings, but it should remain a read model over Resource Manager and
+orchestrator state.
+
 For simple changes, the caller should be able to submit an incremental
 resource patch that says what changed, such as a new image or a new replica
 count:
@@ -1186,26 +1213,26 @@ backend's selector model as the CloudShell domain model.
 
 The Resource Manager environment map should project this internal runtime state
 as service grouping, not as a second user-authored resource model. The
-[Environment Runtime Model](../../terminology.md#environment-runtime-model) has
-[environment artifacts](../../terminology.md#environment-artifact): resources,
-orchestration services, replica groups, replicas, routing bindings, and other
-materialized runtime state. Deployment is one way to define or change those
-artifacts, but the artifacts exist as part of the environment realization and
-can be versioned by environment revisions independently of a single deployment
-request. A managed workload such as a container app can be rendered as an
-orchestration service boundary with an attached resource card that identifies
-the container app. The resource and service therefore read as one operational
-unit: the resource is the stable user-facing handle, while the service
-boundary contains the runtime implementation. Replica groups should be nested
-inside that boundary, and materialized replica resources should be nested
-inside the replica group that owns their requested slot or revision. The map
-can later add richer live controller state, such as deployment progress,
-scale-out/scale-in, retained previous revisions, readiness, draining, and
-route switch-over, without making deployment, service, or replica-group
-artifacts part of resource authoring. Load-balancer nodes should appear only
-when a load balancer is projected as an actual CloudShell resource; otherwise
-routing can remain an edge or binding until the Environment Runtime Model
-exposes a resource-backed participant.
+[Runtime model](../../terminology.md#runtime-model) has [environment artifacts](../../terminology.md#environment-artifact):
+resources, orchestration services, replica groups, replicas, routing bindings,
+and other materialized runtime state. The [Resource model](../../terminology.md#resource-model)
+is a subset of that Runtime model and is represented as a Resource graph.
+Deployment is one way to define or change runtime artifacts, but the artifacts
+exist as part of the environment realization and can be versioned by
+environment revisions independently of a single deployment request. A managed
+workload such as a container app can be rendered as an orchestration service
+boundary with an attached resource card that identifies the container app. The
+resource and service therefore read as one operational unit: the resource is
+the stable user-facing handle, while the service boundary contains the runtime
+implementation. Replica groups should be nested inside that boundary, and
+materialized replica resources should be nested inside the replica group that
+owns their requested slot or revision. The map can later add richer live
+controller state, such as deployment progress, scale-out/scale-in, retained
+previous revisions, readiness, draining, and route switch-over, without making
+deployment, service, or replica-group artifacts part of resource authoring.
+Load-balancer nodes should appear only when a load balancer is projected as an
+actual CloudShell resource; otherwise routing can remain an edge or binding
+until the Runtime model exposes a resource-backed participant.
 
 ```mermaid
 flowchart LR

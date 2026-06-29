@@ -7,9 +7,12 @@ belong in `CHANGELOG.md`; feature shape belongs in the relevant proposal.
 
 ## Current Refactoring Goal
 
-Clarify the Resource Manager, orchestration/deployment, resource provider, and
-shared application-service boundaries so container apps prove the MVP flow
-without forcing provider-specific logic into shared helpers.
+Finish the Resource Graph POC migration boundary: ResourceDefinition-based
+desired state should become the normal Resource Manager create/update/export
+path, while Resource Manager orchestration derives internal deployment work
+from accepted graph state. Container apps are the first hard proof because they
+must reconcile image changes, replica slots, routing, runtime replicas, and
+cleanup without falling back to old provider-specific imperative update paths.
 
 ## Boundary Decisions
 
@@ -60,6 +63,16 @@ without forcing provider-specific logic into shared helpers.
 - Replica groups and replica slots are orchestration concepts. Container apps
   define requested runtime state; Resource Manager deployment/orchestration
   reconciles replica groups and records outcomes.
+- Resource templates are ResourceDefinition envelopes. They should not wrap
+  normal user-authored resource state in deployment-shaped DTOs, and they
+  should not require provider-specific serializers once a resource type can
+  round-trip through the graph definition format.
+- Orchestrator services, replica groups, replicas, routing bindings,
+  deployment attempts, and environment revisions are Runtime model artifacts.
+  They are internal orchestration boundaries unless a later
+  workload-builder scenario deliberately exposes them. The Environment Map can
+  visualize them as a read model, but it must not become a second source of
+  truth.
 
 ## Active Slice
 
@@ -273,6 +286,23 @@ without forcing provider-specific logic into shared helpers.
 
 ## Next Slices
 
+- [ ] Revise the graph POC migration plan and keep `docs/roadmap.md`,
+  `docs/proposals/README.md`, resource template docs, deployment docs, and
+  container app docs aligned around the same architecture story.
+- [ ] Rework the resource template engine around `ResourceTemplate` containing
+  `ResourceDefinition` entries. Remove `ResourceDeploymentDefinition` and
+  other deployment-shaped user-authoring wrappers unless an internal
+  orchestration API explicitly owns them.
+- [ ] Define the Resource Manager apply path for incremental
+  `ResourceDefinition` updates: target resolution, provider validation,
+  accepted graph-state commit, runtime-planning trigger, diagnostics, and
+  rollback behavior for failed validation or failed runtime materialization.
+- [ ] Move container app image updates, replica-slot updates, first start,
+  scale-in, scale-out, routing rebinding, and cleanup onto one internal
+  deployment-controller path derived from accepted graph resource state.
+- [ ] Define the routing/load-balancer reaction boundary for replica-group
+  changes. Prefer an orchestrator/controller-owned routing reconciliation
+  hook over container-app-specific ingress and backend remapping logic.
 - [ ] Continue splitting `ApplicationResourceRuntimeOperations` by separating
   remaining resource-type concerns: lifecycle procedure execution, container
   app orchestration hooks, and endpoint/probe materialization. The shared

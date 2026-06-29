@@ -2,7 +2,7 @@
 
 ## Status
 
-POC in progress.
+POC in progress; active migration anchor.
 
 CloudShell already distinguishes projected resources from declared resources in
 the resource model documentation, and several providers already carry typed
@@ -11,6 +11,27 @@ and load-balancer definitions. This proposal narrows that work into one core
 architecture: the Resource model is the durable resource graph and
 configuration contract, while the Control Plane and Resource Manager own
 runtime behavior and operational state.
+
+The current migration direction is to make ResourceDefinition-based desired
+state the normal Resource Manager authoring and apply contract. The old
+resource template engine was built for the older provider-definition model and
+should be reworked around `ResourceTemplate` values that contain
+`ResourceDefinition` entries. Provider-specific import/export serializers
+should disappear as graph-backed resource types become able to render and
+apply their own definitions through the graph model. Compatibility wrappers
+such as `ResourceDeploymentDefinition` should not be kept for user authoring
+unless an internal orchestration API explicitly owns an orchestration-shaped
+contract.
+
+Container apps are the highest-priority migration proof. A container app is a
+stable Resource Manager resource whose accepted graph state can imply runtime
+deployment work. The provider should translate accepted resource state, such
+as image and replica-slot changes, into an internal orchestrator deployment
+definition. The orchestrator/controller should then reconcile services,
+replica groups, runtime replicas, routing bindings, readiness gates, and
+cleanup. The container app provider should not keep separate imperative code
+paths where image update, replica update, lifecycle stop/start, and sample
+runtime cleanup each manipulate replicas or ingress independently.
 
 ## Core Clarification
 
@@ -100,6 +121,22 @@ The POC should stay focused on the lower graph/configuration model and the
 bridge into Resource Manager. It should prove that existing providers can be
 ported onto a consistent graph contract, while runtime behavior remains behind
 Control Plane-owned integrations.
+
+The active POC migration scope is:
+
+- Resource templates use `ResourceDefinition` entries as their only resource
+  state language.
+- Add-resource and edit-resource UI paths produce full or incremental resource
+  definitions and call Resource Manager apply.
+- Export renders accepted graph state back to resource definitions without
+  provider-specific serialization code.
+- Resource Manager commits accepted graph state before runtime planning.
+- Provider-owned planners derive internal runtime work from accepted graph
+  state when materialization is required.
+- Orchestrator deployments, orchestrator services, replica groups, replicas,
+  routing bindings, and environment revisions remain internal Runtime model
+  artifacts unless a later public workload-builder API explicitly exposes
+  them.
 
 Common `ResourceDefinition` interchange structure is documented separately in
 [Resource Definition Structure](../../resource-definition-structure.md). This
