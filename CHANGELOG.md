@@ -32,6 +32,12 @@ on `git blame --follow`, and then by the broad type of change.
   grouping of `ResourceDefinition` entries, with a Resource Manager graph
   template service that exports from resolved graph resources and applies
   templates without provider-specific template serialization.
+- The deployment proposal and roadmap now record the next internal
+  container-app orchestration refinement plan: keep ResourceTemplate authoring
+  separate from orchestrator deployments, add a provider-owned deployment
+  planner/controller boundary, make deployment definitions the authoritative
+  runtime desired state, serialize same-resource deployment applies, and track
+  retained/superseded replica groups plus readiness gates explicitly.
 - ApplicationTopology and CloudShell.ContainerHost SQL Server Docker cleanup now bounds
   container removal and terminates cancelled Docker CLI processes so host shutdown is
   not held by a stuck `docker rm -f`.

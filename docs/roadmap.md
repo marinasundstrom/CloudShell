@@ -1201,6 +1201,29 @@ listed here before pulling in broader proposal work.
 
 ### Later: Runtime Ownership and Deployment Model
 
+- Keep resource templates separate from orchestrator deployments. Users and UI
+  flows express desired resource state as `ResourceDefinition` entries in a
+  `ResourceTemplate`; deployment planning remains an internal Resource Manager
+  and provider/orchestrator concern after graph validation.
+- Continue container app orchestration by introducing a provider-owned internal
+  deployment planner: accepted container app graph state and current runtime
+  state in, normalized `ResourceOrchestratorDeploymentDefinition` out. Image
+  updates, requested replica-slot changes, and start materialization should use
+  that same deployment-controller path.
+- Move `ResourceOrchestratorDeploymentDefinition` toward being the
+  authoritative desired runtime state for services and replica groups.
+  `ResourceOrchestratorDeploymentSpec.Service` can remain a migration bridge,
+  but long-term orchestration should reconcile the versioned definition.
+- Add per-source-resource deployment serialization or optimistic concurrency so
+  overlapping updates for one container app cannot both apply as though they
+  were based on the latest active revision.
+- Track retained, draining, superseded, and deleted replica groups as explicit
+  runtime state. Retained previous slots should be inspectable and later
+  drainable instead of existing only as omitted tear-down targets.
+- Add explicit readiness-gate policy to replica-group definitions before
+  expanding rollout controls. The controller should know which materialization
+  signal is required before routing rebinding, revision activation, and
+  predecessor cleanup.
 - Decide which runtime artifacts become runtime-managed resources versus
   provider-owned state: replicas, implementation containers, images, endpoint
   registrations, backend registrations, health probes, and revisions.

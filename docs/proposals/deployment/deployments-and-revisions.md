@@ -637,15 +637,32 @@ The flow is therefore:
    incremental `ResourceDefinition` for an existing resource.
 2. Resource Manager validates the definition with the owning resource type
    provider and accepts the normalized resource state.
-3. The orchestrator creates or updates an internal deployment record for the
-   accepted resource change when runtime materialization is required.
-4. Provider-owned orchestration translates that deployment into services,
-   replica groups, load-balancer bindings, and runtime resources.
+3. A provider-owned deployment planner compares accepted resource state with
+   current materialized state when runtime materialization is required.
+4. The planner produces an internal `ResourceOrchestratorDeploymentDefinition`
+   for the orchestrator service, replica groups, routing, readiness, and
+   cleanup policy needed to materialize that accepted state.
+5. Resource Manager records and applies the internal deployment through the
+   selected orchestrator. The orchestrator/controller reconciles runtime
+   resources toward the deployment definition and records the environment
+   revision outcome.
+6. Provider-owned outcome handling updates domain-specific state such as
+   container app revision history without making the user manage the
+   orchestrator deployment object.
 
 For a container app, the resource itself continues to exist as the user-facing
 API object. It keeps track of the internal orchestrator service that
 materializes it, but callers still interact with the container app definition:
 image, replicas, ports, references, volumes, and other app-owned state.
+
+For container apps, this internal planning boundary is the important refinement:
+image changes, replica-slot changes, start materialization, restore, rollback,
+and failure recovery should all converge on the same deployment controller path.
+They may start from different user-facing operations, but they should produce a
+normalized internal deployment definition before runtime resources are changed.
+That keeps gradual rollout, retained previous slots, readiness gates, ingress
+rebinding, and cleanup rules in one orchestration model instead of spreading
+them across image-update, scale, lifecycle, and provider-runtime code paths.
 
 For simple changes, the caller should be able to submit an incremental
 resource patch that says what changed, such as a new image or a new replica
@@ -1722,17 +1739,60 @@ The current implementation already has the internal foundation:
     replica group. The longer-term model should project that baseline as an
     initial environment revision or active deployment state so predecessor
     discovery stays in the deployment/orchestration layer.
+13. Resource templates are now separate from orchestrator deployment
+    definitions. User-facing desired state is expressed as `ResourceDefinition`
+    entries in a `ResourceTemplate`; orchestrator deployment definitions are
+    internal runtime projections created after graph validation and provider
+    planning.
+
+The current container app orchestration progress is:
+
+* Done: revision-scoped replica naming, explicit replica-group definitions,
+  scale-out and scale-in routing order, replacement-group routing, previous
+  replica-slot retention, failed candidate rollback, deployment history,
+  based-on environment revision tracking, post-apply tear-down requests, and
+  visible deployment/replica-group projection for Resource Manager surfaces.
+* In progress: converging image update, replica resize, and start
+  materialization on the same internal deployment path while resource-template
+  apply remains the user-facing desired-state entry point.
+* Not done: a first-class provider deployment-planning service that compares
+  accepted resource graph state with current runtime state and emits the
+  normalized `ResourceOrchestratorDeploymentDefinition`; per-resource
+  deployment serialization or optimistic concurrency; explicit retained,
+  draining, superseded, and deleted replica-group runtime statuses; and
+  readiness-gate policy encoded directly in the replica group definition.
 
 The next MVP changes should stay focused:
 
 1. Keep rollback scoped to tearing down the candidate replica group. Do not add
    automatic environment replay or traffic policy machinery for MVP.
-2. Add configurable retention and cleanup policies after the basic
+2. Introduce an internal container-app deployment planner/controller boundary:
+   accepted resource graph state in, normalized orchestrator deployment
+   definition out. Image updates, replica changes, and start materialization
+   should use that same path.
+3. Make `ResourceOrchestratorDeploymentDefinition` the authoritative desired
+   runtime state over time. `ResourceOrchestratorDeploymentSpec.Service` can
+   remain a migration convenience, but the long-term source of truth should be
+   the versioned service and replica-group definitions.
+4. Add per-source-resource deployment serialization or optimistic concurrency
+   so two updates for the same container app cannot both apply as though they
+   were based on the latest active revision.
+5. Record retained and superseded replica groups as explicit runtime state,
+   not only as tear-down requests, so retained previous slots can be inspected,
+   drained, or cleaned up later.
+6. Add readiness-gate policy to replica-group definitions. The controller
+   should know whether routing can rebind after start, ready, healthy, timeout,
+   or provider-specific materialization signals.
+7. Keep rollout policy intentionally small: requested replica slots,
+   retain-previous slots, scale-in/scale-out routing order, replacement routing
+   order, readiness timeout, and one simple surge or batch-size control are
+   enough for the next iteration.
+8. Add configurable retention and cleanup policies after the basic
    best-effort cleanup model is credible.
-3. Add focused tests around failed deployment projection, readiness-gated
+9. Add focused tests around failed deployment projection, readiness-gated
    success/failure, post-apply tear-down failure visibility, and extension to
    at least one non-container-app workload shape.
-4. Revisit Docker Compose integration only after the default orchestrator and
+10. Revisit Docker Compose integration only after the default orchestrator and
    first container app path settle; adapters should translate the common model,
    not redefine it.
 
