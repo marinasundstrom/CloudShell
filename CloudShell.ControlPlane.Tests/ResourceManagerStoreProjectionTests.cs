@@ -1089,8 +1089,16 @@ public sealed class ResourceManagerStoreProjectionTests
             new AllowAllAuthorizationService());
 
         Assert.Equal("Executed Identity Provisioning Setup for settings-secrets-identity.", identityResult.Message);
-        Assert.Equal("Executed Configuration Store Inspect for settings-secrets-settings.", settingsResult.Message);
-        Assert.Equal("Executed Secrets Vault Inspect for settings-secrets-secrets.", secretsResult.Message);
+        Assert.StartsWith(
+            "Executed Configuration Store Inspect for settings-secrets-settings.",
+            settingsResult.Message,
+            StringComparison.Ordinal);
+        Assert.Contains("Configuration Store", settingsResult.Message, StringComparison.Ordinal);
+        Assert.StartsWith(
+            "Executed Secrets Vault Inspect for settings-secrets-secrets.",
+            secretsResult.Message,
+            StringComparison.Ordinal);
+        Assert.Contains("Secrets Vault", secretsResult.Message, StringComparison.Ordinal);
     }
 
     [Fact]

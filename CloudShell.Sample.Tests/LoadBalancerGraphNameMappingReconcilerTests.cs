@@ -71,10 +71,10 @@ public sealed class LoadBalancerGraphNameMappingReconcilerTests
                 ProviderId: NameMappingResourceTypeProvider.ProviderId,
                 DependsOn:
                 [
-                    ResourceReference.DependsOnResourceId(
+                    ResourceReference.BelongsToResourceId(
                         dnsZoneResourceId,
                         DnsZoneResourceTypeProvider.ResourceTypeId),
-                    ResourceReference.DependsOnResourceId(
+                    ResourceReference.ReferenceResourceId(
                         loadBalancerResourceId,
                         LoadBalancerResourceTypeProvider.ResourceTypeId)
                 ],

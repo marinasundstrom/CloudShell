@@ -71,6 +71,13 @@ on `git blame --follow`, and then by the broad type of change.
   reconciliation. The ReplicatedContainerHealth sample uses that path so
   generated deployments avoid hidden all-replica teardown when changing image
   or replica slots.
+- Resource model graph action dispatch now keeps dependency context for
+  projected operations while allowing direct action execution when optional
+  referenced graph resources are missing; structural dependency diagnostics
+  still block execution.
+- Sample smoke tests now perform collection-level cleanup for
+  ReplicatedContainerHealth runtime containers and LoadBalancer temporary host
+  files so normal failed test runs do not leave local runtime artifacts behind.
 - Replica-group deployment definitions now include reconciliation policy for
   scale routing and previous-revision slot retention, and the deployment
   proposal documents both compact container-app update JSON and the normalized

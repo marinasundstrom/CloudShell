@@ -32,8 +32,70 @@ namespace CloudShell.Sample.Tests;
 
 [CollectionDefinition(Name, DisableParallelization = true)]
 public sealed class SampleSmokeCollection
+    : ICollectionFixture<SampleSmokeRuntimeCleanupFixture>
 {
     public const string Name = "Sample smoke tests";
+}
+
+public sealed class SampleSmokeRuntimeCleanupFixture : IAsyncLifetime
+{
+    public async Task InitializeAsync() =>
+        await CleanupAsync();
+
+    public async Task DisposeAsync() =>
+        await CleanupAsync();
+
+    private static async Task CleanupAsync()
+    {
+        await RemoveContainerIfExistsAsync("cloudshell-replicated-health-api-ingress");
+        for (var replica = 1; replica <= 10; replica++)
+        {
+            await RemoveContainerIfExistsAsync(
+                $"cloudshell-replicated-health-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}");
+        }
+
+        foreach (var path in Directory.EnumerateFiles(
+            Path.GetTempPath(),
+            "cloudshell-load-balancer-*.hosts"))
+        {
+            try
+            {
+                File.Delete(path);
+            }
+            catch
+            {
+                // Test cleanup should not hide the original test failure.
+            }
+        }
+    }
+
+    private static async Task RemoveContainerIfExistsAsync(string containerName)
+    {
+        var startInfo = new ProcessStartInfo("docker")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+        startInfo.ArgumentList.Add("rm");
+        startInfo.ArgumentList.Add("-f");
+        startInfo.ArgumentList.Add(containerName);
+
+        try
+        {
+            using var process = Process.Start(startInfo);
+            if (process is null)
+            {
+                return;
+            }
+
+            await process.WaitForExitAsync();
+        }
+        catch
+        {
+            // Docker may be unavailable for non-Docker sample tests.
+        }
+    }
 }
 
 [Collection(SampleSmokeCollection.Name)]
@@ -3286,6 +3348,23 @@ public sealed class SampleSmokeTests
     {
         try
         {
+            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var resource = resourcesDocument.RootElement
+                .EnumerateArray()
+                .FirstOrDefault(candidate =>
+                    string.Equals(
+                        candidate.GetProperty("id").GetString(),
+                        resourceId,
+                        StringComparison.OrdinalIgnoreCase));
+            if (resource.ValueKind != JsonValueKind.Undefined &&
+                resource.TryGetProperty("state", out var state) &&
+                state.ValueKind == JsonValueKind.Number &&
+                state.GetInt32() == (int)ResourceState.Stopped)
+            {
+                return;
+            }
+
             await host.SendAsync(
                 HttpMethod.Post,
                 $"/api/control-plane/v1/resources/{Uri.EscapeDataString(resourceId)}/actions/stop?ignoreDependentWarning=true");

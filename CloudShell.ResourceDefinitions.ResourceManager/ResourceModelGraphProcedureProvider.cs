@@ -275,18 +275,11 @@ public sealed class ResourceModelGraphProcedureProvider :
             context.Resource.Id,
             action,
             cancellationToken);
-        var blockingGraphDiagnostics = await ResolveBlockingGraphDiagnosticsAsync(
-            context.Resource.Id,
-            cancellationToken);
+        var blockingDiagnostics = GetBlockingActionDiagnostics(resolution.Diagnostics);
 
-        if (blockingGraphDiagnostics.Count > 0)
+        if (blockingDiagnostics.Count > 0)
         {
-            return FormatDiagnostics(blockingGraphDiagnostics);
-        }
-
-        if (resolution.Diagnostics.Count > 0)
-        {
-            return FormatDiagnostics(resolution.Diagnostics);
+            return FormatDiagnostics(blockingDiagnostics);
         }
 
         if (resolution.Operation is not IResourceOperationExecutorProjection executableOperation)
@@ -311,18 +304,11 @@ public sealed class ResourceModelGraphProcedureProvider :
             context.Resource.Id,
             action,
             cancellationToken);
-        var blockingGraphDiagnostics = await ResolveBlockingGraphDiagnosticsAsync(
-            context.Resource.Id,
-            cancellationToken);
+        var blockingDiagnostics = GetBlockingActionDiagnostics(resolution.Diagnostics);
 
-        if (blockingGraphDiagnostics.Count > 0)
+        if (blockingDiagnostics.Count > 0)
         {
-            throw new InvalidOperationException(FormatDiagnostics(blockingGraphDiagnostics));
-        }
-
-        if (resolution.Diagnostics.Count > 0)
-        {
-            throw new InvalidOperationException(FormatDiagnostics(resolution.Diagnostics));
+            throw new InvalidOperationException(FormatDiagnostics(blockingDiagnostics));
         }
 
         if (resolution.Operation is not IResourceOperationExecutorProjection executableOperation)
@@ -408,20 +394,13 @@ public sealed class ResourceModelGraphProcedureProvider :
             _resolutionContext,
             cancellationToken);
 
-    private async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ResolveBlockingGraphDiagnosticsAsync(
-        string resourceId,
-        CancellationToken cancellationToken)
-    {
-        var resolution = await _resourceResolver.ResolveWithDependenciesAsync(
-            resourceId,
-            _resolutionContext,
-            cancellationToken);
-
-        return resolution.Diagnostics
+    private static IReadOnlyList<ResourceDefinitionDiagnostic> GetBlockingActionDiagnostics(
+        IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics) =>
+        diagnostics
             .Where(diagnostic =>
-                diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceReferenceTypeMismatch)
+                diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error &&
+                diagnostic.Code != ResourceDefinitionDiagnosticCodes.ResourceGraphResourceMissing)
             .ToArray();
-    }
 
     private async ValueTask<ResourceModelGraphServiceExecutorResolution> CreateServiceProcedureContextAsync(
         ResourceOrchestratorServiceProcedureContext context,
