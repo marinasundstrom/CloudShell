@@ -23,13 +23,15 @@ export function disposeEnvironmentStateMap() {
 class EnvironmentStateMap {
     constructor(selector, environmentInterop) {
         this.environmentInterop = environmentInterop;
-        this.map = { nodes: [], links: [] };
+        this.map = { nodes: [], groups: [], links: [] };
         this.nodes = [];
+        this.groups = [];
         this.links = [];
         this.selectedNode = null;
         this.svg = d3.select(selector);
         this.svg.selectAll("*").remove();
         this.baseGroup = this.svg.append("g").attr("class", "environment-map-stage");
+        this.groupGroup = this.baseGroup.append("g").attr("class", "environment-map-groups");
         this.linkGroup = this.baseGroup.append("g").attr("class", "environment-map-links");
         this.linkLabelGroup = this.baseGroup.append("g").attr("class", "environment-map-link-labels");
         this.nodeGroup = this.baseGroup.append("g").attr("class", "environment-map-nodes");
@@ -125,8 +127,9 @@ class EnvironmentStateMap {
 
     update(map) {
         const nodes = map.nodes || [];
+        const groups = map.groups || [];
         const links = map.links || [];
-        const changed = this.hasStructureChanged(nodes, links);
+        const changed = this.hasStructureChanged(nodes, groups, links);
         const previousNodes = new Map(this.nodes.map(node => [node.id, node]));
         const degreeMap = this.getDegrees(nodes, links);
 
@@ -148,6 +151,17 @@ class EnvironmentStateMap {
             };
         });
         const visibleIds = new Set(this.nodes.map(node => node.id));
+        this.groups = groups
+            .map(group => ({
+                id: group.id,
+                label: group.label,
+                kind: group.kind,
+                parentGroupId: group.parentGroupId,
+                badgeLabel: group.badgeLabel,
+                detailUrl: group.detailUrl,
+                nodeIds: group.nodeIds || []
+            }))
+            .filter(group => group.nodeIds.some(nodeId => visibleIds.has(nodeId)));
         this.links = links
             .filter(link => visibleIds.has(link.source) && visibleIds.has(link.target))
             .map(link => ({
@@ -158,6 +172,7 @@ class EnvironmentStateMap {
                 kind: link.kind
             }));
 
+        this.renderGroups();
         this.renderLinks();
         this.renderNodes();
 
@@ -176,14 +191,21 @@ class EnvironmentStateMap {
         this.updateHighlights();
     }
 
-    hasStructureChanged(nodes, links) {
+    hasStructureChanged(nodes, groups, links) {
         if (nodes.length !== (this.map.nodes || []).length ||
+            groups.length !== (this.map.groups || []).length ||
             links.length !== (this.map.links || []).length) {
             return true;
         }
 
         const oldIds = new Set((this.map.nodes || []).map(node => node.id));
         if (nodes.some(node => !oldIds.has(node.id))) {
+            return true;
+        }
+
+        const oldGroups = new Set((this.map.groups || []).map(group =>
+            `${group.id}:${group.badgeLabel || ""}:${(group.nodeIds || []).join(",")}`));
+        if (groups.some(group => !oldGroups.has(`${group.id}:${group.badgeLabel || ""}:${(group.nodeIds || []).join(",")}`))) {
             return true;
         }
 
@@ -199,6 +221,55 @@ class EnvironmentStateMap {
             degrees.set(link.target, (degrees.get(link.target) || 0) + 1);
         });
         return degrees;
+    }
+
+    renderGroups() {
+        this.groupElements = this.groupGroup
+            .selectAll(".environment-map-group")
+            .data(this.groups, group => group.id);
+
+        this.groupElements.exit()
+            .transition()
+            .duration(140)
+            .attr("opacity", 0)
+            .remove();
+
+        const newGroups = this.groupElements.enter()
+            .append("g")
+            .attr("class", "environment-map-group")
+            .attr("opacity", 0);
+
+        newGroups.append("rect")
+            .attr("class", "environment-map-group-boundary")
+            .attr("rx", group => group.kind === "service" ? 10 : 7);
+
+        newGroups.append("text")
+            .attr("class", "environment-map-group-label");
+
+        const resourceCards = newGroups.append("g")
+            .attr("class", "environment-map-group-resource-card");
+
+        resourceCards.append("rect")
+            .attr("class", "environment-map-group-resource-card-frame");
+
+        resourceCards.append("text")
+            .attr("class", "environment-map-group-resource-card-title");
+
+        resourceCards.append("text")
+            .attr("class", "environment-map-group-resource-card-kind");
+
+        newGroups.transition()
+            .duration(140)
+            .attr("opacity", 1);
+
+        this.groupElements = newGroups.merge(this.groupElements)
+            .attr("class", group => `environment-map-group ${getClassName(group.kind)}`);
+        this.groupElements.select(".environment-map-group-label")
+            .text(group => trimText(group.label, group.kind === "service" ? 34 : 28));
+        this.groupElements.select(".environment-map-group-resource-card-title")
+            .text(group => trimText(group.badgeLabel, 18));
+        this.groupElements.select(".environment-map-group-resource-card-kind")
+            .text(group => group.badgeLabel ? "managed resource" : "");
     }
 
     renderLinks() {
@@ -363,6 +434,10 @@ class EnvironmentStateMap {
         this.linkLabelElements
             ?.classed("related", link => activeNode && this.isNeighborLink(activeNode, link))
             .classed("dimmed", link => activeNode && !this.isNeighborLink(activeNode, link));
+
+        this.groupElements
+            ?.classed("related", group => activeNode && group.nodeIds.includes(activeNode.id))
+            .classed("dimmed", group => activeNode && !group.nodeIds.includes(activeNode.id));
     }
 
     getNeighborIds(node) {
@@ -384,6 +459,7 @@ class EnvironmentStateMap {
     }
 
     onTick() {
+        this.updateGroupBounds();
         this.nodeElements?.attr("transform", node => `translate(${node.x},${node.y})`);
         this.linkElements
             ?.attr("x1", link => link.source.x)
@@ -393,6 +469,53 @@ class EnvironmentStateMap {
         this.linkLabelElements
             ?.attr("x", link => (link.source.x + link.target.x) / 2)
             .attr("y", link => (link.source.y + link.target.y) / 2 - 6);
+    }
+
+    updateGroupBounds() {
+        const nodeMap = new Map(this.nodes.map(node => [node.id, node]));
+        this.groupElements?.each(function (group) {
+            const memberNodes = group.nodeIds
+                .map(nodeId => nodeMap.get(nodeId))
+                .filter(node => Number.isFinite(node?.x) && Number.isFinite(node?.y));
+            if (memberNodes.length === 0) {
+                d3.select(this).attr("display", "none");
+                return;
+            }
+
+            const paddingX = group.kind === "service" ? 68 : 38;
+            const paddingY = group.kind === "service" ? 58 : 38;
+            const minX = d3.min(memberNodes, node => node.x - 98) - paddingX;
+            const maxX = d3.max(memberNodes, node => node.x + 98) + paddingX;
+            const minY = d3.min(memberNodes, node => node.y - 60) - paddingY;
+            const maxY = d3.max(memberNodes, node => node.y + 60) + paddingY;
+            const width = Math.max(maxX - minX, group.kind === "service" ? 320 : 230);
+            const height = Math.max(maxY - minY, group.kind === "service" ? 230 : 160);
+
+            const groupElement = d3.select(this).attr("display", null);
+            groupElement.select(".environment-map-group-boundary")
+                .attr("x", minX)
+                .attr("y", minY)
+                .attr("width", width)
+                .attr("height", height);
+            groupElement.select(".environment-map-group-label")
+                .attr("x", minX + 18)
+                .attr("y", minY + 24);
+            const resourceCard = groupElement.select(".environment-map-group-resource-card")
+                .attr("display", group.badgeLabel ? null : "none");
+            const cardWidth = Math.max(126, String(group.badgeLabel || "").length * 7 + 34);
+            resourceCard.select(".environment-map-group-resource-card-frame")
+                .attr("x", maxX - cardWidth - 16)
+                .attr("y", minY + 12)
+                .attr("width", cardWidth)
+                .attr("height", 42)
+                .attr("rx", 6);
+            resourceCard.select(".environment-map-group-resource-card-title")
+                .attr("x", maxX - cardWidth + 2)
+                .attr("y", minY + 29);
+            resourceCard.select(".environment-map-group-resource-card-kind")
+                .attr("x", maxX - cardWidth + 2)
+                .attr("y", minY + 45);
+        });
     }
 
     dispose() {
@@ -409,20 +532,26 @@ class EnvironmentStateMap {
 function getLaneX(nodeKind) {
     switch (nodeKind) {
         case "resource":
-            return -260;
+            return -330;
         case "service":
-            return -40;
+            return -95;
         case "replica-group":
-            return 185;
-        case "routing":
+            return 135;
+        case "replica":
             return 360;
+        case "routing":
+            return 520;
         default:
             return 0;
     }
 }
 
 function getNodeRadius(node) {
-    return node.nodeKind === "service" ? 98 : 86;
+    if (node.nodeKind === "service") {
+        return 98;
+    }
+
+    return node.nodeKind === "replica" ? 78 : 86;
 }
 
 function getNodeId(value) {

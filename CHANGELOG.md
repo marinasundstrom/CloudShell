@@ -30,6 +30,10 @@ on `git blame --follow`, and then by the broad type of change.
   using the same zoomable graph interaction pattern as the Resource graph while
   projecting resources, orchestrator service boundaries, replica groups,
   routing artifacts, and significant environment relationships.
+- The environment state map now groups runtime state by orchestration service
+  boundary, nests replica groups and replica resources inside those services,
+  and renders container-app-managed services as service groups with an attached
+  managed-resource card instead of as separate container app nodes.
 - Replica-group deployment definitions now include reconciliation policy for
   scale routing and previous-revision slot retention, and the deployment
   proposal documents both compact container-app update JSON and the normalized

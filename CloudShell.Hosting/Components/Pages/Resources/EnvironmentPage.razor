@@ -667,12 +667,17 @@
     {
         var nodes = new Dictionary<string, EnvironmentMapNode>(StringComparer.OrdinalIgnoreCase);
         var links = new Dictionary<string, EnvironmentMapLink>(StringComparer.OrdinalIgnoreCase);
+        var groups = new Dictionary<string, EnvironmentMapGroupBuilder>(StringComparer.OrdinalIgnoreCase);
         var resourceNodeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var resourcesById = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
         var serviceNodeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var replicaGroupNodeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var activeReplicaGroupRows = replicaGroups.ToDictionary(replicaGroup => replicaGroup.ReplicaGroupId, StringComparer.OrdinalIgnoreCase);
         var routingNodeCount = 0;
 
-        foreach (var resource in resources.OrderBy(resource => resource.EffectiveDisplayName, StringComparer.CurrentCultureIgnoreCase))
+        foreach (var resource in resources
+            .Where(ShouldShowEnvironmentMapResource)
+            .OrderBy(resource => resource.EffectiveDisplayName, StringComparer.CurrentCultureIgnoreCase))
         {
             var nodeId = CreateEnvironmentMapNodeId("resource", resource.Id);
             resourceNodeIds[resource.Id] = nodeId;
@@ -681,41 +686,69 @@
                 resource.EffectiveDisplayName,
                 resource.EffectiveTypeId,
                 resource.ResourceClass.ToString(),
-                "resource",
+                IsContainerReplicaResource(resource) ? "replica" : "resource",
                 CreateResourceMapSummary(resource),
                 resource.State?.ToString() ?? L["No lifecycle status"].Value,
                 ResourceStateDisplay.GetStateClass(resource.State),
                 ResourceManagerCompositionLinks.ResourceDetails(Composition, resource.Id));
         }
 
+        foreach (var resource in resources.Where(IsContainerApplicationResource))
+        {
+            var serviceId = GetContainerApplicationServiceId(resource);
+            var serviceNode = EnsureServiceNode(
+                nodes,
+                serviceNodeIds,
+                serviceId,
+                resource.EffectiveDisplayName,
+                GetOptional(resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerImage)),
+                resource.State?.ToString() ?? L["Container application"].Value,
+                ResourceStateDisplay.GetStateClass(resource.State),
+                ResourceManagerCompositionLinks.ResourceDetails(Composition, resource.Id));
+
+            var groupId = CreateEnvironmentMapGroupId("service", serviceId);
+            var serviceGroup = EnsureEnvironmentMapGroup(groups, groupId, resource.EffectiveDisplayName, "service", null);
+            serviceGroup.SetBadgeLabel(L["Container app"].Value);
+            serviceGroup.NodeIds.Add(serviceNode.Id);
+
+            serviceGroup.DetailUrl = serviceNode.DetailUrl;
+        }
+
         foreach (var deployment in deployments.Where(deployment => IsProjected(deployment.ServiceId)))
         {
-            var serviceNodeId = CreateEnvironmentMapNodeId("service", deployment.ServiceId);
-            serviceNodeIds[deployment.ServiceId] = serviceNodeId;
-            nodes[serviceNodeId] = nodes.TryGetValue(serviceNodeId, out var existing)
-                ? existing
-                : new EnvironmentMapNode(
-                    serviceNodeId,
-                    deployment.ServiceId,
-                    "Orchestrator service",
-                    ResourceClass.Service.ToString(),
+            var label = resourcesById.TryGetValue(deployment.SourceResourceId, out var sourceResource)
+                ? sourceResource.EffectiveDisplayName
+                : deployment.ServiceId;
+            var detailUrl = resourceNodeIds.TryGetValue(deployment.SourceResourceId, out var sourceNodeId)
+                ? nodes[sourceNodeId].DetailUrl
+                : null;
+            var serviceNode = EnsureServiceNode(
+                nodes,
+                serviceNodeIds,
+                deployment.ServiceId,
+                label,
+                deployment.EnvironmentRevisionNumber is { } revisionNumber
+                    ? L["Revision {0}", revisionNumber].Value
+                    : GetOptional(deployment.EnvironmentRevisionId),
+                deployment.Status.ToString(),
+                "state-running",
+                detailUrl);
+
+            EnsureEnvironmentMapGroup(
+                    groups,
+                    CreateEnvironmentMapGroupId("service", deployment.ServiceId),
+                    label,
                     "service",
-                    deployment.EnvironmentRevisionNumber is { } revisionNumber
-                        ? L["Revision {0}", revisionNumber].Value
-                        : GetOptional(deployment.EnvironmentRevisionId),
-                    deployment.Status.ToString(),
-                    "state-running",
-                    resourceNodeIds.TryGetValue(deployment.SourceResourceId, out var sourceNodeId)
-                        ? nodes[sourceNodeId].DetailUrl
-                        : null);
+                    null)
+                .NodeIds.Add(serviceNode.Id);
 
             if (resourceNodeIds.TryGetValue(deployment.SourceResourceId, out var sourceResourceNodeId))
             {
                 AddEnvironmentMapLink(
                     links,
                     sourceResourceNodeId,
-                    serviceNodeId,
-                    L["deploys to"].Value,
+                    serviceNode.Id,
+                    L["creates service"].Value,
                     "deployment");
             }
         }
@@ -755,6 +788,99 @@
                     L["owns"].Value,
                     "orchestration");
             }
+
+            var serviceGroupId = CreateEnvironmentMapGroupId("service", replicaGroup.ServiceId);
+            if (groups.TryGetValue(serviceGroupId, out var serviceGroup))
+            {
+                serviceGroup.NodeIds.Add(replicaNodeId);
+            }
+
+            EnsureEnvironmentMapGroup(
+                    groups,
+                    CreateEnvironmentMapGroupId("replica-group", replicaGroup.ReplicaGroupId),
+                    replicaGroup.ReplicaGroupId,
+                    "replica-group",
+                    serviceGroupId)
+                .NodeIds.Add(replicaNodeId);
+        }
+
+        foreach (var replica in resources.Where(IsContainerReplicaResource))
+        {
+            var owningResourceId = FirstNonEmpty(replica.OwnerResourceId, replica.ParentResourceId);
+            var serviceId = GetReplicaServiceId(replica, owningResourceId, resourcesById);
+            var replicaGroupId = GetReplicaGroupId(replica, owningResourceId, resourcesById, activeReplicaGroupRows, serviceId);
+
+            if (!serviceNodeIds.ContainsKey(serviceId) &&
+                owningResourceId is not null &&
+                resourcesById.TryGetValue(owningResourceId, out var ownerResource))
+            {
+                EnsureServiceNode(
+                    nodes,
+                    serviceNodeIds,
+                    serviceId,
+                    ownerResource.EffectiveDisplayName,
+                    GetOptional(ownerResource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerImage)),
+                    ownerResource.State?.ToString() ?? L["Container application"].Value,
+                    ResourceStateDisplay.GetStateClass(ownerResource.State),
+                    ResourceManagerCompositionLinks.ResourceDetails(Composition, ownerResource.Id));
+            }
+
+            if (!replicaGroupNodeIds.TryGetValue(replicaGroupId, out var replicaGroupNodeId))
+            {
+                replicaGroupNodeId = CreateEnvironmentMapNodeId("replica-group", replicaGroupId);
+                replicaGroupNodeIds[replicaGroupId] = replicaGroupNodeId;
+                nodes[replicaGroupNodeId] = new EnvironmentMapNode(
+                    replicaGroupNodeId,
+                    replicaGroupId,
+                    "Replica group",
+                    ResourceClass.Container.ToString(),
+                    "replica-group",
+                    L["Materialized replica resources"].Value,
+                    GetOptional(replica.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.RuntimeRevision)),
+                    "state-running",
+                    owningResourceId is not null &&
+                        resourceNodeIds.TryGetValue(owningResourceId, out var ownerNodeId) &&
+                        nodes.TryGetValue(ownerNodeId, out var ownerNode)
+                            ? ownerNode.DetailUrl
+                            : null);
+            }
+
+            if (serviceNodeIds.TryGetValue(serviceId, out var serviceNodeId))
+            {
+                AddEnvironmentMapLink(links, serviceNodeId, replicaGroupNodeId, L["owns"].Value, "orchestration");
+            }
+
+            if (resourceNodeIds.TryGetValue(replica.Id, out var replicaNodeId))
+            {
+                AddEnvironmentMapLink(links, replicaGroupNodeId, replicaNodeId, L["contains"].Value, "orchestration");
+
+                var serviceGroupId = CreateEnvironmentMapGroupId("service", serviceId);
+                EnsureEnvironmentMapGroup(groups, serviceGroupId, serviceId, "service", null).NodeIds.Add(replicaNodeId);
+                EnsureEnvironmentMapGroup(
+                        groups,
+                        CreateEnvironmentMapGroupId("replica-group", replicaGroupId),
+                        replicaGroupId,
+                        "replica-group",
+                        serviceGroupId)
+                    .NodeIds.Add(replicaNodeId);
+            }
+
+            if (groups.TryGetValue(CreateEnvironmentMapGroupId("service", serviceId), out var serviceGroup))
+            {
+                serviceGroup.NodeIds.Add(replicaGroupNodeId);
+                if (serviceNodeIds.TryGetValue(serviceId, out var owningServiceNodeId))
+                {
+                    serviceGroup.NodeIds.Add(owningServiceNodeId);
+                }
+            }
+
+            EnsureEnvironmentMapGroup(
+                    groups,
+                    CreateEnvironmentMapGroupId("replica-group", replicaGroupId),
+                    replicaGroupId,
+                    "replica-group",
+                    CreateEnvironmentMapGroupId("service", serviceId))
+                .NodeIds.Add(replicaGroupNodeId);
         }
 
         AddResourceRelationshipLinks(resources, links, resourceNodeIds);
@@ -765,15 +891,154 @@
                 .OrderBy(node => GetEnvironmentMapNodeSortOrder(node.NodeKind))
                 .ThenBy(node => node.Label, StringComparer.CurrentCultureIgnoreCase)
                 .ToArray(),
+            groups.Values
+                .Where(group => group.NodeIds.Count > 1 || !string.IsNullOrWhiteSpace(group.BadgeLabel))
+                .OrderBy(group => GetEnvironmentMapGroupSortOrder(group.Kind))
+                .ThenBy(group => group.Label, StringComparer.CurrentCultureIgnoreCase)
+                .Select(group => group.ToModel())
+                .ToArray(),
             links.Values
                 .OrderBy(link => link.Kind, StringComparer.CurrentCultureIgnoreCase)
                 .ThenBy(link => link.Label, StringComparer.CurrentCultureIgnoreCase)
                 .ThenBy(link => link.Source, StringComparer.OrdinalIgnoreCase)
                 .ToArray(),
-            resources.Count,
+            resourceNodeIds.Count,
             serviceNodeIds.Count,
             routingNodeCount);
     }
+
+    private EnvironmentMapNode EnsureServiceNode(
+        IDictionary<string, EnvironmentMapNode> nodes,
+        IDictionary<string, string> serviceNodeIds,
+        string serviceId,
+        string label,
+        string summary,
+        string stateLabel,
+        string stateClass,
+        string? detailUrl)
+    {
+        var serviceNodeId = CreateEnvironmentMapNodeId("service", serviceId);
+        serviceNodeIds[serviceId] = serviceNodeId;
+        if (nodes.TryGetValue(serviceNodeId, out var existing))
+        {
+            return existing;
+        }
+
+        var node = new EnvironmentMapNode(
+            serviceNodeId,
+            label,
+            "Orchestrator service",
+            ResourceClass.Service.ToString(),
+            "service",
+            summary,
+            stateLabel,
+            stateClass,
+            detailUrl);
+        nodes[serviceNodeId] = node;
+        return node;
+    }
+
+    private static EnvironmentMapGroupBuilder EnsureEnvironmentMapGroup(
+        IDictionary<string, EnvironmentMapGroupBuilder> groups,
+        string id,
+        string label,
+        string kind,
+        string? parentGroupId)
+    {
+        if (groups.TryGetValue(id, out var group))
+        {
+            return group;
+        }
+
+        group = new EnvironmentMapGroupBuilder(id, label, kind, parentGroupId);
+        groups[id] = group;
+        return group;
+    }
+
+    private static bool ShouldShowEnvironmentMapResource(Resource resource) =>
+        !IsContainerApplicationResource(resource) &&
+        (IsContainerReplicaResource(resource) ||
+            resource.ManagementMode != ResourceManagementMode.UserManaged ||
+            resource.State is not null ||
+            resource.ResourceLoadBalancerRoutes.Count > 0 ||
+            ResourceNameMappingDisplay.IsNameMappingResource(resource));
+
+    private static bool IsContainerApplicationResource(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, "application.container-app", StringComparison.OrdinalIgnoreCase) ||
+        resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.ContainerImage) &&
+        resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.ContainerReplicas);
+
+    private static bool IsContainerReplicaResource(Resource resource) =>
+        string.Equals(
+            resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.RuntimeKind),
+            "containerReplica",
+            StringComparison.OrdinalIgnoreCase);
+
+    private static string GetContainerApplicationServiceId(Resource resource) =>
+        FirstProjected(
+            resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentServiceId),
+            ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(resource.Id));
+
+    private static string GetReplicaServiceId(
+        Resource replica,
+        string? owningResourceId,
+        IReadOnlyDictionary<string, Resource> resourcesById)
+    {
+        var projectedServiceId = replica.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentServiceId);
+        if (IsProjected(projectedServiceId))
+        {
+            return projectedServiceId!;
+        }
+
+        if (owningResourceId is not null &&
+            resourcesById.TryGetValue(owningResourceId, out var ownerResource))
+        {
+            return GetContainerApplicationServiceId(ownerResource);
+        }
+
+        return ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(replica.Id);
+    }
+
+    private static string GetReplicaGroupId(
+        Resource replica,
+        string? owningResourceId,
+        IReadOnlyDictionary<string, Resource> resourcesById,
+        IReadOnlyDictionary<string, EnvironmentReplicaGroupRow> activeReplicaGroupRows,
+        string serviceId)
+    {
+        var projectedReplicaGroupId = replica.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentReplicaGroupId);
+        if (IsProjected(projectedReplicaGroupId))
+        {
+            return projectedReplicaGroupId!;
+        }
+
+        if (owningResourceId is not null &&
+            resourcesById.TryGetValue(owningResourceId, out var ownerResource))
+        {
+            projectedReplicaGroupId = ownerResource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentReplicaGroupId);
+            if (IsProjected(projectedReplicaGroupId))
+            {
+                return projectedReplicaGroupId!;
+            }
+        }
+
+        var matchingReplicaGroup = activeReplicaGroupRows.Values.FirstOrDefault(replicaGroup =>
+            string.Equals(replicaGroup.ServiceId, serviceId, StringComparison.OrdinalIgnoreCase));
+        if (matchingReplicaGroup is not null)
+        {
+            return matchingReplicaGroup.ReplicaGroupId;
+        }
+
+        var runtimeRevisionId = FirstNonEmpty(
+            replica.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.RuntimeRevision),
+            owningResourceId is not null && resourcesById.TryGetValue(owningResourceId, out var owner)
+                ? owner.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentRevision)
+                : null);
+        return ResourceOrchestratorReplicaGroups.CreateReplicaGroupId(serviceId, runtimeRevisionId);
+    }
+
+    private static string FirstProjected(params string?[] values) =>
+        values.First(value => IsProjected(value))!;
 
     private string CreateResourceMapSummary(Resource resource)
     {
@@ -941,14 +1206,26 @@
     private static string CreateEnvironmentMapNodeId(string prefix, string value) =>
         $"{prefix}:{value.Trim()}";
 
+    private static string CreateEnvironmentMapGroupId(string prefix, string value) =>
+        $"group:{prefix}:{value.Trim()}";
+
     private static int GetEnvironmentMapNodeSortOrder(string nodeKind) =>
         nodeKind switch
         {
             "resource" => 0,
             "service" => 1,
             "replica-group" => 2,
-            "routing" => 3,
-            _ => 4
+            "replica" => 3,
+            "routing" => 4,
+            _ => 5
+        };
+
+    private static int GetEnvironmentMapGroupSortOrder(string kind) =>
+        kind switch
+        {
+            "service" => 0,
+            "replica-group" => 1,
+            _ => 2
         };
 
     private string Localize(string value) => L[value].Value;
@@ -1076,7 +1353,7 @@
         }
     }
 
-    private static bool IsProjected(string value) =>
+    private static bool IsProjected(string? value) =>
         !string.IsNullOrWhiteSpace(value) &&
         !string.Equals(value, "not projected", StringComparison.OrdinalIgnoreCase);
 
@@ -1093,12 +1370,13 @@
 
     private sealed record EnvironmentMapViewModel(
         IReadOnlyList<EnvironmentMapNode> Nodes,
+        IReadOnlyList<EnvironmentMapGroup> Groups,
         IReadOnlyList<EnvironmentMapLink> Links,
         int ResourceCount,
         int ServiceCount,
         int RoutingCount)
     {
-        public static EnvironmentMapViewModel Empty { get; } = new([], [], 0, 0, 0);
+        public static EnvironmentMapViewModel Empty { get; } = new([], [], [], 0, 0, 0);
     }
 
     private sealed record EnvironmentMapNode(
@@ -1117,4 +1395,52 @@
         string Target,
         string Label,
         string Kind);
+
+    private sealed record EnvironmentMapGroup(
+        string Id,
+        string Label,
+        string Kind,
+        string? ParentGroupId,
+        string? BadgeLabel,
+        string? DetailUrl,
+        IReadOnlyList<string> NodeIds);
+
+    private sealed class EnvironmentMapGroupBuilder(
+        string id,
+        string label,
+        string kind,
+        string? parentGroupId)
+    {
+        public string Id { get; } = id;
+
+        public string Label { get; } = label;
+
+        public string Kind { get; } = kind;
+
+        public string? ParentGroupId { get; } = parentGroupId;
+
+        public string? BadgeLabel { get; private set; }
+
+        public string? DetailUrl { get; set; }
+
+        public HashSet<string> NodeIds { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public void SetBadgeLabel(string? badgeLabel)
+        {
+            if (!string.IsNullOrWhiteSpace(badgeLabel))
+            {
+                BadgeLabel = badgeLabel;
+            }
+        }
+
+        public EnvironmentMapGroup ToModel() =>
+            new(
+                Id,
+                Label,
+                Kind,
+                ParentGroupId,
+                BadgeLabel,
+                DetailUrl,
+                NodeIds.OrderBy(nodeId => nodeId, StringComparer.OrdinalIgnoreCase).ToArray());
+    }
 }

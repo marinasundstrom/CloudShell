@@ -1394,6 +1394,68 @@ h3 {
     font-weight: 650;
 }
 
+.environment-map-group {
+    pointer-events: none;
+}
+
+.environment-map-group-boundary {
+    fill: color-mix(in srgb, var(--cloudshell-surface-muted) 52%, transparent);
+    stroke: color-mix(in srgb, var(--cloudshell-text-muted) 36%, transparent);
+    stroke-width: 1.2;
+}
+
+.environment-map-group.service .environment-map-group-boundary {
+    fill: color-mix(in srgb, var(--cloudshell-accent) 6%, transparent);
+    stroke: color-mix(in srgb, var(--cloudshell-accent) 48%, transparent);
+}
+
+.environment-map-group.replica-group .environment-map-group-boundary {
+    fill: color-mix(in srgb, #0f766e 5%, transparent);
+    stroke: color-mix(in srgb, #0f766e 42%, transparent);
+    stroke-dasharray: 6 4;
+}
+
+.environment-map-group.dimmed {
+    opacity: .22;
+}
+
+.environment-map-group.related .environment-map-group-boundary {
+    stroke-width: 2;
+}
+
+.environment-map-group-label {
+    fill: var(--cloudshell-text-muted);
+    font-size: .72rem;
+    font-weight: 700;
+    pointer-events: none;
+    text-anchor: start;
+    text-transform: uppercase;
+}
+
+.environment-map-group-resource-card-frame {
+    fill: color-mix(in srgb, var(--cloudshell-accent) 16%, var(--cloudshell-surface));
+    stroke: color-mix(in srgb, var(--cloudshell-accent) 48%, transparent);
+    stroke-width: 1;
+    filter: drop-shadow(0 3px 8px rgba(0, 0, 0, .12));
+}
+
+.environment-map-group-resource-card-title {
+    fill: var(--cloudshell-text);
+    font-size: .72rem;
+    font-weight: 700;
+    pointer-events: none;
+    text-anchor: start;
+}
+
+.environment-map-group-resource-card-kind {
+    fill: var(--cloudshell-text-muted);
+    font-size: .62rem;
+    font-weight: 600;
+    pointer-events: none;
+    text-anchor: start;
+    text-transform: uppercase;
+}
+
 .environment-map-node {
     cursor: pointer;
 }
@@ -1413,6 +1475,10 @@ h3 {
 
 .environment-map-node.replica-group .environment-map-node-card {
     fill: color-mix(in srgb, #0f766e 8%, var(--cloudshell-surface));
+}
+
+.environment-map-node.replica .environment-map-node-card {
+    fill: color-mix(in srgb, #059669 6%, var(--cloudshell-surface));
 }
 
 .environment-map-node.routing .environment-map-node-card {
@@ -1443,6 +1509,7 @@ h3 {
 }
 
 .environment-map-node-icon.replica-group,
+.environment-map-node-icon.replica,
 .environment-map-node-icon.container {
     fill: #0f766e;
 }
