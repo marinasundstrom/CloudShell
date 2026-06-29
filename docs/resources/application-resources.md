@@ -38,7 +38,7 @@ like a managed service.
 ## Provider Boundaries And Runtime Adapters
 
 Application resource authoring now flows through ResourceDefinition entries
-and the Resource graph. The current reference providers expose builders such as
+and the Resource graph. The current built-in providers expose builders such as
 `AddExecutableApplication(...)`, `AddAspNetCoreProject(...)`, and
 `AddContainerApplication(...)`, then map accepted resource intent to provider
 projection, actions, logs, health, endpoint, and runtime adapter contracts.
@@ -61,7 +61,7 @@ flowchart TB
         ResourceManager["Resource Manager coordination"]
     end
 
-    subgraph Providers["Application reference providers"]
+    subgraph Providers["Application built-in providers"]
         Executable["application.executable"]
         AspNet["application.aspnet-core-project"]
         Container["application.container-app"]

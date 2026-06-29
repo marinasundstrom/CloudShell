@@ -60,7 +60,7 @@ This keeps providers portable across hosting environments:
   providers can use;
 - missing adapters should produce unavailable actions or diagnostics, not
   hidden direct coupling to a specific host;
-- default POC implementations can remain near reference providers while the
+- default implementations can remain near built-in providers while the
   migration is underway, but reusable host-shaped implementations should move
   behind a default runtime integration package.
 
@@ -286,7 +286,7 @@ Streaming implementation guidance:
   returns one bounded history page. Use it to load older entries incrementally
   instead of loading complete logs.
 
-## Docker Reference Provider
+## Docker Built-in Provider
 
 The Docker provider is the reference implementation. Container log sources
 set `SupportsStreaming: true`; `ReadLogSourceAsync` calls Docker logs with

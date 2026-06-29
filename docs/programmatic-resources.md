@@ -16,9 +16,9 @@ belong to the Control Plane; the host process composes the environment and
 registers runtime adapter implementations for the installed providers.
 
 ```csharp
-using CloudShell.ResourceModel.ReferenceProviders;
-using CloudShell.ResourceModel.ReferenceProviders.ResourceManager;
-using CloudShell.ResourceModel.ResourceManager;
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.ResourceModel;
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
@@ -46,20 +46,20 @@ cloudShell.DefineResources(resources =>
 cloudShell.UseResourceGraphIntegration();
 ```
 
-Resource model reference providers expose specialized extension methods
-for their own resource types. Current reference-provider methods include:
+Built-in Resource model providers expose specialized extension methods
+for their own resource types. Current provider methods include:
 
-- `AddConfigurationStore(...)` from the configuration-store reference
+- `AddConfigurationStore(...)` from the configuration-store built-in
   provider.
-- `AddSecretsVault(...)` from the secrets-vault reference provider.
-- `AddExecutableApplication(...)` from the executable application reference
+- `AddSecretsVault(...)` from the secrets-vault built-in provider.
+- `AddExecutableApplication(...)` from the executable application built-in
   provider.
-- `AddAspNetCoreProject(...)` from the ASP.NET Core project reference
+- `AddAspNetCoreProject(...)` from the ASP.NET Core project built-in
   provider.
-- `AddContainerApplication(...)` from the container application reference
+- `AddContainerApplication(...)` from the container application built-in
   provider.
 - `AddDockerHost(...)` and Docker container declarations from the Docker host
-  and container reference providers.
+  and container built-in providers.
 
 The active authoring shape is a `ResourceTemplate` or builder-created
 `ResourceDefinition` list. Provider packages own the extension methods and
@@ -67,7 +67,7 @@ builder implementations that translate fluent calls into uniform resource
 definitions with provider-owned attributes and relationships.
 
 For built-in application resources, those definitions describe the stable
-resource and its runtime intent. Reference providers handle projection and
+resource and its runtime intent. Built-in providers handle projection and
 operation semantics, while the host/runtime supplies adapter implementations
 for local process, project, Docker, networking, configuration, secrets, and
 orchestration behavior. See [Application resources](resources/application-resources.md).

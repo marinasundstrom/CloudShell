@@ -322,10 +322,10 @@ Resource model provider migration.
   other deployment-shaped user-authoring wrappers unless an internal
   orchestration API explicitly owns them.
 - [x] Move the combined development host off the legacy Applications,
-  Configuration, and Docker provider extensions and install Resource model
-  reference providers plus graph Resource Manager integration by default.
+  Configuration, and Docker provider extensions and install built-in Resource
+  model providers plus graph Resource Manager integration by default.
 - [x] Remove legacy provider project references from remaining samples where
-  Resource model reference providers already cover the scenario.
+  built-in Resource model providers already cover the scenario.
 - [ ] Move any remaining sample-local gaps behind Resource model
   provider-owned runtime seams instead of keeping the old provider projects
   installed for general host behavior.
@@ -473,7 +473,7 @@ preserving old provider seams:
   own how validated resource intent maps to its runtime target, whether that
   target is an executable, container, orchestrator service, database, or other
   managed resource.
-- [ ] Audit POC reference-provider runtime implementations and move reusable
+- [ ] Audit POC built-in-provider runtime implementations and move reusable
   or host-shaped implementations behind default runtime integration
   registrations, leaving provider packages dependent only on adapter contracts
   and fakeable abstractions.

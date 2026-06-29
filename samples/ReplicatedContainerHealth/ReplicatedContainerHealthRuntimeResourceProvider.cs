@@ -1,8 +1,8 @@
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceModel;
-using CloudShell.ResourceModel.ReferenceProviders;
-using CloudShell.ResourceModel.ResourceManager;
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.Configuration;
 using System.Globalization;
 using GraphResource = CloudShell.ResourceModel.Resource;

@@ -1,5 +1,5 @@
 using CloudShell.ResourceModel;
-using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ControlPlane.Providers;
 using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 using System.Globalization;

@@ -20,10 +20,9 @@
     <ProjectReference Include="..\CloudShell.ControlPlane\CloudShell.ControlPlane.csproj" />
     <ProjectReference Include="..\CloudShell.Hosting\CloudShell.Hosting.csproj" />
     <ProjectReference Include="..\CloudShell.Providers.DockerCompose\CloudShell.Providers.DockerCompose.csproj" />
-    <ProjectReference Include="..\CloudShell.ResourceModel.ReferenceProviders.ResourceManager.UI\CloudShell.ResourceModel.ReferenceProviders.ResourceManager.UI.csproj" />
-    <ProjectReference Include="..\CloudShell.ResourceModel.ReferenceProviders.ResourceManager\CloudShell.ResourceModel.ReferenceProviders.ResourceManager.csproj" />
-    <ProjectReference Include="..\CloudShell.ResourceModel.ReferenceProviders\CloudShell.ResourceModel.ReferenceProviders.csproj" />
-    <ProjectReference Include="..\CloudShell.ResourceModel.ResourceManager\CloudShell.ResourceModel.ResourceManager.csproj" />
+    <ProjectReference Include="..\CloudShell.ControlPlane.Providers.UI\CloudShell.ControlPlane.Providers.UI.csproj" />
+    <ProjectReference Include="..\CloudShell.ControlPlane.Providers\CloudShell.ControlPlane.Providers.csproj" />
+    <ProjectReference Include="..\CloudShell.ControlPlane.ResourceModel\CloudShell.ControlPlane.ResourceModel.csproj" />
   </ItemGroup>
 
 </Project>

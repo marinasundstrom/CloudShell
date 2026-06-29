@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using CloudShell.ResourceModel;
-using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ControlPlane.Providers;
 using ResourceModelResource = CloudShell.ResourceModel.Resource;
 
 internal sealed class ContainerAppDeploymentDockerContainerRuntimeHandler :

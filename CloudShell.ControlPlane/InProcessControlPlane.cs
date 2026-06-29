@@ -10,7 +10,7 @@ using CloudShell.ControlPlane.ResourceManager.Identity;
 using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.ControlPlane.ResourceManager.Recovery;
-using CloudShell.ResourceModel.ResourceManager;
+using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.AspNetCore.Http;
 using System.Globalization;
 using System.Security.Claims;

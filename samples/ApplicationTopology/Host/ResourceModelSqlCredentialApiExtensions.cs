@@ -2,7 +2,7 @@ using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceModel;
-using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ControlPlane.Providers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using System.Security.Claims;

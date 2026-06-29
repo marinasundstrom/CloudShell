@@ -1,5 +1,5 @@
 using CloudShell.ResourceModel;
-using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ControlPlane.Providers;
 using ResourceModelResource = CloudShell.ResourceModel.Resource;
 
 internal interface IContainerAppDeploymentContainerApplicationRuntimeBridge

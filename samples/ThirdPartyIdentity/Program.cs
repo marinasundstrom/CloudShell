@@ -7,10 +7,9 @@ using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.ResourceModel;
-using CloudShell.ResourceModel.ReferenceProviders;
-using CloudShell.ResourceModel.ReferenceProviders.ResourceManager;
-using CloudShell.ResourceModel.ReferenceProviders.ResourceManager.UI;
-using CloudShell.ResourceModel.ResourceManager;
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.Providers.UI;
+using CloudShell.ControlPlane.ResourceModel;
 using CloudShell.ThirdPartyIdentity;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using GraphResourceState = CloudShell.ResourceModel.ResourceState;
@@ -107,7 +106,7 @@ cloudShell.UseResourceGraphIntegration();
 cloudShell
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>();
-cloudShell.AddReferenceProviderResourceManagerUi();
+cloudShell.AddBuiltInProviderResourceManagerUi();
 builder.Services.TryAddEnumerable(
     ServiceDescriptor.Singleton<IResourceIdentityProvisioner, KeycloakResourceIdentityProvisioner>());
 builder.Services.TryAddEnumerable(

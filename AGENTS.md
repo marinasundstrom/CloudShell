@@ -47,7 +47,9 @@ For focused areas, read the relevant documentation:
 - `CloudShell.Host` — combined development host.
 - `CloudShell.Persistence` — EF Core persistence for registrations, groups,
   identity, and platform state.
-- `CloudShell.Providers.*` — built-in and reference provider extensions.
+- `CloudShell.Providers.*` — provider extension packages.
+- `CloudShell.ControlPlane.Providers.*` — built-in Resource model provider
+  packages and their UI/runtime adapter integrations.
 - `samples/` — focused hosting scenarios.
 - `CloudShell.*.Tests` — abstraction, Control Plane, client/API, and sample
   test projects.

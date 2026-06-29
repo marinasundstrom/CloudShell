@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
-using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ControlPlane.Providers;
 using ResourceGraphState = CloudShell.ResourceModel.ResourceState;
 
 namespace CloudShell.ResourceModel.Tests;

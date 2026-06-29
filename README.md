@@ -120,8 +120,9 @@ represented through the same resource model.
 - `CloudShell.Secrets.Client`: SDK client and `IConfiguration` integration for Secrets Vault service APIs.
 - `CloudShell.Persistence`: EF Core SQLite or SQL Server persistence for resources and local Identity.
 - `CloudShell.ResourceModel`: Resource model and ResourceDefinition graph contracts.
-- `CloudShell.ResourceModel.ReferenceProviders`: reference resource providers for local development resources.
-- `CloudShell.ResourceModel.ReferenceProviders.ResourceManager`: Resource Manager integration for graph-backed providers.
+- `CloudShell.ControlPlane.ResourceModel`: Control Plane Resource Manager integration for graph-backed Resource model state.
+- `CloudShell.ControlPlane.Providers`: built-in Resource model providers and their Control Plane/runtime adapter integrations.
+- `CloudShell.ControlPlane.Providers.UI`: Resource Manager UI integration for built-in Resource model providers.
 - `CloudShell.Abstractions.Tests`: extension registration and validation tests.
 
 ## Contributing

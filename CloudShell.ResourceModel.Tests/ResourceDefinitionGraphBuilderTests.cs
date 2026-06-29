@@ -1,7 +1,7 @@
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ResourceModel.ReferenceProviders;
-using CloudShell.ResourceModel.ResourceManager;
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.ResourceModel.Tests;

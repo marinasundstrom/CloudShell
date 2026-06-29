@@ -1,0 +1,9 @@
+namespace CloudShell.ControlPlane.Providers;
+
+public sealed record SqlServerConfiguration(
+    IReadOnlyList<SqlServerDatabaseDefinition> Databases);
+
+public sealed record SqlServerDatabaseDefinition(
+    string Name,
+    string? DisplayName = null,
+    bool EnsureCreated = false);

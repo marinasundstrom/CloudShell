@@ -132,7 +132,7 @@ The response includes the resolved API endpoint and the API health payload.
 You can also open `http://localhost:5229/health` to verify the API directly.
 The frontend response should resolve and call the API endpoint.
 
-The ASP.NET Core reference-provider bridge projects provider-observed runtime
+The ASP.NET Core built-in provider bridge projects provider-observed runtime
 state for these Resource model resources. `Unknown` remains the generic fallback
 for lifecycle-capable graph resources when no runtime state provider is
 registered, but this sample now exercises the provider-local state projection

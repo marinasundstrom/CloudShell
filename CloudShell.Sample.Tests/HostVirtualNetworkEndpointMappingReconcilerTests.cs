@@ -2,9 +2,8 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Networking;
 using CloudShell.HostVirtualNetwork;
 using CloudShell.ResourceModel;
-using CloudShell.ResourceModel.ReferenceProviders;
-using CloudShell.ResourceModel.ReferenceProviders.ResourceManager;
-using CloudShell.ResourceModel.ResourceManager;
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.Sample.Tests;
@@ -28,7 +27,7 @@ public sealed class HostVirtualNetworkEndpointMappingReconcilerTests
         services.AddVirtualNetworkResourceType();
         services.AddAspNetCoreProjectResourceType();
         services.AddResourceModelGraphServices();
-        services.AddReferenceProviderResourceManagerProjections();
+        services.AddBuiltInProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var graph = new ResourceDefinitionGraphBuilder();

@@ -5,9 +5,8 @@ using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ResourceModel.ReferenceProviders;
-using CloudShell.ResourceModel.ReferenceProviders.ResourceManager;
-using CloudShell.ResourceModel.ResourceManager;
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.DependencyInjection;
 using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
 using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
@@ -447,11 +446,11 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
-    public void ReferenceProviderResourceManagerProjections_RegistersProcessMonitoringProviders()
+    public void BuiltInProviderResourceManagerProjections_RegistersProcessMonitoringProviders()
     {
         var services = new ServiceCollection();
 
-        services.AddReferenceProviderResourceManagerProjections();
+        services.AddBuiltInProviderResourceManagerProjections();
         using var serviceProvider = services.BuildServiceProvider();
         var providers = serviceProvider.GetServices<IResourceMonitoringProvider>().ToArray();
 
@@ -466,7 +465,7 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
-    public void ReferenceProviderResourceManagerIntegration_RegistersProjectionsAndGraphProcedureBridge()
+    public void BuiltInProviderResourceManagerIntegration_RegistersProjectionsAndGraphProcedureBridge()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([CreateLocalVolumeState(), CreateExecutableState()]);
@@ -474,7 +473,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddExecutableApplicationResourceType();
         services.AddResourceModelGraphServices();
 
-        services.AddReferenceProviderResourceManagerIntegration();
+        services.AddBuiltInProviderResourceManagerIntegration();
         using var serviceProvider = services.BuildServiceProvider();
 
         Assert.Contains(
@@ -1894,7 +1893,7 @@ public sealed class ResourceManagerIntegrationTests
             new StaticContainerApplicationRuntimeHandler(ContainerApplicationRuntimeStatus.Running));
         services.AddContainerApplicationResourceType();
         services.AddResourceModelGraphServices();
-        services.AddReferenceProviderResourceManagerProjections();
+        services.AddBuiltInProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
@@ -2084,7 +2083,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddSingleton<IContainerApplicationRuntimeHandler>(runtimeHandler);
         services.AddContainerApplicationResourceType();
         services.AddResourceModelGraphServices();
-        services.AddReferenceProviderResourceManagerProjections();
+        services.AddBuiltInProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         var deploymentCoordinator = new RecordingResourceOrchestratorDeploymentCoordinator();
         services.AddSingleton<IResourceOrchestratorDeploymentCoordinator>(deploymentCoordinator);
@@ -2185,7 +2184,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddSingleton<IContainerApplicationRuntimeHandler>(runtimeHandler);
         services.AddContainerApplicationResourceType();
         services.AddResourceModelGraphServices();
-        services.AddReferenceProviderResourceManagerProjections();
+        services.AddBuiltInProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var apply = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
@@ -2280,7 +2279,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddSingleton<IContainerApplicationOrchestratorRuntimeHandler>(runtimeHandler);
         services.AddContainerApplicationResourceType();
         services.AddResourceModelGraphServices();
-        services.AddReferenceProviderResourceManagerProjections();
+        services.AddBuiltInProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var apply = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
@@ -2393,7 +2392,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddSingleton<IContainerApplicationRuntimeHandler>(runtimeHandler);
         services.AddContainerApplicationResourceType();
         services.AddResourceModelGraphServices();
-        services.AddReferenceProviderResourceManagerProjections();
+        services.AddBuiltInProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var apply = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
@@ -3862,7 +3861,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddLocalVolumeResourceType();
         services.AddNameMappingResourceType();
         services.AddResourceModelGraphServices();
-        services.AddReferenceProviderResourceManagerProjections();
+        services.AddBuiltInProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
@@ -3998,7 +3997,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddDnsZoneResourceType();
         services.AddNameMappingResourceType();
         services.AddResourceModelGraphServices();
-        services.AddReferenceProviderResourceManagerProjections();
+        services.AddBuiltInProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
@@ -4678,7 +4677,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddSqlServerResourceType();
         services.AddSqlDatabaseResourceType();
         services.AddResourceModelGraphServices();
-        services.AddReferenceProviderResourceManagerProjections();
+        services.AddBuiltInProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
@@ -5048,7 +5047,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddSecretsVaultResourceType();
         services.AddAspNetCoreProjectResourceType();
         services.AddResourceModelGraphServices();
-        services.AddReferenceProviderResourceManagerProjections();
+        services.AddBuiltInProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
@@ -5240,7 +5239,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddSecretsVaultResourceType();
         services.AddAspNetCoreProjectResourceType();
         services.AddResourceModelGraphServices();
-        services.AddReferenceProviderResourceManagerProjections();
+        services.AddBuiltInProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();

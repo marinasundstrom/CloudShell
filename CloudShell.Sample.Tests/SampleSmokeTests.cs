@@ -13,9 +13,8 @@ using CloudShell.ApplicationTopology.ServiceDefaults;
 using CloudShell.ContainerHost;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Platform;
-using CloudShell.ResourceModel.ReferenceProviders;
-using CloudShell.ResourceModel.ReferenceProviders.ResourceManager;
-using CloudShell.ResourceModel.ResourceManager;
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
@@ -26,7 +25,7 @@ using ResourceDefinitionJson = CloudShell.ResourceModel.ResourceDefinitionJson;
 using ResourceGraphState = CloudShell.ResourceModel.ResourceState;
 using ResourceHealthCheckCapabilityIds = CloudShell.ResourceModel.ResourceHealthCheckCapabilityIds;
 using ResourceReference = CloudShell.ResourceModel.ResourceReference;
-using SqlServerResources = CloudShell.ResourceModel.ReferenceProviders.SqlServerResourceDefaults;
+using SqlServerResources = CloudShell.ControlPlane.Providers.SqlServerResourceDefaults;
 
 namespace CloudShell.Sample.Tests;
 
@@ -304,7 +303,7 @@ public sealed class SampleSmokeTests
             .AddCloudShellVolumeResourceType()
             .AddSqlServerResourceType()
             .AddResourceModelGraphServices()
-            .AddReferenceProviderResourceManagerProjections()
+            .AddBuiltInProviderResourceManagerProjections()
             .AddResourceModelGraphProcedureProvider(
                 ResourceModelResourceProvider.DefaultProviderId,
                 "Resource model");

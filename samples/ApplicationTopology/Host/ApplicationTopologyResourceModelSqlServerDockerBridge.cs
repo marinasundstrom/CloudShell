@@ -1,7 +1,7 @@
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceModel;
-using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ControlPlane.Providers;
 using System.Diagnostics;
 using System.Globalization;
 using Microsoft.Extensions.Hosting;

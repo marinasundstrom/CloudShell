@@ -1,6 +1,5 @@
 using CloudShell.ResourceModel;
-using CloudShell.ResourceModel.ReferenceProviders;
-using CloudShell.ResourceModel.ReferenceProviders.ResourceManager;
+using CloudShell.ControlPlane.Providers;
 using CloudShell.Abstractions.ResourceManager;
 using GraphResource = CloudShell.ResourceModel.Resource;
 

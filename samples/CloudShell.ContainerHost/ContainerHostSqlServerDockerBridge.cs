@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceModel;
-using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ControlPlane.Providers;
 using Microsoft.Extensions.Hosting;
 using ResourceModelResource = CloudShell.ResourceModel.Resource;
 

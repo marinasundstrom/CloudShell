@@ -8,10 +8,9 @@ using CloudShell.Hosting.Shell;
 using CloudShell.LoadBalancer;
 using CloudShell.Providers.Traefik;
 using CloudShell.ResourceModel;
-using CloudShell.ResourceModel.ReferenceProviders;
-using CloudShell.ResourceModel.ReferenceProviders.ResourceManager;
-using CloudShell.ResourceModel.ReferenceProviders.ResourceManager.UI;
-using CloudShell.ResourceModel.ResourceManager;
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.Providers.UI;
+using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var builder = CloudShellApplication.CreateBuilder(args);
@@ -112,7 +111,7 @@ cloudShell
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>();
 
-cloudShell.AddReferenceProviderResourceManagerUi();
+cloudShell.AddBuiltInProviderResourceManagerUi();
 
 cloudShell
     .AddTraefikProvider(options =>

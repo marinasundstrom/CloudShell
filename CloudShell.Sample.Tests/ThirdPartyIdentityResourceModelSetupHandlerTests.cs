@@ -3,7 +3,7 @@ using CloudShell.Abstractions.Hosting;
 using CloudShell.Client.Authentication;
 using CloudShell.ControlPlane.ResourceManager.Identity;
 using CloudShell.ResourceModel;
-using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ControlPlane.Providers;
 using CloudShell.ThirdPartyIdentity;
 using Microsoft.Extensions.DependencyInjection;
 using GraphResource = CloudShell.ResourceModel.Resource;

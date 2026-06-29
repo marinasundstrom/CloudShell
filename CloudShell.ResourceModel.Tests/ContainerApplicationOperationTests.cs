@@ -1,4 +1,4 @@
-using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ControlPlane.Providers;
 
 namespace CloudShell.ResourceModel.Tests;
 

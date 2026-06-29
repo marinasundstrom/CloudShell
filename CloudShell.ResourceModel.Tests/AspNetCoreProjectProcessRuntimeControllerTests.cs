@@ -1,8 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ResourceModel.ReferenceProviders;
-using CloudShell.ResourceModel.ReferenceProviders.ResourceManager;
+using CloudShell.ControlPlane.Providers;
 using ResourceGraphState = CloudShell.ResourceModel.ResourceState;
 
 namespace CloudShell.ResourceModel.Tests;

@@ -83,6 +83,11 @@ on `git blame --follow`, and then by the broad type of change.
   with `CreateOrUpdate`, `UpdateExisting`, and `CreateOnly` modes, and graph
   apply coverage verifies provider validation rejects without mutation while
   runtime reconcilers run only after accepted state is committed.
+- The Resource model Control Plane bridge now lives under
+  `CloudShell.ControlPlane.ResourceModel`, and the ported built-in providers
+  now live under `CloudShell.ControlPlane.Providers` with their Resource
+  Manager UI in `CloudShell.ControlPlane.Providers.UI`; the transitional
+  `ReferenceProviders` package family has been removed.
 - ApplicationTopology sample smoke assertions now match the ResourceDefinition
   model for ad-hoc volumes and name mappings instead of expecting the old
   storage-wrapper resource projection.
@@ -2081,7 +2086,7 @@ on `git blame --follow`, and then by the broad type of change.
 - The Resource model POC now uses strongly typed class, type,
   attribute, capability, and operation IDs, adds an isolated resource type
   provider validation path, and introduces a separate
-  `CloudShell.ResourceModel.ReferenceProviders` project for the
+  `CloudShell.ControlPlane.Providers` project for the
   executable reference provider. The infrastructure project no longer
   references the broad `CloudShell.Abstractions` project just to borrow
   resource classes or attribute constants, keeping the experiment aligned with

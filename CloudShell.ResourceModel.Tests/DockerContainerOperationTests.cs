@@ -1,5 +1,4 @@
-using CloudShell.ResourceModel.ReferenceProviders;
-using CloudShell.ResourceModel.ReferenceProviders.ResourceManager;
+using CloudShell.ControlPlane.Providers;
 using ResourceManagerState = CloudShell.Abstractions.ResourceManager.ResourceState;
 
 namespace CloudShell.ResourceModel.Tests;

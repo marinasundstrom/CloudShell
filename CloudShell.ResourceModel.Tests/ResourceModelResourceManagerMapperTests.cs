@@ -1,6 +1,6 @@
 using System.Text.Json;
-using CloudShell.ResourceModel.ReferenceProviders;
-using CloudShell.ResourceModel.ResourceManager;
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.ResourceModel;
 
 namespace CloudShell.ResourceModel.Tests;
 

@@ -1,7 +1,7 @@
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Identity;
 using CloudShell.ResourceModel;
-using CloudShell.ResourceModel.ReferenceProviders;
+using CloudShell.ControlPlane.Providers;
 using Microsoft.Extensions.DependencyInjection;
 using GraphResource = CloudShell.ResourceModel.Resource;
 

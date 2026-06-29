@@ -3,9 +3,8 @@ using CloudShell.ControlPlane.ResourceManager.Networking;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.LoadBalancer;
 using CloudShell.ResourceModel;
-using CloudShell.ResourceModel.ReferenceProviders;
-using CloudShell.ResourceModel.ReferenceProviders.ResourceManager;
-using CloudShell.ResourceModel.ResourceManager;
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ResourceGraphState = CloudShell.ResourceModel.ResourceState;
@@ -92,7 +91,7 @@ public sealed class LoadBalancerGraphNameMappingReconcilerTests
             .AddDnsZoneResourceType()
             .AddNameMappingResourceType()
             .AddResourceModelGraphServices()
-            .AddReferenceProviderResourceManagerProjections();
+            .AddBuiltInProviderResourceManagerProjections();
         services.Replace(
             ServiceDescriptor.Singleton<IDnsZoneNameMappingReconciler, LoadBalancerGraphNameMappingReconciler>());
         using var serviceProvider = services.BuildServiceProvider();
