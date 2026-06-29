@@ -103,6 +103,10 @@ public static class ReferenceProviderResourceManagerServiceCollectionExtensions
                 ContainerApplicationResourceModelGraphApplyReconciler>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
+                IResourceModelGraphDeploymentDescriptor,
+                ContainerApplicationResourceModelGraphDeploymentDescriptor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerEndpointProjectionProvider,
                 ConfigurationStoreResourceManagerEndpointProjectionProvider>());
         services.TryAddEnumerable(

@@ -53,6 +53,10 @@ on `git blame --follow`, and then by the broad type of change.
   reconciliation hooks, and container-app image or replica changes applied
   through ResourceDefinition templates now execute the same runtime
   reconciliation operations as explicit image and replica commands.
+- Graph-backed container apps now describe an internal orchestrator deployment
+  with a service and replica-group definition through the Resource Manager
+  bridge, and ControlPlane deployment provider resolution now honors the
+  graph bridge provider id for deployment and service procedure boundaries.
 - Replica-group deployment definitions now include reconciliation policy for
   scale routing and previous-revision slot retention, and the deployment
   proposal documents both compact container-app update JSON and the normalized

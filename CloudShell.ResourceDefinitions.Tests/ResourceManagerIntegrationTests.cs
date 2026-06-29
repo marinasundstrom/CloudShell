@@ -1837,6 +1837,30 @@ public sealed class ResourceManagerIntegrationTests
             action.Id == ContainerApplicationResourceTypeProvider.Operations.Stop.ToString());
         var restart = Assert.Single(projectedContainer.ResourceActions, action =>
             action.Id == ContainerApplicationResourceTypeProvider.Operations.Restart.ToString());
+        var deploymentProvider = Assert.IsAssignableFrom<IResourceOrchestratorDeploymentProvider>(provider);
+        var deployment = await deploymentProvider.DescribeDeploymentAsync(
+            new ResourceProcedureContext(
+                projectedContainer,
+                null,
+                null,
+                new EmptyResourceRegistrationStore()));
+
+        Assert.NotNull(deployment);
+        Assert.Equal("default", deployment.OrchestratorId);
+        Assert.Equal(container.EffectiveResourceId, deployment.SourceResourceId);
+        Assert.Equal("cloudshell-application-container-app-api", deployment.ServiceId);
+        Assert.Equal("ghcr.io/example/api:latest", deployment.Spec.Service.Workload.Image);
+        Assert.Equal(2, deployment.Spec.Service.Workload.Replicas);
+        Assert.True(deployment.Spec.Service.Workload.ReplicasEnabled);
+        Assert.Equal(host.EffectiveResourceId, deployment.Spec.Service.Workload.ContainerHostId);
+        Assert.Equal("rev-1", deployment.RevisionId);
+        Assert.NotNull(deployment.Spec.Definition);
+        var deploymentService = Assert.Single(deployment.Spec.Definition.DeploymentServices);
+        var replicaGroupDefinition = Assert.Single(deploymentService.ReplicaGroupDefinitions);
+        Assert.Equal("cloudshell-application-container-app-api-rev-1-replicas", replicaGroupDefinition.Name);
+        Assert.Equal("rev-1", replicaGroupDefinition.RuntimeRevisionId);
+        Assert.Equal(2, replicaGroupDefinition.RequestedReplicaSlots);
+        Assert.Equal(2, replicaGroupDefinition.RequestedReplicas);
 
         var resolution = await serviceProvider
             .GetRequiredService<ResourceModelGraphResourceResolver>()

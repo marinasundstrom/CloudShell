@@ -240,10 +240,13 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
                     projectionOptions),
                 serviceProvider.GetRequiredService<ResourceModelGraphResourceResolver>(),
                 serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>(),
-                resolutionContext));
+                resolutionContext,
+                serviceProvider.GetServices<IResourceModelGraphDeploymentDescriptor>()));
         services.AddScoped<IResourceProvider>(
             serviceProvider => serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>());
         services.AddScoped<IResourceActionAvailabilityProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>());
+        services.AddScoped<IResourceOrchestratorDeploymentProvider>(
             serviceProvider => serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>());
 
         return services;

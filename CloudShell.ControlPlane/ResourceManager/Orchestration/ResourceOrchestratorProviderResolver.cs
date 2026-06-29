@@ -65,6 +65,14 @@ internal static class ResourceOrchestratorProviderResolver
         ResourceOrchestrationContext context,
         ResourceAction action)
     {
+        var bridgeProvider = GetBridgeProvider<IResourceOrchestratorServiceProcedureProvider>(
+            context,
+            provider => provider.CanExecuteOrchestratorService(context.Resource, action));
+        if (bridgeProvider is not null)
+        {
+            return bridgeProvider;
+        }
+
         if (context.Registration is not null)
         {
             return context.ResourceManager.Providers.FirstOrDefault(provider =>
@@ -84,6 +92,14 @@ internal static class ResourceOrchestratorProviderResolver
     public static IResourceOrchestratorDeploymentProvider? GetDeploymentProvider(
         ResourceOrchestrationContext context)
     {
+        var bridgeProvider = GetBridgeProvider<IResourceOrchestratorDeploymentProvider>(
+            context,
+            provider => provider.CanDescribeDeployment(context.Resource));
+        if (bridgeProvider is not null)
+        {
+            return bridgeProvider;
+        }
+
         if (context.Registration is not null)
         {
             return context.ResourceManager.Providers.FirstOrDefault(provider =>
@@ -103,6 +119,14 @@ internal static class ResourceOrchestratorProviderResolver
     public static IResourceOrchestratorDeploymentAppliedProvider? GetDeploymentAppliedProvider(
         ResourceOrchestrationContext context)
     {
+        var bridgeProvider = GetBridgeProvider<IResourceOrchestratorDeploymentAppliedProvider>(
+            context,
+            provider => provider.CanHandleDeploymentApplied(context.Resource));
+        if (bridgeProvider is not null)
+        {
+            return bridgeProvider;
+        }
+
         if (context.Registration is not null)
         {
             return context.ResourceManager.Providers.FirstOrDefault(provider =>
@@ -122,6 +146,14 @@ internal static class ResourceOrchestratorProviderResolver
     public static IResourceOrchestratorDeploymentFailureProvider? GetDeploymentFailureProvider(
         ResourceOrchestrationContext context)
     {
+        var bridgeProvider = GetBridgeProvider<IResourceOrchestratorDeploymentFailureProvider>(
+            context,
+            provider => provider.CanHandleDeploymentApplyFailed(context.Resource));
+        if (bridgeProvider is not null)
+        {
+            return bridgeProvider;
+        }
+
         if (context.Registration is not null)
         {
             return context.ResourceManager.Providers.FirstOrDefault(provider =>
@@ -136,5 +168,25 @@ internal static class ResourceOrchestratorProviderResolver
             provider is IResourceOrchestratorDeploymentFailureProvider failureProvider &&
             failureProvider.CanHandleDeploymentApplyFailed(context.Resource))
             as IResourceOrchestratorDeploymentFailureProvider;
+    }
+
+    private static TProvider? GetBridgeProvider<TProvider>(
+        ResourceOrchestrationContext context,
+        Func<TProvider, bool> canUse)
+        where TProvider : class
+    {
+        if (!context.Resource.ResourceAttributes.TryGetValue(
+                ResourceModelBridgeProviderIdAttribute,
+                out var bridgeProviderId) ||
+            string.IsNullOrWhiteSpace(bridgeProviderId))
+        {
+            return null;
+        }
+
+        return context.ResourceManager.Providers.FirstOrDefault(provider =>
+            string.Equals(provider.Id, bridgeProviderId, StringComparison.OrdinalIgnoreCase) &&
+            provider is TProvider typedProvider &&
+            canUse(typedProvider))
+            as TProvider;
     }
 }

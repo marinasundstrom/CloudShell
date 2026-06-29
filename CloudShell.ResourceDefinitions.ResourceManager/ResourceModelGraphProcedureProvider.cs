@@ -9,7 +9,8 @@ public sealed class ResourceModelGraphProcedureProvider :
     IResourceProcedureProvider,
     IResourceActionAvailabilityProvider,
     IResourceImageUpdateProvider,
-    IResourceReplicaUpdateProvider
+    IResourceReplicaUpdateProvider,
+    IResourceOrchestratorDeploymentProvider
 {
     private static readonly ResourceOperationId ContainerImageUpdateOperationId = "container.image.update";
     private static readonly ResourceOperationId ContainerReplicasUpdateOperationId = "container.replicas.update";
@@ -20,17 +21,20 @@ public sealed class ResourceModelGraphProcedureProvider :
     private readonly ResourceModelGraphResourceResolver _resourceResolver;
     private readonly ResourceModelGraphDefinitionApplyService _definitionApply;
     private readonly ResourceDefinitionResolutionContext _resolutionContext;
+    private readonly IReadOnlyList<IResourceModelGraphDeploymentDescriptor> _deploymentDescriptors;
 
     public ResourceModelGraphProcedureProvider(
         ResourceModelGraphResourceProvider resourceProvider,
         ResourceModelGraphResourceResolver resourceResolver,
         ResourceModelGraphDefinitionApplyService definitionApply,
-        ResourceDefinitionResolutionContext? resolutionContext = null)
+        ResourceDefinitionResolutionContext? resolutionContext = null,
+        IEnumerable<IResourceModelGraphDeploymentDescriptor>? deploymentDescriptors = null)
     {
         _resourceProvider = resourceProvider ?? throw new ArgumentNullException(nameof(resourceProvider));
         _resourceResolver = resourceResolver ?? throw new ArgumentNullException(nameof(resourceResolver));
         _definitionApply = definitionApply ?? throw new ArgumentNullException(nameof(definitionApply));
         _resolutionContext = resolutionContext ?? ResourceDefinitionResolutionContext.Empty;
+        _deploymentDescriptors = (deploymentDescriptors ?? []).ToArray();
     }
 
     public string Id => _resourceProvider.Id;
@@ -48,6 +52,50 @@ public sealed class ResourceModelGraphProcedureProvider :
         CancellationToken cancellationToken = default) =>
         Task.FromException<ResourceProcedureResult>(
             new NotSupportedException("Resource model graph resources are not deleted through this bridge provider."));
+
+    public bool CanDescribeDeployment(ResourceManagerResource resource) =>
+        IsBridgeResource(resource) &&
+        _deploymentDescriptors.Count > 0;
+
+    public async Task<ResourceOrchestratorDeployment?> DescribeDeploymentAsync(
+        ResourceProcedureContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        if (!CanDescribeDeployment(context.Resource))
+        {
+            return null;
+        }
+
+        var resolution = await _resourceResolver.ResolveAsync(
+            context.Resource.Id,
+            _resolutionContext,
+            cancellationToken);
+        if (resolution.Target is null)
+        {
+            return null;
+        }
+
+        if (resolution.HasErrors)
+        {
+            throw new InvalidOperationException(FormatDiagnostics(resolution.Diagnostics));
+        }
+
+        var descriptor = _deploymentDescriptors.FirstOrDefault(descriptor =>
+            descriptor.CanDescribeDeployment(context.Resource, resolution.Target));
+        if (descriptor is null)
+        {
+            return null;
+        }
+
+        return await descriptor.DescribeDeploymentAsync(
+            new ResourceModelGraphDeploymentDescriptionContext(
+                context.Resource,
+                resolution.Target,
+                context),
+            cancellationToken);
+    }
 
     public bool CanUpdateImage(ResourceManagerResource resource) =>
         IsBridgeResource(resource) &&
