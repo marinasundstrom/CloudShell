@@ -299,6 +299,9 @@ cleanup without falling back to old provider-specific imperative update paths.
   stop handling into `ContainerApplicationIngressOperations` so routing
   reconciliation has a container-app-owned boundary instead of living in the
   shared runtime/procedure coordinator or service-preparation code.
+- [x] Move container app replica Docker run command construction into
+  `ContainerApplicationContainerRunCommandFactory`, separating runtime command
+  translation from process tracking, readiness, and lifecycle coordination.
 
 ## Next Slices
 
@@ -358,6 +361,8 @@ cleanup without falling back to old provider-specific imperative update paths.
   `IContainerApplicationDeploymentOutcomeOperations`.
 - [x] Extract container app ingress/routing reconciliation support from the
   shared runtime/procedure coordinator.
+- [x] Extract container app replica container run command construction from
+  the shared runtime/procedure coordinator.
 - [x] Extract the container app orchestrator deployment factory from the shared
   service so deployment description is independently testable.
 - [ ] Revisit post-apply teardown ownership. Prefer Resource Manager

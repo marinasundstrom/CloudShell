@@ -15,13 +15,4 @@ public sealed partial class ApplicationResourceRuntimeOperations
 
     private static string NormalizeProtocol(string? protocol) =>
         string.IsNullOrWhiteSpace(protocol) ? "tcp" : protocol.Trim().ToLowerInvariant();
-
-    private static string NormalizeContainerPublishProtocol(string? protocol) =>
-        NormalizeProtocol(protocol) switch
-        {
-            "http" or "https" => "tcp",
-            "udp" => "udp",
-            "sctp" => "sctp",
-            _ => "tcp"
-        };
 }

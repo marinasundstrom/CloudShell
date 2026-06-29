@@ -105,7 +105,7 @@ internal sealed partial class ContainerApplicationIngressOperations(
         {
             var hostPort = _ports.ResolveLocalPort(definition.Id, port);
             arguments.Add("-p");
-            arguments.Add($"{hostPort.ToString(CultureInfo.InvariantCulture)}:{hostPort.ToString(CultureInfo.InvariantCulture)}/{NormalizeContainerPublishProtocol(port.Protocol)}");
+            arguments.Add($"{hostPort.ToString(CultureInfo.InvariantCulture)}:{hostPort.ToString(CultureInfo.InvariantCulture)}/{ContainerApplicationContainerRunCommandFactory.NormalizeContainerPublishProtocol(port.Protocol)}");
         }
 
         arguments.Add("-v");
@@ -337,15 +337,6 @@ internal sealed partial class ContainerApplicationIngressOperations(
 
     private static string NormalizeProtocol(string? protocol) =>
         string.IsNullOrWhiteSpace(protocol) ? "tcp" : protocol.Trim().ToLowerInvariant();
-
-    private static string NormalizeContainerPublishProtocol(string? protocol) =>
-        NormalizeProtocol(protocol) switch
-        {
-            "http" or "https" => "tcp",
-            "udp" => "udp",
-            "sctp" => "sctp",
-            _ => "tcp"
-        };
 
     private static string CreateStableIdentifier(string value)
         => ApplicationResourceNames.CreateStableIdentifier(value);

@@ -10780,12 +10780,68 @@ public sealed class ResourceDeclarationTests
         string protocol,
         string expected)
     {
-        var method = typeof(ApplicationResourceRuntimeOperations).GetMethod(
-            "NormalizeContainerPublishProtocol",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Assert.Equal(
+            expected,
+            ContainerApplicationContainerRunCommandFactory.NormalizeContainerPublishProtocol(protocol));
+    }
 
-        Assert.NotNull(method);
-        Assert.Equal(expected, method.Invoke(null, [protocol]));
+    [Fact]
+    public void ContainerApplicationContainerRunCommandFactory_UsesIngressAliasAndSkipsIngressPort()
+    {
+        var factory = new ContainerApplicationContainerRunCommandFactory(new ApplicationProviderOptions());
+        var engine = new ContainerHostDescriptor(
+            "docker:local",
+            "Local Docker",
+            ContainerHostKind.Docker,
+            "unix:///var/run/docker.sock");
+        var definition = new ApplicationResourceDefinition(
+            "application:api",
+            "api",
+            executablePath: string.Empty,
+            containerImage: "example/api:latest",
+            lifetime: ApplicationLifetime.ControlPlaneScoped,
+            resourceType: ApplicationResourceTypes.ContainerApp);
+        var service = new ResourceOrchestratorService(
+            "application:api",
+            "cloudshell-application-api",
+            new ResourceWorkloadConfiguration(
+                ResourceWorkloadKind.ContainerImage,
+                "api",
+                Image: "example/api:latest",
+                Replicas: 3,
+                ReplicasEnabled: true),
+            Networks: ["cloudshell"],
+            Ports:
+            [
+                new ServicePort("http", 80, 5081, "http")
+            ]);
+        var startInfo = factory.CreateStartInfo(
+            engine,
+            definition,
+            service,
+            new ResourceOrchestratorServiceInstance(
+                "cloudshell-application-api-replica-1",
+                1,
+                3),
+            runtimeProbePorts: [],
+            environmentVariables: [new EnvironmentVariableAssignment("ASPNETCORE_ENVIRONMENT", "Development")],
+            volumeMaterializations: [],
+            imageReference: "example/api:latest",
+            imagePlatform: "linux/amd64",
+            useIngress: true);
+        var arguments = startInfo.ArgumentList.ToArray();
+
+        Assert.Equal("docker", startInfo.FileName);
+        Assert.Contains("--rm", arguments);
+        Assert.Contains("--network-alias", arguments);
+        Assert.Contains("cloudshell-application-api-replica-1", arguments);
+        Assert.Contains("ASPNETCORE_ENVIRONMENT=Development", arguments);
+        Assert.Contains("CLOUDSHELL_RESOURCE_ID=application:api", arguments);
+        Assert.Contains("CLOUDSHELL_REPLICA_ORDINAL=1", arguments);
+        Assert.Contains("--platform", arguments);
+        Assert.Contains("linux/amd64", arguments);
+        Assert.DoesNotContain("5081:80/tcp", arguments);
+        Assert.Equal("example/api:latest", arguments[^1]);
     }
 
     [Fact]

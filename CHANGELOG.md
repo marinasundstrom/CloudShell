@@ -41,6 +41,10 @@ on `git blame --follow`, and then by the broad type of change.
   handling now lives in a focused `ContainerApplicationIngressOperations`
   boundary used by runtime service execution and service preparation, instead
   of being duplicated inside the shared application runtime coordinator.
+- Container app replica Docker `run` command construction now lives in a
+  focused `ContainerApplicationContainerRunCommandFactory`, keeping container
+  command translation separate from runtime process tracking, readiness, and
+  lifecycle coordination.
 - ApplicationTopology sample smoke assertions now match the ResourceDefinition
   model for ad-hoc volumes and name mappings instead of expecting the old
   storage-wrapper resource projection.

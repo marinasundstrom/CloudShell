@@ -76,6 +76,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
         builder.Services.TryAddSingleton<ApplicationContainerOrchestratorServicePreparationOperations>();
         builder.Services.TryAddSingleton<ApplicationContainerImageMaterializer>();
         builder.Services.TryAddSingleton<ContainerApplicationIngressOperations>();
+        builder.Services.TryAddSingleton<ContainerApplicationContainerRunCommandFactory>();
         builder.Services.TryAddSingleton<ContainerApplicationDeploymentDescriptionOperations>();
         builder.Services.TryAddSingleton<ContainerApplicationDeploymentOutcomeOperations>();
         builder.Services.TryAddSingleton<ApplicationContainerHistoryService>();

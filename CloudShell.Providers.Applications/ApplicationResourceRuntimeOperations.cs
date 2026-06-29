@@ -112,6 +112,9 @@ public sealed partial class ApplicationResourceRuntimeOperations(
     private readonly ContainerApplicationIngressOperations _containerIngress =
         serviceProvider.GetService<ContainerApplicationIngressOperations>() ??
         new ContainerApplicationIngressOperations(options, environment, loggerFactory);
+    private readonly ContainerApplicationContainerRunCommandFactory _containerRunCommands =
+        serviceProvider.GetService<ContainerApplicationContainerRunCommandFactory>() ??
+        new ContainerApplicationContainerRunCommandFactory(options);
     private readonly ApplicationResourceProjectionSource _projectionSource =
         serviceProvider.GetService<ApplicationResourceProjectionSource>() ?? new ApplicationResourceProjectionSource(
             new ApplicationResourceDefinitionSource(
@@ -666,54 +669,7 @@ public sealed partial class ApplicationResourceRuntimeOperations(
                 dockerHostLogger);
         }
 
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = ApplicationContainerHostCommands.GetExecutable(engine),
-            WorkingDirectory = Environment.CurrentDirectory,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        };
-
-        ApplicationContainerHostCommands.ConfigureEnvironment(startInfo, engine);
-        startInfo.ArgumentList.Add("run");
-        startInfo.ArgumentList.Add("--name");
-        startInfo.ArgumentList.Add(instance.Name);
-        if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
-        {
-            startInfo.ArgumentList.Add("--rm");
-        }
-
         var useIngress = _containerIngress.ShouldUseIngress(service);
-        var network = service.ServiceNetworks.FirstOrDefault(candidate => !string.IsNullOrWhiteSpace(candidate));
-        if (!string.IsNullOrWhiteSpace(network))
-        {
-            startInfo.ArgumentList.Add("--network");
-            startInfo.ArgumentList.Add(network);
-            if (useIngress)
-            {
-                startInfo.ArgumentList.Add("--network-alias");
-                startInfo.ArgumentList.Add(ContainerApplicationIngressOperations.CreateIngressTargetName(service, instance));
-            }
-        }
-
-        if (instance.ReplicaOrdinal == 1)
-        {
-            foreach (var port in service.ServicePorts.Where(port => !useIngress || !ContainerApplicationIngressOperations.IsIngressPort(port)))
-            {
-                var hostPort = ResolveLocalPort(definition.Id, port);
-                startInfo.ArgumentList.Add("-p");
-                startInfo.ArgumentList.Add($"{hostPort}:{port.TargetPort}/{NormalizeContainerPublishProtocol(port.Protocol)}");
-            }
-        }
-
-        foreach (var port in GetRuntimeContainerProbePorts(definition, service))
-        {
-            var hostPort = ResolveReplicaProbeLocalPort(definition.Id, port, instance);
-            startInfo.ArgumentList.Add("-p");
-            startInfo.ArgumentList.Add($"{hostPort}:{port.TargetPort}/{NormalizeContainerPublishProtocol(port.Protocol)}");
-        }
-
         var environmentVariables = await _environmentVariables.ResolveRuntimeEnvironmentVariablesAsync(
             definition,
             dependsOn,
@@ -725,25 +681,10 @@ public sealed partial class ApplicationResourceRuntimeOperations(
             definition,
             instance,
             environmentVariables);
-        foreach (var variable in environmentVariables)
-        {
-            startInfo.ArgumentList.Add("-e");
-            startInfo.ArgumentList.Add($"{variable.Name}={variable.Value}");
-        }
-
-        startInfo.ArgumentList.Add("-e");
-        startInfo.ArgumentList.Add($"CLOUDSHELL_RESOURCE_ID={definition.Id}");
-        startInfo.ArgumentList.Add("-e");
-        startInfo.ArgumentList.Add($"CLOUDSHELL_REPLICA_ORDINAL={instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)}");
         var volumeMaterializations = ApplicationResourceVolumeMounts.CreateLocalContainerVolumeMaterializations(
             service.ServiceVolumeMounts,
             resourceManager,
             environment.ContentRootPath);
-        foreach (var volumeMaterialization in volumeMaterializations)
-        {
-            startInfo.ArgumentList.Add("-v");
-            startInfo.ArgumentList.Add(volumeMaterialization.Argument);
-        }
         procedureContext?.AppendProviderEvent(
             Id,
             "application.container.volume.mounts.prepared",
@@ -758,13 +699,18 @@ public sealed partial class ApplicationResourceRuntimeOperations(
             engine,
             imageReference,
             cancellationToken);
-        if (!string.IsNullOrWhiteSpace(imagePlatform))
-        {
-            startInfo.ArgumentList.Add("--platform");
-            startInfo.ArgumentList.Add(imagePlatform);
-        }
 
-        startInfo.ArgumentList.Add(imageReference);
+        var startInfo = _containerRunCommands.CreateStartInfo(
+            engine,
+            definition,
+            service,
+            instance,
+            GetRuntimeContainerProbePorts(definition, service),
+            environmentVariables,
+            volumeMaterializations,
+            imageReference,
+            imagePlatform,
+            useIngress);
 
         var process = new Process
         {
