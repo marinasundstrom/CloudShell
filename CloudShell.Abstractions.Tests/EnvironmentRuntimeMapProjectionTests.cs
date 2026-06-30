@@ -171,7 +171,10 @@ public sealed class EnvironmentRuntimeMapProjectionTests
             {
                 IncludeNetworkTopologyOverlay = true,
                 CreateResourceDetailUrl = resource => $"/resources/{resource.Id}",
-                GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown"
+                GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown",
+                GetResourceTypeLabel = resource => resource.Id == api.Id
+                    ? "Executable application"
+                    : resource.EffectiveTypeId
             });
 
         var networkNode = Assert.Single(map.Nodes, node =>
@@ -191,7 +194,10 @@ public sealed class EnvironmentRuntimeMapProjectionTests
 
         Assert.Equal("reachable", networkNode.InternetReachability);
         Assert.Equal("inferred", apiNode.InternetReachability);
+        Assert.Equal("Executable application", apiNode.Type);
+        Assert.Equal("api.example.test", apiNode.EndpointText);
         Assert.Equal("public-http", mappingNode.Label);
+        Assert.Equal("api.example.test", mappingNode.Type);
         Assert.Equal(3, map.NetworkTopologyCount);
         Assert.Contains(map.Links, link =>
             link.Source == networkNode.Id &&

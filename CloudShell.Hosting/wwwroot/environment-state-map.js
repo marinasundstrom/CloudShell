@@ -522,6 +522,11 @@ class EnvironmentStateMap {
             .attr("x", 0)
             .attr("y", 31);
 
+        newNodes.append("text")
+            .attr("class", "environment-map-node-endpoint")
+            .attr("x", 0)
+            .attr("y", 46);
+
         newNodes.append("title")
             .attr("class", "environment-map-node-title");
 
@@ -551,6 +556,9 @@ class EnvironmentStateMap {
             .text(node => trimText(node.label, 25));
         this.nodeElements.select(".environment-map-node-kind")
             .text(node => trimText(node.type, 28));
+        this.nodeElements.select(".environment-map-node-endpoint")
+            .attr("display", node => node.endpointText ? null : "none")
+            .text(node => trimText(node.endpointText, 28));
         this.nodeElements.select(".environment-map-node-title")
             .text(formatNodeTitle);
     }
@@ -727,6 +735,7 @@ function formatNodeTitle(node) {
     return [
         node.label,
         node.type,
+        node.endpointText,
         node.summary,
         `State: ${node.stateLabel}`,
         node.artifactKind ? `Artifact: ${node.artifactKind}` : "",

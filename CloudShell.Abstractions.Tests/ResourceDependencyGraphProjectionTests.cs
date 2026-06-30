@@ -31,6 +31,19 @@ public sealed class ResourceDependencyGraphProjectionTests
     }
 
     [Fact]
+    public void Create_UsesConfiguredResourceTypeLabels()
+    {
+        var api = CreateResource("application.executable:api", "api", ResourceClass.Executable);
+
+        var graph = ResourceDependencyGraphProjection.Create(
+            [api],
+            CreateOptions(getResourceTypeLabel: _ => "Executable application"));
+
+        var apiNode = Assert.Single(graph.Nodes);
+        Assert.Equal("Executable application", apiNode.Type);
+    }
+
+    [Fact]
     public void Create_ExcludesNetworkTopologyOverlayAndConnectivityBadgesByDefault()
     {
         var api = CreatePublicHttpResource();
@@ -274,11 +287,13 @@ public sealed class ResourceDependencyGraphProjectionTests
 
     private static ResourceDependencyGraphProjectionOptions CreateOptions(
         bool includeNetworkTopologyOverlay = false,
-        IReadOnlyList<Resource>? relationshipResources = null) =>
+        IReadOnlyList<Resource>? relationshipResources = null,
+        Func<Resource, string>? getResourceTypeLabel = null) =>
         new()
         {
             IncludeNetworkTopologyOverlay = includeNetworkTopologyOverlay,
             RelationshipResources = relationshipResources,
+            GetResourceTypeLabel = getResourceTypeLabel ?? (resource => resource.EffectiveTypeId),
             CreateResourceDetailUrl = resource => $"/resources/{resource.Id}",
             GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown"
         };

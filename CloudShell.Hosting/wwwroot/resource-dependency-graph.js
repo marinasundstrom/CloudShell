@@ -285,9 +285,9 @@ class ResourceDependencyGraph {
         newNodes.append("rect")
             .attr("class", "resource-graph-node-card")
             .attr("x", -84)
-            .attr("y", -48)
+            .attr("y", -54)
             .attr("width", 168)
-            .attr("height", 96)
+            .attr("height", 108)
             .attr("rx", 6);
 
         newNodes.append("circle")
@@ -327,12 +327,17 @@ class ResourceDependencyGraph {
         newNodes.append("text")
             .attr("class", "resource-graph-node-label")
             .attr("x", 0)
-            .attr("y", 18);
+            .attr("y", 10);
+
+        newNodes.append("text")
+            .attr("class", "resource-graph-node-type")
+            .attr("x", 0)
+            .attr("y", 28);
 
         newNodes.append("text")
             .attr("class", "resource-graph-node-endpoint")
             .attr("x", 0)
-            .attr("y", 36);
+            .attr("y", 43);
 
         newNodes.append("title")
             .attr("class", "resource-graph-node-title");
@@ -361,6 +366,8 @@ class ResourceDependencyGraph {
             .text(node => node.internetReachability === "inferred" ? "Possible internet connectivity inferred" : "Internet connectivity projected");
         this.nodeElements.select(".resource-graph-node-label")
             .text(node => trimText(node.label, 24));
+        this.nodeElements.select(".resource-graph-node-type")
+            .text(node => trimText(node.type, 28));
         this.nodeElements.select(".resource-graph-node-endpoint")
             .text(node => trimText(node.endpointText, 28));
         this.nodeElements.select(".resource-graph-node-title")

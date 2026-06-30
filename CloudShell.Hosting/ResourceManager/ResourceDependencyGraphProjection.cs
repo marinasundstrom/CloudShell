@@ -29,7 +29,7 @@ public static class ResourceDependencyGraphProjection
                 resource.Id,
                 projectionOptions.GetResourceLabel(resource),
                 projectionOptions.GetResourceName(resource),
-                resource.EffectiveTypeId,
+                projectionOptions.GetResourceTypeLabel(resource),
                 resource.ResourceClass.ToString(),
                 ResourceDependencyGraphNodeKinds.Resource,
                 GetEndpointText(resource),
@@ -355,6 +355,8 @@ public sealed record ResourceDependencyGraphProjectionOptions
     public Func<Resource, string> GetResourceLabel { get; init; } = static resource => resource.EffectiveDisplayName;
 
     public Func<Resource, string> GetResourceName { get; init; } = static resource => resource.Name;
+
+    public Func<Resource, string> GetResourceTypeLabel { get; init; } = static resource => resource.EffectiveTypeId;
 
     public Func<Resource, string?> CreateResourceDetailUrl { get; init; } = static _ => null;
 

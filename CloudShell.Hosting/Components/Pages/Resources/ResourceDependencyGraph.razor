@@ -7,6 +7,7 @@
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> L
 @inject CloudShell.UI.Composition.CompositionRegistry Composition
+@inject ShellCatalog ShellCatalog
 
 <PageTitle>@L["Resource graph"]</PageTitle>
 
@@ -157,6 +158,7 @@
                 RelationshipResources = allResources,
                 GetResourceLabel = displaySelection.GetResourceLabel,
                 GetResourceName = displaySelection.GetResourceName,
+                GetResourceTypeLabel = GetResourceTypeDisplayName,
                 CreateResourceDetailUrl = resource => ResourceManagerCompositionLinks.ResourceDetails(Composition, resource.Id),
                 GetStateClass = ResourceStateDisplay.GetStateClass
             });
@@ -199,6 +201,14 @@
             Composition,
             ResourceManagerCompositionIds.ResourcesPage,
             ResourceManagerRoutes.Resources);
+
+    private string GetResourceTypeDisplayName(Resource resource) =>
+        ShellCatalog.ResourceTypes.FirstOrDefault(type =>
+            string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase))
+            ?.DisplayName ??
+        (string.Equals(resource.Kind, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase)
+            ? resource.Kind
+            : $"{resource.Kind} ({resource.EffectiveTypeId})");
 
     public async ValueTask DisposeAsync()
     {

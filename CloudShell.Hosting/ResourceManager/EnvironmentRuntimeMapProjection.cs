@@ -54,7 +54,7 @@ public static class EnvironmentRuntimeMapProjection
                 nodes[nodeId] = new EnvironmentRuntimeMapNode(
                     nodeId,
                     resource.EffectiveDisplayName,
-                    resource.EffectiveTypeId,
+                    options.GetResourceTypeLabel(resource),
                     resource.ResourceClass.ToString(),
                     IsContainerReplicaResource(resource) ? "replica" : "resource",
                     CreateResourceMapSummary(resource),
@@ -66,7 +66,8 @@ public static class EnvironmentRuntimeMapProjection
                     GetAttribute(resource, ResourceAttributeNames.DeploymentServiceId),
                     GetAttribute(resource, ResourceAttributeNames.DeploymentReplicaGroupId),
                     GetAttribute(resource, ResourceAttributeNames.RuntimeRevision),
-                    internetReachability.GetValueOrDefault(resource.Id));
+                    internetReachability.GetValueOrDefault(resource.Id),
+                    GetEndpointText(resource));
             }
 
             if (options.IncludeNetworkTopologyOverlay)
@@ -737,7 +738,7 @@ public static class EnvironmentRuntimeMapProjection
                     nodes[mappingNodeId] = new EnvironmentRuntimeMapNode(
                         mappingNodeId,
                         mapping.Name,
-                        "Endpoint mapping",
+                        GetEndpointMappingText(mapping, resources),
                         ResourceClass.Network.ToString(),
                         "topology",
                         $"{mapping.Source.ResourceId}/{mapping.Source.EndpointName} -> {mapping.Target.ResourceId}/{mapping.Target.EndpointName}",
@@ -913,6 +914,43 @@ public static class EnvironmentRuntimeMapProjection
             !string.IsNullOrWhiteSpace(FirstNonEmpty(
                 resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.InternetReachability),
                 resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.NetworkInternetReachability)));
+
+        private string GetEndpointMappingText(
+            ResourceEndpointMappingDefinition mapping,
+            IReadOnlyList<Resource> resources)
+        {
+            var target = resources.FirstOrDefault(resource =>
+                string.Equals(resource.Id, mapping.Target.ResourceId, StringComparison.OrdinalIgnoreCase));
+            if (target?.GetEndpointNetworkMapping(mapping.Target.EndpointName) is { } endpointMapping)
+            {
+                return FormatEndpointAddress(endpointMapping.Address);
+            }
+
+            return Text("Endpoint mapping");
+        }
+
+        private static string? GetEndpointText(Resource resource)
+        {
+            var address = resource.ResourceEndpointNetworkMappings.FirstOrDefault()?.Address;
+            return string.IsNullOrWhiteSpace(address)
+                ? null
+                : FormatEndpointAddress(address);
+        }
+
+        private static string FormatEndpointAddress(string address) =>
+            TryFormatEndpointHost(address) ?? address;
+
+        private static string? TryFormatEndpointHost(string address)
+        {
+            if (!Uri.TryCreate(address, UriKind.Absolute, out var uri))
+            {
+                return null;
+            }
+
+            return uri.IsDefaultPort
+                ? uri.Host
+                : string.Create(CultureInfo.InvariantCulture, $"{uri.Host}:{uri.Port}");
+        }
 
         private void AddInferredHostNetworkNode(
             IReadOnlyList<Resource> resources,
@@ -1333,7 +1371,8 @@ public sealed record EnvironmentRuntimeMapNode(
     string? ServiceId,
     string? ReplicaGroupId,
     string? RuntimeRevisionId,
-    string? InternetReachability = null);
+    string? InternetReachability = null,
+    string? EndpointText = null);
 
 public sealed record EnvironmentRuntimeMapGroup(
     string Id,
@@ -1384,6 +1423,8 @@ public sealed record EnvironmentRuntimeMapProjectionOptions
     public Func<Resource, string?> CreateResourceDetailUrl { get; init; } = static _ => null;
 
     public Func<ResourceState?, string> GetStateClass { get; init; } = static _ => "state-unknown";
+
+    public Func<Resource, string> GetResourceTypeLabel { get; init; } = static resource => resource.EffectiveTypeId;
 }
 
 public static class EnvironmentRuntimeArtifactKinds

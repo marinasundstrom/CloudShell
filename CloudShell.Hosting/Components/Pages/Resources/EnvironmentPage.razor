@@ -10,6 +10,7 @@
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 @inject CloudShell.UI.Composition.CompositionRegistry Composition
+@inject ShellCatalog ShellCatalog
 
 <PageTitle>@L["Environment"]</PageTitle>
 
@@ -691,6 +692,14 @@
     private static string GetOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "not projected" : value;
 
+    private string GetResourceTypeDisplayName(Resource resource) =>
+        ShellCatalog.ResourceTypes.FirstOrDefault(type =>
+            string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase))
+            ?.DisplayName ??
+        (string.Equals(resource.Kind, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase)
+            ? resource.Kind
+            : $"{resource.Kind} ({resource.EffectiveTypeId})");
+
     private string GetEnvironmentMapNodeLabel(string nodeId) =>
         EnvironmentMap.Nodes.FirstOrDefault(node =>
             string.Equals(node.Id, nodeId, StringComparison.OrdinalIgnoreCase))?.Label ?? nodeId;
@@ -720,6 +729,7 @@
                 Format = static (format, args) => string.Format(CultureInfo.CurrentCulture, format, args),
                 CreateResourceDetailUrl = resource => ResourceManagerCompositionLinks.ResourceDetails(Composition, resource.Id),
                 GetStateClass = ResourceStateDisplay.GetStateClass,
+                GetResourceTypeLabel = GetResourceTypeDisplayName,
                 IncludeNetworkTopologyOverlay = IncludeNetworkTopologyOverlay
             });
 

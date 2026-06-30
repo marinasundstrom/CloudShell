@@ -31,6 +31,9 @@ on `git blame --follow`, and then by the broad type of change.
   carrier boundary exists, and links target that boundary, such as the Host
   network or a reachable network resource, instead of every resource that
   inherits reachability.
+- Resource graph and Environment Map cards now use resource type display names
+  from the shell catalog, while keeping concrete endpoint host/IP/name text
+  visible on mapped resources and endpoint mapping topology nodes.
 - Resource graph now has an optional network topology overlay that adds
   topology relationship links and shows internet reachability as a badge on
   resource or network cards when reachability is explicitly projected, instead
