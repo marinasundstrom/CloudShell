@@ -1711,11 +1711,15 @@ public sealed class SampleSmokeTests
             .OfType<string>()
             .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        Assert.Equal(["sample:api", "sample:database", "sample:worker"], resourceIds);
+        Assert.Equal(["sample:api", "sample:database"], resourceIds);
 
         using var apiResponse = await client.GetAsync(
             "/api/control-plane/v1/resources/sample%3Aapi");
         Assert.Equal(HttpStatusCode.OK, apiResponse.StatusCode);
+
+        using var workerResponse = await client.GetAsync(
+            "/api/control-plane/v1/resources/sample%3Aworker");
+        Assert.Equal(HttpStatusCode.NotFound, workerResponse.StatusCode);
 
         var databaseJson = await client.GetStringAsync(
             "/api/control-plane/v1/resources/sample%3Adatabase");

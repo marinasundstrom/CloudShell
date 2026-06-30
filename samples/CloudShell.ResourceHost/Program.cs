@@ -40,13 +40,12 @@ cloudShell.DefineResources(resources =>
             SampleResourceProvider.ProviderId,
             "sample:api")
         .DependsOn(database);
-    var worker = resources.Declare(
+    resources.Declare(
         SampleResourceProvider.ProviderId,
         "sample:worker");
 
     api.Allow(alice, CloudShellPermissions.Resources.Read);
     database.Allow(alice, CloudShellPermissions.Resources.Manage);
-    worker.Allow(alice, CloudShellPermissions.Resources.Read);
 });
 
 var app = builder.Build();
