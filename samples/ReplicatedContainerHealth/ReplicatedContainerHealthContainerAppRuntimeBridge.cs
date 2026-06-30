@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using System.Diagnostics;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using GraphResource = CloudShell.ResourceModel.Resource;
 
@@ -20,6 +21,8 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
     private const string DefaultProjectPath = "samples/ReplicatedContainerHealth/Api/CloudShell.ReplicatedContainerHealth.Api.csproj";
     private const string DefaultContainerNetworkName = "cloudshell";
     private const string DefaultIngressImage = "traefik:v3.0";
+    private const string ReplicaGroupLabel = "cloudshell.replica-group-id";
+    private const string RuntimeRevisionLabel = "cloudshell.runtime-revision-id";
     private readonly string _projectPath = hostEnvironment is null
         ? DefaultProjectPath
         : Path.Combine(hostEnvironment.ContentRootPath, "Api", "CloudShell.ReplicatedContainerHealth.Api.csproj");
@@ -356,11 +359,13 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
                         resource,
                         ResolveImage(resource),
                         instance.ReplicaOrdinal,
-                        cancellationToken);
+                        cancellationToken,
+                        replicaGroup: replicaGroup);
                     break;
                 case ResourceActionKind.Stop:
                     await RemoveReplicaAsync(
                         instance.ReplicaOrdinal,
+                        replicaGroup,
                         cancellationToken);
                     break;
                 default:
@@ -422,7 +427,8 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         string image,
         int replica,
         CancellationToken cancellationToken,
-        bool replaceExisting = true)
+        bool replaceExisting = true,
+        ResourceOrchestratorReplicaGroup? replicaGroup = null)
     {
         if (replaceExisting)
         {
@@ -431,7 +437,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
 
         await commandRunner.RunAsync(
             "docker",
-            CreateRunArguments(resource, image, replica),
+            CreateRunArguments(resource, image, replica, replicaGroup),
             cancellationToken);
     }
 
@@ -505,10 +511,32 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             cancellationToken,
             throwOnError: false);
 
+    private async Task RemoveReplicaAsync(
+        int replica,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
+        CancellationToken cancellationToken)
+    {
+        if (replicaGroup is null)
+        {
+            await RemoveReplicaAsync(replica, cancellationToken);
+            return;
+        }
+
+        var containerName = ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica);
+        var currentReplicaGroup = await GetContainerLabelAsync(containerName, ReplicaGroupLabel, cancellationToken);
+        if (!string.Equals(currentReplicaGroup, replicaGroup.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        await RemoveReplicaAsync(replica, cancellationToken);
+    }
+
     private IReadOnlyList<string> CreateRunArguments(
         GraphResource resource,
         string image,
-        int replica)
+        int replica,
+        ResourceOrchestratorReplicaGroup? replicaGroup = null)
     {
         var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
         var replicaContainerName = ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica);
@@ -526,6 +554,19 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             "--network-alias",
             ReplicatedContainerHealthRuntimeConventions.CreateReplicaNetworkAlias(replica)
         };
+        var replicaGroupId = replicaGroup?.Id ?? ResolveReplicaGroupId(resource);
+        if (!string.IsNullOrWhiteSpace(replicaGroupId))
+        {
+            arguments.Add("--label");
+            arguments.Add($"{ReplicaGroupLabel}={replicaGroupId}");
+        }
+
+        var runtimeRevisionId = replicaGroup?.RuntimeRevisionId ?? ResolveRuntimeRevisionId(resource);
+        if (!string.IsNullOrWhiteSpace(runtimeRevisionId))
+        {
+            arguments.Add("--label");
+            arguments.Add($"{RuntimeRevisionLabel}={runtimeRevisionId}");
+        }
 
         if (TryResolveHttpEndpoint(resource, out var endpoint))
         {
@@ -547,6 +588,34 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         arguments.Add(image);
 
         return arguments;
+    }
+
+    private async Task<string?> GetContainerLabelAsync(
+        string containerName,
+        string labelName,
+        CancellationToken cancellationToken)
+    {
+        var result = await commandRunner.RunAsync(
+            "docker",
+            [
+                "container",
+                "inspect",
+                "--format",
+                $"{{{{ index .Config.Labels \"{labelName}\" }}}}",
+                containerName
+            ],
+            cancellationToken,
+            throwOnError: false,
+            timeout: _statusProbeTimeout);
+        if (result.ExitCode != 0)
+        {
+            return null;
+        }
+
+        var value = result.Output.Trim();
+        return string.IsNullOrWhiteSpace(value) || string.Equals(value, "<no value>", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : value;
     }
 
     private async Task StartIngressAsync(
@@ -732,6 +801,26 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         resource.Attributes.GetString(ContainerApplicationResourceTypeProvider.Attributes.ContainerImage)
         ?? throw new InvalidOperationException(
             "The container app image must be set before sample runtime can start it.");
+
+    private static string ResolveReplicaGroupId(GraphResource resource) =>
+        ResourceOrchestratorReplicaGroups.CreateReplicaGroupId(
+            ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(resource.EffectiveResourceId),
+            ResolveRuntimeRevisionId(resource));
+
+    private static string ResolveRuntimeRevisionId(GraphResource resource)
+    {
+        var registry = resource.Attributes.GetString(ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry);
+        if (string.IsNullOrWhiteSpace(registry))
+        {
+            registry = ContainerRegistryDefaults.Default;
+        }
+
+        var image = ResolveImage(resource);
+        var revisionKey = $"{registry.Trim()}\n{image.Trim()}";
+        Span<byte> hash = stackalloc byte[32];
+        SHA256.HashData(Encoding.UTF8.GetBytes(revisionKey), hash);
+        return $"rev-img-{Convert.ToHexString(hash[..6]).ToLowerInvariant()}";
+    }
 
     private static int ResolveReplicas(GraphResource resource) =>
         int.TryParse(

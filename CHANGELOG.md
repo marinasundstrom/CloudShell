@@ -83,6 +83,10 @@ on `git blame --follow`, and then by the broad type of change.
   network and default docker-compatible container-host resources through the
   lazy graph-builder accessors, while explicit resources with those IDs remain
   authoritative.
+- Replicated Container Health sample replica containers now carry
+  replica-group and runtime-revision labels, and retired replica-group cleanup
+  skips slots that have already been replaced by a newer revision so image
+  rollouts do not delete the active replicas.
 - Control Plane `DefineResources(...)` and `DefineInitialTemplate(...)` now use
   a Control Plane resource-definition context that extends graph resource
   authoring, keeps identity-provider metadata outside `ResourceDefinition` and

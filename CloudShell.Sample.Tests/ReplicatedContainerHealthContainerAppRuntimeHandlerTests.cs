@@ -438,6 +438,44 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     }
 
     [Fact]
+    public async Task RuntimeBridge_ReplicaGroupStopDoesNotRemoveSlotReplacedByNewReplicaGroup()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+            commandRunner,
+            CreateConfiguration(replicaCleanupLimit: 4));
+        var resource = await CreateGraphAppResourceAsync(
+            replicas: 2,
+            endpointPort: 5092);
+        var service = CreateOrchestratorService(resource, replicas: 2);
+        var oldReplicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+            service,
+            "rev-old");
+        var newReplicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+            service,
+            "rev-new");
+        commandRunner.Enqueue(new(0, newReplicaGroup.Id, string.Empty));
+
+        var diagnostics = await bridge.ExecuteOrchestratorServiceInstanceAsync(
+            resource,
+            service,
+            oldReplicaGroup.Instances[0],
+            ResourceAction.Stop,
+            oldReplicaGroup);
+
+        Assert.Empty(diagnostics);
+        Assert.Collection(
+            commandRunner.Commands,
+            command => AssertDockerReplicaGroupLabelInspect(
+                command,
+                "cloudshell-replicated-health-api-replica-1"));
+        Assert.DoesNotContain(
+            commandRunner.Commands,
+            command => command.Arguments.SequenceEqual(
+                ["rm", "-f", "cloudshell-replicated-health-api-replica-1"]));
+    }
+
+    [Fact]
     public void RuntimeLogProvider_ProjectsReplicaLogSourcesFromGraphState()
     {
         var provider = new ReplicatedContainerHealthRuntimeLogProvider(
@@ -821,6 +859,23 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         Assert.Equal("docker", command.FileName);
         Assert.Equal(
             ["container", "inspect", "--format", "{{.State.Status}}", containerName],
+            command.Arguments);
+        Assert.False(command.ThrowOnError);
+    }
+
+    private static void AssertDockerReplicaGroupLabelInspect(
+        RecordingCommand command,
+        string containerName)
+    {
+        Assert.Equal("docker", command.FileName);
+        Assert.Equal(
+            [
+                "container",
+                "inspect",
+                "--format",
+                "{{ index .Config.Labels \"cloudshell.replica-group-id\" }}",
+                containerName
+            ],
             command.Arguments);
         Assert.False(command.ThrowOnError);
     }
