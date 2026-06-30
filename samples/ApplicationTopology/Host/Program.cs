@@ -287,9 +287,8 @@ builder.Services
             {
                 runtime.PasswordConfigurationKey = SqlServerResourceDefaults.AdministratorPasswordConfigurationKey;
                 runtime.WaitUntilReady = true;
-            }))
-    .AddLocalExecutableResourceOrchestrationDescriptors(options =>
-        options.AddResource(
+            }),
+        descriptors => descriptors.AddResource(
             sqlServerResourceId,
             "application-topology.resource-model-sql-runtime.v1"))
     .AddSqlDatabaseResourceType()

@@ -79,7 +79,8 @@ public static class SqlServerResourceTypeServiceCollectionExtensions
 
     public static IServiceCollection AddLocalSqlServerDockerRuntime(
         this IServiceCollection services,
-        Action<LocalSqlServerDockerRuntimeOptions>? configure = null)
+        Action<LocalSqlServerDockerRuntimeOptions>? configure = null,
+        Action<LocalExecutableResourceOrchestrationDescriptorOptions>? configureOrchestrationDescriptors = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -97,6 +98,10 @@ public static class SqlServerResourceTypeServiceCollectionExtensions
         services.Replace(ServiceDescriptor.Singleton<
             ISqlServerRuntimeHandler,
             LocalSqlServerDockerRuntimeHandler>());
+        if (configureOrchestrationDescriptors is not null)
+        {
+            services.AddLocalExecutableResourceOrchestrationDescriptors(configureOrchestrationDescriptors);
+        }
 
         return services;
     }

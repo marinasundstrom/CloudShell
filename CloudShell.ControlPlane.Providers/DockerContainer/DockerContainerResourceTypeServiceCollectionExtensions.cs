@@ -55,7 +55,8 @@ public static class DockerContainerResourceTypeServiceCollectionExtensions
 
     public static IServiceCollection AddLocalDockerContainerRuntime(
         this IServiceCollection services,
-        Action<LocalDockerContainerRuntimeOptions>? configure = null)
+        Action<LocalDockerContainerRuntimeOptions>? configure = null,
+        Action<LocalExecutableResourceOrchestrationDescriptorOptions>? configureOrchestrationDescriptors = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -70,6 +71,10 @@ public static class DockerContainerResourceTypeServiceCollectionExtensions
         services.Replace(ServiceDescriptor.Singleton<
             IDockerContainerRuntimeHandler,
             LocalDockerContainerRuntimeHandler>());
+        if (configureOrchestrationDescriptors is not null)
+        {
+            services.AddLocalExecutableResourceOrchestrationDescriptors(configureOrchestrationDescriptors);
+        }
 
         return services;
     }

@@ -523,6 +523,10 @@ preserving old provider seams:
   or host-shaped implementations behind default runtime integration
   registrations, leaving provider packages dependent only on adapter contracts
   and fakeable abstractions.
+  - [x] Collapse repeated local Docker/SQL runtime plus local-executable
+    descriptor registration into provider-owned runtime registration overloads
+    so samples do not wire descriptor providers separately for the same
+    resource id.
 - [ ] Feed the schema/validation/apply model into orchestrator deployment
   planning so accepted ResourceDefinition state can be translated consistently
   across resource types while leaving type-specific reconciliation to the

@@ -195,6 +195,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Sample smoke tests now serialize only the process/Docker-backed
   `Sample smoke tests` xUnit collection; recording-runner adapter tests remain
   parallel-safe and no longer inherit an assembly-wide parallelization lock.
+- Local Docker container and SQL Server Docker runtime registrations can now
+  configure their local executable orchestration descriptors in the same
+  provider-owned registration call, reducing sample-specific orchestration
+  wiring.
 
 ### 2026-06-29
 
