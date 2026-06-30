@@ -122,11 +122,9 @@ builder.Services
     .AddVirtualNetworkResourceType()
     .AddAspNetCoreProjectResourceType()
     .AddDnsZoneResourceType()
-    .AddNameMappingResourceType();
+    .AddNameMappingResourceType()
+    .AddResourceModelGraphEndpointMappingReconciler();
 cloudShell.UseResourceGraphIntegration();
-builder.Services.AddSingleton<
-    IVirtualNetworkEndpointMappingReconciler,
-    HostVirtualNetworkEndpointMappingReconciler>();
 builder.Services.AddSingleton(new CoreDnsZoneFilePublishingOptions
 {
     OutputDirectory = string.IsNullOrWhiteSpace(coreDnsDirectory)

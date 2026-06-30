@@ -147,6 +147,10 @@ on `git blame --follow`, and then by the broad type of change.
   Resource model: ASP.NET Core resources can declare virtual-network-scoped
   private IP endpoint mappings, reuse port 80 on different service IPs, and
   publish DNS names through a sample-local CoreDNS zone-file provider.
+- Network providers now include an opt-in graph endpoint-mapping reconciler
+  that projects graph resources into the Resource Manager endpoint-mapping
+  provisioner contract; HostVirtualNetwork uses it instead of a sample-local
+  endpoint-mapping bridge.
 - Control Plane `DefineResources(...)` and `DefineInitialTemplate(...)` now use
   a Control Plane resource-definition context that extends graph resource
   authoring, keeps identity-provider metadata outside `ResourceDefinition` and

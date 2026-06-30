@@ -1,26 +1,26 @@
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ControlPlane.ResourceManager.Networking;
-using CloudShell.ResourceModel;
-using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
-using ResourceModelResource = CloudShell.ResourceModel.Resource;
+using GraphResource = CloudShell.ResourceModel.Resource;
 using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
 using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 
-namespace CloudShell.HostVirtualNetwork;
+namespace CloudShell.ControlPlane.Providers;
 
-public sealed class HostVirtualNetworkEndpointMappingReconciler(
+public sealed class ResourceModelGraphEndpointMappingReconciler(
     IEnumerable<IResourceEndpointMappingProvisioner> endpointMappingProvisioners,
     IEnumerable<IResourceModelResourceManagerEndpointProjectionProvider> endpointProjectionProviders) :
-    IVirtualNetworkEndpointMappingReconciler
+    INetworkEndpointMappingReconciler,
+    IVirtualNetworkEndpointMappingReconciler,
+    ILocalHostNetworkEndpointMappingReconciler,
+    IMacOSHostNetworkEndpointMappingReconciler
 {
-    private readonly IReadOnlyList<IResourceEndpointMappingProvisioner> _endpointMappingProvisioners =
+    private readonly IReadOnlyList<IResourceEndpointMappingProvisioner> endpointMappingProvisioners =
         endpointMappingProvisioners.ToArray();
-    private readonly IReadOnlyList<IResourceModelResourceManagerEndpointProjectionProvider> _endpointProjectionProviders =
+    private readonly IReadOnlyList<IResourceModelResourceManagerEndpointProjectionProvider> endpointProjectionProviders =
         endpointProjectionProviders.ToArray();
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileEndpointMappingsAsync(
-        ResourceModelResource resource,
+        GraphResource resource,
         ResourceProjectionExecutionContext context,
         CancellationToken cancellationToken = default)
     {
@@ -30,15 +30,15 @@ public sealed class HostVirtualNetworkEndpointMappingReconciler(
         var resourceManagerResources = context.Resources
             .Select(ToResourceManagerResource)
             .ToArray();
-        var resourceManager = new HostVirtualNetworkResourceManagerStore(resourceManagerResources);
+        var resourceManager = new GraphEndpointMappingResourceManagerStore(resourceManagerResources);
         var networkResource = resourceManager.GetResource(resource.EffectiveResourceId);
         if (networkResource is null)
         {
             return
             [
                 ResourceDefinitionDiagnostic.Error(
-                    "hostVirtualNetwork.endpointMappingNetworkMissing",
-                    $"Virtual network resource '{resource.EffectiveResourceId}' could not be projected for endpoint-mapping reconciliation.",
+                    "network.endpointMappingNetworkMissing",
+                    $"Network resource '{resource.EffectiveResourceId}' could not be projected for endpoint-mapping reconciliation.",
                     resource.EffectiveResourceId)
             ];
         }
@@ -49,7 +49,7 @@ public sealed class HostVirtualNetworkEndpointMappingReconciler(
             [
                 new ResourceDefinitionDiagnostic(
                     ResourceDefinitionDiagnosticSeverity.Information,
-                    "hostVirtualNetwork.endpointMappingsEmpty",
+                    "network.endpointMappingsEmpty",
                     "No endpoint mappings to reconcile.",
                     resource.EffectiveResourceId)
             ];
@@ -74,7 +74,7 @@ public sealed class HostVirtualNetworkEndpointMappingReconciler(
             catch (InvalidOperationException exception)
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                    "hostVirtualNetwork.endpointMappingProvisioningFailed",
+                    "network.endpointMappingProvisioningFailed",
                     exception.Message,
                     mapping.Id));
             }
@@ -84,7 +84,7 @@ public sealed class HostVirtualNetworkEndpointMappingReconciler(
         {
             diagnostics.Add(new ResourceDefinitionDiagnostic(
                 ResourceDefinitionDiagnosticSeverity.Information,
-                "hostVirtualNetwork.endpointMappingsReconciled",
+                "network.endpointMappingsReconciled",
                 $"Reconciled {networkResource.ResourceEndpointMappings.Count} endpoint mapping(s), provisioned {provisionedCount}.",
                 resource.EffectiveResourceId));
         }
@@ -104,12 +104,12 @@ public sealed class HostVirtualNetworkEndpointMappingReconciler(
                 StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
-                $"Endpoint mapping '{mapping.Id}' source resource '{mapping.Source.ResourceId}' must be the virtual network resource '{networkResource.Id}'.");
+                $"Endpoint mapping '{mapping.Id}' source resource '{mapping.Source.ResourceId}' must be the network resource '{networkResource.Id}'.");
         }
 
         var source = ResolveEndpointReference(resourceManager, mapping, mapping.Source, "source");
         var target = ResolveEndpointReference(resourceManager, mapping, mapping.Target, "target");
-        var provider = AdaptProviderResource(ValidateMappingProvider(resourceManager, mapping));
+        var provider = ValidateMappingProvider(resourceManager, mapping);
         if (!RequiresEndpointMappingProvisioner(networkResource, provider))
         {
             return false;
@@ -120,7 +120,7 @@ public sealed class HostVirtualNetworkEndpointMappingReconciler(
             networkResource.Name,
             IsDefault: IsDefaultVirtualNetwork(networkResource),
             EndpointMappings: networkResource.ResourceEndpointMappings,
-            Kind: NetworkResourceKind.Virtual);
+            Kind: ResolveNetworkKind(networkResource));
         var provisioningContext = new ResourceEndpointMappingProvisioningContext(
             networkResource,
             networkDefinition,
@@ -132,12 +132,12 @@ public sealed class HostVirtualNetworkEndpointMappingReconciler(
             resourceManager,
             source.EndpointNetworkMapping,
             target.EndpointNetworkMapping);
-        var provisioner = _endpointMappingProvisioners.FirstOrDefault(candidate =>
+        var provisioner = endpointMappingProvisioners.FirstOrDefault(candidate =>
             candidate.CanProvisionEndpointMapping(provisioningContext));
         if (provisioner is null)
         {
             throw new InvalidOperationException(
-                $"Endpoint mapping '{mapping.Id}' requires provider resource '{provider.Id}', but no host networking provisioner can materialize it.");
+                $"Endpoint mapping '{mapping.Id}' requires provider resource '{provider.Id}', but no endpoint mapping provisioner can materialize it.");
         }
 
         await provisioner.ProvisionEndpointMappingAsync(provisioningContext, cancellationToken);
@@ -145,16 +145,16 @@ public sealed class HostVirtualNetworkEndpointMappingReconciler(
     }
 
     private ResourceManagerResource ToResourceManagerResource(
-        ResourceModelResource resource) =>
+        GraphResource resource) =>
         ResourceModelResourceManagerMapper.ToResourceManagerResource(
             resource,
             new ResourceModelResourceManagerProjectionOptions(
                 EndpointProjectionResolver: ResolveEndpointProjection));
 
     private ResourceModelResourceManagerEndpointProjection? ResolveEndpointProjection(
-        ResourceModelResource resource)
+        GraphResource resource)
     {
-        foreach (var provider in _endpointProjectionProviders)
+        foreach (var provider in endpointProjectionProviders)
         {
             var projection = provider.GetEndpointProjection(resource);
             if (projection is not null)
@@ -177,6 +177,31 @@ public sealed class HostVirtualNetworkEndpointMappingReconciler(
             out var value) &&
         bool.TryParse(value, out var isDefault) &&
         isDefault;
+
+    private static NetworkResourceKind ResolveNetworkKind(ResourceManagerResource networkResource)
+    {
+        if (string.Equals(
+                networkResource.EffectiveTypeId,
+                VirtualNetworkResourceTypeProvider.ResourceTypeId.ToString(),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return NetworkResourceKind.Virtual;
+        }
+
+        if (string.Equals(
+                networkResource.EffectiveTypeId,
+                LocalHostNetworkResourceTypeProvider.ResourceTypeId.ToString(),
+                StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(
+                networkResource.EffectiveTypeId,
+                MacOSHostNetworkResourceTypeProvider.ResourceTypeId.ToString(),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return NetworkResourceKind.Host;
+        }
+
+        return NetworkResourceKind.Logical;
+    }
 
     private static ResolvedEndpoint ResolveEndpointReference(
         IResourceManagerStore resourceManager,
@@ -223,19 +248,6 @@ public sealed class HostVirtualNetworkEndpointMappingReconciler(
         return provider;
     }
 
-    private static ResourceManagerResource AdaptProviderResource(
-        ResourceManagerResource provider) =>
-        string.Equals(
-            provider.EffectiveTypeId,
-            LocalHostNetworkResourceTypeProvider.ResourceTypeId.ToString(),
-            StringComparison.OrdinalIgnoreCase)
-            ? provider with
-            {
-                Id = LocalHostNetworkProvider.ResourceId,
-                TypeId = LocalHostNetworkProvider.ResourceType
-            }
-            : provider;
-
     private static string? FirstNonEmpty(params string?[] values)
     {
         foreach (var value in values)
@@ -254,7 +266,7 @@ public sealed class HostVirtualNetworkEndpointMappingReconciler(
         ResourceEndpoint Endpoint,
         ResourceEndpointNetworkMapping? EndpointNetworkMapping);
 
-    private sealed class HostVirtualNetworkResourceManagerStore(
+    private sealed class GraphEndpointMappingResourceManagerStore(
         IReadOnlyList<ResourceManagerResource> resources) : IResourceManagerStore
     {
         public IReadOnlyList<IResourceProvider> Providers => [];
@@ -281,7 +293,6 @@ public sealed class HostVirtualNetworkEndpointMappingReconciler(
 
         public ResourceGroup? GetGroupForResource(string resourceId) => null;
 
-        public bool IsRegistered(string resourceId) =>
-            GetResource(resourceId) is not null;
+        public bool IsRegistered(string resourceId) => GetResource(resourceId) is not null;
     }
 }
