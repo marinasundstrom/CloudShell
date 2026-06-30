@@ -87,6 +87,9 @@ on `git blame --follow`, and then by the broad type of change.
   replica-attributed SignalR metrics through the CloudShell telemetry ingest
   path, and local process container-app replicas receive the same
   observability environment as Docker-backed replicas.
+- Container app resources now advertise logs, traces, and metrics through the
+  Resource Model observability projection, and local process container-app
+  replicas automatically expose provider-projected process log sources.
 - Traces view no longer renders recent spans through the terminal-style log
   entry component; the page now stays focused on trace summaries until a trace
   is opened.

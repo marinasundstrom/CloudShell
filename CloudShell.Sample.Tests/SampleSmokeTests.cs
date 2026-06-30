@@ -2094,6 +2094,10 @@ public sealed class SampleSmokeTests
         Assert.Equal("Cookie", apiAttributes.GetProperty("container.routing.sessionAffinity.mode").GetString());
         Assert.Equal("CloudShellSignalRReplica", apiAttributes.GetProperty("container.routing.sessionAffinity.cookieName").GetString());
         Assert.Equal("3600", apiAttributes.GetProperty("container.routing.sessionAffinity.durationSeconds").GetString());
+        var apiObservability = api.GetProperty("observability");
+        Assert.True(apiObservability.GetProperty("logs").GetBoolean());
+        Assert.True(apiObservability.GetProperty("traces").GetBoolean());
+        Assert.True(apiObservability.GetProperty("metrics").GetBoolean());
         Assert.Contains(
             $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}",
             frontendAttributes.GetRawText());
@@ -2104,6 +2108,7 @@ public sealed class SampleSmokeTests
             await WaitForHttpSuccessAsync(
                 $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
                 StartupTimeout);
+            await AssertSignalRReplicaLogSourcesAsync(host);
             await StartGraphResourceIfAvailableAsync(host, frontend, "SignalR Frontend");
             await WaitForHttpSuccessAsync(
                 $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}/",
@@ -2218,6 +2223,40 @@ public sealed class SampleSmokeTests
         hub.GetString() == "ReplicaHub" &&
         attributes.TryGetProperty("runtime.replica.ordinal", out var replicaOrdinal) &&
         replicaOrdinal.GetString() == replica;
+
+    private static async Task AssertSignalRReplicaLogSourcesAsync(SampleProcess host)
+    {
+        const string apiResourceId = "application.container-app:signalr-api";
+        var logSourcesJson = await host.GetStringAsync(
+            $"/api/control-plane/v1/log-sources?resourceId={Uri.EscapeDataString(apiResourceId)}");
+        using var logSourcesDocument = JsonDocument.Parse(logSourcesJson);
+        var replicaSources = logSourcesDocument.RootElement
+            .EnumerateArray()
+            .Where(source =>
+                source.TryGetProperty("producerResourceId", out var producer) &&
+                producer.GetString()?.StartsWith(
+                    $"{apiResourceId}:replica-",
+                    StringComparison.OrdinalIgnoreCase) == true)
+            .OrderBy(source => source.GetProperty("id").GetString(), StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Assert.Equal(3, replicaSources.Length);
+        for (var replica = 1; replica <= 3; replica++)
+        {
+            var source = replicaSources[replica - 1];
+            Assert.Equal(
+                $"{apiResourceId}:replica-{replica.ToString(CultureInfo.InvariantCulture)}:logs",
+                source.GetProperty("id").GetString());
+            Assert.Equal(
+                $"Replica {replica.ToString(CultureInfo.InvariantCulture)} logs",
+                source.GetProperty("name").GetString());
+            Assert.Equal(apiResourceId, source.GetProperty("resourceId").GetString());
+            Assert.Equal((int)ResourceLogSourceKind.ProcessOutput, source.GetProperty("kind").GetInt32());
+            Assert.Equal((int)LogFormat.PlainText, source.GetProperty("format").GetInt32());
+            Assert.Equal((int)ResourceLogSourceOrigin.ProviderProjected, source.GetProperty("origin").GetInt32());
+            Assert.Equal((int)LogSourceAvailability.ProducerRunning, source.GetProperty("availability").GetInt32());
+        }
+    }
 
     [Fact]
     public async Task ReplicatedContainerHealthSample_DeclaresResourcesWithoutOldProviderRecords()

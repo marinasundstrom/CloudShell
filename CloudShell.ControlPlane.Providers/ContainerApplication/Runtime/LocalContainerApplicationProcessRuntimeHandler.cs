@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Observability;
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -163,6 +164,7 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
 {
     private const string RuntimeDiagnosticCode = "application.container.localProcessRuntime";
     private const string RuntimeFailureDiagnosticCode = "application.container.localProcessRuntimeFailed";
+    private const int MaxBufferedLogEntriesPerReplica = 500;
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly HttpClient httpClient = new(new SocketsHttpHandler
     {
@@ -185,6 +187,64 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
             !state.ProxyTask.IsCompleted
                 ? ContainerApplicationRuntimeStatus.Running
                 : ContainerApplicationRuntimeStatus.Unknown;
+    }
+
+    public IReadOnlyList<LogSource> GetLogSources()
+    {
+        lock (states)
+        {
+            return states.Values
+                .Where(state => !string.IsNullOrWhiteSpace(state.ResourceId))
+                .SelectMany(state => state.Replicas.Select(replica => CreateLogSource(state, replica)))
+                .OrderBy(source => source.SourceName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(source => source.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+    }
+
+    public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
+        string logSourceId,
+        int maxEntries = 200,
+        DateTimeOffset? before = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ReplicaProcess? matchedReplica = null;
+        lock (states)
+        {
+            foreach (var state in states.Values)
+            {
+                foreach (var replica in state.Replicas)
+                {
+                    if (string.Equals(
+                            CreateLogSourceId(state.ResourceId, replica.Ordinal),
+                            logSourceId,
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        matchedReplica = replica;
+                        break;
+                    }
+                }
+
+                if (matchedReplica is not null)
+                {
+                    break;
+                }
+            }
+        }
+
+        if (matchedReplica is null)
+        {
+            return Task.FromResult<IReadOnlyList<LogEntry>>([]);
+        }
+
+        var take = Math.Clamp(maxEntries, 1, 1_000);
+        var entries = matchedReplica.LogEntries.ToArray()
+            .Where(entry => before is null || entry.Timestamp < before.Value)
+            .OrderBy(entry => entry.Timestamp)
+            .TakeLast(take)
+            .ToArray();
+        return Task.FromResult<IReadOnlyList<LogEntry>>(entries);
     }
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> StartAsync(
@@ -213,12 +273,14 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
             var replicaCount = GetReplicaCount(resource);
             var ingressPort = GetIngressPort(resource, definition);
             var replicaPortStart = definition.ReplicaPortStart ?? ingressPort + 1;
+            state.ResourceId = resource.EffectiveResourceId;
+            state.ResourceName = resource.Name;
 
             for (var replica = 1; replica <= replicaCount; replica++)
             {
                 var port = replicaPortStart + replica - 1;
-                var process = StartReplica(definition, replica, port, resource);
-                state.Replicas.Add(new(replica, port, process));
+                var replicaProcess = StartReplica(definition, replica, port, resource);
+                state.Replicas.Add(replicaProcess);
             }
 
             await WaitForReplicasReadyAsync(state, definition, cancellationToken);
@@ -632,7 +694,7 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
         }
     }
 
-    private Process StartReplica(
+    private ReplicaProcess StartReplica(
         LocalContainerApplicationProcessDefinition definition,
         int replicaOrdinal,
         int port,
@@ -678,9 +740,15 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
         var process = Process.Start(startInfo) ??
             throw new InvalidOperationException(
                 $"Failed to start the local process replica for '{GetResourceLabel(resource)}'.");
-        _ = DrainOutputAsync(resource, process.StandardOutput, replicaOrdinal, isError: false);
-        _ = DrainOutputAsync(resource, process.StandardError, replicaOrdinal, isError: true);
-        return process;
+        var replica = new ReplicaProcess(
+            replicaOrdinal,
+            port,
+            process,
+            replicaResourceId,
+            new ConcurrentQueue<LogEntry>());
+        _ = DrainOutputAsync(resource, process.StandardOutput, replica, isError: false);
+        _ = DrainOutputAsync(resource, process.StandardError, replica, isError: true);
+        return replica;
     }
 
     private async Task WaitForReplicasReadyAsync(
@@ -780,6 +848,38 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
         state.SignalRConnections.Clear();
         state.NextReplicaIndex = 0;
     }
+
+    private static LogSource CreateLogSource(
+        LocalContainerApplicationProcessRuntimeState state,
+        ReplicaProcess replica)
+    {
+        var sourceName = string.IsNullOrWhiteSpace(state.ResourceName)
+            ? state.ResourceId
+            : state.ResourceName;
+        return new LogSource(
+            CreateLogSourceId(state.ResourceId, replica.Ordinal),
+            $"Replica {replica.Ordinal.ToString(CultureInfo.InvariantCulture)} logs",
+            "Container app local process runtime",
+            sourceName,
+            LogSourceKind.Resource,
+            Kind: ResourceLogSourceKind.ProcessOutput,
+            Format: LogFormat.PlainText,
+            Storage: LogStorage.InMemory,
+            Capabilities: LogSourceCapabilities.Read,
+            ResourceId: state.ResourceId,
+            ProducerResourceId: replica.ResourceId,
+            Description: "Runtime replica process output.",
+            Origin: ResourceLogSourceOrigin.ProviderProjected,
+            Purpose: ResourceLogSourcePurpose.Default,
+            Availability: replica.Process.HasExited
+                ? LogSourceAvailability.Persisted
+                : LogSourceAvailability.ProducerRunning);
+    }
+
+    private static string CreateLogSourceId(
+        string resourceId,
+        int replicaOrdinal) =>
+        $"{resourceId}:replica-{replicaOrdinal.ToString(CultureInfo.InvariantCulture)}:logs";
 
     private static int GetReplicaCount(Resource resource)
     {
@@ -893,17 +993,27 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
     private async Task DrainOutputAsync(
         Resource resource,
         StreamReader reader,
-        int replicaOrdinal,
+        ReplicaProcess replica,
         bool isError)
     {
         while (await reader.ReadLineAsync() is { } line)
         {
+            replica.LogEntries.Enqueue(new LogEntry(
+                DateTimeOffset.UtcNow,
+                line,
+                isError ? "Error" : "Information",
+                isError ? "stderr" : "stdout"));
+            while (replica.LogEntries.Count > MaxBufferedLogEntriesPerReplica &&
+                replica.LogEntries.TryDequeue(out _))
+            {
+            }
+
             if (isError)
             {
                 logger.LogWarning(
                     "{ResourceLabel} replica {Replica}: {Line}",
                     GetResourceLabel(resource),
-                    replicaOrdinal,
+                    replica.Ordinal,
                     line);
             }
             else
@@ -911,7 +1021,7 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
                 logger.LogInformation(
                     "{ResourceLabel} replica {Replica}: {Line}",
                     GetResourceLabel(resource),
-                    replicaOrdinal,
+                    replica.Ordinal,
                     line);
             }
         }
@@ -930,10 +1040,16 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
     private sealed record ReplicaProcess(
         int Ordinal,
         int Port,
-        Process Process);
+        Process Process,
+        string ResourceId,
+        ConcurrentQueue<LogEntry> LogEntries);
 
     private sealed class LocalContainerApplicationProcessRuntimeState
     {
+        public string ResourceId { get; set; } = string.Empty;
+
+        public string ResourceName { get; set; } = string.Empty;
+
         public List<ReplicaProcess> Replicas { get; } = [];
 
         public ConcurrentDictionary<string, ReplicaProcess> SignalRConnections { get; } =
