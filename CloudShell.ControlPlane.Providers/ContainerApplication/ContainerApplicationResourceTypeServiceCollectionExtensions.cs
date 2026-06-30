@@ -108,6 +108,8 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Scoped<IResourceProvider, LocalContainerApplicationProcessRuntimeResourceProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<ILogProvider, LocalContainerApplicationProcessRuntimeLogProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceMonitoringProvider, LocalContainerApplicationProcessRuntimeMonitoringProvider>());
         services.Replace(ServiceDescriptor.Singleton<
             IContainerApplicationRuntimeHandler,
             LocalContainerApplicationProcessRuntimeHandler>());

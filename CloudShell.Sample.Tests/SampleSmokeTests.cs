@@ -2109,6 +2109,7 @@ public sealed class SampleSmokeTests
                 $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
                 StartupTimeout);
             await AssertSignalRRuntimeReplicaResourcesAsync(host);
+            await AssertSignalRRuntimeReplicaMonitoringSnapshotsAsync(host);
             await AssertSignalRReplicaLogSourcesAsync(host);
             await StartGraphResourceIfAvailableAsync(host, frontend, "SignalR Frontend");
             await WaitForHttpSuccessAsync(
@@ -2269,6 +2270,58 @@ public sealed class SampleSmokeTests
 
         throw new TimeoutException(
             $"Timed out waiting for SignalR local-process runtime replica resources. Last response: {lastBody}");
+    }
+
+    private static async Task AssertSignalRRuntimeReplicaMonitoringSnapshotsAsync(SampleProcess host)
+    {
+        const string apiResourceId = "application.container-app:signalr-api";
+        var deadline = DateTimeOffset.UtcNow.Add(StartupTimeout);
+        var observed = new HashSet<int>();
+        string? lastSnapshotJson = null;
+        Exception? lastException = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            observed.Clear();
+            lastException = null;
+
+            foreach (var replica in Enumerable.Range(1, 3))
+            {
+                var replicaResourceId = $"{apiResourceId}:replica-{replica.ToString(CultureInfo.InvariantCulture)}";
+                try
+                {
+                    lastSnapshotJson = await host.GetStringAsync(
+                        $"/api/control-plane/v1/resources/{Uri.EscapeDataString(replicaResourceId)}/monitoring");
+                    using var snapshotDocument = JsonDocument.Parse(lastSnapshotJson);
+                    var snapshot = snapshotDocument.RootElement;
+                    if (string.Equals(
+                            snapshot.GetProperty("resourceId").GetString(),
+                            replicaResourceId,
+                            StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(snapshot.GetProperty("status").GetString(), "Available", StringComparison.OrdinalIgnoreCase) &&
+                        snapshot.GetProperty("metrics").GetArrayLength() > 0)
+                    {
+                        observed.Add(replica);
+                    }
+                }
+                catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException)
+                {
+                    lastException = exception;
+                    break;
+                }
+            }
+
+            if (observed.Count == 3)
+            {
+                return;
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"SignalR local-process runtime replica monitoring did not return metric snapshots for all replicas within {StartupTimeout}." +
+            $"{Environment.NewLine}{lastSnapshotJson}{Environment.NewLine}{lastException?.Message}");
     }
 
     private static async Task AssertSignalRReplicaLogSourcesAsync(SampleProcess host)

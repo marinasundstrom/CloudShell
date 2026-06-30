@@ -267,6 +267,66 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
         return Task.FromResult<IReadOnlyList<LogEntry>>(entries);
     }
 
+    public async Task<ResourceProcessMonitoringSnapshot?> GetRuntimeReplicaMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId))
+        {
+            return null;
+        }
+
+        ReplicaProcess? matchedReplica = null;
+        lock (states)
+        {
+            matchedReplica = states.Values
+                .SelectMany(state => state.Replicas)
+                .FirstOrDefault(replica =>
+                    string.Equals(replica.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (matchedReplica is null || matchedReplica.Process.HasExited)
+        {
+            return null;
+        }
+
+        try
+        {
+            var process = matchedReplica.Process;
+            var firstTimestamp = DateTimeOffset.UtcNow;
+            var firstProcessorTime = process.TotalProcessorTime;
+            await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
+
+            process.Refresh();
+            if (process.HasExited)
+            {
+                return null;
+            }
+
+            var timestamp = DateTimeOffset.UtcNow;
+            var processorTime = process.TotalProcessorTime;
+            var elapsed = timestamp - firstTimestamp;
+            var cpuPercent = elapsed.TotalMilliseconds > 0
+                ? (processorTime - firstProcessorTime).TotalMilliseconds /
+                    (elapsed.TotalMilliseconds * Environment.ProcessorCount) * 100
+                : 0;
+
+            return new ResourceProcessMonitoringSnapshot(
+                process.Id,
+                TryGetStartTime(process),
+                timestamp,
+                Math.Max(0, cpuPercent),
+                processorTime,
+                process.WorkingSet64,
+                process.PrivateMemorySize64,
+                process.Threads.Count);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> StartAsync(
         Resource resource,
         LocalContainerApplicationProcessDefinition definition,
@@ -938,7 +998,8 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
             },
             Capabilities:
             [
-                new(ResourceCapabilityIds.LogSources)
+                new(ResourceCapabilityIds.LogSources),
+                new(ResourceCapabilityIds.Monitoring)
             ],
             EndpointNetworkMappings:
             [
@@ -1190,6 +1251,18 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
         string.IsNullOrWhiteSpace(resource.State.DisplayName)
             ? resource.EffectiveResourceId
             : resource.State.DisplayName;
+
+    private static DateTimeOffset? TryGetStartTime(Process process)
+    {
+        try
+        {
+            return process.StartTime.ToUniversalTime();
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
+    }
 
     private sealed record ReplicaProcess(
         int Ordinal,

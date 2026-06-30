@@ -96,6 +96,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Local-process container app runtime replicas now project `runtime.container`
   resources, allowing the Environment Map to render replica nodes inside the
   container app service and replica-group boundaries.
+- Local-process container app runtime replicas now expose process-level
+  monitoring snapshots, while Docker-backed replica monitoring remains scoped
+  to runtime containers with provider-projected Docker container names.
 - Traces view no longer renders recent spans through the terminal-style log
   entry component; the page now stays focused on trace summaries until a trace
   is opened.

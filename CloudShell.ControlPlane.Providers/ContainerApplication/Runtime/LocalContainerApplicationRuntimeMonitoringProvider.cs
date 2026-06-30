@@ -84,7 +84,8 @@ public sealed class LocalContainerApplicationRuntimeMonitoringProvider(
         string.Equals(
             GetAttribute(resource, ResourceAttributeNames.RuntimeKind),
             "containerReplica",
-            StringComparison.OrdinalIgnoreCase);
+            StringComparison.OrdinalIgnoreCase) &&
+        !string.IsNullOrWhiteSpace(GetAttribute(resource, ResourceAttributeNames.RuntimeContainerName));
 
     private static string GetAttribute(ResourceManagerResource resource, string name) =>
         resource.ResourceAttributes.TryGetValue(name, out var value)
