@@ -136,7 +136,8 @@
     private async Task LoadGraphAsync()
     {
         var displaySelection = await DisplaySettings.GetAsync();
-        var resources = (await ResourceManager.ListResourcesAsync())
+        var allResources = await ResourceManager.ListResourcesAsync();
+        var resources = allResources
             .Where(displaySelection.ShowsResource)
             .OrderBy(displaySelection.GetResourceSortLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -145,6 +146,7 @@
             new ResourceDependencyGraphProjectionOptions
             {
                 IncludeNetworkTopologyOverlay = IncludeNetworkTopologyOverlay,
+                RelationshipResources = allResources,
                 GetResourceLabel = displaySelection.GetResourceLabel,
                 GetResourceName = displaySelection.GetResourceName,
                 CreateResourceDetailUrl = resource => ResourceManagerCompositionLinks.ResourceDetails(Composition, resource.Id),

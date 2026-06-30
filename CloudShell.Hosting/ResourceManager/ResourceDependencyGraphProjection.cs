@@ -18,6 +18,9 @@ public static class ResourceDependencyGraphProjection
         var visibleResourceIds = resources
             .Select(resource => resource.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var relationshipResources = projectionOptions.RelationshipResources ?? resources;
+        var relationshipResourcesById = relationshipResources
+            .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
 
         foreach (var resource in resources)
         {
@@ -41,15 +44,21 @@ public static class ResourceDependencyGraphProjection
                 .Where(visibleResourceIds.Contains)
                 .Distinct(StringComparer.OrdinalIgnoreCase))
             {
+                var label = TryGetDatabaseServerResourceId(resource, out var serverResourceId) &&
+                    string.Equals(dependencyId, serverResourceId, StringComparison.OrdinalIgnoreCase)
+                        ? "hosted by"
+                        : "depends on";
                 AddLink(
                     links,
                     resource.Id,
                     dependencyId,
-                    "depends on",
+                    label,
                     ResourceDependencyGraphLinkKinds.Dependency,
                     resource.Id);
             }
         }
+
+        AddDerivedResourceRelationshipLinks(resources, relationshipResourcesById, visibleResourceIds, links);
 
         if (projectionOptions.IncludeNetworkTopologyOverlay)
         {
@@ -134,6 +143,18 @@ public static class ResourceDependencyGraphProjection
 
         foreach (var nameMapping in resources.Where(ResourceNameMappingDisplay.IsNameMappingResource))
         {
+            if (!string.IsNullOrWhiteSpace(nameMapping.ParentResourceId) &&
+                visibleResourceIds.Contains(nameMapping.ParentResourceId))
+            {
+                AddLink(
+                    links,
+                    nameMapping.ParentResourceId!,
+                    nameMapping.Id,
+                    "contains",
+                    ResourceDependencyGraphLinkKinds.Topology,
+                    nameMapping.ParentResourceId);
+            }
+
             var targetResourceId = ResourceNameMappingDisplay.GetTargetResourceId(nameMapping);
             if (visibleResourceIds.Contains(targetResourceId))
             {
@@ -169,6 +190,36 @@ public static class ResourceDependencyGraphProjection
                 {
                     InternetReachability = reachability
                 };
+            }
+        }
+    }
+
+    private static void AddDerivedResourceRelationshipLinks(
+        IReadOnlyList<Resource> resources,
+        IReadOnlyDictionary<string, Resource> resourcesById,
+        ISet<string> visibleResourceIds,
+        IDictionary<string, ResourceDependencyGraphLink> links)
+    {
+        foreach (var resource in resources)
+        {
+            foreach (var dependencyId in resource.DependsOn.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (!resourcesById.TryGetValue(dependencyId, out var dependency) ||
+                    !TryGetDatabaseServerResourceId(dependency, out var serverResourceId) ||
+                    visibleResourceIds.Contains(dependency.Id) ||
+                    !visibleResourceIds.Contains(serverResourceId) ||
+                    resource.DependsOn.Contains(serverResourceId, StringComparer.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                AddLink(
+                    links,
+                    resource.Id,
+                    serverResourceId,
+                    "uses database on",
+                    ResourceDependencyGraphLinkKinds.Dependency,
+                    resource.Id);
             }
         }
     }
@@ -220,6 +271,37 @@ public static class ResourceDependencyGraphProjection
 
         return null;
     }
+
+    private static bool TryGetDatabaseServerResourceId(Resource resource, out string serverResourceId)
+    {
+        if (resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.DatabaseServerResourceId, out var projectedServerResourceId) &&
+            !string.IsNullOrWhiteSpace(projectedServerResourceId))
+        {
+            serverResourceId = projectedServerResourceId.Trim();
+            return true;
+        }
+
+        if (resource.ResourceAttributes.TryGetValue("database.server", out var graphServerResourceId) &&
+            !string.IsNullOrWhiteSpace(graphServerResourceId))
+        {
+            serverResourceId = graphServerResourceId.Trim();
+            return true;
+        }
+
+        if (IsSqlDatabaseResource(resource))
+        {
+            serverResourceId = resource.DependsOn.FirstOrDefault(dependencyId => !string.IsNullOrWhiteSpace(dependencyId)) ??
+                string.Empty;
+            return !string.IsNullOrWhiteSpace(serverResourceId);
+        }
+
+        serverResourceId = string.Empty;
+        return false;
+    }
+
+    private static bool IsSqlDatabaseResource(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, "application.sql-database", StringComparison.OrdinalIgnoreCase) ||
+        resource.EffectiveTypeId.Contains("sql-database", StringComparison.OrdinalIgnoreCase);
 
     private static string? NormalizeInternetReachability(string value) =>
         value.Trim() switch
@@ -297,6 +379,8 @@ public sealed record ResourceDependencyGraphLink(
 public sealed record ResourceDependencyGraphProjectionOptions
 {
     public bool IncludeNetworkTopologyOverlay { get; init; }
+
+    public IReadOnlyList<Resource>? RelationshipResources { get; init; }
 
     public Func<Resource, string> GetResourceLabel { get; init; } = static resource => resource.EffectiveDisplayName;
 

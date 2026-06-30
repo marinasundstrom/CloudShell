@@ -147,6 +147,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
                 NameMappingResourceManagerProjectionProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerAttributeProvider,
+                SqlDatabaseResourceManagerProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerParentProvider,
                 NameMappingResourceManagerProjectionProvider>());
         services.TryAddEnumerable(

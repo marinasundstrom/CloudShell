@@ -83,6 +83,83 @@ public sealed class ResourceDependencyGraphProjectionTests
     }
 
     [Fact]
+    public void Create_IncludesDnsZoneContainmentForNameMappingsInTopologyOverlay()
+    {
+        var frontend = CreatePublicHttpResource();
+        var dnsZone = CreateResource("dns:local", "local-dns", ResourceClass.Network);
+        var nameMapping = CreateNameMappingResource(dnsZone.Id, frontend.Id);
+
+        var graph = ResourceDependencyGraphProjection.Create(
+            [frontend, dnsZone, nameMapping],
+            CreateOptions(includeNetworkTopologyOverlay: true));
+
+        Assert.Contains(graph.Links, link =>
+            link.Source == dnsZone.Id &&
+            link.Target == nameMapping.Id &&
+            link.Label == "contains" &&
+            link.Kind == ResourceDependencyGraphLinkKinds.Topology);
+        Assert.Contains(graph.Links, link =>
+            link.Source == nameMapping.Id &&
+            link.Target == frontend.Id &&
+            link.Label == "names" &&
+            link.Kind == ResourceDependencyGraphLinkKinds.Topology);
+    }
+
+    [Fact]
+    public void Create_InfersSqlServerReferenceThroughDatabaseDependency()
+    {
+        var sqlServer = CreateResource("application.sql-server:main", "main-sql", ResourceClass.Service);
+        var database = CreateSqlDatabaseResource(sqlServer.Id);
+        var api = CreateResource(
+            "application.executable:api",
+            "api",
+            ResourceClass.Executable,
+            dependsOn: [database.Id]);
+
+        var graph = ResourceDependencyGraphProjection.Create(
+            [api, sqlServer],
+            CreateOptions(relationshipResources: [api, database, sqlServer]));
+
+        Assert.Contains(graph.Links, link =>
+            link.Source == api.Id &&
+            link.Target == sqlServer.Id &&
+            link.Label == "uses database on" &&
+            link.Kind == ResourceDependencyGraphLinkKinds.Dependency);
+        Assert.DoesNotContain(graph.Links, link => link.Source == api.Id && link.Target == database.Id);
+    }
+
+    [Fact]
+    public void Create_ShowsDatabaseServerPathWhenDatabaseIsVisible()
+    {
+        var sqlServer = CreateResource("application.sql-server:main", "main-sql", ResourceClass.Service);
+        var database = CreateSqlDatabaseResource(sqlServer.Id);
+        var api = CreateResource(
+            "application.executable:api",
+            "api",
+            ResourceClass.Executable,
+            dependsOn: [database.Id]);
+
+        var graph = ResourceDependencyGraphProjection.Create(
+            [api, database, sqlServer],
+            CreateOptions());
+
+        Assert.Contains(graph.Links, link =>
+            link.Source == api.Id &&
+            link.Target == database.Id &&
+            link.Label == "depends on" &&
+            link.Kind == ResourceDependencyGraphLinkKinds.Dependency);
+        Assert.Contains(graph.Links, link =>
+            link.Source == database.Id &&
+            link.Target == sqlServer.Id &&
+            link.Label == "hosted by" &&
+            link.Kind == ResourceDependencyGraphLinkKinds.Dependency);
+        Assert.DoesNotContain(graph.Links, link =>
+            link.Source == api.Id &&
+            link.Target == sqlServer.Id &&
+            link.Label == "uses database on");
+    }
+
+    [Fact]
     public void Create_ShowsInternetReachabilityBadgeOnlyForProjectedReachability()
     {
         var localApi = CreatePublicHttpResource();
@@ -115,10 +192,12 @@ public sealed class ResourceDependencyGraphProjectionTests
     }
 
     private static ResourceDependencyGraphProjectionOptions CreateOptions(
-        bool includeNetworkTopologyOverlay = false) =>
+        bool includeNetworkTopologyOverlay = false,
+        IReadOnlyList<Resource>? relationshipResources = null) =>
         new()
         {
             IncludeNetworkTopologyOverlay = includeNetworkTopologyOverlay,
+            RelationshipResources = relationshipResources,
             CreateResourceDetailUrl = resource => $"/resources/{resource.Id}",
             GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown"
         };
@@ -168,6 +247,52 @@ public sealed class ResourceDependencyGraphProjectionTests
                     providerResourceId: "cloudshell.gateway:public")
             ],
             DisplayName: "API");
+
+    private static Resource CreateSqlDatabaseResource(string serverResourceId) =>
+        new(
+            "application.sql-database:app",
+            "app-db",
+            "application.sql-database",
+            "test",
+            "local",
+            null,
+            [],
+            "1",
+            DateTimeOffset.UtcNow,
+            [serverResourceId],
+            TypeId: "application.sql-database",
+            ResourceClass: ResourceClass.Service,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.DatabaseServerResourceId] = serverResourceId,
+                ["database.name"] = "app"
+            },
+            DisplayName: "App database");
+
+    private static Resource CreateNameMappingResource(string zoneResourceId, string targetResourceId) =>
+        new(
+            "dns:local:name:app",
+            "app-local",
+            "cloudshell.nameMapping",
+            "test",
+            "local",
+            null,
+            [],
+            "1",
+            DateTimeOffset.UtcNow,
+            [],
+            ParentResourceId: zoneResourceId,
+            TypeId: "cloudshell.nameMapping",
+            ResourceClass: ResourceClass.Network,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.NameMappingHostName] = "app.local",
+                [ResourceAttributeNames.NameMappingTargetResourceId] = targetResourceId,
+                [ResourceAttributeNames.NameMappingTargetEndpointName] = "http",
+                [ResourceAttributeNames.NameMappingExposure] = ResourceExposureScope.Public.ToString()
+            },
+            Capabilities: [new(ResourceCapabilityIds.NetworkingNameMapping)],
+            DisplayName: "app.local");
 
     private static Resource CreateNetworkResource(string targetResourceId, string providerResourceId) =>
         new(

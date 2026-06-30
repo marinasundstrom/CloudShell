@@ -213,6 +213,64 @@ public sealed class EnvironmentRuntimeMapProjectionTests
             link.Kind == "topology");
     }
 
+    [Fact]
+    public void Create_IncludesDnsZoneContainmentForNameMappingsInTopologyOverlay()
+    {
+        var frontend = CreateHttpResource();
+        var dnsZone = CreateDnsZoneResource();
+        var nameMapping = CreateNameMappingResource(dnsZone.Id, frontend.Id);
+
+        var map = EnvironmentRuntimeMapProjection.Create(
+            [frontend, dnsZone, nameMapping],
+            [],
+            [],
+            new EnvironmentRuntimeMapProjectionOptions
+            {
+                IncludeNetworkTopologyOverlay = true,
+                CreateResourceDetailUrl = resource => $"/resources/{resource.Id}",
+                GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown"
+            });
+
+        Assert.Contains(map.Links, link =>
+            link.Source == $"resource:{dnsZone.Id}" &&
+            link.Target == $"name-mapping:{nameMapping.Id}" &&
+            link.Label == "contains" &&
+            link.Kind == "routing");
+        Assert.Contains(map.Links, link =>
+            link.Source == $"name-mapping:{nameMapping.Id}" &&
+            link.Target == $"resource:{frontend.Id}" &&
+            link.Label == "names" &&
+            link.Kind == "routing");
+    }
+
+    [Fact]
+    public void Create_InfersSqlServerReferenceThroughDatabaseDependency()
+    {
+        var sqlServer = CreateSqlServerResource();
+        var database = CreateSqlDatabaseResource(sqlServer.Id);
+        var api = CreateHttpResource() with
+        {
+            State = ResourceState.Running,
+            DependsOn = [database.Id]
+        };
+
+        var map = EnvironmentRuntimeMapProjection.Create(
+            [api, database, sqlServer],
+            [],
+            [],
+            new EnvironmentRuntimeMapProjectionOptions
+            {
+                CreateResourceDetailUrl = resource => $"/resources/{resource.Id}",
+                GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown"
+            });
+
+        Assert.Contains(map.Links, link =>
+            link.Source == $"resource:{api.Id}" &&
+            link.Target == $"resource:{sqlServer.Id}" &&
+            link.Label == "uses database on" &&
+            link.Kind == "dependency");
+    }
+
     private static Resource CreateContainerApp() =>
         new(
             "application.container-app:api",
@@ -275,6 +333,89 @@ public sealed class EnvironmentRuntimeMapProjectionTests
                     providerResourceId: "cloudshell.gateway:public")
             ],
             DisplayName: "API");
+
+    private static Resource CreateSqlServerResource() =>
+        new(
+            "application.sql-server:main",
+            "main-sql",
+            "application.sql-server",
+            "test",
+            "local",
+            ResourceState.Running,
+            [],
+            "1",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: "application.sql-server",
+            ResourceClass: ResourceClass.Service,
+            DisplayName: "Main SQL Server");
+
+    private static Resource CreateSqlDatabaseResource(string serverResourceId) =>
+        new(
+            "application.sql-database:app",
+            "app-db",
+            "application.sql-database",
+            "test",
+            "local",
+            null,
+            [],
+            "1",
+            DateTimeOffset.UtcNow,
+            [serverResourceId],
+            TypeId: "application.sql-database",
+            ResourceClass: ResourceClass.Service,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.DatabaseServerResourceId] = serverResourceId,
+                ["database.name"] = "app"
+            },
+            DisplayName: "App database");
+
+    private static Resource CreateDnsZoneResource() =>
+        new(
+            "dns:local",
+            "local-dns",
+            "cloudshell.dnsZone",
+            "test",
+            "local",
+            null,
+            [],
+            "1",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: "cloudshell.dnsZone",
+            ResourceClass: ResourceClass.Network,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.DnsZoneName] = "application-topology.local"
+            },
+            Capabilities: [new(ResourceCapabilityIds.NetworkingDnsZone)],
+            DisplayName: "Local DNS");
+
+    private static Resource CreateNameMappingResource(string zoneResourceId, string targetResourceId) =>
+        new(
+            "dns:local:name:app",
+            "app-local",
+            "cloudshell.nameMapping",
+            "test",
+            "local",
+            null,
+            [],
+            "1",
+            DateTimeOffset.UtcNow,
+            [],
+            ParentResourceId: zoneResourceId,
+            TypeId: "cloudshell.nameMapping",
+            ResourceClass: ResourceClass.Network,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.NameMappingHostName] = "app.local",
+                [ResourceAttributeNames.NameMappingTargetResourceId] = targetResourceId,
+                [ResourceAttributeNames.NameMappingTargetEndpointName] = "http",
+                [ResourceAttributeNames.NameMappingExposure] = ResourceExposureScope.Public.ToString()
+            },
+            Capabilities: [new(ResourceCapabilityIds.NetworkingNameMapping)],
+            DisplayName: "app.local");
 
     private static Resource CreateTopologyProviderResource() =>
         new(

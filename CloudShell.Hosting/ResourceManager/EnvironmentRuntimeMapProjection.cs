@@ -646,6 +646,22 @@ public static class EnvironmentRuntimeMapProjection
                     null);
                 routingNodeCount++;
 
+                if (!string.IsNullOrWhiteSpace(mapping.ParentResourceId) &&
+                    resourceNodeIds.TryGetValue(mapping.ParentResourceId, out var zoneNodeId))
+                {
+                    AddLink(
+                        links,
+                        zoneNodeId,
+                        mappingNodeId,
+                        Text("contains"),
+                        "routing",
+                        EnvironmentRuntimeArtifactKinds.EndpointMapping,
+                        mapping.ParentResourceId,
+                        null,
+                        null,
+                        null);
+                }
+
                 if (resourceNodeIds.TryGetValue(mapping.Id, out var mappingResourceNodeId))
                 {
                     AddLink(
@@ -982,6 +998,8 @@ public static class EnvironmentRuntimeMapProjection
         IDictionary<string, EnvironmentRuntimeMapLink> links,
         IReadOnlyDictionary<string, string> resourceNodeIds)
     {
+        var resourcesById = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+
         foreach (var resource in resources)
         {
             foreach (var dependencyId in resource.DependsOn)
@@ -989,11 +1007,15 @@ public static class EnvironmentRuntimeMapProjection
                 if (resourceNodeIds.TryGetValue(resource.Id, out var sourceNodeId) &&
                     resourceNodeIds.TryGetValue(dependencyId, out var targetNodeId))
                 {
+                    var label = TryGetDatabaseServerResourceId(resource, out var serverResourceId) &&
+                        string.Equals(dependencyId, serverResourceId, StringComparison.OrdinalIgnoreCase)
+                            ? "hosted by"
+                            : "depends on";
                     AddLink(
                         links,
                         sourceNodeId,
                         targetNodeId,
-                        "depends on",
+                        label,
                         "dependency",
                         EnvironmentRuntimeArtifactKinds.Resource,
                         resource.Id,
@@ -1001,6 +1023,48 @@ public static class EnvironmentRuntimeMapProjection
                         null,
                         null);
                 }
+            }
+
+            foreach (var dependencyId in resource.DependsOn.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (!resourcesById.TryGetValue(dependencyId, out var dependency) ||
+                    !TryGetDatabaseServerResourceId(dependency, out var serverResourceId) ||
+                    resourceNodeIds.ContainsKey(dependency.Id) ||
+                    resource.DependsOn.Contains(serverResourceId, StringComparer.OrdinalIgnoreCase) ||
+                    !resourceNodeIds.TryGetValue(resource.Id, out var sourceNodeId) ||
+                    !resourceNodeIds.TryGetValue(serverResourceId, out var serverNodeId))
+                {
+                    continue;
+                }
+
+                AddLink(
+                    links,
+                    sourceNodeId,
+                    serverNodeId,
+                    "uses database on",
+                    "dependency",
+                    EnvironmentRuntimeArtifactKinds.Resource,
+                    resource.Id,
+                    null,
+                    null,
+                    null);
+            }
+
+            if (!string.IsNullOrWhiteSpace(resource.ParentResourceId) &&
+                resourceNodeIds.TryGetValue(resource.ParentResourceId, out var parentNodeId) &&
+                resourceNodeIds.TryGetValue(resource.Id, out var childNodeId))
+            {
+                AddLink(
+                    links,
+                    parentNodeId,
+                    childNodeId,
+                    "contains",
+                    "relationship",
+                    EnvironmentRuntimeArtifactKinds.Resource,
+                    resource.ParentResourceId,
+                    null,
+                    null,
+                    null);
             }
         }
     }
@@ -1081,6 +1145,37 @@ public static class EnvironmentRuntimeMapProjection
 
     private static string GetOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "not projected" : value;
+
+    private static bool TryGetDatabaseServerResourceId(Resource resource, out string serverResourceId)
+    {
+        if (resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.DatabaseServerResourceId, out var projectedServerResourceId) &&
+            !string.IsNullOrWhiteSpace(projectedServerResourceId))
+        {
+            serverResourceId = projectedServerResourceId.Trim();
+            return true;
+        }
+
+        if (resource.ResourceAttributes.TryGetValue("database.server", out var graphServerResourceId) &&
+            !string.IsNullOrWhiteSpace(graphServerResourceId))
+        {
+            serverResourceId = graphServerResourceId.Trim();
+            return true;
+        }
+
+        if (IsSqlDatabaseResource(resource))
+        {
+            serverResourceId = resource.DependsOn.FirstOrDefault(dependencyId => !string.IsNullOrWhiteSpace(dependencyId)) ??
+                string.Empty;
+            return !string.IsNullOrWhiteSpace(serverResourceId);
+        }
+
+        serverResourceId = string.Empty;
+        return false;
+    }
+
+    private static bool IsSqlDatabaseResource(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, "application.sql-database", StringComparison.OrdinalIgnoreCase) ||
+        resource.EffectiveTypeId.Contains("sql-database", StringComparison.OrdinalIgnoreCase);
 
     private static string? GetInternetReachability(Resource resource)
     {

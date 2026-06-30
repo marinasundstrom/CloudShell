@@ -29,6 +29,11 @@ on `git blame --follow`, and then by the broad type of change.
   resource or network cards when reachability is explicitly projected, instead
   of inferring it from local public endpoint exposure or adding internet as a
   resource node.
+- Resource graph and Environment Map projections now keep Application
+  Topology relationships connected when logical intermediaries are hidden:
+  DNS name mappings link back to their DNS zone, SQL databases expose their
+  owning server, and application resources can show the effective SQL Server
+  relationship inferred through a database dependency.
 - Terminology, domain, architecture, and resource-model docs now define a
   network topology overlay that can be shown in both the Resource graph and
   Environment Map, including future internet-reachability facts.
