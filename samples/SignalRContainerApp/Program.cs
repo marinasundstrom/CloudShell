@@ -16,9 +16,13 @@ var builder = CloudShellApplication.CreateBuilder(args);
 const string sampleImageTag = "20260630.1";
 const string resourceGroupId = "signalr-container-app";
 
-var apiEndpointPort = builder.Configuration.GetValue<int?>("SignalRContainerApp:ApiPort") ?? 5095;
+var hostPort = TryGetConfiguredHostPort(builder.Configuration);
+var apiEndpointPort =
+    builder.Configuration.GetValue<int?>("SignalRContainerApp:ApiPort") ??
+    hostPort + 1 ??
+    5095;
 var frontendEndpoint = builder.Configuration["SignalRContainerApp:FrontendEndpoint"]
-    ?? "http://localhost:5096";
+    ?? $"http://localhost:{((hostPort + 5) ?? 5096).ToString(CultureInfo.InvariantCulture)}";
 var frontendEndpointUri = new Uri(frontendEndpoint);
 var apiIngressEndpoint = $"http://localhost:{apiEndpointPort.ToString(CultureInfo.InvariantCulture)}";
 var frontendProjectPath = Path.GetFullPath(
@@ -67,6 +71,9 @@ cloudShell.DefineResources(resources =>
         .WithEnvironmentVariable(
             "SignalRBackend__BaseUrl",
             apiIngressEndpoint)
+        .WithEnvironmentVariable(
+            "ASPNETCORE_ENVIRONMENT",
+            "Development")
         .WithHttpHealthCheck(
             "/health",
             endpointName: "http")
@@ -76,6 +83,8 @@ cloudShell.DefineResources(resources =>
 });
 
 builder.Services
+    .AddSingleton<SignalRContainerAppRuntimeBridge>()
+    .AddSingleton<IContainerApplicationRuntimeHandler, SignalRContainerAppRuntimeHandler>()
     .AddLocalContainerApplicationResourceTypes()
     .AddAspNetCoreProjectResourceType();
 cloudShell.UseResourceGraphIntegration();
@@ -92,3 +101,28 @@ await app.UseCloudShellAsync();
 app.MapCloudShell<App>();
 
 app.Run();
+
+static int? TryGetConfiguredHostPort(IConfiguration configuration)
+{
+    foreach (var value in new[]
+    {
+        configuration["urls"],
+        configuration["ASPNETCORE_URLS"]
+    })
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            continue;
+        }
+
+        foreach (var segment in value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (Uri.TryCreate(segment, UriKind.Absolute, out var uri) && uri.Port > 0)
+            {
+                return uri.Port;
+            }
+        }
+    }
+
+    return null;
+}

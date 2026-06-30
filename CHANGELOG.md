@@ -56,6 +56,18 @@ on `git blame --follow`, and then by the broad type of change.
   frontend resource connected to a three-replica container app backend with
   cookie session affinity, leaving runtime materialization to the shared
   container app runtime/orchestrator path.
+- SignalR Container App sample now includes a temporary local runtime bridge
+  that starts API replica processes and exposes the declared backend endpoint
+  through sticky cookie routing until the shared container app runtime exists.
+- SignalR Container App ingress now keeps SignalR negotiate and WebSocket
+  requests bound to the same replica by tracking negotiated connection tokens,
+  proving sticky real-time routing through the sample bridge.
+- SignalR Container App sample derives default API, replica, and frontend
+  ports from the supplied CloudShell host URL to avoid fixed-port collisions
+  when running the sample with `--urls`.
+- Container app fallback runtime now reports a runtime-unavailable diagnostic
+  instead of accepting lifecycle, image, and replica operations without
+  materializing anything.
 - Application Topology sample resource display names now omit the repeated
   sample prefix so graph cards remain readable.
 - ResourceHost now declares every sample resource exposed by its provider so

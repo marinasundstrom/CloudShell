@@ -18,6 +18,10 @@
                 <dd>@(_options?.BackendBaseUrl ?? "Loading")</dd>
             </div>
             <div>
+                <dt>Hub</dt>
+                <dd>@(_hubUrl ?? "Loading")</dd>
+            </div>
+            <div>
                 <dt>Connection</dt>
                 <dd>@_connectionState</dd>
             </div>
@@ -26,6 +30,10 @@
                 <dd>@(_currentReplica ?? "Unknown")</dd>
             </div>
         </dl>
+        @if (!string.IsNullOrWhiteSpace(_connectionError))
+        {
+            <p class="connection-error">@_connectionError</p>
+        }
 
         <form class="message-form" @onsubmit="SendAsync">
             <input @bind="_message" placeholder="Message" />
@@ -53,40 +61,64 @@
     private SignalRContainerAppClientOptions? _options;
     private HubConnection? _connection;
     private string _connectionState = "Loading";
+    private string? _connectionError;
+    private string? _hubUrl;
     private string? _currentReplica;
     private string _message = "Hello from Blazor WebAssembly";
 
     protected override async Task OnInitializedAsync()
     {
-        _options = await Http.GetFromJsonAsync<SignalRContainerAppClientOptions>("sample-config.json");
-        if (_options is null || string.IsNullOrWhiteSpace(_options.BackendBaseUrl))
+        try
         {
-            _connectionState = "Missing backend configuration";
+            _options = await Http.GetFromJsonAsync<SignalRContainerAppClientOptions>("sample-config.json");
+        }
+        catch (Exception exception)
+        {
+            _connectionState = "Configuration failed";
+            _connectionError = FormatException(exception);
             return;
         }
 
+        if (_options is null || string.IsNullOrWhiteSpace(_options.BackendBaseUrl))
+        {
+            _connectionState = "Missing backend configuration";
+            _connectionError = "The frontend did not receive a backend base URL.";
+            return;
+        }
+
+        _hubUrl = $"{_options.BackendBaseUrl.TrimEnd('/')}/hubs/replicas";
+        _connectionState = "Connecting";
+
         _connection = new HubConnectionBuilder()
-            .WithUrl($"{_options.BackendBaseUrl.TrimEnd('/')}/hubs/replicas")
+            .WithUrl(
+                _hubUrl,
+                options =>
+                {
+                    options.Transports = HttpTransportType.WebSockets;
+                })
             .WithAutomaticReconnect()
             .Build();
 
         _connection.On<SignalRReplicaMessage>("ReplicaConnected", AddMessage);
         _connection.On<SignalRReplicaMessage>("ReplicaMessage", AddMessage);
-        _connection.Reconnecting += _ =>
+        _connection.Reconnecting += exception =>
         {
             _connectionState = "Reconnecting";
+            _connectionError = exception is null ? null : FormatException(exception);
             InvokeAsync(StateHasChanged);
             return Task.CompletedTask;
         };
-        _connection.Reconnected += _ =>
+        _connection.Reconnected += connectionId =>
         {
-            _connectionState = "Connected";
+            _connectionState = $"Connected ({ShortConnectionId(connectionId ?? string.Empty)})";
+            _connectionError = null;
             InvokeAsync(StateHasChanged);
             return Task.CompletedTask;
         };
-        _connection.Closed += _ =>
+        _connection.Closed += exception =>
         {
             _connectionState = "Closed";
+            _connectionError = exception is null ? null : FormatException(exception);
             InvokeAsync(StateHasChanged);
             return Task.CompletedTask;
         };
@@ -95,10 +127,12 @@
         {
             await _connection.StartAsync();
             _connectionState = "Connected";
+            _connectionError = null;
         }
         catch (Exception exception)
         {
-            _connectionState = exception.Message;
+            _connectionState = "Connection failed";
+            _connectionError = FormatException(exception);
         }
     }
 
@@ -126,6 +160,9 @@
 
     private static string ShortConnectionId(string connectionId) =>
         connectionId.Length <= 8 ? connectionId : connectionId[..8];
+
+    private static string FormatException(Exception exception) =>
+        $"{exception.GetType().Name}: {exception.Message}";
 
     public async ValueTask DisposeAsync()
     {

@@ -15,6 +15,8 @@ using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
+using Microsoft.AspNetCore.Http.Connections;
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
@@ -2048,13 +2050,17 @@ public sealed class SampleSmokeTests
     [Fact]
     public async Task SignalRContainerAppSample_DeclaresFrontendAndContainerAppIntent()
     {
-        var apiPort = await GetFreePortAsync();
-        var frontendPort = await GetFreePortAsync();
+        var ports = await GetFreePortRangeAsync(6);
+        var hostPort = ports[0];
+        var apiPort = ports[1];
+        var replicaPortStart = ports[2];
+        var frontendPort = ports[5];
         using var host = await SampleProcess.StartAsync(
             "samples/SignalRContainerApp/CloudShell.SignalRContainerApp.csproj",
-            await GetFreePortAsync(),
+            hostPort,
             [
                 ("SignalRContainerApp__ApiPort", apiPort.ToString(CultureInfo.InvariantCulture)),
+                ("SignalRContainerApp__ReplicaPortStart", replicaPortStart.ToString(CultureInfo.InvariantCulture)),
                 ("SignalRContainerApp__FrontendEndpoint", $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}")
             ]);
 
@@ -2090,7 +2096,81 @@ public sealed class SampleSmokeTests
         Assert.Contains(
             $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}",
             frontendAttributes.GetRawText());
+
+        try
+        {
+            await StartGraphResourceIfAvailableAsync(host, api, "SignalR API");
+            await WaitForHttpSuccessAsync(
+                $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
+                StartupTimeout);
+            await StartGraphResourceIfAvailableAsync(host, frontend, "SignalR Frontend");
+            await WaitForHttpSuccessAsync(
+                $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}/",
+                StartupTimeout);
+            using var frontendClient = new HttpClient();
+            var frontendIndex = await frontendClient.GetStringAsync(
+                $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}/");
+            var scriptPrefix = "src=\"_framework/";
+            var scriptStart = frontendIndex.IndexOf(scriptPrefix, StringComparison.Ordinal);
+            Assert.True(scriptStart >= 0, frontendIndex);
+            scriptStart += scriptPrefix.Length;
+            var scriptEnd = frontendIndex.IndexOf('"', scriptStart);
+            Assert.True(scriptEnd > scriptStart, frontendIndex);
+            var frameworkScript = frontendIndex[scriptStart..scriptEnd];
+            Assert.StartsWith("blazor.webassembly", frameworkScript);
+            Assert.EndsWith(".js", frameworkScript);
+            await WaitForHttpSuccessAsync(
+                $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}/_framework/{frameworkScript}",
+                StartupTimeout);
+            var frontendConfig = await frontendClient.GetStringAsync(
+                $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}/sample-config.json");
+            Assert.Contains(
+                $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}",
+                frontendConfig);
+
+            var connected = new TaskCompletionSource<SignalRReplicaTestMessage>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var echoed = new TaskCompletionSource<SignalRReplicaTestMessage>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            await using var connection = new HubConnectionBuilder()
+                .WithUrl(
+                    $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/hubs/replicas",
+                    options =>
+                    {
+                        options.Transports = HttpTransportType.WebSockets;
+                    })
+                .Build();
+            connection.On<SignalRReplicaTestMessage>(
+                "ReplicaConnected",
+                message => connected.TrySetResult(message));
+            connection.On<SignalRReplicaTestMessage>(
+                "ReplicaMessage",
+                message => echoed.TrySetResult(message));
+
+            await connection.StartAsync();
+            var connectedMessage = await connected.Task.WaitAsync(StartupTimeout);
+            await connection.InvokeAsync("SendMessage", "Smoke test message");
+            var echoedMessage = await echoed.Task.WaitAsync(StartupTimeout);
+
+            Assert.Equal("Connected to SignalR backend.", connectedMessage.Text);
+            Assert.Equal("Smoke test message", echoedMessage.Text);
+            Assert.Equal(connectedMessage.Replica, echoedMessage.Replica);
+            Assert.Equal(connectedMessage.ConnectionId, echoedMessage.ConnectionId);
+        }
+        finally
+        {
+            await StopGraphResourceIfAvailableAsync(host, frontend, "SignalR Frontend");
+            await StopGraphResourceIfAvailableAsync(host, api, "SignalR API");
+        }
     }
+
+    private sealed record SignalRReplicaTestMessage(
+        string Text,
+        string Replica,
+        string Resource,
+        string Machine,
+        string ConnectionId,
+        DateTimeOffset Timestamp);
 
     [Fact]
     public async Task ReplicatedContainerHealthSample_DeclaresResourcesWithoutOldProviderRecords()
@@ -2877,6 +2957,46 @@ public sealed class SampleSmokeTests
             listener.Stop();
             await Task.Yield();
         }
+    }
+
+    private static async Task<IReadOnlyList<int>> GetFreePortRangeAsync(int count)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
+
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            var start = await GetFreePortAsync();
+            if (start + count >= IPEndPoint.MaxPort)
+            {
+                continue;
+            }
+
+            var listeners = new List<TcpListener>(count);
+            try
+            {
+                for (var offset = 0; offset < count; offset++)
+                {
+                    var listener = new TcpListener(IPAddress.Loopback, start + offset);
+                    listener.Start();
+                    listeners.Add(listener);
+                }
+
+                return Enumerable.Range(start, count).ToArray();
+            }
+            catch (SocketException)
+            {
+            }
+            finally
+            {
+                foreach (var listener in listeners)
+                {
+                    listener.Stop();
+                }
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"Could not find {count.ToString(CultureInfo.InvariantCulture)} contiguous free TCP ports.");
     }
 
     private static string ExtractRequestVerificationToken(string html)
