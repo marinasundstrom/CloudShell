@@ -1,3 +1,5 @@
+using ResourceOrchestratorSessionAffinityMode = CloudShell.Abstractions.ResourceManager.ResourceOrchestratorSessionAffinityMode;
+
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
@@ -21,6 +23,46 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
 
     public ContainerApplicationResourceDefinitionBuilder WithReplicas(long replicas) =>
         SetScalarAttribute(ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas, replicas);
+
+    public ContainerApplicationResourceDefinitionBuilder WithSessionAffinity(
+        ResourceOrchestratorSessionAffinityMode mode,
+        string? cookieName = null,
+        int? durationSeconds = null)
+    {
+        SetScalarAttribute(
+            ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityMode,
+            mode.ToString());
+
+        if (!string.IsNullOrWhiteSpace(cookieName))
+        {
+            SetScalarAttribute(
+                ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityCookieName,
+                cookieName.Trim());
+        }
+
+        if (durationSeconds is { } seconds)
+        {
+            SetScalarAttribute(
+                ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityDurationSeconds,
+                Math.Max(1, seconds));
+        }
+
+        return this;
+    }
+
+    public ContainerApplicationResourceDefinitionBuilder WithClientIpSessionAffinity() =>
+        WithSessionAffinity(ResourceOrchestratorSessionAffinityMode.ClientIp);
+
+    public ContainerApplicationResourceDefinitionBuilder WithCookieSessionAffinity(
+        string cookieName = "CloudShellReplica",
+        int? durationSeconds = null) =>
+        WithSessionAffinity(
+            ResourceOrchestratorSessionAffinityMode.Cookie,
+            cookieName,
+            durationSeconds);
+
+    public ContainerApplicationResourceDefinitionBuilder WithoutSessionAffinity() =>
+        WithSessionAffinity(ResourceOrchestratorSessionAffinityMode.None);
 
     public ContainerApplicationResourceDefinitionBuilder WithRuntimeMonitoring() =>
         DeclareCapability(ResourceCommonCapabilityIds.Monitoring);

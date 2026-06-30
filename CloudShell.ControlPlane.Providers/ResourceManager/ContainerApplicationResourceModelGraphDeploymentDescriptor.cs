@@ -45,7 +45,7 @@ public sealed class ContainerApplicationResourceModelGraphDeploymentDescriptor :
                 ContainerHostId: container.ContainerHostResourceId,
                 Replicas: container.Replicas,
                 ReplicasEnabled: container.Replicas > 1,
-                Ports: ToServicePorts(container.EndpointRequests),
+                Ports: ToServicePorts(container),
                 VolumeMounts: ToVolumeMounts(await container.GetVolumesAsync(cancellationToken))),
             DependsOn: context.GraphResource.State.ResourceDependencyIds,
             Networks: [DefaultNetworkName])
@@ -99,8 +99,8 @@ public sealed class ContainerApplicationResourceModelGraphDeploymentDescriptor :
     }
 
     private static IReadOnlyList<ServicePort> ToServicePorts(
-        IReadOnlyList<NetworkingEndpointRequestValue> endpoints) =>
-        endpoints
+        ContainerApplicationResource container) =>
+        container.EndpointRequests
             .Select(endpoint =>
                 new ServicePort(
                     endpoint.Name,
@@ -113,7 +113,8 @@ public sealed class ContainerApplicationResourceModelGraphDeploymentDescriptor :
                     ParseEnum(endpoint.Assignment, ResourceEndpointAssignment.ProviderDefault),
                     NetworkResourceId: TryGetReferenceResourceId(endpoint.Network),
                     Host: endpoint.Host,
-                    IPAddress: endpoint.IpAddress))
+                    IPAddress: endpoint.IpAddress,
+                    SessionAffinity: container.SessionAffinity))
             .ToArray();
 
     private static IReadOnlyList<ResourceVolumeMount> ToVolumeMounts(

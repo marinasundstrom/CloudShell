@@ -65,6 +65,7 @@ public sealed class ResourceModelContainerApplicationDeploymentApplyTests
             .UseContainerHost(host)
             .WithImage("ghcr.io/example/api:latest")
             .WithReplicas(2)
+            .WithCookieSessionAffinity("CloudShellReplica", durationSeconds: 3600)
             .WithHttpEndpoint(targetPort: 8080, port: 8080);
 
         var initialApply = await apply.ApplyTemplateAsync(
@@ -114,6 +115,7 @@ public sealed class ResourceModelContainerApplicationDeploymentApplyTests
             "ghcr.io/example/api:v3",
             replicas: 3);
         Assert.NotEqual(initialDeployment.RevisionId, replacementDeployment.RevisionId);
+        AssertDeploymentCookieSessionAffinity(replacementDeployment);
         Assert.Equal(
             [
                 "prepare:Start:1/3",
@@ -237,6 +239,21 @@ public sealed class ResourceModelContainerApplicationDeploymentApplyTests
                 MaxRecords: 1))
             .Single()
             .Deployment;
+    }
+
+    private static void AssertDeploymentCookieSessionAffinity(
+        ResourceOrchestratorDeployment deployment)
+    {
+        var routingBinding = deployment.Spec.Definition
+            ?.DeploymentServices
+            .SelectMany(service => service.RoutingBindingDefinitions)
+            .Single();
+
+        Assert.NotNull(routingBinding);
+        Assert.NotNull(routingBinding.SessionAffinity);
+        Assert.Equal(ResourceOrchestratorSessionAffinityMode.Cookie, routingBinding.SessionAffinity.Mode);
+        Assert.Equal("CloudShellReplica", routingBinding.SessionAffinity.CookieName);
+        Assert.Equal(3600, routingBinding.SessionAffinity.DurationSeconds);
     }
 
     private static async Task<ResourceModelResource> ResolveGraphResourceAsync(

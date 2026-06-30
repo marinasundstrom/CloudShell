@@ -1,3 +1,6 @@
+using ResourceOrchestratorSessionAffinityMode = CloudShell.Abstractions.ResourceManager.ResourceOrchestratorSessionAffinityMode;
+using ResourceOrchestratorSessionAffinityPolicy = CloudShell.Abstractions.ResourceManager.ResourceOrchestratorSessionAffinityPolicy;
+
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class ContainerApplicationResource(
@@ -20,6 +23,15 @@ public sealed class ContainerApplicationResource(
             out var replicas)
                 ? replicas
                 : 1;
+
+    public ResourceOrchestratorSessionAffinityPolicy? SessionAffinity =>
+        CreateSessionAffinityPolicy(
+            Resource.Attributes.GetString(
+                ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityMode),
+            Resource.Attributes.GetString(
+                ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityCookieName),
+            Resource.Attributes.GetString(
+                ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityDurationSeconds));
 
     public IReadOnlyList<NetworkingEndpointRequestValue> EndpointRequests =>
         Resource.Attributes.GetObject<NetworkingEndpointRequestValue[]>(
@@ -63,6 +75,38 @@ public sealed class ContainerApplicationResource(
         ValueTask.FromResult(
             Resource.Operations.Get(ContainerApplicationResourceTypeProvider.Operations.UpdateImage)
                 as ContainerApplicationImageUpdateOperation);
+
+    private static ResourceOrchestratorSessionAffinityPolicy? CreateSessionAffinityPolicy(
+        string? mode,
+        string? cookieName,
+        string? durationSeconds)
+    {
+        if (string.IsNullOrWhiteSpace(mode) ||
+            !Enum.TryParse<ResourceOrchestratorSessionAffinityMode>(
+                mode,
+                ignoreCase: true,
+                out var parsedMode) ||
+            parsedMode == ResourceOrchestratorSessionAffinityMode.None)
+        {
+            return null;
+        }
+
+        var seconds = int.TryParse(durationSeconds, out var parsedSeconds) && parsedSeconds > 0
+            ? parsedSeconds
+            : (int?)null;
+        return parsedMode switch
+        {
+            ResourceOrchestratorSessionAffinityMode.ClientIp =>
+                ResourceOrchestratorSessionAffinityPolicy.ClientIp,
+            ResourceOrchestratorSessionAffinityMode.Cookie =>
+                ResourceOrchestratorSessionAffinityPolicy.Cookie(
+                    string.IsNullOrWhiteSpace(cookieName)
+                        ? "CloudShellReplica"
+                        : cookieName.Trim(),
+                    seconds),
+            _ => null
+        };
+    }
 }
 
 public sealed class ContainerApplicationResourceProjectionProvider : IResourceProjectionProvider

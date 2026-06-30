@@ -1,3 +1,5 @@
+using ResourceOrchestratorSessionAffinityMode = CloudShell.Abstractions.ResourceManager.ResourceOrchestratorSessionAffinityMode;
+
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class ContainerApplicationResourceTypeProvider :
@@ -17,6 +19,9 @@ public sealed class ContainerApplicationResourceTypeProvider :
         public static readonly ResourceAttributeId ContainerRegistry = "container.registry";
         public static readonly ResourceAttributeId ContainerReplicas = "container.replicas";
         public static readonly ResourceAttributeId EndpointRequests = "container.endpointRequests";
+        public static readonly ResourceAttributeId RoutingSessionAffinityMode = "container.routing.sessionAffinity.mode";
+        public static readonly ResourceAttributeId RoutingSessionAffinityCookieName = "container.routing.sessionAffinity.cookieName";
+        public static readonly ResourceAttributeId RoutingSessionAffinityDurationSeconds = "container.routing.sessionAffinity.durationSeconds";
     }
 
     public static class Operations
@@ -48,7 +53,14 @@ public sealed class ContainerApplicationResourceTypeProvider :
                 ValueType: ResourceAttributeValueType.Integer),
             [Attributes.EndpointRequests] = ResourceAttributeDefinition.Collection(
                 itemType: ResourceAttributeValueType.ComplexType,
-                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest)
+                itemShapeId: NetworkingEndpointShapeIds.EndpointRequest),
+            [Attributes.RoutingSessionAffinityMode] = new(
+                DefaultValue: "None",
+                ValueType: ResourceAttributeValueType.String),
+            [Attributes.RoutingSessionAffinityCookieName] = new(
+                ValueType: ResourceAttributeValueType.String),
+            [Attributes.RoutingSessionAffinityDurationSeconds] = new(
+                ValueType: ResourceAttributeValueType.Integer)
         },
         Capabilities:
         [
@@ -124,6 +136,11 @@ public sealed class ContainerApplicationResourceTypeProvider :
         ValidateContainerReplicas(
             resource.Attributes.GetString(Attributes.ContainerReplicas),
             diagnostics);
+        ValidateRoutingSessionAffinity(
+            resource.Attributes.GetString(Attributes.RoutingSessionAffinityMode),
+            resource.Attributes.GetString(Attributes.RoutingSessionAffinityCookieName),
+            resource.Attributes.GetString(Attributes.RoutingSessionAffinityDurationSeconds),
+            diagnostics);
         return diagnostics;
     }
 
@@ -141,6 +158,15 @@ public sealed class ContainerApplicationResourceTypeProvider :
         {
             ValidateContainerReplicas(replicas, diagnostics);
         }
+
+        state.ResourceAttributes.TryGetValue(Attributes.RoutingSessionAffinityMode, out var sessionAffinityMode);
+        state.ResourceAttributes.TryGetValue(Attributes.RoutingSessionAffinityCookieName, out var sessionAffinityCookieName);
+        state.ResourceAttributes.TryGetValue(Attributes.RoutingSessionAffinityDurationSeconds, out var sessionAffinityDurationSeconds);
+        ValidateRoutingSessionAffinity(
+            sessionAffinityMode,
+            sessionAffinityCookieName,
+            sessionAffinityDurationSeconds,
+            diagnostics);
 
         return diagnostics;
     }
@@ -169,6 +195,49 @@ public sealed class ContainerApplicationResourceTypeProvider :
                 "application.container.replicasInvalid",
                 "Container replicas must be a positive integer.",
                 Attributes.ContainerReplicas));
+        }
+    }
+
+    private static void ValidateRoutingSessionAffinity(
+        string? mode,
+        string? cookieName,
+        string? durationSeconds,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (!string.IsNullOrWhiteSpace(mode) &&
+            !Enum.TryParse<ResourceOrchestratorSessionAffinityMode>(
+                mode,
+                ignoreCase: true,
+                out var parsedMode))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                "application.container.routingSessionAffinityModeInvalid",
+                "Container app session affinity mode must be None, ClientIp, or Cookie.",
+                Attributes.RoutingSessionAffinityMode));
+            return;
+        }
+
+        var effectiveMode = string.IsNullOrWhiteSpace(mode)
+            ? ResourceOrchestratorSessionAffinityMode.None
+            : Enum.Parse<ResourceOrchestratorSessionAffinityMode>(
+                mode,
+                ignoreCase: true);
+        if (effectiveMode == ResourceOrchestratorSessionAffinityMode.Cookie &&
+            string.IsNullOrWhiteSpace(cookieName))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                "application.container.routingSessionAffinityCookieNameRequired",
+                "Container app cookie session affinity requires a cookie name.",
+                Attributes.RoutingSessionAffinityCookieName));
+        }
+
+        if (!string.IsNullOrWhiteSpace(durationSeconds) &&
+            (!int.TryParse(durationSeconds, out var seconds) || seconds < 1))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                "application.container.routingSessionAffinityDurationInvalid",
+                "Container app session affinity duration must be a positive integer.",
+                Attributes.RoutingSessionAffinityDurationSeconds));
         }
     }
 

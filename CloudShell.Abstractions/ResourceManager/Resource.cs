@@ -252,6 +252,9 @@ public static class ResourceAttributeNames
     public const string DeploymentRoutingRouteId = "deployment.routing.routeId";
     public const string DeploymentRoutingEndpointMappingId = "deployment.routing.endpointMappingId";
     public const string DeploymentRoutingLoadBalancerResourceId = "deployment.routing.loadBalancerResourceId";
+    public const string DeploymentRoutingSessionAffinityMode = "deployment.routing.sessionAffinity.mode";
+    public const string DeploymentRoutingSessionAffinityCookieName = "deployment.routing.sessionAffinity.cookieName";
+    public const string DeploymentRoutingSessionAffinityDurationSeconds = "deployment.routing.sessionAffinity.durationSeconds";
     public const string DeploymentReplacementRetainPreviousReplicaSlots = "deployment.replacement.retainPreviousReplicaSlots";
     public const string DeploymentReplicaRestartMode = "deployment.replica.restartMode";
     public const string DeploymentReplicaFailureThreshold = "deployment.replica.failureThreshold";

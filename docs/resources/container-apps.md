@@ -268,15 +268,20 @@ Scale-in updates routing to the retained slots before removing superseded
 replicas. Image deployments materialize the new revision's replica group,
 route traffic to that group, and then retire the superseded group as
 post-apply cleanup.
-Future service-routing policy should include session affinity for protocols
-such as WebSockets, where callers may need repeated requests or upgraded
-connections to stay pinned to the same replica instead of being distributed to
-a different replica on each request.
+Container apps can declare app-level service-routing session affinity with
+`WithCookieSessionAffinity(...)`, `WithClientIpSessionAffinity()`, or
+`WithSessionAffinity(...)`. The Resource Manager Scale and replicas tab exposes
+the same setting as resource intent. The deployment projection carries the
+policy into the orchestrator service routing binding so an orchestrator or
+load-balancer provider can keep repeated requests or upgraded connections,
+such as WebSockets, pinned to the same replica when that policy is enabled.
+Runtime enforcement is provider-specific; the current local sample projects
+the policy but does not yet configure sticky routing in its Traefik bridge.
 
 Inside the orchestration layer, CloudShell represents this management group as
 a `ResourceOrchestratorService` descriptor. Container apps produce this
 descriptor today. It is built from the container app's workload configuration,
-ports, dependencies, networks, and replica count, and it is the
+ports, dependencies, networks, replica count, and routing policy, and it is the
 orchestrator-facing descriptor used to group the service contained by the
 resource: replicas, endpoint bindings, dependency ordering, network membership,
 and related provider-owned runtime services such as app ingress. Docker Compose

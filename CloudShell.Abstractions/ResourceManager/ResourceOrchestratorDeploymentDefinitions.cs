@@ -72,7 +72,8 @@ public sealed record ResourceOrchestratorDeploymentDefinition(
                 CurrentDefinitionVersion,
                 service.Name,
                 replicaGroup.Id,
-                ResourceEndpointReference.ForEndpoint(service.ResourceId, servicePort.Name))
+                ResourceEndpointReference.ForEndpoint(service.ResourceId, servicePort.Name),
+                SessionAffinity: servicePort.SessionAffinity)
                 .ToResourceDefinition();
         }
     }
@@ -110,6 +111,30 @@ public enum ResourceOrchestratorReplacementRoutingMode
 {
     AfterNewReplicaGroupMaterialized,
     BeforeNewReplicaGroupMaterialized
+}
+
+public enum ResourceOrchestratorSessionAffinityMode
+{
+    None,
+    ClientIp,
+    Cookie
+}
+
+public sealed record ResourceOrchestratorSessionAffinityPolicy(
+    ResourceOrchestratorSessionAffinityMode Mode,
+    string? CookieName = null,
+    int? DurationSeconds = null)
+{
+    public static ResourceOrchestratorSessionAffinityPolicy None { get; } =
+        new(ResourceOrchestratorSessionAffinityMode.None);
+
+    public static ResourceOrchestratorSessionAffinityPolicy ClientIp { get; } =
+        new(ResourceOrchestratorSessionAffinityMode.ClientIp);
+
+    public static ResourceOrchestratorSessionAffinityPolicy Cookie(
+        string? cookieName = null,
+        int? durationSeconds = null) =>
+        new(ResourceOrchestratorSessionAffinityMode.Cookie, cookieName, durationSeconds);
 }
 
 public sealed record ResourceOrchestratorReplicaGroupReconciliationPolicy(
@@ -379,6 +404,7 @@ public sealed record ResourceOrchestratorServiceRoutingBindingDefinition(
     string? LoadBalancerResourceId = null,
     string? RouteId = null,
     string? EndpointMappingId = null,
+    ResourceOrchestratorSessionAffinityPolicy? SessionAffinity = null,
     IReadOnlyDictionary<string, string>? Attributes = null)
 {
     private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
@@ -416,6 +442,7 @@ public sealed record ResourceOrchestratorServiceRoutingBindingDefinition(
             attributes,
             ResourceAttributeNames.DeploymentRoutingEndpointMappingId,
             EndpointMappingId);
+        AddSessionAffinityAttributes(attributes, SessionAffinity);
 
         return new(
             Name,
@@ -477,6 +504,7 @@ public sealed record ResourceOrchestratorServiceRoutingBindingDefinition(
             EndpointMappingId: TryGetOptionalAttribute(
                 attributes,
                 ResourceAttributeNames.DeploymentRoutingEndpointMappingId),
+            SessionAffinity: TryGetSessionAffinity(attributes),
             Attributes: attributes);
         return true;
     }
@@ -514,6 +542,71 @@ public sealed record ResourceOrchestratorServiceRoutingBindingDefinition(
         attributes.TryGetValue(name, out var value) &&
         !string.IsNullOrWhiteSpace(value)
             ? value.Trim()
+            : null;
+
+    private static void AddSessionAffinityAttributes(
+        IDictionary<string, string> attributes,
+        ResourceOrchestratorSessionAffinityPolicy? sessionAffinity)
+    {
+        if (sessionAffinity is null ||
+            sessionAffinity.Mode == ResourceOrchestratorSessionAffinityMode.None)
+        {
+            return;
+        }
+
+        attributes[ResourceAttributeNames.DeploymentRoutingSessionAffinityMode] =
+            sessionAffinity.Mode.ToString();
+        AddOptionalAttribute(
+            attributes,
+            ResourceAttributeNames.DeploymentRoutingSessionAffinityCookieName,
+            sessionAffinity.CookieName);
+        if (sessionAffinity.DurationSeconds is { } durationSeconds &&
+            durationSeconds > 0)
+        {
+            attributes[ResourceAttributeNames.DeploymentRoutingSessionAffinityDurationSeconds] =
+                durationSeconds.ToString(CultureInfo.InvariantCulture);
+        }
+    }
+
+    private static ResourceOrchestratorSessionAffinityPolicy? TryGetSessionAffinity(
+        IReadOnlyDictionary<string, string> attributes)
+    {
+        var mode = GetEnum(
+            attributes,
+            ResourceAttributeNames.DeploymentRoutingSessionAffinityMode,
+            ResourceOrchestratorSessionAffinityMode.None);
+        if (mode == ResourceOrchestratorSessionAffinityMode.None)
+        {
+            return null;
+        }
+
+        return new ResourceOrchestratorSessionAffinityPolicy(
+            mode,
+            TryGetOptionalAttribute(
+                attributes,
+                ResourceAttributeNames.DeploymentRoutingSessionAffinityCookieName),
+            GetNullablePositiveInt(
+                attributes,
+                ResourceAttributeNames.DeploymentRoutingSessionAffinityDurationSeconds));
+    }
+
+    private static TValue GetEnum<TValue>(
+        IReadOnlyDictionary<string, string> attributes,
+        string name,
+        TValue fallback)
+        where TValue : struct =>
+        attributes.TryGetValue(name, out var value) &&
+        Enum.TryParse<TValue>(value, ignoreCase: true, out var parsed)
+            ? parsed
+            : fallback;
+
+    private static int? GetNullablePositiveInt(
+        IReadOnlyDictionary<string, string> attributes,
+        string name) =>
+        attributes.TryGetValue(name, out var value) &&
+        int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) &&
+        parsed > 0
+            ? parsed
             : null;
 }
 

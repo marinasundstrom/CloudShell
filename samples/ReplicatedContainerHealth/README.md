@@ -30,7 +30,8 @@ The sample declares only Resource Definitions-backed resources:
 - `docker.host:sample`: Docker host used by the sample runtime.
 - `application.container-app:api`: replicated container app with three
   requested replicas, a typed startup dependency on `docker.host:sample`, local
-  `http` endpoint request, `/health` health check, and `/alive` liveness check.
+  `http` endpoint request, cookie session affinity for routing, `/health`
+  health check, and `/alive` liveness check.
 
 The old `application:api` and old Docker provider records are no longer
 declared. Starting the container app uses a sample-local Docker runtime bridge
@@ -38,6 +39,12 @@ that builds the API image, starts replica containers, starts the sample-owned
 Traefik ingress container, and removes those containers on stop. Image and
 replica updates are applied through ResourceDefinition changes and then
 delegated through the container-app runtime operation seam.
+
+The app declares cookie session affinity with the `CloudShellReplica` cookie.
+The current sample projects that setting into the orchestrator service routing
+binding so the Resource Manager UI can edit and inspect it. Runtime enforcement
+inside the sample Traefik bridge is intentionally deferred to the durable
+container-app runtime.
 
 Replica telemetry is posted back to the Control Plane from inside the
 containers. For local `localhost` sample URLs, the sample maps the runtime

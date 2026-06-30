@@ -188,7 +188,8 @@ public sealed record ServicePort(
     string? NetworkResourceId = null,
     string? Host = null,
     string? IPAddress = null,
-    string? ProviderEndpointId = null);
+    string? ProviderEndpointId = null,
+    ResourceOrchestratorSessionAffinityPolicy? SessionAffinity = null);
 
 public enum LoadBalancerRouteKind
 {

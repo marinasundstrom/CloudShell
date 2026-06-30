@@ -491,6 +491,11 @@ public interface IContainerResourceBuilder :
 
     IContainerResourceBuilder WithReplicaManagementPolicy(ResourceOrchestratorReplicaManagementPolicy policy);
 
+    IContainerResourceBuilder WithSessionAffinity(
+        ResourceOrchestratorSessionAffinityMode mode,
+        string? cookieName = null,
+        int? durationSeconds = null);
+
     IContainerResourceBuilder WithServiceDiscovery(bool enabled = true);
 
     IContainerResourceBuilder WithObservability(bool enabled = true);

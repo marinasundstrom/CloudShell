@@ -758,6 +758,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
             .WithImage("example/api:1.0")
             .WithRegistry("registry.local")
             .WithReplicas(2)
+            .WithCookieSessionAffinity("CloudShellReplica", durationSeconds: 3600)
             .AddEndpointRequest(
                 "http",
                 "http",
@@ -792,6 +793,12 @@ public sealed class ResourceDefinitionGraphBuilderTests
             ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry].StringValue);
         Assert.Equal(2, appDefinition.ResourceAttributeValues[
             ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas].IntegerValue);
+        Assert.Equal("Cookie", appDefinition.ResourceAttributeValues[
+            ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityMode].StringValue);
+        Assert.Equal("CloudShellReplica", appDefinition.ResourceAttributeValues[
+            ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityCookieName].StringValue);
+        Assert.Equal(3600, appDefinition.ResourceAttributeValues[
+            ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityDurationSeconds].IntegerValue);
         var endpoint = Assert.Single(appDefinition.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
             ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests) ?? []);
         Assert.Equal("http", endpoint.Name);

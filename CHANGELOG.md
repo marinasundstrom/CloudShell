@@ -45,6 +45,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app graph DNS coverage now verifies that name mappings publish
   the stable container app virtual-network endpoint as the app service name,
   instead of mapping DNS to individual replica resources.
+- Container app declarations and the Scale and replicas UI now support
+  app-level routing session affinity, and deployment projection carries that
+  policy into orchestrator service-routing bindings; the Replicated Container
+  Health sample declares cookie affinity as the first visible proof.
 - Application Topology sample resource display names now omit the repeated
   sample prefix so graph cards remain readable.
 - ResourceHost now declares every sample resource exposed by its provider so

@@ -48,6 +48,7 @@ cloudShell.DefineResources(resources =>
         .UseDockerHost(dockerResource)
         .WithImage($"cloudshell-application-api:{sampleImageTag}")
         .WithReplicas(3)
+        .WithCookieSessionAffinity("CloudShellReplica", durationSeconds: 3600)
         .WithHttpEndpoint(
             targetPort: 8080,
             host: "localhost",

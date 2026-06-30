@@ -2070,6 +2070,9 @@ public sealed class SampleSmokeTests
             "cloudshell-application-api:20260622.2",
             graphAppAttributes.GetProperty("container.image").GetString());
         Assert.Equal("3", graphAppAttributes.GetProperty("container.replicas").GetString());
+        Assert.Equal("Cookie", graphAppAttributes.GetProperty("container.routing.sessionAffinity.mode").GetString());
+        Assert.Equal("CloudShellReplica", graphAppAttributes.GetProperty("container.routing.sessionAffinity.cookieName").GetString());
+        Assert.Equal("3600", graphAppAttributes.GetProperty("container.routing.sessionAffinity.durationSeconds").GetString());
         Assert.Equal("true", graphAppAttributes.GetProperty(ResourceAttributeNames.ContainerReplicasEnabled).GetString());
         Assert.Equal("3", graphAppAttributes.GetProperty(ResourceAttributeNames.DeploymentRequestedReplicaSlots).GetString());
         Assert.Equal(
@@ -2091,6 +2094,8 @@ public sealed class SampleSmokeTests
         Assert.Contains("Requested replica slots", graphScalingHtml);
         Assert.Contains("Replica slots", graphScalingHtml);
         Assert.Contains("Update replicas", graphScalingHtml);
+        Assert.Contains("Session affinity", graphScalingHtml);
+        Assert.Contains("Cookie", graphScalingHtml);
         Assert.Contains("Slot 1", graphScalingHtml);
         Assert.Contains("Slot 2", graphScalingHtml);
         Assert.Contains("Slot 3", graphScalingHtml);

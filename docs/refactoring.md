@@ -86,9 +86,10 @@ Resource model provider migration.
   visualize them as a read model, but it must not become a second source of
   truth.
 - Container app DNS and virtual-network endpoint intent belongs to the stable
-  container app service boundary by default. Replica-specific DNS names and
-  sticky/session-affinity routing are future routing-policy features, not the
-  baseline service-discovery contract.
+  container app service boundary by default. Replica-specific DNS names are a
+  future diagnostic concern. Sticky/session-affinity routing is app-level
+  resource intent projected into service-routing binding metadata, while
+  provider-specific runtime enforcement remains a routing-provider task.
 
 ## Active Slice
 
@@ -429,6 +430,9 @@ preserving old provider seams:
 - [x] Forward service-routing binding definitions through the Resource Model
   graph procedure bridge and container-app orchestrator runtime handler
   contract so runtime adapters can react to explicit binding ids.
+- [x] Project container app session-affinity resource intent into
+  service-routing binding definitions, and expose the setting on the
+  app-centric Scale and replicas UI.
 - [ ] Make the default orchestrator controller and load-balancer providers
   react to service-routing binding definitions instead of inferring replica
   membership from container-app-specific runtime names.

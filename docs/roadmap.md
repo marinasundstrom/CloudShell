@@ -242,6 +242,9 @@ surfaces:
 - Keep supported samples building and smoke-testing.
 - Make the primary application Resource Manager path understandable without
   sample-specific knowledge.
+- Continue provider runtime enforcement for modeled routing policy, especially
+  container app session affinity/sticky routing now that the resource intent
+  and orchestration routing binding metadata exist.
 - Stabilize the UI contracts behind the main path before adding new UI
   surface area: resource view registration, menu grouping, route/link
   resolution, shared selectors, action controls, status pills, generated
