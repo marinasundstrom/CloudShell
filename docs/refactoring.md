@@ -489,6 +489,10 @@ preserving old provider seams:
   mappings, and endpoint mappings so graph and runtime views can distinguish
   declared topology, DNS/discovery names, and internet-reachable carrier
   networks without provider-specific inference.
+  - [x] Add a manual Resource model proof for virtual-network-private service
+    IPs and DNS name mappings through the HostVirtualNetwork sample.
+  - [ ] Define automatic virtual IP allocation and default service-discovery
+    naming policy for services inside a virtual network.
 
 ## Future Resource Provider Refactoring
 

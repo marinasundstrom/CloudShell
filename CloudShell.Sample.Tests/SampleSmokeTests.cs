@@ -2361,15 +2361,23 @@ public sealed class SampleSmokeTests
     public async Task HostVirtualNetworkSample_ReconcilesEndpointMappingThroughRuntimeBridge()
     {
         const string apiResourceId = "application.aspnet-core-project:vnet-api";
+        const string workerResourceId = "application.aspnet-core-project:vnet-worker";
         const string networkResourceId = "cloudshell.virtualNetwork:sample-vnet";
+        const string dnsZoneResourceId = "cloudshell.dnsZone:sample-vnet-internal";
         var targetPort = await GetFreePortAsync();
+        var workerTargetPort = await GetFreePortAsync();
         var virtualNetworkPort = await GetFreePortAsync();
+        var coreDnsDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"cloudshell-coredns-{Guid.NewGuid():N}");
         using var host = await SampleProcess.StartAsync(
             "samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj",
             await GetFreePortAsync(),
             [
                 ("HostVirtualNetwork__TargetPort", targetPort.ToString(CultureInfo.InvariantCulture)),
-                ("HostVirtualNetwork__VirtualNetworkPort", virtualNetworkPort.ToString(CultureInfo.InvariantCulture))
+                ("HostVirtualNetwork__WorkerTargetPort", workerTargetPort.ToString(CultureInfo.InvariantCulture)),
+                ("HostVirtualNetwork__VirtualNetworkPort", virtualNetworkPort.ToString(CultureInfo.InvariantCulture)),
+                ("HostVirtualNetwork__CoreDnsDirectory", coreDnsDirectory)
             ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
@@ -2380,8 +2388,35 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "application:vnet-api");
         var api = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == apiResourceId);
+        var worker = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == workerResourceId);
         var network = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == networkResourceId);
+        var dnsZone = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == dnsZoneResourceId);
+        Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "cloudshell.nameMapping:api-internal");
+        Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "cloudshell.nameMapping:worker-internal");
+        Assert.Equal("http://10.42.0.10:80", GetEndpointAddress(api, "vnet-http"));
+        Assert.Equal("http://10.42.0.11:80", GetEndpointAddress(worker, "vnet-http"));
+
+        var dnsReconcile = dnsZone
+            .GetProperty("resourceActions")
+            .GetProperty("reconcileNameMappings");
+        var dnsHref = dnsReconcile.GetProperty("href").GetString() ??
+            throw new InvalidOperationException("The DNS zone reconcile action did not include an href.");
+        var dnsJson = await host.SendAsync(HttpMethod.Post, dnsHref);
+        using var dnsDocument = JsonDocument.Parse(dnsJson);
+        Assert.Contains(
+            "Published 2 CoreDNS host mapping(s)",
+            dnsDocument.RootElement.GetProperty("message").GetString());
+        var coreDnsHosts = await File.ReadAllTextAsync(Path.Combine(coreDnsDirectory, "cloudshell.hosts"));
+        Assert.Contains("10.42.0.10 api.internal.cloudshell.test", coreDnsHosts);
+        Assert.Contains("10.42.0.11 worker.internal.cloudshell.test", coreDnsHosts);
+        var coreFile = await File.ReadAllTextAsync(Path.Combine(coreDnsDirectory, "Corefile"));
+        Assert.Contains("hosts ", coreFile);
+        Assert.Contains("cloudshell.hosts", coreFile);
 
         try
         {

@@ -95,6 +95,10 @@ on `git blame --follow`, and then by the broad type of change.
   `IResourceModelGraphMaterializedChangeApplier` contract for applying
   accepted graph changes to materialized runtime resources, with graph-backed
   container apps using it for image and replica-slot runtime reconciliation.
+- HostVirtualNetwork now demonstrates manual network-level naming in the
+  Resource model: ASP.NET Core resources can declare virtual-network-scoped
+  private IP endpoint mappings, reuse port 80 on different service IPs, and
+  publish DNS names through a sample-local CoreDNS zone-file provider.
 - Control Plane `DefineResources(...)` and `DefineInitialTemplate(...)` now use
   a Control Plane resource-definition context that extends graph resource
   authoring, keeps identity-provider metadata outside `ResourceDefinition` and

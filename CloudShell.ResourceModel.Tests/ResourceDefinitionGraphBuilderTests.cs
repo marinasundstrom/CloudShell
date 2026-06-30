@@ -931,6 +931,43 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
+    public void AspNetCoreProjectResourceDefinitionBuilder_CanDeclareVirtualNetworkPrivateEndpointRequest()
+    {
+        var graph = new ResourceDefinitionGraphBuilder();
+        var network = graph
+            .AddVirtualNetwork("app", isDefault: true)
+            .WithDisplayName("App Network");
+
+        graph
+            .AddAspNetCoreProject("api", "src/Api/Api.csproj")
+            .WithHttpEndpoint(
+                name: "vnet-http",
+                port: 80,
+                targetPort: 80,
+                exposure: "Network",
+                ipAddress: "10.42.0.10",
+                network: network,
+                assignment: "Manual");
+
+        var template = graph.BuildTemplate("app-network");
+        var api = Assert.Single(template.Resources, resource =>
+            resource.TypeId == AspNetCoreProjectResourceTypeProvider.ResourceTypeId);
+        var endpoint = Assert.Single(api.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+            AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests) ?? []);
+
+        Assert.Equal("vnet-http", endpoint.Name);
+        Assert.Equal(80, endpoint.TargetPort);
+        Assert.Equal(80, endpoint.Port);
+        Assert.Equal("10.42.0.10", endpoint.IpAddress);
+        Assert.Equal("Network", endpoint.Exposure);
+        Assert.Equal("Manual", endpoint.Assignment);
+        Assert.NotNull(endpoint.Network);
+        Assert.True(endpoint.Network!.TryGetResourceId(out var networkResourceId));
+        Assert.Equal(network.EffectiveResourceId, networkResourceId);
+        Assert.Equal(VirtualNetworkResourceTypeProvider.ResourceTypeId, endpoint.Network.TypeId);
+    }
+
+    [Fact]
     public async Task ResourceDefinitionGraphBuilder_BuildsIdentityProvisioningDefinitions()
     {
         var services = new ServiceCollection();

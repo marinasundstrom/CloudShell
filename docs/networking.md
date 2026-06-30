@@ -489,6 +489,13 @@ current Aspire-compatible service discovery path is documented in
 DNS-backed or registry-backed discovery without changing the resource endpoint
 or name-mapping model.
 
+The HostVirtualNetwork sample demonstrates the manual version of this model:
+services declare virtual-network-private endpoint mappings with distinct IP
+addresses, DNS name mappings point at those private endpoints, and a
+sample-local CoreDNS zone-file provider writes resolver configuration. This
+proves the resource model shape before CloudShell adds automatic virtual IP
+allocation or default service-discovery name generation.
+
 ## Load Balancing and Clustering
 
 Load balancing should build on virtual networking rather than replacing it. A
