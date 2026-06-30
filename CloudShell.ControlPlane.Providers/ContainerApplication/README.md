@@ -72,6 +72,27 @@ the Resource Manager bridge when needed, apply the operation through the
 runtime it owns, and return diagnostics instead of throwing for expected
 runtime outcomes.
 
+For local development and migration samples, the provider includes an opt-in
+process-backed runtime adapter. It maps a container app resource id to a local
+.NET project, starts one process per requested replica slot, exposes the
+declared endpoint through a local HTTP/WebSocket proxy, and preserves sticky
+SignalR routing by keeping negotiated connection tokens on the selected
+replica.
+
+```csharp
+services
+    .AddLocalContainerApplicationResourceTypes()
+    .AddLocalContainerApplicationProcessRuntime(options =>
+        options.AddProject(
+            "application.container-app:api",
+            "/workspace/samples/MyApp/Api/MyApp.Api.csproj"));
+```
+
+This adapter is intentionally a local runtime bridge, not the durable
+orchestrator. It removes the need for each sample or migrated provider to
+implement its own `IContainerApplicationRuntimeHandler` while the container app
+orchestration path is completed.
+
 The ReplicatedContainerHealth sample currently proves this seam with a
 sample-local adapter that maps `application.container-app:api` to the
 existing `application:api` runtime resource. It covers start, stop, and

@@ -11,14 +11,15 @@ The declared CloudShell resources are intentionally small:
   replica slots and cookie session affinity.
 
 The backend replicas and sticky ingress are runtime materialization for the
-container app. They are not authored as user resources. Until the shared
-container app runtime/orchestrator exists, the sample uses a local bridge that
-starts replica processes and exposes the declared API endpoint.
+container app. They are not authored as user resources. Until the durable
+container app orchestrator exists, the sample configures the built-in local
+process container app runtime to start replica processes and expose the
+declared API endpoint.
 
-The local bridge keeps SignalR negotiate and WebSocket requests on the same
-replica by tracking negotiated connection tokens. This is sample-local proof
-for sticky real-time routing; the shared container app runtime should own the
-general behavior later.
+The provider-owned local process runtime keeps SignalR negotiate and WebSocket
+requests on the same replica by tracking negotiated connection tokens. This is
+local-development proof for sticky real-time routing; the durable container app
+runtime/orchestrator should own the general behavior later.
 
 ## Run
 
@@ -59,5 +60,6 @@ SignalRContainerApp__FrontendEndpoint=http://localhost:6096 \
 dotnet run --project samples/SignalRContainerApp/CloudShell.SignalRContainerApp.csproj
 ```
 
-The local bridge is intentionally temporary. The next runtime slice should move
-this behavior behind the shared container app runtime/orchestrator path.
+The local process runtime is intentionally a migration adapter. It avoids
+sample-local runtime handlers while the durable container app
+runtime/orchestrator path is still being designed.

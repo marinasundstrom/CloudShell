@@ -56,12 +56,16 @@ on `git blame --follow`, and then by the broad type of change.
   frontend resource connected to a three-replica container app backend with
   cookie session affinity, leaving runtime materialization to the shared
   container app runtime/orchestrator path.
-- SignalR Container App sample now includes a temporary local runtime bridge
-  that starts API replica processes and exposes the declared backend endpoint
-  through sticky cookie routing until the shared container app runtime exists.
+- Container app providers now include an opt-in local process runtime adapter
+  that maps container app resource ids to local .NET projects, starts one
+  process per requested replica slot, and exposes the declared endpoint without
+  requiring each sample to implement its own runtime handler.
+- SignalR Container App sample now uses the provider-owned local process
+  runtime mapping for its backend container app instead of shipping a
+  sample-local `IContainerApplicationRuntimeHandler`.
 - SignalR Container App ingress now keeps SignalR negotiate and WebSocket
   requests bound to the same replica by tracking negotiated connection tokens,
-  proving sticky real-time routing through the sample bridge.
+  proving sticky real-time routing through the local process runtime adapter.
 - SignalR Container App sample derives default API, replica, and frontend
   ports from the supplied CloudShell host URL to avoid fixed-port collisions
   when running the sample with `--urls`.

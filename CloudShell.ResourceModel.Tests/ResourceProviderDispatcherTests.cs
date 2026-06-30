@@ -2,6 +2,10 @@ using System.Text.Json;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CloudShell.ResourceModel.Tests;
 
@@ -1644,6 +1648,36 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddLocalContainerApplicationProcessRuntime_ReplacesNoopContainerAppRuntimeHandler()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Directory.GetCurrentDirectory()));
+        services.AddSingleton<ILogger<LocalContainerApplicationProcessRuntimeBridge>>(
+            NullLogger<LocalContainerApplicationProcessRuntimeBridge>.Instance);
+
+        services
+            .AddLocalContainerApplicationResourceTypes()
+            .AddLocalContainerApplicationProcessRuntime(options =>
+                options.AddProject(
+                    "application.container-app:api",
+                    "/tmp/api.csproj",
+                    runtime => runtime.ReplicaPortStart = 6100));
+
+        await using var serviceProvider = services.BuildServiceProvider();
+        var handler = serviceProvider.GetRequiredService<IContainerApplicationRuntimeHandler>();
+        var options = serviceProvider
+            .GetRequiredService<Microsoft.Extensions.Options.IOptions<
+                LocalContainerApplicationProcessRuntimeOptions>>()
+            .Value;
+
+        Assert.IsType<LocalContainerApplicationProcessRuntimeHandler>(handler);
+        var application = Assert.Single(options.Applications);
+        Assert.Equal("application.container-app:api", application.Key);
+        Assert.Equal(6100, application.Value.ReplicaPortStart);
+    }
+
+    [Fact]
     public void AddStorageBackedSqlServerResourceTypes_RegistersStorageVolumeAndSqlServerTypes()
     {
         var services = new ServiceCollection();
@@ -2152,4 +2186,14 @@ public sealed class ResourceProviderDispatcherTests
             ValueTask.FromResult(ResourceDefinitionValidationResult.Success);
     }
 
+    private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = Environments.Development;
+
+        public string ApplicationName { get; set; } = "CloudShell.ResourceModel.Tests";
+
+        public string ContentRootPath { get; set; } = contentRootPath;
+
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+    }
 }

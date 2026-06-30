@@ -15,6 +15,7 @@ var builder = CloudShellApplication.CreateBuilder(args);
 
 const string sampleImageTag = "20260630.1";
 const string resourceGroupId = "signalr-container-app";
+const string apiResourceId = "application.container-app:signalr-api";
 
 var hostPort = TryGetConfiguredHostPort(builder.Configuration);
 var apiEndpointPort =
@@ -27,6 +28,9 @@ var frontendEndpointUri = new Uri(frontendEndpoint);
 var apiIngressEndpoint = $"http://localhost:{apiEndpointPort.ToString(CultureInfo.InvariantCulture)}";
 var frontendProjectPath = Path.GetFullPath(
     "Frontend/CloudShell.SignalRContainerApp.Frontend.csproj",
+    builder.Environment.ContentRootPath);
+var apiProjectPath = Path.GetFullPath(
+    "Api/CloudShell.SignalRContainerApp.Api.csproj",
     builder.Environment.ContentRootPath);
 
 var cloudShell = builder.AddCloudShell();
@@ -83,9 +87,19 @@ cloudShell.DefineResources(resources =>
 });
 
 builder.Services
-    .AddSingleton<SignalRContainerAppRuntimeBridge>()
-    .AddSingleton<IContainerApplicationRuntimeHandler, SignalRContainerAppRuntimeHandler>()
     .AddLocalContainerApplicationResourceTypes()
+    .AddLocalContainerApplicationProcessRuntime(options =>
+        options.AddProject(
+            apiResourceId,
+            apiProjectPath,
+            runtime =>
+            {
+                runtime.ReplicaPortStart =
+                    builder.Configuration.GetValue<int?>("SignalRContainerApp:ReplicaPortStart");
+                runtime.ReplicaStartTimeout = TimeSpan.FromSeconds(
+                    builder.Configuration.GetValue<int?>(
+                        "SignalRContainerApp:ReplicaStartTimeoutSeconds") ?? 60);
+            }))
     .AddAspNetCoreProjectResourceType();
 cloudShell.UseResourceGraphIntegration();
 

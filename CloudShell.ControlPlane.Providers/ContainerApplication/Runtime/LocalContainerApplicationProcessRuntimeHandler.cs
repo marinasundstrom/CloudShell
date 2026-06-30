@@ -1,189 +1,246 @@
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ControlPlane.Providers;
-using CloudShell.ResourceModel;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Net.WebSockets;
 using System.Text.Json;
-using ResourceModelResource = CloudShell.ResourceModel.Resource;
 
-internal sealed class SignalRContainerAppRuntimeHandler(
-    SignalRContainerAppRuntimeBridge bridge) : IContainerApplicationRuntimeHandler
+namespace CloudShell.ControlPlane.Providers;
+
+public sealed class LocalContainerApplicationProcessRuntimeOptions
 {
-    public const string ApiResourceId = "application.container-app:signalr-api";
+    private readonly Dictionary<string, LocalContainerApplicationProcessDefinition> applications =
+        new(StringComparer.OrdinalIgnoreCase);
 
-    public ContainerApplicationRuntimeStatus GetStatus(ResourceModelResource resource) =>
-        IsSignalRApi(resource)
-            ? bridge.GetStatus()
+    public IDictionary<string, LocalContainerApplicationProcessDefinition> Applications => applications;
+
+    public LocalContainerApplicationProcessRuntimeOptions AddProject(
+        string resourceId,
+        string projectPath,
+        Action<LocalContainerApplicationProcessDefinition>? configure = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectPath);
+
+        var definition = new LocalContainerApplicationProcessDefinition
+        {
+            ProjectPath = Path.GetFullPath(projectPath)
+        };
+        configure?.Invoke(definition);
+        applications[resourceId] = definition;
+        return this;
+    }
+}
+
+public sealed class LocalContainerApplicationProcessDefinition
+{
+    public string ProjectPath { get; set; } = string.Empty;
+
+    public string? WorkingDirectory { get; set; }
+
+    public string DotNetExecutable { get; set; } = "dotnet";
+
+    public string HealthPath { get; set; } = "/health";
+
+    public int? IngressPort { get; set; }
+
+    public int? ReplicaPortStart { get; set; }
+
+    public TimeSpan ReplicaStartTimeout { get; set; } = TimeSpan.FromSeconds(60);
+
+    public IDictionary<string, string?> Environment { get; } =
+        new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+}
+
+public sealed class LocalContainerApplicationProcessRuntimeHandler(
+    LocalContainerApplicationProcessRuntimeBridge bridge,
+    IOptions<LocalContainerApplicationProcessRuntimeOptions> options) :
+    IContainerApplicationRuntimeHandler
+{
+    private const string RuntimeUnavailableDiagnosticCode =
+        "application.container.localProcessRuntimeUnavailable";
+    private const string RuntimeUnsupportedOperationDiagnosticCode =
+        "application.container.localProcessRuntimeUnsupportedOperation";
+    private readonly LocalContainerApplicationProcessRuntimeOptions options = options.Value;
+
+    public ContainerApplicationRuntimeStatus GetStatus(Resource resource) =>
+        TryGetDefinition(resource, out _)
+            ? bridge.GetStatus(resource.EffectiveResourceId)
             : ContainerApplicationRuntimeStatus.Unknown;
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
-        ResourceModelResource resource,
+        Resource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default)
     {
-        if (!IsSignalRApi(resource))
+        if (!TryGetDefinition(resource, out var definition))
         {
-            return [];
+            return RuntimeUnavailable(resource);
         }
 
-        return await bridge.ExecuteLifecycleAsync(resource, operationId, cancellationToken);
+        if (string.Equals(operationId.Value, ResourceActionIds.Start, StringComparison.OrdinalIgnoreCase))
+        {
+            return await bridge.StartAsync(resource, definition, cancellationToken);
+        }
+
+        if (string.Equals(operationId.Value, ResourceActionIds.Stop, StringComparison.OrdinalIgnoreCase))
+        {
+            return await bridge.StopAsync(resource, cancellationToken);
+        }
+
+        if (string.Equals(operationId.Value, ResourceActionIds.Restart, StringComparison.OrdinalIgnoreCase))
+        {
+            return await bridge.RestartAsync(resource, definition, cancellationToken);
+        }
+
+        return
+        [
+            ResourceDefinitionDiagnostic.Error(
+                RuntimeUnsupportedOperationDiagnosticCode,
+                $"The local container application process runtime does not support operation '{operationId}'.",
+                resource.EffectiveResourceId)
+        ];
     }
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyImageAsync(
-        ResourceModelResource resource,
+        Resource resource,
         CancellationToken cancellationToken = default)
     {
-        if (!IsSignalRApi(resource))
+        if (!TryGetDefinition(resource, out var definition))
         {
-            return [];
+            return RuntimeUnavailable(resource);
         }
 
-        return await bridge.RestartAsync(resource, cancellationToken);
+        return await bridge.RestartAsync(resource, definition, cancellationToken);
     }
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyReplicasAsync(
-        ResourceModelResource resource,
+        Resource resource,
         CancellationToken cancellationToken = default)
     {
-        if (!IsSignalRApi(resource))
+        if (!TryGetDefinition(resource, out var definition))
         {
-            return [];
+            return RuntimeUnavailable(resource);
         }
 
-        return await bridge.RestartAsync(resource, cancellationToken);
+        return await bridge.RestartAsync(resource, definition, cancellationToken);
     }
 
-    private static bool IsSignalRApi(ResourceModelResource resource) =>
-        string.Equals(resource.EffectiveResourceId, ApiResourceId, StringComparison.OrdinalIgnoreCase);
+    private bool TryGetDefinition(
+        Resource resource,
+        out LocalContainerApplicationProcessDefinition definition) =>
+        options.Applications.TryGetValue(resource.EffectiveResourceId, out definition!);
+
+    private static IReadOnlyList<ResourceDefinitionDiagnostic> RuntimeUnavailable(Resource resource) =>
+    [
+        ResourceDefinitionDiagnostic.Error(
+            RuntimeUnavailableDiagnosticCode,
+            $"No local process runtime mapping is configured for container app resource '{resource.EffectiveResourceId}'.",
+            resource.EffectiveResourceId)
+    ];
 }
 
-internal sealed class SignalRContainerAppRuntimeBridge(
-    IWebHostEnvironment hostEnvironment,
-    IConfiguration configuration,
-    ILogger<SignalRContainerAppRuntimeBridge> logger) : IAsyncDisposable
+public sealed class LocalContainerApplicationProcessRuntimeBridge(
+    IHostEnvironment hostEnvironment,
+    ILogger<LocalContainerApplicationProcessRuntimeBridge> logger) : IAsyncDisposable
 {
-    private const string RuntimeDiagnosticCode = "signalrContainerApp.runtime";
-    private const string RuntimeFailureDiagnosticCode = "signalrContainerApp.runtimeFailed";
+    private const string RuntimeDiagnosticCode = "application.container.localProcessRuntime";
+    private const string RuntimeFailureDiagnosticCode = "application.container.localProcessRuntimeFailed";
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly HttpClient httpClient = new(new SocketsHttpHandler
     {
         AllowAutoRedirect = false,
         UseCookies = false
     });
+    private readonly Dictionary<string, LocalContainerApplicationProcessRuntimeState> states =
+        new(StringComparer.OrdinalIgnoreCase);
 
-    private readonly List<ReplicaProcess> replicas = [];
-    private readonly ConcurrentDictionary<string, ReplicaProcess> signalRConnections =
-        new(StringComparer.Ordinal);
-    private WebApplication? proxy;
-    private Task? proxyTask;
-    private int nextReplicaIndex;
-
-    public ContainerApplicationRuntimeStatus GetStatus()
+    public ContainerApplicationRuntimeStatus GetStatus(string resourceId)
     {
-        if (replicas.Count == 0 || proxyTask is null)
+        if (!states.TryGetValue(resourceId, out var state) ||
+            state.Replicas.Count == 0 ||
+            state.ProxyTask is null)
         {
             return ContainerApplicationRuntimeStatus.Stopped;
         }
 
-        return replicas.All(replica => !replica.Process.HasExited) && !proxyTask.IsCompleted
-            ? ContainerApplicationRuntimeStatus.Running
-            : ContainerApplicationRuntimeStatus.Unknown;
-    }
-
-    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
-        ResourceModelResource resource,
-        ResourceOperationId operationId,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.Equals(operationId.Value, ResourceActionIds.Start, StringComparison.OrdinalIgnoreCase))
-        {
-            return await StartAsync(resource, cancellationToken);
-        }
-
-        if (string.Equals(operationId.Value, ResourceActionIds.Stop, StringComparison.OrdinalIgnoreCase))
-        {
-            return await StopAsync(resource, cancellationToken);
-        }
-
-        if (string.Equals(operationId.Value, ResourceActionIds.Restart, StringComparison.OrdinalIgnoreCase))
-        {
-            return await RestartAsync(resource, cancellationToken);
-        }
-
-        return
-        [
-            ResourceDefinitionDiagnostic.Error(
-                RuntimeFailureDiagnosticCode,
-                $"The SignalR sample runtime does not support container app operation '{operationId}'.",
-                resource.EffectiveResourceId)
-        ];
+        return state.Replicas.All(replica => !replica.Process.HasExited) &&
+            !state.ProxyTask.IsCompleted
+                ? ContainerApplicationRuntimeStatus.Running
+                : ContainerApplicationRuntimeStatus.Unknown;
     }
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> StartAsync(
-        ResourceModelResource resource,
+        Resource resource,
+        LocalContainerApplicationProcessDefinition definition,
         CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken);
         try
         {
-            if (GetStatus() == ContainerApplicationRuntimeStatus.Running)
+            if (GetStatus(resource.EffectiveResourceId) == ContainerApplicationRuntimeStatus.Running)
             {
                 return
                 [
                     new(
                         ResourceDefinitionDiagnosticSeverity.Information,
                         RuntimeDiagnosticCode,
-                        "SignalR container app runtime is already running.",
+                        $"Local process runtime for '{GetResourceLabel(resource)}' is already running.",
                         resource.EffectiveResourceId)
                 ];
             }
 
-            await StopCoreAsync(cancellationToken);
+            var state = GetState(resource.EffectiveResourceId);
+            await StopCoreAsync(state, cancellationToken);
 
             var replicaCount = GetReplicaCount(resource);
-            var ingressPort = GetIngressPort(resource);
-            var apiProjectPath = Path.Combine(
-                hostEnvironment.ContentRootPath,
-                "Api",
-                "CloudShell.SignalRContainerApp.Api.csproj");
-            var replicaPortStart =
-                configuration.GetValue<int?>("SignalRContainerApp:ReplicaPortStart") ??
-                ingressPort + 1;
+            var ingressPort = GetIngressPort(resource, definition);
+            var replicaPortStart = definition.ReplicaPortStart ?? ingressPort + 1;
 
             for (var replica = 1; replica <= replicaCount; replica++)
             {
                 var port = replicaPortStart + replica - 1;
-                var process = StartReplica(apiProjectPath, replica, port, resource);
-                replicas.Add(new(replica, port, process));
+                var process = StartReplica(definition, replica, port, resource);
+                state.Replicas.Add(new(replica, port, process));
             }
 
-            await WaitForReplicasReadyAsync(cancellationToken);
+            await WaitForReplicasReadyAsync(state, definition, cancellationToken);
 
-            proxy = CreateProxy(resource, ingressPort);
-            proxyTask = proxy.RunAsync(cancellationToken);
+            state.Proxy = CreateProxy(resource, state, ingressPort);
+            state.ProxyTask = state.Proxy.RunAsync(cancellationToken);
 
             return
             [
                 new(
                     ResourceDefinitionDiagnosticSeverity.Information,
                     RuntimeDiagnosticCode,
-                    $"Started SignalR API runtime with {replicaCount.ToString(CultureInfo.InvariantCulture)} replica(s) at http://localhost:{ingressPort.ToString(CultureInfo.InvariantCulture)}.",
+                    $"Started local process runtime for '{GetResourceLabel(resource)}' with {replicaCount.ToString(CultureInfo.InvariantCulture)} replica(s) at http://localhost:{ingressPort.ToString(CultureInfo.InvariantCulture)}.",
                     resource.EffectiveResourceId)
             ];
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Failed to start the SignalR container app sample runtime.");
-            await StopCoreAsync(CancellationToken.None);
+            logger.LogError(
+                exception,
+                "Failed to start the local process container app runtime for {ResourceId}.",
+                resource.EffectiveResourceId);
+            if (states.TryGetValue(resource.EffectiveResourceId, out var state))
+            {
+                await StopCoreAsync(state, CancellationToken.None);
+            }
+
             return
             [
                 ResourceDefinitionDiagnostic.Error(
                     RuntimeFailureDiagnosticCode,
-                    $"Failed to start SignalR container app runtime: {exception.Message}",
+                    $"Failed to start local process runtime for '{GetResourceLabel(resource)}': {exception.Message}",
                     resource.EffectiveResourceId)
             ];
         }
@@ -194,30 +251,37 @@ internal sealed class SignalRContainerAppRuntimeBridge(
     }
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> StopAsync(
-        ResourceModelResource resource,
+        Resource resource,
         CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken);
         try
         {
-            await StopCoreAsync(cancellationToken);
+            if (states.TryGetValue(resource.EffectiveResourceId, out var state))
+            {
+                await StopCoreAsync(state, cancellationToken);
+            }
+
             return
             [
                 new(
                     ResourceDefinitionDiagnosticSeverity.Information,
                     RuntimeDiagnosticCode,
-                    "Stopped SignalR container app runtime.",
+                    $"Stopped local process runtime for '{GetResourceLabel(resource)}'.",
                     resource.EffectiveResourceId)
             ];
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Failed to stop the SignalR container app sample runtime.");
+            logger.LogError(
+                exception,
+                "Failed to stop the local process container app runtime for {ResourceId}.",
+                resource.EffectiveResourceId);
             return
             [
                 ResourceDefinitionDiagnostic.Error(
                     RuntimeFailureDiagnosticCode,
-                    $"Failed to stop SignalR container app runtime: {exception.Message}",
+                    $"Failed to stop local process runtime for '{GetResourceLabel(resource)}': {exception.Message}",
                     resource.EffectiveResourceId)
             ];
         }
@@ -228,7 +292,8 @@ internal sealed class SignalRContainerAppRuntimeBridge(
     }
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> RestartAsync(
-        ResourceModelResource resource,
+        Resource resource,
+        LocalContainerApplicationProcessDefinition definition,
         CancellationToken cancellationToken = default)
     {
         var stopDiagnostics = await StopAsync(resource, cancellationToken);
@@ -238,29 +303,51 @@ internal sealed class SignalRContainerAppRuntimeBridge(
             return stopDiagnostics;
         }
 
-        return await StartAsync(resource, cancellationToken);
+        return await StartAsync(resource, definition, cancellationToken);
     }
 
     public async ValueTask DisposeAsync()
     {
-        await StopCoreAsync(CancellationToken.None);
+        foreach (var state in states.Values)
+        {
+            await StopCoreAsync(state, CancellationToken.None);
+        }
+
         httpClient.Dispose();
         gate.Dispose();
     }
 
-    private WebApplication CreateProxy(ResourceModelResource resource, int ingressPort)
+    private LocalContainerApplicationProcessRuntimeState GetState(string resourceId)
+    {
+        if (states.TryGetValue(resourceId, out var state))
+        {
+            return state;
+        }
+
+        state = new();
+        states[resourceId] = state;
+        return state;
+    }
+
+    private WebApplication CreateProxy(
+        Resource resource,
+        LocalContainerApplicationProcessRuntimeState state,
+        int ingressPort)
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseUrls($"http://localhost:{ingressPort.ToString(CultureInfo.InvariantCulture)}");
         var app = builder.Build();
         app.UseWebSockets();
-        app.Run(context => ProxyAsync(context, resource));
+        app.Run(context => ProxyAsync(context, resource, state));
         return app;
     }
 
-    private async Task ProxyAsync(HttpContext context, ResourceModelResource resource)
+    private async Task ProxyAsync(
+        HttpContext context,
+        Resource resource,
+        LocalContainerApplicationProcessRuntimeState state)
     {
-        var replica = SelectReplica(context, resource);
+        var replica = SelectReplica(context, resource, state);
         try
         {
             if (context.WebSockets.IsWebSocketRequest)
@@ -281,7 +368,7 @@ internal sealed class SignalRContainerAppRuntimeBridge(
             if (IsSignalRNegotiateRequest(context))
             {
                 var payload = await response.Content.ReadAsByteArrayAsync(context.RequestAborted);
-                TrackSignalRConnection(payload, replica);
+                TrackSignalRConnection(state, payload, replica);
                 await context.Response.Body.WriteAsync(payload, context.RequestAborted);
             }
             else
@@ -296,7 +383,7 @@ internal sealed class SignalRContainerAppRuntimeBridge(
         {
             logger.LogError(
                 exception,
-                "SignalR sample proxy failed while forwarding {Method} {Path}{QueryString} to replica {ReplicaOrdinal} on port {ReplicaPort}.",
+                "Local process container app proxy failed while forwarding {Method} {Path}{QueryString} to replica {ReplicaOrdinal} on port {ReplicaPort}.",
                 context.Request.Method,
                 context.Request.Path,
                 context.Request.QueryString,
@@ -307,7 +394,7 @@ internal sealed class SignalRContainerAppRuntimeBridge(
                 context.Response.StatusCode = StatusCodes.Status502BadGateway;
                 await context.Response.WriteAsJsonAsync(new
                 {
-                    error = "signalr_proxy_failed",
+                    error = "local_container_app_proxy_failed",
                     message = exception.Message,
                     exception = exception.GetType().Name,
                     replica = replica.Ordinal,
@@ -317,11 +404,14 @@ internal sealed class SignalRContainerAppRuntimeBridge(
         }
     }
 
-    private ReplicaProcess SelectReplica(HttpContext context, ResourceModelResource resource)
+    private static ReplicaProcess SelectReplica(
+        HttpContext context,
+        Resource resource,
+        LocalContainerApplicationProcessRuntimeState state)
     {
         if (TryGetSignalRConnectionId(context, out var connectionId) &&
-            signalRConnections.TryGetValue(connectionId, out var connectionReplica) &&
-            replicas.Any(replica => replica.Ordinal == connectionReplica.Ordinal))
+            state.SignalRConnections.TryGetValue(connectionId, out var connectionReplica) &&
+            state.Replicas.Any(replica => replica.Ordinal == connectionReplica.Ordinal))
         {
             return connectionReplica;
         }
@@ -330,13 +420,13 @@ internal sealed class SignalRContainerAppRuntimeBridge(
         if (!string.IsNullOrWhiteSpace(cookieName) &&
             context.Request.Cookies.TryGetValue(cookieName, out var cookieValue) &&
             int.TryParse(cookieValue, CultureInfo.InvariantCulture, out var ordinal) &&
-            replicas.FirstOrDefault(replica => replica.Ordinal == ordinal) is { } matched)
+            state.Replicas.FirstOrDefault(replica => replica.Ordinal == ordinal) is { } matched)
         {
             return matched;
         }
 
-        var index = Interlocked.Increment(ref nextReplicaIndex) - 1;
-        return replicas[index % replicas.Count];
+        var index = Interlocked.Increment(ref state.NextReplicaIndex) - 1;
+        return state.Replicas[index % state.Replicas.Count];
     }
 
     private static bool IsSignalRNegotiateRequest(HttpContext context) =>
@@ -344,6 +434,7 @@ internal sealed class SignalRContainerAppRuntimeBridge(
         context.Request.Path.Value?.EndsWith("/negotiate", StringComparison.OrdinalIgnoreCase) == true;
 
     private void TrackSignalRConnection(
+        LocalContainerApplicationProcessRuntimeState state,
         byte[] payload,
         ReplicaProcess replica)
     {
@@ -353,20 +444,20 @@ internal sealed class SignalRContainerAppRuntimeBridge(
             if (document.RootElement.TryGetProperty("connectionToken", out var connectionToken) &&
                 !string.IsNullOrWhiteSpace(connectionToken.GetString()))
             {
-                signalRConnections[connectionToken.GetString()!] = replica;
+                state.SignalRConnections[connectionToken.GetString()!] = replica;
             }
 
             if (document.RootElement.TryGetProperty("connectionId", out var connectionId) &&
                 !string.IsNullOrWhiteSpace(connectionId.GetString()))
             {
-                signalRConnections[connectionId.GetString()!] = replica;
+                state.SignalRConnections[connectionId.GetString()!] = replica;
             }
         }
         catch (JsonException exception)
         {
             logger.LogWarning(
                 exception,
-                "SignalR sample proxy could not read negotiate response for replica {ReplicaOrdinal}.",
+                "Local process container app proxy could not read negotiate response for replica {ReplicaOrdinal}.",
                 replica.Ordinal);
         }
     }
@@ -387,7 +478,7 @@ internal sealed class SignalRContainerAppRuntimeBridge(
 
     private static void AppendAffinityCookie(
         HttpContext context,
-        ResourceModelResource resource,
+        Resource resource,
         ReplicaProcess replica)
     {
         var cookieName = GetAffinityCookieName(resource);
@@ -494,7 +585,7 @@ internal sealed class SignalRContainerAppRuntimeBridge(
         {
             logger.LogError(
                 exception,
-                "SignalR sample WebSocket proxy failed for {Path}{QueryString} to replica {ReplicaOrdinal} on port {ReplicaPort}.",
+                "Local process container app WebSocket proxy failed for {Path}{QueryString} to replica {ReplicaOrdinal} on port {ReplicaPort}.",
                 context.Request.Path,
                 context.Request.QueryString,
                 replica.Ordinal,
@@ -532,15 +623,15 @@ internal sealed class SignalRContainerAppRuntimeBridge(
     }
 
     private Process StartReplica(
-        string apiProjectPath,
+        LocalContainerApplicationProcessDefinition definition,
         int replicaOrdinal,
         int port,
-        ResourceModelResource resource)
+        Resource resource)
     {
         var startInfo = new ProcessStartInfo
         {
-            FileName = "dotnet",
-            WorkingDirectory = hostEnvironment.ContentRootPath,
+            FileName = definition.DotNetExecutable,
+            WorkingDirectory = definition.WorkingDirectory ?? hostEnvironment.ContentRootPath,
             RedirectStandardError = true,
             RedirectStandardOutput = true,
             UseShellExecute = false
@@ -548,40 +639,46 @@ internal sealed class SignalRContainerAppRuntimeBridge(
         startInfo.ArgumentList.Add("run");
         startInfo.ArgumentList.Add("--no-build");
         startInfo.ArgumentList.Add("--project");
-        startInfo.ArgumentList.Add(apiProjectPath);
+        startInfo.ArgumentList.Add(definition.ProjectPath);
         startInfo.ArgumentList.Add("--no-launch-profile");
         startInfo.Environment["ASPNETCORE_URLS"] = $"http://localhost:{port.ToString(CultureInfo.InvariantCulture)}";
         startInfo.Environment["CLOUDSHELL_REPLICA_ORDINAL"] = replicaOrdinal.ToString(CultureInfo.InvariantCulture);
         startInfo.Environment["CLOUDSHELL_RESOURCE_ID"] =
             $"{resource.EffectiveResourceId}:replica-{replicaOrdinal.ToString(CultureInfo.InvariantCulture)}";
+        foreach (var item in definition.Environment)
+        {
+            startInfo.Environment[item.Key] = item.Value;
+        }
 
         var process = Process.Start(startInfo) ??
-            throw new InvalidOperationException("Failed to start the SignalR API replica process.");
-        _ = DrainOutputAsync(process.StandardOutput, replicaOrdinal, isError: false);
-        _ = DrainOutputAsync(process.StandardError, replicaOrdinal, isError: true);
+            throw new InvalidOperationException(
+                $"Failed to start the local process replica for '{GetResourceLabel(resource)}'.");
+        _ = DrainOutputAsync(resource, process.StandardOutput, replicaOrdinal, isError: false);
+        _ = DrainOutputAsync(resource, process.StandardError, replicaOrdinal, isError: true);
         return process;
     }
 
-    private async Task WaitForReplicasReadyAsync(CancellationToken cancellationToken)
+    private async Task WaitForReplicasReadyAsync(
+        LocalContainerApplicationProcessRuntimeState state,
+        LocalContainerApplicationProcessDefinition definition,
+        CancellationToken cancellationToken)
     {
-        var timeout = TimeSpan.FromSeconds(
-            configuration.GetValue<int?>("SignalRContainerApp:ReplicaStartTimeoutSeconds") ?? 60);
-        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        var deadline = DateTimeOffset.UtcNow.Add(definition.ReplicaStartTimeout);
         while (DateTimeOffset.UtcNow < deadline)
         {
             var readyCount = 0;
-            foreach (var replica in replicas)
+            foreach (var replica in state.Replicas)
             {
                 if (replica.Process.HasExited)
                 {
                     throw new InvalidOperationException(
-                        $"SignalR API replica {replica.Ordinal.ToString(CultureInfo.InvariantCulture)} exited before it became ready.");
+                        $"Local process replica {replica.Ordinal.ToString(CultureInfo.InvariantCulture)} exited before it became ready.");
                 }
 
                 try
                 {
                     using var response = await httpClient.GetAsync(
-                        $"http://127.0.0.1:{replica.Port.ToString(CultureInfo.InvariantCulture)}/health",
+                        $"http://127.0.0.1:{replica.Port.ToString(CultureInfo.InvariantCulture)}{NormalizePath(definition.HealthPath)}",
                         cancellationToken);
                     if (response.IsSuccessStatusCode)
                     {
@@ -593,7 +690,7 @@ internal sealed class SignalRContainerAppRuntimeBridge(
                 }
             }
 
-            if (readyCount == replicas.Count)
+            if (readyCount == state.Replicas.Count)
             {
                 return;
             }
@@ -602,23 +699,25 @@ internal sealed class SignalRContainerAppRuntimeBridge(
         }
 
         throw new TimeoutException(
-            $"SignalR API replicas did not become ready within {timeout.TotalSeconds.ToString(CultureInfo.InvariantCulture)} seconds.");
+            $"Local process container app replicas did not become ready within {definition.ReplicaStartTimeout.TotalSeconds.ToString(CultureInfo.InvariantCulture)} seconds.");
     }
 
-    private async Task StopCoreAsync(CancellationToken cancellationToken)
+    private async Task StopCoreAsync(
+        LocalContainerApplicationProcessRuntimeState state,
+        CancellationToken cancellationToken)
     {
-        if (proxy is not null)
+        if (state.Proxy is not null)
         {
-            await proxy.StopAsync(cancellationToken);
-            await proxy.DisposeAsync();
-            proxy = null;
+            await state.Proxy.StopAsync(cancellationToken);
+            await state.Proxy.DisposeAsync();
+            state.Proxy = null;
         }
 
-        if (proxyTask is not null)
+        if (state.ProxyTask is not null)
         {
             try
             {
-                await proxyTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+                await state.ProxyTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
             }
             catch (TimeoutException)
             {
@@ -627,10 +726,10 @@ internal sealed class SignalRContainerAppRuntimeBridge(
             {
             }
 
-            proxyTask = null;
+            state.ProxyTask = null;
         }
 
-        foreach (var replica in replicas)
+        foreach (var replica in state.Replicas)
         {
             if (replica.Process.HasExited)
             {
@@ -652,12 +751,12 @@ internal sealed class SignalRContainerAppRuntimeBridge(
             }
         }
 
-        replicas.Clear();
-        signalRConnections.Clear();
-        nextReplicaIndex = 0;
+        state.Replicas.Clear();
+        state.SignalRConnections.Clear();
+        state.NextReplicaIndex = 0;
     }
 
-    private static int GetReplicaCount(ResourceModelResource resource)
+    private static int GetReplicaCount(Resource resource)
     {
         var rawReplicas = resource.Attributes.GetString(
             ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas);
@@ -666,8 +765,15 @@ internal sealed class SignalRContainerAppRuntimeBridge(
             : 1;
     }
 
-    private static int GetIngressPort(ResourceModelResource resource)
+    private static int GetIngressPort(
+        Resource resource,
+        LocalContainerApplicationProcessDefinition definition)
     {
+        if (definition.IngressPort is { } configuredPort)
+        {
+            return configuredPort;
+        }
+
         var request = resource.Attributes
             .GetObject<NetworkingEndpointRequestValue[]>(
                 ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests)?
@@ -680,7 +786,7 @@ internal sealed class SignalRContainerAppRuntimeBridge(
         return 5095;
     }
 
-    private static string? GetAffinityCookieName(ResourceModelResource resource)
+    private static string? GetAffinityCookieName(Resource resource)
     {
         var mode = resource.Attributes.GetString(
             ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityMode);
@@ -693,7 +799,7 @@ internal sealed class SignalRContainerAppRuntimeBridge(
             ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityCookieName);
     }
 
-    private static TimeSpan? GetAffinityDuration(ResourceModelResource resource)
+    private static TimeSpan? GetAffinityDuration(Resource resource)
     {
         var rawSeconds = resource.Attributes.GetString(
             ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityDurationSeconds);
@@ -703,6 +809,7 @@ internal sealed class SignalRContainerAppRuntimeBridge(
     }
 
     private async Task DrainOutputAsync(
+        Resource resource,
         StreamReader reader,
         int replicaOrdinal,
         bool isError)
@@ -711,17 +818,49 @@ internal sealed class SignalRContainerAppRuntimeBridge(
         {
             if (isError)
             {
-                logger.LogWarning("SignalR API replica {Replica}: {Line}", replicaOrdinal, line);
+                logger.LogWarning(
+                    "{ResourceLabel} replica {Replica}: {Line}",
+                    GetResourceLabel(resource),
+                    replicaOrdinal,
+                    line);
             }
             else
             {
-                logger.LogInformation("SignalR API replica {Replica}: {Line}", replicaOrdinal, line);
+                logger.LogInformation(
+                    "{ResourceLabel} replica {Replica}: {Line}",
+                    GetResourceLabel(resource),
+                    replicaOrdinal,
+                    line);
             }
         }
     }
+
+    private static string NormalizePath(string path) =>
+        path.StartsWith('/', StringComparison.Ordinal)
+            ? path
+            : "/" + path;
+
+    private static string GetResourceLabel(Resource resource) =>
+        string.IsNullOrWhiteSpace(resource.State.DisplayName)
+            ? resource.EffectiveResourceId
+            : resource.State.DisplayName;
 
     private sealed record ReplicaProcess(
         int Ordinal,
         int Port,
         Process Process);
+
+    private sealed class LocalContainerApplicationProcessRuntimeState
+    {
+        public List<ReplicaProcess> Replicas { get; } = [];
+
+        public ConcurrentDictionary<string, ReplicaProcess> SignalRConnections { get; } =
+            new(StringComparer.Ordinal);
+
+        public WebApplication? Proxy { get; set; }
+
+        public Task? ProxyTask { get; set; }
+
+        public int NextReplicaIndex;
+    }
 }

@@ -76,4 +76,23 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
 
         return services;
     }
+
+    public static IServiceCollection AddLocalContainerApplicationProcessRuntime(
+        this IServiceCollection services,
+        Action<LocalContainerApplicationProcessRuntimeOptions>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        if (configure is not null)
+        {
+            services.Configure(configure);
+        }
+
+        services.TryAddSingleton<LocalContainerApplicationProcessRuntimeBridge>();
+        services.Replace(ServiceDescriptor.Singleton<
+            IContainerApplicationRuntimeHandler,
+            LocalContainerApplicationProcessRuntimeHandler>());
+
+        return services;
+    }
 }
