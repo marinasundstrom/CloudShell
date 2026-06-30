@@ -1,6 +1,4 @@
 using CloudShell.Abstractions.Hosting;
-using CloudShell.Abstractions.Logs;
-using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.Hosting;
@@ -75,8 +73,6 @@ builder.Services
 cloudShell.UseResourceGraphIntegration();
 builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider, ReplicatedContainerHealthOrchestrationDescriptorProvider>();
 builder.Services.AddScoped<IResourceProvider, ReplicatedContainerHealthRuntimeResourceProvider>();
-builder.Services.AddScoped<ILogProvider, ReplicatedContainerHealthRuntimeLogProvider>();
-builder.Services.AddScoped<IResourceMonitoringProvider, ReplicatedContainerHealthRuntimeMonitoringProvider>();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

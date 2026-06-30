@@ -99,6 +99,13 @@ Samples can replace `ILocalContainerApplicationCommandRunner` for deterministic
 tests, but normal hosts get `ProcessLocalContainerApplicationCommandRunner`
 from `AddContainerApplicationResourceType()`.
 
+Projected runtime container replicas with `runtime.container` type and
+`containerReplica` runtime metadata automatically get provider-owned Docker
+log and stats support. The runtime projection provider still decides whether
+to surface those hidden replica resources, but once it does, the container-app
+provider supplies the `ILogProvider` and `IResourceMonitoringProvider`
+implementation.
+
 The provider also includes a deferred runtime adapter for migration scenarios
 that need graph image/replica changes to be accepted without materializing a
 real container app runtime.
@@ -126,12 +133,13 @@ services
 
 The ReplicatedContainerHealth sample currently proves this seam with a
 sample-local target that maps `application.container-app:api` to the existing
-Docker/Traefik runtime bridge. The provider-owned delegating handler and local
-container-app command runner cover the runtime dispatch and process execution
+Docker/Traefik runtime bridge. The provider-owned delegating handler, local
+container-app command runner, and runtime-container log/monitoring providers
+cover the common runtime dispatch, process execution, and replica observability
 contracts, while the sample target remains responsible only for the sample's
-physical runtime materialization. The Docker smoke verifies that graph restart
-recreates the revision-scoped runtime containers and graph stop removes the
-containers that graph start created.
+physical runtime materialization and hidden replica projection. The Docker
+smoke verifies that graph restart recreates the revision-scoped runtime
+containers and graph stop removes the containers that graph start created.
 
 The ContainerAppDeployment sample uses the provider-owned deferred runtime
 adapter for `application.container-app:sample-api`. It accepts image and

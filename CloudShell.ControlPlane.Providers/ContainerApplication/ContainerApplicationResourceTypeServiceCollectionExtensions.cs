@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Observability;
 
 namespace CloudShell.ControlPlane.Providers;
 
@@ -54,6 +56,10 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
         services.TryAddSingleton<
             ILocalContainerApplicationCommandRunner,
             ProcessLocalContainerApplicationCommandRunner>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<ILogProvider, LocalContainerApplicationRuntimeLogProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceMonitoringProvider, LocalContainerApplicationRuntimeMonitoringProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, ContainerApplicationStartOperationProvider>());
         services.TryAddEnumerable(

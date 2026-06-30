@@ -537,9 +537,12 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     [Fact]
     public void RuntimeLogProvider_ProjectsReplicaLogSourcesFromGraphState()
     {
-        var provider = new ReplicatedContainerHealthRuntimeLogProvider(
+        var provider = new LocalContainerApplicationRuntimeLogProvider(
             new RecordingCommandRunner(),
-            new RecordingResourceManagerStore(CreateResourceManagerGraphAppResource(replicas: 2)));
+            new RecordingResourceManagerStore(
+                CreateResourceManagerGraphAppResource(replicas: 2),
+                CreateGraphReplicaResource(replica: 1),
+                CreateGraphReplicaResource(replica: 2)));
 
         var sources = provider.GetLogSources();
 
@@ -574,12 +577,15 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
 
             """,
             string.Empty));
-        var provider = new ReplicatedContainerHealthRuntimeLogProvider(
+        var provider = new LocalContainerApplicationRuntimeLogProvider(
             commandRunner,
-            new RecordingResourceManagerStore(CreateResourceManagerGraphAppResource(replicas: 2)));
+            new RecordingResourceManagerStore(
+                CreateResourceManagerGraphAppResource(replicas: 2),
+                CreateGraphReplicaResource(replica: 1),
+                CreateGraphReplicaResource(replica: 2)));
 
         var entries = await provider.ReadLogSourceAsync(
-            ReplicatedContainerHealthRuntimeLogProvider.GetLogSourceId(2),
+            LocalContainerApplicationRuntimeLogProvider.CreateLogSourceId(CreateGraphReplicaResource(replica: 2)),
             maxEntries: 10);
 
         var command = Assert.Single(commandRunner.Commands);
@@ -616,7 +622,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             {"Name":"cloudshell-replicated-health-api-replica-2","CPUPerc":"7.5%","MemUsage":"32MiB / 1GiB","NetIO":"2kB / 4kB","BlockIO":"1MiB / 2MiB","PIDs":"12"}
             """,
             string.Empty));
-        var provider = new ReplicatedContainerHealthRuntimeMonitoringProvider(commandRunner);
+        var provider = new LocalContainerApplicationRuntimeMonitoringProvider(commandRunner);
         var replica = CreateGraphReplicaResource(replica: 2);
 
         Assert.True(provider.CanMonitor(replica));
@@ -1172,15 +1178,15 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         int RoutingBindingCount);
 
     private sealed class RecordingResourceManagerStore(
-        CloudShell.Abstractions.ResourceManager.Resource resource) : IResourceManagerStore
+        params CloudShell.Abstractions.ResourceManager.Resource[] resources) : IResourceManagerStore
     {
         public IReadOnlyList<IResourceProvider> Providers => [];
 
         public IReadOnlyList<ResourceGroup> GetResourceGroups() => [];
 
-        public IReadOnlyList<CloudShell.Abstractions.ResourceManager.Resource> GetAvailableResources() => [resource];
+        public IReadOnlyList<CloudShell.Abstractions.ResourceManager.Resource> GetAvailableResources() => resources;
 
-        public IReadOnlyList<CloudShell.Abstractions.ResourceManager.Resource> GetResources() => [resource];
+        public IReadOnlyList<CloudShell.Abstractions.ResourceManager.Resource> GetResources() => resources;
 
         public IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics() => [];
 
@@ -1188,9 +1194,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             CloudShell.Abstractions.ResourceManager.ResourceClass.Container;
 
         public CloudShell.Abstractions.ResourceManager.Resource? GetResource(string id) =>
-            string.Equals(id, resource.Id, StringComparison.OrdinalIgnoreCase)
-                ? resource
-                : null;
+            resources.FirstOrDefault(resource =>
+                string.Equals(id, resource.Id, StringComparison.OrdinalIgnoreCase));
 
         public IReadOnlyList<CloudShell.Abstractions.ResourceManager.Resource> GetChildren(string resourceId) => [];
 

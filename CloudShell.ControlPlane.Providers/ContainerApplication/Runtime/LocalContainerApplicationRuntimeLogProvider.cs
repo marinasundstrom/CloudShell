@@ -1,52 +1,30 @@
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ControlPlane.Providers;
 using System.Globalization;
 using System.Text.Json;
+using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 
-internal sealed class ReplicatedContainerHealthRuntimeLogProvider(
+namespace CloudShell.ControlPlane.Providers;
+
+public sealed class LocalContainerApplicationRuntimeLogProvider(
     ILocalContainerApplicationCommandRunner commandRunner,
     IResourceManagerStore resourceManager) : ILogProvider
 {
-    private const string ContainerReplicasAttribute = "container.replicas";
+    public string Id => "resource-model.container-app.local-runtime.logs";
 
-    public string Id => "replicated-container-health.runtime";
+    public string DisplayName => "Container app local runtime";
 
-    public string DisplayName => "Replicated Container Health";
-
-    public IReadOnlyList<LogSource> GetLogSources()
-    {
-        var resource = resourceManager.GetResource(ReplicatedContainerHealthRuntimeConventions.ApiResourceId);
-        if (resource is null)
-        {
-            return [];
-        }
-
-        var replicas = ResolveReplicas(resource);
-        return Enumerable
-            .Range(1, replicas)
-            .Select(replica => new LogSource(
-                GetLogSourceId(replica),
-                $"Replica {replica.ToString(CultureInfo.InvariantCulture)} logs",
-                DisplayName,
-                resource.Name,
-                LogSourceKind.Resource,
-                Kind: ResourceLogSourceKind.Container,
-                Format: LogFormat.JsonConsole,
-                Capabilities: LogSourceCapabilities.Read,
-                ResourceId: ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
-                ProducerResourceId: ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
-                Description: "Runtime replica container logs.",
-                Origin: ResourceLogSourceOrigin.ProviderProjected,
-                Purpose: ResourceLogSourcePurpose.Default,
-                Availability: LogSourceAvailability.ProducerRunning))
+    public IReadOnlyList<LogSource> GetLogSources() =>
+        resourceManager
+            .GetResources()
+            .Where(IsRuntimeContainerReplica)
+            .OrderBy(resource => resource.OwnerResourceId, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(resource => ResolveReplicaOrdinal(resource))
+            .Select(CreateLogSource)
             .ToArray();
-    }
 
     public bool CanOpenLogSource(LogSource source) =>
-        string.Equals(source.Provider, DisplayName, StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(source.ResourceId, ReplicatedContainerHealthRuntimeConventions.ApiResourceId, StringComparison.OrdinalIgnoreCase) &&
-        TryGetReplicaFromLogSourceId(source.Id, out _);
+        ResolveRuntimeContainer(source.Id) is not null;
 
     public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
         string logSourceId,
@@ -54,19 +32,49 @@ internal sealed class ReplicatedContainerHealthRuntimeLogProvider(
         DateTimeOffset? before = null,
         CancellationToken cancellationToken = default)
     {
-        if (!TryGetReplicaFromLogSourceId(logSourceId, out var replica))
+        var resource = ResolveRuntimeContainer(logSourceId);
+        if (resource is null)
         {
             return Task.FromResult<IReadOnlyList<LogEntry>>([]);
         }
 
-        return ReadReplicaLogsAsync(replica, maxEntries, before, cancellationToken);
+        return ReadReplicaLogsAsync(resource, maxEntries, before, cancellationToken);
     }
 
-    internal static string GetLogSourceId(int replica) =>
-        $"{ReplicatedContainerHealthRuntimeConventions.ApiResourceId}:replica-{replica.ToString(CultureInfo.InvariantCulture)}:logs";
+    public static string CreateLogSourceId(ResourceManagerResource resource)
+    {
+        var ownerResourceId = resource.OwnerResourceId ?? resource.ParentResourceId ?? resource.Id;
+        var replicaOrdinal = ResolveReplicaOrdinal(resource);
+        return $"{ownerResourceId}:replica-{replicaOrdinal}:logs";
+    }
+
+    private LogSource CreateLogSource(ResourceManagerResource resource)
+    {
+        var parent = resource.OwnerResourceId is null
+            ? null
+            : resourceManager.GetResource(resource.OwnerResourceId);
+        var replicaOrdinal = ResolveReplicaOrdinal(resource);
+        var sourceName = parent?.Name ?? resource.Name;
+
+        return new LogSource(
+            CreateLogSourceId(resource),
+            $"Replica {replicaOrdinal} logs",
+            DisplayName,
+            sourceName,
+            LogSourceKind.Resource,
+            Kind: ResourceLogSourceKind.Container,
+            Format: LogFormat.JsonConsole,
+            Capabilities: LogSourceCapabilities.Read,
+            ResourceId: resource.OwnerResourceId ?? resource.ParentResourceId ?? resource.Id,
+            ProducerResourceId: resource.OwnerResourceId ?? resource.ParentResourceId ?? resource.Id,
+            Description: "Runtime replica container logs.",
+            Origin: ResourceLogSourceOrigin.ProviderProjected,
+            Purpose: ResourceLogSourcePurpose.Default,
+            Availability: LogSourceAvailability.ProducerRunning);
+    }
 
     private async Task<IReadOnlyList<LogEntry>> ReadReplicaLogsAsync(
-        int replica,
+        ResourceManagerResource resource,
         int maxEntries,
         DateTimeOffset? before,
         CancellationToken cancellationToken)
@@ -84,7 +92,7 @@ internal sealed class ReplicatedContainerHealthRuntimeLogProvider(
             arguments.Add(before.Value.AddTicks(-1).UtcDateTime.ToString("O", CultureInfo.InvariantCulture));
         }
 
-        var containerName = ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica);
+        var containerName = GetAttribute(resource, ResourceAttributeNames.RuntimeContainerName);
         arguments.Add(containerName);
 
         var result = await commandRunner.RunAsync(
@@ -116,11 +124,30 @@ internal sealed class ReplicatedContainerHealthRuntimeLogProvider(
         return entries;
     }
 
-    private static int ResolveReplicas(Resource resource) =>
-        resource.ResourceAttributes.TryGetValue(ContainerReplicasAttribute, out var value) &&
-        int.TryParse(value, out var replicas)
-            ? Math.Max(1, replicas)
-            : 1;
+    private ResourceManagerResource? ResolveRuntimeContainer(string logSourceId) =>
+        resourceManager
+            .GetResources()
+            .FirstOrDefault(resource =>
+                IsRuntimeContainerReplica(resource) &&
+                string.Equals(CreateLogSourceId(resource), logSourceId, StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsRuntimeContainerReplica(ResourceManagerResource resource) =>
+        string.Equals(resource.EffectiveTypeId, "runtime.container", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(
+            GetAttribute(resource, ResourceAttributeNames.RuntimeKind),
+            "containerReplica",
+            StringComparison.OrdinalIgnoreCase) &&
+        !string.IsNullOrWhiteSpace(GetAttribute(resource, ResourceAttributeNames.RuntimeContainerName));
+
+    private static string ResolveReplicaOrdinal(ResourceManagerResource resource) =>
+        FirstNonEmpty(
+            GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaOrdinal),
+            resource.Name) ?? "1";
+
+    private static string GetAttribute(ResourceManagerResource resource, string name) =>
+        resource.ResourceAttributes.TryGetValue(name, out var value)
+            ? value
+            : string.Empty;
 
     private static IReadOnlyList<LogEntry> ParseContainerLogOutput(
         string output,
@@ -258,9 +285,31 @@ internal sealed class ReplicatedContainerHealthRuntimeLogProvider(
             value,
             CultureInfo.InvariantCulture,
             DateTimeStyles.AssumeUniversal,
-            out var timestamp)
-                ? timestamp
+            out var parsed)
+                ? parsed
                 : null;
+    }
+
+    private static string? TryGetString(JsonElement root, string propertyName) =>
+        root.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
+            ? property.GetString()
+            : null;
+
+    private static string? TryGetScalar(JsonElement root, string propertyName)
+    {
+        if (!root.TryGetProperty(propertyName, out var property))
+        {
+            return null;
+        }
+
+        return property.ValueKind switch
+        {
+            JsonValueKind.String => property.GetString(),
+            JsonValueKind.Number => property.GetRawText(),
+            JsonValueKind.True => bool.TrueString,
+            JsonValueKind.False => bool.FalseString,
+            _ => null
+        };
     }
 
     private static void AddStructuredAttributes(
@@ -268,82 +317,24 @@ internal sealed class ReplicatedContainerHealthRuntimeLogProvider(
         string propertyName,
         Dictionary<string, string> attributes)
     {
-        if (!TryGetProperty(root, propertyName, out var values) ||
-            values.ValueKind != JsonValueKind.Object)
+        if (!root.TryGetProperty(propertyName, out var property) ||
+            property.ValueKind != JsonValueKind.Object)
         {
             return;
         }
 
-        foreach (var property in values.EnumerateObject())
+        foreach (var item in property.EnumerateObject())
         {
-            var value = GetScalarString(property.Value);
+            var value = item.Value.ValueKind == JsonValueKind.String
+                ? item.Value.GetString()
+                : item.Value.GetRawText();
             if (!string.IsNullOrWhiteSpace(value))
             {
-                attributes[property.Name] = value;
+                attributes[item.Name] = value!;
             }
         }
     }
-
-    private static bool TryGetProperty(
-        JsonElement root,
-        string name,
-        out JsonElement value)
-    {
-        foreach (var property in root.EnumerateObject())
-        {
-            if (string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase))
-            {
-                value = property.Value;
-                return true;
-            }
-        }
-
-        value = default;
-        return false;
-    }
-
-    private static string? TryGetString(JsonElement root, string propertyName) =>
-        TryGetProperty(root, propertyName, out var value) && value.ValueKind == JsonValueKind.String
-            ? value.GetString()
-            : null;
-
-    private static string? TryGetScalar(JsonElement root, string propertyName)
-    {
-        if (!TryGetProperty(root, propertyName, out var value))
-        {
-            return null;
-        }
-
-        return GetScalarString(value);
-    }
-
-    private static string? GetScalarString(JsonElement value) =>
-        value.ValueKind switch
-        {
-            JsonValueKind.String => value.GetString(),
-            JsonValueKind.Number => value.GetRawText(),
-            JsonValueKind.True => bool.TrueString,
-            JsonValueKind.False => bool.FalseString,
-            _ => null
-        };
 
     private static string? FirstNonEmpty(params string?[] values) =>
-        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
-
-    private static bool TryGetReplicaFromLogSourceId(
-        string logSourceId,
-        out int replica)
-    {
-        replica = 0;
-        var prefix = $"{ReplicatedContainerHealthRuntimeConventions.ApiResourceId}:replica-";
-        const string suffix = ":logs";
-        if (!logSourceId.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
-            !logSourceId.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var value = logSourceId[prefix.Length..^suffix.Length];
-        return int.TryParse(value, out replica) && replica > 0;
-    }
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 }

@@ -67,9 +67,9 @@ provider runtime is moved out of the sample:
   runtime-managed replica resources through the existing flat
   `IResourceProvider` adapter. The future provider contract should distinguish
   top-level resources from optional runtime/sub-resource projections.
-- `ReplicatedContainerHealthRuntimeLogProvider` and
-  `ReplicatedContainerHealthRuntimeMonitoringProvider` provide Docker-backed
-  logs and stats for projected runtime replicas.
+- Runtime replica log and monitoring providers are now supplied by the
+  container-app provider. The sample only projects hidden runtime replica
+  resources with the container metadata those providers consume.
 - The sample-local image update endpoint exists to exercise
   `ResourceDefinition` overlay apply plus operation delegation. It should be
   replaced by the eventual Control Plane API for applying resource graph

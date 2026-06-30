@@ -166,6 +166,10 @@ on `git blame --follow`, and then by the broad type of change.
   another sample-local runtime infrastructure piece while leaving the
   sample-specific Docker/Traefik bridge as the next provider-runtime cleanup
   target.
+- Container app providers now also register local runtime-container log and
+  monitoring providers for projected runtime replica resources, so samples no
+  longer need their own Docker log/stats providers once they project runtime
+  containers with standard runtime metadata.
 - Control Plane `DefineResources(...)` and `DefineInitialTemplate(...)` now use
   a Control Plane resource-definition context that extends graph resource
   authoring, keeps identity-provider metadata outside `ResourceDefinition` and
