@@ -82,6 +82,11 @@
                     @L["Network topology"]
                 </FluentCheckbox>
                 <FluentCheckbox Class="environment-map-layer-toggle"
+                                Value="@IncludeDependencyRelationships"
+                                ValueChanged="OnDependencyRelationshipsChanged">
+                    @L["Dependencies"]
+                </FluentCheckbox>
+                <FluentCheckbox Class="environment-map-layer-toggle"
                                 Value="@ShowEnvironmentMapLinkLabels"
                                 ValueChanged="OnLinkLabelsChanged">
                     @L["Relationship labels"]
@@ -487,6 +492,7 @@
     private DotNetObjectReference<EnvironmentPage>? EnvironmentMapReference { get; set; }
     private DateTimeOffset LoadedAt { get; set; }
     private bool IncludeNetworkTopologyOverlay { get; set; } = true;
+    private bool IncludeDependencyRelationships { get; set; }
     private bool ShowEnvironmentMapLinkLabels { get; set; }
 
     private int ReplicaGroupCount => ReplicaGroupRows.Count;
@@ -575,6 +581,13 @@
     private async Task OnNetworkTopologyOverlayChanged(bool enabled)
     {
         IncludeNetworkTopologyOverlay = enabled;
+        EnvironmentMap = CreateEnvironmentMap(Resources, DeploymentRecords, ReplicaGroupRows);
+        await UpdateEnvironmentMapAsync();
+    }
+
+    private async Task OnDependencyRelationshipsChanged(bool enabled)
+    {
+        IncludeDependencyRelationships = enabled;
         EnvironmentMap = CreateEnvironmentMap(Resources, DeploymentRecords, ReplicaGroupRows);
         await UpdateEnvironmentMapAsync();
     }
@@ -737,7 +750,8 @@
                 GetStateClass = ResourceStateDisplay.GetStateClass,
                 GetResourceTypeLabel = GetResourceTypeDisplayName,
                 GetResourceIconName = GetResourceTypeIconName,
-                IncludeNetworkTopologyOverlay = IncludeNetworkTopologyOverlay
+                IncludeNetworkTopologyOverlay = IncludeNetworkTopologyOverlay,
+                IncludeDependencyRelationships = IncludeDependencyRelationships
             });
 
     private sealed record EnvironmentDeploymentRow(

@@ -30,6 +30,9 @@ on `git blame --follow`, and then by the broad type of change.
   extensions, Resource Manager extensions, and provider-owned Resource Manager
   UI contributions can be registered on the UI surface instead of through the
   Control Plane builder.
+- Environment Map now has a separate Dependencies layer toggle, and dependency
+  relationships to container apps resolve to the service node when the
+  container app is rendered as an orchestration service boundary.
 
 ### 2026-06-30
 

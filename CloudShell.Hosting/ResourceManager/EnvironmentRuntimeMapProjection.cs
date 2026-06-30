@@ -364,7 +364,12 @@ public static class EnvironmentRuntimeMapProjection
                 replicaBoundary.NodeIds.Add(replicaGroupNodeId);
             }
 
-            AddResourceRelationshipLinks(resources, links, resourceNodeIds);
+            AddResourceRelationshipLinks(
+                resources,
+                links,
+                resourceNodeIds,
+                serviceNodeIds,
+                options.IncludeDependencyRelationships);
             AddRoutingNodes(
                 resources,
                 deployments,
@@ -1165,26 +1170,60 @@ public static class EnvironmentRuntimeMapProjection
     private static void AddResourceRelationshipLinks(
         IReadOnlyList<Resource> resources,
         IDictionary<string, EnvironmentRuntimeMapLink> links,
-        IReadOnlyDictionary<string, string> resourceNodeIds)
+        IReadOnlyDictionary<string, string> resourceNodeIds,
+        IReadOnlyDictionary<string, string> serviceNodeIds,
+        bool includeDependencyRelationships)
     {
         var resourcesById = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        var resourceRelationshipNodeIds = CreateResourceRelationshipNodeIds(
+            resources,
+            resourceNodeIds,
+            serviceNodeIds);
 
         foreach (var resource in resources)
         {
-            foreach (var dependencyId in resource.DependsOn)
+            if (includeDependencyRelationships)
             {
-                if (resourceNodeIds.TryGetValue(resource.Id, out var sourceNodeId) &&
-                    resourceNodeIds.TryGetValue(dependencyId, out var targetNodeId))
+                foreach (var dependencyId in resource.DependsOn)
                 {
-                    var label = TryGetDatabaseServerResourceId(resource, out var serverResourceId) &&
-                        string.Equals(dependencyId, serverResourceId, StringComparison.OrdinalIgnoreCase)
-                            ? "hosted by"
-                            : "depends on";
+                    if (resourceRelationshipNodeIds.TryGetValue(resource.Id, out var sourceNodeId) &&
+                        resourceRelationshipNodeIds.TryGetValue(dependencyId, out var targetNodeId))
+                    {
+                        var label = TryGetDatabaseServerResourceId(resource, out var serverResourceId) &&
+                            string.Equals(dependencyId, serverResourceId, StringComparison.OrdinalIgnoreCase)
+                                ? "hosted by"
+                                : "depends on";
+                        AddLink(
+                            links,
+                            sourceNodeId,
+                            targetNodeId,
+                            label,
+                            "dependency",
+                            EnvironmentRuntimeArtifactKinds.Resource,
+                            resource.Id,
+                            null,
+                            null,
+                            null);
+                    }
+                }
+
+                foreach (var dependencyId in resource.DependsOn.Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    if (!resourcesById.TryGetValue(dependencyId, out var dependency) ||
+                        !TryGetDatabaseServerResourceId(dependency, out var serverResourceId) ||
+                        resourceRelationshipNodeIds.ContainsKey(dependency.Id) ||
+                        resource.DependsOn.Contains(serverResourceId, StringComparer.OrdinalIgnoreCase) ||
+                        !resourceRelationshipNodeIds.TryGetValue(resource.Id, out var sourceNodeId) ||
+                        !resourceRelationshipNodeIds.TryGetValue(serverResourceId, out var serverNodeId))
+                    {
+                        continue;
+                    }
+
                     AddLink(
                         links,
                         sourceNodeId,
-                        targetNodeId,
-                        label,
+                        serverNodeId,
+                        "uses database on",
                         "dependency",
                         EnvironmentRuntimeArtifactKinds.Resource,
                         resource.Id,
@@ -1192,31 +1231,6 @@ public static class EnvironmentRuntimeMapProjection
                         null,
                         null);
                 }
-            }
-
-            foreach (var dependencyId in resource.DependsOn.Distinct(StringComparer.OrdinalIgnoreCase))
-            {
-                if (!resourcesById.TryGetValue(dependencyId, out var dependency) ||
-                    !TryGetDatabaseServerResourceId(dependency, out var serverResourceId) ||
-                    resourceNodeIds.ContainsKey(dependency.Id) ||
-                    resource.DependsOn.Contains(serverResourceId, StringComparer.OrdinalIgnoreCase) ||
-                    !resourceNodeIds.TryGetValue(resource.Id, out var sourceNodeId) ||
-                    !resourceNodeIds.TryGetValue(serverResourceId, out var serverNodeId))
-                {
-                    continue;
-                }
-
-                AddLink(
-                    links,
-                    sourceNodeId,
-                    serverNodeId,
-                    "uses database on",
-                    "dependency",
-                    EnvironmentRuntimeArtifactKinds.Resource,
-                    resource.Id,
-                    null,
-                    null,
-                    null);
             }
 
             if (!string.IsNullOrWhiteSpace(resource.ParentResourceId) &&
@@ -1236,6 +1250,24 @@ public static class EnvironmentRuntimeMapProjection
                     null);
             }
         }
+    }
+
+    private static Dictionary<string, string> CreateResourceRelationshipNodeIds(
+        IReadOnlyList<Resource> resources,
+        IReadOnlyDictionary<string, string> resourceNodeIds,
+        IReadOnlyDictionary<string, string> serviceNodeIds)
+    {
+        var relationshipNodeIds = new Dictionary<string, string>(resourceNodeIds, StringComparer.OrdinalIgnoreCase);
+        foreach (var resource in resources.Where(IsContainerApplicationResource))
+        {
+            var serviceId = GetContainerApplicationServiceId(resource);
+            if (serviceNodeIds.TryGetValue(serviceId, out var serviceNodeId))
+            {
+                relationshipNodeIds[resource.Id] = serviceNodeId;
+            }
+        }
+
+        return relationshipNodeIds;
     }
 
     private static void AddLink(
@@ -1419,6 +1451,8 @@ public sealed record EnvironmentRuntimeMapReplicaGroup(
 public sealed record EnvironmentRuntimeMapProjectionOptions
 {
     public bool IncludeNetworkTopologyOverlay { get; init; }
+
+    public bool IncludeDependencyRelationships { get; init; }
 
     public Func<string, string> Localize { get; init; } = static value => value;
 

@@ -368,6 +368,7 @@ public sealed class EnvironmentRuntimeMapProjectionTests
             [],
             new EnvironmentRuntimeMapProjectionOptions
             {
+                IncludeDependencyRelationships = true,
                 CreateResourceDetailUrl = resource => $"/resources/{resource.Id}",
                 GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown"
             });
@@ -376,6 +377,52 @@ public sealed class EnvironmentRuntimeMapProjectionTests
             link.Source == $"resource:{api.Id}" &&
             link.Target == $"resource:{sqlServer.Id}" &&
             link.Label == "uses database on" &&
+            link.Kind == "dependency");
+    }
+
+    [Fact]
+    public void Create_ProjectsDependencyRelationshipsToContainerAppServiceNodeWhenEnabled()
+    {
+        var app = CreateContainerApp();
+        var frontend = CreateHttpResource() with
+        {
+            Id = "application.executable:frontend",
+            Name = "frontend",
+            State = ResourceState.Running,
+            DependsOn = [app.Id],
+            DisplayName = "Frontend"
+        };
+
+        var mapWithoutDependencies = EnvironmentRuntimeMapProjection.Create(
+            [frontend, app],
+            [],
+            [],
+            new EnvironmentRuntimeMapProjectionOptions
+            {
+                IncludeDependencyRelationships = false,
+                CreateResourceDetailUrl = resource => $"/resources/{resource.Id}",
+                GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown"
+            });
+        var mapWithDependencies = EnvironmentRuntimeMapProjection.Create(
+            [frontend, app],
+            [],
+            [],
+            new EnvironmentRuntimeMapProjectionOptions
+            {
+                IncludeDependencyRelationships = true,
+                CreateResourceDetailUrl = resource => $"/resources/{resource.Id}",
+                GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown"
+            });
+
+        Assert.DoesNotContain(mapWithoutDependencies.Links, link => link.Kind == "dependency");
+
+        var serviceNode = Assert.Single(mapWithDependencies.Nodes, node =>
+            node.ArtifactKind == EnvironmentRuntimeArtifactKinds.OrchestrationService &&
+            node.ResourceId == app.Id);
+        Assert.Contains(mapWithDependencies.Links, link =>
+            link.Source == $"resource:{frontend.Id}" &&
+            link.Target == serviceNode.Id &&
+            link.Label == "depends on" &&
             link.Kind == "dependency");
     }
 
