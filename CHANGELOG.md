@@ -23,6 +23,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource model sample resource groups now use stable sample names instead of
   POC labels, and SQL database validation now describes the required graph
   server dependency without POC terminology.
+- Resource template, resource definition, provider, and sample guidance now
+  describe the current Resource model migration instead of presenting active
+  guidance as POC-only work.
 
 ### 2026-06-29
 

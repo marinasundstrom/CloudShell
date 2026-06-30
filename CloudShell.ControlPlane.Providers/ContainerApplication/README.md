@@ -17,7 +17,7 @@
 - Shared volume-consumer capability.
 - Start, stop, restart, image-update, and replica-update operation seams with
   an injected provider-owned runtime handler seam. Image and replica seams are
-  POC bridge hooks for accepted graph changes and should be revisited before
+  migration bridge hooks for accepted graph changes and should be revisited before
   deciding which non-lifecycle operations are exposed as resource actions.
 - Typed wrapper plus Resource Manager bridge projection, endpoint projection, and execution.
 - ContainerAppDeployment and ReplicatedContainerHealth sample-inspired graph coverage,
@@ -90,7 +90,7 @@ The ContainerAppDeployment sample also wires this seam to a sample-local
 bridge. It accepts image and replica updates for
 `application.container-app:sample-api` through the existing Resource Manager
 deployment and replicas APIs without registering the old application-provider
-resource. Those operations are adapter hooks for the POC; in the current API
+resource. Those operations are migration adapter hooks; in the current API
 path, deployment and scale remain Control Plane workflows, and the durable
 container runtime provider remains future work.
 

@@ -7,7 +7,7 @@ belong in `CHANGELOG.md`; feature shape belongs in the relevant proposal.
 
 ## Current Refactoring Goal
 
-Finish the Resource Graph POC migration boundary: ResourceDefinition-based
+Finish the Resource model migration boundary: ResourceDefinition-based
 desired state should become the normal Resource Manager create/update/export
 path. The active priority is finishing the switch to the `CloudShell.ResourceModel`
 package family after hosts, samples, tests, UI surfaces, and active solution
@@ -88,7 +88,7 @@ Resource model provider migration.
 
 ## Active Slice
 
-- [x] Revise the graph POC migration plan and keep `docs/roadmap.md`,
+- [x] Revise the Resource model migration plan and keep `docs/roadmap.md`,
   `docs/proposals/README.md`, resource template docs, deployment docs, and
   container app docs aligned around the same architecture story.
 - [x] Add an internal Resource Manager deployment coordinator boundary for
@@ -344,7 +344,7 @@ Resource model provider migration.
   `CloudShell.Providers.Configuration`, or `CloudShell.Providers.Docker`.
 - [x] Rename `CloudShell.ResourceModel*` packages after the migration is
   complete so the new provider stack is presented as the default Resource
-  model implementation rather than as a POC.
+  model implementation rather than as a prototype.
 - [x] Define the Resource Manager apply path for incremental
   `ResourceDefinition` updates: target resolution, provider validation,
   accepted graph-state commit, runtime-planning trigger, diagnostics, and
@@ -492,7 +492,7 @@ preserving old provider seams:
   own how validated resource intent maps to its runtime target, whether that
   target is an executable, container, orchestrator service, database, or other
   managed resource.
-- [ ] Audit POC built-in-provider runtime implementations and move reusable
+- [ ] Audit built-in-provider runtime implementations and move reusable
   or host-shaped implementations behind default runtime integration
   registrations, leaving provider packages dependent only on adapter contracts
   and fakeable abstractions.

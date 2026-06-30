@@ -1,7 +1,7 @@
 # Resource Templates
 
 Resource templates are the user-facing desired-state authoring format for the
-Resource Graph POC. A template is a small envelope around one or more
+Resource model. A template is a small envelope around one or more
 `ResourceDefinition` entries. It is not an orchestrator deployment artifact and
 it is not a second provider-specific template system.
 
@@ -204,5 +204,5 @@ Near-term migration work should:
 - avoid preserving `ResourceDeploymentDefinition` compatibility wrappers unless
   an internal orchestration API still explicitly needs an orchestration-shaped
   DTO
-- document non-parity for old provider templates while the POC is switching
-  samples to the graph path
+- document non-parity for old provider templates while samples finish
+  switching to the graph path

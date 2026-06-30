@@ -604,7 +604,7 @@ public sealed class SampleSmokeTests
             $"/project-reference/resource-graph/resources/{Uri.EscapeDataString(apiResourceId)}/environment-variables",
             """
             {
-              "name": "POC_UPDATE_MARKER",
+              "name": "RESOURCE_UPDATE_MARKER",
               "value": "applied"
             }
             """);

@@ -125,5 +125,5 @@ documented post-switch cleanup item.
   ApplicationTopology sample-local endpoint.
 - Graph-backed environment-variable configuration provider support for
   editable Resource Manager Environment tab projection.
-- First-class graph identity/provisioning projection if the POC proves it belongs in the graph model.
+- First-class graph identity/provisioning projection if Resource model work proves it belongs in the graph model.
 - Container build behavior and editable UI registration/update flow.

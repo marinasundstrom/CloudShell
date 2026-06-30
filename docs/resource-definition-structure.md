@@ -1,7 +1,7 @@
 # Resource Definition Structure
 
 This document describes the common `ResourceDefinition` structure used by the
-Resource Graph POC. It focuses on the interchange shape: the serializer-neutral
+Resource model. It focuses on the interchange shape: the serializer-neutral
 model used by deployments, templates, imports, exports, debug views, and apply
 operations. The current API path is JSON, while YAML is a likely future
 authoring format because it is common for declarative DSLs.
@@ -27,8 +27,8 @@ Implicit root/common resource contract
 The root/common resource contract is a conceptual layer for fields and
 expectations that apply to all graph resources, such as identity, metadata,
 startup dependency references, attributes, capabilities, and operations. The
-POC does not need a concrete `RootResourceDefinition` type yet, but the model
-should treat these common fields as inherited by every class, type, and
+current model does not need a concrete `RootResourceDefinition` type yet, but
+it should treat these common fields as inherited by every class, type, and
 resource.
 
 `ResourceClassDefinition` defines broad shared expectations for a class of
@@ -69,7 +69,7 @@ as explicit fields:
 }
 ```
 
-The POC should not choose this prematurely. Whatever convention is selected
+The model should not choose this prematurely. Whatever convention is selected
 for JSON, YAML, or another authoring format, the graph should resolve it into
 explicit IDs and versions before validation.
 
@@ -100,7 +100,7 @@ of the authored contract.
 
 ## Resource Templates
 
-The graph POC currently has `ResourceTemplate` as a small grouping of
+The current graph model has `ResourceTemplate` as a small grouping of
 `ResourceDefinition` values that can be validated and applied together. It is
 intentionally narrow.
 
@@ -160,7 +160,7 @@ and replica group it controls.
 
 ## Template Export And Import
 
-The graph POC exports graph-backed Resource Manager resources as
+The current graph path exports graph-backed Resource Manager resources as
 `ResourceTemplate` values containing `ResourceDefinition` entries. It imports
 the same shape through the graph apply path. The template is desired resource
 state, not an orchestrator deployment artifact.
@@ -252,10 +252,10 @@ ID convention.
 
 For existing resources, `resourceId`, `typeId`, and `name` are identity fields.
 Applying a definition should not silently change them. If a definition targets
-an existing resource by `resourceId` but supplies a different `name`, the POC
-rejects the change instead of treating it as a rename. A future explicit
-rename or change-identity operation can add warnings, reference updates, and
-provider checks when there is a concrete use case.
+an existing resource by `resourceId` but supplies a different `name`, the
+current apply path rejects the change instead of treating it as a rename. A
+future explicit rename or change-identity operation can add warnings,
+reference updates, and provider checks when there is a concrete use case.
 
 The model may eventually support configurable ID or naming schemes, including
 schemes that encode other logical relationships. That should be an extension

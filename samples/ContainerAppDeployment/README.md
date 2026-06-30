@@ -48,7 +48,7 @@ Resource Manager adapter. The current sample keeps those declarations
 host-bound; durable deployment/import semantics are deferred to the later
 deployment-definition work.
 
-## Resource model POC coverage
+## Resource model migration coverage
 
 The sample no longer declares the old application/Docker provider resources.
 The deployment and replica APIs update the Resource graph resource directly and
@@ -115,7 +115,7 @@ POST /api/container-apps/v1/{containerAppId}/deployments
 with a new image tag. The `application.container-app:sample-api` path uses the
 same API to apply `container.image` and optional `container.replicas` changes
 into the Resource graph before executing the sample-local image-update runtime
-bridge. This is a POC bridge for accepted graph changes; in the current API
+bridge. This is a migration bridge for accepted graph changes; in the current API
 path, image upload and deployment creation remain Control Plane workflows.
 The app also supports the existing:
 
