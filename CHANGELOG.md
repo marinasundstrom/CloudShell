@@ -187,6 +187,14 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource template, resource definition, provider, and sample guidance now
   describe the current Resource model migration instead of presenting active
   guidance as POC-only work.
+- Container app, SQL Server, DNS, Traefik/load-balancer, and generic local
+  executable runtime adapters now own more of the local sample runtime
+  materialization path, moving the remaining reusable bridges and descriptor
+  providers out of sample projects while keeping sample-specific providers
+  isolated.
+- Sample smoke tests now serialize only the process/Docker-backed
+  `Sample smoke tests` xUnit collection; recording-runner adapter tests remain
+  parallel-safe and no longer inherit an assembly-wide parallelization lock.
 
 ### 2026-06-29
 

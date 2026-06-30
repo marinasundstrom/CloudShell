@@ -56,6 +56,13 @@ belongs in `CHANGELOG.md`.
    Tests that launch external executables, run sample hosts, or depend on
    mutable sample project layout are marked with `Category=Integration`. Tests
    that require a live Docker daemon also carry `Category=DockerIntegration`.
+   The sample-host smoke tests are assigned to the serialized
+   `Sample smoke tests` xUnit collection because they bind local ports, start
+   child processes, mutate sample data directories, write temporary runtime
+   files, and may create fixed-name Docker containers or compose projects.
+   Sample adapter tests that use recording runners, in-memory graphs, and
+   unique temporary directories do not need that collection and are safe to run
+   in parallel with ordinary unit tests.
    Exclude executable-backed integration tests from routine local runs with:
 
    ```bash

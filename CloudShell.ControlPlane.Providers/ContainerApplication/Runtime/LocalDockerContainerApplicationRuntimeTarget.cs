@@ -1,16 +1,14 @@
-using CloudShell.ResourceModel;
-using CloudShell.ControlPlane.Providers;
 using CloudShell.Abstractions.ResourceManager;
 using GraphResource = CloudShell.ResourceModel.Resource;
 
-internal sealed class ReplicatedContainerHealthContainerAppRuntimeTarget(
-    IReplicatedContainerHealthContainerAppRuntimeBridge bridge) :
+namespace CloudShell.ControlPlane.Providers;
+
+public sealed class LocalDockerContainerApplicationRuntimeTarget(
+    ILocalDockerContainerApplicationRuntimeBridge bridge) :
     IContainerApplicationRuntimeTarget
 {
-    private const string ApiResourceId = "application.container-app:api";
-
     public bool CanHandle(GraphResource resource) =>
-        string.Equals(resource.EffectiveResourceId, ApiResourceId, StringComparison.OrdinalIgnoreCase);
+        bridge.CanHandle(resource);
 
     public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource) =>
         bridge.GetStatus(resource);

@@ -18,7 +18,7 @@ The resource graph declares:
 - `mapping:api-public`: a mapping from the virtual network endpoint to the API
   endpoint through `cloudshell.hostNetworking.local:host-local`.
 - `cloudshell.dnsZone:sample-vnet-internal`: a private DNS zone using the
-  sample-local CoreDNS zone-file provider.
+  provider-owned CoreDNS zone-file publishing adapter.
 - `cloudshell.nameMapping:api-internal` and
   `cloudshell.nameMapping:worker-internal`: private names mapped to the
   service-specific virtual-network IP addresses.

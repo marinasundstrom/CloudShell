@@ -492,7 +492,7 @@ or name-mapping model.
 The HostVirtualNetwork sample demonstrates the manual version of this model:
 services declare virtual-network-private endpoint mappings with distinct IP
 addresses, DNS name mappings point at those private endpoints, and a
-sample-local CoreDNS zone-file provider writes resolver configuration. This
+provider-owned CoreDNS zone-file publisher writes resolver configuration. This
 proves the resource model shape before CloudShell adds automatic virtual IP
 allocation or default service-discovery name generation.
 

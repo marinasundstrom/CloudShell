@@ -93,7 +93,7 @@ public static class SqlServerResourceTypeServiceCollectionExtensions
             ProcessLocalSqlServerDockerCommandRunner>();
         services.TryAddSingleton<
             ILocalSqlServerReadinessProbe,
-            NoopLocalSqlServerReadinessProbe>();
+            ResourceModelSqlServerReadinessProbe>();
         services.Replace(ServiceDescriptor.Singleton<
             ISqlServerRuntimeHandler,
             LocalSqlServerDockerRuntimeHandler>());

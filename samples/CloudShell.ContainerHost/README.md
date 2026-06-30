@@ -13,7 +13,7 @@ CloudShell has two usage modes:
 
 The storage graph is intentionally explicit. The storage resource announces
 the `FileSystem` medium. The SQL data volume depends on that storage resource
-and projects the same medium. The sample-local Docker runtime bridge
+and projects the same medium. The provider-owned local SQL Server Docker runtime
 materializes that `FileSystem` volume as a bind mount when SQL Server starts.
 
 ## Resource graph coverage
@@ -30,17 +30,14 @@ The sample declares Resource Definitions-backed resources:
 Those resources prove projection, storage/volume attributes, typed storage
 dependency, and volume-consumer capability shape.
 
-The SQL Server lifecycle operations use a sample-local Docker bridge.
-That bridge resolves the mounted CloudShell volume and its storage parent from
-the graph, creates the storage-backed host directory, and starts the SQL Server
-container with a bind mount. Focused Docker smoke coverage starts, restarts,
-and stops the SQL resource through Resource Manager and verifies the
-storage-backed volume directory is created. The bridge also removes Docker's
-failed-created container and retries once when a newly-created bind-mount path
-is not immediately visible to the Docker daemon. This is intentionally a
-ContainerHost sample seam: durable provider-backed storage materialization,
-usage tracking, and generalized Docker host placement remain deferred until the
-provider ports need them.
+The SQL Server lifecycle operations use the provider-owned local SQL Server
+Docker runtime adapter. That adapter resolves the mounted CloudShell volume and
+its storage parent from the graph, creates the storage-backed host directory,
+and starts the SQL Server container with a bind mount. Focused Docker smoke
+coverage starts, restarts, and stops the SQL resource through Resource Manager
+and verifies the storage-backed volume directory is created. The adapter also
+removes Docker's failed-created container and retries once when a newly-created
+bind-mount path is not immediately visible to the Docker daemon.
 
 The sample now declares only the storage, volume, and SQL Server resources and
 uses the provider-owned local SQL Server Docker runtime for lifecycle operations. The old

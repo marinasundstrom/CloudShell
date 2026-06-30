@@ -34,12 +34,12 @@ The sample declares only Resource Definitions-backed resources:
   health check, and `/alive` liveness check.
 
 The old `application:api` and old Docker provider records are no longer
-declared. Starting the container app uses the provider-owned local
-container-app command runner with a sample-local Docker/Traefik runtime bridge
-that builds the API image, starts replica containers, starts the sample-owned
-Traefik ingress container, and removes those containers on stop. Image and
-replica updates are applied through ResourceDefinition changes and then
-delegated through the container-app runtime operation seam.
+declared. Starting the container app uses the provider-owned local Docker
+container-app runtime adapter. It builds the API image, starts replica
+containers, starts the sample-owned Traefik ingress container, projects hidden
+runtime replicas, and removes those containers on stop. Image and replica
+updates are applied through ResourceDefinition changes and then delegated
+through the container-app runtime operation seam.
 
 The app declares cookie session affinity with the `CloudShellReplica` cookie.
 The current sample projects that setting into the orchestrator service routing
@@ -55,15 +55,13 @@ for reaching the host machine.
 
 ## Runtime Seams
 
-These implementation seams remain temporary and should be swept when the
-provider runtime is moved out of the sample:
+These implementation seams remain temporary while the durable orchestrator is
+being designed:
 
-- `ReplicatedContainerHealthContainerAppRuntimeBridge` is the
-  sample-local Docker/Traefik runtime bridge. The command runner it uses now
-  lives in the container-app provider; the Docker/Traefik materialization
-  behavior should move into the durable container-app provider runtime or be
-  replaced by that runtime.
-- `ReplicatedContainerHealthRuntimeResourceProvider` projects hidden
+- `LocalDockerContainerApplicationRuntimeBridge` is the
+  provider-owned local Docker/Traefik runtime bridge. It is reusable local
+  development plumbing, not the final container-app orchestrator.
+- `LocalDockerContainerApplicationRuntimeResourceProvider` projects hidden
   runtime-managed replica resources through the existing flat
   `IResourceProvider` adapter. The future provider contract should distinguish
   top-level resources from optional runtime/sub-resource projections.

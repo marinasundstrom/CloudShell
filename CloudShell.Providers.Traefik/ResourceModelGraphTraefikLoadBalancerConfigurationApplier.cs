@@ -7,9 +7,9 @@ using ResourceModelResource = CloudShell.ResourceModel.Resource;
 using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
 using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 
-namespace CloudShell.LoadBalancer;
+namespace CloudShell.Providers.Traefik;
 
-public sealed class LoadBalancerGraphTraefikConfigurationApplier(
+public sealed class ResourceModelGraphTraefikLoadBalancerConfigurationApplier(
     TraefikLoadBalancerProvider provider) : ILoadBalancerConfigurationApplier
 {
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyConfigurationAsync(

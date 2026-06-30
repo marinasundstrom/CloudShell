@@ -134,6 +134,9 @@ public sealed class SampleSmokeRuntimeCleanupFixture : IAsyncLifetime
 [Trait("Category", "Integration")]
 public sealed class SampleSmokeTests
 {
+    // Sample host smoke tests are serialized because they launch processes,
+    // reserve local ports, write sample data paths, and may create fixed-name
+    // Docker resources. Recording-runner adapter tests can stay parallel.
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(90);
     private static readonly TimeSpan SampleHostLaunchTimeout = TimeSpan.FromMinutes(3);
 
@@ -3785,7 +3788,7 @@ public sealed class SampleSmokeTests
                 Enumerable.Range(1, expectedReplicas).All(replica =>
                     lastHtml.Contains($"api replica {replica.ToString(CultureInfo.InvariantCulture)}", StringComparison.OrdinalIgnoreCase) &&
                     lastHtml.Contains(
-                        ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica),
+                        LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(replica),
                         StringComparison.OrdinalIgnoreCase)))
             {
                 return;
@@ -3816,7 +3819,7 @@ public sealed class SampleSmokeTests
 
             foreach (var replica in Enumerable.Range(1, expectedReplicas))
             {
-                var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
+                var replicaResourceId = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica);
                 try
                 {
                     lastSnapshotJson = await host.GetStringAsync(
@@ -3902,11 +3905,11 @@ public sealed class SampleSmokeTests
 
         return string.Equals(
                 resource.GetProperty("id").GetString(),
-                ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica),
+                LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica),
                 StringComparison.OrdinalIgnoreCase) &&
             string.Equals(
                 attributes.GetProperty(ResourceAttributeNames.RuntimeContainerName).GetString(),
-                ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica),
+                LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(replica),
                 StringComparison.OrdinalIgnoreCase) &&
             attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString() == replicaText &&
             attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaCount).GetString() == replicaCountText;
@@ -3938,7 +3941,7 @@ public sealed class SampleSmokeTests
                     string.Equals(observation.GetProperty("scopeKind").GetString(), "runtime", StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(
                         observation.GetProperty("resourceId").GetString(),
-                        ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica),
+                        LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica),
                         StringComparison.OrdinalIgnoreCase) &&
                     observation.GetProperty("attributes").GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString() == replicaOrdinal))
             {
@@ -3989,7 +3992,7 @@ public sealed class SampleSmokeTests
         int replica,
         int replicaCount = 3)
     {
-        var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
+        var replicaResourceId = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica);
         var environment = await DockerComposeStack.GetContainerEnvironmentAsync(containerName);
         Assert.Contains($"CLOUDSHELL_RESOURCE_ID={replicaResourceId}", environment);
         Assert.Contains($"CLOUDSHELL_REPLICA_ORDINAL={replica.ToString(CultureInfo.InvariantCulture)}", environment);
@@ -4006,7 +4009,7 @@ public sealed class SampleSmokeTests
             environment,
             variable => variable.StartsWith("OTEL_RESOURCE_ATTRIBUTES=", StringComparison.Ordinal));
         Assert.Contains($"cloudshell.resource.id={replicaResourceId}", resourceAttributes);
-        Assert.Contains($"telemetry.scope.resourceId={ReplicatedContainerHealthRuntimeConventions.ApiResourceId}", resourceAttributes);
+        Assert.Contains($"telemetry.scope.resourceId={LocalDockerContainerApplicationRuntimeConventions.ApiResourceId}", resourceAttributes);
         Assert.Contains($"telemetry.scope.name=Replica {replica.ToString(CultureInfo.InvariantCulture)}", resourceAttributes);
         Assert.Contains("telemetry.scope.kind=runtime", resourceAttributes);
         Assert.Contains($"runtime.replica.ordinal={replica.ToString(CultureInfo.InvariantCulture)}", resourceAttributes);
@@ -4018,7 +4021,7 @@ public sealed class SampleSmokeTests
         int replica,
         TimeSpan timeout)
     {
-        var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
+        var replicaResourceId = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica);
         var metrics = await WaitForMetricPointsAsync(
             host,
             replicaResourceId,
@@ -4028,7 +4031,7 @@ public sealed class SampleSmokeTests
                 point.GetProperty("resourceId").GetString() == replicaResourceId &&
                 point.TryGetProperty("attributes", out var attributes) &&
                 attributes.TryGetProperty("telemetry.scope.resourceId", out var scopeResourceId) &&
-                scopeResourceId.GetString() == ReplicatedContainerHealthRuntimeConventions.ApiResourceId));
+                scopeResourceId.GetString() == LocalDockerContainerApplicationRuntimeConventions.ApiResourceId));
         Assert.NotEmpty(metrics);
     }
 
@@ -4044,7 +4047,7 @@ public sealed class SampleSmokeTests
             lastErrors.Clear();
             for (var replica = 1; replica <= expectedReplicas; replica++)
             {
-                var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
+                var replicaResourceId = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica);
                 try
                 {
                     var spans = await WaitForTraceSpansByResourceAsync(
@@ -4082,7 +4085,7 @@ public sealed class SampleSmokeTests
             return false;
         }
 
-        return scopeResourceId.GetString() == ReplicatedContainerHealthRuntimeConventions.ApiResourceId &&
+        return scopeResourceId.GetString() == LocalDockerContainerApplicationRuntimeConventions.ApiResourceId &&
             replicaOrdinal.GetString() == replica.ToString(CultureInfo.InvariantCulture);
     }
 
@@ -4090,7 +4093,7 @@ public sealed class SampleSmokeTests
         SampleProcess host,
         int replica)
     {
-        var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
+        var replicaResourceId = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica);
         var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var runtimeReplica = Assert.Single(
@@ -4111,7 +4114,7 @@ public sealed class SampleSmokeTests
 
         var attributes = observability.GetProperty("attributes");
         Assert.Equal(
-            ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
+            LocalDockerContainerApplicationRuntimeConventions.ApiResourceId,
             attributes.GetProperty("telemetry.scope.resourceId").GetString());
         Assert.Equal(
             replica.ToString(CultureInfo.InvariantCulture),
@@ -4119,7 +4122,7 @@ public sealed class SampleSmokeTests
 
         var scope = Assert.Single(observability.GetProperty("scopes").EnumerateArray());
         Assert.Equal(
-            ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
+            LocalDockerContainerApplicationRuntimeConventions.ApiResourceId,
             scope.GetProperty("scopeResourceId").GetString());
         Assert.Equal($"Replica {replica.ToString(CultureInfo.InvariantCulture)}", scope.GetProperty("name").GetString());
         Assert.Equal("runtime", scope.GetProperty("kind").GetString());

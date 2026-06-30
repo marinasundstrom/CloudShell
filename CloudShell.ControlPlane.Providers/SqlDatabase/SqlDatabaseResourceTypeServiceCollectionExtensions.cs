@@ -43,4 +43,16 @@ public static class SqlDatabaseResourceTypeServiceCollectionExtensions
 
         return services;
     }
+
+    public static IServiceCollection AddResourceModelSqlDatabaseCreationHandler(
+        this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.Replace(ServiceDescriptor.Singleton<
+            ISqlDatabaseCreationHandler,
+            ResourceModelSqlDatabaseCreationHandler>());
+
+        return services;
+    }
 }

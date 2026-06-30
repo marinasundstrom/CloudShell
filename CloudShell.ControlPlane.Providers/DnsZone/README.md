@@ -21,6 +21,8 @@
 - Opt-in `ResourceModelGraphDnsZoneNameMappingReconciler` that projects graph
   DNS zone and name-mapping resources to the Resource Manager name-publishing
   provider contract.
+- Opt-in `CoreDnsZoneFilePublishingProvider` that writes CoreDNS zone files
+  from Resource model name mappings for local virtual-network samples.
 - LoadBalancer sample graph DNS zone coverage beside the legacy
   local-hostnames zone.
 - LoadBalancer and HostVirtualNetwork coverage that delegates graph name
@@ -28,13 +30,14 @@
 
 ## Switch-over status
 
-Ready as a supporting graph resource for the LoadBalancer graph-default sample
-path. The switch scope covers DNS zone declaration, graph name-mapping
-reconciliation through the provider-owned graph reconciler, and Resource Manager projection
-without old DNS zone records. General DNS publisher ownership, materialization
-views, conflict diagnostics, and UI flows remain post-switch work.
+Ready as a supporting graph resource for the LoadBalancer and HostVirtualNetwork
+graph-default sample paths. The switch scope covers DNS zone declaration,
+graph name-mapping reconciliation through the provider-owned graph reconciler,
+local-host and CoreDNS file publishing adapters, and Resource Manager
+projection without old DNS zone records. Materialization views, conflict
+diagnostics, and UI flows remain post-switch work.
 
 ## Remaining
 
 - Record/conflict/materialization views as capability members or operation plans.
-- DNS publisher integration and UI registration/update flow.
+- DNS UI registration/update flow.

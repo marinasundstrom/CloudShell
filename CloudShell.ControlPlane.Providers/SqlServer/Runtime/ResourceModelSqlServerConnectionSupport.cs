@@ -1,12 +1,13 @@
 using CloudShell.ResourceModel;
 using CloudShell.ControlPlane.Providers;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
 using System.Diagnostics;
 using System.Globalization;
 
-namespace CloudShell.ApplicationTopologyHost;
+namespace CloudShell.ControlPlane.Providers;
 
-internal static class ResourceModelSqlServerConnectionSupport
+public static class ResourceModelSqlServerConnectionSupport
 {
     private static readonly TimeSpan ConnectionRetryTimeout = TimeSpan.FromSeconds(90);
     private static readonly TimeSpan ConnectionRetryDelay = TimeSpan.FromSeconds(1);
@@ -26,7 +27,7 @@ internal static class ResourceModelSqlServerConnectionSupport
             return false;
         }
 
-        var password = configuration["ApplicationTopology:SqlServer:Password"] ??
+        var password = configuration[SqlServerResourceDefaults.AdministratorPasswordConfigurationKey] ??
             SqlServerResourceDefaults.AdministratorPassword;
         if (string.IsNullOrWhiteSpace(password))
         {

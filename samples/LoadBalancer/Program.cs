@@ -5,13 +5,11 @@ using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
-using CloudShell.LoadBalancer;
 using CloudShell.Providers.Traefik;
 using CloudShell.ResourceModel;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.Providers.UI;
 using CloudShell.ControlPlane.ResourceModel;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
@@ -102,8 +100,6 @@ builder.Services
     .AddNameMappingResourceType()
     .AddBuiltInResourceModelRuntimeAdapters();
 cloudShell.UseResourceGraphIntegration();
-builder.Services.Replace(
-    ServiceDescriptor.Singleton<ILoadBalancerConfigurationApplier, LoadBalancerGraphTraefikConfigurationApplier>());
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

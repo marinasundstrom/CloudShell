@@ -341,9 +341,13 @@ Resource model provider migration.
   live in the combined host surface that composes both sides.
 - [x] Remove legacy provider project references from remaining samples where
   built-in Resource model providers already cover the scenario.
-- [ ] Move any remaining sample-local gaps behind Resource model
+- [x] Move reusable sample-local gaps behind Resource model
   provider-owned runtime seams instead of keeping the old provider projects
-  installed for general host behavior.
+  installed for general host behavior. The current pass moved container app
+  local Docker runtime projection, Traefik load-balancer configuration,
+  CoreDNS zone-file publishing, fixed local executable orchestration
+  descriptors, and SQL Server/database runtime helpers into provider-owned
+  adapters while leaving scenario-specific sample providers in place.
 - [x] Delete the old provider implementation folders once no active host,
   sample, or test requires `CloudShell.Providers.Applications`,
   `CloudShell.Providers.Configuration`, or `CloudShell.Providers.Docker`.
@@ -375,9 +379,9 @@ the graph-backed tests that cover the same resource path.
   project references/usings after the Resource model sample migration,
   remove them, and run ApplicationTopology graph smoke coverage.
 - [x] `samples/CloudShell.ContainerHost` referenced the old Docker
-  provider project. Verify whether the sample-local Docker bridge already
-  covers the runtime behavior, remove the stale dependency, and run
-  ContainerHost graph smoke coverage.
+  provider project. The provider-owned local SQL Server Docker runtime now
+  covers the runtime behavior, the stale dependency has been removed, and
+  ContainerHost graph smoke coverage verifies the path.
 - [x] `CloudShell.Abstractions.Tests` contained broad tests for the old
   provider model. Move behavior that must survive to
   `CloudShell.ResourceModel.Tests` or sample tests, then delete tests

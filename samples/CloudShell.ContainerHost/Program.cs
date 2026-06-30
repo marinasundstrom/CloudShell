@@ -47,7 +47,6 @@ cloudShell.DefineResources(resources =>
         .MountVolume(volumeResource, "/var/opt/mssql");
 });
 builder.Services
-    .AddSingleton<IResourceOrchestrationDescriptorProvider, ContainerHostSqlServerOrchestrationDescriptorProvider>()
     .AddStorageBackedSqlServerResourceTypes()
     .AddLocalSqlServerDockerRuntime(options =>
         options.AddServer(
@@ -56,7 +55,11 @@ builder.Services
             runtime =>
             {
                 runtime.PasswordConfigurationKey = "ContainerHost:SqlServer:Password";
-            }));
+            }))
+    .AddLocalExecutableResourceOrchestrationDescriptors(options =>
+        options.AddResource(
+            sqlServerResourceId,
+            "container-host.sql-runtime.v1"));
 cloudShell.UseResourceGraphIntegration();
 
 cloudShell

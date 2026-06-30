@@ -1,10 +1,11 @@
 using CloudShell.ResourceModel;
 using CloudShell.ControlPlane.Providers;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
 
-namespace CloudShell.ApplicationTopologyHost;
+namespace CloudShell.ControlPlane.Providers;
 
-internal sealed class ResourceModelSqlDatabaseCreationHandler(
+public sealed class ResourceModelSqlDatabaseCreationHandler(
     IConfiguration configuration) : ISqlDatabaseCreationHandler
 {
     private readonly IConfiguration _configuration =

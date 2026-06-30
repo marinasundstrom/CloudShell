@@ -84,7 +84,8 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
     ["Authentication:BuiltInAuthority:Enabled"] = "true",
     ["Authentication:BuiltInAuthority:Issuer"] = identityIssuer,
     ["Authentication:BuiltInAuthority:Audience"] = identityAudience,
-    ["Authentication:BuiltInAuthority:SigningKeyPem"] = identitySigningKeyPem
+    ["Authentication:BuiltInAuthority:SigningKeyPem"] = identitySigningKeyPem,
+    [SqlServerResourceDefaults.AdministratorPasswordConfigurationKey] = sqlPassword
 });
 
 var cloudShell = builder.AddCloudShell();
@@ -277,9 +278,6 @@ cloudShell.DefineResources(resources =>
             configure: mapping => mapping.WithResourceGroup(resourceGroupId));
 }, AddGraphProjectionState);
 builder.Services
-    .AddSingleton<ISqlDatabaseCreationHandler, ResourceModelSqlDatabaseCreationHandler>()
-    .AddSingleton<ILocalSqlServerReadinessProbe, ApplicationTopologySqlServerReadinessProbe>()
-    .AddSingleton<IResourceOrchestrationDescriptorProvider, ApplicationTopologyResourceModelSqlServerOrchestrationDescriptorProvider>()
     .AddStorageBackedSqlServerResourceTypes()
     .AddLocalSqlServerDockerRuntime(options =>
         options.AddServer(
@@ -287,10 +285,15 @@ builder.Services
             sqlServerContainerName,
             runtime =>
             {
-                runtime.PasswordConfigurationKey = "ApplicationTopology:SqlServer:Password";
+                runtime.PasswordConfigurationKey = SqlServerResourceDefaults.AdministratorPasswordConfigurationKey;
                 runtime.WaitUntilReady = true;
             }))
+    .AddLocalExecutableResourceOrchestrationDescriptors(options =>
+        options.AddResource(
+            sqlServerResourceId,
+            "application-topology.resource-model-sql-runtime.v1"))
     .AddSqlDatabaseResourceType()
+    .AddResourceModelSqlDatabaseCreationHandler()
     .AddConfigurationStoreResourceType(options =>
     {
         options.ServiceProjectPath = configurationStoreServiceProjectPath;

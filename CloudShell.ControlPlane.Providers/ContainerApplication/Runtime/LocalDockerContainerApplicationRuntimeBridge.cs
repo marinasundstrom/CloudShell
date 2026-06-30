@@ -1,33 +1,25 @@
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ResourceModel;
-using CloudShell.ControlPlane.Providers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using GraphResource = CloudShell.ResourceModel.Resource;
 
-internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
+namespace CloudShell.ControlPlane.Providers;
+
+public sealed class LocalDockerContainerApplicationRuntimeBridge(
     ILocalContainerApplicationCommandRunner commandRunner,
+    IOptions<LocalDockerContainerApplicationRuntimeOptions> options,
     IConfiguration configuration,
-    IHostEnvironment? hostEnvironment = null,
-    string? traceIngestEndpoint = null,
-    string? metricIngestEndpoint = null) : IReplicatedContainerHealthContainerAppRuntimeBridge
+    IHostEnvironment? hostEnvironment = null) : ILocalDockerContainerApplicationRuntimeBridge
 {
-    private const string DefaultProjectPath = "samples/ReplicatedContainerHealth/Api/CloudShell.ReplicatedContainerHealth.Api.csproj";
-    private const string DefaultContainerNetworkName = "cloudshell";
-    private const string DefaultIngressImage = "traefik:v3.0";
     private const string ReplicaGroupLabel = "cloudshell.replica-group-id";
     private const string RuntimeRevisionLabel = "cloudshell.runtime-revision-id";
-    private readonly string _projectPath = hostEnvironment is null
-        ? DefaultProjectPath
-        : Path.Combine(hostEnvironment.ContentRootPath, "Api", "CloudShell.ReplicatedContainerHealth.Api.csproj");
-    private readonly string _ingressConfigurationDirectory = hostEnvironment is null
-        ? Path.Combine("samples", "ReplicatedContainerHealth", "Data", "runtime-ingress")
-        : Path.Combine(hostEnvironment.ContentRootPath, "Data", "runtime-ingress");
+    private readonly LocalDockerContainerApplicationRuntimeOptions options = options.Value;
     private readonly object _statusGate = new();
     private readonly TimeSpan _statusProbeTimeout = TimeSpan.FromMilliseconds(
         configuration.GetValue<int?>("ReplicatedContainerHealth:RuntimeStatusProbeTimeoutMilliseconds") ?? 1_000);
@@ -36,27 +28,32 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
     private readonly int _replicaCleanupLimit = Math.Max(
         1,
         configuration.GetValue<int?>("ReplicatedContainerHealth:RuntimeReplicaCleanupLimit") ?? 10);
-    private readonly string? _traceIngestEndpoint =
-        FirstNonEmpty(traceIngestEndpoint, configuration["Observability:TraceIngestEndpoint"]);
-    private readonly string? _metricIngestEndpoint =
-        FirstNonEmpty(metricIngestEndpoint, configuration["Observability:MetricIngestEndpoint"]);
     private ContainerApplicationRuntimeStatus? _cachedStatus;
     private ContainerApplicationRuntimeStatus? _lastStableStatus;
     private DateTimeOffset _cachedStatusTimestamp;
 
+    public bool CanHandle(GraphResource resource) =>
+        TryResolveDefinition(resource, out _);
+
     public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource)
     {
+        if (!TryResolveDefinition(resource, out var definition))
+        {
+            return ContainerApplicationRuntimeStatus.Unknown;
+        }
+
         var now = DateTimeOffset.UtcNow;
+        var statusCacheDuration = definition.StatusCacheDuration ?? _statusCacheDuration;
         lock (_statusGate)
         {
             if (_cachedStatus is not null &&
-                now - _cachedStatusTimestamp <= _statusCacheDuration)
+                now - _cachedStatusTimestamp <= statusCacheDuration)
             {
                 return _cachedStatus.Value;
             }
         }
 
-        var probe = ResolveStatus(resource);
+        var probe = ResolveStatus(resource, definition);
         var status = probe.Status;
         lock (_statusGate)
         {
@@ -76,11 +73,14 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         return status;
     }
 
-    private RuntimeStatusProbeResult ResolveStatus(GraphResource resource)
+    private RuntimeStatusProbeResult ResolveStatus(
+        GraphResource resource,
+        LocalDockerContainerApplicationRuntimeDefinition definition)
     {
         var replicas = ResolveReplicas(resource);
         var running = 0;
         var stopped = 0;
+        var statusProbeTimeout = definition.StatusProbeTimeout ?? _statusProbeTimeout;
 
         for (var replica = 1; replica <= replicas; replica++)
         {
@@ -91,10 +91,10 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
                     "inspect",
                     "--format",
                     "{{.State.Status}}",
-                    ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica)
+                    LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(definition, replica)
                 ],
                 throwOnError: false,
-                timeout: _statusProbeTimeout);
+                timeout: statusProbeTimeout);
             if (result.ExitCode == LocalContainerApplicationCommandResult.TimeoutExitCode)
             {
                 return RuntimeStatusProbeResult.Transient();
@@ -136,26 +136,27 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default)
     {
+        var definition = ResolveDefinition(resource);
         try
         {
             switch (operationId.ToString())
             {
                 case ResourceActionIds.Start:
-                    await StartAsync(resource, cancellationToken);
+                    await StartAsync(definition, resource, cancellationToken);
                     ClearStatusCache();
                     break;
                 case ResourceActionIds.Stop:
-                    await RemoveAsync(resource, cancellationToken);
+                    await RemoveAsync(definition, resource, cancellationToken);
                     ClearStatusCache();
                     break;
                 case ResourceActionIds.Restart:
-                    await RemoveAsync(resource, cancellationToken);
-                    await StartAsync(resource, cancellationToken, cleanExistingReplicas: false);
+                    await RemoveAsync(definition, resource, cancellationToken);
+                    await StartAsync(definition, resource, cancellationToken, cleanExistingReplicas: false);
                     ClearStatusCache();
                     break;
                 default:
                     throw new NotSupportedException(
-                        $"The ReplicatedContainerHealth sample does not map graph operation '{operationId}' to the sample container runtime.");
+                        $"The local Docker container application runtime does not map graph operation '{operationId}' to a runtime operation.");
             }
 
             return [];
@@ -170,11 +171,13 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         GraphResource resource,
         CancellationToken cancellationToken = default)
     {
+        var definition = ResolveDefinition(resource);
         try
         {
             var desiredReplicas = ResolveReplicas(resource);
             var inspectedReplicas = await InspectReplicasAsync(
-                Math.Max(desiredReplicas, _replicaCleanupLimit),
+                definition,
+                Math.Max(desiredReplicas, ResolveReplicaCleanupLimit(definition, resource)),
                 cancellationToken);
             if (!inspectedReplicas.Any(replica => IsMaterialized(replica.Status)))
             {
@@ -182,8 +185,8 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             }
 
             var image = ResolveImage(resource);
-            await PublishImageAsync(image, cancellationToken);
-            await EnsureContainerNetworkAsync(cancellationToken);
+            await PublishImageAsync(definition, image, cancellationToken);
+            await EnsureContainerNetworkAsync(definition, cancellationToken);
 
             for (var replica = 1; replica <= desiredReplicas; replica++)
             {
@@ -191,16 +194,17 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
                     RuntimeContainerStatus.Missing;
                 if (IsMaterialized(status))
                 {
-                    await RemoveReplicaAsync(replica, cancellationToken);
+                    await RemoveReplicaAsync(definition, replica, cancellationToken);
                 }
 
                 await commandRunner.RunAsync(
                     "docker",
-                    CreateRunArguments(resource, image, replica),
+                    CreateRunArguments(definition, resource, image, replica),
                     cancellationToken);
             }
 
             await StartIngressAsync(
+                definition,
                 resource,
                 cancellationToken,
                 createWhenMissing: desiredReplicas > 1);
@@ -209,7 +213,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
                          .Where(candidate => candidate.Ordinal > desiredReplicas && IsMaterialized(candidate.Status))
                          .OrderByDescending(candidate => candidate.Ordinal))
             {
-                await RemoveReplicaAsync(replica.Ordinal, cancellationToken);
+                await RemoveReplicaAsync(definition, replica.Ordinal, cancellationToken);
             }
 
             ClearStatusCache();
@@ -234,11 +238,13 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         GraphResource resource,
         CancellationToken cancellationToken = default)
     {
+        var definition = ResolveDefinition(resource);
         try
         {
             var desiredReplicas = ResolveReplicas(resource);
             var inspectedReplicas = await InspectReplicasAsync(
-                Math.Max(desiredReplicas, _replicaCleanupLimit),
+                definition,
+                Math.Max(desiredReplicas, ResolveReplicaCleanupLimit(definition, resource)),
                 cancellationToken);
             if (!inspectedReplicas.Any(replica => IsMaterialized(replica.Status)))
             {
@@ -246,7 +252,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             }
 
             var image = ResolveImage(resource);
-            await EnsureContainerNetworkAsync(cancellationToken);
+            await EnsureContainerNetworkAsync(definition, cancellationToken);
             for (var replica = 1; replica <= desiredReplicas; replica++)
             {
                 var status = inspectedReplicas.FirstOrDefault(candidate => candidate.Ordinal == replica)?.Status ??
@@ -255,12 +261,13 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
                 {
                     await commandRunner.RunAsync(
                         "docker",
-                        CreateRunArguments(resource, image, replica),
+                        CreateRunArguments(definition, resource, image, replica),
                         cancellationToken);
                 }
             }
 
             await StartIngressAsync(
+                definition,
                 resource,
                 cancellationToken,
                 createWhenMissing: desiredReplicas > 1);
@@ -269,7 +276,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
                          .Where(candidate => candidate.Ordinal > desiredReplicas && IsMaterialized(candidate.Status))
                          .OrderByDescending(candidate => candidate.Ordinal))
             {
-                await RemoveReplicaAsync(replica.Ordinal, cancellationToken);
+                await RemoveReplicaAsync(definition, replica.Ordinal, cancellationToken);
             }
 
             ClearStatusCache();
@@ -288,10 +295,11 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken = default)
     {
+        var definition = ResolveDefinition(resource);
         try
         {
-            await PublishImageAsync(ResolveImage(resource), cancellationToken);
-            await EnsureContainerNetworkAsync(cancellationToken);
+            await PublishImageAsync(definition, ResolveImage(resource), cancellationToken);
+            await EnsureContainerNetworkAsync(definition, cancellationToken);
             return [];
         }
         catch (Exception exception)
@@ -307,9 +315,11 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken = default)
     {
+        var definition = ResolveDefinition(resource);
         try
         {
             await StartIngressAsync(
+                definition,
                 resource,
                 cancellationToken,
                 createWhenMissing: ResolveReplicas(resource) > 1,
@@ -330,9 +340,10 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken = default)
     {
+        var definition = ResolveDefinition(resource);
         try
         {
-            await RemoveIngressAsync(cancellationToken);
+            await RemoveIngressAsync(definition, cancellationToken);
             ClearStatusCache();
             return [];
         }
@@ -350,12 +361,14 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         ResourceOrchestratorReplicaGroup? replicaGroup,
         CancellationToken cancellationToken = default)
     {
+        var definition = ResolveDefinition(resource);
         try
         {
             switch (action.Kind)
             {
                 case ResourceActionKind.Start:
                     await StartReplicaAsync(
+                        definition,
                         resource,
                         ResolveImage(resource),
                         instance.ReplicaOrdinal,
@@ -364,13 +377,14 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
                     break;
                 case ResourceActionKind.Stop:
                     await RemoveReplicaAsync(
+                        definition,
                         instance.ReplicaOrdinal,
                         replicaGroup,
                         cancellationToken);
                     break;
                 default:
                     throw new NotSupportedException(
-                        $"The ReplicatedContainerHealth sample does not map graph action '{action.Id}' to an orchestrator service instance operation.");
+                        $"The local Docker container application runtime does not map graph action '{action.Id}' to an orchestrator service instance operation.");
             }
 
             ClearStatusCache();
@@ -383,26 +397,28 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
     }
 
     private async Task StartAsync(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
         GraphResource resource,
         CancellationToken cancellationToken,
         bool cleanExistingReplicas = true)
     {
         var image = ResolveImage(resource);
-        await PublishImageAsync(image, cancellationToken);
+        await PublishImageAsync(definition, image, cancellationToken);
 
         try
         {
             var replicas = ResolveReplicas(resource);
             if (cleanExistingReplicas)
             {
-                await RemoveIngressAsync(cancellationToken);
-                await RemoveReplicasAsync(ResolveReplicaCleanupLimit(resource), cancellationToken);
+                await RemoveIngressAsync(definition, cancellationToken);
+                await RemoveReplicasAsync(definition, ResolveReplicaCleanupLimit(definition, resource), cancellationToken);
             }
 
-            await EnsureContainerNetworkAsync(cancellationToken);
+            await EnsureContainerNetworkAsync(definition, cancellationToken);
             for (var replica = 1; replica <= replicas; replica++)
             {
                 await StartReplicaAsync(
+                    definition,
                     resource,
                     image,
                     replica,
@@ -411,18 +427,20 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             }
 
             await StartIngressAsync(
+                definition,
                 resource,
                 cancellationToken,
                 reuseExisting: false);
         }
         catch
         {
-            await RemoveAsync(resource, cancellationToken);
+            await RemoveAsync(definition, resource, cancellationToken);
             throw;
         }
     }
 
     private async Task StartReplicaAsync(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
         GraphResource resource,
         string image,
         int replica,
@@ -432,16 +450,17 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
     {
         if (replaceExisting)
         {
-            await RemoveReplicaAsync(replica, cancellationToken);
+            await RemoveReplicaAsync(definition, replica, cancellationToken);
         }
 
         await commandRunner.RunAsync(
             "docker",
-            CreateRunArguments(resource, image, replica, replicaGroup),
+            CreateRunArguments(definition, resource, image, replica, replicaGroup),
             cancellationToken);
     }
 
     private async Task PublishImageAsync(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
         string image,
         CancellationToken cancellationToken)
     {
@@ -450,7 +469,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             "dotnet",
             [
                 "publish",
-                _projectPath,
+                definition.ResolveProjectPath(hostEnvironment),
                 "--os",
                 "linux",
                 "--arch",
@@ -463,42 +482,49 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
     }
 
     private async Task RemoveAsync(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
         GraphResource resource,
         CancellationToken cancellationToken)
     {
-        await RemoveIngressAsync(cancellationToken);
-        await RemoveReplicasAsync(ResolveReplicaCleanupLimit(resource), cancellationToken);
+        await RemoveIngressAsync(definition, cancellationToken);
+        await RemoveReplicasAsync(definition, ResolveReplicaCleanupLimit(definition, resource), cancellationToken);
     }
 
-    private Task EnsureContainerNetworkAsync(CancellationToken cancellationToken) =>
+    private Task EnsureContainerNetworkAsync(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
+        CancellationToken cancellationToken) =>
         commandRunner.RunAsync(
             "docker",
-            ["network", "create", DefaultContainerNetworkName],
+            ["network", "create", definition.ContainerNetworkName],
             cancellationToken,
             throwOnError: false);
 
-    private Task RemoveIngressAsync(CancellationToken cancellationToken) =>
+    private Task RemoveIngressAsync(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
+        CancellationToken cancellationToken) =>
         commandRunner.RunAsync(
             "docker",
             [
                 "rm",
                 "-f",
-                ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()
+                LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName(definition)
             ],
             cancellationToken,
             throwOnError: false);
 
     private async Task RemoveReplicasAsync(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
         int replicaCount,
         CancellationToken cancellationToken)
     {
         for (var replica = 1; replica <= replicaCount; replica++)
         {
-            await RemoveReplicaAsync(replica, cancellationToken);
+            await RemoveReplicaAsync(definition, replica, cancellationToken);
         }
     }
 
     private Task RemoveReplicaAsync(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
         int replica,
         CancellationToken cancellationToken) =>
         commandRunner.RunAsync(
@@ -506,40 +532,42 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             [
                 "rm",
                 "-f",
-                ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica)
+                LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(definition, replica)
             ],
             cancellationToken,
             throwOnError: false);
 
     private async Task RemoveReplicaAsync(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
         int replica,
         ResourceOrchestratorReplicaGroup? replicaGroup,
         CancellationToken cancellationToken)
     {
         if (replicaGroup is null)
         {
-            await RemoveReplicaAsync(replica, cancellationToken);
+            await RemoveReplicaAsync(definition, replica, cancellationToken);
             return;
         }
 
-        var containerName = ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica);
-        var currentReplicaGroup = await GetContainerLabelAsync(containerName, ReplicaGroupLabel, cancellationToken);
+        var containerName = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(definition, replica);
+        var currentReplicaGroup = await GetContainerLabelAsync(definition, containerName, ReplicaGroupLabel, cancellationToken);
         if (!string.Equals(currentReplicaGroup, replicaGroup.Id, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
 
-        await RemoveReplicaAsync(replica, cancellationToken);
+        await RemoveReplicaAsync(definition, replica, cancellationToken);
     }
 
     private IReadOnlyList<string> CreateRunArguments(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
         GraphResource resource,
         string image,
         int replica,
         ResourceOrchestratorReplicaGroup? replicaGroup = null)
     {
-        var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
-        var replicaContainerName = ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica);
+        var replicaResourceId = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(definition, replica);
+        var replicaContainerName = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(definition, replica);
         var replicaName = $"Replica {replica.ToString(CultureInfo.InvariantCulture)}";
         var replicaCount = ResolveReplicas(resource);
         var arguments = new List<string>
@@ -550,9 +578,9 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             replicaContainerName,
             "--rm",
             "--network",
-            DefaultContainerNetworkName,
+            definition.ContainerNetworkName,
             "--network-alias",
-            ReplicatedContainerHealthRuntimeConventions.CreateReplicaNetworkAlias(replica)
+            LocalDockerContainerApplicationRuntimeConventions.CreateReplicaNetworkAlias(definition, replica)
         };
         var replicaGroupId = replicaGroup?.Id ?? ResolveReplicaGroupId(resource);
         if (!string.IsNullOrWhiteSpace(replicaGroupId))
@@ -572,7 +600,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         {
             arguments.Add("-p");
             arguments.Add(
-                $"127.0.0.1:{ReplicatedContainerHealthRuntimeConventions.ResolveReplicaProbePort(configuration, replica, endpoint.Port!.Value).ToString(CultureInfo.InvariantCulture)}:{(endpoint.TargetPort ?? endpoint.Port.Value).ToString(CultureInfo.InvariantCulture)}");
+                $"127.0.0.1:{LocalDockerContainerApplicationRuntimeConventions.ResolveReplicaProbePort(definition, configuration, replica, endpoint.Port!.Value).ToString(CultureInfo.InvariantCulture)}:{(endpoint.TargetPort ?? endpoint.Port.Value).ToString(CultureInfo.InvariantCulture)}");
         }
 
         arguments.Add("-e");
@@ -580,17 +608,18 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         arguments.Add("-e");
         arguments.Add($"CLOUDSHELL_REPLICA_ORDINAL={replica.ToString(CultureInfo.InvariantCulture)}");
         arguments.Add("-e");
-        arguments.Add($"OTEL_SERVICE_NAME=replicated-container-health-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}");
+        arguments.Add($"OTEL_SERVICE_NAME={definition.ReplicaServiceNamePrefix}{replica.ToString(CultureInfo.InvariantCulture)}");
         arguments.Add("-e");
-        arguments.Add($"OTEL_RESOURCE_ATTRIBUTES={CreateOtelResourceAttributes(replicaResourceId, replicaContainerName, replicaName, replica, replicaCount)}");
-        AddEnvironment(arguments, "CLOUDSHELL_TRACE_INGEST_ENDPOINT", _traceIngestEndpoint);
-        AddEnvironment(arguments, "CLOUDSHELL_METRIC_INGEST_ENDPOINT", _metricIngestEndpoint);
+        arguments.Add($"OTEL_RESOURCE_ATTRIBUTES={CreateOtelResourceAttributes(definition, replicaResourceId, replicaContainerName, replicaName, replica, replicaCount)}");
+        AddEnvironment(arguments, "CLOUDSHELL_TRACE_INGEST_ENDPOINT", FirstNonEmpty(definition.TraceIngestEndpoint, configuration["Observability:TraceIngestEndpoint"]));
+        AddEnvironment(arguments, "CLOUDSHELL_METRIC_INGEST_ENDPOINT", FirstNonEmpty(definition.MetricIngestEndpoint, configuration["Observability:MetricIngestEndpoint"]));
         arguments.Add(image);
 
         return arguments;
     }
 
     private async Task<string?> GetContainerLabelAsync(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
         string containerName,
         string labelName,
         CancellationToken cancellationToken)
@@ -606,7 +635,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             ],
             cancellationToken,
             throwOnError: false,
-            timeout: _statusProbeTimeout);
+            timeout: definition.StatusProbeTimeout ?? _statusProbeTimeout);
         if (result.ExitCode != 0)
         {
             return null;
@@ -619,6 +648,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
     }
 
     private async Task StartIngressAsync(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
         GraphResource resource,
         CancellationToken cancellationToken,
         bool createWhenMissing = true,
@@ -631,6 +661,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         }
 
         await WriteIngressConfigurationAsync(
+            definition,
             resource,
             endpoint,
             routingBindings ?? [],
@@ -638,7 +669,8 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         if (reuseExisting)
         {
             var ingressStatus = await InspectContainerAsync(
-                ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName(),
+                definition,
+                LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName(definition),
                 cancellationToken);
             if (ingressStatus == RuntimeContainerStatus.Running)
             {
@@ -649,7 +681,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             {
                 await commandRunner.RunAsync(
                     "docker",
-                    ["start", ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()],
+                    ["start", LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName(definition)],
                     cancellationToken);
                 return;
             }
@@ -671,14 +703,14 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             "run",
             "-d",
             "--name",
-            ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName(),
+            LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName(definition),
             "--network",
-            DefaultContainerNetworkName,
+            definition.ContainerNetworkName,
             "-p",
             $"127.0.0.1:{hostPort.ToString(CultureInfo.InvariantCulture)}:{hostPort.ToString(CultureInfo.InvariantCulture)}/tcp",
             "-v",
-            $"{Path.GetFullPath(_ingressConfigurationDirectory)}:/etc/traefik/dynamic:ro",
-            configuration["ReplicatedContainerHealth:RuntimeIngressImage"] ?? DefaultIngressImage,
+            $"{Path.GetFullPath(definition.ResolveIngressConfigurationDirectory(hostEnvironment))}:/etc/traefik/dynamic:ro",
+            FirstNonEmpty(configuration["ReplicatedContainerHealth:RuntimeIngressImage"], definition.IngressImage)!,
             "--providers.file.directory=/etc/traefik/dynamic",
             "--providers.file.watch=true",
             $"--entrypoints.http.address=:{hostPort.ToString(CultureInfo.InvariantCulture)}"
@@ -691,6 +723,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
     }
 
     private async Task<IReadOnlyList<InspectedReplica>> InspectReplicasAsync(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
         int replicaCount,
         CancellationToken cancellationToken)
     {
@@ -700,7 +733,8 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             replicas[replica - 1] = new InspectedReplica(
                 replica,
                 await InspectContainerAsync(
-                    ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica),
+                    definition,
+                    LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(definition, replica),
                     cancellationToken));
         }
 
@@ -708,6 +742,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
     }
 
     private async Task<RuntimeContainerStatus> InspectContainerAsync(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
         string containerName,
         CancellationToken cancellationToken)
     {
@@ -722,7 +757,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             ],
             cancellationToken,
             throwOnError: false,
-            timeout: _statusProbeTimeout);
+            timeout: definition.StatusProbeTimeout ?? _statusProbeTimeout);
         if (result.ExitCode != 0)
         {
             return RuntimeContainerStatus.Missing;
@@ -737,19 +772,22 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
     }
 
     private async Task WriteIngressConfigurationAsync(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
         GraphResource resource,
         NetworkingEndpointRequestValue endpoint,
         IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken)
     {
-        Directory.CreateDirectory(_ingressConfigurationDirectory);
+        var ingressConfigurationDirectory = definition.ResolveIngressConfigurationDirectory(hostEnvironment);
+        Directory.CreateDirectory(ingressConfigurationDirectory);
         await File.WriteAllTextAsync(
-            Path.Combine(_ingressConfigurationDirectory, "dynamic.yml"),
-            CreateIngressConfiguration(resource, endpoint, routingBindings),
+            Path.Combine(ingressConfigurationDirectory, "dynamic.yml"),
+            CreateIngressConfiguration(definition, resource, endpoint, routingBindings),
             cancellationToken);
     }
 
     private static string CreateIngressConfiguration(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
         GraphResource resource,
         NetworkingEndpointRequestValue endpoint,
         IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings)
@@ -771,7 +809,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         {
             builder.AppendLine(
                 CultureInfo.InvariantCulture,
-                $"          - url: \"http://{ReplicatedContainerHealthRuntimeConventions.CreateReplicaNetworkAlias(replica)}:{targetPort.ToString(CultureInfo.InvariantCulture)}\"");
+                $"          - url: \"http://{LocalDockerContainerApplicationRuntimeConventions.CreateReplicaNetworkAlias(definition, replica)}:{targetPort.ToString(CultureInfo.InvariantCulture)}\"");
         }
 
         if (sessionAffinity?.Mode == ResourceOrchestratorSessionAffinityMode.Cookie)
@@ -888,6 +926,25 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         return endpoint is { Port: > 0 };
     }
 
+    private LocalDockerContainerApplicationRuntimeDefinition ResolveDefinition(GraphResource resource) =>
+        TryResolveDefinition(resource, out var definition)
+            ? definition
+            : throw new InvalidOperationException(
+                $"No local Docker container application runtime is configured for resource '{resource.EffectiveResourceId}'.");
+
+    private bool TryResolveDefinition(
+        GraphResource resource,
+        out LocalDockerContainerApplicationRuntimeDefinition definition)
+    {
+        if (options.Applications.TryGetValue(resource.EffectiveResourceId, out definition!))
+        {
+            return true;
+        }
+
+        definition = null!;
+        return false;
+    }
+
     private static string ResolveImage(GraphResource resource) =>
         resource.Attributes.GetString(ContainerApplicationResourceTypeProvider.Attributes.ContainerImage)
         ?? throw new InvalidOperationException(
@@ -921,6 +978,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             : 1;
 
     private static string CreateOtelResourceAttributes(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
         string replicaResourceId,
         string replicaContainerName,
         string replicaName,
@@ -934,7 +992,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             CreateOtelAttribute("service.instance.id", replicaResourceId),
             CreateOtelAttribute("cloudshell.resource.id", replicaResourceId),
             CreateOtelAttribute("cloudshell.resource.type", "runtime.container"),
-            CreateOtelAttribute(TelemetryAttributeNames.ScopeResourceId, ReplicatedContainerHealthRuntimeConventions.ApiResourceId),
+            CreateOtelAttribute(TelemetryAttributeNames.ScopeResourceId, definition.ResourceId),
             CreateOtelAttribute(TelemetryAttributeNames.ScopeName, replicaName),
             CreateOtelAttribute(TelemetryAttributeNames.ScopeKind, "runtime"),
             CreateOtelAttribute(TelemetryAttributeNames.RuntimeReplicaOrdinal, replicaOrdinal),
@@ -956,8 +1014,10 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 
-    private int ResolveReplicaCleanupLimit(GraphResource resource) =>
-        Math.Max(ResolveReplicas(resource), _replicaCleanupLimit);
+    private int ResolveReplicaCleanupLimit(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
+        GraphResource resource) =>
+        Math.Max(ResolveReplicas(resource), definition.ReplicaCleanupLimit ?? _replicaCleanupLimit);
 
     private static (string Repository, string Tag) SplitImage(string image)
     {
@@ -974,7 +1034,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         GraphResource resource,
         Exception exception) =>
         ResourceDefinitionDiagnostic.Error(
-            "replicatedContainerHealth.runtimeFailed",
+            "localDockerContainerApplication.runtimeFailed",
             exception.Message,
             resource.EffectiveResourceId);
 

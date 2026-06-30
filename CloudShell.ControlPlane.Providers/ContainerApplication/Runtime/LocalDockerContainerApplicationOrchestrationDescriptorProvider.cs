@@ -1,19 +1,22 @@
 using System.Text.Json;
 using CloudShell.Abstractions.ResourceManager;
+using Microsoft.Extensions.Options;
+using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 
-internal sealed class ReplicatedContainerHealthOrchestrationDescriptorProvider :
+namespace CloudShell.ControlPlane.Providers;
+
+public sealed class LocalDockerContainerApplicationOrchestrationDescriptorProvider(
+    IOptions<LocalDockerContainerApplicationRuntimeOptions> options) :
     IResourceOrchestrationDescriptorProvider
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+    private readonly LocalDockerContainerApplicationRuntimeOptions options = options.Value;
 
-    public bool CanDescribe(Resource resource) =>
-        string.Equals(
-            resource.Id,
-            ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
-            StringComparison.OrdinalIgnoreCase);
+    public bool CanDescribe(ResourceManagerResource resource) =>
+        options.Applications.ContainsKey(resource.Id);
 
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(
-        Resource resource,
+        ResourceManagerResource resource,
         ResourceOrchestrationDescriptorContext context,
         CancellationToken cancellationToken = default)
     {
@@ -28,7 +31,7 @@ internal sealed class ReplicatedContainerHealthOrchestrationDescriptorProvider :
             resource.DependsOn,
             [],
             resource.Endpoints,
-            "replicated-container-health.runtime-workload.v1",
+            "local-docker-container-application.runtime-workload.v1",
             JsonSerializer.SerializeToElement(workload, SerializerOptions)));
     }
 }

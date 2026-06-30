@@ -1,8 +1,9 @@
 using System.Globalization;
 using System.Net;
 using CloudShell.Abstractions.ResourceManager;
+using Microsoft.Extensions.Options;
 
-namespace CloudShell.HostVirtualNetwork;
+namespace CloudShell.ControlPlane.Providers;
 
 public sealed class CoreDnsZoneFilePublishingOptions
 {
@@ -16,8 +17,10 @@ public sealed class CoreDnsZoneFilePublishingOptions
 }
 
 public sealed class CoreDnsZoneFilePublishingProvider(
-    CoreDnsZoneFilePublishingOptions options) : INamePublishingProvider
+    IOptions<CoreDnsZoneFilePublishingOptions> options) : INamePublishingProvider
 {
+    private readonly CoreDnsZoneFilePublishingOptions options = options.Value;
+
     public const string ProviderNameValue = "coredns-zone-file";
 
     public string ProviderName => ProviderNameValue;

@@ -23,8 +23,8 @@
 - ContainerAppDeployment and ReplicatedContainerHealth sample-inspired graph coverage,
   including ContainerAppDeployment image/replica update delegation and
   ReplicatedContainerHealth smoke coverage where graph start, stop, restart,
-  image-update, and replica-update actions delegate to runtime adapters and stop
-  verifies Docker runtime container cleanup.
+  image-update, and replica-update actions delegate to provider-owned runtime
+  adapters and stop verifies Docker runtime container cleanup.
 - Manual `ResourceGraphBuilder.AddContainerApplication(...)`
   builder for code-first container app definition authoring with typed host
   dependencies, endpoint requests, replicas, and volume mount capability setup.
@@ -47,9 +47,9 @@ Ready to start integration for the container app scenarios covered by
 ContainerAppDeployment and ReplicatedContainerHealth. The Resource model path can
 start, stop, restart, update image/replica intent, project endpoints, drive the
 container-app UI tabs by type id, and expose runtime replica logs, health,
-traces, metrics, and monitoring through the current runtime bridges. Full old-provider
-parity is not expected yet: rich revision history, final container-host
-runtime ownership, richer startup-state projection, and old edit surfaces are
+traces, metrics, and monitoring through the current runtime adapters. Full old-provider
+parity is not expected yet: rich revision history, richer startup-state
+projection, and old edit surfaces are
 explicitly deferred.
 
 ## Runtime Integration
@@ -117,29 +117,31 @@ services
         options.AddResource("application.container-app:api"));
 ```
 
-For migration hosts that still have physical runtime bridges outside the
-provider package, the provider includes an opt-in delegating runtime handler.
-Targets implement `IContainerApplicationRuntimeTarget`, declare whether they
-can handle a resolved graph resource, and receive lifecycle, image, replica,
-and orchestrator-service routing calls through the provider-owned
+For migration hosts that still need explicit runtime mapping, the provider
+includes an opt-in delegating runtime handler. Targets implement
+`IContainerApplicationRuntimeTarget`, declare whether they can handle a
+resolved graph resource, and receive lifecycle, image, replica, and
+orchestrator-service routing calls through the provider-owned
 `DelegatingContainerApplicationRuntimeHandler`.
 
 ```csharp
 services
     .AddLocalContainerApplicationResourceTypes()
-    .AddSingleton<IContainerApplicationRuntimeTarget, MyContainerAppRuntimeTarget>()
-    .AddDelegatingContainerApplicationRuntime();
+    .AddLocalDockerContainerApplicationRuntime(options =>
+        options.AddApplication(
+            "application.container-app:api",
+            "Api/MyApp.Api.csproj"));
 ```
 
-The ReplicatedContainerHealth sample currently proves this seam with a
-sample-local target that maps `application.container-app:api` to the existing
-Docker/Traefik runtime bridge. The provider-owned delegating handler, local
-container-app command runner, and runtime-container log/monitoring providers
-cover the common runtime dispatch, process execution, and replica observability
-contracts, while the sample target remains responsible only for the sample's
-physical runtime materialization and hidden replica projection. The Docker
-smoke verifies that graph restart recreates the revision-scoped runtime
-containers and graph stop removes the containers that graph start created.
+The ReplicatedContainerHealth sample currently proves this seam with the
+provider-owned local Docker container-app runtime. That adapter maps
+`application.container-app:api` to the sample API project, builds the image,
+creates replica containers, reconciles the local Traefik ingress container,
+and projects hidden runtime replicas with the metadata consumed by the
+provider-owned log and monitoring providers. The Docker smoke verifies that
+graph image updates recreate revision-scoped runtime containers, replica
+updates retain active slots where possible, and graph stop removes the
+containers that graph start created.
 
 The ContainerAppDeployment sample uses the provider-owned deferred runtime
 adapter for `application.container-app:sample-api`. It accepts image and

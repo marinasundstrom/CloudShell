@@ -1,10 +1,12 @@
-using CloudShell.ResourceModel;
-using CloudShell.ControlPlane.Providers;
 using CloudShell.Abstractions.ResourceManager;
 using GraphResource = CloudShell.ResourceModel.Resource;
 
-internal interface IReplicatedContainerHealthContainerAppRuntimeBridge
+namespace CloudShell.ControlPlane.Providers;
+
+public interface ILocalDockerContainerApplicationRuntimeBridge
 {
+    bool CanHandle(GraphResource resource);
+
     ContainerApplicationRuntimeStatus GetStatus(GraphResource resource);
 
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(

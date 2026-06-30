@@ -240,6 +240,10 @@ than opening new platform fronts or repeatedly polishing secondary editor
 surfaces:
 
 - Keep supported samples building and smoke-testing.
+- Keep process-backed sample smoke tests serialized until the samples stop
+  sharing mutable runtime resources. Current parallel-safe coverage is limited
+  to fake-adapter and in-memory sample tests that use recording runners,
+  isolated service providers, and unique temporary paths.
 - Make the primary application Resource Manager path understandable without
   sample-specific knowledge.
 - Continue provider runtime enforcement for modeled routing policy, especially

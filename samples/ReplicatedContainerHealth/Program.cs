@@ -60,19 +60,36 @@ cloudShell.DefineResources(resources =>
             name: "alive");
 });
 builder.Services
-    .AddSingleton<IReplicatedContainerHealthContainerAppRuntimeBridge>(
-        serviceProvider => new ReplicatedContainerHealthContainerAppRuntimeBridge(
-            serviceProvider.GetRequiredService<ILocalContainerApplicationCommandRunner>(),
-            serviceProvider.GetRequiredService<IConfiguration>(),
-            serviceProvider.GetRequiredService<IHostEnvironment>(),
-            traceIngestEndpoint,
-            metricIngestEndpoint))
-    .AddSingleton<IContainerApplicationRuntimeTarget, ReplicatedContainerHealthContainerAppRuntimeTarget>()
     .AddLocalContainerApplicationResourceTypes()
-    .AddDelegatingContainerApplicationRuntime();
+    .AddLocalDockerContainerApplicationRuntime(options =>
+        options.AddApplication(
+            apiResource.EffectiveResourceId,
+            Path.Combine("Api", "CloudShell.ReplicatedContainerHealth.Api.csproj"),
+            runtime =>
+            {
+                runtime.IngressContainerName = "cloudshell-replicated-health-api-ingress";
+                runtime.IngressConfigurationDirectory = Path.Combine("Data", "runtime-ingress");
+                runtime.ReplicaContainerNamePrefix = "cloudshell-replicated-health-api-replica-";
+                runtime.ReplicaNetworkAliasPrefix = "cloudshell-replicated-health-api-replica-";
+                runtime.ReplicaResourceIdPrefix = "runtime-container:application-container-app-api:replica-";
+                runtime.ReplicaServiceNamePrefix = "replicated-container-health-api-replica-";
+                runtime.RuntimeResourceProviderId = "replicated-container-health.runtime";
+                runtime.RuntimeResourceProviderName = "Replicated Container Health runtime";
+                runtime.RuntimeMaterialization = "sampleRuntime";
+                runtime.TraceIngestEndpoint = traceIngestEndpoint;
+                runtime.MetricIngestEndpoint = metricIngestEndpoint;
+                runtime.ReplicaCleanupLimit = builder.Configuration.GetValue<int?>(
+                    "ReplicatedContainerHealth:RuntimeReplicaCleanupLimit");
+                runtime.ReplicaProbePortStart = builder.Configuration.GetValue<int?>(
+                    "ReplicatedContainerHealth:RuntimeProbePortStart");
+                runtime.StatusProbeTimeout = TimeSpan.FromMilliseconds(
+                    builder.Configuration.GetValue<int?>(
+                        "ReplicatedContainerHealth:RuntimeStatusProbeTimeoutMilliseconds") ?? 1_000);
+                runtime.StatusCacheDuration = TimeSpan.FromMilliseconds(
+                    builder.Configuration.GetValue<int?>(
+                        "ReplicatedContainerHealth:RuntimeStatusCacheMilliseconds") ?? 2_000);
+            }));
 cloudShell.UseResourceGraphIntegration();
-builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider, ReplicatedContainerHealthOrchestrationDescriptorProvider>();
-builder.Services.AddScoped<IResourceProvider, ReplicatedContainerHealthRuntimeResourceProvider>();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

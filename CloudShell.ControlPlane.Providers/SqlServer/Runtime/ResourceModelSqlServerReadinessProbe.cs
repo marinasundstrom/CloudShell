@@ -1,9 +1,8 @@
-using CloudShell.ControlPlane.Providers;
-using Resource = CloudShell.ResourceModel.Resource;
+using Microsoft.Extensions.Configuration;
 
-namespace CloudShell.ApplicationTopologyHost;
+namespace CloudShell.ControlPlane.Providers;
 
-public sealed class ApplicationTopologySqlServerReadinessProbe(
+public sealed class ResourceModelSqlServerReadinessProbe(
     IConfiguration configuration) : ILocalSqlServerReadinessProbe
 {
     public async Task WaitUntilReadyAsync(

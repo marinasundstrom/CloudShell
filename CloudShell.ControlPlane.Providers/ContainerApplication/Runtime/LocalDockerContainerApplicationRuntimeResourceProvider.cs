@@ -1,24 +1,29 @@
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ResourceModel;
-using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using System.Globalization;
 using GraphResource = CloudShell.ResourceModel.Resource;
+using GraphResourceState = CloudShell.ResourceModel.ResourceState;
 using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
 using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 using ResourceManagerState = CloudShell.Abstractions.ResourceManager.ResourceState;
 
-internal sealed class ReplicatedContainerHealthRuntimeResourceProvider(
+namespace CloudShell.ControlPlane.Providers;
+
+public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
     ResourceGraphModel graph,
     ResourceResolver resolver,
-    IReplicatedContainerHealthContainerAppRuntimeBridge runtime,
-    IConfiguration configuration) : IResourceProvider
+    ILocalDockerContainerApplicationRuntimeBridge runtime,
+    IConfiguration configuration,
+    IOptions<LocalDockerContainerApplicationRuntimeOptions> options) : IResourceProvider
 {
-    public string Id => "replicated-container-health.runtime";
+    private readonly LocalDockerContainerApplicationRuntimeOptions options = options.Value;
 
-    public string DisplayName => "Replicated Container Health runtime";
+    public string Id => "local-docker-container-application.runtime";
+
+    public string DisplayName => "Local Docker container application runtime";
 
     public IReadOnlyList<ResourceManagerResource> GetResources()
     {
@@ -28,15 +33,16 @@ internal sealed class ReplicatedContainerHealthRuntimeResourceProvider(
             .ConfigureAwait(false)
             .GetAwaiter()
             .GetResult();
-        var state = snapshot.Resources.FirstOrDefault(resource => string.Equals(
-            resource.EffectiveResourceId,
-            ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
-            StringComparison.OrdinalIgnoreCase));
-        if (state is null)
-        {
-            return [];
-        }
+        return snapshot.Resources
+            .Where(resource => options.Applications.ContainsKey(resource.EffectiveResourceId))
+            .SelectMany(CreateRuntimeReplicaResources)
+            .ToArray();
+    }
 
+    private IReadOnlyList<ResourceManagerResource> CreateRuntimeReplicaResources(
+        GraphResourceState state)
+    {
+        var definition = options.Applications[state.EffectiveResourceId];
         var resource = resolver.Resolve(state);
         if (runtime.GetStatus(resource) != ContainerApplicationRuntimeStatus.Running)
         {
@@ -58,33 +64,35 @@ internal sealed class ReplicatedContainerHealthRuntimeResourceProvider(
         var replicas = ResolveReplicas(resource);
         return Enumerable
             .Range(1, replicas)
-            .Select(replica => CreateRuntimeReplicaResource(parent, endpoint, replica, replicas))
+            .Select(replica => CreateRuntimeReplicaResource(definition, parent, endpoint, replica, replicas))
             .ToArray();
     }
 
     private ResourceManagerResource CreateRuntimeReplicaResource(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
         ResourceManagerResource parent,
         NetworkingEndpointRequestValue endpoint,
         int replica,
         int replicaCount)
     {
-        var resourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
-        var containerName = ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica);
+        var resourceId = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(definition, replica);
+        var containerName = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(definition, replica);
         var replicaOrdinal = replica.ToString(CultureInfo.InvariantCulture);
         var totalReplicas = replicaCount.ToString(CultureInfo.InvariantCulture);
         var replicaName = $"Replica {replicaOrdinal}";
         var protocol = NormalizeProtocol(endpoint.Protocol);
         var targetPort = endpoint.TargetPort ?? endpoint.Port ?? 8080;
-        var probePort = ReplicatedContainerHealthRuntimeConventions.ResolveReplicaProbePort(
+        var probePort = LocalDockerContainerApplicationRuntimeConventions.ResolveReplicaProbePort(
+            definition,
             configuration,
             replica,
             endpoint.Port ?? targetPort);
 
         return new ResourceManagerResource(
             resourceId,
-            $"api replica {replica.ToString(CultureInfo.InvariantCulture)}",
+            $"{parent.Name} replica {replica.ToString(CultureInfo.InvariantCulture)}",
             "runtime.container",
-            DisplayName,
+            definition.RuntimeResourceProviderName,
             "local",
             ResourceManagerState.Running,
             [ResourceEndpoint.Contract(endpoint.Name, protocol, ResourceExposureScope.Local, targetPort)],
@@ -101,7 +109,7 @@ internal sealed class ReplicatedContainerHealthRuntimeResourceProvider(
                 [ResourceAttributeNames.RuntimeContainerName] = containerName,
                 [ResourceAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
                 [ResourceAttributeNames.RuntimeReplicaCount] = totalReplicas,
-                [ResourceAttributeNames.RuntimeMaterialization] = "sampleRuntime"
+                [ResourceAttributeNames.RuntimeMaterialization] = definition.RuntimeMaterialization
             },
             Capabilities:
             [
@@ -123,6 +131,7 @@ internal sealed class ReplicatedContainerHealthRuntimeResourceProvider(
             OwnerResourceId: parent.Id,
             CleanupBehavior: ResourceCleanupBehavior.DeleteWithOwner,
             Observability: CreateRuntimeReplicaObservability(
+                definition,
                 parent.Id,
                 resourceId,
                 replicaName,
@@ -132,6 +141,7 @@ internal sealed class ReplicatedContainerHealthRuntimeResourceProvider(
     }
 
     private static ResourceObservability CreateRuntimeReplicaObservability(
+        LocalDockerContainerApplicationRuntimeDefinition definition,
         string parentResourceId,
         string replicaResourceId,
         string replicaName,
@@ -142,7 +152,7 @@ internal sealed class ReplicatedContainerHealthRuntimeResourceProvider(
             Logs: true,
             Traces: true,
             Metrics: true,
-            ServiceName: $"replicated-container-health-api-replica-{replicaOrdinal}",
+            ServiceName: $"{definition.ReplicaServiceNamePrefix}{replicaOrdinal}",
             ResourceAttributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["cloudshell.resource.id"] = replicaResourceId,

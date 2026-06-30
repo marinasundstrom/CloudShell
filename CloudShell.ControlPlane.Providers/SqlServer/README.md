@@ -14,8 +14,8 @@
 - Declared database configuration.
 - Shared volume-consumer capability over direct and storage-backed volumes.
 - Start, stop, and restart operation declarations with an injected
-  provider-owned lifecycle runtime handler seam. The default implementation is
-  no-op until a host or sample plugs in runtime behavior.
+  provider-owned lifecycle runtime handler seam and an opt-in local SQL Server
+  Docker runtime adapter for mapped resources.
 - Reconcile-access operation with an injected provider-owned runtime reconciler seam.
 - Typed wrapper plus ContainerHost sample-inspired graph coverage.
 - ASP.NET Core service-discovery environment projection from explicit SQL Server `project.references`.
@@ -26,12 +26,10 @@
   including display name, icon, TDS endpoint descriptor, and SQL liveness probe
   defaults without registering old application-provider stores or SQL edit
   pages.
-- ApplicationTopology sample-local lifecycle runtime handler that maps graph
-  SQL Server start/stop/restart operations to the existing SQL Server runtime
-  resource and projects cached lifecycle status while the provider-owned
-  runtime remains under design. Deterministic adapter coverage verifies the
-  Resource Manager delegation path without Docker, and Docker smoke coverage
-  verifies graph SQL start, restart, and stop through that adapter.
+- Provider-owned local SQL Server Docker runtime coverage that maps graph SQL
+  Server start/stop/restart operations to Docker containers, resolves
+  storage-backed volume declarations into bind mounts, projects lifecycle
+  status, and optionally waits for SQL readiness.
 - ApplicationTopology graph API read/write grant declaration against a graph SQL Server resource.
 - ApplicationTopology sample-local graph SQL credential endpoint that validates
   graph resource identity grants and materializes SQL login/user access for
@@ -104,16 +102,17 @@ runtime integration for the provider.
 
 ## Switch-over status
 
-Ready to integrate for sample-local graph SQL workloads where the host wires a
-runtime handler. ApplicationTopology and ContainerHost prove graph SQL startup,
-storage-backed volume materialization, endpoint projection, service-discovery
-environment projection, database creation, and cleanup without old SQL
-resource records. A provider-owned durable SQL runtime and reusable
-credential/grant reconciliation remain post-switch work.
+Ready to integrate for graph SQL workloads where the host opts into the local
+Docker runtime adapter. ApplicationTopology and ContainerHost prove graph SQL
+startup, storage-backed volume materialization, endpoint projection,
+service-discovery environment projection, database creation, readiness, and
+cleanup without old SQL resource records. A durable non-local SQL runtime and
+reusable credential/grant reconciliation remain post-switch work.
 
 ## Remaining
 
-- Real SQL runtime integration behind the lifecycle runtime handler.
+- Durable non-local SQL runtime integration behind the lifecycle runtime
+  handler.
 - Default/preferred container-host resolution.
 - Reusable provider-owned credential/grant reconciliation for graph-backed SQL
   Server resources outside the ApplicationTopology sample-local endpoint.

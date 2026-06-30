@@ -61,7 +61,10 @@ if (builder.Configuration.GetValue("ContainerAppDeployment:EnableDockerRuntime",
                 registryResourceId,
                 registryContainerName,
                 runtime => runtime.TargetPort = 5000))
-        .AddSingleton<IResourceOrchestrationDescriptorProvider, ContainerAppDeploymentDockerContainerOrchestrationDescriptorProvider>();
+        .AddLocalExecutableResourceOrchestrationDescriptors(options =>
+            options.AddResource(
+                registryResourceId,
+                "container-app-deployment.registry-runtime.v1"));
 }
 
 builder.Services

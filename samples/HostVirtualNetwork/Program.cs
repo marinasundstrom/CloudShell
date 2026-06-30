@@ -124,15 +124,12 @@ builder.Services
     .AddNameMappingResourceType()
     .AddBuiltInResourceModelRuntimeAdapters();
 cloudShell.UseResourceGraphIntegration();
-builder.Services.AddSingleton(new CoreDnsZoneFilePublishingOptions
+builder.Services.AddCoreDnsZoneFilePublishingProvider(options =>
 {
-    OutputDirectory = string.IsNullOrWhiteSpace(coreDnsDirectory)
+    options.OutputDirectory = string.IsNullOrWhiteSpace(coreDnsDirectory)
         ? Path.Combine(builder.Environment.ContentRootPath, "Data", "coredns")
-        : coreDnsDirectory
+        : coreDnsDirectory;
 });
-builder.Services.AddSingleton<CoreDnsZoneFilePublishingProvider>();
-builder.Services.AddSingleton<INamePublishingProvider>(
-    serviceProvider => serviceProvider.GetRequiredService<CoreDnsZoneFilePublishingProvider>());
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

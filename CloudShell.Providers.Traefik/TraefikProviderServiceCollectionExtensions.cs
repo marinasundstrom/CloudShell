@@ -1,6 +1,9 @@
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Providers;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CloudShell.Providers.Traefik;
 
@@ -43,5 +46,12 @@ public static class TraefikProviderServiceCollectionExtensions
         }
 
         configure?.Invoke(options);
+        builder.Services.TryAddSingleton<TraefikLoadBalancerProvider>();
+        builder.Services.TryAddSingleton<ILoadBalancerProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<TraefikLoadBalancerProvider>());
+        builder.Services.TryAddSingleton<ILoadBalancerRuntimeProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<TraefikLoadBalancerProvider>());
+        builder.Services.Replace(
+            ServiceDescriptor.Singleton<ILoadBalancerConfigurationApplier, ResourceModelGraphTraefikLoadBalancerConfigurationApplier>());
     }
 }

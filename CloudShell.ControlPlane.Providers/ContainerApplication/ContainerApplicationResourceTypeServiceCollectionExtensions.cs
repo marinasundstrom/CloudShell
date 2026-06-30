@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
+using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ControlPlane.Providers;
 
@@ -133,6 +134,29 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
             serviceProvider => serviceProvider.GetRequiredService<DelegatingContainerApplicationRuntimeHandler>()));
         services.Replace(ServiceDescriptor.Singleton<IContainerApplicationOrchestratorRuntimeHandler>(
             serviceProvider => serviceProvider.GetRequiredService<DelegatingContainerApplicationRuntimeHandler>()));
+
+        return services;
+    }
+
+    public static IServiceCollection AddLocalDockerContainerApplicationRuntime(
+        this IServiceCollection services,
+        Action<LocalDockerContainerApplicationRuntimeOptions>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        if (configure is not null)
+        {
+            services.Configure(configure);
+        }
+
+        services.TryAddSingleton<ILocalDockerContainerApplicationRuntimeBridge, LocalDockerContainerApplicationRuntimeBridge>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IContainerApplicationRuntimeTarget, LocalDockerContainerApplicationRuntimeTarget>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOrchestrationDescriptorProvider, LocalDockerContainerApplicationOrchestrationDescriptorProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<IResourceProvider, LocalDockerContainerApplicationRuntimeResourceProvider>());
+        services.AddDelegatingContainerApplicationRuntime();
 
         return services;
     }
