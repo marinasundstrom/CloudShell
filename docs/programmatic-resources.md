@@ -269,6 +269,15 @@ local address such as `localhost:<port>` or `127.0.0.1:<port>`. Resources may
 default to the Host network when policy allows host-local bindings, but that
 helper behavior is not the canonical networking model.
 
+Default environment resources should be accessed through named builder entry
+points when the template wants to make them explicit. In the ResourceDefinition
+builder, `resources.DefaultNetwork()` returns the Host network resource and
+`resources.DefaultContainerHost()` returns the default docker-compatible
+container host resource. The accessors are get-or-add helpers, so repeated calls
+refer to the same resource builder. The host-level graph builder still exposes
+the configured default identity provider through `resources.GetIdentityProvider()`
+until identity providers move fully into ResourceDefinition authoring.
+
 A resource endpoint describes the named protocol/port exposed by the resource.
 Endpoint-network mappings connect that resource endpoint to a network or
 topology and provide the concrete address for that topology. When an
@@ -516,13 +525,13 @@ An endpoint helper without a fixed port becomes an explicit auto-assigned
 mapping, allowing the selected network/provider to choose the
 concrete address while keeping the resource-owned service port stable.
 
-`AddDocker()` declares the default local Docker host resource. A configured
-default Docker host from `UseDocker(...)` is also treated as an implicit
-container-host resource in the realized runtime model; authored resources may
-default to it when the selected provider and environment policy allow it. The
-Docker resource can specify a registry with `WithRegistry(...)`; the registry
-defaults to Docker Hub (`docker.io`) and declared child containers inherit it.
-Add
+`AddDocker()` declares the default local docker-compatible container host
+resource. A configured default container host from `UseDocker(...)` is also
+treated as an implicit container-host resource in the realized runtime model;
+authored resources may default to it when the selected provider and environment
+policy allow it. The Docker resource can specify a registry with
+`WithRegistry(...)`; the registry defaults to Docker Hub (`docker.io`) and
+declared child containers inherit it. Add
 `WithRegistryCredentialsFromEnvironment(username, passwordEnvironmentVariable)`
 when the registry requires authentication. Containers are declared from that
 Docker resource with `AddContainer(id, image, tag)`, following the
@@ -687,7 +696,7 @@ for matching Compose service names. For example, `application:api` maps to the
 `api` Compose service. `UseDocker(...)` registers Docker as the implicit
 default container host and enables Docker Compose orchestration without
 requiring a user-authored Docker host definition. The runtime may still project
-that configured default as an implicit Docker host resource in the realized
+that configured default as an implicit container-host resource in the realized
 environment model. `UseContainerHost(...)` can register an explicit configured
 host when the app should target a non-default host.
 

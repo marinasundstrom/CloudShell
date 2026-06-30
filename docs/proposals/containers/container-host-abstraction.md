@@ -98,9 +98,9 @@ deliberately projects them as child resources for inspection.
 ### Hosts Are Placement Boundaries
 
 A host is a resource in the realized environment model that CloudShell can
-target. It may be an authored `docker.host` resource, an implicit local Docker
-host projected from `UseDocker()`, a Podman host, a Kubernetes cluster, a
-systemd machine, or a vendor appliance API.
+target. It may be an authored `docker.host` resource, an implicit local
+docker-compatible container host projected from `UseDocker()`, a Podman host,
+a Kubernetes cluster, a systemd machine, or a vendor appliance API.
 
 The selected host is a stable reference in provider-owned configuration when a
 resource needs explicit placement. Existing fields named `ContainerHostId`
@@ -422,7 +422,7 @@ not introduce a second out-of-band local management API for the shell.
 
 1. The app has no explicit host selection.
 2. The orchestrator asks `IContainerHostResolver` for a container-image host.
-3. The resolver returns the default Docker host from `UseDocker()`.
+3. The resolver returns the default container host configured by `UseDocker()`.
 4. The Docker Compose orchestrator materializes the app using that host.
 5. The app remains the stable resource for image updates and lifecycle actions.
 

@@ -233,29 +233,43 @@ public sealed class ResourceDependencyGraphProjectionTests
     public void Create_RendersImplicitDefaultResourcesWhenTheyAreIncluded()
     {
         var hostNetwork = CreateHostNetworkResource();
-        var defaultDockerHost = CreateDefaultDockerHostResource();
+        var defaultContainerHost = CreateDefaultContainerHostResource();
 
         var graph = ResourceDependencyGraphProjection.Create(
-            [hostNetwork, defaultDockerHost],
+            [hostNetwork, defaultContainerHost],
             CreateOptions());
 
         Assert.Equal(2, graph.ResourceCount);
         Assert.Contains(graph.Nodes, node => node.Id == hostNetwork.Id);
-        Assert.Contains(graph.Nodes, node => node.Id == defaultDockerHost.Id);
+        Assert.Contains(graph.Nodes, node => node.Id == defaultContainerHost.Id);
     }
 
     [Fact]
-    public void IsImplicitDefaultResource_IdentifiesHostNetworkAndDefaultDockerHost()
+    public void IsImplicitDefaultResource_IdentifiesOnlyProjectedDefaultResources()
     {
         var hostNetwork = CreateHostNetworkResource();
-        var defaultDockerHost = CreateDefaultDockerHostResource();
-        var explicitDockerHost = CreateDockerHostResource(
-            "docker.host:remote",
+        var defaultContainerHost = CreateDefaultContainerHostResource();
+        var defaultDockerCompatibleHost = CreateDefaultDockerHostResource();
+        var explicitContainerHost = CreateContainerHostResource(
+            "cloudshell.container-host:remote",
             isDefault: false);
+        var declaredHostNetwork = CreateHostNetworkResource(declared: true);
+        var declaredDefaultContainerHost = CreateContainerHostResource(
+            "cloudshell.container-host:override",
+            isDefault: true,
+            declared: true);
+        var declaredDefaultDockerCompatibleHost = CreateDockerHostResource(
+            "docker.host:override",
+            isDefault: true,
+            declared: true);
 
         Assert.True(ResourceGraphVisibility.IsImplicitDefaultResource(hostNetwork));
-        Assert.True(ResourceGraphVisibility.IsImplicitDefaultResource(defaultDockerHost));
-        Assert.False(ResourceGraphVisibility.IsImplicitDefaultResource(explicitDockerHost));
+        Assert.True(ResourceGraphVisibility.IsImplicitDefaultResource(defaultContainerHost));
+        Assert.True(ResourceGraphVisibility.IsImplicitDefaultResource(defaultDockerCompatibleHost));
+        Assert.False(ResourceGraphVisibility.IsImplicitDefaultResource(explicitContainerHost));
+        Assert.False(ResourceGraphVisibility.IsImplicitDefaultResource(declaredHostNetwork));
+        Assert.False(ResourceGraphVisibility.IsImplicitDefaultResource(declaredDefaultContainerHost));
+        Assert.False(ResourceGraphVisibility.IsImplicitDefaultResource(declaredDefaultDockerCompatibleHost));
     }
 
     private static ResourceDependencyGraphProjectionOptions CreateOptions(
@@ -289,7 +303,7 @@ public sealed class ResourceDependencyGraphProjectionTests
             ResourceClass: resourceClass,
             DisplayName: name);
 
-    private static Resource CreateHostNetworkResource() =>
+    private static Resource CreateHostNetworkResource(bool declared = false) =>
         new(
             "network:host",
             "host-network",
@@ -305,6 +319,9 @@ public sealed class ResourceDependencyGraphProjectionTests
             ResourceClass: ResourceClass.Network,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
+                [ResourceAttributeNames.ResourceGraphMembership] = declared
+                    ? ResourceGraphMembershipKinds.Declared
+                    : ResourceGraphMembershipKinds.Projected,
                 [ResourceAttributeNames.NetworkKind] = "Host"
             },
             DisplayName: "Host network");
@@ -312,11 +329,44 @@ public sealed class ResourceDependencyGraphProjectionTests
     private static Resource CreateDefaultDockerHostResource() =>
         CreateDockerHostResource("docker.host:local", isDefault: true);
 
-    private static Resource CreateDockerHostResource(string id, bool isDefault) =>
+    private static Resource CreateDefaultContainerHostResource() =>
+        CreateContainerHostResource("cloudshell.container-host:local", isDefault: true);
+
+    private static Resource CreateContainerHostResource(
+        string id,
+        bool isDefault,
+        bool declared = false) =>
+        CreateContainerHostResource(
+            id,
+            "cloudshell.container-host",
+            "container.host.default",
+            isDefault,
+            declared,
+            isDefault ? "Default container host" : "Remote container host");
+
+    private static Resource CreateDockerHostResource(
+        string id,
+        bool isDefault,
+        bool declared = false) =>
+        CreateContainerHostResource(
+            id,
+            "docker.host",
+            "docker.host.default",
+            isDefault,
+            declared,
+            isDefault ? "Default Docker-compatible host" : "Remote Docker-compatible host");
+
+    private static Resource CreateContainerHostResource(
+        string id,
+        string typeId,
+        string defaultAttribute,
+        bool isDefault,
+        bool declared,
+        string displayName) =>
         new(
             id,
             id.Split(':')[1],
-            "docker.host",
+            typeId,
             "test",
             "local",
             ResourceState.Running,
@@ -324,13 +374,16 @@ public sealed class ResourceDependencyGraphProjectionTests
             "Docker",
             DateTimeOffset.UtcNow,
             [],
-            TypeId: "docker.host",
+            TypeId: typeId,
             ResourceClass: ResourceClass.Infrastructure,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                ["docker.host.default"] = isDefault.ToString()
+                [ResourceAttributeNames.ResourceGraphMembership] = declared
+                    ? ResourceGraphMembershipKinds.Declared
+                    : ResourceGraphMembershipKinds.Projected,
+                [defaultAttribute] = isDefault.ToString()
             },
-            DisplayName: isDefault ? "Default Docker host" : "Remote Docker host");
+            DisplayName: displayName);
 
     private static Resource CreatePublicHttpResource() =>
         new(

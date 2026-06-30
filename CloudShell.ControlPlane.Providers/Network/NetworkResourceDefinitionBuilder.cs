@@ -32,6 +32,22 @@ public sealed class NetworkResourceDefinitionBuilder(string name) :
 
 public static class NetworkResourceDefinitionBuilderExtensions
 {
+    public const string DefaultNetworkResourceId = "network:host";
+
+    public static NetworkResourceDefinitionBuilder DefaultNetwork(
+        this ResourceDefinitionGraphBuilder graph)
+    {
+        ArgumentNullException.ThrowIfNull(graph);
+
+        return graph.GetOrAddResource(
+            DefaultNetworkResourceId,
+            () => new NetworkResourceDefinitionBuilder("host")
+                .WithResourceId(DefaultNetworkResourceId)
+                .WithDisplayName("Host network")
+                .WithNetworkKind("Host")
+                .WithHostReadiness("hostReady"));
+    }
+
     public static NetworkResourceDefinitionBuilder AddNetwork(
         this ResourceDefinitionGraphBuilder graph,
         string name)

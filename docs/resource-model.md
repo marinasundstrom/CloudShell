@@ -536,11 +536,24 @@ bindings. The resource model should provide the relationships and attributes;
 the map projection decides whether to render the normal resource view, the
 runtime view, or the network-focused overlay.
 
-Implicit default resources, such as the Host network or default Docker host,
-are still resources in the realized model. The normal Resource graph should
-hide them by default to keep declared intent readable, but it can expose a
-toggle for showing implicit/default resources when the user needs the complete
-realized resource set.
+Implicit default resources, such as the Host network or default container host,
+are still resources in the realized model. They represent host-level defaults
+that resources may use when no explicit network or container host is selected.
+The host can override those defaults by declaring or configuring replacement
+default resources. CloudShell currently focuses on docker-compatible container
+hosts, but the model is the generic container-host concept. The normal Resource
+graph should hide projected implicit defaults to keep declared intent readable,
+but it can expose a toggle for showing implicit/default resources when the user
+needs the complete realized resource set. Authored default overrides remain
+visible as declared resources.
+
+ResourceDefinition authoring should expose those defaults through named graph
+builder accessors rather than forcing every caller to know the default IDs.
+`DefaultNetwork()` returns the Host network and `DefaultContainerHost()` returns
+the configured default container-host resource. Identity provider defaults
+follow the same product model, with the current host builder exposing
+`GetIdentityProvider()` until identity providers are represented in the same
+ResourceDefinition authoring surface.
 
 Internet reachability should be explicit or observed, not inferred from local
 endpoint exposure alone. Local development resources can expose `localhost`

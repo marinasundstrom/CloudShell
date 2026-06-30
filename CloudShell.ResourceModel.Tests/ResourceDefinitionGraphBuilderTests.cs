@@ -76,6 +76,37 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
+    public void ResourceDefinitionGraphBuilder_ExposesDefaultNetworkAndContainerHostAccessors()
+    {
+        var graph = new ResourceDefinitionGraphBuilder();
+
+        var network = graph.DefaultNetwork();
+        var sameNetwork = graph.DefaultNetwork();
+        var containerHost = graph.DefaultContainerHost();
+        var sameContainerHost = graph.DefaultContainerHost();
+
+        Assert.Same(network, sameNetwork);
+        Assert.Same(containerHost, sameContainerHost);
+
+        var definitions = graph.BuildGraph().Resources;
+        var networkDefinition = Assert.Single(
+            definitions,
+            resource => resource.TypeId == NetworkResourceTypeProvider.ResourceTypeId);
+        var containerHostDefinition = Assert.Single(
+            definitions,
+            resource => resource.TypeId == ContainerHostResourceTypeProvider.ResourceTypeId);
+
+        Assert.Equal(NetworkResourceDefinitionBuilderExtensions.DefaultNetworkResourceId, networkDefinition.ResourceId);
+        Assert.Equal("Host", networkDefinition.ResourceAttributeValues[
+            NetworkResourceTypeProvider.Attributes.NetworkKind].StringValue);
+        Assert.Equal(ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId, containerHostDefinition.ResourceId);
+        Assert.Equal("Docker", containerHostDefinition.ResourceAttributeValues[
+            ContainerHostResourceTypeProvider.Attributes.HostKind].StringValue);
+        Assert.True(containerHostDefinition.ResourceAttributeValues[
+            ContainerHostResourceTypeProvider.Attributes.IsDefault].BooleanValue);
+    }
+
+    [Fact]
     public void ResourceDefinitionGraphBuilder_BuildsConfigurationPayloadFromNativeBuilderApi()
     {
         var graph = new ResourceDefinitionGraphBuilder()

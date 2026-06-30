@@ -285,6 +285,37 @@ public sealed class ResourceDefinitionGraphBuilder(
         return Add(new FixedResourceDefinitionBuilder(definition));
     }
 
+    public TBuilder GetOrAddResource<TBuilder>(
+        string resourceId,
+        Func<TBuilder> createResource)
+        where TBuilder : IResourceDefinitionBuilder
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        ArgumentNullException.ThrowIfNull(createResource);
+
+        var normalizedResourceId = resourceId.Trim();
+        if (_resources.FirstOrDefault(resource => string.Equals(
+                resource.EffectiveResourceId,
+                normalizedResourceId,
+                StringComparison.OrdinalIgnoreCase)) is { } existing)
+        {
+            return existing is TBuilder typed
+                ? typed
+                : throw new InvalidOperationException(
+                    $"Resource '{normalizedResourceId}' is already defined as '{existing.ResourceTypeId}'.");
+        }
+
+        var created = createResource();
+        Add(created);
+        if (!string.Equals(created.EffectiveResourceId, normalizedResourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Default resource builder created '{created.EffectiveResourceId}', expected '{normalizedResourceId}'.");
+        }
+
+        return created;
+    }
+
     public ResourceDefinitionGraph BuildGraph() =>
         new(_resources.Select(resource => resource.Build()).ToArray());
 
