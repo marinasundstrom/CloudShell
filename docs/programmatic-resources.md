@@ -280,6 +280,12 @@ supports identity-provider metadata through `resources.AddIdentityProvider(...)`
 Those calls feed the Control Plane identity-provider catalog when the graph is
 registered with the host.
 
+Graph-backed generic container-host resources project orchestration descriptors
+for the runtime host resolver. This means a resource such as SQL Server can call
+`UseContainerHost(resources.DefaultContainerHost())` and the runtime resolver
+can select that authored default host without a separate `UseDocker()` host
+registration path.
+
 A resource endpoint describes the named protocol/port exposed by the resource.
 Endpoint-network mappings connect that resource endpoint to a network or
 topology and provide the concrete address for that topology. When an

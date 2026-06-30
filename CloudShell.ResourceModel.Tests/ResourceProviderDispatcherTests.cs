@@ -561,6 +561,9 @@ public sealed class ResourceProviderDispatcherTests
         services.AddContainerHostResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
+        var descriptorProvider = Assert.Single(serviceProvider
+            .GetServices<CloudShell.Abstractions.ResourceManager.IResourceOrchestrationDescriptorProvider>()
+            .OfType<ContainerHostOrchestrationDescriptorProvider>());
         var definition = new ResourceDefinition(
             "docker",
             ContainerHostResourceTypeProvider.ResourceTypeId,
@@ -618,6 +621,7 @@ public sealed class ResourceProviderDispatcherTests
         Assert.NotNull(inspect);
         Assert.True(await inspect.CanExecuteAsync());
         Assert.Equal("Docker", inspect.PlanInspection().HostKind);
+        Assert.NotNull(descriptorProvider);
     }
 
     [Fact]

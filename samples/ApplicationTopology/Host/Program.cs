@@ -106,6 +106,7 @@ IResourceDefinitionBuilder databaseResource = null!;
 IResourceDefinitionBuilder settingsResource = null!;
 IResourceDefinitionBuilder secretsResource = null!;
 IResourceDefinitionBuilder hostConfigurationResource = null!;
+IResourceDefinitionBuilder containerHostResource = null!;
 IResourceDefinitionBuilder apiResource = null!;
 IResourceDefinitionBuilder frontendResource = null!;
 cloudShell.DefineResources(resources =>
@@ -117,11 +118,16 @@ cloudShell.DefineResources(resources =>
         .WithDisplayName("Application Topology SQL Data")
         .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false);
+    containerHostResource = resources
+        .DefaultContainerHost()
+        .WithResourceGroup(resourceGroupId)
+        .WithAutoStart(false);
     sqlServerResource = resources
         .AddSqlServer("application-topology-sql-server")
         .WithDisplayName("Application Topology SQL Server")
         .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false)
+        .UseContainerHost(containerHostResource)
         .WithTcpEndpoint(
             host: "localhost",
             port: sqlPort)
@@ -274,6 +280,7 @@ builder.Services
     .AddSingleton<IApplicationTopologyResourceModelSqlServerRuntimeBridge, ApplicationTopologyResourceModelSqlServerDockerBridge>()
     .AddSingleton<IResourceOrchestrationDescriptorProvider, ApplicationTopologyResourceModelSqlServerOrchestrationDescriptorProvider>()
     .AddSingleton<ISqlServerRuntimeHandler, ApplicationTopologyResourceModelSqlServerRuntimeHandler>()
+    .AddContainerHostResourceType()
     .AddStorageBackedSqlServerResourceTypes()
     .AddSqlDatabaseResourceType()
     .AddConfigurationStoreResourceType(options =>

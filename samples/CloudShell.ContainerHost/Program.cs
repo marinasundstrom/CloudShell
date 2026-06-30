@@ -30,11 +30,15 @@ cloudShell.DefineResources(resources =>
             path: "./Data/storage/sql-server")
         .WithDisplayName("SQL Server Data")
         .WithResourceGroup(resourceGroupId);
+    var containerHost = resources
+        .DefaultContainerHost()
+        .WithResourceGroup(resourceGroupId);
 
     resources
         .AddSqlServer("sql-server")
         .WithDisplayName("SQL Server")
         .WithResourceGroup(resourceGroupId)
+        .UseContainerHost(containerHost)
         .WithTcpEndpoint(
             host: "localhost",
             port: sqlServerPort)
@@ -45,6 +49,7 @@ builder.Services
     .AddSingleton<IContainerHostSqlServerRuntimeBridge, ContainerHostSqlServerDockerBridge>()
     .AddSingleton<ISqlServerRuntimeHandler, ContainerHostSqlServerRuntimeHandler>()
     .AddSingleton<IResourceOrchestrationDescriptorProvider, ContainerHostSqlServerOrchestrationDescriptorProvider>()
+    .AddContainerHostResourceType()
     .AddStorageBackedSqlServerResourceTypes();
 cloudShell.UseResourceGraphIntegration();
 

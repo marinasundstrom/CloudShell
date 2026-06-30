@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -30,6 +31,8 @@ public static class ContainerHostResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, ContainerHostInspectOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, ContainerHostResourceProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOrchestrationDescriptorProvider, ContainerHostOrchestrationDescriptorProvider>());
         services.TryAddSingleton<IContainerHostInspector, NoopContainerHostInspector>();
 
         return services;
