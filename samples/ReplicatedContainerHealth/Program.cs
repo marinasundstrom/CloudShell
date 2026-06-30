@@ -70,9 +70,9 @@ builder.Services
             serviceProvider.GetRequiredService<IHostEnvironment>(),
             traceIngestEndpoint,
             metricIngestEndpoint))
-    .AddSingleton<IContainerApplicationRuntimeHandler, ReplicatedContainerHealthContainerAppRuntimeHandler>()
-    .AddSingleton<IContainerApplicationOrchestratorRuntimeHandler, ReplicatedContainerHealthContainerAppRuntimeHandler>()
-    .AddLocalContainerApplicationResourceTypes();
+    .AddSingleton<IContainerApplicationRuntimeTarget, ReplicatedContainerHealthContainerAppRuntimeTarget>()
+    .AddLocalContainerApplicationResourceTypes()
+    .AddDelegatingContainerApplicationRuntime();
 cloudShell.UseResourceGraphIntegration();
 builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider, ReplicatedContainerHealthOrchestrationDescriptorProvider>();
 builder.Services.AddScoped<IResourceProvider, ReplicatedContainerHealthRuntimeResourceProvider>();

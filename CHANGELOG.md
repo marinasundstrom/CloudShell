@@ -69,6 +69,11 @@ on `git blame --follow`, and then by the broad type of change.
 - SQL Server providers now include an opt-in local Docker runtime adapter for
   mapped SQL Server resources, moving the duplicated ApplicationTopology and
   ContainerHost SQL Docker lifecycle bridges into the provider boundary.
+- Container app providers now include an opt-in delegating runtime handler
+  that routes lifecycle, image, replica, and orchestrator-service calls to
+  registered runtime targets; Replicated Container Health now uses this
+  provider-owned dispatch boundary instead of a sample-local container app
+  runtime handler.
 - SignalR Container App sample now uses the provider-owned local process
   runtime mapping for its backend container app instead of shipping a
   sample-local `IContainerApplicationRuntimeHandler`.

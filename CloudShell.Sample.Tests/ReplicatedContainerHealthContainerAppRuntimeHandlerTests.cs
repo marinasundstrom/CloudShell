@@ -650,7 +650,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     public async Task Handler_DelegatesMappedGraphApiToBridge()
     {
         var bridge = new RecordingContainerAppRuntimeBridge(ContainerApplicationRuntimeStatus.Running);
-        var handler = new ReplicatedContainerHealthContainerAppRuntimeHandler(bridge);
+        var handler = CreateHandler(bridge);
         var resource = await CreateGraphAppResourceAsync();
 
         Assert.Equal(ContainerApplicationRuntimeStatus.Running, handler.GetStatus(resource));
@@ -669,7 +669,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     public async Task Handler_DelegatesMappedGraphApiRoutingTearDownToBridge()
     {
         var bridge = new RecordingContainerAppRuntimeBridge(ContainerApplicationRuntimeStatus.Running);
-        var handler = new ReplicatedContainerHealthContainerAppRuntimeHandler(bridge);
+        var handler = CreateHandler(bridge);
         var resource = await CreateGraphAppResourceAsync();
         var service = CreateOrchestratorService(resource, replicas: 2);
         var replicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
@@ -692,7 +692,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     public async Task Handler_IgnoresUnmappedContainerAppWithoutCallingBridge()
     {
         var bridge = new RecordingContainerAppRuntimeBridge(ContainerApplicationRuntimeStatus.Running);
-        var handler = new ReplicatedContainerHealthContainerAppRuntimeHandler(bridge);
+        var handler = CreateHandler(bridge);
         var resource = await CreateGraphAppResourceAsync(
             name: "other",
             resourceId: "application.container-app:other");
@@ -701,7 +701,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             resource,
             ContainerApplicationResourceTypeProvider.Operations.Start);
 
-        Assert.Empty(diagnostics);
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal(NoopContainerApplicationRuntimeHandler.RuntimeUnavailableDiagnosticCode, diagnostic.Code);
         Assert.Empty(bridge.LifecycleCommands);
         Assert.Equal(ContainerApplicationRuntimeStatus.Unknown, handler.GetStatus(resource));
     }
@@ -798,6 +799,10 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                     $"{diagnostic.Severity}: {diagnostic.Code}: {diagnostic.Message}")));
         return result.Resource;
     }
+
+    private static DelegatingContainerApplicationRuntimeHandler CreateHandler(
+        IReplicatedContainerHealthContainerAppRuntimeBridge bridge) =>
+        new([new ReplicatedContainerHealthContainerAppRuntimeTarget(bridge)]);
 
     private static ResourceResolver CreateResourceResolver()
     {

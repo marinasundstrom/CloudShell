@@ -113,4 +113,18 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
 
         return services;
     }
+
+    public static IServiceCollection AddDelegatingContainerApplicationRuntime(
+        this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.TryAddSingleton<DelegatingContainerApplicationRuntimeHandler>();
+        services.Replace(ServiceDescriptor.Singleton<IContainerApplicationRuntimeHandler>(
+            serviceProvider => serviceProvider.GetRequiredService<DelegatingContainerApplicationRuntimeHandler>()));
+        services.Replace(ServiceDescriptor.Singleton<IContainerApplicationOrchestratorRuntimeHandler>(
+            serviceProvider => serviceProvider.GetRequiredService<DelegatingContainerApplicationRuntimeHandler>()));
+
+        return services;
+    }
 }
