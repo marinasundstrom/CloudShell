@@ -136,6 +136,72 @@ public sealed class ResourceModelContainerApplicationDeploymentApplyTests
             record.ReplicaGroup?.RequestedReplicaSlots ?? 0).ToArray());
     }
 
+    [Fact]
+    public async Task ReconcileNameMappingsAsync_PublishesContainerAppVirtualNetworkEndpointAsStableAppName()
+    {
+        var publisher = new RecordingNamePublishingProvider("test-dns");
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddResourceModelGraphServices();
+        services.AddContainerApplicationResourceType();
+        services.AddVirtualNetworkResourceType();
+        services.AddDnsZoneResourceType();
+        services.AddNameMappingResourceType();
+        services.AddBuiltInProviderResourceManagerProjections();
+        services.AddSingleton<INamePublishingProvider>(publisher);
+        services.AddSingleton<IDnsZoneNameMappingReconciler, ResourceModelGraphDnsZoneNameMappingReconciler>();
+
+        await using var serviceProvider = services.BuildServiceProvider();
+        var apply = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceDefinitionGraphBuilder();
+        var network = graph.AddVirtualNetwork("apps");
+        var app = graph
+            .AddContainerApplication("api")
+            .WithImage("ghcr.io/example/api:latest")
+            .WithHttpEndpoint(
+                name: "vnet-http",
+                targetPort: 8080,
+                port: 80,
+                exposure: "Network",
+                ipAddress: "10.42.0.20",
+                network: network,
+                assignment: "Manual");
+        var zone = graph
+            .AddDnsZone("apps-internal", "internal.cloudshell.test")
+            .WithProvider(publisher.ProviderName)
+            .MapHost(
+                "api.internal.cloudshell.test",
+                app,
+                endpointName: "vnet-http",
+                exposure: "Private");
+
+        var result = await apply.ApplyTemplateAsync(
+            graph.BuildTemplate("container-app-dns", environmentId: "local"),
+            new ResourceGraphCommitContext(
+                EnvironmentId: "local",
+                PrincipalId: "developer"));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        var zoneResource = await ResolveGraphResourceAsync(
+            serviceProvider,
+            zone.EffectiveResourceId);
+        var diagnostics = await serviceProvider
+            .GetRequiredService<IDnsZoneNameMappingReconciler>()
+            .ReconcileNameMappingsAsync(
+                zoneResource,
+                new ResourceProjectionExecutionContext(zoneResource));
+
+        Assert.DoesNotContain(diagnostics, diagnostic =>
+            diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);
+        var context = Assert.Single(publisher.Contexts);
+        var mapping = Assert.Single(context.Mappings);
+        Assert.Equal("api.internal.cloudshell.test", mapping.Mapping.HostName);
+        Assert.Equal(app.EffectiveResourceId, mapping.TargetResource.Id);
+        Assert.Equal("vnet-http", mapping.TargetEndpoint?.Name);
+        Assert.Equal("http://10.42.0.20:80", mapping.TargetEndpointNetworkMapping?.Address);
+        Assert.Equal(network.EffectiveResourceId, mapping.TargetEndpointNetworkMapping?.NetworkResourceId);
+    }
+
     private static async Task<ResourceOrchestratorDeployment> ApplyContainerDefinitionAsync(
         ResourceModelGraphDefinitionApplyService apply,
         IResourceOrchestratorDeploymentStore deploymentStore,
@@ -171,6 +237,20 @@ public sealed class ResourceModelContainerApplicationDeploymentApplyTests
                 MaxRecords: 1))
             .Single()
             .Deployment;
+    }
+
+    private static async Task<ResourceModelResource> ResolveGraphResourceAsync(
+        IServiceProvider serviceProvider,
+        string resourceId)
+    {
+        var snapshot = await serviceProvider
+            .GetRequiredService<ResourceGraphModel>()
+            .GetSnapshotAsync();
+        var state = snapshot.Resources.Single(resource =>
+            string.Equals(resource.EffectiveResourceId, resourceId, StringComparison.OrdinalIgnoreCase));
+        return serviceProvider
+            .GetRequiredService<ResourceResolver>()
+            .Resolve(state);
     }
 
     private static string FormatDiagnostics(
@@ -287,6 +367,27 @@ public sealed class ResourceModelContainerApplicationDeploymentApplyTests
             Action is null
                 ? $"{Stage}:{ReplicaCount}/{ReplicaCount}"
                 : $"{Stage}:{Action}:{ReplicaOrdinal}/{ReplicaCount}";
+    }
+
+    private sealed class RecordingNamePublishingProvider(string providerName) : INamePublishingProvider
+    {
+        private readonly List<DnsNamePublishingContext> _contexts = [];
+
+        public string ProviderName { get; } = providerName;
+
+        public IReadOnlyList<DnsNamePublishingContext> Contexts => _contexts;
+
+        public bool CanPublish(DnsNamePublishingContext context) =>
+            string.Equals(context.Definition.Provider, ProviderName, StringComparison.OrdinalIgnoreCase);
+
+        public Task<ResourceProcedureResult> ReconcileAsync(
+            DnsNamePublishingContext context,
+            CancellationToken cancellationToken = default)
+        {
+            _contexts.Add(context);
+            return Task.FromResult(ResourceProcedureResult.Completed(
+                $"Published {context.Mappings.Count} name mapping(s)."));
+        }
     }
 
     private sealed class ProjectedResourceManagerStore(

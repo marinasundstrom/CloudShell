@@ -42,6 +42,9 @@ on `git blame --follow`, and then by the broad type of change.
   virtual-network endpoint intent, including private IP address, network
   reference, and endpoint assignment metadata, and deployment descriptors
   preserve that service endpoint metadata for orchestrator routing.
+- Container app graph DNS coverage now verifies that name mappings publish
+  the stable container app virtual-network endpoint as the app service name,
+  instead of mapping DNS to individual replica resources.
 - Application Topology sample resource display names now omit the repeated
   sample prefix so graph cards remain readable.
 - ResourceHost now declares every sample resource exposed by its provider so

@@ -205,6 +205,10 @@ orchestrators can use it to bind the app service into a virtual network and to
 publish a stable DNS/name mapping for the app. Per-replica DNS names are a
 future operational diagnostic concern, not the default service-discovery
 contract.
+The graph DNS reconciliation path resolves name mappings against this
+container app endpoint projection, so an internal name such as
+`api.internal.example` targets the stable app endpoint address rather than a
+specific replica instance.
 
 ## Replicas
 
