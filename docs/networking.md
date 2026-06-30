@@ -98,7 +98,7 @@ Endpoint network mappings connect a resource endpoint to a network or topology
 and provide the resolved address for that topology. For local
 development, an Aspire-like helper such as `WithHttpEndpoint(port: 6000)`
 declares an HTTP endpoint descriptor and creates assignment intent in the
-implied default local network whose resolved endpoint maps to the supplied
+default Host network whose resolved endpoint maps to the supplied
 local port. That resolved mapping address is what the resource provider passes
 to the service when it starts.
 
@@ -193,7 +193,7 @@ port `8080` without deciding that the endpoint must be reachable through
 
 The current address is topology-specific:
 
-- in local development, the default topology is the implied local network, so
+- in local development, the default topology is the Host network, so
   the resolved address is often `localhost:<port>` or `127.0.0.1:<port>`
 - in a container host, the binding might be a container-network address or a
   published host port
@@ -223,7 +223,7 @@ Resource configuration should therefore follow this order:
 2. The environment or network policy decides which binding modes are allowed:
    host-local, virtual-network-only, public exposure, DNS/name mapping, or
    provider-managed ingress.
-3. The resource is attached to a topology, such as the implied local network
+3. The resource is attached to a topology, such as the Host network
    for local development or a tenant virtual network for managed/on-premise
    use.
 4. Exposure is configured separately when callers outside that topology need to
@@ -234,7 +234,7 @@ network, and manual host/port values in supported application registration
 flows. This is intentionally the first UI layer over the domain model, not the
 complete managed networking experience. Over time, Resource Manager should let
 users choose the network or topology for each resource endpoint whenever the
-environment allows it. In local development the implied local network can
+environment allows it. In local development the Host network can
 remain the default. In managed environments, the available choices should come
 from environment policy, tenant membership, resource permissions, and provider
 capabilities. A disabled or unavailable network choice should explain whether
@@ -242,7 +242,7 @@ the reason is policy, permission, missing provider capability, or missing
 setup.
 
 When a resource with network capabilities is created, Resource Manager should
-offer the available network choices, defaulting to **Local network** when that
+offer the available network choices, defaulting to **Host network** when that
 network exists and is allowed. For the selected network, the user can usually
 choose between auto-assignment and a manual address or port when policy allows
 manual assignment. Auto-assignment lets the selected network provider pick the
@@ -251,7 +251,7 @@ virtual-network address, a private DNS name, provider-owned ingress, or a
 policy-guided combination of those mappings.
 
 For local development, CloudShell can default endpoint-bearing resources to an
-implied local network and allow localhost-resolved addresses because that keeps
+implicit Host network and allow localhost-resolved addresses because that keeps
 the developer loop simple. For managed or on-premise environments, CloudShell
 should be able to enforce stricter environment policy, such as:
 
@@ -349,10 +349,12 @@ runtime state remain behind provider contracts.
 
 ## Default Behavior
 
-When no network has been created, CloudShell projects the default host network
-as `network:host`. This is the topology boundary for the implied local network.
-It keeps local development simple: resources can still expose localhost
-endpoints without forcing the user to create a network first.
+When no network has been authored, CloudShell still projects the default Host
+network resource as `network:host`. It is an implicit resource in the realized
+environment model, not a special case outside the resource model. Local
+development resources may default to it when policy allows localhost bindings,
+so they can expose localhost endpoints without forcing the user to author a
+network first.
 
 The built-in host-local networking provider, `networking:host-local`, is
 separate from `network:host`. `network:host` is the default topology boundary;

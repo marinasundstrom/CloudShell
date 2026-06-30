@@ -104,7 +104,7 @@ explicit endpoints are configured.
 
 Resource Manager create and update forms also expose the selected network and,
 when manual assignment is selected, an optional manual host/address. The local
-development default remains **Local network** with provider assignment, but the
+development default remains **Host network** with provider assignment, but the
 same UI shape is ready for virtual networks and private DNS/name-mapping
 policies.
 
@@ -132,7 +132,7 @@ resources
 ```
 
 Fixed endpoint URIs and fixed helper ports are stored as manual endpoint
-assignments in the implied local network. Calling `WithHttpEndpoint()` or
+assignments in the Host network. Calling `WithHttpEndpoint()` or
 `WithEndpointPort(...)` without a fixed port stores an explicit auto assignment,
 so the provider can choose the local address while the project keeps the
 declared service port.

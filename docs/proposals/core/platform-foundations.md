@@ -157,8 +157,8 @@ types. A simple default order is:
 
 Provider defaults should be treated as local development helpers unless a
 resource type explicitly documents otherwise. An Aspire-compatible helper can
-declare a resource endpoint and produce an endpoint mapping to the implied
-default local network, where the current local topology resolves that mapping
+declare a resource endpoint and produce an endpoint mapping to the default
+Host network, where the current local topology resolves that mapping
 to `localhost` or loopback. Public exposure, ingress, network-level mapping,
 and DNS naming should be explicit resource declarations or operator choices,
 not surprising side effects of implicit endpoint discovery. Future work can

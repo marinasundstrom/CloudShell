@@ -740,7 +740,7 @@ the current resolved address for that topology. Resources project these
 topology-specific addresses through `Resource.ResourceEndpointNetworkMappings`.
 For local development, an Aspire-compatible helper such as
 `WithHttpEndpoint(port: 6000)` declares an HTTP endpoint descriptor and creates
-assignment intent for the implied local network; the resulting network mapping
+assignment intent for the Host network; the resulting network mapping
 is the address the provider passes to the service when it starts.
 
 Configured endpoint mappings connect a source endpoint to a target endpoint. A
@@ -764,8 +764,9 @@ reserve endpoints advertise `networking.endpointProvider`.
 
 CloudShell uses three basic network resource kinds:
 
-- Host network: the implicit default when no network resource has been created.
-  The default Control Plane projects it as the local host environment.
+- Host network: the implicit default resource when no network resource has been
+  authored. The default Control Plane projects it as the local host environment,
+  and resources may default to it when policy allows host-local bindings.
 - Logical network: a named CloudShell boundary for endpoint requests and
   configured endpoint mappings.
 - Virtual network: a richer environment boundary intended for on-premise or

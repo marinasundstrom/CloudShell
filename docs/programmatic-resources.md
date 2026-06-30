@@ -260,12 +260,13 @@ resources
 Applications can depend on any declared resource builder, including sub-resources
 such as containers returned from `resources.AddDocker().AddContainer(...)`.
 
-CloudShell also includes an implied local network, explicit logical and
-virtual network resources, and optional service resources. Programmatic
+CloudShell also includes an implicit Host network resource, explicit logical
+and virtual network resources, and optional service resources. Programmatic
 endpoint helpers can keep local development Aspire-compatible by declaring an
-application endpoint and producing an endpoint mapping to the implied default
-local network. In the current local development topology, that mapping resolves
-to a local address such as `localhost:<port>` or `127.0.0.1:<port>`. That
+application endpoint and producing an endpoint mapping to the default Host
+network. In the current local development topology, that mapping resolves to a
+local address such as `localhost:<port>` or `127.0.0.1:<port>`. Resources may
+default to the Host network when policy allows host-local bindings, but that
 helper behavior is not the canonical networking model.
 
 A resource endpoint describes the named protocol/port exposed by the resource.
@@ -510,14 +511,18 @@ declared explicitly. Named endpoints match the Aspire URI shape
 `https+http://_endpointName.serviceName`.
 
 Endpoint helpers compile down to the networking primitives. A fixed endpoint
-URI or fixed helper port becomes a manual endpoint mapping in the implied local
-network. An endpoint helper without a fixed port becomes an explicit
-auto-assigned mapping, allowing the local network/provider to choose the
+URI or fixed helper port becomes a manual endpoint mapping in the Host network.
+An endpoint helper without a fixed port becomes an explicit auto-assigned
+mapping, allowing the selected network/provider to choose the
 concrete address while keeping the resource-owned service port stable.
 
-`AddDocker()` declares the default local Docker host resource. The Docker
-resource can specify a registry with `WithRegistry(...)`; the registry defaults
-to Docker Hub (`docker.io`) and declared child containers inherit it. Add
+`AddDocker()` declares the default local Docker host resource. A configured
+default Docker host from `UseDocker(...)` is also treated as an implicit
+container-host resource in the realized runtime model; authored resources may
+default to it when the selected provider and environment policy allow it. The
+Docker resource can specify a registry with `WithRegistry(...)`; the registry
+defaults to Docker Hub (`docker.io`) and declared child containers inherit it.
+Add
 `WithRegistryCredentialsFromEnvironment(username, passwordEnvironmentVariable)`
 when the registry requires authentication. Containers are declared from that
 Docker resource with `AddContainer(id, image, tag)`, following the
@@ -680,9 +685,11 @@ network, service, and exposure descriptors into runtime-specific artifacts.
 The Docker Compose orchestrator runs lifecycle commands through `docker compose`
 for matching Compose service names. For example, `application:api` maps to the
 `api` Compose service. `UseDocker(...)` registers Docker as the implicit
-default container host and enables Docker Compose orchestration without adding
-Docker to the resource graph. `UseContainerHost(...)` can register an explicit
-configured host when the app should target a non-default host.
+default container host and enables Docker Compose orchestration without
+requiring a user-authored Docker host definition. The runtime may still project
+that configured default as an implicit Docker host resource in the realized
+environment model. `UseContainerHost(...)` can register an explicit configured
+host when the app should target a non-default host.
 
 `AsContainer(...)` is the project-to-container hook for ASP.NET Core project
 resources. It converts the projected resource to an `application.container-app`
@@ -710,10 +717,10 @@ but application and service declarations do not need to be tied to a specific
 runtime implementation in the user-facing graph.
 
 The explicit Docker resource model remains available separately. Use
-`AddDockerProvider()` plus `resources.AddDocker()` when Docker itself should
-appear as a managed resource with child container resources. It can coexist with
-an implicit default container host; CloudShell does not enforce that both point
-at the same runtime instance.
+`AddDockerProvider()` plus `resources.AddDocker()` when the Docker host should
+be authored in the resource template and manage child container resources. It
+can coexist with an implicit default container host; CloudShell does not enforce
+that both point at the same runtime instance.
 
 Declaring a Docker container under a Docker host is a local-development desired
 state statement. It means CloudShell expects that container to exist on that

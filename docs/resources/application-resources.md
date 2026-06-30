@@ -178,8 +178,8 @@ endpoint, container target port, or provider-projected logical endpoint that
 callers can address once the current topology resolves it.
 
 The concrete address is topology-specific and governed by the environment or
-network policy. Local development can resolve endpoints through the implied
-local network and expose `localhost` addresses by default. Managed or
+network policy. Local development can resolve endpoints through the implicit
+Host network and expose `localhost` addresses by default. Managed or
 on-premise environments can require tenant virtual networks and disallow
 host-local bindings unless an administrator explicitly permits them. See
 [Networking](../networking.md) for the shared endpoint mapping, binding,
@@ -199,7 +199,7 @@ specific network boundary:
   exposure route
 
 Aspire-compatible and local-development helpers can continue to make endpoint
-declarations produce an endpoint mapping to the implied default local network,
+declarations produce an endpoint mapping to the default Host network,
 which currently resolves to a `localhost` or `127.0.0.1` address. That keeps
 early modeling ergonomic, but it is helper behavior over the same primitives:
 the application owns the endpoint, while topology, exposure, and naming are

@@ -51,6 +51,11 @@
                 </div>
             }
             <FluentCheckbox Class="resource-graph-topology-toggle"
+                            Value="@IncludeImplicitResources"
+                            ValueChanged="OnImplicitResourcesChanged">
+                @L["Implicit resources"]
+            </FluentCheckbox>
+            <FluentCheckbox Class="resource-graph-topology-toggle"
                             Value="@IncludeNetworkTopologyOverlay"
                             ValueChanged="OnNetworkTopologyOverlayChanged">
                 @L["Network topology"]
@@ -90,6 +95,8 @@
     private ResourceDependencyGraphModel Graph { get; set; } = ResourceDependencyGraphModel.Empty;
 
     private bool IncludeNetworkTopologyOverlay { get; set; }
+
+    private bool IncludeImplicitResources { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -139,6 +146,7 @@
         var allResources = await ResourceManager.ListResourcesAsync();
         var resources = allResources
             .Where(displaySelection.ShowsResource)
+            .Where(resource => IncludeImplicitResources || !ResourceGraphVisibility.IsImplicitDefaultResource(resource))
             .OrderBy(displaySelection.GetResourceSortLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         Graph = ResourceDependencyGraphProjection.Create(
@@ -165,6 +173,13 @@
     private async Task OnNetworkTopologyOverlayChanged(bool enabled)
     {
         IncludeNetworkTopologyOverlay = enabled;
+        await LoadGraphAsync();
+        await UpdateGraphAsync();
+    }
+
+    private async Task OnImplicitResourcesChanged(bool enabled)
+    {
+        IncludeImplicitResources = enabled;
         await LoadGraphAsync();
         await UpdateGraphAsync();
     }

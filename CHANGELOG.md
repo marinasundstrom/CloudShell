@@ -39,6 +39,13 @@ on `git blame --follow`, and then by the broad type of change.
   reachable networks; the Environment Map also infers local host-network
   bindings and projects a Host network node for the implicit default host
   network.
+- Resource endpoint details and active networking/hosting guidance now
+  consistently call the implicit local-development topology the Host network,
+  and clarify that implicit Host network and Docker host defaults are still
+  resources in the realized environment model.
+- Resource graph now hides implicit default resources such as the Host network
+  and default Docker host by default, while adding an explicit toggle to show
+  them when the user wants the complete realized resource set.
 - Terminology, domain, architecture, and resource-model docs now define a
   network topology overlay that can be shown in both the Resource graph and
   Environment Map, including future internet-reachability facts.

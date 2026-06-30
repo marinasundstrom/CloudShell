@@ -536,6 +536,12 @@ bindings. The resource model should provide the relationships and attributes;
 the map projection decides whether to render the normal resource view, the
 runtime view, or the network-focused overlay.
 
+Implicit default resources, such as the Host network or default Docker host,
+are still resources in the realized model. The normal Resource graph should
+hide them by default to keep declared intent readable, but it can expose a
+toggle for showing implicit/default resources when the user needs the complete
+realized resource set.
+
 Internet reachability should be explicit or observed, not inferred from local
 endpoint exposure alone. Local development resources can expose `localhost`
 ports and still not have verified internet connectivity. Providers, runtime

@@ -229,6 +229,35 @@ public sealed class ResourceDependencyGraphProjectionTests
             Assert.Single(graph.Nodes, node => node.Id == network.Id).InternetReachability);
     }
 
+    [Fact]
+    public void Create_RendersImplicitDefaultResourcesWhenTheyAreIncluded()
+    {
+        var hostNetwork = CreateHostNetworkResource();
+        var defaultDockerHost = CreateDefaultDockerHostResource();
+
+        var graph = ResourceDependencyGraphProjection.Create(
+            [hostNetwork, defaultDockerHost],
+            CreateOptions());
+
+        Assert.Equal(2, graph.ResourceCount);
+        Assert.Contains(graph.Nodes, node => node.Id == hostNetwork.Id);
+        Assert.Contains(graph.Nodes, node => node.Id == defaultDockerHost.Id);
+    }
+
+    [Fact]
+    public void IsImplicitDefaultResource_IdentifiesHostNetworkAndDefaultDockerHost()
+    {
+        var hostNetwork = CreateHostNetworkResource();
+        var defaultDockerHost = CreateDefaultDockerHostResource();
+        var explicitDockerHost = CreateDockerHostResource(
+            "docker.host:remote",
+            isDefault: false);
+
+        Assert.True(ResourceGraphVisibility.IsImplicitDefaultResource(hostNetwork));
+        Assert.True(ResourceGraphVisibility.IsImplicitDefaultResource(defaultDockerHost));
+        Assert.False(ResourceGraphVisibility.IsImplicitDefaultResource(explicitDockerHost));
+    }
+
     private static ResourceDependencyGraphProjectionOptions CreateOptions(
         bool includeNetworkTopologyOverlay = false,
         IReadOnlyList<Resource>? relationshipResources = null) =>
@@ -259,6 +288,49 @@ public sealed class ResourceDependencyGraphProjectionTests
             TypeId: id.Split(':')[0],
             ResourceClass: resourceClass,
             DisplayName: name);
+
+    private static Resource CreateHostNetworkResource() =>
+        new(
+            "network:host",
+            "host-network",
+            "cloudshell.network",
+            "test",
+            "local",
+            ResourceState.Running,
+            [],
+            "host default",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: "cloudshell.network",
+            ResourceClass: ResourceClass.Network,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.NetworkKind] = "Host"
+            },
+            DisplayName: "Host network");
+
+    private static Resource CreateDefaultDockerHostResource() =>
+        CreateDockerHostResource("docker.host:local", isDefault: true);
+
+    private static Resource CreateDockerHostResource(string id, bool isDefault) =>
+        new(
+            id,
+            id.Split(':')[1],
+            "docker.host",
+            "test",
+            "local",
+            ResourceState.Running,
+            [],
+            "Docker",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: "docker.host",
+            ResourceClass: ResourceClass.Infrastructure,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["docker.host.default"] = isDefault.ToString()
+            },
+            DisplayName: isDefault ? "Default Docker host" : "Remote Docker host");
 
     private static Resource CreatePublicHttpResource() =>
         new(
