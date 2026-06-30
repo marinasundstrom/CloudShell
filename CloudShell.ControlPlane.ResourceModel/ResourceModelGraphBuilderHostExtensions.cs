@@ -68,6 +68,18 @@ public static class ResourceModelGraphBuilderHostExtensions
     {
         var declarations = ResourceModelResourceDefinitionBuilderExtensions
             .GetOrAddDeclarationStore(builder.Services);
+        var graphMetadata = ResourceModelResourceDefinitionBuilderExtensions
+            .GetGraphDeclarationMetadata(graph);
+
+        foreach (var provider in graphMetadata.GetIdentityProviders())
+        {
+            declarations.AddIdentityProvider(provider);
+        }
+
+        if (graphMetadata.DefaultIdentityProviderId is { } defaultIdentityProviderId)
+        {
+            declarations.UseDefaultIdentityProvider(defaultIdentityProviderId);
+        }
 
         foreach (var resource in graph.ResourceBuilders)
         {

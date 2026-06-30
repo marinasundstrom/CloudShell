@@ -237,6 +237,58 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
+    public void ResourceDefinitionGraphBuilder_ExposesDefaultIdentityProvider()
+    {
+        var graph = new ResourceDefinitionGraphBuilder();
+        var provider = graph.AddIdentityProvider(
+            "identity:development",
+            "Development identity",
+            ResourceIdentityProviderKind.BuiltIn,
+            useAsDefault: true);
+
+        var resolved = graph.GetIdentityProvider();
+
+        Assert.Same(provider, resolved);
+        Assert.Equal("identity:development", resolved.Id);
+        Assert.Equal(ResourceIdentityProviderKind.BuiltIn, resolved.Kind);
+    }
+
+    [Fact]
+    public void Host_DefineResourcesRegistersGraphIdentityProviders()
+    {
+        var services = new ServiceCollection();
+        services
+            .AddCloudShellControlPlane()
+            .DefineResources(resources =>
+            {
+                var identityProvider = resources.AddIdentityProvider(
+                    "identity:development",
+                    "Development identity",
+                    ResourceIdentityProviderKind.BuiltIn,
+                    useAsDefault: true);
+
+                resources
+                    .AddNetwork("api")
+                    .RequireIdentity(name: "api");
+
+                Assert.Same(identityProvider, resources.GetIdentityProvider());
+            });
+        using var serviceProvider = services.BuildServiceProvider();
+        var declarations = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var catalog = declarations.CreateIdentityProviderCatalog(new ResourceIdentityProviderCatalog());
+        var provider = Assert.Single(declarations.GetIdentityProviders());
+        var declaration = Assert.Single(
+            declarations.GetDeclarations(),
+            declaration => declaration.ResourceId == "cloudshell.network:api");
+
+        Assert.Equal("identity:development", provider.Id);
+        Assert.Equal("identity:development", declarations.DefaultIdentityProviderId);
+        Assert.Equal("identity:development", catalog.DefaultProviderId);
+        Assert.Equal(ResourceIdentityBindingKind.Required, declaration.IdentityBinding?.Kind);
+        Assert.Equal("api", declaration.IdentityBinding?.Name);
+    }
+
+    [Fact]
     public async Task Host_DefineResourcesUsesConfiguredResourceIdConvention()
     {
         var services = new ServiceCollection();

@@ -49,6 +49,10 @@ on `git blame --follow`, and then by the broad type of change.
 - ResourceDefinition graph builders now expose get-or-add default resource
   accessors for the Host network and default docker-compatible container host,
   matching the default-resource authoring model used by identity providers.
+- ResourceDefinition graph authoring can now register identity providers and
+  select or retrieve the default identity provider, with those declarations
+  copied into the Control Plane identity-provider catalog when the graph is
+  registered with the host.
 - Terminology, domain, architecture, and resource-model docs now define a
   network topology overlay that can be shown in both the Resource graph and
   Environment Map, including future internet-reachability facts.

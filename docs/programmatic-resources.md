@@ -274,9 +274,11 @@ points when the template wants to make them explicit. In the ResourceDefinition
 builder, `resources.DefaultNetwork()` returns the Host network resource and
 `resources.DefaultContainerHost()` returns the default docker-compatible
 container host resource. The accessors are get-or-add helpers, so repeated calls
-refer to the same resource builder. The host-level graph builder still exposes
-the configured default identity provider through `resources.GetIdentityProvider()`
-until identity providers move fully into ResourceDefinition authoring.
+refer to the same resource builder. ResourceDefinition graph authoring also
+supports identity-provider metadata through `resources.AddIdentityProvider(...)`,
+`resources.UseDefaultIdentityProvider(...)`, and `resources.GetIdentityProvider()`.
+Those calls feed the Control Plane identity-provider catalog when the graph is
+registered with the host.
 
 A resource endpoint describes the named protocol/port exposed by the resource.
 Endpoint-network mappings connect that resource endpoint to a network or

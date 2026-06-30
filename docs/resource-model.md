@@ -550,10 +550,12 @@ visible as declared resources.
 ResourceDefinition authoring should expose those defaults through named graph
 builder accessors rather than forcing every caller to know the default IDs.
 `DefaultNetwork()` returns the Host network and `DefaultContainerHost()` returns
-the configured default container-host resource. Identity provider defaults
-follow the same product model, with the current host builder exposing
-`GetIdentityProvider()` until identity providers are represented in the same
-ResourceDefinition authoring surface.
+the configured default container-host resource. ResourceDefinition graph
+authoring can also register identity providers and select the default provider
+with `AddIdentityProvider(...)`, `UseDefaultIdentityProvider(...)`, and
+`GetIdentityProvider()`. Identity providers remain Control Plane identity
+metadata rather than ResourceDefinition resources until the identity-provider
+resource shape is designed.
 
 Internet reachability should be explicit or observed, not inferred from local
 endpoint exposure alone. Local development resources can expose `localhost`
