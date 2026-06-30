@@ -825,6 +825,49 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
+    public void ResourceDefinitionGraphBuilder_BuildsContainerApplicationVirtualNetworkEndpointRequest()
+    {
+        var services = new ServiceCollection();
+        services.AddContainerApplicationResourceType();
+        services.AddVirtualNetworkResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var graph = new ResourceDefinitionGraphBuilder();
+        var network = graph
+            .AddVirtualNetwork("apps")
+            .WithDisplayName("Apps network");
+
+        graph
+            .AddContainerApplication("api")
+            .WithImage("ghcr.io/example/api:latest")
+            .WithHttpEndpoint(
+                name: "vnet-http",
+                targetPort: 8080,
+                port: 80,
+                exposure: "Network",
+                ipAddress: "10.42.0.20",
+                network: network,
+                assignment: "Manual");
+
+        var template = graph.BuildTemplate("container-app-vnet", environmentId: "local");
+        var appDefinition = Assert.Single(template.Resources, resource =>
+            resource.TypeId == ContainerApplicationResourceTypeProvider.ResourceTypeId);
+        var endpoint = Assert.Single(appDefinition.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+            ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests) ?? []);
+
+        Assert.Equal("vnet-http", endpoint.Name);
+        Assert.Equal("http", endpoint.Protocol);
+        Assert.Equal(8080, endpoint.TargetPort);
+        Assert.Equal(80, endpoint.Port);
+        Assert.Equal("Network", endpoint.Exposure);
+        Assert.Equal("Manual", endpoint.Assignment);
+        Assert.Equal("10.42.0.20", endpoint.IpAddress);
+        Assert.NotNull(endpoint.Network);
+        Assert.True(endpoint.Network!.TryGetResourceId(out var networkResourceId));
+        Assert.Equal(network.EffectiveResourceId, networkResourceId);
+    }
+
+    [Fact]
     public async Task ResourceDefinitionGraphBuilder_BuildsExecutableAndProjectDefinitions()
     {
         var services = new ServiceCollection();

@@ -85,6 +85,10 @@ Resource model provider migration.
   workload-builder scenario deliberately exposes them. The Environment Map can
   visualize them as a read model, but it must not become a second source of
   truth.
+- Container app DNS and virtual-network endpoint intent belongs to the stable
+  container app service boundary by default. Replica-specific DNS names and
+  sticky/session-affinity routing are future routing-policy features, not the
+  baseline service-discovery contract.
 
 ## Active Slice
 

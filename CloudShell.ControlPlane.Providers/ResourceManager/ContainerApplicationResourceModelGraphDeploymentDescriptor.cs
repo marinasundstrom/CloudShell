@@ -112,7 +112,8 @@ public sealed class ContainerApplicationResourceModelGraphDeploymentDescriptor :
                     ParseEnum(endpoint.Exposure, ResourceExposureScope.Local),
                     ParseEnum(endpoint.Assignment, ResourceEndpointAssignment.ProviderDefault),
                     NetworkResourceId: TryGetReferenceResourceId(endpoint.Network),
-                    Host: endpoint.Host))
+                    Host: endpoint.Host,
+                    IPAddress: endpoint.IpAddress))
             .ToArray();
 
     private static IReadOnlyList<ResourceVolumeMount> ToVolumeMounts(

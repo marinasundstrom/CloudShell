@@ -88,7 +88,10 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
         int targetPort,
         string? host = null,
         int? port = null,
-        string? exposure = null)
+        string? exposure = null,
+        string? ipAddress = null,
+        IResourceDefinitionBuilder? network = null,
+        string? assignment = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(protocol);
@@ -99,7 +102,15 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
             TargetPort: targetPort,
             Host: string.IsNullOrWhiteSpace(host) ? null : host.Trim(),
             Port: port,
-            Exposure: string.IsNullOrWhiteSpace(exposure) ? null : exposure.Trim()));
+            IpAddress: string.IsNullOrWhiteSpace(ipAddress) ? null : ipAddress.Trim(),
+            Exposure: string.IsNullOrWhiteSpace(exposure) ? null : exposure.Trim(),
+            Assignment: string.IsNullOrWhiteSpace(assignment) ? null : assignment.Trim(),
+            Network: network is null
+                ? null
+                : ResourceReference.ReferenceResourceId(
+                    network.EffectiveResourceId,
+                    network.ResourceTypeId,
+                    network.ResourceProviderId)));
         return SetObjectAttribute(
             ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests,
             _endpointRequests.ToArray());
@@ -111,32 +122,80 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
         int? port = null,
         string protocol = "tcp",
         string? host = null,
-        string exposure = "Local") =>
-        AddEndpointRequest(name, protocol, targetPort, host, port, exposure);
+        string exposure = "Local",
+        string? ipAddress = null,
+        IResourceDefinitionBuilder? network = null,
+        string? assignment = null) =>
+        AddEndpointRequest(
+            name,
+            protocol,
+            targetPort,
+            host,
+            port,
+            exposure,
+            ipAddress,
+            network,
+            assignment);
 
     public ContainerApplicationResourceDefinitionBuilder WithHttpEndpoint(
         int targetPort = 80,
         int? port = null,
         string name = "http",
         string? host = null,
-        string exposure = "Local") =>
-        AddEndpointRequest(name, "http", targetPort, host, port, exposure);
+        string exposure = "Local",
+        string? ipAddress = null,
+        IResourceDefinitionBuilder? network = null,
+        string? assignment = null) =>
+        AddEndpointRequest(
+            name,
+            "http",
+            targetPort,
+            host,
+            port,
+            exposure,
+            ipAddress,
+            network,
+            assignment);
 
     public ContainerApplicationResourceDefinitionBuilder WithHttpsEndpoint(
         int targetPort = 443,
         int? port = null,
         string name = "https",
         string? host = null,
-        string exposure = "Local") =>
-        AddEndpointRequest(name, "https", targetPort, host, port, exposure);
+        string exposure = "Local",
+        string? ipAddress = null,
+        IResourceDefinitionBuilder? network = null,
+        string? assignment = null) =>
+        AddEndpointRequest(
+            name,
+            "https",
+            targetPort,
+            host,
+            port,
+            exposure,
+            ipAddress,
+            network,
+            assignment);
 
     public ContainerApplicationResourceDefinitionBuilder WithTcpEndpoint(
         string name,
         int targetPort,
         int? port = null,
         string? host = null,
-        string exposure = "Local") =>
-        AddEndpointRequest(name, "tcp", targetPort, host, port, exposure);
+        string exposure = "Local",
+        string? ipAddress = null,
+        IResourceDefinitionBuilder? network = null,
+        string? assignment = null) =>
+        AddEndpointRequest(
+            name,
+            "tcp",
+            targetPort,
+            host,
+            port,
+            exposure,
+            ipAddress,
+            network,
+            assignment);
 
     public ContainerApplicationResourceDefinitionBuilder AddHealthCheck(
         ResourceHealthCheckDefinition check)

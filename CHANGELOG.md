@@ -38,6 +38,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource graph and Environment Map cards now use compact type/artifact icons
   instead of initials, keeping resource display names as the dominant card
   content.
+- Container app ResourceDefinition builders now support app-level
+  virtual-network endpoint intent, including private IP address, network
+  reference, and endpoint assignment metadata, and deployment descriptors
+  preserve that service endpoint metadata for orchestrator routing.
 - Application Topology sample resource display names now omit the repeated
   sample prefix so graph cards remain readable.
 - ResourceHost now declares every sample resource exposed by its provider so

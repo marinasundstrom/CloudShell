@@ -197,6 +197,15 @@ endpoint in the local/programmatic flow, then use resource identity and grants
 when the container app needs authorized access to the service provided by that
 resource.
 
+Container apps can also declare app-level virtual-network endpoint intent on
+their endpoint requests. The app endpoint may carry a network resource
+reference, private IP address, and assignment mode. That metadata belongs to
+the stable container app service, not to individual replicas. Runtime
+orchestrators can use it to bind the app service into a virtual network and to
+publish a stable DNS/name mapping for the app. Per-replica DNS names are a
+future operational diagnostic concern, not the default service-discovery
+contract.
+
 ## Replicas
 
 Container apps default to single-instance mode. In that mode the app binds its
@@ -255,6 +264,10 @@ Scale-in updates routing to the retained slots before removing superseded
 replicas. Image deployments materialize the new revision's replica group,
 route traffic to that group, and then retire the superseded group as
 post-apply cleanup.
+Future service-routing policy should include session affinity for protocols
+such as WebSockets, where callers may need repeated requests or upgraded
+connections to stay pinned to the same replica instead of being distributed to
+a different replica on each request.
 
 Inside the orchestration layer, CloudShell represents this management group as
 a `ResourceOrchestratorService` descriptor. Container apps produce this
