@@ -95,4 +95,22 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
 
         return services;
     }
+
+    public static IServiceCollection AddDeferredContainerApplicationRuntime(
+        this IServiceCollection services,
+        Action<DeferredContainerApplicationRuntimeOptions>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        if (configure is not null)
+        {
+            services.Configure(configure);
+        }
+
+        services.Replace(ServiceDescriptor.Singleton<
+            IContainerApplicationRuntimeHandler,
+            DeferredContainerApplicationRuntimeHandler>());
+
+        return services;
+    }
 }

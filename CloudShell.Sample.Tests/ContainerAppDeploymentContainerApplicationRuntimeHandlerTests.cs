@@ -4,32 +4,34 @@ using ResourceModelResource = CloudShell.ResourceModel.Resource;
 
 namespace CloudShell.Sample.Tests;
 
-public sealed class ContainerAppDeploymentContainerApplicationRuntimeHandlerTests
+public sealed class DeferredContainerApplicationRuntimeHandlerTests
 {
     [Fact]
-    public async Task Handler_DelegatesMappedAppToBridge()
+    public async Task Handler_AcceptsMappedAppWithoutMaterializingRuntime()
     {
-        var bridge = new RecordingContainerApplicationRuntimeBridge(ContainerApplicationRuntimeStatus.Running);
-        var handler = new ContainerAppDeploymentContainerApplicationRuntimeHandler(bridge);
+        var handler = CreateHandler();
         var resource = await CreateAppResourceAsync();
 
-        Assert.Equal(ContainerApplicationRuntimeStatus.Running, handler.GetStatus(resource));
+        Assert.Equal(ContainerApplicationRuntimeStatus.Stopped, handler.GetStatus(resource));
 
-        var diagnostics = await handler.ExecuteLifecycleAsync(
+        var lifecycleDiagnostics = await handler.ExecuteLifecycleAsync(
             resource,
             ContainerApplicationResourceTypeProvider.Operations.Start);
+        var imageDiagnostics = await handler.ApplyImageAsync(resource);
+        var replicaDiagnostics = await handler.ApplyReplicasAsync(resource);
 
-        Assert.Empty(diagnostics);
-        var command = Assert.Single(bridge.LifecycleCommands);
-        Assert.Equal("application.container-app:sample-api", command.Resource.EffectiveResourceId);
-        Assert.Equal(ContainerApplicationResourceTypeProvider.Operations.Start, command.OperationId);
+        Assert.Contains(lifecycleDiagnostics, diagnostic =>
+            diagnostic.Code == "application.container.deferredRuntime");
+        Assert.Contains(imageDiagnostics, diagnostic =>
+            diagnostic.Code == "application.container.deferredRuntimeImageAccepted");
+        Assert.Contains(replicaDiagnostics, diagnostic =>
+            diagnostic.Code == "application.container.deferredRuntimeReplicasAccepted");
     }
 
     [Fact]
-    public async Task Handler_IgnoresUnmappedAppWithoutCallingBridge()
+    public async Task Handler_IgnoresUnmappedApp()
     {
-        var bridge = new RecordingContainerApplicationRuntimeBridge(ContainerApplicationRuntimeStatus.Running);
-        var handler = new ContainerAppDeploymentContainerApplicationRuntimeHandler(bridge);
+        var handler = CreateHandler();
         var resource = await CreateAppResourceAsync(
             name: "other",
             resourceId: "application.container-app:other");
@@ -39,30 +41,7 @@ public sealed class ContainerAppDeploymentContainerApplicationRuntimeHandlerTest
             ContainerApplicationResourceTypeProvider.Operations.Start);
 
         Assert.Empty(diagnostics);
-        Assert.Empty(bridge.LifecycleCommands);
         Assert.Equal(ContainerApplicationRuntimeStatus.Unknown, handler.GetStatus(resource));
-    }
-
-    [Fact]
-    public async Task DefaultBridge_AcceptsStateChangesWithoutMaterializingRuntime()
-    {
-        var bridge = new ContainerAppDeploymentContainerApplicationRuntimeBridge();
-        var resource = await CreateAppResourceAsync();
-
-        Assert.Equal(ContainerApplicationRuntimeStatus.Stopped, bridge.GetStatus(resource));
-
-        var lifecycleDiagnostics = await bridge.ExecuteLifecycleAsync(
-            resource,
-            ContainerApplicationResourceTypeProvider.Operations.Start);
-        var imageDiagnostics = await bridge.ApplyImageAsync(resource);
-        var replicaDiagnostics = await bridge.ApplyReplicasAsync(resource);
-
-        Assert.Contains(lifecycleDiagnostics, diagnostic =>
-            diagnostic.Code == "containerAppDeployment.containerApp.runtimeDeferred");
-        Assert.Contains(imageDiagnostics, diagnostic =>
-            diagnostic.Code == "containerAppDeployment.containerApp.imageAccepted");
-        Assert.Contains(replicaDiagnostics, diagnostic =>
-            diagnostic.Code == "containerAppDeployment.containerApp.replicasAccepted");
     }
 
     private static async Task<ResourceModelResource> CreateAppResourceAsync(
@@ -105,34 +84,10 @@ public sealed class ContainerAppDeploymentContainerApplicationRuntimeHandlerTest
         return result.Resource;
     }
 
-    private sealed class RecordingContainerApplicationRuntimeBridge(
-        ContainerApplicationRuntimeStatus status) : IContainerAppDeploymentContainerApplicationRuntimeBridge
+    private static DeferredContainerApplicationRuntimeHandler CreateHandler()
     {
-        public List<LifecycleCommand> LifecycleCommands { get; } = [];
-
-        public ContainerApplicationRuntimeStatus GetStatus(ResourceModelResource resource) => status;
-
-        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
-            ResourceModelResource resource,
-            ResourceOperationId operationId,
-            CancellationToken cancellationToken = default)
-        {
-            LifecycleCommands.Add(new(resource, operationId));
-            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
-        }
-
-        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyImageAsync(
-            ResourceModelResource resource,
-            CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
-
-        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyReplicasAsync(
-            ResourceModelResource resource,
-            CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        var options = new DeferredContainerApplicationRuntimeOptions();
+        options.AddResource("application.container-app:sample-api");
+        return new(Microsoft.Extensions.Options.Options.Create(options));
     }
-
-    private sealed record LifecycleCommand(
-        ResourceModelResource Resource,
-        ResourceOperationId OperationId);
 }

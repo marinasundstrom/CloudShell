@@ -17,6 +17,9 @@ var registryPort = builder.Configuration.GetValue("ContainerAppDeployment:Regist
 string registryAddress = $"{registryHost}:{registryPort}";
 const string sampleImage = "cloudshell/mock-api:20260608.1";
 const string resourceGroupId = "container-app-deployment";
+const string registryResourceId = "docker.container:sample-registry";
+const string registryContainerName = "cloudshell-container-app-deployment-registry";
+const string sampleApiResourceId = "application.container-app:sample-api";
 
 var cloudShell = builder.AddCloudShell();
 cloudShell.AddResourceGroup(
@@ -53,16 +56,18 @@ cloudShell.DefineResources(resources =>
 if (builder.Configuration.GetValue("ContainerAppDeployment:EnableDockerRuntime", false))
 {
     builder.Services
-        .AddSingleton<IDockerContainerRuntimeHandler, ContainerAppDeploymentDockerContainerRuntimeHandler>()
+        .AddLocalDockerContainerRuntime(options =>
+            options.AddContainer(
+                registryResourceId,
+                registryContainerName,
+                runtime => runtime.TargetPort = 5000))
         .AddSingleton<IResourceOrchestrationDescriptorProvider, ContainerAppDeploymentDockerContainerOrchestrationDescriptorProvider>();
 }
 
 builder.Services
-    .AddSingleton<IContainerAppDeploymentContainerApplicationRuntimeBridge, ContainerAppDeploymentContainerApplicationRuntimeBridge>()
-    .AddSingleton<IContainerApplicationRuntimeHandler, ContainerAppDeploymentContainerApplicationRuntimeHandler>();
-
-builder.Services
     .AddLocalContainerApplicationResourceTypes()
+    .AddDeferredContainerApplicationRuntime(options =>
+        options.AddResource(sampleApiResourceId))
     .AddDockerContainerResourceType();
 cloudShell.UseResourceGraphIntegration();
 

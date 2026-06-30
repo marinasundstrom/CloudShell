@@ -60,6 +60,12 @@ on `git blame --follow`, and then by the broad type of change.
   that maps container app resource ids to local .NET projects, starts one
   process per requested replica slot, and exposes the declared endpoint without
   requiring each sample to implement its own runtime handler.
+- Container app providers now include a deferred runtime adapter for migration
+  samples that should accept graph image and replica state without materializing
+  a runtime yet.
+- Docker container providers now include an opt-in local Docker container
+  runtime adapter for mapped resources, moving the ContainerAppDeployment
+  registry runtime out of the sample-specific handler.
 - SignalR Container App sample now uses the provider-owned local process
   runtime mapping for its backend container app instead of shipping a
   sample-local `IContainerApplicationRuntimeHandler`.

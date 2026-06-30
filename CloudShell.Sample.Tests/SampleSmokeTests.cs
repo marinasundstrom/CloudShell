@@ -1926,8 +1926,7 @@ public sealed class SampleSmokeTests
     [Trait("Category", "DockerIntegration")]
     public async Task ContainerAppDeploymentSample_StartsRegistryRuntime()
     {
-        var registryContainerName =
-            ContainerAppDeploymentDockerContainerRuntimeHandler.RegistryContainerName;
+        const string registryContainerName = "cloudshell-container-app-deployment-registry";
         if (!await DockerComposeStack.IsAvailableAsync() ||
             await DockerComposeStack.ContainerExistsAsync(registryContainerName))
         {
@@ -1993,8 +1992,7 @@ public sealed class SampleSmokeTests
     public async Task ContainerAppDeploymentSample_RegistryRuntimeStopsOnGracefulHostShutdown()
     {
         const string registryResourceId = "docker.container:sample-registry";
-        var registryContainerName =
-            ContainerAppDeploymentDockerContainerRuntimeHandler.RegistryContainerName;
+        const string registryContainerName = "cloudshell-container-app-deployment-registry";
         if (!await DockerComposeStack.IsAvailableAsync())
         {
             return;
@@ -2904,7 +2902,7 @@ public sealed class SampleSmokeTests
         else if (sampleName == "ContainerAppDeployment")
         {
             await DockerComposeStack.RemoveContainerIfExistsAsync(
-                ContainerAppDeploymentDockerContainerRuntimeHandler.RegistryContainerName);
+                "cloudshell-container-app-deployment-registry");
         }
         else if (sampleName == "ApplicationTopology")
         {

@@ -52,4 +52,25 @@ public static class DockerContainerResourceTypeServiceCollectionExtensions
 
         return services;
     }
+
+    public static IServiceCollection AddLocalDockerContainerRuntime(
+        this IServiceCollection services,
+        Action<LocalDockerContainerRuntimeOptions>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        if (configure is not null)
+        {
+            services.Configure(configure);
+        }
+
+        services.TryAddSingleton<
+            ILocalDockerContainerCommandRunner,
+            ProcessLocalDockerContainerCommandRunner>();
+        services.Replace(ServiceDescriptor.Singleton<
+            IDockerContainerRuntimeHandler,
+            LocalDockerContainerRuntimeHandler>());
+
+        return services;
+    }
 }

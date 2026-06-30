@@ -4,12 +4,13 @@ using CloudShell.Abstractions.ResourceManager;
 internal sealed class ContainerAppDeploymentDockerContainerOrchestrationDescriptorProvider :
     IResourceOrchestrationDescriptorProvider
 {
+    private const string RegistryResourceId = "docker.container:sample-registry";
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     public bool CanDescribe(Resource resource) =>
         string.Equals(
             resource.Id,
-            ContainerAppDeploymentDockerContainerRuntimeHandler.RegistryResourceId,
+            RegistryResourceId,
             StringComparison.OrdinalIgnoreCase);
 
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(

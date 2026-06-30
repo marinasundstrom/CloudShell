@@ -23,8 +23,8 @@
 - ContainerAppDeployment and ReplicatedContainerHealth sample-inspired graph coverage,
   including ContainerAppDeployment image/replica update delegation and
   ReplicatedContainerHealth smoke coverage where graph start, stop, restart,
-  image-update, and replica-update actions delegate to sample-local runtime
-  adapters and stop verifies Docker runtime container cleanup.
+  image-update, and replica-update actions delegate to runtime adapters and stop
+  verifies Docker runtime container cleanup.
 - Manual `ResourceDefinitionGraphBuilder.AddContainerApplication(...)`
   builder for code-first container app definition authoring with typed host
   dependencies, endpoint requests, replicas, and volume mount capability setup.
@@ -47,7 +47,7 @@ Ready to start integration for the container app scenarios covered by
 ContainerAppDeployment and ReplicatedContainerHealth. The Resource model path can
 start, stop, restart, update image/replica intent, project endpoints, drive the
 container-app UI tabs by type id, and expose runtime replica logs, health,
-traces, metrics, and monitoring through the sample bridges. Full old-provider
+traces, metrics, and monitoring through the current runtime bridges. Full old-provider
 parity is not expected yet: rich revision history, final container-host
 runtime ownership, richer startup-state projection, and old edit surfaces are
 explicitly deferred.
@@ -93,6 +93,17 @@ orchestrator. It removes the need for each sample or migrated provider to
 implement its own `IContainerApplicationRuntimeHandler` while the container app
 orchestration path is completed.
 
+The provider also includes a deferred runtime adapter for migration scenarios
+that need graph image/replica changes to be accepted without materializing a
+real container app runtime.
+
+```csharp
+services
+    .AddLocalContainerApplicationResourceTypes()
+    .AddDeferredContainerApplicationRuntime(options =>
+        options.AddResource("application.container-app:api"));
+```
+
 The ReplicatedContainerHealth sample currently proves this seam with a
 sample-local adapter that maps `application.container-app:api` to the
 existing `application:api` runtime resource. It covers start, stop, and
@@ -107,13 +118,13 @@ materialization. The Docker smoke verifies that graph restart recreates the
 revision-scoped runtime containers and graph stop removes the containers that
 graph start created.
 
-The ContainerAppDeployment sample also wires this seam to a sample-local
-bridge. It accepts image and replica updates for
-`application.container-app:sample-api` through the existing Resource Manager
-deployment and replicas APIs without registering the old application-provider
-resource. Those operations are migration adapter hooks; in the current API
-path, deployment and scale remain Control Plane workflows, and the durable
-container runtime provider remains future work.
+The ContainerAppDeployment sample uses the provider-owned deferred runtime
+adapter for `application.container-app:sample-api`. It accepts image and
+replica updates through the existing Resource Manager deployment and replicas
+APIs without registering the old application-provider resource. Those
+operations are migration adapter hooks; in the current API path, deployment and
+scale remain Control Plane workflows, and the durable container runtime provider
+remains future work.
 
 ## Example ResourceDefinition
 

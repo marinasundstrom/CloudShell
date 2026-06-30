@@ -4,8 +4,11 @@ using ResourceModelResource = CloudShell.ResourceModel.Resource;
 
 namespace CloudShell.Sample.Tests;
 
-public sealed class ContainerAppDeploymentDockerContainerRuntimeHandlerTests
+public sealed class LocalDockerContainerRuntimeHandlerTests
 {
+    private const string RegistryResourceId = "docker.container:sample-registry";
+    private const string RegistryContainerName = "cloudshell-container-app-deployment-registry";
+
     [Theory]
     [InlineData("running", DockerContainerRuntimeStatus.Running)]
     [InlineData("paused", DockerContainerRuntimeStatus.Paused)]
@@ -18,7 +21,7 @@ public sealed class ContainerAppDeploymentDockerContainerRuntimeHandlerTests
     {
         var runner = new RecordingDockerCommandRunner();
         runner.Enqueue(new(0, dockerStatus, string.Empty));
-        var handler = new ContainerAppDeploymentDockerContainerRuntimeHandler(runner);
+        var handler = CreateHandler(runner);
 
         var status = handler.GetStatus(await CreateRegistryResourceAsync());
 
@@ -35,7 +38,7 @@ public sealed class ContainerAppDeploymentDockerContainerRuntimeHandlerTests
     {
         var runner = new RecordingDockerCommandRunner();
         runner.Enqueue(new(1, string.Empty, "No such container"));
-        var handler = new ContainerAppDeploymentDockerContainerRuntimeHandler(runner);
+        var handler = CreateHandler(runner);
 
         var status = handler.GetStatus(await CreateRegistryResourceAsync());
 
@@ -46,8 +49,8 @@ public sealed class ContainerAppDeploymentDockerContainerRuntimeHandlerTests
     public async Task GetStatus_ReturnsUnknownWhenDockerProbeTimesOut()
     {
         var runner = new RecordingDockerCommandRunner();
-        runner.Enqueue(new(ContainerAppDeploymentDockerCommandResult.TimeoutExitCode, string.Empty, "Timed out"));
-        var handler = new ContainerAppDeploymentDockerContainerRuntimeHandler(runner);
+        runner.Enqueue(new(LocalDockerContainerCommandResult.TimeoutExitCode, string.Empty, "Timed out"));
+        var handler = CreateHandler(runner);
 
         var status = handler.GetStatus(await CreateRegistryResourceAsync());
 
@@ -59,7 +62,7 @@ public sealed class ContainerAppDeploymentDockerContainerRuntimeHandlerTests
     {
         var runner = new RecordingDockerCommandRunner();
         runner.Enqueue(new(1, string.Empty, "No such container"));
-        var handler = new ContainerAppDeploymentDockerContainerRuntimeHandler(runner);
+        var handler = CreateHandler(runner);
 
         var result = await handler.ExecuteLifecycleAsync(
             await CreateRegistryResourceAsync(registry: "localhost:18023"),
@@ -81,7 +84,7 @@ public sealed class ContainerAppDeploymentDockerContainerRuntimeHandlerTests
     {
         var runner = new RecordingDockerCommandRunner();
         runner.Enqueue(new(0, "exited", string.Empty));
-        var handler = new ContainerAppDeploymentDockerContainerRuntimeHandler(runner);
+        var handler = CreateHandler(runner);
 
         var result = await handler.ExecuteLifecycleAsync(
             await CreateRegistryResourceAsync(),
@@ -104,7 +107,7 @@ public sealed class ContainerAppDeploymentDockerContainerRuntimeHandlerTests
         var runner = new RecordingDockerCommandRunner();
         runner.Enqueue(new(0, string.Empty, string.Empty));
         runner.Enqueue(new(1, string.Empty, "No such container"));
-        var handler = new ContainerAppDeploymentDockerContainerRuntimeHandler(runner);
+        var handler = CreateHandler(runner);
 
         var result = await handler.ExecuteLifecycleAsync(
             await CreateRegistryResourceAsync(registry: "http://localhost:18024"),
@@ -128,7 +131,7 @@ public sealed class ContainerAppDeploymentDockerContainerRuntimeHandlerTests
     public async Task ExecuteLifecycle_IgnoresNonRegistryResources()
     {
         var runner = new RecordingDockerCommandRunner();
-        var handler = new ContainerAppDeploymentDockerContainerRuntimeHandler(runner);
+        var handler = CreateHandler(runner);
 
         var result = await handler.ExecuteLifecycleAsync(
             await CreateRegistryResourceAsync(resourceId: "docker.container:other"),
@@ -159,8 +162,7 @@ public sealed class ContainerAppDeploymentDockerContainerRuntimeHandlerTests
             new ResourceDefinition(
                 "sample-registry",
                 DockerContainerResourceTypeProvider.ResourceTypeId,
-                ResourceId: resourceId ??
-                    ContainerAppDeploymentDockerContainerRuntimeHandler.RegistryResourceId,
+                ResourceId: resourceId ?? RegistryResourceId,
                 Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
                 {
                     [DockerContainerResourceTypeProvider.Attributes.ContainerImage] =
@@ -179,36 +181,49 @@ public sealed class ContainerAppDeploymentDockerContainerRuntimeHandlerTests
         return result.Resource;
     }
 
-    private sealed class RecordingDockerCommandRunner :
-        IContainerAppDeploymentDockerCommandRunner
+    private static LocalDockerContainerRuntimeHandler CreateHandler(
+        RecordingDockerCommandRunner runner)
     {
-        private readonly Queue<ContainerAppDeploymentDockerCommandResult> _results = [];
+        var options = new LocalDockerContainerRuntimeOptions();
+        options.AddContainer(
+            RegistryResourceId,
+            RegistryContainerName,
+            runtime => runtime.TargetPort = 5000);
+        return new(
+            runner,
+            Microsoft.Extensions.Options.Options.Create(options));
+    }
+
+    private sealed class RecordingDockerCommandRunner :
+        ILocalDockerContainerCommandRunner
+    {
+        private readonly Queue<LocalDockerContainerCommandResult> _results = [];
 
         public List<RecordedDockerCommand> Commands { get; } = [];
 
-        public void Enqueue(ContainerAppDeploymentDockerCommandResult result) =>
+        public void Enqueue(LocalDockerContainerCommandResult result) =>
             _results.Enqueue(result);
 
-        public ContainerAppDeploymentDockerCommandResult Run(
+        public LocalDockerContainerCommandResult Run(
             IReadOnlyList<string> arguments,
             bool throwOnError = true,
             TimeSpan? timeout = null) =>
             RunCore(arguments, throwOnError);
 
-        public Task<ContainerAppDeploymentDockerCommandResult> RunAsync(
+        public Task<LocalDockerContainerCommandResult> RunAsync(
             IReadOnlyList<string> arguments,
             CancellationToken cancellationToken,
             bool throwOnError = true,
             TimeSpan? timeout = null) =>
             Task.FromResult(RunCore(arguments, throwOnError));
 
-        private ContainerAppDeploymentDockerCommandResult RunCore(
+        private LocalDockerContainerCommandResult RunCore(
             IReadOnlyList<string> arguments,
             bool throwOnError)
         {
             Commands.Add(new(arguments.ToArray(), throwOnError));
             var result = _results.Count == 0
-                ? new ContainerAppDeploymentDockerCommandResult(0, string.Empty, string.Empty)
+                ? new LocalDockerContainerCommandResult(0, string.Empty, string.Empty)
                 : _results.Dequeue();
             if (throwOnError && result.ExitCode != 0)
             {
