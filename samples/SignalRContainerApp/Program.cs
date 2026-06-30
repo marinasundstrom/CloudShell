@@ -77,6 +77,7 @@ cloudShell.DefineResources(resources =>
         .WithHotReload(false)
         .UseLaunchSettings(false)
         .WithReference(apiResource)
+        .DependsOn(apiResource)
         .WithHttpEndpoint(
             host: frontendEndpointUri.Host,
             port: frontendEndpointUri.Port)
