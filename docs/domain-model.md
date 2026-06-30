@@ -283,6 +283,16 @@ developers than the Resource model, but it becomes important for operations,
 diagnostics, deployment progress, scaling behavior, versioning the environment,
 and understanding why a running system changed.
 
+A **[network topology overlay](terminology.md#network-topology-overlay)** can
+be projected over both the Resource model and the Runtime model. In the
+Resource graph, the overlay should emphasize network resources, endpoint
+mappings, published names, routes, and whether resources are connected through
+networks. In the Environment Map, the same overlay can include runtime service
+boundaries, routing bindings, replica groups, load-balancer materialization,
+and **[internet connection](terminology.md#internet-connection)** facts. This
+keeps network and internet reachability visible where useful without making
+the Resource graph or Environment Map a separate source of truth.
+
 ```mermaid
 flowchart TB
     host["Host environment"]
@@ -299,6 +309,8 @@ flowchart TB
         replicaGroups["Replica groups"]
         replicas["Replicas"]
         routing["Routing bindings"]
+        topology["Network topology overlay"]
+        internet["Internet connection facts"]
         deployments["Deployments"]
         revisions["Environment revisions"]
     end
@@ -307,10 +319,13 @@ flowchart TB
     runtimeResources --> dependencies
     runtimeResources --> endpoints
     endpoints --> mappings
+    mappings --> topology
+    topology --> internet
     runtimeResources --> services
     services --> replicaGroups
     replicaGroups --> replicas
     services --> routing
+    routing --> topology
     deployments --> services
     deployments --> replicaGroups
     deployments --> routing
@@ -319,6 +334,7 @@ flowchart TB
     revisions --> replicaGroups
     revisions --> replicas
     revisions --> routing
+    revisions --> topology
 ```
 
 The default orchestration mode is managing standalone resources. A resource
@@ -765,6 +781,17 @@ localhost ports from the configured range on Windows, macOS, and Linux. Richer
 network topology, routing, policy, TLS, DNS, clustering, and load-balancing
 behavior should be expressed as capabilities on authored resources and
 implemented by provider-owned configuration behind those resources.
+
+Network topology should be visualized as an overlay rather than a separate
+resource model. The Resource graph can use the overlay to show network
+resources, endpoint mappings, name mappings, load-balancer routes, and
+internet reachability. The Environment Map can use the same topology facts
+while adding runtime context such as orchestration service boundaries, replica
+groups, replicas, routing bindings, and load-balancer materialization. A
+resource or network should be shown as internet-connected only when that is
+declared by a network/public endpoint resource, projected by a capable
+provider, or observed by the runtime; inferred reachability should be presented
+as inferred.
 
 When a virtual network is projected by the default host-local implementation
 without external mapping providers, it carries

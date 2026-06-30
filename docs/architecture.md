@@ -184,6 +184,14 @@ Runtime model in the [Environment Map](terminology.md#environment-map), but
 that map is a read model over Control Plane and orchestrator state, not another
 source of truth.
 
+Network topology is a shared overlay over those models, not a third model.
+Resource Manager may project networks, endpoint mappings, load-balancer
+routes, name mappings, and internet reachability in both the Resource graph and
+the Environment Map. The Resource graph uses that overlay to explain resource
+connectivity; the Environment Map can combine it with runtime service
+boundaries, replica groups, replicas, routing bindings, and load-balancer
+materialization.
+
 ```mermaid
 flowchart TD
     User["User or automation"] --> ResourceManagerUi["Resource Manager UI\nshell extension"]

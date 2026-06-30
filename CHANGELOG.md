@@ -17,6 +17,13 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Environment Map projection now nests service-routing bindings inside their
+  owning orchestration service boundary and links actual load-balancer
+  resources to the routing binding they materialize, keeping service grouping
+  as the primary runtime view.
+- Terminology, domain, architecture, and resource-model docs now define a
+  network topology overlay that can be shown in both the Resource graph and
+  Environment Map, including future internet-reachability facts.
 - ResourceModel tests now include merge-readiness hygiene coverage that rejects
   active solution, project, and source references to deleted legacy provider
   projects and old resource-template wrapper contracts.

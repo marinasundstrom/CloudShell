@@ -341,7 +341,16 @@ public static class EnvironmentRuntimeMapProjection
             }
 
             AddResourceRelationshipLinks(resources, links, resourceNodeIds);
-            AddRoutingNodes(resources, deployments, nodes, links, resourceNodeIds, replicaGroupNodeIds, ref routingNodeCount);
+            AddRoutingNodes(
+                resources,
+                deployments,
+                nodes,
+                links,
+                groups,
+                resourceNodeIds,
+                serviceNodeIds,
+                replicaGroupNodeIds,
+                ref routingNodeCount);
 
             return new EnvironmentRuntimeMap(
                 nodes.Values
@@ -452,7 +461,9 @@ public static class EnvironmentRuntimeMapProjection
             IReadOnlyList<ResourceDeploymentRecord> deployments,
             IDictionary<string, EnvironmentRuntimeMapNode> nodes,
             IDictionary<string, EnvironmentRuntimeMapLink> links,
+            IDictionary<string, EnvironmentRuntimeMapGroupBuilder> groups,
             IReadOnlyDictionary<string, string> resourceNodeIds,
+            IReadOnlyDictionary<string, string> serviceNodeIds,
             IReadOnlyDictionary<string, string> replicaGroupNodeIds,
             ref int routingNodeCount)
         {
@@ -480,6 +491,29 @@ public static class EnvironmentRuntimeMapProjection
                         deployment.RuntimeRevisionId);
                     routingNodeCount++;
 
+                    var serviceId = FirstNonEmpty(binding.ServiceName, deployment.ServiceId);
+                    if (serviceId is not null &&
+                        serviceNodeIds.TryGetValue(serviceId, out var serviceNodeId))
+                    {
+                        AddLink(
+                            links,
+                            serviceNodeId,
+                            bindingNodeId,
+                            Text("routes"),
+                            "orchestration",
+                            EnvironmentRuntimeArtifactKinds.OrchestrationService,
+                            binding.SourceEndpoint.ResourceId,
+                            serviceId,
+                            binding.ReplicaGroupName,
+                            deployment.RuntimeRevisionId);
+
+                        var serviceGroupId = CreateGroupId("service", serviceId);
+                        if (groups.TryGetValue(serviceGroupId, out var serviceGroup))
+                        {
+                            serviceGroup.NodeIds.Add(bindingNodeId);
+                        }
+                    }
+
                     if (resourceNodeIds.TryGetValue(binding.SourceEndpoint.ResourceId, out var sourceNodeId))
                     {
                         AddLink(
@@ -491,6 +525,22 @@ public static class EnvironmentRuntimeMapProjection
                             EnvironmentRuntimeArtifactKinds.RoutingBinding,
                             binding.SourceEndpoint.ResourceId,
                             deployment.ServiceId,
+                            binding.ReplicaGroupName,
+                            deployment.RuntimeRevisionId);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(binding.LoadBalancerResourceId) &&
+                        resourceNodeIds.TryGetValue(binding.LoadBalancerResourceId, out var loadBalancerNodeId))
+                    {
+                        AddLink(
+                            links,
+                            loadBalancerNodeId,
+                            bindingNodeId,
+                            Text("materializes"),
+                            "routing",
+                            EnvironmentRuntimeArtifactKinds.RoutingBinding,
+                            binding.LoadBalancerResourceId,
+                            serviceId,
                             binding.ReplicaGroupName,
                             deployment.RuntimeRevisionId);
                     }

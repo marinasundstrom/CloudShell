@@ -526,6 +526,16 @@ status, observed conflicts, and concrete reachable addresses should be
 projected by provider capabilities, operations, or read-only/provider-managed
 graph attributes rather than authored as caller-managed mapping configuration.
 
+Network topology and internet reachability are graph projections over these
+resource-owned networking facts. A Resource graph view can choose to include a
+network topology overlay that shows network resources, endpoint mappings,
+published names, load-balancer routes, and internet connection facts. The same
+facts can be projected into the Environment Map with runtime context such as
+orchestration service boundaries, replica groups, replicas, and routing
+bindings. The resource model should provide the relationships and attributes;
+the map projection decides whether to render the normal resource view, the
+runtime view, or the network-focused overlay.
+
 ## Actions
 
 `ResourceActions` exposes operations a resource supports.
