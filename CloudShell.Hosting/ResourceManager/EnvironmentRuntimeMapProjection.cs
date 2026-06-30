@@ -36,8 +36,11 @@ public static class EnvironmentRuntimeMapProjection
             var serviceNodeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var replicaGroupNodeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var activeReplicaGroupRows = replicaGroups.ToDictionary(replicaGroup => replicaGroup.ReplicaGroupId, StringComparer.OrdinalIgnoreCase);
+            var internetReachability = ResourceInternetReachabilityProjection.CreateMap(
+                resources,
+                includeImplicitHostNetwork: options.IncludeNetworkTopologyOverlay);
             var topologyResourceIds = options.IncludeNetworkTopologyOverlay
-                ? CreateTopologyResourceIds(resources)
+                ? CreateTopologyResourceIds(resources, internetReachability)
                 : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var routingNodeCount = 0;
             var networkTopologyNodeCount = 0;
@@ -62,7 +65,18 @@ public static class EnvironmentRuntimeMapProjection
                     resource.Id,
                     GetAttribute(resource, ResourceAttributeNames.DeploymentServiceId),
                     GetAttribute(resource, ResourceAttributeNames.DeploymentReplicaGroupId),
-                    GetAttribute(resource, ResourceAttributeNames.RuntimeRevision));
+                    GetAttribute(resource, ResourceAttributeNames.RuntimeRevision),
+                    internetReachability.GetValueOrDefault(resource.Id));
+            }
+
+            if (options.IncludeNetworkTopologyOverlay)
+            {
+                AddInferredHostNetworkNode(
+                    resources,
+                    nodes,
+                    links,
+                    resourceNodeIds,
+                    ref networkTopologyNodeCount);
             }
 
             foreach (var resource in resources.Where(IsContainerApplicationResource))
@@ -277,29 +291,29 @@ public static class EnvironmentRuntimeMapProjection
                         runtimeRevisionId);
                 }
 
-            if (resourceNodeIds.TryGetValue(replica.Id, out var replicaNodeId))
-            {
-                if (nodes.TryGetValue(replicaNodeId, out var replicaNode))
+                if (resourceNodeIds.TryGetValue(replica.Id, out var replicaNodeId))
                 {
-                    nodes[replicaNodeId] = replicaNode with
+                    if (nodes.TryGetValue(replicaNodeId, out var replicaNode))
                     {
-                        ServiceId = serviceId,
-                        ReplicaGroupId = replicaGroupId,
-                        RuntimeRevisionId = runtimeRevisionId
-                    };
-                }
+                        nodes[replicaNodeId] = replicaNode with
+                        {
+                            ServiceId = serviceId,
+                            ReplicaGroupId = replicaGroupId,
+                            RuntimeRevisionId = runtimeRevisionId
+                        };
+                    }
 
-                AddLink(
-                    links,
-                    replicaGroupNodeId,
-                        replicaNodeId,
-                        Text("contains"),
-                        "orchestration",
-                        EnvironmentRuntimeArtifactKinds.Replica,
-                        replica.Id,
-                        serviceId,
-                        replicaGroupId,
-                        runtimeRevisionId);
+                    AddLink(
+                        links,
+                        replicaGroupNodeId,
+                            replicaNodeId,
+                            Text("contains"),
+                            "orchestration",
+                            EnvironmentRuntimeArtifactKinds.Replica,
+                            replica.Id,
+                            serviceId,
+                            replicaGroupId,
+                            runtimeRevisionId);
 
                     var serviceGroupId = CreateGroupId("service", serviceId);
                     EnsureGroup(groups, serviceGroupId, serviceId, "service", null).NodeIds.Add(replicaNodeId);
@@ -348,6 +362,7 @@ public static class EnvironmentRuntimeMapProjection
             AddRoutingNodes(
                 resources,
                 deployments,
+                internetReachability,
                 nodes,
                 links,
                 groups,
@@ -465,6 +480,7 @@ public static class EnvironmentRuntimeMapProjection
         private void AddRoutingNodes(
             IReadOnlyList<Resource> resources,
             IReadOnlyList<ResourceDeploymentRecord> deployments,
+            IReadOnlyDictionary<string, string> internetReachability,
             IDictionary<string, EnvironmentRuntimeMapNode> nodes,
             IDictionary<string, EnvironmentRuntimeMapLink> links,
             IDictionary<string, EnvironmentRuntimeMapGroupBuilder> groups,
@@ -697,6 +713,7 @@ public static class EnvironmentRuntimeMapProjection
             {
                 AddNetworkTopologyNodes(
                     resources,
+                    internetReachability,
                     nodes,
                     links,
                     resourceNodeIds,
@@ -706,6 +723,7 @@ public static class EnvironmentRuntimeMapProjection
 
         private void AddNetworkTopologyNodes(
             IReadOnlyList<Resource> resources,
+            IReadOnlyDictionary<string, string> internetReachability,
             IDictionary<string, EnvironmentRuntimeMapNode> nodes,
             IDictionary<string, EnvironmentRuntimeMapLink> links,
             IReadOnlyDictionary<string, string> resourceNodeIds,
@@ -798,11 +816,11 @@ public static class EnvironmentRuntimeMapProjection
                 }
             }
 
-            var internetReachableResources = resources
-                .Where(resource => GetInternetReachability(resource) is not null)
-                .Where(resource => resourceNodeIds.ContainsKey(resource.Id))
+            var internetReachableResourceIds = internetReachability
+                .Where(item => resourceNodeIds.ContainsKey(item.Key))
+                .Select(item => item.Key)
                 .ToArray();
-            if (internetReachableResources.Length == 0)
+            if (internetReachableResourceIds.Length == 0)
             {
                 return;
             }
@@ -825,9 +843,9 @@ public static class EnvironmentRuntimeMapProjection
                 null);
             networkTopologyNodeCount++;
 
-            foreach (var resource in internetReachableResources)
+            foreach (var resourceId in internetReachableResourceIds)
             {
-                if (resourceNodeIds.TryGetValue(resource.Id, out var resourceNodeId))
+                if (resourceNodeIds.TryGetValue(resourceId, out var resourceNodeId))
                 {
                     AddLink(
                         links,
@@ -836,11 +854,66 @@ public static class EnvironmentRuntimeMapProjection
                         Text("reaches"),
                         "topology",
                         EnvironmentRuntimeArtifactKinds.InternetConnection,
-                        resource.Id,
+                        resourceId,
                         null,
                         null,
                         null);
                 }
+            }
+        }
+
+        private void AddInferredHostNetworkNode(
+            IReadOnlyList<Resource> resources,
+            IDictionary<string, EnvironmentRuntimeMapNode> nodes,
+            IDictionary<string, EnvironmentRuntimeMapLink> links,
+            IReadOnlyDictionary<string, string> resourceNodeIds,
+            ref int networkTopologyNodeCount)
+        {
+            if (resourceNodeIds.ContainsKey(ResourceInternetReachabilityProjection.HostNetworkResourceId))
+            {
+                return;
+            }
+
+            var connectedResourceIds = ResourceInternetReachabilityProjection.GetHostNetworkConnectedResourceIds(resources)
+                .Where(resourceNodeIds.ContainsKey)
+                .ToArray();
+            if (connectedResourceIds.Length == 0)
+            {
+                return;
+            }
+
+            var hostNetworkNodeId = CreateNodeId("resource", ResourceInternetReachabilityProjection.HostNetworkResourceId);
+            nodes[hostNetworkNodeId] = new EnvironmentRuntimeMapNode(
+                hostNetworkNodeId,
+                Text("Host network"),
+                "cloudshell.network",
+                ResourceClass.Network.ToString(),
+                "topology",
+                Text("Implicit host network for local development"),
+                Text("Inferred"),
+                "state-running",
+                null,
+                EnvironmentRuntimeArtifactKinds.Resource,
+                ResourceInternetReachabilityProjection.HostNetworkResourceId,
+                null,
+                null,
+                null,
+                ResourceInternetReachabilityProjection.Inferred);
+            networkTopologyNodeCount++;
+
+            foreach (var resourceId in connectedResourceIds)
+            {
+                AddLink(
+                    links,
+                    hostNetworkNodeId,
+                    resourceNodeIds[resourceId],
+                    Text("connects"),
+                    "topology",
+                    EnvironmentRuntimeArtifactKinds.Resource,
+                    resourceId,
+                    null,
+                    null,
+                    null);
             }
         }
 
@@ -862,7 +935,9 @@ public static class EnvironmentRuntimeMapProjection
             ResourceNameMappingDisplay.IsNameMappingResource(resource) ||
             includeNetworkTopologyOverlay && topologyResourceIds.Contains(resource.Id));
 
-    private static HashSet<string> CreateTopologyResourceIds(IReadOnlyList<Resource> resources)
+    private static HashSet<string> CreateTopologyResourceIds(
+        IReadOnlyList<Resource> resources,
+        IReadOnlyDictionary<string, string> internetReachability)
     {
         var resourceIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var resource in resources)
@@ -889,7 +964,7 @@ public static class EnvironmentRuntimeMapProjection
                 AddTopologyResourceId(resourceIds, mapping.ProviderResourceId);
             }
 
-            if (GetInternetReachability(resource) is not null)
+            if (internetReachability.ContainsKey(resource.Id))
             {
                 resourceIds.Add(resource.Id);
             }
@@ -1177,26 +1252,6 @@ public static class EnvironmentRuntimeMapProjection
         string.Equals(resource.EffectiveTypeId, "application.sql-database", StringComparison.OrdinalIgnoreCase) ||
         resource.EffectiveTypeId.Contains("sql-database", StringComparison.OrdinalIgnoreCase);
 
-    private static string? GetInternetReachability(Resource resource)
-    {
-        var explicitReachability = FirstNonEmpty(
-            resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.InternetReachability),
-            resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.NetworkInternetReachability));
-        return explicitReachability is null
-            ? null
-            : NormalizeInternetReachability(explicitReachability);
-    }
-
-    private static string? NormalizeInternetReachability(string value) =>
-        value.Trim() switch
-        {
-            var reachable when string.Equals(reachable, "reachable", StringComparison.OrdinalIgnoreCase) => "reachable",
-            var verified when string.Equals(verified, "verified", StringComparison.OrdinalIgnoreCase) => "reachable",
-            var yes when string.Equals(yes, "true", StringComparison.OrdinalIgnoreCase) => "reachable",
-            var yes when string.Equals(yes, "yes", StringComparison.OrdinalIgnoreCase) => "reachable",
-            var inferred when string.Equals(inferred, "inferred", StringComparison.OrdinalIgnoreCase) => "inferred",
-            _ => null
-        };
 }
 
 public sealed record EnvironmentRuntimeMap(
@@ -1225,7 +1280,8 @@ public sealed record EnvironmentRuntimeMapNode(
     string? ResourceId,
     string? ServiceId,
     string? ReplicaGroupId,
-    string? RuntimeRevisionId);
+    string? RuntimeRevisionId,
+    string? InternetReachability = null);
 
 public sealed record EnvironmentRuntimeMapGroup(
     string Id,

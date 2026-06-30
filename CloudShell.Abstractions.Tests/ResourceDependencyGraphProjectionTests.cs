@@ -31,7 +31,7 @@ public sealed class ResourceDependencyGraphProjectionTests
     }
 
     [Fact]
-    public void Create_ExcludesNetworkTopologyOverlayByDefault()
+    public void Create_ExcludesNetworkTopologyOverlayAndConnectivityBadgesByDefault()
     {
         var api = CreatePublicHttpResource();
         var network = CreateNetworkResource(api.Id, "cloudshell.gateway:public");
@@ -160,7 +160,7 @@ public sealed class ResourceDependencyGraphProjectionTests
     }
 
     [Fact]
-    public void Create_ShowsInternetReachabilityBadgeOnlyForProjectedReachability()
+    public void Create_ShowsInternetReachabilityBadgeFromProjectedAndInferredConnectivity()
     {
         var localApi = CreatePublicHttpResource();
         var reachableNetwork = CreateNetworkResource(localApi.Id, "cloudshell.gateway:public") with
@@ -182,13 +182,51 @@ public sealed class ResourceDependencyGraphProjectionTests
             [localApi, reachableNetwork, inferredGateway],
             CreateOptions(includeNetworkTopologyOverlay: true));
 
-        Assert.Null(Assert.Single(graph.Nodes, node => node.Id == localApi.Id).InternetReachability);
+        Assert.Equal(
+            ResourceDependencyGraphInternetReachability.Inferred,
+            Assert.Single(graph.Nodes, node => node.Id == localApi.Id).InternetReachability);
         Assert.Equal(
             ResourceDependencyGraphInternetReachability.Reachable,
             Assert.Single(graph.Nodes, node => node.Id == reachableNetwork.Id).InternetReachability);
         Assert.Equal(
             ResourceDependencyGraphInternetReachability.Inferred,
             Assert.Single(graph.Nodes, node => node.Id == inferredGateway.Id).InternetReachability);
+    }
+
+    [Fact]
+    public void Create_DoesNotProjectImplicitHostNetworkConnectivity()
+    {
+        var localApi = CreateLocalHostHttpResource();
+
+        var graph = ResourceDependencyGraphProjection.Create(
+            [localApi],
+            CreateOptions(includeNetworkTopologyOverlay: true));
+
+        Assert.Null(Assert.Single(graph.Nodes, node => node.Id == localApi.Id).InternetReachability);
+    }
+
+    [Fact]
+    public void Create_InfersInternetConnectivityThroughReachableNetwork()
+    {
+        var api = CreatePublicHttpResource();
+        var network = CreateNetworkResource(api.Id, "cloudshell.gateway:public") with
+        {
+            Attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.NetworkInternetReachability] = "verified"
+            }
+        };
+
+        var graph = ResourceDependencyGraphProjection.Create(
+            [api, network],
+            CreateOptions(includeNetworkTopologyOverlay: true));
+
+        Assert.Equal(
+            ResourceDependencyGraphInternetReachability.Inferred,
+            Assert.Single(graph.Nodes, node => node.Id == api.Id).InternetReachability);
+        Assert.Equal(
+            ResourceDependencyGraphInternetReachability.Reachable,
+            Assert.Single(graph.Nodes, node => node.Id == network.Id).InternetReachability);
     }
 
     private static ResourceDependencyGraphProjectionOptions CreateOptions(
@@ -245,6 +283,31 @@ public sealed class ResourceDependencyGraphProjectionTests
                     ResourceExposureScope.Public,
                     networkResourceId: "cloudshell.network:public",
                     providerResourceId: "cloudshell.gateway:public")
+            ],
+            DisplayName: "API");
+
+    private static Resource CreateLocalHostHttpResource() =>
+        new(
+            "application.executable:api",
+            "api",
+            "application.executable",
+            "test",
+            "local",
+            ResourceState.Running,
+            [ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Public, 8080)],
+            "1",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: "application.executable",
+            ResourceClass: ResourceClass.Executable,
+            EndpointNetworkMappings:
+            [
+                ResourceEndpointNetworkMapping.ForEndpoint(
+                    "application.executable:api",
+                    "http",
+                    "http://localhost:8080",
+                    ResourceExposureScope.Public,
+                    networkResourceId: "network:host")
             ],
             DisplayName: "API");
 

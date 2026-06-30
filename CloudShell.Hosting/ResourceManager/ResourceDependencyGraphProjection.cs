@@ -21,6 +21,7 @@ public static class ResourceDependencyGraphProjection
         var relationshipResources = projectionOptions.RelationshipResources ?? resources;
         var relationshipResourcesById = relationshipResources
             .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        var internetReachability = ResourceInternetReachabilityProjection.CreateMap(resources);
 
         foreach (var resource in resources)
         {
@@ -62,7 +63,7 @@ public static class ResourceDependencyGraphProjection
 
         if (projectionOptions.IncludeNetworkTopologyOverlay)
         {
-            AddNetworkTopologyOverlay(resources, visibleResourceIds, nodes, links);
+            AddNetworkTopologyOverlay(resources, visibleResourceIds, internetReachability, nodes, links);
         }
 
         return new ResourceDependencyGraphModel(
@@ -90,6 +91,7 @@ public static class ResourceDependencyGraphProjection
     private static void AddNetworkTopologyOverlay(
         IReadOnlyList<Resource> resources,
         ISet<string> visibleResourceIds,
+        IReadOnlyDictionary<string, string> internetReachability,
         IDictionary<string, ResourceDependencyGraphNode> nodes,
         IDictionary<string, ResourceDependencyGraphLink> links)
     {
@@ -182,8 +184,7 @@ public static class ResourceDependencyGraphProjection
 
         foreach (var resource in resources.Where(resource => visibleResourceIds.Contains(resource.Id)))
         {
-            var reachability = GetInternetReachability(resource);
-            if (reachability is not null &&
+            if (internetReachability.TryGetValue(resource.Id, out var reachability) &&
                 nodes.TryGetValue(resource.Id, out var node))
             {
                 nodes[resource.Id] = node with
@@ -259,19 +260,6 @@ public static class ResourceDependencyGraphProjection
         };
     }
 
-    private static string? GetInternetReachability(Resource resource)
-    {
-        var explicitReachability = FirstNonEmpty(
-            resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.InternetReachability),
-            resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.NetworkInternetReachability));
-        if (explicitReachability is not null)
-        {
-            return NormalizeInternetReachability(explicitReachability);
-        }
-
-        return null;
-    }
-
     private static bool TryGetDatabaseServerResourceId(Resource resource, out string serverResourceId)
     {
         if (resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.DatabaseServerResourceId, out var projectedServerResourceId) &&
@@ -303,22 +291,6 @@ public static class ResourceDependencyGraphProjection
         string.Equals(resource.EffectiveTypeId, "application.sql-database", StringComparison.OrdinalIgnoreCase) ||
         resource.EffectiveTypeId.Contains("sql-database", StringComparison.OrdinalIgnoreCase);
 
-    private static string? NormalizeInternetReachability(string value) =>
-        value.Trim() switch
-        {
-            var reachable when string.Equals(reachable, "reachable", StringComparison.OrdinalIgnoreCase) =>
-                ResourceDependencyGraphInternetReachability.Reachable,
-            var verified when string.Equals(verified, "verified", StringComparison.OrdinalIgnoreCase) =>
-                ResourceDependencyGraphInternetReachability.Reachable,
-            var yes when string.Equals(yes, "true", StringComparison.OrdinalIgnoreCase) =>
-                ResourceDependencyGraphInternetReachability.Reachable,
-            var yes when string.Equals(yes, "yes", StringComparison.OrdinalIgnoreCase) =>
-                ResourceDependencyGraphInternetReachability.Reachable,
-            var inferred when string.Equals(inferred, "inferred", StringComparison.OrdinalIgnoreCase) =>
-                ResourceDependencyGraphInternetReachability.Inferred,
-            _ => null
-        };
-
     private static string? TryFormatEndpointHost(string address)
     {
         if (!Uri.TryCreate(address, UriKind.Absolute, out var uri))
@@ -341,8 +313,6 @@ public static class ResourceDependencyGraphProjection
             ? 0
             : 1;
 
-    private static string? FirstNonEmpty(params string?[] values) =>
-        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 }
 
 public sealed record ResourceDependencyGraphModel(

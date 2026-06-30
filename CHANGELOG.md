@@ -34,6 +34,11 @@ on `git blame --follow`, and then by the broad type of change.
   DNS name mappings link back to their DNS zone, SQL databases expose their
   owning server, and application resources can show the effective SQL Server
   relationship inferred through a database dependency.
+- Resource graph and Environment Map now show a possible-internet-connectivity
+  badge for projected reachability facts and resources attached to declared
+  reachable networks; the Environment Map also infers local host-network
+  bindings and projects a Host network node for the implicit default host
+  network.
 - Terminology, domain, architecture, and resource-model docs now define a
   network topology overlay that can be shown in both the Resource graph and
   Environment Map, including future internet-reachability facts.

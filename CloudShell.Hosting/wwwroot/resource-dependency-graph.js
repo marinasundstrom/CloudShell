@@ -356,9 +356,9 @@ class ResourceDependencyGraph {
             .attr("display", node => node.internetReachability ? null : "none")
             .attr("class", node => `resource-graph-internet-badge ${getClassName(node.internetReachability)}`);
         this.nodeElements.select(".resource-graph-internet-badge-icon")
-            .text("I");
+            .text("↗");
         this.nodeElements.select(".resource-graph-internet-badge title")
-            .text(node => node.internetReachability === "inferred" ? "Internet reachability inferred" : "Internet reachable");
+            .text(node => node.internetReachability === "inferred" ? "Possible internet connectivity inferred" : "Internet connectivity projected");
         this.nodeElements.select(".resource-graph-node-label")
             .text(node => trimText(node.label, 24));
         this.nodeElements.select(".resource-graph-node-endpoint")

@@ -189,8 +189,10 @@ public sealed class EnvironmentRuntimeMapProjectionTests
         var internetNode = Assert.Single(map.Nodes, node =>
             node.ArtifactKind == EnvironmentRuntimeArtifactKinds.InternetConnection);
 
+        Assert.Equal("reachable", networkNode.InternetReachability);
+        Assert.Equal("inferred", apiNode.InternetReachability);
         Assert.Equal("public-http", mappingNode.Label);
-        Assert.Equal(2, map.NetworkTopologyCount);
+        Assert.Equal(3, map.NetworkTopologyCount);
         Assert.Contains(map.Links, link =>
             link.Source == networkNode.Id &&
             link.Target == mappingNode.Id &&
@@ -209,6 +211,41 @@ public sealed class EnvironmentRuntimeMapProjectionTests
         Assert.Contains(map.Links, link =>
             link.Source == internetNode.Id &&
             link.Target == networkNode.Id &&
+            link.Label == "reaches" &&
+            link.Kind == "topology");
+    }
+
+    [Fact]
+    public void Create_ShowsInferredInternetConnectivityForLocalHostEndpointBinding()
+    {
+        var api = CreateLocalHostHttpResource();
+
+        var map = EnvironmentRuntimeMapProjection.Create(
+            [api],
+            [],
+            [],
+            new EnvironmentRuntimeMapProjectionOptions
+            {
+                IncludeNetworkTopologyOverlay = true,
+                CreateResourceDetailUrl = resource => $"/resources/{resource.Id}",
+                GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown"
+            });
+
+        var apiNode = Assert.Single(map.Nodes, node => node.ResourceId == api.Id);
+        var hostNetworkNode = Assert.Single(map.Nodes, node =>
+            node.ResourceId == "network:host" &&
+            node.Label == "Host network" &&
+            node.NodeKind == "topology");
+        Assert.Equal("inferred", apiNode.InternetReachability);
+        Assert.Equal("inferred", hostNetworkNode.InternetReachability);
+        Assert.Contains(map.Links, link =>
+            link.Source == hostNetworkNode.Id &&
+            link.Target == apiNode.Id &&
+            link.Label == "connects" &&
+            link.Kind == "topology");
+        Assert.Contains(map.Links, link =>
+            link.Source == "internet:public" &&
+            link.Target == apiNode.Id &&
             link.Label == "reaches" &&
             link.Kind == "topology");
     }
@@ -331,6 +368,31 @@ public sealed class EnvironmentRuntimeMapProjectionTests
                     ResourceExposureScope.Public,
                     networkResourceId: "cloudshell.network:public",
                     providerResourceId: "cloudshell.gateway:public")
+            ],
+            DisplayName: "API");
+
+    private static Resource CreateLocalHostHttpResource() =>
+        new(
+            "application.executable:api",
+            "api",
+            "application.executable",
+            "test",
+            "local",
+            ResourceState.Running,
+            [ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Public, 8080)],
+            "1",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: "application.executable",
+            ResourceClass: ResourceClass.Executable,
+            EndpointNetworkMappings:
+            [
+                ResourceEndpointNetworkMapping.ForEndpoint(
+                    "application.executable:api",
+                    "http",
+                    "http://localhost:8080",
+                    ResourceExposureScope.Public,
+                    networkResourceId: "network:host")
             ],
             DisplayName: "API");
 

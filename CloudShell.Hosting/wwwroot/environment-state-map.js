@@ -152,6 +152,7 @@ class EnvironmentStateMap {
                 serviceId: node.serviceId,
                 replicaGroupId: node.replicaGroupId,
                 runtimeRevisionId: node.runtimeRevisionId,
+                internetReachability: node.internetReachability,
                 degree: degreeMap.get(node.id) || 1
             };
         });
@@ -488,6 +489,22 @@ class EnvironmentStateMap {
             .attr("r", 9)
             .append("title");
 
+        const internetBadge = newNodes.append("g")
+            .attr("class", "environment-map-internet-badge");
+
+        internetBadge.append("circle")
+            .attr("class", "environment-map-internet-badge-frame")
+            .attr("cx", 46)
+            .attr("cy", -37)
+            .attr("r", 9);
+
+        internetBadge.append("text")
+            .attr("class", "environment-map-internet-badge-icon")
+            .attr("x", 46)
+            .attr("y", -33);
+
+        internetBadge.append("title");
+
         newNodes.append("text")
             .attr("class", "environment-map-node-label")
             .attr("x", 0)
@@ -516,6 +533,13 @@ class EnvironmentStateMap {
             .attr("class", node => `environment-map-status ${node.stateClass || "state-unknown"}`)
             .select("title")
             .text(node => node.stateLabel);
+        this.nodeElements.select(".environment-map-internet-badge")
+            .attr("display", node => node.internetReachability ? null : "none")
+            .attr("class", node => `environment-map-internet-badge ${getClassName(node.internetReachability)}`);
+        this.nodeElements.select(".environment-map-internet-badge-icon")
+            .text("↗");
+        this.nodeElements.select(".environment-map-internet-badge title")
+            .text(formatInternetReachabilityTitle);
         this.nodeElements.select(".environment-map-node-label")
             .text(node => trimText(node.label, 25));
         this.nodeElements.select(".environment-map-node-kind")
@@ -701,10 +725,17 @@ function formatNodeTitle(node) {
         node.resourceId ? `Resource: ${node.resourceId}` : "",
         node.serviceId ? `Service: ${node.serviceId}` : "",
         node.replicaGroupId ? `Replica group: ${node.replicaGroupId}` : "",
-        node.runtimeRevisionId ? `Revision: ${node.runtimeRevisionId}` : ""
+        node.runtimeRevisionId ? `Revision: ${node.runtimeRevisionId}` : "",
+        node.internetReachability ? formatInternetReachabilityTitle(node) : ""
     ]
         .filter(Boolean)
         .join("\n");
+}
+
+function formatInternetReachabilityTitle(node) {
+    return node.internetReachability === "inferred"
+        ? "Possible internet connectivity inferred"
+        : "Internet connectivity projected";
 }
 
 function getNodeRadius(node) {

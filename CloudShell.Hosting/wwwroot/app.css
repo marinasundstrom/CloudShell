@@ -1683,6 +1683,28 @@ h3 {
     fill: #8b5cf6;
 }
 
+.environment-map-internet-badge {
+    pointer-events: none;
+}
+
+.environment-map-internet-badge-frame {
+    fill: #2563eb;
+    stroke: var(--cloudshell-surface);
+    stroke-width: 3;
+}
+
+.environment-map-internet-badge.inferred .environment-map-internet-badge-frame {
+    fill: #64748b;
+}
+
+.environment-map-internet-badge-icon {
+    fill: white;
+    font-size: .62rem;
+    font-weight: 800;
+    pointer-events: none;
+    text-anchor: middle;
+}
+
 .environment-map-node-label {
     fill: var(--cloudshell-text);
     font-size: .82rem;
