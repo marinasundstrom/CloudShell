@@ -886,10 +886,10 @@ listed here before pulling in broader proposal work.
   Server with mounted storage, configuration, secrets, identity, structured
   logs, traces, container apps, and networking should converge as those
   primitives stabilize. The first ApplicationTopology SQL/storage slice is in
-  place: Local Storage, a storage-owned SQL data volume, and a sample-local SQL
-  Server container app are declared, with the backend API resolving SQL Server
-  through CloudShell service discovery and exposing a `/database` check that
-  the frontend calls through the API. A later SQL/database identity slice
+  place: Local Storage, a storage-owned SQL data volume, and a provider-owned
+  local SQL Server Docker runtime are declared, with the backend API resolving
+  SQL Server through CloudShell service discovery and exposing a `/database`
+  check that the frontend calls through the API. A later SQL/database identity slice
   should let application resources use CloudShell resource identity for
   database authentication in an Azure-like flow.
 - Treat the Settings and Secrets sample as the current proof of the developer

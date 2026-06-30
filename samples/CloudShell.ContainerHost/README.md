@@ -43,7 +43,7 @@ usage tracking, and generalized Docker host placement remain deferred until the
 provider ports need them.
 
 The sample now declares only the storage, volume, and SQL Server resources and
-uses the sample-local SQL Docker bridge for lifecycle operations. The old
+uses the provider-owned local SQL Server Docker runtime for lifecycle operations. The old
 application-provider storage, volume, and SQL Server records, old application
 provider registration, and comparison path have been removed. Docker smoke
 coverage exercises the SQL runtime path without old provider records.

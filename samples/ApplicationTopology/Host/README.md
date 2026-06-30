@@ -43,10 +43,9 @@ service-discovery mechanism. `DependsOn` remains startup ordering intent.
 
 ## Runtime Behavior
 
-The sample still carries focused runtime seams while provider runtime behavior
-is being moved into the new provider structure:
+The sample keeps focused runtime seams where behavior is still sample-specific:
 
-- `ApplicationTopologyResourceModelSqlServerDockerBridge` starts the SQL Server Docker
+- The provider-owned local SQL Server Docker runtime starts the SQL Server
   container for the `application.sql-server` resource and resolves the
   storage-backed volume declaration into a bind mount.
 - `ResourceModelSqlCredentialApiExtensions` exposes the sample-local SQL credential

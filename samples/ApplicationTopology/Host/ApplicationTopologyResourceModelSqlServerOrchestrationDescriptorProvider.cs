@@ -6,12 +6,14 @@ namespace CloudShell.ApplicationTopologyHost;
 internal sealed class ApplicationTopologyResourceModelSqlServerOrchestrationDescriptorProvider :
     IResourceOrchestrationDescriptorProvider
 {
+    private const string ResourceModelSqlServerResourceId =
+        "application.sql-server:application-topology-sql-server";
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     public bool CanDescribe(Resource resource) =>
         string.Equals(
             resource.Id,
-            ApplicationTopologyResourceModelSqlServerRuntimeHandler.ResourceModelSqlServerResourceId,
+            ResourceModelSqlServerResourceId,
             StringComparison.OrdinalIgnoreCase);
 
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(

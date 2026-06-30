@@ -1,53 +1,107 @@
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ResourceModel;
-using CloudShell.ControlPlane.Providers;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using System.Globalization;
-using Microsoft.Extensions.Hosting;
-using ResourceModelResource = CloudShell.ResourceModel.Resource;
 
-namespace CloudShell.ApplicationTopologyHost;
+namespace CloudShell.ControlPlane.Providers;
 
-public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
-    IApplicationTopologyDockerCommandRunner docker,
+public sealed class LocalSqlServerDockerRuntimeOptions
+{
+    private readonly Dictionary<string, LocalSqlServerDockerDefinition> servers =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    public IDictionary<string, LocalSqlServerDockerDefinition> Servers => servers;
+
+    public LocalSqlServerDockerRuntimeOptions AddServer(
+        string resourceId,
+        string containerName,
+        Action<LocalSqlServerDockerDefinition>? configure = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(containerName);
+
+        var definition = new LocalSqlServerDockerDefinition
+        {
+            ContainerName = containerName
+        };
+        configure?.Invoke(definition);
+        servers[resourceId] = definition;
+        return this;
+    }
+}
+
+public sealed class LocalSqlServerDockerDefinition
+{
+    public string ContainerName { get; set; } = string.Empty;
+
+    public string? PasswordConfigurationKey { get; set; }
+
+    public string AdministratorPassword { get; set; } =
+        SqlServerResourceDefaults.AdministratorPassword;
+
+    public string ContainerImage { get; set; } =
+        SqlServerResourceDefaults.ContainerImage;
+
+    public bool WaitUntilReady { get; set; }
+
+    public TimeSpan RemoveTimeout { get; set; } = TimeSpan.FromSeconds(5);
+}
+
+public sealed class LocalSqlServerDockerRuntimeHandler(
+    ILocalSqlServerDockerCommandRunner docker,
     IServiceScopeFactory scopeFactory,
     IHostEnvironment hostEnvironment,
     IConfiguration configuration,
-    IApplicationTopologySqlServerReadinessProbe readinessProbe) : IApplicationTopologyResourceModelSqlServerRuntimeBridge
+    ILocalSqlServerReadinessProbe readinessProbe,
+    IOptions<LocalSqlServerDockerRuntimeOptions> options) : ISqlServerRuntimeHandler
 {
-    public const string ResourceModelSqlServerContainerName = "cloudshell-application-topology-sql-server";
+    private const string RuntimeLifecycleFailedDiagnosticCode =
+        "application.sqlServer.localDockerRuntimeLifecycleFailed";
     private const string SqlServerDataPath = SqlServerResourceDefaults.DataPath;
-    private static readonly TimeSpan DockerRemoveTimeout = TimeSpan.FromSeconds(5);
-    private SqlServerRuntimeStatus _status = SqlServerRuntimeStatus.Unknown;
+    private readonly LocalSqlServerDockerRuntimeOptions options = options.Value;
+    private readonly Dictionary<string, SqlServerRuntimeStatus> statusByResourceId =
+        new(StringComparer.OrdinalIgnoreCase);
 
-    public SqlServerRuntimeStatus GetStatus(ResourceModelResource resource) => _status;
+    public SqlServerRuntimeStatus GetStatus(Resource resource) =>
+        TryGetDefinition(resource, out _) &&
+        statusByResourceId.TryGetValue(resource.EffectiveResourceId, out var status)
+            ? status
+            : SqlServerRuntimeStatus.Unknown;
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
-        ResourceModelResource resource,
+        Resource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default)
     {
+        if (!TryGetDefinition(resource, out var definition))
+        {
+            return [];
+        }
+
         try
         {
-            switch (operationId.ToString())
+            switch (operationId.Value)
             {
                 case ResourceActionIds.Start:
-                    await StartAsync(resource, cancellationToken);
-                    _status = SqlServerRuntimeStatus.Running;
+                    await StartAsync(resource, definition, cancellationToken);
+                    statusByResourceId[resource.EffectiveResourceId] = SqlServerRuntimeStatus.Running;
                     break;
                 case ResourceActionIds.Stop:
-                    await RemoveAsync(cancellationToken);
-                    _status = SqlServerRuntimeStatus.Stopped;
+                    await RemoveAsync(definition, cancellationToken);
+                    statusByResourceId[resource.EffectiveResourceId] = SqlServerRuntimeStatus.Stopped;
                     break;
                 case ResourceActionIds.Restart:
-                    await RemoveAsync(cancellationToken);
-                    await StartAsync(resource, cancellationToken);
-                    _status = SqlServerRuntimeStatus.Running;
+                    await RemoveAsync(definition, cancellationToken);
+                    await StartAsync(resource, definition, cancellationToken);
+                    statusByResourceId[resource.EffectiveResourceId] = SqlServerRuntimeStatus.Running;
                     break;
                 default:
                     throw new NotSupportedException(
-                        $"The ApplicationTopology sample does not map Resource model SQL operation '{operationId}' to the Docker SQL runtime.");
+                        $"The local SQL Server Docker runtime does not support operation '{operationId}'.");
             }
 
             return [];
@@ -57,7 +111,7 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
             return
             [
                 ResourceDefinitionDiagnostic.Error(
-                    "applicationTopology.sqlServer.dockerRuntimeLifecycleFailed",
+                    RuntimeLifecycleFailedDiagnosticCode,
                     exception.Message,
                     resource.EffectiveResourceId)
             ];
@@ -65,23 +119,24 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
     }
 
     private async Task StartAsync(
-        ResourceModelResource resource,
+        Resource resource,
+        LocalSqlServerDockerDefinition definition,
         CancellationToken cancellationToken)
     {
         var status = await docker.RunAsync(
-            ["container", "inspect", "--format", "{{.State.Status}}", ResourceModelSqlServerContainerName],
+            ["container", "inspect", "--format", "{{.State.Status}}", definition.ContainerName],
             cancellationToken,
             throwOnError: false);
         if (status.ExitCode == 0)
         {
             if (string.Equals(status.Output.Trim(), "running", StringComparison.OrdinalIgnoreCase))
             {
-                await readinessProbe.WaitUntilReadyAsync(resource, cancellationToken);
+                await WaitUntilReadyAsync(resource, definition, cancellationToken);
                 return;
             }
 
-            await docker.RunAsync(["start", ResourceModelSqlServerContainerName], cancellationToken);
-            await readinessProbe.WaitUntilReadyAsync(resource, cancellationToken);
+            await docker.RunAsync(["start", definition.ContainerName], cancellationToken);
+            await WaitUntilReadyAsync(resource, definition, cancellationToken);
             return;
         }
 
@@ -89,27 +144,29 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
         Directory.CreateDirectory(volumeMount.SourcePath);
 
         await RunSqlServerContainerAsync(
+            definition,
             [
                 "run",
                 "-d",
                 "--name",
-                ResourceModelSqlServerContainerName,
+                definition.ContainerName,
                 "-e",
                 "ACCEPT_EULA=Y",
                 "-e",
-                $"MSSQL_SA_PASSWORD={ResolveAdministratorPassword()}",
+                $"MSSQL_SA_PASSWORD={ResolveAdministratorPassword(definition)}",
                 "-p",
                 $"127.0.0.1:{ResolveTdsPort(resource).ToString(CultureInfo.InvariantCulture)}:1433",
                 "-v",
                 $"{volumeMount.SourcePath}:{volumeMount.TargetPath}{(volumeMount.ReadOnly ? ":ro" : string.Empty)}",
-                SqlServerResourceDefaults.ContainerImage
+                definition.ContainerImage
             ],
             cancellationToken);
 
-        await readinessProbe.WaitUntilReadyAsync(resource, cancellationToken);
+        await WaitUntilReadyAsync(resource, definition, cancellationToken);
     }
 
     private async Task RunSqlServerContainerAsync(
+        LocalSqlServerDockerDefinition definition,
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken)
     {
@@ -122,7 +179,7 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
             return;
         }
 
-        await RemoveAsync(cancellationToken);
+        await RemoveAsync(definition, cancellationToken);
         if (IsTransientMountSourceFailure(result))
         {
             await Task.Delay(500, cancellationToken);
@@ -135,19 +192,19 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
                 return;
             }
 
-            await RemoveAsync(cancellationToken);
+            await RemoveAsync(definition, cancellationToken);
         }
 
         throw new InvalidOperationException(
             $"Docker command 'docker {string.Join(' ', arguments)}' failed with exit code {result.ExitCode.ToString(CultureInfo.InvariantCulture)}: {result.Error}");
     }
 
-    private static bool IsTransientMountSourceFailure(ApplicationTopologyDockerCommandResult result) =>
+    private static bool IsTransientMountSourceFailure(LocalSqlServerDockerCommandResult result) =>
         result.Error.Contains("creating mount source path", StringComparison.OrdinalIgnoreCase) &&
         result.Error.Contains("no such file or directory", StringComparison.OrdinalIgnoreCase);
 
     private async Task<ResolvedSqlVolumeMount> ResolveSqlDataMountAsync(
-        ResourceModelResource resource,
+        Resource resource,
         CancellationToken cancellationToken)
     {
         using var scope = scopeFactory.CreateScope();
@@ -170,7 +227,7 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
         var mount = volumeConsumer?.Mounts.FirstOrDefault(mount =>
             string.Equals(mount.TargetPath, SqlServerDataPath, StringComparison.OrdinalIgnoreCase)) ??
             throw new InvalidOperationException(
-                $"The Resource model SQL Server resource must mount a volume at '{SqlServerDataPath}'.");
+                $"The SQL Server resource must mount a volume at '{SqlServerDataPath}'.");
 
         var volume = FindResolvedResource(graphResolution.Resources, mount.Volume);
         if (volume.Type.TypeId != CloudShellVolumeResourceTypeProvider.ResourceTypeId)
@@ -181,14 +238,14 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
 
         var sourcePath = ResolveVolumeSourcePath(volume, graphResolution.Resources, mount.Volume);
 
-        return new ResolvedSqlVolumeMount(
+        return new(
             sourcePath,
             mount.TargetPath,
             mount.ReadOnly);
     }
 
-    private static ResourceModelResource FindResolvedResource(
-        IReadOnlyList<ResourceModelResource> resources,
+    private static Resource FindResolvedResource(
+        IReadOnlyList<Resource> resources,
         string resourceId) =>
         resources.FirstOrDefault(resource =>
             string.Equals(
@@ -199,8 +256,8 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
             $"Resource graph state '{resourceId}' was not resolved.");
 
     private string ResolveVolumeSourcePath(
-        ResourceModelResource volume,
-        IReadOnlyList<ResourceModelResource> resources,
+        Resource volume,
+        IReadOnlyList<Resource> resources,
         string volumeResourceId)
     {
         var directLocation = volume.Attributes.GetString(CloudShellVolumeResourceTypeProvider.Attributes.Location);
@@ -228,16 +285,19 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
         return ResolvePath(storageLocation, subPath);
     }
 
-    private async Task RemoveAsync(CancellationToken cancellationToken) =>
+    private async Task RemoveAsync(
+        LocalSqlServerDockerDefinition definition,
+        CancellationToken cancellationToken) =>
         await docker.RunAsync(
-            ["rm", "-f", ResourceModelSqlServerContainerName],
+            ["rm", "-f", definition.ContainerName],
             cancellationToken,
             throwOnError: false,
-            commandTimeout: DockerRemoveTimeout);
+            commandTimeout: definition.RemoveTimeout);
 
-    private string ResolveAdministratorPassword() =>
-        configuration["ApplicationTopology:SqlServer:Password"] ??
-        SqlServerResourceDefaults.AdministratorPassword;
+    private string ResolveAdministratorPassword(LocalSqlServerDockerDefinition definition) =>
+        definition.PasswordConfigurationKey is { Length: > 0 } key
+            ? configuration[key] ?? definition.AdministratorPassword
+            : definition.AdministratorPassword;
 
     private string ResolvePath(
         string storageLocation,
@@ -252,7 +312,20 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
         return Path.GetFullPath(path);
     }
 
-    private static int ResolveTdsPort(ResourceModelResource resource)
+    private async Task WaitUntilReadyAsync(
+        Resource resource,
+        LocalSqlServerDockerDefinition definition,
+        CancellationToken cancellationToken)
+    {
+        if (!definition.WaitUntilReady)
+        {
+            return;
+        }
+
+        await readinessProbe.WaitUntilReadyAsync(resource, cancellationToken);
+    }
+
+    private static int ResolveTdsPort(Resource resource)
     {
         var endpoint = resource.Attributes
             .GetObject<NetworkingEndpointRequestValue[]>(
@@ -264,8 +337,13 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
         return endpoint?.Port is > 0
             ? endpoint.Port.Value
             : throw new InvalidOperationException(
-                "The Resource model SQL Server resource must declare a tds endpoint request with a host port before it can be started.");
+                "The SQL Server resource must declare a tds endpoint request with a host port before it can be started.");
     }
+
+    private bool TryGetDefinition(
+        Resource resource,
+        out LocalSqlServerDockerDefinition definition) =>
+        options.Servers.TryGetValue(resource.EffectiveResourceId, out definition!);
 
     private sealed record ResolvedSqlVolumeMount(
         string SourcePath,
@@ -273,30 +351,30 @@ public sealed class ApplicationTopologyResourceModelSqlServerDockerBridge(
         bool ReadOnly);
 }
 
-public interface IApplicationTopologyDockerCommandRunner
+public interface ILocalSqlServerDockerCommandRunner
 {
-    ApplicationTopologyDockerCommandResult Run(
+    LocalSqlServerDockerCommandResult Run(
         IReadOnlyList<string> arguments,
         bool throwOnError = true);
 
-    Task<ApplicationTopologyDockerCommandResult> RunAsync(
+    Task<LocalSqlServerDockerCommandResult> RunAsync(
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken,
         bool throwOnError = true,
         TimeSpan? commandTimeout = null);
 }
 
-public sealed class ProcessApplicationTopologyDockerCommandRunner(
-    IEnumerable<IContainerHostProvider> containerHostProviders) : IApplicationTopologyDockerCommandRunner
+public sealed class ProcessLocalSqlServerDockerCommandRunner(
+    IEnumerable<IContainerHostProvider> containerHostProviders) : ILocalSqlServerDockerCommandRunner
 {
-    public ApplicationTopologyDockerCommandResult Run(
+    public LocalSqlServerDockerCommandResult Run(
         IReadOnlyList<string> arguments,
         bool throwOnError = true) =>
         RunAsync(arguments, CancellationToken.None, throwOnError)
             .GetAwaiter()
             .GetResult();
 
-    public async Task<ApplicationTopologyDockerCommandResult> RunAsync(
+    public async Task<LocalSqlServerDockerCommandResult> RunAsync(
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken,
         bool throwOnError = true,
@@ -336,7 +414,7 @@ public sealed class ProcessApplicationTopologyDockerCommandRunner(
             var outputTask = process.StandardOutput.ReadToEndAsync(effectiveCancellationToken);
             var errorTask = process.StandardError.ReadToEndAsync(effectiveCancellationToken);
             await process.WaitForExitAsync(effectiveCancellationToken);
-            var result = new ApplicationTopologyDockerCommandResult(
+            var result = new LocalSqlServerDockerCommandResult(
                 process.ExitCode,
                 await outputTask,
                 await errorTask);
@@ -358,7 +436,7 @@ public sealed class ProcessApplicationTopologyDockerCommandRunner(
                 throw new TimeoutException(message);
             }
 
-            return new ApplicationTopologyDockerCommandResult(
+            return new(
                 -1,
                 string.Empty,
                 message);
@@ -370,7 +448,7 @@ public sealed class ProcessApplicationTopologyDockerCommandRunner(
                 throw;
             }
 
-            return new ApplicationTopologyDockerCommandResult(
+            return new(
                 -1,
                 string.Empty,
                 exception.Message);
@@ -418,38 +496,22 @@ public sealed class ProcessApplicationTopologyDockerCommandRunner(
     }
 }
 
-public sealed record ApplicationTopologyDockerCommandResult(
+public sealed record LocalSqlServerDockerCommandResult(
     int ExitCode,
     string Output,
     string Error);
 
-public interface IApplicationTopologySqlServerReadinessProbe
+public interface ILocalSqlServerReadinessProbe
 {
     Task WaitUntilReadyAsync(
-        ResourceModelResource resource,
+        Resource resource,
         CancellationToken cancellationToken);
 }
 
-public sealed class ApplicationTopologySqlServerReadinessProbe(
-    IConfiguration configuration) : IApplicationTopologySqlServerReadinessProbe
+public sealed class NoopLocalSqlServerReadinessProbe : ILocalSqlServerReadinessProbe
 {
-    public async Task WaitUntilReadyAsync(
-        ResourceModelResource resource,
-        CancellationToken cancellationToken)
-    {
-        if (!ResourceModelSqlServerConnectionSupport.TryCreateAdministratorConnectionString(
-                resource,
-                configuration,
-                "master",
-                out var connectionString))
-        {
-            throw new InvalidOperationException(
-                $"SQL Server resource '{resource.Name}' cannot be started because its TDS endpoint or administrator password is not available.");
-        }
-
-        await using var connection = await ResourceModelSqlServerConnectionSupport.OpenWithRetryAsync(
-            resource,
-            connectionString,
-            cancellationToken);
-    }
+    public Task WaitUntilReadyAsync(
+        Resource resource,
+        CancellationToken cancellationToken) =>
+        Task.CompletedTask;
 }

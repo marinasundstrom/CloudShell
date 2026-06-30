@@ -74,6 +74,8 @@ var frontendProjectPath = Path.Combine(
 var sqlPassword = builder.Configuration["ApplicationTopology:SqlServer:Password"]
     ?? SqlServerResourceDefaults.AdministratorPassword;
 var sqlPort = builder.Configuration.GetValue("ApplicationTopology:SqlServer:Port", 14334);
+const string sqlServerResourceId = "application.sql-server:application-topology-sql-server";
+const string sqlServerContainerName = "cloudshell-application-topology-sql-server";
 const string identityProviderId = "identity:development";
 const string apiIdentityName = "application-topology-api";
 const string resourceGroupId = "group:application-topology";
@@ -276,12 +278,18 @@ cloudShell.DefineResources(resources =>
 }, AddGraphProjectionState);
 builder.Services
     .AddSingleton<ISqlDatabaseCreationHandler, ResourceModelSqlDatabaseCreationHandler>()
-    .AddSingleton<IApplicationTopologyDockerCommandRunner, ProcessApplicationTopologyDockerCommandRunner>()
-    .AddSingleton<IApplicationTopologySqlServerReadinessProbe, ApplicationTopologySqlServerReadinessProbe>()
-    .AddSingleton<IApplicationTopologyResourceModelSqlServerRuntimeBridge, ApplicationTopologyResourceModelSqlServerDockerBridge>()
+    .AddSingleton<ILocalSqlServerReadinessProbe, ApplicationTopologySqlServerReadinessProbe>()
     .AddSingleton<IResourceOrchestrationDescriptorProvider, ApplicationTopologyResourceModelSqlServerOrchestrationDescriptorProvider>()
-    .AddSingleton<ISqlServerRuntimeHandler, ApplicationTopologyResourceModelSqlServerRuntimeHandler>()
     .AddStorageBackedSqlServerResourceTypes()
+    .AddLocalSqlServerDockerRuntime(options =>
+        options.AddServer(
+            sqlServerResourceId,
+            sqlServerContainerName,
+            runtime =>
+            {
+                runtime.PasswordConfigurationKey = "ApplicationTopology:SqlServer:Password";
+                runtime.WaitUntilReady = true;
+            }))
     .AddSqlDatabaseResourceType()
     .AddConfigurationStoreResourceType(options =>
     {

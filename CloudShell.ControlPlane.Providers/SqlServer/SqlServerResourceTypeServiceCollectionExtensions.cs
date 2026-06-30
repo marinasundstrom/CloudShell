@@ -76,4 +76,28 @@ public static class SqlServerResourceTypeServiceCollectionExtensions
 
         return services;
     }
+
+    public static IServiceCollection AddLocalSqlServerDockerRuntime(
+        this IServiceCollection services,
+        Action<LocalSqlServerDockerRuntimeOptions>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        if (configure is not null)
+        {
+            services.Configure(configure);
+        }
+
+        services.TryAddSingleton<
+            ILocalSqlServerDockerCommandRunner,
+            ProcessLocalSqlServerDockerCommandRunner>();
+        services.TryAddSingleton<
+            ILocalSqlServerReadinessProbe,
+            NoopLocalSqlServerReadinessProbe>();
+        services.Replace(ServiceDescriptor.Singleton<
+            ISqlServerRuntimeHandler,
+            LocalSqlServerDockerRuntimeHandler>());
+
+        return services;
+    }
 }

@@ -347,7 +347,7 @@ public sealed class SampleSmokeTests
     public async Task ContainerHostSample_SqlRuntimeStartsWithStorageBackedVolume()
     {
         const string sqlServerResourceId = "application.sql-server:sql-server";
-        var sqlContainerName = ContainerHostSqlServerDockerBridge.SqlServerContainerName;
+        const string sqlContainerName = "cloudshell-container-host-sql-server";
         if (!await DockerComposeStack.IsAvailableAsync() ||
             !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.ContainerImage) ||
             await DockerComposeStack.ContainerExistsAsync(sqlContainerName))
@@ -446,7 +446,7 @@ public sealed class SampleSmokeTests
     public async Task ContainerHostSample_SqlRuntimeStopsOnGracefulHostShutdown()
     {
         const string sqlServerResourceId = "application.sql-server:sql-server";
-        var sqlContainerName = ContainerHostSqlServerDockerBridge.SqlServerContainerName;
+        const string sqlContainerName = "cloudshell-container-host-sql-server";
         if (!await DockerComposeStack.IsAvailableAsync() ||
             !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.ContainerImage))
         {
@@ -987,7 +987,7 @@ public sealed class SampleSmokeTests
     [Trait("Category", "DockerIntegration")]
     public async Task ApplicationTopologyHost_RunsSqlBackedWorkload()
     {
-        var sqlContainerName = ApplicationTopologyResourceModelSqlServerDockerBridge.ResourceModelSqlServerContainerName;
+        const string sqlContainerName = "cloudshell-application-topology-sql-server";
         if (!await DockerComposeStack.IsAvailableAsync() ||
             !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.ContainerImage) ||
             await DockerComposeStack.ContainerExistsAsync(sqlContainerName))
@@ -1154,7 +1154,7 @@ public sealed class SampleSmokeTests
     public async Task ApplicationTopologyHost_SqlRuntimeStopsOnGracefulHostShutdown()
     {
         const string graphSqlServerResourceId = "application.sql-server:application-topology-sql-server";
-        var sqlContainerName = ApplicationTopologyResourceModelSqlServerDockerBridge.ResourceModelSqlServerContainerName;
+        const string sqlContainerName = "cloudshell-application-topology-sql-server";
         if (!await DockerComposeStack.IsAvailableAsync() ||
             !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.ContainerImage))
         {
@@ -2897,7 +2897,7 @@ public sealed class SampleSmokeTests
         if (sampleName == "CloudShell.ContainerHost")
         {
             await DockerComposeStack.RemoveContainerIfExistsAsync(
-                ContainerHostSqlServerDockerBridge.SqlServerContainerName);
+                "cloudshell-container-host-sql-server");
         }
         else if (sampleName == "ContainerAppDeployment")
         {
@@ -2907,7 +2907,7 @@ public sealed class SampleSmokeTests
         else if (sampleName == "ApplicationTopology")
         {
             await DockerComposeStack.RemoveContainerIfExistsAsync(
-                ApplicationTopologyResourceModelSqlServerDockerBridge.ResourceModelSqlServerContainerName);
+                "cloudshell-application-topology-sql-server");
         }
         else if (sampleName == "LoadBalancer")
         {
