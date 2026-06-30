@@ -482,9 +482,13 @@ preserving old provider seams:
 - [x] Revisit post-apply teardown ownership. Prefer Resource Manager
   deployment/orchestration outcome data over provider-specific predecessor
   inference.
-- [ ] Define a provider-facing change-application contract for applying
+- [x] Define a provider-facing change-application contract for applying
   attribute/configuration changes to materialized resources without requiring
   every provider to invent one-off update methods.
+- [ ] Define service-discovery semantics for virtual networks, DNS zones, name
+  mappings, and endpoint mappings so graph and runtime views can distinguish
+  declared topology, DNS/discovery names, and internet-reachable carrier
+  networks without provider-specific inference.
 
 ## Future Resource Provider Refactoring
 

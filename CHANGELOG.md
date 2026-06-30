@@ -91,6 +91,10 @@ on `git blame --follow`, and then by the broad type of change.
   Resource Manager deployment cleanup coordinator for post-apply replica-group
   teardown, keeping cleanup events and warning handling on the orchestration
   boundary instead of in the container-app graph reconciler.
+- ResourceDefinition apply reconciliation now has a provider-facing
+  `IResourceModelGraphMaterializedChangeApplier` contract for applying
+  accepted graph changes to materialized runtime resources, with graph-backed
+  container apps using it for image and replica-slot runtime reconciliation.
 - Control Plane `DefineResources(...)` and `DefineInitialTemplate(...)` now use
   a Control Plane resource-definition context that extends graph resource
   authoring, keeps identity-provider metadata outside `ResourceDefinition` and

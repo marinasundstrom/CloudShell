@@ -83,8 +83,8 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
                 ContainerApplicationResourceManagerEndpointProjectionProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
-                IResourceModelGraphApplyReconciler,
-                ContainerApplicationResourceModelGraphApplyReconciler>());
+                IResourceModelGraphMaterializedChangeApplier,
+                ContainerApplicationResourceModelGraphMaterializedChangeApplier>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceModelGraphDeploymentDescriptor,

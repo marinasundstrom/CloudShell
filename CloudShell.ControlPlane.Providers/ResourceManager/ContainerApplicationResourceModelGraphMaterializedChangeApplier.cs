@@ -7,13 +7,13 @@ using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource
 
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class ContainerApplicationResourceModelGraphApplyReconciler(
+public sealed class ContainerApplicationResourceModelGraphMaterializedChangeApplier(
     ResourceModelGraphResourceResolver resourceResolver,
     IEnumerable<IResourceModelGraphDeploymentDescriptor>? deploymentDescriptors = null,
     IResourceRegistrationStore? registrations = null,
     IResourceEventSink? resourceEvents = null,
     IResourceOrchestratorDeploymentCleanupCoordinator? deploymentCleanup = null,
-    IServiceProvider? serviceProvider = null) : IResourceModelGraphApplyReconciler
+    IServiceProvider? serviceProvider = null) : IResourceModelGraphMaterializedChangeApplier
 {
     private static readonly ResourceAttributeId ContainerImageAttributeId =
         ContainerApplicationResourceTypeProvider.Attributes.ContainerImage;
@@ -30,34 +30,27 @@ public sealed class ContainerApplicationResourceModelGraphApplyReconciler(
     private readonly IResourceOrchestratorDeploymentCleanupCoordinator? _deploymentCleanup = deploymentCleanup;
     private readonly IServiceProvider? _serviceProvider = serviceProvider;
 
-    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAsync(
-        ResourceModelGraphDefinitionApplyReconciliationContext context,
+    public bool CanApplyMaterializedChange(
+        ResourceModelGraphMaterializedChangeContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var changeSet = context.ChangeSet;
+        return !changeSet.IsNewResource &&
+            changeSet.Resource.Type.TypeId == ContainerApplicationResourceTypeProvider.ResourceTypeId &&
+            RequiresRuntimeReconciliation(changeSet);
+    }
+
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyMaterializedChangeAsync(
+        ResourceModelGraphMaterializedChangeContext context,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var diagnostics = new List<ResourceDefinitionDiagnostic>();
-        foreach (var accepted in context.Changes.AcceptedResources)
-        {
-            var changeSet = accepted.ChangeSet;
-            if (changeSet.IsNewResource ||
-                changeSet.Resource.Type.TypeId != ContainerApplicationResourceTypeProvider.ResourceTypeId)
-            {
-                continue;
-            }
-
-            if (!RequiresRuntimeReconciliation(changeSet))
-            {
-                continue;
-            }
-
-            diagnostics.AddRange(await ApplyDeploymentAsync(
-                changeSet.Resource.EffectiveResourceId,
-                context,
-                cancellationToken));
-        }
-
-        return diagnostics;
+        return await ApplyDeploymentAsync(
+            context.ChangeSet.Resource.EffectiveResourceId,
+            context.Reconciliation,
+            cancellationToken);
     }
 
     private async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyDeploymentAsync(

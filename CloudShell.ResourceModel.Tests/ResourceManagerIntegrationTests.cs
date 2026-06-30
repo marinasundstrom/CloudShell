@@ -1624,6 +1624,46 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesMaterializedChangesThroughMatchingAppliers()
+    {
+        var matchingApplier = new RecordingMaterializedChangeApplier(
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId);
+        var nonMatchingApplier = new RecordingMaterializedChangeApplier(
+            LocalVolumeResourceTypeProvider.ResourceTypeId);
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState(), CreateExecutableState()]);
+        services.AddLocalVolumeResourceType();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddSingleton<IResourceModelGraphMaterializedChangeApplier>(matchingApplier);
+        services.AddSingleton<IResourceModelGraphMaterializedChangeApplier>(nonMatchingApplier);
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+
+        var result = await service.ApplyDefinitionsAsync(
+            [
+                new(
+                    "api",
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    {
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet-watch"
+                    })
+            ],
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 30, 12, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        var context = Assert.Single(matchingApplier.Contexts);
+        Assert.Equal("application.executable:api", context.ChangeSet.Resource.EffectiveResourceId);
+        Assert.Equal("developer", context.Reconciliation.CommitContext.PrincipalId);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, context.Reconciliation.Commit.Summary.Status);
+        Assert.Empty(nonMatchingApplier.Contexts);
+    }
+
+    [Fact]
     public async Task ResourceDefinitionTemplateService_ExportsResourceTemplateFromGraph()
     {
         var services = new ServiceCollection();
@@ -2277,6 +2317,8 @@ public sealed class ResourceManagerIntegrationTests
             retirePreviousReplicaGroup: true);
         var tearDownOrchestrator = new RecordingReplicaGroupTearDownOrchestrator();
         services.AddSingleton<IResourceOrchestratorDeploymentCoordinator>(deploymentCoordinator);
+        services.AddSingleton<IResourceOrchestratorDeploymentCleanupCoordinator>(
+            new TestResourceOrchestratorDeploymentCleanupCoordinator());
         services.AddSingleton<IResourceOrchestrator>(tearDownOrchestrator);
         services.AddScoped<IResourceManagerStore>(serviceProvider =>
             new ProjectedResourceManagerStore(() =>
@@ -2325,7 +2367,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Contains("previous-revision-replicas", tearDown, StringComparison.Ordinal);
         Assert.Contains(":developer:", tearDown, StringComparison.Ordinal);
         Assert.Contains(
-            "ResourceDefinition apply requested runtime reconciliation for principal 'developer'.",
+            "Retire previous graph apply revision.",
             tearDown,
             StringComparison.Ordinal);
     }
@@ -7025,6 +7067,66 @@ public sealed class ResourceManagerIntegrationTests
         {
             _contexts.Add(context);
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RecordingMaterializedChangeApplier(
+        ResourceTypeId typeId) : IResourceModelGraphMaterializedChangeApplier
+    {
+        private readonly List<ResourceModelGraphMaterializedChangeContext> _contexts = [];
+
+        public IReadOnlyList<ResourceModelGraphMaterializedChangeContext> Contexts => _contexts;
+
+        public bool CanApplyMaterializedChange(
+            ResourceModelGraphMaterializedChangeContext context) =>
+            context.ChangeSet.Resource.Type.TypeId == typeId;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyMaterializedChangeAsync(
+            ResourceModelGraphMaterializedChangeContext context,
+            CancellationToken cancellationToken = default)
+        {
+            _contexts.Add(context);
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class TestResourceOrchestratorDeploymentCleanupCoordinator :
+        IResourceOrchestratorDeploymentCleanupCoordinator
+    {
+        public async Task<ResourceProcedureResult> RunPostApplyCleanupAsync(
+            ResourceManagerResource resource,
+            ResourceOrchestratorDeploymentApplyResult applyResult,
+            ResourceProcedureResult result,
+            string? triggeredBy,
+            Func<ResourceOrchestratorDeploymentApplyResult, CancellationToken, Task<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>>>? describeTearDownsAsync,
+            Func<ResourceOrchestratorReplicaGroupTearDownRequest, ResourceOrchestratorReplicaGroup, string, CancellationToken, Task<ResourceProcedureResult>> tearDownReplicaGroupAsync,
+            Func<ResourceProcedureResult, ResourceProcedureResult, ResourceProcedureResult>? mergeResults = null,
+            CancellationToken cancellationToken = default)
+        {
+            var tearDowns = applyResult.ReplicaGroupsToTearDown;
+            if (tearDowns.Count == 0 && describeTearDownsAsync is not null)
+            {
+                tearDowns = await describeTearDownsAsync(
+                    applyResult,
+                    cancellationToken);
+            }
+
+            var results = new List<ResourceProcedureResult> { result };
+            foreach (var tearDown in tearDowns)
+            {
+                var replicaGroup = tearDown.ReplicaGroup ??
+                    ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(tearDown.Service);
+                var reason = tearDown.Reason ?? "Deployment retired superseded replica group.";
+                results.Add(await tearDownReplicaGroupAsync(
+                    tearDown,
+                    replicaGroup,
+                    reason,
+                    cancellationToken));
+            }
+
+            return ResourceProcedureResult.Combine(
+                results,
+                result.Message);
         }
     }
 }

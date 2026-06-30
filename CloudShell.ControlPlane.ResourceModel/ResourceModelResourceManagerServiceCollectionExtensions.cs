@@ -159,6 +159,10 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
         services.TryAddScoped<ResourceChangeApplyDispatcher>();
         services.TryAddScoped<ResourceDefinitionGraphChangeApplier>();
         services.TryAddScoped<ResourceModelGraphDefinitionApplyService>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IResourceModelGraphApplyReconciler,
+                ResourceModelGraphMaterializedChangeReconciler>());
         services.TryAddScoped<ResourceDefinitionTemplateService>();
         services.TryAddScoped<IResourceDefinitionRegistrationService, ResourceDefinitionRegistrationService>();
 

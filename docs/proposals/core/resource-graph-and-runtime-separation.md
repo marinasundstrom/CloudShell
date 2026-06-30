@@ -136,6 +136,10 @@ The active POC migration scope is:
 - Resource Manager commits accepted graph state before runtime planning.
 - Provider-owned planners derive internal runtime work from accepted graph
   state when materialization is required.
+- Provider-owned materialized-change appliers react to accepted graph changes
+  that require runtime side effects, so a provider can map attribute or
+  configuration changes onto its runtime target without owning the whole graph
+  reconciliation pipeline.
 - Orchestrator deployments, orchestrator services, replica groups, replicas,
   routing bindings, and environment revisions remain internal Runtime model
   artifacts unless a later public workload-builder API explicitly exposes
