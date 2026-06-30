@@ -2252,10 +2252,61 @@ public sealed class SampleSmokeTests
                 source.GetProperty("name").GetString());
             Assert.Equal(apiResourceId, source.GetProperty("resourceId").GetString());
             Assert.Equal((int)ResourceLogSourceKind.ProcessOutput, source.GetProperty("kind").GetInt32());
-            Assert.Equal((int)LogFormat.PlainText, source.GetProperty("format").GetInt32());
+            Assert.Equal((int)LogFormat.JsonConsole, source.GetProperty("format").GetInt32());
             Assert.Equal((int)ResourceLogSourceOrigin.ProviderProjected, source.GetProperty("origin").GetInt32());
             Assert.Equal((int)LogSourceAvailability.ProducerRunning, source.GetProperty("availability").GetInt32());
         }
+
+        await WaitForAnyStructuredSignalRReplicaLogEntriesAsync(host, replicaSources);
+    }
+
+    private static async Task WaitForAnyStructuredSignalRReplicaLogEntriesAsync(
+        SampleProcess host,
+        IReadOnlyList<JsonElement> replicaSources)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(StartupTimeout);
+        var lastResponses = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        do
+        {
+            foreach (var source in replicaSources)
+            {
+                var logSourceId = source.GetProperty("id").GetString() ??
+                    throw new InvalidOperationException("The log source did not include an id.");
+                var body = await host.GetStringAsync(
+                    $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(logSourceId)}/entries?maxEntries=50");
+                lastResponses[logSourceId] = body;
+                using var document = JsonDocument.Parse(body);
+                if (document.RootElement
+                    .EnumerateArray()
+                    .Any(IsStructuredJsonConsoleLogEntry))
+                {
+                    return;
+                }
+            }
+
+            await Task.Delay(250);
+        }
+        while (DateTimeOffset.UtcNow < deadline);
+
+        var lastResponseText = string.Join(
+            Environment.NewLine,
+            lastResponses.Select(response => $"{response.Key}: {response.Value}"));
+        throw new TimeoutException(
+            $"Timed out waiting for structured SignalR replica log entries. Last responses: {lastResponseText}");
+    }
+
+    private static bool IsStructuredJsonConsoleLogEntry(JsonElement entry)
+    {
+        if (!entry.TryGetProperty("message", out var messageProperty))
+        {
+            return false;
+        }
+
+        var message = messageProperty.GetString();
+        return !string.IsNullOrWhiteSpace(message) &&
+            !message.TrimStart().StartsWith('{') &&
+            entry.TryGetProperty("category", out var category) &&
+            !string.IsNullOrWhiteSpace(category.GetString());
     }
 
     [Fact]

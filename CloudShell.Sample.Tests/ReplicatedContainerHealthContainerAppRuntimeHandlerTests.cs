@@ -884,7 +884,16 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             Attributes: new Dictionary<string, string>
             {
                 ["container.replicas"] = replicas.ToString(CultureInfo.InvariantCulture)
-            });
+            },
+            LogSources:
+            [
+                new(
+                    "console",
+                    "Console logs",
+                    ResourceLogSourceKind.Container,
+                    LogFormat.JsonConsole,
+                    Purpose: ResourceLogSourcePurpose.Default)
+            ]);
 
     private static CloudShell.Abstractions.ResourceManager.Resource CreateGraphReplicaResource(
         int replica)

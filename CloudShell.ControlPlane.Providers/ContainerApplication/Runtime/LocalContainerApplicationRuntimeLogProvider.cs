@@ -1,7 +1,6 @@
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using System.Globalization;
-using System.Text.Json;
 using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 
 namespace CloudShell.ControlPlane.Providers;
@@ -55,6 +54,7 @@ public sealed class LocalContainerApplicationRuntimeLogProvider(
             : resourceManager.GetResource(resource.OwnerResourceId);
         var replicaOrdinal = ResolveReplicaOrdinal(resource);
         var sourceName = parent?.Name ?? resource.Name;
+        var format = ResolveRuntimeLogFormat(parent);
 
         return new LogSource(
             CreateLogSourceId(resource),
@@ -63,7 +63,7 @@ public sealed class LocalContainerApplicationRuntimeLogProvider(
             sourceName,
             LogSourceKind.Resource,
             Kind: ResourceLogSourceKind.Container,
-            Format: LogFormat.JsonConsole,
+            Format: format,
             Capabilities: LogSourceCapabilities.Read,
             ResourceId: resource.OwnerResourceId ?? resource.ParentResourceId ?? resource.Id,
             ProducerResourceId: resource.OwnerResourceId ?? resource.ParentResourceId ?? resource.Id,
@@ -94,17 +94,22 @@ public sealed class LocalContainerApplicationRuntimeLogProvider(
 
         var containerName = GetAttribute(resource, ResourceAttributeNames.RuntimeContainerName);
         arguments.Add(containerName);
+        var ownerResource = FirstNonEmpty(resource.OwnerResourceId, resource.ParentResourceId) is { } ownerResourceId
+            ? resourceManager.GetResource(ownerResourceId)
+            : null;
+        var format = ResolveRuntimeLogFormat(ownerResource);
 
         var result = await commandRunner.RunAsync(
             "docker",
             arguments,
             cancellationToken,
             throwOnError: false);
-        var entries = ParseContainerLogOutput(result.Output, containerName, null)
+        var entries = ParseContainerLogOutput(result.Output, containerName, null, format)
             .Concat(ParseContainerLogOutput(
                 result.Error,
                 containerName,
-                result.ExitCode == 0 ? "Error" : null))
+                result.ExitCode == 0 ? "Error" : null,
+                format))
             .OrderBy(entry => entry.Timestamp)
             .TakeLast(Math.Max(1, maxEntries))
             .ToArray();
@@ -144,6 +149,17 @@ public sealed class LocalContainerApplicationRuntimeLogProvider(
             GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaOrdinal),
             resource.Name) ?? "1";
 
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
+
+    private static LogFormat ResolveRuntimeLogFormat(ResourceManagerResource? resource)
+    {
+        var source = resource?.ResourceLogSources.FirstOrDefault(source =>
+            source.Kind is ResourceLogSourceKind.ProcessOutput or ResourceLogSourceKind.Container &&
+            source.Purpose == ResourceLogSourcePurpose.Default);
+        return source?.Format ?? LogFormat.PlainText;
+    }
+
     private static string GetAttribute(ResourceManagerResource resource, string name) =>
         resource.ResourceAttributes.TryGetValue(name, out var value)
             ? value
@@ -152,7 +168,8 @@ public sealed class LocalContainerApplicationRuntimeLogProvider(
     private static IReadOnlyList<LogEntry> ParseContainerLogOutput(
         string output,
         string source,
-        string? severity)
+        string? severity,
+        LogFormat format)
     {
         if (string.IsNullOrWhiteSpace(output))
         {
@@ -161,180 +178,11 @@ public sealed class LocalContainerApplicationRuntimeLogProvider(
 
         return output
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => ParseContainerLogLine(line, source, severity))
+            .Select(line => ContainerApplicationRuntimeLogParser.ParseContainerLogLine(
+                line,
+                source,
+                severity,
+                format))
             .ToArray();
     }
-
-    private static LogEntry ParseContainerLogLine(
-        string line,
-        string source,
-        string? severity)
-    {
-        var normalized = line.TrimEnd('\r');
-        var timestamp = DateTimeOffset.UtcNow;
-        var message = normalized;
-        var separatorIndex = normalized.IndexOf(' ');
-        if (separatorIndex > 0 &&
-            DateTimeOffset.TryParse(
-                normalized[..separatorIndex],
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal,
-                out var parsedTimestamp))
-        {
-            timestamp = parsedTimestamp;
-            message = normalized[(separatorIndex + 1)..];
-        }
-
-        return TryParseJsonConsoleLog(message, source, severity, timestamp) ??
-            new LogEntry(timestamp, message, severity, source);
-    }
-
-    private static LogEntry? TryParseJsonConsoleLog(
-        string line,
-        string fallbackSource,
-        string? fallbackSeverity,
-        DateTimeOffset fallbackTimestamp)
-    {
-        if (!line.TrimStart().StartsWith('{'))
-        {
-            return null;
-        }
-
-        JsonDocument document;
-        try
-        {
-            document = JsonDocument.Parse(line);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-
-        using (document)
-        {
-            var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object)
-            {
-                return null;
-            }
-
-            var timestamp = TryGetDateTimeOffset(root, "timestamp") ??
-                TryGetDateTimeOffset(root, "Timestamp") ??
-                fallbackTimestamp;
-            var message = FirstNonEmpty(
-                TryGetString(root, "message"),
-                TryGetString(root, "Message"),
-                TryGetString(root, "renderedMessage"),
-                TryGetString(root, "body"),
-                line) ?? line;
-            var severity = FirstNonEmpty(
-                TryGetString(root, "severity"),
-                TryGetString(root, "Severity"),
-                TryGetString(root, "logLevel"),
-                TryGetString(root, "LogLevel"),
-                fallbackSeverity);
-            var source = FirstNonEmpty(
-                TryGetString(root, "source"),
-                TryGetString(root, "Source"),
-                TryGetString(root, "sourceContext"),
-                TryGetString(root, "SourceContext"),
-                fallbackSource) ?? fallbackSource;
-            var category = FirstNonEmpty(
-                TryGetString(root, "category"),
-                TryGetString(root, "Category"),
-                TryGetString(root, "logger"),
-                TryGetString(root, "Logger"));
-            var eventId = FirstNonEmpty(
-                TryGetScalar(root, "eventId"),
-                TryGetScalar(root, "EventId"));
-            var traceId = FirstNonEmpty(
-                TryGetString(root, "traceId"),
-                TryGetString(root, "TraceId"));
-            var spanId = FirstNonEmpty(
-                TryGetString(root, "spanId"),
-                TryGetString(root, "SpanId"));
-            var exceptionSummary = FirstNonEmpty(
-                TryGetString(root, "exceptionSummary"),
-                TryGetString(root, "ExceptionSummary"),
-                TryGetString(root, "exception"),
-                TryGetString(root, "Exception"));
-            var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            AddStructuredAttributes(root, "attributes", attributes);
-            AddStructuredAttributes(root, "Attributes", attributes);
-            AddStructuredAttributes(root, "state", attributes);
-            AddStructuredAttributes(root, "State", attributes);
-
-            return new LogEntry(
-                timestamp,
-                message.TrimEnd(),
-                severity,
-                source,
-                eventId,
-                category,
-                traceId,
-                spanId,
-                exceptionSummary,
-                attributes.Count == 0 ? null : attributes);
-        }
-    }
-
-    private static DateTimeOffset? TryGetDateTimeOffset(JsonElement root, string propertyName)
-    {
-        var value = TryGetString(root, propertyName);
-        return DateTimeOffset.TryParse(
-            value,
-            CultureInfo.InvariantCulture,
-            DateTimeStyles.AssumeUniversal,
-            out var parsed)
-                ? parsed
-                : null;
-    }
-
-    private static string? TryGetString(JsonElement root, string propertyName) =>
-        root.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
-            ? property.GetString()
-            : null;
-
-    private static string? TryGetScalar(JsonElement root, string propertyName)
-    {
-        if (!root.TryGetProperty(propertyName, out var property))
-        {
-            return null;
-        }
-
-        return property.ValueKind switch
-        {
-            JsonValueKind.String => property.GetString(),
-            JsonValueKind.Number => property.GetRawText(),
-            JsonValueKind.True => bool.TrueString,
-            JsonValueKind.False => bool.FalseString,
-            _ => null
-        };
-    }
-
-    private static void AddStructuredAttributes(
-        JsonElement root,
-        string propertyName,
-        Dictionary<string, string> attributes)
-    {
-        if (!root.TryGetProperty(propertyName, out var property) ||
-            property.ValueKind != JsonValueKind.Object)
-        {
-            return;
-        }
-
-        foreach (var item in property.EnumerateObject())
-        {
-            var value = item.Value.ValueKind == JsonValueKind.String
-                ? item.Value.GetString()
-                : item.Value.GetRawText();
-            if (!string.IsNullOrWhiteSpace(value))
-            {
-                attributes[item.Name] = value!;
-            }
-        }
-    }
-
-    private static string? FirstNonEmpty(params string?[] values) =>
-        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 }

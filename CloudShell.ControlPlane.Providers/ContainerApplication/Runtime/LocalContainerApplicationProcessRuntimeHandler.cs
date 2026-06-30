@@ -275,11 +275,12 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
             var replicaPortStart = definition.ReplicaPortStart ?? ingressPort + 1;
             state.ResourceId = resource.EffectiveResourceId;
             state.ResourceName = resource.Name;
+            state.LogFormat = ResolveRuntimeLogFormat(resource);
 
             for (var replica = 1; replica <= replicaCount; replica++)
             {
                 var port = replicaPortStart + replica - 1;
-                var replicaProcess = StartReplica(definition, replica, port, resource);
+                var replicaProcess = StartReplica(definition, replica, port, resource, state.LogFormat);
                 state.Replicas.Add(replicaProcess);
             }
 
@@ -698,7 +699,8 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
         LocalContainerApplicationProcessDefinition definition,
         int replicaOrdinal,
         int port,
-        Resource resource)
+        Resource resource,
+        LogFormat logFormat)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -745,6 +747,7 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
             port,
             process,
             replicaResourceId,
+            logFormat,
             new ConcurrentQueue<LogEntry>());
         _ = DrainOutputAsync(resource, process.StandardOutput, replica, isError: false);
         _ = DrainOutputAsync(resource, process.StandardError, replica, isError: true);
@@ -863,7 +866,7 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
             sourceName,
             LogSourceKind.Resource,
             Kind: ResourceLogSourceKind.ProcessOutput,
-            Format: LogFormat.PlainText,
+            Format: replica.LogFormat,
             Storage: LogStorage.InMemory,
             Capabilities: LogSourceCapabilities.Read,
             ResourceId: state.ResourceId,
@@ -880,6 +883,29 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
         string resourceId,
         int replicaOrdinal) =>
         $"{resourceId}:replica-{replicaOrdinal.ToString(CultureInfo.InvariantCulture)}:logs";
+
+    private static LogFormat ResolveRuntimeLogFormat(Resource resource)
+    {
+        var definitions = resource.Capabilities.Get<ResourceLogSourceDefinitionSet>(
+            ResourceLogSourceCapabilityIds.LogSources);
+        var consoleDefinition = definitions?.Sources?
+            .FirstOrDefault(source =>
+                string.Equals(
+                    source.Kind,
+                    ResourceLogSourceDefinitionValues.ProcessOutput,
+                    StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(
+                    source.Purpose,
+                    ResourceLogSourceDefinitionValues.Default,
+                    StringComparison.OrdinalIgnoreCase));
+
+        return Enum.TryParse<LogFormat>(
+            consoleDefinition?.Format,
+            ignoreCase: true,
+            out var format)
+                ? format
+                : LogFormat.PlainText;
+    }
 
     private static int GetReplicaCount(Resource resource)
     {
@@ -998,11 +1024,13 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
     {
         while (await reader.ReadLineAsync() is { } line)
         {
-            replica.LogEntries.Enqueue(new LogEntry(
-                DateTimeOffset.UtcNow,
+            var source = isError ? "stderr" : "stdout";
+            replica.LogEntries.Enqueue(ContainerApplicationRuntimeLogParser.ParseProcessOutputLine(
                 line,
+                source,
                 isError ? "Error" : "Information",
-                isError ? "stderr" : "stdout"));
+                replica.LogFormat,
+                DateTimeOffset.UtcNow));
             while (replica.LogEntries.Count > MaxBufferedLogEntriesPerReplica &&
                 replica.LogEntries.TryDequeue(out _))
             {
@@ -1042,6 +1070,7 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
         int Port,
         Process Process,
         string ResourceId,
+        LogFormat LogFormat,
         ConcurrentQueue<LogEntry> LogEntries);
 
     private sealed class LocalContainerApplicationProcessRuntimeState
@@ -1049,6 +1078,8 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
         public string ResourceId { get; set; } = string.Empty;
 
         public string ResourceName { get; set; } = string.Empty;
+
+        public LogFormat LogFormat { get; set; } = LogFormat.PlainText;
 
         public List<ReplicaProcess> Replicas { get; } = [];
 

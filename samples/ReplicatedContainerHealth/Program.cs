@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.Hosting;
@@ -45,6 +46,7 @@ cloudShell.DefineResources(resources =>
         .WithAutoStart(false)
         .UseDockerHost(dockerResource)
         .WithImage($"cloudshell-application-api:{sampleImageTag}")
+        .WithRuntimeLogSources(LogFormat.JsonConsole)
         .WithReplicas(3)
         .WithCookieSessionAffinity("CloudShellReplica", durationSeconds: 3600)
         .WithHttpEndpoint(

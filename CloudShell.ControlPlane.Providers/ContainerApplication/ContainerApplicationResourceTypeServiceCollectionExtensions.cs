@@ -64,8 +64,6 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceModelResourceManagerObservabilityProvider, ContainerApplicationResourceModelObservabilityProvider>());
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<ILogProvider, LocalContainerApplicationProcessRuntimeLogProvider>());
-        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceMonitoringProvider, LocalContainerApplicationRuntimeMonitoringProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, ContainerApplicationStartOperationProvider>());
@@ -106,6 +104,8 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
 
         services.TryAddSingleton<IConfiguration>(_ => new ConfigurationManager());
         services.TryAddSingleton<LocalContainerApplicationProcessRuntimeBridge>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<ILogProvider, LocalContainerApplicationProcessRuntimeLogProvider>());
         services.Replace(ServiceDescriptor.Singleton<
             IContainerApplicationRuntimeHandler,
             LocalContainerApplicationProcessRuntimeHandler>());

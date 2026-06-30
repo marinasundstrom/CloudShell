@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Logs;
 using ResourceOrchestratorSessionAffinityMode = CloudShell.Abstractions.ResourceManager.ResourceOrchestratorSessionAffinityMode;
 
 namespace CloudShell.ControlPlane.Providers;
@@ -68,7 +69,19 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
         DeclareCapability(ResourceCommonCapabilityIds.Monitoring);
 
     public ContainerApplicationResourceDefinitionBuilder WithRuntimeLogSources() =>
-        DeclareCapability(ResourceLogSourceCapabilityIds.LogSources);
+        WithRuntimeLogSources(ResourceLogSourceDefinitionValues.PlainText);
+
+    public ContainerApplicationResourceDefinitionBuilder WithRuntimeLogSources(LogFormat format) =>
+        WithRuntimeLogSources(ToResourceLogFormat(format));
+
+    public ContainerApplicationResourceDefinitionBuilder WithRuntimeLogSources(string format)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(format);
+
+        return SetCapability(
+            ResourceLogSourceCapabilityIds.LogSources,
+            ResourceLogSourceDefinitionSet.DefaultConsole(format.Trim()));
+    }
 
     public ContainerApplicationResourceDefinitionBuilder UseContainerHost(
         IResourceDefinitionBuilder host,
@@ -249,6 +262,14 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
             ResourceHealthCheckCapabilityIds.HealthChecks,
             new ResourceHealthCheckDefinitionSet(_healthChecks.ToArray()));
     }
+
+    private static string ToResourceLogFormat(LogFormat format) =>
+        format switch
+        {
+            LogFormat.PlainText => ResourceLogSourceDefinitionValues.PlainText,
+            LogFormat.JsonConsole => ResourceLogSourceDefinitionValues.JsonConsole,
+            _ => format.ToString()
+        };
 }
 
 public static class ContainerApplicationResourceDefinitionBuilderExtensions

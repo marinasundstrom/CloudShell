@@ -90,6 +90,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app resources now advertise logs, traces, and metrics through the
   Resource Model observability projection, and local process container-app
   replicas automatically expose provider-projected process log sources.
+- Container app console log sources now carry a declared format, allowing
+  ASP.NET Core JSON console output from local-process and Docker-backed
+  replicas to be parsed as structured log entries instead of raw JSON text.
 - Traces view no longer renders recent spans through the terminal-style log
   entry component; the page now stays focused on trace summaries until a trace
   is opened.

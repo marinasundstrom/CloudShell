@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.Providers;
@@ -53,6 +54,7 @@ cloudShell.DefineResources(resources =>
         .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false)
         .WithImage($"cloudshell-signalr-api:{sampleImageTag}")
+        .WithRuntimeLogSources(LogFormat.JsonConsole)
         .WithReplicas(3)
         .WithCookieSessionAffinity("CloudShellSignalRReplica", durationSeconds: 3600)
         .WithHttpEndpoint(

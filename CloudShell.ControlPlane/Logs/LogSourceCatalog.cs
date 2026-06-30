@@ -55,25 +55,25 @@ public sealed class LogSourceCatalog(
     {
         return new LogSource(
             contributedSource?.Id ?? GetResourceLogSourceId(resource.Id, source.Id),
-            source.Name,
+            contributedSource?.Name ?? source.Name,
             contributedSource?.Provider ?? resource.Provider,
             contributedSource?.SourceName ?? resource.Name,
             contributedSource?.SourceKind ?? LogSourceKind.Resource,
             source.Kind,
             source.Format,
-            source.Storage,
+            contributedSource?.Storage ?? source.Storage,
             contributedSource is null
                 ? source.Capabilities
                 : source.Capabilities | contributedSource.Capabilities,
             resource.Id,
             contributedSource?.ArtifactId,
-            source.Location,
-            source.ProducerResourceId,
-            source.Description,
-            source.Origin,
+            contributedSource?.Location ?? source.Location,
+            contributedSource?.ProducerResourceId ?? source.ProducerResourceId,
+            source.Description ?? contributedSource?.Description,
+            contributedSource?.Origin ?? source.Origin,
             source.Configuration,
             source.Purpose,
-            source.Availability);
+            contributedSource?.Availability ?? source.Availability);
     }
 
     private static bool IsMatchingSource(
