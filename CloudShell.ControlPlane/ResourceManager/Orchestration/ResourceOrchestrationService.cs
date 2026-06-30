@@ -28,10 +28,12 @@ public sealed class ResourceOrchestrationService(
     IResourceEventSink? resourceEvents = null,
     IResourceOrchestratorDeploymentStore? deploymentStore = null,
     ILoggerFactory? loggerFactory = null,
-    ResourceDeploymentService? deployments = null)
+    ResourceDeploymentService? deployments = null,
+    ResourceOrchestratorDeploymentCleanupCoordinator? deploymentCleanup = null)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly IReadOnlyList<IResourceOrchestrator> orchestrators = orchestrators.ToArray();
+    private const string ResourceModelBridgeProviderIdAttribute = "resourceModel.bridgeProviderId";
     private readonly IReadOnlyList<IResourceOrchestrationDescriptorProvider> descriptorProviders =
         descriptorProviders.ToArray();
     private readonly IReadOnlyList<IResourceActionAvailabilityProvider> actionAvailabilityProviders =
@@ -47,6 +49,8 @@ public sealed class ResourceOrchestrationService(
             deploymentStore);
     private readonly ConcurrentDictionary<string, byte> activeReplicaSlotReconciliations =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly ResourceOrchestratorDeploymentCleanupCoordinator deploymentCleanup =
+        deploymentCleanup ?? new ResourceOrchestratorDeploymentCleanupCoordinator(resourceEvents);
     private readonly IContainerHostResolver containerHostResolver =
         containerHostResolver ??
         new ContainerHostResolver(
@@ -539,9 +543,56 @@ public sealed class ResourceOrchestrationService(
                 cancellationToken);
         }
 
-        return ResourceProcedureResult.Completed(
+        var result = ResourceProcedureResult.Completed(
             $"Started {context.Resource.Name}. {applyResult.ProcedureResult.Message}");
+        return await RunPostApplyDeploymentTearDownAsync(
+            context,
+            resourceContext,
+            applyResult,
+            result,
+            cancellationToken);
     }
+
+    private async Task<ResourceProcedureResult> RunPostApplyDeploymentTearDownAsync(
+        ResourceOrchestrationContext context,
+        ResourceProcedureContext resourceContext,
+        ResourceOrchestratorDeploymentApplyResult applyResult,
+        ResourceProcedureResult result,
+        CancellationToken cancellationToken) =>
+        await deploymentCleanup.RunPostApplyCleanupAsync(
+            context.Resource,
+            applyResult,
+            result,
+            context.TriggeredBy,
+            async (appliedDeployment, token) =>
+            {
+                var tearDownProvider = ResourceOrchestratorProviderResolver.GetDeploymentTearDownProvider(context);
+                if (tearDownProvider is null)
+                {
+                    return [];
+                }
+
+                return await tearDownProvider.DescribeDeploymentTearDownAsync(
+                    resourceContext,
+                    appliedDeployment,
+                    token);
+            },
+            async (tearDown, replicaGroup, reason, token) =>
+            {
+                var tearDownHandler = TrySelectReplicaGroupTearDown(context, tearDown.Service, replicaGroup);
+                if (tearDownHandler is null)
+                {
+                    throw new InvalidOperationException(
+                        "no orchestrator can tear down the replica group.");
+                }
+
+                return await tearDownHandler.TearDownReplicaGroupAsync(
+                    context with { Cause = reason },
+                    tearDown.Service,
+                    replicaGroup,
+                    token);
+            },
+            cancellationToken: cancellationToken);
 
     private void LogLifecycle(ResourceAction action, Resource resource, string message, params object?[] args)
     {
@@ -633,6 +684,12 @@ public sealed class ResourceOrchestrationService(
                         cancellationToken);
 
                     if (dependency.State == ResourceState.Running)
+                    {
+                        completed.Add(dependency.Id);
+                        continue;
+                    }
+
+                    if (dependency.State is null)
                     {
                         completed.Add(dependency.Id);
                         continue;
@@ -1156,10 +1213,16 @@ public sealed class ResourceOrchestrationService(
         ResourceOrchestrationContext context,
         ResourceOrchestratorService service,
         ResourceOrchestratorReplicaGroup replicaGroup) =>
-        SelectPreferredReplicaGroupTearDown((_, tearDown) =>
-            tearDown.CanTearDownReplicaGroup(context, service, replicaGroup))
+        TrySelectReplicaGroupTearDown(context, service, replicaGroup)
         ?? throw new ControlPlaneException(
             ControlPlaneError.ResourceActionUnsupported(context.Resource.Name));
+
+    private IResourceOrchestratorReplicaGroupTearDown? TrySelectReplicaGroupTearDown(
+        ResourceOrchestrationContext context,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup replicaGroup) =>
+        SelectPreferredReplicaGroupTearDown((_, tearDown) =>
+            tearDown.CanTearDownReplicaGroup(context, service, replicaGroup));
 
     private IResourceOrchestratorServiceTearDown? SelectPreferredServiceTearDown(
         Func<IResourceOrchestrator, IResourceOrchestratorServiceTearDown, bool> predicate)
@@ -1280,6 +1343,29 @@ public sealed class ResourceOrchestrationService(
         ResourceAction action,
         CancellationToken cancellationToken)
     {
+        if (context.Resource.ResourceAttributes.TryGetValue(
+                ResourceModelBridgeProviderIdAttribute,
+                out var bridgeProviderId) &&
+            !string.IsNullOrWhiteSpace(bridgeProviderId))
+        {
+            foreach (var provider in actionAvailabilityProviders)
+            {
+                if (provider is not IResourceProvider resourceProvider ||
+                    !string.Equals(resourceProvider.Id, bridgeProviderId, StringComparison.OrdinalIgnoreCase) ||
+                    !provider.CanEvaluateAction(context.Resource, action))
+                {
+                    continue;
+                }
+
+                return await provider.GetActionUnavailableReasonAsync(
+                    CreateProcedureContext(context),
+                    action,
+                    cancellationToken);
+            }
+
+            return null;
+        }
+
         foreach (var provider in actionAvailabilityProviders)
         {
             if (!provider.CanEvaluateAction(context.Resource, action))

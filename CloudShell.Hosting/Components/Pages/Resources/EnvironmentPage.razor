@@ -1,11 +1,14 @@
 @page "/environment"
 @rendermode InteractiveServer
+@implements IAsyncDisposable
 @using System.Globalization
 @inject IResourceManager ResourceManager
 @inject IResourceEventManager ResourceEvents
 @inject IResourceDeploymentManager Deployments
 @inject IResourceReplicaSlotStateManager ReplicaSlots
 @inject IStringLocalizer<SharedResource> L
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
 @inject CloudShell.UI.Composition.CompositionRegistry Composition
 
 <PageTitle>@L["Environment"]</PageTitle>
@@ -47,6 +50,71 @@
 </SummaryMetricGrid>
 
 <section class="environment-page-grid">
+    <ShellPanel Wide="true" Class="environment-panel-full environment-map-panel">
+        <ShellPanelHeader Title="@L["Environment map"].Value"
+                          Description="@L["Significant resource, orchestration, and routing relationships for the active host environment."].Value">
+            <Actions>
+                <span class="toolbar-meta">@L["{0} relationship(s)", EnvironmentMap.Links.Count]</span>
+            </Actions>
+        </ShellPanelHeader>
+
+        @if (EnvironmentMap.Nodes.Count == 0)
+        {
+            <EmptyState Title="@L["No environment state"].Value"
+                        Message="@L["Resources, orchestrator services, and routing relationships will appear here when the Resource Manager has environment state to project."].Value"
+                        Compact="true" />
+        }
+        else
+        {
+            <div class="environment-map-summary" aria-label="@L["Environment map summary"].Value">
+                <span><strong>@EnvironmentMap.ResourceCount</strong> @L["resources"]</span>
+                <span><strong>@EnvironmentMap.ServiceCount</strong> @L["orchestrator service(s)"]</span>
+                <span><strong>@EnvironmentMap.RoutingCount</strong> @L["routing artifact(s)"]</span>
+            </div>
+
+            <div class="resource-graph-shell environment-state-map-shell">
+                <svg class="environment-state-map-canvas" role="img" aria-label="@L["Environment state map"]"></svg>
+                <div class="resource-graph-controls" aria-label="@L["Map controls"]">
+                    <FluentButton Appearance="Appearance.Stealth"
+                                  Class="environment-map-zoom-in"
+                                  Title="@L["Zoom in"]"
+                                  aria-label="@L["Zoom in"]">
+                        <FluentIcon Value="@(new Icons.Regular.Size20.ZoomIn())" />
+                    </FluentButton>
+                    <FluentButton Appearance="Appearance.Stealth"
+                                  Class="environment-map-zoom-out"
+                                  Title="@L["Zoom out"]"
+                                  aria-label="@L["Zoom out"]">
+                        <FluentIcon Value="@(new Icons.Regular.Size20.ZoomOut())" />
+                    </FluentButton>
+                    <FluentButton Appearance="Appearance.Stealth"
+                                  Class="environment-map-reset"
+                                  Title="@L["Reset view"]"
+                                  aria-label="@L["Reset view"]">
+                        <FluentIcon Value="@(new Icons.Regular.Size20.ArrowReset())" />
+                    </FluentButton>
+                </div>
+            </div>
+
+            @if (SignificantEnvironmentMapLinks.Count > 0)
+            {
+                <section class="environment-relationship-strip" aria-label="@L["Significant relationships"].Value">
+                    <h3>@L["Significant relationships"]</h3>
+                    <div class="environment-relationship-list">
+                        @foreach (var relationship in SignificantEnvironmentMapLinks)
+                        {
+                            <div class="environment-relationship-row">
+                                <span>@GetEnvironmentMapNodeLabel(relationship.Source)</span>
+                                <strong>@relationship.Label</strong>
+                                <span>@GetEnvironmentMapNodeLabel(relationship.Target)</span>
+                            </div>
+                        }
+                    </div>
+                </section>
+            }
+        }
+    </ShellPanel>
+
     <ShellPanel Wide="true" Class="environment-panel-full">
         <ShellPanelHeader Title="@L["Environment revisions"].Value"
                           Description="@L["Projected revisions for deployment-produced environment state, plus the current declared resource graph baseline."].Value">
@@ -298,12 +366,12 @@
 
     <ShellPanel Wide="true" Class="environment-panel-full">
         <ShellPanelHeader Title="@L["Replica slot reconciliation"].Value"
-                          Description="@L["Current Resource Manager replica slot observations and repair outcomes for active replica groups."].Value" />
+                          Description="@L["Current Resource Manager replica slot state and repair outcomes for active replica groups."].Value" />
 
         @if (ReplicaSlotStates.Count == 0)
         {
-            <EmptyState Title="@L["No replica slot observations"].Value"
-                        Message="@L["Replica slot reconciliation state will appear here after liveness or runtime observations report an unhealthy requested slot."].Value"
+            <EmptyState Title="@L["No replica slot state"].Value"
+                        Message="@L["Replica slot state will appear here after Resource Manager materializes a deployment with requested replica slots."].Value"
                         Compact="true" />
         }
         else
@@ -398,6 +466,9 @@
     private IReadOnlyList<EnvironmentReplicaGroupRow> ReplicaGroupRows { get; set; } = [];
     private IReadOnlyList<ResourceReplicaSlotState> ReplicaSlotStates { get; set; } = [];
     private IReadOnlyList<ResourceEvent> DeploymentEvents { get; set; } = [];
+    private EnvironmentRuntimeMap EnvironmentMap { get; set; } = EnvironmentRuntimeMap.Empty;
+    private IJSObjectReference? EnvironmentMapModule { get; set; }
+    private DotNetObjectReference<EnvironmentPage>? EnvironmentMapReference { get; set; }
     private DateTimeOffset LoadedAt { get; set; }
 
     private int ReplicaGroupCount => ReplicaGroupRows.Count;
@@ -408,8 +479,44 @@
                 or ResourceReplicaSlotReconciliationStatus.Repairing
                 or ResourceReplicaSlotReconciliationStatus.RepairFailed);
 
+    private IReadOnlyList<EnvironmentRuntimeMapLink> SignificantEnvironmentMapLinks =>
+        EnvironmentMap.Links
+            .Where(link => !string.Equals(
+                link.Scope,
+                EnvironmentRuntimeMapLinkScopes.Internal,
+                StringComparison.OrdinalIgnoreCase))
+            .Take(12)
+            .ToArray();
+
     protected override async Task OnInitializedAsync() =>
         await RefreshAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        EnvironmentMapReference = DotNetObjectReference.Create(this);
+        EnvironmentMapModule = await JS.InvokeAsync<IJSObjectReference>(
+            "import",
+            "./_content/CloudShell.Hosting/environment-state-map.js");
+        await EnvironmentMapModule.InvokeVoidAsync(
+            "initializeEnvironmentStateMap",
+            ".environment-state-map-canvas",
+            EnvironmentMapReference);
+        await UpdateEnvironmentMapAsync();
+    }
+
+    [JSInvokable]
+    public void OpenEnvironmentMapNode(string? detailUrl)
+    {
+        if (!string.IsNullOrWhiteSpace(detailUrl))
+        {
+            Navigation.NavigateTo(detailUrl);
+        }
+    }
 
     private async Task RefreshAsync()
     {
@@ -424,11 +531,21 @@
         EnvironmentRevisionRows = EnvironmentRevisionProjection.CreateRows(Resources, DeploymentRecords);
         ReplicaSlotStates = await ReplicaSlots.ListReplicaSlotStatesAsync(new ResourceReplicaSlotStateQuery(MaxRecords: 100));
         ReplicaGroupRows = CreateReplicaGroupRows(DeploymentRecords, ReplicaSlotStates);
+        EnvironmentMap = CreateEnvironmentMap(Resources, DeploymentRecords, ReplicaGroupRows);
         DeploymentEvents = (await ResourceEvents.ListResourceEventsAsync(new ResourceEventQuery(MaxEvents: 100)))
             .Where(IsEnvironmentActivityEvent)
             .Take(15)
             .ToArray();
         LoadedAt = DateTimeOffset.UtcNow;
+        await UpdateEnvironmentMapAsync();
+    }
+
+    private async Task UpdateEnvironmentMapAsync()
+    {
+        if (EnvironmentMapModule is not null)
+        {
+            await EnvironmentMapModule.InvokeVoidAsync("updateEnvironmentStateMap", EnvironmentMap);
+        }
     }
 
     private string GetLoadedAtLabel() =>
@@ -526,6 +643,7 @@
             ResourceReplicaSlotReconciliationStatus.Repairing => L["Repairing"].Value,
             ResourceReplicaSlotReconciliationStatus.Repaired => L["Repaired"].Value,
             ResourceReplicaSlotReconciliationStatus.RepairFailed => L["Repair failed"].Value,
+            ResourceReplicaSlotReconciliationStatus.Materialized => L["Materialized"].Value,
             _ => status.ToString()
         };
 
@@ -537,6 +655,10 @@
     private static string GetOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "not projected" : value;
 
+    private string GetEnvironmentMapNodeLabel(string nodeId) =>
+        EnvironmentMap.Nodes.FirstOrDefault(node =>
+            string.Equals(node.Id, nodeId, StringComparison.OrdinalIgnoreCase))?.Label ?? nodeId;
+
     private static bool IsEnvironmentActivityEvent(ResourceEvent resourceEvent) =>
         resourceEvent.EventType.StartsWith(
             ResourceEventTypes.Events.Deployment.Prefix,
@@ -547,6 +669,22 @@
 
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+    private EnvironmentRuntimeMap CreateEnvironmentMap(
+        IReadOnlyList<Resource> resources,
+        IReadOnlyList<ResourceDeploymentRecord> deployments,
+        IReadOnlyList<EnvironmentReplicaGroupRow> replicaGroups) =>
+        EnvironmentRuntimeMapProjection.Create(
+            resources,
+            deployments,
+            replicaGroups.Select(replicaGroup => replicaGroup.ToRuntimeMapReplicaGroup()).ToArray(),
+            new EnvironmentRuntimeMapProjectionOptions
+            {
+                Localize = value => L[value].Value,
+                Format = static (format, args) => string.Format(CultureInfo.CurrentCulture, format, args),
+                CreateResourceDetailUrl = resource => ResourceManagerCompositionLinks.ResourceDetails(Composition, resource.Id),
+                GetStateClass = ResourceStateDisplay.GetStateClass
+            });
 
     private sealed record EnvironmentDeploymentRow(
         Resource Resource,
@@ -669,9 +807,28 @@
                     .OrderByDescending(state => state.LastCompletedAt ?? state.LastAttemptedAt ?? state.ObservedAt)
                     .FirstOrDefault());
         }
+
+        public EnvironmentRuntimeMapReplicaGroup ToRuntimeMapReplicaGroup() =>
+            new(
+                SourceResourceId,
+                ServiceId,
+                ReplicaGroupId,
+                RuntimeRevisionId,
+                RequestedSlots,
+                OccupiedSlots,
+                MaterializedReplicas,
+                RepairingCount,
+                RepairFailedCount);
     }
 
-    private static bool IsProjected(string value) =>
-        !string.IsNullOrWhiteSpace(value) &&
-        !string.Equals(value, "not projected", StringComparison.OrdinalIgnoreCase);
+    public async ValueTask DisposeAsync()
+    {
+        if (EnvironmentMapModule is not null)
+        {
+            await EnvironmentMapModule.InvokeVoidAsync("disposeEnvironmentStateMap");
+            await EnvironmentMapModule.DisposeAsync();
+        }
+
+        EnvironmentMapReference?.Dispose();
+    }
 }

@@ -14,6 +14,32 @@ environment by asking Resource Manager orchestration to deploy and reconcile
 runtime resources such as services, replica groups, routing, and runtime
 containers.
 
+That makes a container app a managed workload facade, not just a one-to-one
+resource projection. The container app still exists as a normal Resource
+Manager resource: it has a stable identity, resource definition, lifecycle
+actions, update surface, permissions, logs, health, and UI pages. What makes it
+different is that it is the user-facing interface for a related set of
+container-app-owned runtime and orchestration artifacts. Resource Manager and
+the provider can create, update, retain, drain, or delete orchestrator services,
+replica groups, runtime replicas, endpoint mappings, load-balancer bindings,
+deployment records, and app revision history below that stable resource. Users
+operate the container app; the platform reconciles the contained runtime shape.
+Other resource types may have lifecycle operations or provider-owned runtime
+state, but most do not need this deployment-centric set of versioned related
+resources.
+
+The current implementation direction is to finish moving container apps onto
+the Resource Graph POC path. User-facing creation and updates should be
+expressed as full or incremental `ResourceDefinition` entries: image, replica
+slots, endpoints, volume mounts, references, and other app-owned intent. After
+Resource Manager accepts that graph state, the container app provider should
+produce internal deployment-planning input for the orchestrator. Runtime
+replica creation, scale-in, scale-out, readiness, routing rebinding,
+load-balancer/ingress updates, retained previous slots, and cleanup should be
+handled by the orchestrator/controller path. Separate provider-specific paths
+that directly remove all replicas, recreate ingress, or remap backends during
+image and replica updates are temporary POC seams to remove.
+
 This proposal tracks the container app resource itself. Related proposals own
 adjacent subdomains:
 
@@ -278,6 +304,16 @@ replicas should exist or whether a failed slot should restart or be replaced.
 That decision belongs to the replica group reconciler because it has the active
 deployment, replica group, slot policy, liveness observations, and environment
 revision context.
+
+Likewise, service routing should be reconciled from replica-group state. A
+load balancer or ingress provider should rebind to the target replica group
+through an orchestrator/controller routing hook instead of requiring the
+container app image-update or replica-update operation to know how backends are
+registered. Scale-out can add replicas before routing changes when policy
+requires readiness first. Scale-in can remove routing membership before
+stopping stale replicas when policy requires draining. Image replacement can
+materialize the new group, rebind, then retire the previous group according to
+retention and cleanup policy.
 
 Liveness evaluation should observe and record unhealthy or vacant replica
 slots, then hand those observations to replica management. Health refresh must
@@ -693,6 +729,12 @@ liveness/lifecycle signals, while scaling changes desired capacity.
 * Continue improving update behavior around replica, environment, endpoint,
   identity, and storage changes, deciding which changes belong to active
   revision capacity/configuration and which require a new deployment revision.
+* Keep graph-backed container apps compatible with existing provider-specific
+  UI by projecting the effective replica-mode facts that views use for
+  deployment, monitoring, and scale decisions. The graph should keep
+  `container.replicas` as the declarative configuration; Resource Manager
+  projection can derive `container.replicas.enabled` and requested replica
+  slots for existing runtime/UI consumers.
 * Keep supported samples green with a broad container app scenario that uses
   SQL Server, mounted storage, service discovery, secrets/configuration,
   identity, structured logs, traces, and name/public exposure.

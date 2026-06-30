@@ -6,27 +6,56 @@ using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
-using CloudShell.Providers.Applications;
-using CloudShell.Providers.Docker;
+using CloudShell.ResourceModel;
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.Providers.UI;
+using CloudShell.ControlPlane.ResourceModel;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
-var cloudShell = builder.AddCloudShellControlPlane();
-builder.AddCloudShell();
+const string resourceGroupId = "container-host";
+var sqlServerPort = builder.Configuration.GetValue<int?>("ContainerHost:SqlServer:Port") ?? 14334;
+
+var cloudShell = builder.AddCloudShell();
+cloudShell.AddResourceGroup(
+    resourceGroupId,
+    "Container Host",
+    "Resources used by the ContainerHost sample.");
+IResourceDefinitionBuilder volumeResource = null!;
+cloudShell.DefineResources(resources =>
+{
+    volumeResource = resources
+        .AddVolume(
+            "sql-data",
+            path: "./Data/storage/sql-server")
+        .WithDisplayName("SQL Server Data")
+        .WithResourceGroup(resourceGroupId);
+
+    resources
+        .AddSqlServer("sql-server")
+        .WithDisplayName("SQL Server")
+        .WithResourceGroup(resourceGroupId)
+        .WithTcpEndpoint(
+            host: "localhost",
+            port: sqlServerPort)
+        .MountVolume(volumeResource, "/var/opt/mssql");
+});
+builder.Services
+    .AddSingleton<IContainerHostDockerCommandRunner, ProcessContainerHostDockerCommandRunner>()
+    .AddSingleton<IContainerHostSqlServerRuntimeBridge, ContainerHostSqlServerDockerBridge>()
+    .AddSingleton<ISqlServerRuntimeHandler, ContainerHostSqlServerRuntimeHandler>()
+    .AddSingleton<IResourceOrchestrationDescriptorProvider, ContainerHostSqlServerOrchestrationDescriptorProvider>()
+    .AddStorageBackedSqlServerResourceTypes();
+cloudShell.UseResourceGraphIntegration();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>()
-    .AddApplicationProvider()
-    .UseLocalDevelopmentDefaults();
-
-cloudShell.Resources(ContainerHostSampleResources.AddResources);
+    .AddExtension<ObservabilityExtension>();
+cloudShell.AddBuiltInProviderResourceManagerUi();
 
 var app = builder.Build();
 
-await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
-app.MapCloudShellControlPlane();
 app.MapCloudShell<App>();
 
 app.Run();

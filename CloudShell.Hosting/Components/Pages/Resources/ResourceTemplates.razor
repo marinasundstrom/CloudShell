@@ -1,6 +1,7 @@
 @page "/resources/templates"
 @rendermode InteractiveServer
 @using System.Text.Json
+@using CloudShell.ResourceModel
 @inject IResourceManager ResourceManager
 @inject IResourceTemplateManager Templates
 @inject NavigationManager Navigation
@@ -23,7 +24,7 @@
 
 <PageHeading Eyebrow="@L["Resource Manager"].Value"
              Title="@L["Resource templates"].Value"
-             Description="@L["Export resource groups as portable templates and import templates through providers that support the resource type."].Value">
+             Description="@L["Export and apply ResourceDefinition templates through Resource Manager."].Value">
     <Actions>
         <FluentButton Appearance="Appearance.Neutral" OnClick="BackToResources">
             @L["Back to resources"]
@@ -39,7 +40,7 @@
 <section class="template-layout">
     <div class="panel template-panel">
         <ShellPanelHeader Title="@L["Export group"].Value"
-                          Description="@L["CloudShell writes the group envelope and asks each provider for its own configuration payload."].Value" />
+                          Description="@L["CloudShell exports the selected group's resources as ResourceDefinition entries."].Value" />
 
         <label for="export-group">@L["Resource group"]</label>
         <FluentSelect TOption="string"
@@ -78,7 +79,7 @@
 
     <div class="panel template-panel">
         <ShellPanelHeader Title="@L["Import group"].Value"
-                          Description="@L["Paste a resource group template. Unsupported resource types are reported and skipped."].Value" />
+                          Description="@L["Paste a ResourceTemplate JSON document and apply it through Resource Manager."].Value" />
 
         @if (isReadOnly)
         {
@@ -99,11 +100,11 @@
             <FluentButton Appearance="Appearance.Neutral" OnClick="ClearImport">
                 @L["Clear"]
             </FluentButton>
-            <FluentButton Appearance="Appearance.Accent"
+        <FluentButton Appearance="Appearance.Accent"
                           IconStart="@(new Icons.Regular.Size20.ArrowUpload())"
                           Disabled="@(!canImport || string.IsNullOrWhiteSpace(ImportJson) || IsBusy)"
                           OnClick="ImportTemplate">
-                @L["Import group"]
+                @L["Apply template"]
             </FluentButton>
         </FormActions>
 
@@ -124,9 +125,9 @@
         <h2>@L["Template diagnostics"]</h2>
         @foreach (var diagnostic in Diagnostics)
         {
-            <div class="template-diagnostic @diagnostic.Severity.ToLowerInvariant()">
+            <div class="template-diagnostic @diagnostic.Severity.ToString().ToLowerInvariant()">
                 <strong>@diagnostic.Severity</strong>
-                <span>@diagnostic.ResourceName</span>
+                <span>@(diagnostic.Target ?? L["ResourceTemplate"].Value)</span>
                 <p>@diagnostic.Message</p>
             </div>
         }
@@ -145,7 +146,7 @@
     private string? StatusMessage { get; set; }
     private bool IsBusy { get; set; }
     private IReadOnlyList<ResourceGroup> Groups { get; set; } = [];
-    private List<ResourceTemplateDiagnostic> Diagnostics { get; } = [];
+    private List<ResourceDefinitionDiagnostic> Diagnostics { get; } = [];
     private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
 
     protected override async Task OnInitializedAsync()
@@ -169,7 +170,17 @@
 
         try
         {
-            var result = await Templates.ExportResourceGroupTemplateAsync(SelectedGroupId);
+            var group = Groups.FirstOrDefault(group =>
+                string.Equals(group.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase))
+                ?? throw new InvalidOperationException("The selected resource group could not be found.");
+            var result = await Templates.ExportResourceTemplateAsync(
+                new ResourceTemplateExportRequest(
+                    group.Name,
+                    group.ResourceIds,
+                    Metadata: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["resourceGroup.id"] = group.Id
+                    }));
             ExportJson = JsonSerializer.Serialize(result.Template, SerializerOptions);
             ImportJson = ExportJson;
             Diagnostics.AddRange(result.Diagnostics);
@@ -204,22 +215,21 @@
 
         try
         {
-            var template = JsonSerializer.Deserialize<ResourceGroupTemplate>(ImportJson, SerializerOptions)
+            var template = JsonSerializer.Deserialize<ResourceTemplate>(ImportJson, SerializerOptions)
                 ?? throw new InvalidOperationException("Template JSON is empty or invalid.");
-            var result = await Templates.ImportResourceGroupTemplateAsync(template);
+            var result = await Templates.ApplyResourceTemplateAsync(template);
             Diagnostics.AddRange(result.Diagnostics);
-            if (result.ResourceGroup is null)
+            if (!result.IsCommitted)
             {
-                StatusMessage = L["Template import failed."].Value;
+                StatusMessage = L["Template apply failed."].Value;
                 return;
             }
 
             await LoadGroupsAsync();
-            SelectedGroupId = result.ResourceGroup.Id;
             StatusMessage = L[
-                "Imported group {0} with {1} resources.",
-                result.ResourceGroup.Name,
-                result.ImportedResources.Count].Value;
+                "Applied template {0} with {1} resources.",
+                result.Template.Name,
+                result.Template.Resources.Count].Value;
         }
         catch (Exception exception)
         {

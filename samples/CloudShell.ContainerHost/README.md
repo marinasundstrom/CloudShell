@@ -1,18 +1,7 @@
 # CloudShell Container Host Sample
 
-This sample shows the minimal local development flow for container-backed
-resources.
-
-```csharp
-var cloudShell = builder
-    .AddCloudShell()
-    .AddApplicationProvider()
-    .UseLocalDevelopmentDefaults();
-```
-
-- `UseLocalDevelopmentDefaults()` registers Docker as the default container
-  host and selects the built-in default orchestrator when Resource Manager
-  settings have not already been changed.
+This sample shows the minimal resource graph flow for a container-backed SQL
+Server service shape.
 
 CloudShell has two usage modes:
 
@@ -22,33 +11,47 @@ CloudShell has two usage modes:
 - On-premise mode: an orchestrator such as Docker Compose owns lifecycle,
   networking, and exposure for the resource graph.
 
-The sample also shows a lightweight SQL Server service resource with a
-resource-owned local endpoint and a Local Storage-backed data volume:
+The storage graph is intentionally explicit. The storage resource announces
+the `FileSystem` medium. The SQL data volume depends on that storage resource
+and projects the same medium. The sample-local Docker runtime bridge
+materializes that `FileSystem` volume as a bind mount when SQL Server starts.
 
-```csharp
-var localStorage = resources
-    .AddLocalStorage("local")
-    .WithDisplayName("Local Storage")
-    .UseLocation("./Data/storage");
+## Resource graph coverage
 
-var sqlData = resources
-    .AddVolume("sql-data")
-    .WithDisplayName("SQL Server Data")
-    .UseStorage(localStorage, "sql-server");
+The sample declares Resource Definitions-backed resources:
 
-resources
-    .AddSqlServer("sql-server", dataVolume: sqlData);
-```
+- `cloudshell.storage:local`: local storage projection.
+- `cloudshell.volume:sql-data`: SQL data volume with a typed startup
+  dependency on the storage resource.
+- `application.sql-server:sql-server`: SQL Server resource
+  with an explicit local `tds` endpoint and a volume-consumer capability for
+  `/var/opt/mssql`.
 
-`AddSqlServer(...)` is provided by the application provider. It projects an
-`application.sql-server` service resource, declares a `tds` endpoint on the
-resource itself, and optionally mounts a data volume at `/var/opt/mssql`. The
-local implementation is still container-backed, but the SQL Server resource is
-not exposed as a generic container app and does not use the container app image
-deployment or replica surface.
+Those resources prove projection, storage/volume attributes, typed storage
+dependency, and volume-consumer capability shape.
 
-The storage graph is intentionally explicit. The Local Storage resource is a
-`Storage` class resource that announces the `FileSystem` medium. The SQL data
-volume is a sub-item of that storage resource and projects the same medium.
-The default local Docker runner materializes that `FileSystem` volume as a bind
-mount when SQL Server starts.
+The SQL Server lifecycle operations use a sample-local Docker bridge.
+That bridge resolves the mounted CloudShell volume and its storage parent from
+the graph, creates the storage-backed host directory, and starts the SQL Server
+container with a bind mount. Focused Docker smoke coverage starts, restarts,
+and stops the SQL resource through Resource Manager and verifies the
+storage-backed volume directory is created. The bridge also removes Docker's
+failed-created container and retries once when a newly-created bind-mount path
+is not immediately visible to the Docker daemon. This is intentionally a
+ContainerHost sample seam: durable provider-backed storage materialization,
+usage tracking, and generalized Docker host placement remain deferred until the
+provider ports need them.
+
+The sample now declares only the storage, volume, and SQL Server resources and
+uses the sample-local SQL Docker bridge for lifecycle operations. The old
+application-provider storage, volume, and SQL Server records, old application
+provider registration, and comparison path have been removed. Docker smoke
+coverage exercises the SQL runtime path without old provider records.
+
+The sample also projects the SQL resource into the Resource Manager
+orchestration catalog with `ControlPlaneScoped` lifetime. A focused smoke test
+starts the SQL resource and then gracefully stops the host process,
+verifying that the existing host-scoped shutdown service removes the SQL
+container. The generic sample-host readiness smoke test still has defensive
+cleanup because that harness kills sample processes instead of allowing hosted
+shutdown services to run.

@@ -9,6 +9,94 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-06-29
+
+### ADR-20260629-001: Name the Resource model and Runtime model
+
+CloudShell should use **Host Environment** for the managed environment where
+the complete realized model exists. The term describes the environment that
+CloudShell manages, not the ASP.NET Core web host process.
+
+CloudShell should use **Resource model** for the resource-focused subset of
+the realized model. It contains resources, dependencies, endpoints, and
+endpoint mappings or names. This is the model most users need when asking what
+resources run in an environment and how they connect. Its graph representation
+is the **Resource graph**.
+
+CloudShell should use **Runtime model** for the fuller management and
+orchestration model of the same host environment. The Runtime model includes
+the Resource model as a subset and adds environment artifacts: orchestration
+services, replica groups, replicas, routing bindings, retained or superseded
+runtime revisions, and environment revisions. Its graph representation is the
+**Environment Map** or runtime graph.
+
+Resources, services, replica groups, replicas, and routing bindings are
+environment artifacts in the Runtime model. They are not only deployment
+internals. A deployment definition may define, update, replace, or retire
+those artifacts, and an environment revision records the versioned outcome of
+that realization.
+
+Earlier draft terms such as **Host Environment Model**, **Environment Resource
+Model**, and **Environment Runtime Model** are deprecated aliases for the
+realized model, Resource model, and Runtime model respectively.
+
+The canonical vocabulary lives in
+[CloudShell Terminology](docs/terminology.md). Domain, resource, architecture,
+proposal, and roadmap docs should link to that document instead of redefining
+shared terms locally.
+
+Related changes: [Changelog](CHANGELOG.md).
+
+### ADR-20260629-002: Keep provider runtime integration behind adapter contracts
+
+Resource model providers are extension packages. They own resource
+semantics: type IDs, accepted attributes, validation, graph projection,
+resource actions, and provider-owned operation descriptions. They should not
+depend directly on host/runtime implementations such as local process
+launching, Docker command execution, filesystem materialization, network
+reconciliation, sidecar process hosting, or orchestrator controllers.
+
+Runtime integration flows through adapter contracts shared by the provider
+package and the host or default runtime integration package. A provider invokes
+an interface that represents the provider-owned operation it needs, while the
+host/runtime package registers the concrete implementation. This preserves the
+extension dependency direction: providers register themselves and declare what
+runtime capabilities they can use; the hosting environment decides which
+concrete adapters are available.
+
+Default reference implementations may live beside reference providers while
+the Resource Graph POC is being migrated. When those implementations become
+host-shaped or reusable across providers, they should move behind a default
+runtime integration package rather than becoming direct dependencies from
+providers to the host. Missing adapters should surface clear diagnostics or
+unavailable actions instead of causing providers to silently reach across the
+runtime boundary.
+
+Related changes: [Changelog](CHANGELOG.md).
+
+## 2026-06-24
+
+### ADR-20260624-001: Prove resource definitions in an isolated experimental project
+
+CloudShell should prove the formal resource-definition model in a separate
+`CloudShell.ResourceModel` project before moving the contracts into the
+public `CloudShell.Abstractions` surface or integrating them into the Control
+Plane pipeline.
+
+The project is an experimental implementation boundary for
+`ResourceDefinition`, `ResourceClassDefinition`, `ResourceTypeDefinition`,
+resolved attributes, resolved capabilities, resolved operations, diagnostics,
+attribute validators, and attached capability/operation provider contracts.
+This lets the proposal's API shape be exercised by focused tests while the
+model is still allowed to change.
+
+The POC does not change current resource declarations, provider-specific
+definition stores, Resource Manager persistence, Control Plane API contracts,
+remote clients, or provider lifecycle behavior. Those integrations remain
+future slices once the model proves useful and stable enough to graduate.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ## 2026-06-21
 
 ### ADR-20260621-001: Design Control Plane scale-out around a primary controller and workers

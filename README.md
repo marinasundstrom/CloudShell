@@ -75,8 +75,9 @@ Resources represent things CloudShell can manage, such as applications,
 containers, databases, networks, storage, identities, configuration services,
 and infrastructure components.
 
-See [Resource model](docs/resource-model.md) for the resource/service
-terminology, projected object model, endpoint mappings, and ownership rules.
+See [CloudShell Terminology](docs/terminology.md) for canonical vocabulary and
+[Resource model](docs/resource-model.md) for the projected object model,
+endpoint mappings, and ownership rules.
 
 ### Resource Providers
 
@@ -108,6 +109,7 @@ represented through the same resource model.
 ## Projects
 
 - `CloudShell.Hosting`: Razor class library for the Blazor shell, layout, static assets, built-in Resource Manager, Extensions, and Observability views.
+- `CloudShell.AppHost`: combined-host composition helpers that wire the CloudShell UI and Control Plane into one ASP.NET Core process.
 - `CloudShell.Host`: development sample host that wires CloudShell UI, Control Plane, and local provider extensions together.
 - `CloudShell.ControlPlane`: control-plane services, authorization adapters, resource/log stores, and the versioned OpenAPI endpoint module.
 - `CloudShell.Abstractions`: extension SDK, shell contributions, and resource contracts.
@@ -118,9 +120,10 @@ represented through the same resource model.
 - `CloudShell.ConfigurationService`: standalone ASP.NET Core configuration service application.
 - `CloudShell.Secrets.Client`: SDK client and `IConfiguration` integration for Secrets Vault service APIs.
 - `CloudShell.Persistence`: EF Core SQLite or SQL Server persistence for resources and local Identity.
-- `CloudShell.Providers.Applications`: extension for executable application resources on a local development machine.
-- `CloudShell.Providers.Configuration`: extension for local configuration service resources.
-- `CloudShell.Providers.Docker`: reference extension for local Docker Engine and containers.
+- `CloudShell.ResourceModel`: Resource model and ResourceDefinition graph contracts.
+- `CloudShell.ControlPlane.ResourceModel`: Control Plane Resource Manager integration for graph-backed Resource model state.
+- `CloudShell.ControlPlane.Providers`: built-in Resource model providers and their Control Plane/runtime adapter integrations.
+- `CloudShell.ControlPlane.Providers.UI`: Resource Manager UI integration for built-in Resource model providers.
 - `CloudShell.Abstractions.Tests`: extension registration and validation tests.
 
 ## Contributing
@@ -185,6 +188,7 @@ dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj -
 - [Why CloudShell](docs/why-cloudshell.md)
 - [CloudShell and Aspire](docs/cloudshell-and-aspire.md)
 - [Domain model](docs/domain-model.md)
+- [CloudShell Terminology](docs/terminology.md)
 - [System design guidelines](docs/system-design-guidelines.md)
 - [Roadmap](docs/roadmap.md)
 - [Architecture decision log](ADR.md)

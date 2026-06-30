@@ -7,6 +7,8 @@ API.
 For the focused definition of what a CloudShell resource is, how resources
 relate to services, and how the resource object model maps endpoint and
 relationship concepts, see [Resource model](resource-model.md).
+For canonical product and domain vocabulary, see
+[CloudShell Terminology](terminology.md).
 
 CloudShell deliberately uses different levels of abstraction, but those levels
 should use the same established concepts. Internal Control Plane services are
@@ -29,7 +31,7 @@ capability packages, and workload terminology, see
 | Product concepts | Users and extension authors | Describe what CloudShell manages and shows | resources, resource groups, lifecycle actions, logs |
 | Public domain abstraction | Shell integrations and remote adapters | Cloud-plane client API for the Control Plane domain without caring about transport | `IResourceManager`, `IResourceTemplateManager`, `ILogManager`, `Resource` |
 | Internal Control Plane services | Control Plane implementation | Coordinate state, providers, persistence, authorization, and procedures | `InProcessControlPlane`, `IResourceManagerStore`, `IResourceRegistrationStore`, `ResourceOrchestrationService` |
-| Provider contracts | Provider and extension packages | Project external systems into CloudShell and execute provider-owned operations | `IResourceProvider`, `IResourceCreationProvider`, `IResourceProcedureProvider`, `IResourceTemplateProvider` |
+| Provider contracts | Provider and extension packages | Project external systems into CloudShell and execute provider-owned operations | `IResourceProvider`, `IResourceCreationProvider`, `IResourceProcedureProvider`, resource-type graph providers |
 | HTTP API projection | Remote Control Plane clients and generated clients | Versioned contract for the same domain entities and relationships | `/api/control-plane/v1/resources`, `ResourceResponse`, `resourceActions` |
 | UI projection | Shell UI and extension views | Render resources and operations for users | Resource Manager pages, detail routes, provider-owned views |
 
@@ -55,25 +57,14 @@ other.
 ### Resource and service terminology
 
 CloudShell is a resource-oriented model over infrastructure that often provides
-network-addressable services. Use these terms deliberately:
-
-- **Resource**: the CloudShell management artifact. A resource is what the
-  Control Plane registers, authorizes, groups, displays, operates, and exposes
-  through the Resource Manager and Control Plane API.
-- **Service**: the runtime or infrastructure capability contained in or
-  provided by a resource, such as a Web API, SQL Server process, DNS publisher,
-  load-balancer runtime, identity provisioner, configuration API, or Secrets
-  Vault API.
-- **Service resource**: the specific `cloudshell.service` resource kind. It is
-  a resource that can model a service facade, service unit, imported service,
-  or advanced routing target. It is not a synonym for every resource that
-  provides a service.
-
-When in doubt, use **resource** for the thing CloudShell manages and **service**
-for the capability, process, API, or runtime behavior behind that resource.
-For example, a container app resource may provide an application service, and a
-SQL Server resource may provide a database service, but both are still
-resources in the CloudShell model.
+network-addressable services. The canonical definitions of **resource**,
+**service**, and **service resource** live in
+[CloudShell Terminology](terminology.md#resource-terms). Use those terms
+deliberately. When in doubt, use **resource** for the thing CloudShell manages
+and **service** for the capability, process, API, or runtime behavior behind
+that resource. For example, a container app resource may provide an application
+service, and a SQL Server resource may provide a database service, but both are
+still resources in the CloudShell model.
 
 ### Resource
 
@@ -271,6 +262,65 @@ relationship integrity. The stable user-facing resource remains the
 application, storage resource, load balancer, or other modeled resource that
 owns the behavior.
 
+The **[host environment](terminology.md#host-environment)** is where the
+complete realized model exists. The **[Resource model](terminology.md#resource-model)**
+represents the resources in that environment, their relationships,
+dependencies, endpoints, and endpoint mappings or names when present. It
+answers what resources are in the environment, how they connect, and which
+resources the user can inspect or operate. Its graph representation is the
+**[Resource graph](terminology.md#resource-graph)**.
+
+The **[Runtime model](terminology.md#runtime-model)** is the fuller management,
+orchestration, and deployment model of the same host environment. It contains
+the Resource model as a subset and adds **[environment artifacts](terminology.md#environment-artifact)**
+such as orchestration service boundaries, replica groups, materialized
+replicas, routing bindings, retained previous revisions, deployments, and
+other runtime state. These artifacts are not only deployment internals. A
+deployment may define, change, or retire services, replica groups, replicas,
+and routing artifacts, while environment revisions record the versioned outcome
+of those changes. The Runtime model is often less important to application
+developers than the Resource model, but it becomes important for operations,
+diagnostics, deployment progress, scaling behavior, versioning the environment,
+and understanding why a running system changed.
+
+```mermaid
+flowchart TB
+    host["Host environment"]
+
+    subgraph runtimeModel["Runtime model"]
+        subgraph resourceModel["Resource model"]
+            runtimeResources["Resources"]
+            dependencies["Dependencies"]
+            endpoints["Endpoints"]
+            mappings["Endpoint mappings and names"]
+        end
+
+        services["Orchestration services"]
+        replicaGroups["Replica groups"]
+        replicas["Replicas"]
+        routing["Routing bindings"]
+        deployments["Deployments"]
+        revisions["Environment revisions"]
+    end
+
+    host --> runtimeResources
+    runtimeResources --> dependencies
+    runtimeResources --> endpoints
+    endpoints --> mappings
+    runtimeResources --> services
+    services --> replicaGroups
+    replicaGroups --> replicas
+    services --> routing
+    deployments --> services
+    deployments --> replicaGroups
+    deployments --> routing
+    revisions --> runtimeResources
+    revisions --> services
+    revisions --> replicaGroups
+    revisions --> replicas
+    revisions --> routing
+```
+
 The default orchestration mode is managing standalone resources. A resource
 provider can expose lifecycle procedures for a single executable, container,
 database helper, volume, network, host, or other runtime resource where the
@@ -318,6 +368,44 @@ ReplicaSet copied into the CloudShell domain model. The structure is
 intentionally similar only where the problem is similar: CloudShell tracks
 resource instances as the materialized units instead of introducing a pod
 concept.
+
+Resource Manager may still visualize this internal orchestration state when it
+helps explain a running environment. A container app should appear in the
+environment map as a managed orchestration service boundary rather than as a
+separate peer node beside that service. The service group is the primary visual
+unit; the container app resource identity can be shown as an attached
+managed-resource card on that group so users understand which user-facing
+resource owns the runtime service. Replica groups should appear as nested
+groups inside the service boundary, with materialized replica resources inside
+their replica group. Load balancers, routes, and other routing participants
+should be shown only when they are represented by actual CloudShell resources
+or explicit routing artifacts; otherwise the visualization should defer them
+until the runtime model projects those facts.
+
+```mermaid
+flowchart TB
+    app["Container app resource"]
+
+    subgraph service["Orchestration service boundary"]
+        card["Managed-resource card: Container app"]
+        group["Replica group"]
+        replica1["Replica 1"]
+        replica2["Replica 2"]
+        replica3["Replica 3"]
+    end
+
+    lb["Load balancer resource"]
+    route["Routing binding or route"]
+
+    app -. "owns runtime service" .-> card
+    card -. "identifies owner" .-> app
+    card --> group
+    group --> replica1
+    group --> replica2
+    group --> replica3
+    lb --> route
+    route --> group
+```
 
 The orchestrator deployment and revision abstractions are the shared lower
 layer for applying runtime intent inside Resource Manager. Resource Manager is
@@ -537,7 +625,9 @@ Providers implement contracts such as:
   creation commands.
 - `IResourceProcedureProvider`: executes provider-owned procedures such as
   lifecycle actions.
-- `IResourceTemplateProvider`: exports/imports provider-owned template payloads.
+- ResourceDefinition provider contracts: validate, normalize, project, and
+  apply graph-backed resource intent for resource types that have moved to the
+  Resource model path.
 
 Providers are not a product concept shown directly in the UI. They are part of
 the Control Plane implementation.
@@ -896,22 +986,28 @@ In code:
 
 ### Template
 
-A resource group template is a portable group-level envelope owned by
-CloudShell. Individual resource payloads inside the template are provider-owned.
+A resource template is a portable desired-state envelope owned by CloudShell.
+It contains `ResourceDefinition` entries. Resource definitions are the
+serialization boundary for user-authored resource intent; providers validate
+and normalize the resource state through the Resource model rather than
+receiving provider-specific template payloads.
 
 In code:
 
 - `IResourceTemplateManager` is the public domain abstraction.
-- `ResourceTemplateService` orchestrates import/export.
-- `IResourceTemplateProvider` owns per-resource import/export behavior.
+- `ResourceTemplate` is the graph-backed desired-state envelope.
+- `ResourceDefinitionTemplateService` exports accepted graph state and applies
+  resource definitions through the graph apply path.
 
-This preserves the ownership split: CloudShell owns grouping and orchestration;
-providers own their resource configuration schema.
+This preserves the ownership split: CloudShell owns the portable resource-state
+format and Resource Manager apply path; providers own validation,
+normalization, and runtime planning for their resource types.
 
-Template import follows the same validation posture as resource creation:
-expected invalid states are represented as diagnostics on the import result.
-Invalid template envelopes, such as unsupported kinds or versions, do not create
-resource groups and do not throw from the domain import API.
+Template apply follows the same validation posture as resource creation:
+expected invalid states are represented as ResourceDefinition diagnostics on
+the apply result. Deployment, orchestration service, replica group, replica,
+and routing artifacts are derived later by Resource Manager and the
+orchestrator when accepted resource state requires runtime materialization.
 
 ## Projection into the API
 

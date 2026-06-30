@@ -13,5 +13,6 @@ samples/ContainerAppDeployment/Data/
 samples/HostVirtualNetwork/Data/
 samples/LoadBalancer/Data/
 samples/ProjectReference/Host/Data/
+samples/ReplicatedContainerHealth/Data/
 samples/SettingsAndSecrets/Data/
 samples/SplitHosting/ControlPlane/Data/

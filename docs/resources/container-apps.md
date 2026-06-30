@@ -250,6 +250,11 @@ runtime-specific management shape. The provider configures that implementation
 with the app's current image or revision and requested replica count, then
 creates, updates, inspects, or replaces the backing runtime containers as
 needed.
+Scale-out creates the added replica slots before routing includes them.
+Scale-in updates routing to the retained slots before removing superseded
+replicas. Image deployments materialize the new revision's replica group,
+route traffic to that group, and then retire the superseded group as
+post-apply cleanup.
 
 Inside the orchestration layer, CloudShell represents this management group as
 a `ResourceOrchestratorService` descriptor. Container apps produce this

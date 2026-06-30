@@ -45,6 +45,12 @@ local development application should receive Aspire-compatible endpoint
 configuration for another resource. Use `DependsOn(...)` when the resource
 graph needs startup ordering. A resource can use both relationships.
 
+The Resource model POC follows the same split. Graph-backed ASP.NET Core
+project resources use provider-owned `project.references` `ResourceReference`
+values to derive service discovery variables at runtime. Their `DependsOn`
+collection remains the optional explicit startup-ordering signal for
+orchestrators and should not be used as the discovery relationship.
+
 Developer service discovery is one addressing layer in CloudShell. Concrete
 endpoint addresses, topology-scoped reachability, Aspire-compatible developer
 service discovery aliases, future managed network-level discovery names, and

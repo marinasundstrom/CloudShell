@@ -8,22 +8,124 @@ using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ApplicationTopologyHost;
 using CloudShell.ApplicationTopology.ServiceDefaults;
 using CloudShell.ContainerHost;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Platform;
-using CloudShell.Providers.Applications;
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
-using SqlServerResources = CloudShell.Providers.Applications.ApplicationProviderServiceCollectionExtensions;
+using ResourceAttributeId = CloudShell.ResourceModel.ResourceAttributeId;
+using ResourceAttributeValue = CloudShell.ResourceModel.ResourceAttributeValue;
+using ResourceCapabilityId = CloudShell.ResourceModel.ResourceCapabilityId;
+using ResourceDefinitionJson = CloudShell.ResourceModel.ResourceDefinitionJson;
+using ResourceGraphState = CloudShell.ResourceModel.ResourceState;
+using ResourceHealthCheckCapabilityIds = CloudShell.ResourceModel.ResourceHealthCheckCapabilityIds;
+using ResourceReference = CloudShell.ResourceModel.ResourceReference;
+using SqlServerResources = CloudShell.ControlPlane.Providers.SqlServerResourceDefaults;
 
 namespace CloudShell.Sample.Tests;
 
 [CollectionDefinition(Name, DisableParallelization = true)]
 public sealed class SampleSmokeCollection
+    : ICollectionFixture<SampleSmokeRuntimeCleanupFixture>
 {
     public const string Name = "Sample smoke tests";
+}
+
+public sealed class SampleSmokeRuntimeCleanupFixture : IAsyncLifetime
+{
+    private static readonly TimeSpan DockerCleanupTimeout = TimeSpan.FromSeconds(5);
+
+    public async Task InitializeAsync() =>
+        await CleanupAsync();
+
+    public async Task DisposeAsync() =>
+        await CleanupAsync();
+
+    private static async Task CleanupAsync()
+    {
+        await RemoveContainerIfExistsAsync("cloudshell-replicated-health-api-ingress");
+        for (var replica = 1; replica <= 10; replica++)
+        {
+            await RemoveContainerIfExistsAsync(
+                $"cloudshell-replicated-health-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}");
+        }
+
+        foreach (var path in Directory.EnumerateFiles(
+            Path.GetTempPath(),
+            "cloudshell-load-balancer-*.hosts"))
+        {
+            try
+            {
+                File.Delete(path);
+            }
+            catch
+            {
+                // Test cleanup should not hide the original test failure.
+            }
+        }
+    }
+
+    private static async Task RemoveContainerIfExistsAsync(string containerName)
+    {
+        var output = new StringBuilder();
+        var startInfo = new ProcessStartInfo("docker")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+        startInfo.ArgumentList.Add("rm");
+        startInfo.ArgumentList.Add("-f");
+        startInfo.ArgumentList.Add(containerName);
+
+        try
+        {
+            using var process = Process.Start(startInfo);
+            if (process is null)
+            {
+                return;
+            }
+
+            var outputTask = CaptureAsync(process.StandardOutput, output);
+            var errorTask = CaptureAsync(process.StandardError, output);
+            try
+            {
+                await process.WaitForExitAsync().WaitAsync(DockerCleanupTimeout);
+                await Task.WhenAll(outputTask, errorTask);
+            }
+            catch (TimeoutException)
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                    await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(1));
+                }
+            }
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or
+            System.ComponentModel.Win32Exception or
+            TimeoutException)
+        {
+            // Docker may be unavailable for non-Docker sample tests.
+        }
+
+        static async Task CaptureAsync(StreamReader reader, StringBuilder output)
+        {
+            while (await reader.ReadLineAsync() is { } line)
+            {
+                lock (output)
+                {
+                    output.AppendLine(line);
+                }
+            }
+        }
+    }
 }
 
 [Collection(SampleSmokeCollection.Name)]
@@ -31,84 +133,375 @@ public sealed class SampleSmokeCollection
 public sealed class SampleSmokeTests
 {
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(90);
+    private static readonly TimeSpan SampleHostLaunchTimeout = TimeSpan.FromMinutes(3);
+
+    public static IEnumerable<object[]> SupportedSwitchReadinessSampleHostProjects()
+    {
+        var resourceHostPaths = new[] { "/", "/resources", "/api/control-plane/v1/resources" };
+        yield return new object[]
+        {
+            "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/CloudShell.ContainerHost/CloudShell.ContainerHost.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/LoadBalancer/CloudShell.LoadBalancer.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/SettingsAndSecrets/CloudShell.SettingsAndSecrets.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/SplitHosting/ControlPlane/CloudShell.SplitHosting.ControlPlane.csproj",
+            new[] { "/openapi/control-plane-v1.json", "/api/control-plane/v1/resources" }
+        };
+        yield return new object[]
+        {
+            "samples/ThirdPartyIdentity/CloudShell.ThirdPartyIdentity.csproj",
+            resourceHostPaths
+        };
+    }
+
+    [Theory]
+    [MemberData(nameof(SupportedSwitchReadinessSampleHostProjects))]
+    public async Task SupportedSwitchReadinessSampleHosts_StartAndRenderResources(
+        string projectPath,
+        string[] readinessPaths)
+    {
+        var port = await GetFreePortAsync();
+        await CleanupSwitchReadinessRuntimeArtifactsAsync(projectPath);
+        var host = await SampleProcess.StartAsync(
+            projectPath,
+            port,
+            await CreateSampleHostLaunchEnvironmentAsync(projectPath, port));
+
+        try
+        {
+            var isSplitControlPlane = projectPath.Contains(
+                "/SplitHosting/ControlPlane/",
+                StringComparison.OrdinalIgnoreCase);
+            foreach (var path in readinessPaths)
+            {
+                if (string.Equals(path, "/api/control-plane/v1/resources", StringComparison.Ordinal))
+                {
+                    var token = isSplitControlPlane
+                        ? await host.GetClientCredentialsTokenAsync(
+                            "cloudshell-split-ui",
+                            "local-development-client-secret",
+                            "ControlPlane.Access")
+                        : null;
+                    using var resourcesDocument = JsonDocument.Parse(await host.GetStringAsync(path, token));
+                    var resourceIds = resourcesDocument.RootElement
+                        .EnumerateArray()
+                        .Select(resource => resource.GetProperty("id").GetString())
+                        .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
+                        .Select(resourceId => resourceId!)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                    Assert.NotEmpty(resourceIds);
+                    AssertNoUnexpectedLegacyResources(projectPath, resourceIds);
+                    continue;
+                }
+
+                await host.WaitForHttpOkAsync(path, SampleHostLaunchTimeout);
+            }
+        }
+        finally
+        {
+            host.Dispose();
+            await CleanupSwitchReadinessRuntimeArtifactsAsync(projectPath);
+        }
+    }
 
     [Fact]
-    public async Task ContainerHostSample_DeclaresLocalStorageBackedSqlServerVolume()
+    public void ContainerHostSample_ProjectsStorageBackedSqlServerResources()
     {
+        const string storageResourceId = "cloudshell.storage:local";
+        const string volumeResourceId = "cloudshell.volume:sql-data";
+        const string sqlServerResourceId = "application.sql-server:sql-server";
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var services = new ServiceCollection();
         services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
         services
-            .AddControlPlane()
-            .AddApplicationProvider()
-            .Resources(ContainerHostSampleResources.AddResources);
+            .AddInMemoryResourceModelGraph(
+            [
+                new ResourceGraphState(
+                    "local",
+                    StorageResourceTypeProvider.ResourceTypeId,
+                    ResourceId: storageResourceId,
+                    ProviderId: StorageResourceTypeProvider.ProviderId,
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+                    {
+                        [StorageResourceTypeProvider.Attributes.Provider] = "local",
+                        [StorageResourceTypeProvider.Attributes.Medium] = "FileSystem",
+                        [StorageResourceTypeProvider.Attributes.Location] = "./Data/storage"
+                    }),
+                new ResourceGraphState(
+                    "sql-data",
+                    CloudShellVolumeResourceTypeProvider.ResourceTypeId,
+                    ResourceId: volumeResourceId,
+                    ProviderId: CloudShellVolumeResourceTypeProvider.ProviderId,
+                    DisplayName: "SQL Server Data",
+                    DependsOn:
+                    [
+                        ResourceReference.DependsOnResourceId(
+                            storageResourceId,
+                            typeId: StorageResourceTypeProvider.ResourceTypeId)
+                    ],
+                    Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+                    {
+                        [CloudShellVolumeResourceTypeProvider.Attributes.Provider] = "local",
+                        [CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium] = "FileSystem",
+                        [CloudShellVolumeResourceTypeProvider.Attributes.SubPath] = "sql-server",
+                        [CloudShellVolumeResourceTypeProvider.Attributes.AccessMode] = "ReadWriteOnce",
+                        [CloudShellVolumeResourceTypeProvider.Attributes.Persistent] = true
+                    }),
+                new ResourceGraphState(
+                    "sql-server",
+                    SqlServerResourceTypeProvider.ResourceTypeId,
+                    ResourceId: sqlServerResourceId,
+                    ProviderId: SqlServerResourceTypeProvider.ProviderId,
+                    DisplayName: "SQL Server",
+                    Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
+                    {
+                        [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
+                            ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                            [
+                                new(volumeResourceId, "/var/opt/mssql")
+                            ]))
+                    })
+            ])
+            .AddStorageResourceType()
+            .AddCloudShellVolumeResourceType()
+            .AddSqlServerResourceType()
+            .AddResourceModelGraphServices()
+            .AddBuiltInProviderResourceManagerProjections()
+            .AddResourceModelGraphProcedureProvider(
+                ResourceModelResourceProvider.DefaultProviderId,
+                "Resource model");
+        services.AddControlPlane();
 
         using var serviceProvider = services.BuildServiceProvider();
-        var declarations = serviceProvider
-            .GetRequiredService<ResourceDeclarationStore>()
-            .GetDeclarations()
-            .ToDictionary(declaration => declaration.ResourceId, StringComparer.OrdinalIgnoreCase);
-        var platformOptions = serviceProvider.GetRequiredService<PlatformResourceOptions>();
-        var platformStore = new PlatformResourceStore(
-            platformOptions,
-            serviceProvider.GetRequiredService<IHostEnvironment>());
-        var platformProvider = new PlatformResourceProvider(platformStore, platformOptions);
-        var platformResources = platformProvider
+        var graphProvider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var resources = graphProvider
             .GetResources()
             .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
-        var applicationResources = serviceProvider.GetRequiredService<ApplicationResourceProjectionSource>();
-        var descriptors = serviceProvider.GetRequiredService<IApplicationResourceDescriptorOperations>();
-        var sqlServer = Assert.Single(applicationResources.GetResources(), resource =>
-            resource.Id == "application:sql-server");
-        var descriptor = await descriptors.DescribeAsync(
-            sqlServer,
-            new ResourceOrchestrationDescriptorContext(null, null, null!));
-        var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
-            new JsonSerializerOptions(JsonSerializerDefaults.Web));
-
-        Assert.True(declarations.ContainsKey("storage:local"));
-        Assert.True(declarations.ContainsKey("volume:sql-data"));
-        Assert.True(declarations.ContainsKey("application:sql-server"));
-        Assert.Equal("storage:local", declarations["volume:sql-data"].ParentResourceId);
-        Assert.Equal(["storage:local"], declarations["volume:sql-data"].DependsOn);
-        Assert.Contains("volume:sql-data", declarations["application:sql-server"].DependsOn);
-
-        var storage = platformResources["storage:local"];
-        Assert.Equal(ResourceClass.Storage, storage.ResourceClass);
-        Assert.Equal(StorageProviderNames.LocalStorage, storage.Kind);
-        Assert.Equal(StorageMedia.FileSystem, storage.ResourceAttributes[ResourceAttributeNames.StorageMedium]);
-        Assert.Equal("./Data/storage", storage.ResourceAttributes[ResourceAttributeNames.StorageLocation]);
-        Assert.Equal("1", storage.ResourceAttributes[ResourceAttributeNames.StorageVolumeCount]);
-
-        var volume = platformResources["volume:sql-data"];
-        Assert.Equal(ResourceClass.Storage, volume.ResourceClass);
-        Assert.Equal(["storage:local"], volume.DependsOn);
-        Assert.Equal("storage:local", volume.ResourceAttributes[ResourceAttributeNames.VolumeStorageResourceId]);
-        Assert.Equal("sql-server", volume.ResourceAttributes[ResourceAttributeNames.VolumeSubPath]);
-        Assert.Equal(StorageMedia.FileSystem, volume.ResourceAttributes[ResourceAttributeNames.VolumeStorageMedium]);
-
-        Assert.Equal(ApplicationResourceTypes.SqlServer, sqlServer.EffectiveTypeId);
-        Assert.Equal(ResourceClass.Service, sqlServer.ResourceClass);
-        Assert.True(sqlServer.HasCapability(ResourceCapabilityIds.StorageVolumeConsumer));
-        Assert.Equal("1", sqlServer.ResourceAttributes[ResourceAttributeNames.VolumeMountCount]);
-
-        var mount = Assert.Single(workload?.WorkloadVolumeMounts ?? []);
-        Assert.Equal("volume:sql-data", mount.VolumeReference);
-        Assert.Equal("/var/opt/mssql", mount.TargetPath);
-        Assert.Equal("data", mount.Name);
-        Assert.False(mount.ReadOnly);
-        Assert.Equal(StorageVolumeResourceOperationPermissions.MountWrite, mount.RequiredPermission);
+        var storage = resources[storageResourceId];
+        Assert.Equal("cloudshell.storage", storage.EffectiveTypeId);
+        Assert.Equal("local", storage.ResourceAttributes[StorageResourceTypeProvider.Attributes.Provider]);
+        Assert.Equal("FileSystem", storage.ResourceAttributes[StorageResourceTypeProvider.Attributes.Medium]);
+        Assert.Equal("./Data/storage", storage.ResourceAttributes[StorageResourceTypeProvider.Attributes.Location]);
+        var volume = resources[volumeResourceId];
+        Assert.Equal("cloudshell.volume", volume.EffectiveTypeId);
+        Assert.Equal([storageResourceId], volume.DependsOn);
+        Assert.Equal("FileSystem", volume.ResourceAttributes[
+            CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium]);
+        Assert.Equal("sql-server", volume.ResourceAttributes[
+            CloudShellVolumeResourceTypeProvider.Attributes.SubPath]);
+        var sqlServer = resources[sqlServerResourceId];
+        Assert.Equal("application.sql-server", sqlServer.EffectiveTypeId);
+        Assert.Contains(sqlServer.ResourceCapabilities, capability =>
+            capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
     }
 
     [Fact]
-    public async Task ProjectReferenceHost_RendersResourcesAndServesControlPlaneApi()
+    [Trait("Category", "DockerIntegration")]
+    public async Task ContainerHostSample_SqlRuntimeStartsWithStorageBackedVolume()
     {
+        const string sqlServerResourceId = "application.sql-server:sql-server";
+        var sqlContainerName = ContainerHostSqlServerDockerBridge.SqlServerContainerName;
+        if (!await DockerComposeStack.IsAvailableAsync() ||
+            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.ContainerImage) ||
+            await DockerComposeStack.ContainerExistsAsync(sqlContainerName))
+        {
+            return;
+        }
+
+        var sqlPort = await GetFreePortAsync();
+        var shouldCleanupSqlContainer = true;
+        using var host = await SampleProcess.StartAsync(
+            "samples/CloudShell.ContainerHost/CloudShell.ContainerHost.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ContainerHost__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        try
+        {
+            await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+            var sqlServer = Assert.Single(
+                resources,
+                resource => resource.GetProperty("id").GetString() == sqlServerResourceId);
+
+            Assert.DoesNotContain(resources, resource =>
+                resource.GetProperty("id").GetString() == "storage:local");
+            Assert.DoesNotContain(resources, resource =>
+                resource.GetProperty("id").GetString() == "volume:sql-data");
+            Assert.DoesNotContain(resources, resource =>
+                resource.GetProperty("id").GetString() == "application:sql-server");
+            Assert.Equal($"localhost:{sqlPort}", GetEndpointAddress(sqlServer, "tds"));
+            await StartGraphResourceIfAvailableAsync(host, sqlServer, "ContainerHost SQL Server");
+            await WaitForResourceStateAsync(
+                host,
+                sqlServerResourceId,
+                ResourceState.Running,
+                StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerExistsAsync(sqlContainerName, StartupTimeout),
+                $"Expected Docker container '{sqlContainerName}' to be created.");
+            var sampleDataPath = Path.Combine(
+                SampleProcess.FindRepositoryRoot(),
+                "samples",
+                "CloudShell.ContainerHost",
+                "Data",
+                "storage",
+                "sql-server");
+            Assert.True(
+                Directory.Exists(sampleDataPath),
+                $"Expected storage-backed volume path '{sampleDataPath}' to be created.");
+
+            var startedSqlContainerId = await DockerComposeStack.GetContainerIdAsync(sqlContainerName) ??
+                throw new InvalidOperationException(
+                    $"Docker container '{sqlContainerName}' did not have an inspectable id.");
+            await host.SendAsync(
+                HttpMethod.Post,
+                $"/api/control-plane/v1/resources/{Uri.EscapeDataString(sqlServerResourceId)}/actions/restart?ignoreDependentWarning=true");
+            await WaitForResourceStateAsync(
+                host,
+                sqlServerResourceId,
+                ResourceState.Running,
+                StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerIdChangedAsync(
+                    sqlContainerName,
+                    startedSqlContainerId,
+                    StartupTimeout),
+                $"Expected Docker container '{sqlContainerName}' to be recreated after SQL restart.");
+
+            await StopResourceIfRunningAsync(host, sqlServerResourceId);
+            await WaitForResourceStateAsync(
+                host,
+                sqlServerResourceId,
+                ResourceState.Stopped,
+                StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerRemovedAsync(sqlContainerName, StartupTimeout),
+                $"Expected Docker container '{sqlContainerName}' to be removed after SQL stop.");
+            shouldCleanupSqlContainer = false;
+        }
+        finally
+        {
+            await StopResourceIfRunningAsync(host, sqlServerResourceId);
+            if (shouldCleanupSqlContainer)
+            {
+                await DockerComposeStack.RemoveContainerIfExistsAsync(sqlContainerName);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "DockerIntegration")]
+    public async Task ContainerHostSample_SqlRuntimeStopsOnGracefulHostShutdown()
+    {
+        const string sqlServerResourceId = "application.sql-server:sql-server";
+        var sqlContainerName = ContainerHostSqlServerDockerBridge.SqlServerContainerName;
+        if (!await DockerComposeStack.IsAvailableAsync() ||
+            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.ContainerImage))
+        {
+            return;
+        }
+
+        await DockerComposeStack.RemoveContainerIfExistsAsync(sqlContainerName);
+
+        var sqlPort = await GetFreePortAsync();
+        var host = await SampleProcess.StartAsync(
+            "samples/CloudShell.ContainerHost/CloudShell.ContainerHost.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ContainerHost__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        try
+        {
+            await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var sqlServer = Assert.Single(
+                resourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() == sqlServerResourceId);
+
+            await StartGraphResourceIfAvailableAsync(host, sqlServer, "ContainerHost SQL Server");
+            await WaitForResourceStateAsync(
+                host,
+                sqlServerResourceId,
+                ResourceState.Running,
+                StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerExistsAsync(sqlContainerName, StartupTimeout),
+                $"Expected Docker container '{sqlContainerName}' to be created.");
+
+            await host.StopAsync(StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerRemovedAsync(sqlContainerName, StartupTimeout),
+                $"Expected Docker container '{sqlContainerName}' to be removed during graceful host shutdown.");
+        }
+        finally
+        {
+            host.Dispose();
+            await DockerComposeStack.RemoveContainerIfExistsAsync(sqlContainerName);
+        }
+    }
+
+    [Fact]
+    public async Task ProjectReferenceHost_RunsProjectsWithoutOldProviderRecords()
+    {
+        var apiPort = await GetFreePortAsync();
         var frontendPort = await GetFreePortAsync();
+        var apiEndpoint = $"http://127.0.0.1:{apiPort}";
         var frontendEndpoint = $"http://127.0.0.1:{frontendPort}";
+        const string apiResourceId = "application.aspnet-core-project:project-reference-api";
+        const string frontendResourceId = "application.aspnet-core-project:project-reference-frontend";
         using var host = await SampleProcess.StartAsync(
             "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
             await GetFreePortAsync(),
             [
+                ("ProjectReference__ApiEndpoint", apiEndpoint),
                 ("ProjectReference__FrontendEndpoint", frontendEndpoint)
             ]);
 
@@ -123,247 +516,132 @@ public sealed class SampleSmokeTests
         Assert.Contains("Resource graph", resourceGraphHtml);
         Assert.Contains("resource-dependency-graph-canvas", resourceGraphHtml);
 
-        var apiJson = await host.GetStringAsync("/api/control-plane/v1/resources");
-        using var document = JsonDocument.Parse(apiJson);
-        var resources = document.RootElement.EnumerateArray().ToArray();
-        Assert.Contains(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:project-reference-api");
-        Assert.Contains(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:project-reference-frontend");
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var api = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == apiResourceId);
+        var frontend = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == frontendResourceId);
 
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:project-reference-api");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:project-reference-frontend");
+        Assert.Equal(apiEndpoint, api.GetProperty("primaryEndpoint").GetString());
+        Assert.Equal(frontendEndpoint, frontend.GetProperty("primaryEndpoint").GetString());
+
+        await StartGraphResourceIfAvailableAsync(host, api, "ProjectReference API");
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{apiEndpoint}/health",
+            bearerToken: null,
+            StartupTimeout);
+        var startedApi = await WaitForResourceStateAsync(
+            host,
+            apiResourceId,
+            ResourceState.Running,
+            StartupTimeout);
+        Assert.True(HasResourceState(startedApi, ResourceState.Running));
+
+        await StartGraphResourceIfAvailableAsync(host, frontend, "ProjectReference frontend");
         await host.WaitForAbsoluteHttpOkAsync(
             $"{frontendEndpoint}/upstream",
             bearerToken: null,
             StartupTimeout);
         var upstreamJson = await host.GetAbsoluteStringAsync($"{frontendEndpoint}/upstream");
-        Assert.Contains("Project Reference Frontend", upstreamJson);
-        Assert.Contains("Hello from the referenced API project.", upstreamJson);
+        using var upstreamDocument = JsonDocument.Parse(upstreamJson);
+        Assert.StartsWith(
+            apiEndpoint,
+            upstreamDocument.RootElement.GetProperty("resolvedApiEndpoint").GetString(),
+            StringComparison.Ordinal);
+        Assert.Equal(
+            "Hello from the referenced API project.",
+            upstreamDocument.RootElement
+                .GetProperty("upstream")
+                .GetProperty("message")
+                .GetString());
 
-        const string traceId = "4bf92f3577b34da6a3ce929d0e0e4736";
-        await host.SendJsonAsync(
-            HttpMethod.Post,
-            "/api/control-plane/v1/traces/ingest",
-            $$"""
-            {
-              "spans": [
-                {
-                  "traceId": "{{traceId}}",
-                  "spanId": "00f067aa0ba902b7",
-                  "parentSpanId": null,
-                  "name": "GET /upstream",
-                  "resourceId": "application:project-reference-frontend",
-                  "serviceName": "project-reference-frontend",
-                  "kind": "Server",
-                  "status": "Unset",
-                  "startTime": "2026-06-16T00:00:00Z",
-                  "duration": "00:00:00.1250000",
-                  "attributes": {
-                    "http.route": "/upstream"
-                  }
-                },
-                {
-                  "traceId": "{{traceId}}",
-                  "spanId": "00f067aa0ba902b8",
-                  "parentSpanId": "00f067aa0ba902b7",
-                  "name": "GET /failure",
-                  "resourceId": "application:project-reference-api",
-                  "serviceName": "project-reference-api",
-                  "kind": "Server",
-                  "status": "Error",
-                  "startTime": "2026-06-16T00:00:00.025Z",
-                  "duration": "00:00:00.0500000",
-                  "attributes": {
-                    "http.route": "/failure",
-                    "error.type": "500"
-                  }
-                }
-              ]
-            }
-            """);
+        var apiLogSourceId = await WaitForLogSourceAsync(host, apiResourceId);
+        Assert.NotEmpty(await WaitForLogEntriesAsync(host, apiLogSourceId));
+        var frontendLogSourceId = await WaitForLogSourceAsync(host, frontendResourceId);
+        Assert.NotEmpty(await WaitForLogEntriesAsync(host, frontendLogSourceId));
+        Assert.NotEmpty(await WaitForMetricPointsAsync(
+            host,
+            apiResourceId,
+            StartupTimeout,
+            points => points.Any(point =>
+                point.GetProperty("name").GetString() == "http.server.requests" &&
+                point.GetProperty("resourceId").GetString() == apiResourceId)));
+        Assert.NotEmpty(await WaitForTraceSpansByResourceAsync(
+            host,
+            apiResourceId,
+            StartupTimeout,
+            spans => spans.Any(span =>
+                span.GetProperty("name").GetString() == "api.prepare-message" &&
+                span.GetProperty("resourceId").GetString() == apiResourceId)));
+        Assert.NotEmpty(await WaitForTraceSpansByResourceAsync(
+            host,
+            frontendResourceId,
+            StartupTimeout,
+            spans => spans.Any(span =>
+                span.GetProperty("name").GetString() == "frontend.call-project-reference-api" &&
+                span.GetProperty("resourceId").GetString() == frontendResourceId)));
 
-        await host.SendJsonAsync(
+        var apiHealthJson = await host.SendAsync(
             HttpMethod.Post,
-            "/api/control-plane/v1/metrics/ingest",
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(apiResourceId)}/health/refresh");
+        using var apiHealthDocument = JsonDocument.Parse(apiHealthJson);
+        AssertGraphHealthRefreshSucceeded(apiHealthDocument.RootElement, apiResourceId);
+
+        var frontendHealthJson = await host.SendAsync(
+            HttpMethod.Post,
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(frontendResourceId)}/health/refresh");
+        using var frontendHealthDocument = JsonDocument.Parse(frontendHealthJson);
+        AssertGraphHealthRefreshSucceeded(frontendHealthDocument.RootElement, frontendResourceId);
+
+        var applyJson = await host.SendJsonAsync(
+            HttpMethod.Post,
+            $"/project-reference/resource-graph/resources/{Uri.EscapeDataString(apiResourceId)}/environment-variables",
             """
             {
-              "points": [
-                {
-                  "name": "http.server.requests",
-                  "resourceId": "application:project-reference-frontend",
-                  "serviceName": "project-reference-frontend",
-                  "value": 1,
-                  "timestamp": "2026-06-16T00:00:01Z",
-                  "unit": "count",
-                  "attributes": {
-                    "http.method": "GET",
-                    "http.route": "/upstream",
-                    "http.status_code": "200"
-                  }
-                },
-                {
-                  "name": "http.server.duration",
-                  "resourceId": "application:project-reference-frontend",
-                  "serviceName": "project-reference-frontend",
-                  "value": 125,
-                  "timestamp": "2026-06-16T00:00:01Z",
-                  "unit": "ms",
-                  "attributes": {
-                    "http.method": "GET",
-                    "http.route": "/upstream",
-                    "http.status_code": "200"
-                  }
-                }
-              ]
+              "name": "RESOURCE_UPDATE_MARKER",
+              "value": "applied"
             }
             """);
-
-        var frontendOverviewHtml = await host.GetStringAsync(
-            "/resources/application%3Aproject-reference-frontend/details");
-        Assert.Contains("Dependency graph", frontendOverviewHtml);
-        Assert.Contains("Project Reference API", frontendOverviewHtml);
+        using var applyDocument = JsonDocument.Parse(applyJson);
+        var apply = applyDocument.RootElement;
+        Assert.True(apply.GetProperty("committed").GetBoolean());
+        Assert.False(apply.GetProperty("hasErrors").GetBoolean());
+        Assert.Equal("Committed", apply.GetProperty("status").GetString());
+        Assert.True(apply.GetProperty("resultVersion").GetInt64() >
+            apply.GetProperty("baseVersion").GetInt64());
         Assert.Contains(
-            "href=\"/resources/application%3Aproject-reference-api/activity\"",
-            frontendOverviewHtml);
-        Assert.Contains(
-            "href=\"/resources/application%3Aproject-reference-api/traces\"",
-            frontendOverviewHtml);
+            apply.GetProperty("diagnostics").EnumerateArray(),
+            diagnostic =>
+                diagnostic.GetProperty("severity").GetString() == "Warning" &&
+                diagnostic.GetProperty("code").GetString() ==
+                    "application.aspNetCoreProject.restartRequired");
 
-        var traceHtml = await host.GetStringAsync(
-            $"/observability/traces?resourceId=application%3Aproject-reference-frontend&traceId={traceId}");
-        Assert.Contains("Trace chart", traceHtml);
-        Assert.Contains("id=\"trace-source-filter\"", traceHtml);
-        Assert.Contains("Project Reference Frontend", traceHtml);
-        Assert.Contains("Related logs", traceHtml);
-        Assert.Contains("Related activity", traceHtml);
-        Assert.Contains("Open resource", traceHtml);
-        Assert.Contains("<fluent-anchor", traceHtml);
-        Assert.Contains(">Project Reference Frontend</a>", traceHtml);
-        Assert.DoesNotContain(">application:project-reference-frontend</a>", traceHtml);
-        Assert.DoesNotContain("id=\"trace-sort-mode\"", traceHtml);
-        Assert.Contains("Error spans", traceHtml);
-        Assert.Contains("trace-span-row selected attention", traceHtml);
-        Assert.Contains("trace-attention-pill", traceHtml);
-        Assert.Contains("Needs attention", traceHtml);
-        Assert.Contains("trace-span-row error", traceHtml);
-        Assert.Contains("trace-error-pill", traceHtml);
-        Assert.Contains(
-            "href=\"/resources/application%3Aproject-reference-frontend/logs?traceId=4bf92f3577b34da6a3ce929d0e0e4736\"",
-            traceHtml);
-        Assert.Contains(
-            "href=\"/resources/application%3Aproject-reference-frontend/activity?traceId=4bf92f3577b34da6a3ce929d0e0e4736&amp;spanId=00f067aa0ba902b7\"",
-            traceHtml);
-        Assert.Contains("href=\"/resources/application%3Aproject-reference-frontend\"", traceHtml);
+        var apiDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString(apiResourceId)}/details");
+        Assert.Contains("Project Reference API", apiDetailsHtml);
+        Assert.Contains("project-reference-api", apiDetailsHtml);
 
-        var traceListHtml = await host.GetStringAsync(
-            "/observability/traces?resourceId=application%3Aproject-reference-api");
-        Assert.Contains("id=\"trace-sort-mode\"", traceListHtml);
-        Assert.Contains("<dt>Resource name</dt>", traceListHtml);
-        Assert.Contains("<dd>project-reference-api</dd>", traceListHtml);
-        Assert.Contains("<dt>Canonical resource ID</dt>", traceListHtml);
-        Assert.Contains("<dd>application:project-reference-api</dd>", traceListHtml);
-        Assert.Contains("Newest", traceListHtml);
-        Assert.Contains("Longest duration", traceListHtml);
-        Assert.Contains("Errors first", traceListHtml);
-        Assert.Contains("recent-trace-item error", traceListHtml);
-        Assert.Contains("1 error span(s)", traceListHtml);
+        var apiMetricsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString(apiResourceId)}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}");
+        Assert.Contains("Telemetry", apiMetricsHtml);
+        Assert.Contains("http.server.requests", apiMetricsHtml);
+        Assert.Contains("project-reference-api", apiMetricsHtml);
 
-        var allTraceListHtml = await host.GetStringAsync("/observability/traces");
-        Assert.Contains("All sources", allTraceListHtml);
-        Assert.Contains("2 trace resources", allTraceListHtml);
-        Assert.Contains("GET /upstream", allTraceListHtml);
-        Assert.Contains("project-reference-frontend, project-reference-api", allTraceListHtml);
-        Assert.Contains("recent-trace-item attention", allTraceListHtml);
-        Assert.Contains("Needs attention: 1 error span(s)", allTraceListHtml);
-        Assert.Contains(
-            $"href=\"/observability/traces?resourceId=application%3Aproject-reference-frontend&amp;traceId={traceId}\"",
-            allTraceListHtml);
-
-        var serviceMapHtml = await host.GetStringAsync("/observability/service-map");
-        Assert.Contains("Service map", serviceMapHtml);
-        Assert.Contains("Project Reference Frontend", serviceMapHtml);
-
-        var missingTraceResourceHtml = await host.GetStringAsync(
-            "/observability/traces?resourceId=application%3Aproject-reference-missing");
-        Assert.Contains("Trace resource not found", missingTraceResourceHtml);
-        Assert.Contains("project-reference-missing", missingTraceResourceHtml);
-        Assert.DoesNotContain("application:project-reference-missing", missingTraceResourceHtml);
-        Assert.Contains("All trace resources", missingTraceResourceHtml);
-
-        var missingTraceScopeHtml = await host.GetStringAsync(
-            "/observability/traces?resourceId=application%3Aproject-reference-frontend&scopeResourceId=application%3Aproject-reference-missing-scope");
-        Assert.Contains("Trace scope not found", missingTraceScopeHtml);
-        Assert.Contains("project-reference-missing-scope", missingTraceScopeHtml);
-        Assert.DoesNotContain("application:project-reference-missing-scope", missingTraceScopeHtml);
-        Assert.Contains("Show all scopes", missingTraceScopeHtml);
-
-        var relatedLogsHtml = await host.GetStringAsync(
-            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}&traceId={traceId}");
-        Assert.Contains("Telemetry", relatedLogsHtml);
-        Assert.DoesNotContain("Resource telemetry", relatedLogsHtml);
-        Assert.Contains("Project Reference Frontend", relatedLogsHtml);
-        Assert.Contains("Console logs", relatedLogsHtml);
-        Assert.Contains("id=\"log-source-filter\"", relatedLogsHtml);
-        Assert.Contains("Showing entries correlated with trace", relatedLogsHtml);
-        Assert.Contains("Clear trace filter", relatedLogsHtml);
-
-        var relatedTracesHtml = await host.GetStringAsync(
-            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Traces.Value)}&traceId={traceId}");
-        Assert.Contains("Telemetry", relatedTracesHtml);
-        Assert.DoesNotContain("Resource telemetry", relatedTracesHtml);
-        Assert.Contains("Trace chart", relatedTracesHtml);
-        Assert.DoesNotContain("id=\"trace-source-filter\"", relatedTracesHtml);
-        Assert.Contains("Related logs", relatedTracesHtml);
-        Assert.Contains("Related activity", relatedTracesHtml);
-        Assert.Contains(">Project Reference Frontend</a>", relatedTracesHtml);
-        Assert.DoesNotContain(">application:project-reference-frontend</a>", relatedTracesHtml);
-        Assert.Contains("Clear trace filter", relatedTracesHtml);
-        Assert.Contains(
-            "href=\"/resources/application%3Aproject-reference-frontend/logs?traceId=4bf92f3577b34da6a3ce929d0e0e4736\"",
-            relatedTracesHtml);
-
-        var missingInlineTraceScopeHtml = await host.GetStringAsync(
-            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Traces.Value)}&scopeResourceId=application%3Aproject-reference-missing-scope");
-        Assert.Contains("Trace scope not found", missingInlineTraceScopeHtml);
-        Assert.Contains("project-reference-missing-scope", missingInlineTraceScopeHtml);
-        Assert.DoesNotContain("application:project-reference-missing-scope", missingInlineTraceScopeHtml);
-
-        var relatedMetricsHtml = await host.GetStringAsync(
-            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}");
-        Assert.Contains("Telemetry", relatedMetricsHtml);
-        Assert.DoesNotContain("Resource telemetry", relatedMetricsHtml);
-        Assert.DoesNotContain("Metric source", relatedMetricsHtml);
-        Assert.DoesNotContain("id=\"metric-source-filter\"", relatedMetricsHtml);
-        Assert.Contains("http.server.requests", relatedMetricsHtml);
-        Assert.Contains("http.server.duration", relatedMetricsHtml);
-        Assert.Contains("project-reference-frontend", relatedMetricsHtml);
-
-        var missingMetricResourceHtml = await host.GetStringAsync(
-            "/observability/metrics?resourceId=application%3Aproject-reference-missing");
-        Assert.Contains("Metric resource not found", missingMetricResourceHtml);
-        Assert.Contains("project-reference-missing", missingMetricResourceHtml);
-        Assert.DoesNotContain("application:project-reference-missing", missingMetricResourceHtml);
-        Assert.Contains("All metric resources", missingMetricResourceHtml);
-
-        var missingMetricScopeHtml = await host.GetStringAsync(
-            "/observability/metrics?resourceId=application%3Aproject-reference-frontend&scopeResourceId=application%3Aproject-reference-missing-scope");
-        Assert.Contains("Metric scope not found", missingMetricScopeHtml);
-        Assert.Contains("project-reference-missing-scope", missingMetricScopeHtml);
-        Assert.DoesNotContain("application:project-reference-missing-scope", missingMetricScopeHtml);
-        Assert.Contains("Project Reference Frontend", missingMetricScopeHtml);
-        Assert.Contains("Show all scopes", missingMetricScopeHtml);
-
-        var missingInlineMetricScopeHtml = await host.GetStringAsync(
-            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}&scopeResourceId=application%3Aproject-reference-missing-scope");
-        Assert.Contains("Metric scope not found", missingInlineMetricScopeHtml);
-        Assert.Contains("project-reference-missing-scope", missingInlineMetricScopeHtml);
-        Assert.DoesNotContain("application:project-reference-missing-scope", missingInlineMetricScopeHtml);
-
-        var relatedActivityHtml = await host.GetStringAsync(
-            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Activity.Value)}&traceId={traceId}&spanId=00f067aa0ba902b7");
-        Assert.Contains("Activity", relatedActivityHtml);
-        Assert.Contains("Showing activity correlated with trace", relatedActivityHtml);
-        Assert.Contains("Showing activity correlated with span", relatedActivityHtml);
-        Assert.Contains("Clear", relatedActivityHtml);
+        await host.SendAsync(
+            HttpMethod.Post,
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(apiResourceId)}/actions/stop?ignoreDependentWarning=true");
+        var stoppedApi = await WaitForResourceStateAsync(
+            host,
+            apiResourceId,
+            ResourceState.Stopped,
+            StartupTimeout);
+        Assert.True(HasResourceState(stoppedApi, ResourceState.Stopped));
     }
 
     [Fact]
@@ -372,7 +650,9 @@ public sealed class SampleSmokeTests
         using var host = await SampleProcess.StartAsync(
             "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
             await GetFreePortAsync(),
-            [("ResourceManager__ReadOnly", "true")]);
+            [
+                ("ResourceManager__ReadOnly", "true")
+            ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
 
@@ -381,7 +661,8 @@ public sealed class SampleSmokeTests
         Assert.DoesNotContain(">Add resource<", resourcesHtml);
         Assert.DoesNotContain(">Create group<", resourcesHtml);
 
-        var resourceDetailsHtml = await host.GetStringAsync("/resources/application%3Aproject-reference-api/details");
+        var resourceDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:project-reference-api")}/details");
         Assert.Contains("Stop unavailable. Resource Manager is in read-only mode.", resourceDetailsHtml);
 
         var addResourceHtml = await host.GetStringAsync("/resources/add");
@@ -389,637 +670,6 @@ public sealed class SampleSmokeTests
         Assert.DoesNotContain("Create a resource group", addResourceHtml);
     }
 
-    [Fact]
-    public async Task ProjectReferenceHost_AddResourceUsesNameWithoutDisplayNameInput()
-    {
-        using var host = await SampleProcess.StartAsync(
-            "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
-            await GetFreePortAsync());
-
-        await host.WaitForHttpOkAsync("/", StartupTimeout);
-
-        var addResourceHtml = await host.GetStringAsync(
-            "/resources/add?type=application.aspnet-core-project");
-        Assert.Contains("Name", addResourceHtml);
-        Assert.DoesNotContain("Display name", addResourceHtml);
-        Assert.DoesNotContain("web-application-display-name", addResourceHtml);
-
-        var missingTypeHtml = await host.GetStringAsync(
-            "/resources/add?type=application.does-not-exist");
-        Assert.Contains("Resource type not found", missingTypeHtml);
-        Assert.Contains("application.does-not-exist", missingTypeHtml);
-        Assert.Contains("Show resource types", missingTypeHtml);
-    }
-
-    [Fact]
-    public async Task ApplicationTopologyHost_ProjectsSqlStorageAndServiceDiscoveryTopology()
-    {
-        var apiPort = await GetFreePortAsync();
-        var frontendPort = await GetFreePortAsync();
-        var sqlPort = await GetFreePortAsync();
-        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
-        var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
-        using var host = await SampleProcess.StartAsync(
-            "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
-            await GetFreePortAsync(),
-            [
-                ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
-                ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
-                ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
-                ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
-                ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
-            ]);
-
-        await host.WaitForHttpOkAsync("/", StartupTimeout);
-
-        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
-        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
-        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
-        var storage = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "storage:application-topology-local");
-        var volume = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "volume:application-topology-sql-data");
-        var sqlServer = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:application-topology-sql-server");
-        var sqlDatabase = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:application-topology-sql-server/database:application-topology");
-        var settings = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "configuration:application-topology");
-        var secrets = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "secrets-vault:application-topology");
-        var api = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:application-topology-api");
-        var frontend = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:application-topology-frontend");
-        var dnsZone = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:application-topology-local");
-        var nameMapping = Assert.Single(resources, resource =>
-            resource.GetProperty("typeId").GetString() == PlatformResourceProvider.NameMappingResourceType
-            && resource.GetProperty("attributes")
-                .GetProperty(ResourceAttributeNames.NameMappingHostName)
-                .GetString() == "app.application-topology.cloudshell.local");
-
-        var storageAttributes = storage.GetProperty("attributes");
-        var volumeAttributes = volume.GetProperty("attributes");
-        var sqlAttributes = sqlServer.GetProperty("attributes");
-        var sqlDatabaseAttributes = sqlDatabase.GetProperty("attributes");
-        var apiAttributes = api.GetProperty("attributes");
-        var frontendAttributes = frontend.GetProperty("attributes");
-        var dnsZoneAttributes = dnsZone.GetProperty("attributes");
-        var nameMappingAttributes = nameMapping.GetProperty("attributes");
-        var settingsIdentity = settings.GetProperty("identity");
-        var secretsIdentity = secrets.GetProperty("identity");
-        var apiIdentity = api.GetProperty("identity");
-
-        Assert.Equal((int)ResourceState.Stopped, sqlServer.GetProperty("state").GetInt32());
-        Assert.Equal((int)ResourceState.Stopped, api.GetProperty("state").GetInt32());
-        Assert.Equal((int)ResourceState.Stopped, frontend.GetProperty("state").GetInt32());
-
-        Assert.Equal("cloudshell.storage", storage.GetProperty("typeId").GetString());
-        Assert.Equal(StorageProviderNames.LocalStorage, storage.GetProperty("kind").GetString());
-        Assert.Equal(StorageMedia.FileSystem, storageAttributes.GetProperty(ResourceAttributeNames.StorageMedium).GetString());
-        Assert.Equal("./Data/storage", storageAttributes.GetProperty(ResourceAttributeNames.StorageLocation).GetString());
-        Assert.Equal("1", storageAttributes.GetProperty(ResourceAttributeNames.StorageVolumeCount).GetString());
-
-        Assert.Equal("cloudshell.volume", volume.GetProperty("typeId").GetString());
-        Assert.Equal("storage:application-topology-local", volume.GetProperty("parentResourceId").GetString());
-        Assert.Equal("storage:application-topology-local", volumeAttributes.GetProperty(ResourceAttributeNames.VolumeStorageResourceId).GetString());
-        Assert.Equal("sql-server", volumeAttributes.GetProperty(ResourceAttributeNames.VolumeSubPath).GetString());
-        Assert.Equal(StorageMedia.FileSystem, volumeAttributes.GetProperty(ResourceAttributeNames.VolumeStorageMedium).GetString());
-
-        Assert.Equal(ApplicationResourceTypes.SqlServer, sqlServer.GetProperty("typeId").GetString());
-        Assert.Equal($"tcp://localhost:{sqlPort}", GetEndpointAddress(sqlServer, "tds"));
-        Assert.Equal("1", sqlAttributes.GetProperty(ResourceAttributeNames.DatabaseCount).GetString());
-        Assert.Equal("1", sqlAttributes.GetProperty(ResourceAttributeNames.VolumeMountCount).GetString());
-        Assert.Equal("0", sqlAttributes.GetProperty(ResourceAttributeNames.VolumeMountMaterializedCount).GetString());
-        Assert.Equal(
-            ResourceVolumeMountMaterializationStatus.NotActive,
-            sqlAttributes.GetProperty(ResourceAttributeNames.VolumeMountMaterializationStatus).GetString());
-        Assert.Equal(SqlServerResources.DefaultSqlServerImage, sqlAttributes.GetProperty(ResourceAttributeNames.ContainerImage).GetString());
-        Assert.Contains(
-            "volume:application-topology-sql-data",
-            sqlServer.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        var sqlIdentity = sqlServer.GetProperty("identity");
-        Assert.Equal("identity:development", sqlIdentity.GetProperty("providerId").GetString());
-        Assert.Equal("application-topology-sql-server", sqlIdentity.GetProperty("name").GetString());
-        Assert.Equal(ApplicationResourceTypes.SqlDatabase, sqlDatabase.GetProperty("typeId").GetString());
-        Assert.Equal("application:application-topology-sql-server", sqlDatabase.GetProperty("parentResourceId").GetString());
-        Assert.Equal("Application Topology", sqlDatabase.GetProperty("displayName").GetString());
-        Assert.Equal("application_topology", sqlDatabaseAttributes.GetProperty(ResourceAttributeNames.DatabaseName).GetString());
-        Assert.Equal("application:application-topology-sql-server", sqlDatabaseAttributes.GetProperty(ResourceAttributeNames.DatabaseServerResourceId).GetString());
-        Assert.Equal("declared", sqlDatabaseAttributes.GetProperty(ResourceAttributeNames.DatabaseSource).GetString());
-
-        Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
-        Assert.Equal("secrets.vault", secrets.GetProperty("typeId").GetString());
-        Assert.Equal("identity:development", settingsIdentity.GetProperty("providerId").GetString());
-        Assert.Equal("identity:development", secretsIdentity.GetProperty("providerId").GetString());
-
-        Assert.Equal(ApplicationResourceTypes.AspNetCoreProject, api.GetProperty("typeId").GetString());
-        Assert.Equal("../Api/CloudShell.ApplicationTopologyApi.csproj", apiAttributes.GetProperty(ResourceAttributeNames.ProjectPath).GetString());
-        Assert.Equal(
-            ResourceDeclarationPersistence.Transient.ToString(),
-            apiAttributes.GetProperty(ResourceAttributeNames.DeclarationPersistence).GetString());
-        Assert.Equal("identity:development", apiIdentity.GetProperty("providerId").GetString());
-        Assert.Equal("application-topology-api", apiIdentity.GetProperty("name").GetString());
-        Assert.Contains(
-            "application:application-topology-sql-server",
-            api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.Contains(
-            "configuration:application-topology",
-            api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-        Assert.Contains(
-            "secrets-vault:application-topology",
-            api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-
-        var apiRecoveryPolicyJson = await host.GetStringAsync(
-            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application:application-topology-api")}/recovery-policy");
-        using var apiRecoveryPolicyDocument = JsonDocument.Parse(apiRecoveryPolicyJson);
-        var apiRecoveryPolicy = apiRecoveryPolicyDocument.RootElement;
-        Assert.True(apiRecoveryPolicy.GetProperty("enabled").GetBoolean());
-        Assert.Equal((int)ResourceProbeType.Liveness, apiRecoveryPolicy.GetProperty("probeType").GetInt32());
-        Assert.Equal(3, apiRecoveryPolicy.GetProperty("failureThreshold").GetInt32());
-        Assert.Equal(3, apiRecoveryPolicy.GetProperty("maxAttempts").GetInt32());
-
-        var apiRecoveryStatusJson = await host.GetStringAsync(
-            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application:application-topology-api")}/recovery-status");
-        using var apiRecoveryStatusDocument = JsonDocument.Parse(apiRecoveryStatusJson);
-        var apiRecoveryStatus = apiRecoveryStatusDocument.RootElement;
-        Assert.Equal((int)ResourceRecoveryState.WaitingForSignal, apiRecoveryStatus.GetProperty("state").GetInt32());
-        Assert.True(apiRecoveryStatus.GetProperty("policy").GetProperty("enabled").GetBoolean());
-
-        var grantsJson = await host.GetStringAsync(
-            "/api/control-plane/v1/resource-permission-grants" +
-            $"?principalKind={(int)ResourcePrincipalKind.ResourceIdentity}" +
-            $"&principalId={Uri.EscapeDataString("application:application-topology-api/identities/application-topology-api")}");
-        using var grantsDocument = JsonDocument.Parse(grantsJson);
-        var grants = grantsDocument.RootElement.EnumerateArray().ToArray();
-        Assert.Contains(
-            grants,
-            grant =>
-                grant.GetProperty("targetResourceId").GetString() == "secrets-vault:application-topology" &&
-                grant.GetProperty("permission").GetString() == SecretsVaultResourceOperationPermissions.ReadSecrets);
-        Assert.Contains(
-            grants,
-            grant =>
-                grant.GetProperty("targetResourceId").GetString() == "configuration:application-topology" &&
-                grant.GetProperty("permission").GetString() == ConfigurationStoreResourceOperationPermissions.ReadEntries);
-        Assert.Contains(
-            grants,
-            grant =>
-                grant.GetProperty("targetResourceId").GetString() == "application:application-topology-sql-server" &&
-                grant.GetProperty("permission").GetString() == DatabaseResourceOperationPermissions.ReadWrite);
-
-        await AssertProvisionedIdentityStatusAsync(host, "application:application-topology-api");
-        await AssertProvisionedIdentityStatusAsync(host, "application:application-topology-sql-server");
-        await AssertProvisionedIdentityStatusAsync(host, "configuration:application-topology");
-        await AssertProvisionedIdentityStatusAsync(host, "secrets-vault:application-topology");
-
-        var resourceToken = await host.GetClientCredentialsTokenAsync(
-            "application:application-topology-api/application-topology-api",
-            "local-development-application-topology-api-secret",
-            "ControlPlane.Access");
-        Assert.NotEmpty(resourceToken);
-
-        Assert.Equal(ApplicationResourceTypes.AspNetCoreProject, frontend.GetProperty("typeId").GetString());
-        Assert.Equal($"http://localhost:{frontendPort}", GetEndpointAddress(frontend, "http"));
-        Assert.Equal("../Frontend/CloudShell.ApplicationTopologyFrontend.csproj", frontendAttributes.GetProperty(ResourceAttributeNames.ProjectPath).GetString());
-        Assert.Contains(
-            "application:application-topology-api",
-            frontend.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
-
-        Assert.Equal(PlatformResourceProvider.DnsZoneResourceType, dnsZone.GetProperty("typeId").GetString());
-        Assert.Equal(
-            "application-topology.cloudshell.local",
-            dnsZoneAttributes.GetProperty(ResourceAttributeNames.DnsZoneName).GetString());
-        Assert.Equal("local-hostnames", dnsZoneAttributes.GetProperty(ResourceAttributeNames.DnsProvider).GetString());
-        Assert.Equal("1", dnsZoneAttributes.GetProperty(ResourceAttributeNames.DnsRecordCount).GetString());
-        var reconcileNameMappingsAction = dnsZone
-            .GetProperty("resourceActions")
-            .GetProperty("reconcileNameMappings");
-        Assert.Equal("Reconcile name mappings", reconcileNameMappingsAction.GetProperty("displayName").GetString());
-        Assert.Equal("dns:application-topology-local", nameMapping.GetProperty("parentResourceId").GetString());
-        Assert.Equal(
-            "application:application-topology-frontend",
-            nameMappingAttributes.GetProperty(ResourceAttributeNames.NameMappingTargetResourceId).GetString());
-        Assert.Equal(
-            "http",
-            nameMappingAttributes.GetProperty(ResourceAttributeNames.NameMappingTargetEndpointName).GetString());
-        Assert.Equal(
-            "ProviderSelected",
-            nameMappingAttributes.GetProperty(ResourceAttributeNames.NameMappingMaterializationStatus).GetString());
-
-        var storageVolumesHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("storage:application-topology-local")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Volumes.Value)}");
-        Assert.Contains("Add volume", storageVolumesHtml);
-        Assert.Contains("This Storage resource cannot be deleted while it owns volumes.", storageVolumesHtml);
-
-        var addSqlServerHtml = await host.GetStringAsync(
-            $"/resources/add?type={Uri.EscapeDataString(ApplicationResourceTypes.SqlServer)}");
-        Assert.Contains("SA password", addSqlServerHtml);
-        Assert.Contains("TDS endpoint", addSqlServerHtml);
-        Assert.Contains("Advanced runtime settings", addSqlServerHtml);
-        Assert.DoesNotContain("Container host", addSqlServerHtml);
-        Assert.DoesNotContain("Container image", addSqlServerHtml);
-        Assert.DoesNotContain("Registry username", addSqlServerHtml);
-        Assert.DoesNotContain("Dockerfile", addSqlServerHtml);
-
-        var sqlConfigurationHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Configuration.Value)}");
-        Assert.Contains("SA password", sqlConfigurationHtml);
-        Assert.Contains("TDS endpoint assignment", sqlConfigurationHtml);
-        Assert.Contains("Advanced runtime settings", sqlConfigurationHtml);
-        Assert.DoesNotContain("Container host", sqlConfigurationHtml);
-        Assert.DoesNotContain("Container image", sqlConfigurationHtml);
-        Assert.DoesNotContain("Registry username", sqlConfigurationHtml);
-        Assert.DoesNotContain("Dockerfile", sqlConfigurationHtml);
-        Assert.DoesNotContain("Scale and replicas", sqlConfigurationHtml);
-
-        var apiEndpointsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");
-        Assert.Contains("Application exposure", apiEndpointsHtml);
-        Assert.Contains("Add load-balancer route", apiEndpointsHtml);
-        Assert.Contains("Add name mapping", apiEndpointsHtml);
-        Assert.Contains("type=cloudshell.loadBalancer", apiEndpointsHtml);
-        Assert.Contains("targetResourceId=application%3Aapplication-topology-api", apiEndpointsHtml);
-        Assert.Contains("targetEndpointName=http", apiEndpointsHtml);
-        Assert.Contains("returnUrl=%2Fresources%2Fapplication%253Aapplication-topology-api%2Fendpoints", apiEndpointsHtml);
-
-        var apiDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details");
-        Assert.Contains(">Identity<", apiDetailsHtml);
-        Assert.Contains("ASP.NET Core project / application-topology-api", apiDetailsHtml);
-        Assert.DoesNotContain("ASP.NET Core project / application:application-topology-api", apiDetailsHtml);
-        Assert.Contains("Action readiness", apiDetailsHtml);
-        Assert.Contains("Start preflight checks passed.", apiDetailsHtml);
-        Assert.Contains("Resource status", apiDetailsHtml);
-        Assert.Contains("Unhealthy", apiDetailsHtml);
-        Assert.Contains("Checked", apiDetailsHtml);
-        Assert.Contains("Resource health", apiDetailsHtml);
-        Assert.Contains("Startup declaration", apiDetailsHtml);
-        Assert.Contains("Declared by code for this host process.", apiDetailsHtml);
-        Assert.Contains("UI changes are temporary until the resource is persisted.", apiDetailsHtml);
-        Assert.Contains(">Dependency graph<", apiDetailsHtml);
-        Assert.Contains(">Depends on<", apiDetailsHtml);
-        Assert.Contains(">Used by<", apiDetailsHtml);
-        Assert.Contains("application-topology-sql-server", apiDetailsHtml);
-        Assert.Contains("application-topology-frontend", apiDetailsHtml);
-        Assert.Contains(">Settings<", apiDetailsHtml);
-        Assert.Contains(">Secrets<", apiDetailsHtml);
-        Assert.Contains("application.sql-server", apiDetailsHtml);
-        Assert.Contains("Environment references", apiDetailsHtml);
-        Assert.Contains("ApplicationTopology__Message", apiDetailsHtml);
-        Assert.Contains("Configuration entry", apiDetailsHtml);
-        Assert.Contains("Settings / ApplicationTopology:Message", apiDetailsHtml);
-        Assert.Contains($"Settings; requires {ConfigurationStoreResourceOperationPermissions.ReadEntries} for application-topology-api", apiDetailsHtml);
-        Assert.Contains("ApplicationTopology__SqlServer__Password", apiDetailsHtml);
-        Assert.Contains("ApplicationTopology__ExternalApiKey", apiDetailsHtml);
-        Assert.Contains("Secret reference", apiDetailsHtml);
-        Assert.Contains("Secrets / external-api-key", apiDetailsHtml);
-        Assert.Contains($"Secrets; requires {SecretsVaultResourceOperationPermissions.ReadSecrets} for application-topology-api", apiDetailsHtml);
-        Assert.DoesNotContain("configuration:application-topology; requires", apiDetailsHtml);
-        Assert.DoesNotContain("secrets-vault:application-topology; requires", apiDetailsHtml);
-        Assert.Contains(">Hidden<", apiDetailsHtml);
-        Assert.Contains(">Granted<", apiDetailsHtml);
-        Assert.Contains("Resource identity", apiDetailsHtml);
-        Assert.Contains("Access control", apiDetailsHtml);
-        Assert.Contains("application-topology-api", apiDetailsHtml);
-        Assert.Contains("Provider: identity:development", apiDetailsHtml);
-        Assert.Contains("Provisioned", apiDetailsHtml);
-        Assert.Contains("Built-in resource identity client is registered.", apiDetailsHtml);
-        Assert.Contains(ConfigurationStoreResourceOperationPermissions.ReadEntries, apiDetailsHtml);
-        Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, apiDetailsHtml);
-        Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/logs", apiDetailsHtml);
-        Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/traces\"", apiDetailsHtml);
-        Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/recovery\"", apiDetailsHtml);
-        Assert.DoesNotContain("href=\"/logs?resourceId=application%3Aapplication-topology-api", apiDetailsHtml);
-        Assert.DoesNotContain("href=\"/observability/traces?resourceId=application%3Aapplication-topology-api", apiDetailsHtml);
-        Assert.DoesNotContain("CloudShell-Passw0rd!", apiDetailsHtml);
-        Assert.DoesNotContain("local-development-api-key", apiDetailsHtml);
-
-        var healthHtml = await host.GetStringAsync("/health");
-        Assert.Contains("Review configured resource health checks", healthHtml);
-        Assert.Contains("application-topology-api", healthHtml);
-        Assert.Contains("application-topology-frontend", healthHtml);
-        Assert.Contains("/health", healthHtml);
-        Assert.Contains("/healthz", healthHtml);
-        Assert.Contains("Unhealthy", healthHtml);
-        Assert.Contains("Recent polling", healthHtml);
-
-        var apiHealthHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Health.Value)}");
-        Assert.Contains(">Health<", apiHealthHtml);
-        Assert.Contains("Health summary", apiHealthHtml);
-        Assert.Contains("Auto-refresh", apiHealthHtml);
-        Assert.Contains("Recent polling", apiHealthHtml);
-        Assert.Contains("Unhealthy", apiHealthHtml);
-        Assert.Contains("/health", apiHealthHtml);
-        Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/recovery\"", apiHealthHtml);
-
-        var apiRecoveryHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Recovery.Value)}");
-        Assert.Contains(">Recovery<", apiRecoveryHtml);
-        Assert.Contains("Recovery summary", apiRecoveryHtml);
-        Assert.Contains("Waiting for signal", apiRecoveryHtml);
-        Assert.Contains("Enabled", apiRecoveryHtml);
-        Assert.Contains("Liveness signal", apiRecoveryHtml);
-        Assert.Contains("liveness (Liveness)", apiRecoveryHtml);
-        Assert.Contains("3 consecutive failed observation(s)", apiRecoveryHtml);
-        Assert.Contains("5s initial, 60s max, multiplier 2", apiRecoveryHtml);
-        Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/health\"", apiRecoveryHtml);
-        Assert.Contains("href=\"/resources/application%3Aapplication-topology-api/activity\"", apiRecoveryHtml);
-
-        var frontendHealthHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Health.Value)}");
-        Assert.Contains(">Health<", frontendHealthHtml);
-        Assert.Contains("Health summary", frontendHealthHtml);
-        Assert.Contains("/healthz", frontendHealthHtml);
-
-        var settingsHtml = await host.GetStringAsync("/settings");
-        Assert.Contains(">Settings<", settingsHtml);
-        Assert.Contains(">Overview<", settingsHtml);
-        Assert.Contains(">Users<", settingsHtml);
-        Assert.Contains(">Extensions<", settingsHtml);
-        Assert.Contains(">General<", settingsHtml);
-        Assert.Contains(">Orchestration<", settingsHtml);
-        Assert.Contains(">Resource Management<", settingsHtml);
-        Assert.Contains("Settings composition", settingsHtml);
-
-        var usersSettingsHtml = await host.GetStringAsync("/settings/users");
-        Assert.Contains(">Users<", usersSettingsHtml);
-        Assert.Contains("Settings section", usersSettingsHtml);
-
-        var extensionsSettingsHtml = await host.GetStringAsync("/settings/extensions");
-        Assert.Contains(">Extensions<", extensionsSettingsHtml);
-        Assert.Contains("Shell extensions", extensionsSettingsHtml);
-
-        var resourceManagerSettingsHtml = await host.GetStringAsync("/settings/resource-manager");
-        Assert.Contains(">General<", resourceManagerSettingsHtml);
-        Assert.Contains("Resource labels", resourceManagerSettingsHtml);
-        Assert.Contains("Inventory visibility", resourceManagerSettingsHtml);
-
-        var resourceManagerOrchestrationSettingsHtml = await host.GetStringAsync("/settings/resource-manager-orchestration");
-        Assert.Contains(">Orchestration<", resourceManagerOrchestrationSettingsHtml);
-        Assert.Contains(">Orchestrator<", resourceManagerOrchestrationSettingsHtml);
-        Assert.Contains("CloudShell modes", resourceManagerOrchestrationSettingsHtml);
-        Assert.Contains("Health check interval", resourceManagerOrchestrationSettingsHtml);
-
-        var missingSettingsSectionHtml = await host.GetStringAsync("/settings/does-not-exist");
-        Assert.Contains("Section not found", missingSettingsSectionHtml);
-        Assert.Contains("Section &#x27;does-not-exist&#x27; is not available.", missingSettingsSectionHtml);
-        Assert.Contains("Open overview", missingSettingsSectionHtml);
-        Assert.Contains("href=\"/settings\"", missingSettingsSectionHtml);
-
-        var settingsDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("configuration:application-topology")}/details");
-        Assert.Contains(">Relationships<", settingsDetailsHtml);
-        Assert.Contains(">Used by<", settingsDetailsHtml);
-        Assert.Contains("application-topology-api", settingsDetailsHtml);
-
-        var settingsIdentityHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("configuration:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");
-        Assert.Contains("Enable identity", settingsIdentityHtml);
-        Assert.Contains("Provisioned", settingsIdentityHtml);
-        Assert.Contains("Built-in resource identity client is registered.", settingsIdentityHtml);
-        Assert.Contains("application-topology-api / application-topology-api", settingsIdentityHtml);
-        Assert.Contains(ConfigurationStoreResourceOperationPermissions.ReadEntries, settingsIdentityHtml);
-
-        var settingsAccessControlHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("configuration:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
-        Assert.Contains("Search principals", settingsAccessControlHtml);
-        Assert.Contains("Assigned principals", settingsAccessControlHtml);
-        Assert.Contains("Configuration entries: read", settingsAccessControlHtml);
-        Assert.Contains("application-topology-api", settingsAccessControlHtml);
-        Assert.Contains(ConfigurationStoreResourceOperationPermissions.ReadEntries, settingsAccessControlHtml);
-        Assert.DoesNotContain("Secrets: read", settingsAccessControlHtml);
-
-        var secretsDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("secrets-vault:application-topology")}/details");
-        Assert.Contains(">Relationships<", secretsDetailsHtml);
-        Assert.Contains(">Used by<", secretsDetailsHtml);
-        Assert.Contains("application-topology-api", secretsDetailsHtml);
-
-        var secretsIdentityHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("secrets-vault:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");
-        Assert.Contains("Enable identity", secretsIdentityHtml);
-        Assert.Contains("Provisioned", secretsIdentityHtml);
-        Assert.Contains("Built-in resource identity client is registered.", secretsIdentityHtml);
-        Assert.Contains("application-topology-api / application-topology-api", secretsIdentityHtml);
-        Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, secretsIdentityHtml);
-
-        var secretsAccessControlHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("secrets-vault:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
-        Assert.Contains("Search principals", secretsAccessControlHtml);
-        Assert.Contains("Assigned principals", secretsAccessControlHtml);
-        Assert.Contains("Secrets: read", secretsAccessControlHtml);
-        Assert.Contains("application-topology-api", secretsAccessControlHtml);
-        Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, secretsAccessControlHtml);
-        Assert.DoesNotContain("Configuration entries: read", secretsAccessControlHtml);
-
-        var apiMonitoringHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Monitoring.Value)}");
-        Assert.Contains("Auto-refresh", apiMonitoringHtml);
-        Assert.Contains(">Monitoring<", apiMonitoringHtml);
-        Assert.DoesNotContain(">Refresh<", apiMonitoringHtml);
-
-        var apiEnvironmentHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Environment.Value)}");
-        Assert.Contains("Startup declaration", apiEnvironmentHtml);
-        Assert.Contains("Declared by code for this host process.", apiEnvironmentHtml);
-        Assert.Contains("ApplicationTopology__SqlServer__Database", apiEnvironmentHtml);
-        Assert.Contains("application_topology", apiEnvironmentHtml);
-        Assert.Contains("ApplicationTopology__SqlServer__Authentication", apiEnvironmentHtml);
-        Assert.Contains("CloudShell", apiEnvironmentHtml);
-        Assert.Contains("CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT", apiEnvironmentHtml);
-        Assert.Contains("ApplicationTopology__SqlServer__Password", apiEnvironmentHtml);
-        Assert.Contains("Stored value hidden", apiEnvironmentHtml);
-        Assert.DoesNotContain("CloudShell-Passw0rd!", apiEnvironmentHtml);
-
-        var frontendAccessControlHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
-        Assert.Contains("Search principals", frontendAccessControlHtml);
-        Assert.Contains("Assigned principals", frontendAccessControlHtml);
-        Assert.Contains("Select a permission", frontendAccessControlHtml);
-        Assert.DoesNotContain("Identity required", frontendAccessControlHtml);
-        Assert.DoesNotContain("Set up an identity for this resource before assigning access permissions.", frontendAccessControlHtml);
-        Assert.DoesNotContain("Open Identity", frontendAccessControlHtml);
-
-        var frontendIdentityHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");
-        Assert.Contains("Enable identity", frontendIdentityHtml);
-        Assert.Contains("Identity not enabled", frontendIdentityHtml);
-        Assert.Contains("Enable identity for this resource before provisioning identity or assigning access permissions.", frontendIdentityHtml);
-
-        var frontendDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details");
-        Assert.Contains(">Identity<", frontendDetailsHtml);
-        Assert.Contains("ASP.NET Core project / application-topology-frontend", frontendDetailsHtml);
-        Assert.DoesNotContain("ASP.NET Core project / application:application-topology-frontend", frontendDetailsHtml);
-        Assert.Contains("Access control", frontendDetailsHtml);
-        Assert.Contains(">Dependency graph<", frontendDetailsHtml);
-        Assert.Contains(">Depends on<", frontendDetailsHtml);
-        Assert.Contains(">Used by<", frontendDetailsHtml);
-        Assert.Contains("application-topology-api", frontendDetailsHtml);
-        Assert.Contains("application.aspnet-core-project", frontendDetailsHtml);
-        Assert.Contains("Health:", frontendDetailsHtml);
-        Assert.Contains("app.application-topology.cloudshell.local", frontendDetailsHtml);
-        Assert.Contains("app.application-topology.cloudshell.local -&gt; application-topology-frontend/http", frontendDetailsHtml);
-        Assert.Contains("Zone: Local DNS", frontendDetailsHtml);
-        Assert.Contains("Provider: local-hostnames", frontendDetailsHtml);
-        Assert.Contains("Materialization: provider selected", frontendDetailsHtml);
-
-        var frontendDetailsRouteHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}");
-        Assert.Contains(">Identity<", frontendDetailsRouteHtml);
-        Assert.Contains("application-topology-api", frontendDetailsRouteHtml);
-
-        var frontendOverviewRouteHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/overview");
-        Assert.Contains(">Identity<", frontendOverviewRouteHtml);
-        Assert.Contains("application-topology-api", frontendOverviewRouteHtml);
-
-        var dnsDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("dns:application-topology-local")}/details");
-        Assert.Contains("app.application-topology.cloudshell.local", dnsDetailsHtml);
-        Assert.Contains("application-topology-frontend/http", dnsDetailsHtml);
-        Assert.DoesNotContain("application:application-topology-frontend/http", dnsDetailsHtml);
-        Assert.Contains("local-hostnames", dnsDetailsHtml);
-
-        var sqlEndpointsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");
-        Assert.Contains("Application exposure", sqlEndpointsHtml);
-        Assert.Contains("type=cloudshell.loadBalancer", sqlEndpointsHtml);
-        Assert.Contains("targetResourceId=application%3Aapplication-topology-sql-server", sqlEndpointsHtml);
-        Assert.Contains("targetEndpointName=tds", sqlEndpointsHtml);
-        Assert.Contains("routeKind=tcp", sqlEndpointsHtml);
-        Assert.Contains("returnUrl=%2Fresources%2Fapplication%253Aapplication-topology-sql-server%2Fendpoints", sqlEndpointsHtml);
-
-        var globalLogsHtml = await host.GetStringAsync("/logs");
-        Assert.Contains("All resources", globalLogsHtml);
-        Assert.Contains(">All logs<", globalLogsHtml);
-        Assert.Contains("application-topology-api / Console logs", globalLogsHtml);
-        Assert.Contains("application-topology-frontend / Console logs", globalLogsHtml);
-        Assert.DoesNotContain(" / Activity", globalLogsHtml);
-
-        var selectedLogHtml = await host.GetStringAsync(
-            $"/logs?logSourceId={Uri.EscapeDataString("application:application-topology-api:logs")}");
-        Assert.Contains("All resources", selectedLogHtml);
-        Assert.Contains("application-topology-api / Console logs", selectedLogHtml);
-        Assert.Contains("application-topology-frontend / Console logs", selectedLogHtml);
-
-        var apiLogsHtml = await host.GetStringAsync(
-            $"/logs?resourceId={Uri.EscapeDataString("application:application-topology-api")}");
-        Assert.Contains("All resources", apiLogsHtml);
-        Assert.Contains("application-topology-api / Console logs", apiLogsHtml);
-        Assert.DoesNotContain("application-topology-frontend / Console logs", apiLogsHtml);
-
-        var missingLogHtml = await host.GetStringAsync(
-            $"/logs?logSourceId={Uri.EscapeDataString("application:application-topology-missing:logs")}");
-        Assert.Contains("Log source not found", missingLogHtml);
-        Assert.Contains("application:application-topology-missing:logs", missingLogHtml);
-        Assert.Contains("Show available logs", missingLogHtml);
-
-        var missingResourceLogFilterHtml = await host.GetStringAsync(
-            $"/logs?resourceId={Uri.EscapeDataString("application:application-topology-missing")}");
-        Assert.Contains("Resource log filter not found", missingResourceLogFilterHtml);
-        Assert.Contains("application-topology-missing", missingResourceLogFilterHtml);
-        Assert.Contains("Show all logs", missingResourceLogFilterHtml);
-
-        var inlineApiLogsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}");
-        Assert.Contains("application-topology-api / Console logs", inlineApiLogsHtml);
-        Assert.DoesNotContain("All resources", inlineApiLogsHtml);
-        Assert.DoesNotContain("Resource telemetry", inlineApiLogsHtml);
-        Assert.DoesNotContain("application-topology-frontend / Console logs", inlineApiLogsHtml);
-
-        var missingInlineLogHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}&logSourceId={Uri.EscapeDataString("application:application-topology-missing:logs")}");
-        Assert.Contains("Log source not found", missingInlineLogHtml);
-        Assert.Contains("application:application-topology-missing:logs", missingInlineLogHtml);
-        Assert.Contains("Show available logs", missingInlineLogHtml);
-
-        var missingResourceViewHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString("management:does-not-exist")}");
-        Assert.Contains("Resource view not found", missingResourceViewHtml);
-        Assert.Contains("management:does-not-exist", missingResourceViewHtml);
-        Assert.Contains("Open overview", missingResourceViewHtml);
-
-        var missingResourceHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:does-not-exist")}/details");
-        Assert.Contains("Resource not found", missingResourceHtml);
-        Assert.Contains("application:does-not-exist", missingResourceHtml);
-        Assert.Contains("Open Resources", missingResourceHtml);
-
-        var sqlDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details");
-        Assert.Contains(">Identity<", sqlDetailsHtml);
-        Assert.Contains("Access control", sqlDetailsHtml);
-        Assert.Contains("SQL Server", sqlDetailsHtml);
-        Assert.Contains("SQL Server / application-topology-sql-server", sqlDetailsHtml);
-        Assert.DoesNotContain("SQL Server / application:application-topology-sql-server", sqlDetailsHtml);
-        Assert.Contains("1 declared database", sqlDetailsHtml);
-        Assert.Contains("Administrator", sqlDetailsHtml);
-        Assert.Contains("Storage mounts", sqlDetailsHtml);
-        Assert.Contains("SQL Data (FileSystem)", sqlDetailsHtml);
-        Assert.Contains("/var/opt/mssql", sqlDetailsHtml);
-        Assert.Contains("Read/write", sqlDetailsHtml);
-        Assert.Contains("Database grants are recorded in CloudShell.", sqlDetailsHtml);
-        Assert.Contains("Reconcile access to create SQL-side users and roles", sqlDetailsHtml);
-        Assert.Contains("procedure-message warning", sqlDetailsHtml);
-        Assert.DoesNotContain("<dt>Image</dt>", sqlDetailsHtml);
-        Assert.DoesNotContain("<h3>Container host</h3>", sqlDetailsHtml);
-        AssertResourceTabsInOrder(
-            sqlDetailsHtml,
-            ">Overview<",
-            ">Configuration<",
-            ">Endpoints<",
-            ">DNS<",
-            ">Storage<",
-            ">Databases<",
-            ">Environment<",
-            ">Identity<",
-            ">Access control<",
-            ">Activity<");
-        Assert.DoesNotContain(">Deployment<", sqlDetailsHtml);
-        Assert.DoesNotContain(">Scale and replicas<", sqlDetailsHtml);
-
-        var databasesTabId = new ResourceViewId(ResourceTabGroupIds.Application, "databases");
-        var sqlDatabasesHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(databasesTabId.Value)}");
-        Assert.Contains("<th>Database</th>", sqlDatabasesHtml);
-        Assert.Contains("<th>Type</th>", sqlDatabasesHtml);
-        Assert.Contains("<th>State</th>", sqlDatabasesHtml);
-        Assert.Contains("<th>Verification</th>", sqlDatabasesHtml);
-        Assert.Contains("Application Topology", sqlDatabasesHtml);
-        Assert.Contains("Declared database", sqlDatabasesHtml);
-        Assert.Contains("application_topology", sqlDatabasesHtml);
-        Assert.Contains("not reported", sqlDatabasesHtml);
-        Assert.Contains("Existence not verified", sqlDatabasesHtml);
-        Assert.Contains("Declared databases are shown until the SQL Server instance is running.", sqlDatabasesHtml);
-
-        var sqlIdentityHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");
-        Assert.Contains("Enable identity", sqlIdentityHtml);
-        Assert.Contains("Provisioned", sqlIdentityHtml);
-        Assert.Contains("Built-in resource identity client is registered.", sqlIdentityHtml);
-        Assert.Contains("application-topology-api / application-topology-api", sqlIdentityHtml);
-        Assert.Contains(DatabaseResourceOperationPermissions.ReadWrite, sqlIdentityHtml);
-
-        var sqlAccessControlHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
-        Assert.Contains("Search principals", sqlAccessControlHtml);
-        Assert.Contains("Assigned principals", sqlAccessControlHtml);
-        Assert.Contains("Database grants are saved in CloudShell.", sqlAccessControlHtml);
-        Assert.Contains("Reconcile access to create SQL-side users and roles", sqlAccessControlHtml);
-        Assert.Contains("procedure-message warning", sqlAccessControlHtml);
-        Assert.Contains("Database: read/write", sqlAccessControlHtml);
-        Assert.Contains("Database access: reconcile", sqlAccessControlHtml);
-        Assert.Contains("Effective access: pending", sqlAccessControlHtml);
-        Assert.Contains("Start SQL Server to inspect or reconcile database users and roles.", sqlAccessControlHtml);
-        Assert.Contains("application-topology-api", sqlAccessControlHtml);
-        Assert.Contains(DatabaseResourceOperationPermissions.ReadWrite, sqlAccessControlHtml);
-        Assert.Contains(DatabaseResourceOperationPermissions.ReconcileAccess, sqlAccessControlHtml);
-        Assert.DoesNotContain("Deploy image", sqlAccessControlHtml);
-    }
 
     [Fact]
     public void ApplicationTopologyFailureProblemExtensions_IncludeTraceResourceAndUpstreamStatus()
@@ -1036,11 +686,14 @@ public sealed class SampleSmokeTests
         Assert.Equal(activity.TraceId.ToHexString(), extensions["traceId"]);
     }
 
+
     [Fact]
-    public async Task ApplicationTopologyHost_RuntimeFailurePathReturnsCorrelatedProblemDetails()
+    public async Task ApplicationTopologyHost_GraphBackingServicesRunThroughResourceModelRuntime()
     {
         var apiPort = await GetFreePortAsync();
         var frontendPort = await GetFreePortAsync();
+        var graphConfigurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var graphSecretsEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
         var sqlPort = await GetFreePortAsync();
         var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
         var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
@@ -1050,113 +703,102 @@ public sealed class SampleSmokeTests
             [
                 ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
+                ("ApplicationTopology__ConfigurationServiceEndpoint", graphConfigurationEndpoint),
+                ("ApplicationTopology__SecretsServiceEndpoint", graphSecretsEndpoint),
                 ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
             ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
-        await host.SendAsync(
-            HttpMethod.Post,
-            "/api/control-plane/v1/resources/application%3Aapplication-topology-api/actions/start?startDependencies=false&ignoreDependentWarning=true");
 
-        var startedApiJson = await host.GetStringAsync("/api/control-plane/v1/resources");
-        using var startedApiDocument = JsonDocument.Parse(startedApiJson);
-        var api = Assert.Single(startedApiDocument.RootElement.EnumerateArray(), resource =>
-            resource.GetProperty("id").GetString() == "application:application-topology-api");
-        var apiEndpoint = GetPrimaryEndpointAddress(api);
-        var apiFailureJson = await host.WaitForAbsoluteHttpStatusAsync(
-            $"{apiEndpoint.TrimEnd('/')}/failure",
-            HttpStatusCode.InternalServerError,
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var graphSettings = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration.store:application-topology-settings");
+        var graphSecrets = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "secrets.vault:application-topology-secrets");
+        var graphApi = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:application-topology-api");
+
+        var graphSettingsEndpoint = GetEndpointAddress(graphSettings, "entries");
+        var graphSecretsEndpointAddress = GetEndpointAddress(graphSecrets, "secrets");
+        Assert.StartsWith(
+            graphConfigurationEndpoint,
+            graphSettingsEndpoint,
+            StringComparison.Ordinal);
+        Assert.EndsWith(
+            $"/api/configuration/stores/{Uri.EscapeDataString("configuration.store:application-topology-settings")}/entries",
+            graphSettingsEndpoint,
+            StringComparison.Ordinal);
+        Assert.StartsWith(
+            graphSecretsEndpoint,
+            graphSecretsEndpointAddress,
+            StringComparison.Ordinal);
+        Assert.EndsWith(
+            $"/api/secrets/vaults/{Uri.EscapeDataString("secrets.vault:application-topology-secrets")}/secrets",
+            graphSecretsEndpointAddress,
+            StringComparison.Ordinal);
+        await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology settings");
+        await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology secrets");
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphConfigurationEndpoint}/healthz",
+            bearerToken: null,
             StartupTimeout);
-        using var apiFailureDocument = JsonDocument.Parse(apiFailureJson);
-        Assert.Equal("Intentional sample failure", apiFailureDocument.RootElement.GetProperty("title").GetString());
-        Assert.Equal("application-topology-api", apiFailureDocument.RootElement.GetProperty("resourceName").GetString());
-        Assert.Equal("intentional", apiFailureDocument.RootElement.GetProperty("sampleFailureKind").GetString());
-        Assert.Matches("^[0-9a-f]{32}$", apiFailureDocument.RootElement.GetProperty("traceId").GetString() ?? string.Empty);
-
-        await host.SendAsync(
-            HttpMethod.Post,
-            "/api/control-plane/v1/resources/application%3Aapplication-topology-frontend/actions/start?startDependencies=false&ignoreDependentWarning=true");
-
-        var frontendFailureJson = await host.WaitForAbsoluteHttpStatusAsync(
-            $"http://localhost:{frontendPort}/upstream/failure",
-            HttpStatusCode.BadGateway,
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphSecretsEndpoint}/healthz",
+            bearerToken: null,
             StartupTimeout);
-        using var frontendFailureDocument = JsonDocument.Parse(frontendFailureJson);
-        Assert.Equal("Intentional upstream failure", frontendFailureDocument.RootElement.GetProperty("title").GetString());
-        Assert.Equal("application-topology-frontend", frontendFailureDocument.RootElement.GetProperty("resourceName").GetString());
-        Assert.Equal("intentional", frontendFailureDocument.RootElement.GetProperty("sampleFailureKind").GetString());
-        Assert.Equal(500, frontendFailureDocument.RootElement.GetProperty("upstreamStatusCode").GetInt32());
-        Assert.Matches("^[0-9a-f]{32}$", frontendFailureDocument.RootElement.GetProperty("traceId").GetString() ?? string.Empty);
 
-        var fallbackJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
-            $"http://localhost:{frontendPort}/upstream/fallback",
+        var graphResourceToken = await host.GetClientCredentialsTokenAsync(
+            "application.aspnet-core-project:application-topology-api/application-topology-api",
+            "local-development-application-topology-api-secret",
+            "ControlPlane.Access");
+        var graphSettingsJson = await host.GetAbsoluteStringAsync(
+            graphSettingsEndpoint,
+            graphResourceToken);
+        using var graphSettingsDocument = JsonDocument.Parse(graphSettingsJson);
+        Assert.Contains(
+            graphSettingsDocument.RootElement.EnumerateArray(),
+            entry =>
+                entry.GetProperty("name").GetString() == "ApplicationTopology:Message" &&
+                entry.GetProperty("value").GetString() == "Hello from CloudShell resource configuration.");
+        Assert.Contains(
+            graphSettingsDocument.RootElement.EnumerateArray(),
+            entry =>
+                entry.GetProperty("name").GetString() == "ApplicationTopology:Mode" &&
+                entry.GetProperty("value").GetString() == "Resource model");
+
+        var graphSecretJson = await host.GetAbsoluteStringAsync(
+            $"{graphSecretsEndpointAddress.TrimEnd('/')}/ApplicationTopology--ExternalApiKey",
+            graphResourceToken);
+        using var graphSecretDocument = JsonDocument.Parse(graphSecretJson);
+        Assert.Equal(
+            "local-development-application-topology-api-key",
+            graphSecretDocument.RootElement.GetProperty("value").GetString());
+
+        await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology API");
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"http://localhost:{apiPort}/health",
+            bearerToken: null,
             StartupTimeout);
-        using var fallbackDocument = JsonDocument.Parse(fallbackJson);
-        var fallback = fallbackDocument.RootElement;
-        var fallbackTraceId = fallback.GetProperty("traceId").GetString();
-        Assert.Equal("Application Topology Frontend", fallback.GetProperty("frontend").GetString());
-        Assert.Equal(500, fallback.GetProperty("fallback").GetProperty("failedAttemptStatusCode").GetInt32());
-        Assert.True(fallback.GetProperty("fallback").GetProperty("recovered").GetBoolean());
-        Assert.Equal("Hello from the referenced API project.", fallback.GetProperty("upstream").GetProperty("message").GetString());
-        Assert.Matches("^[0-9a-f]{32}$", fallbackTraceId ?? string.Empty);
-
-        var fallbackSpans = await WaitForTraceSpansAsync(
-            host,
-            fallbackTraceId!,
-            StartupTimeout,
-            spans =>
-                spans.Any(span => IsHttpClientSpanForPath(span, "/failure", "Error")) &&
-                spans.Any(span => IsHttpClientSpanForPath(span, "/message", "Unset")));
-        Assert.Contains(
-            fallbackSpans,
-            span =>
-                IsHttpClientSpanForPath(span, "/failure", "Error"));
-        Assert.Contains(
-            fallbackSpans,
-            span => IsHttpClientSpanForPath(span, "/message", "Unset"));
-
-        var fallbackTraceListHtml = await host.GetStringAsync(
-            $"/observability/traces?resourceId={Uri.EscapeDataString("application:application-topology-frontend")}");
-        Assert.Contains("GET /upstream/fallback", fallbackTraceListHtml);
-        Assert.Contains("recent-trace-item attention", fallbackTraceListHtml);
-        Assert.Contains("Needs attention: 1 error span(s)", fallbackTraceListHtml);
-
-        var frontendMetrics = await WaitForMetricPointsAsync(
-            host,
-            "application:application-topology-frontend",
-            StartupTimeout,
-            points =>
-                points.Any(point => IsHttpMetricForPath(point, "http.server.requests", "/upstream/fallback")) &&
-                points.Any(point => IsHttpMetricForPath(point, "http.server.duration", "/upstream/fallback")));
-        Assert.Contains(
-            frontendMetrics,
-            point => IsHttpMetricForPath(point, "http.server.requests", "/upstream/fallback"));
-        Assert.Contains(
-            frontendMetrics,
-            point => IsHttpMetricForPath(point, "http.server.duration", "/upstream/fallback"));
-
-        var frontendMetricsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}");
-        Assert.Contains("Telemetry", frontendMetricsHtml);
-        Assert.Contains("http.server.requests", frontendMetricsHtml);
-        Assert.Contains("http.server.duration", frontendMetricsHtml);
-        Assert.Contains("application-topology-frontend", frontendMetricsHtml);
+        var graphApiSettingsJson = await host.GetAbsoluteStringAsync(
+            $"http://localhost:{apiPort}/settings");
+        using var graphApiSettingsDocument = JsonDocument.Parse(graphApiSettingsJson);
+        var graphApiSettings = graphApiSettingsDocument.RootElement;
+        Assert.Equal("Hello from CloudShell resource configuration.", graphApiSettings.GetProperty("message").GetString());
+        Assert.Equal("Resource model", graphApiSettings.GetProperty("mode").GetString());
+        Assert.True(graphApiSettings.GetProperty("externalApiKeyConfigured").GetBoolean());
     }
 
     [Fact]
-    [Trait("Category", "DockerIntegration")]
-    public async Task ApplicationTopologyHost_SqlInclusiveRuntimePathConnectsFrontendApiAndDatabase()
+    public async Task ApplicationTopologyHost_DeclaresWorkloadThroughResourceModel()
     {
-        if (!await DockerComposeStack.IsAvailableAsync() ||
-            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.DefaultSqlServerImage))
-        {
-            return;
-        }
-
         var apiPort = await GetFreePortAsync();
         var frontendPort = await GetFreePortAsync();
+        var graphConfigurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var graphSecretsEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
         var sqlPort = await GetFreePortAsync();
         var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
         var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
@@ -1166,6 +808,203 @@ public sealed class SampleSmokeTests
             [
                 ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
+                ("ApplicationTopology__ConfigurationServiceEndpoint", graphConfigurationEndpoint),
+                ("ApplicationTopology__SecretsServiceEndpoint", graphSecretsEndpoint),
+                ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
+                ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
+                ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var graphVolume = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "cloudshell.volume:application-topology-sql-data");
+        var graphSqlServer = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.sql-server:application-topology-sql-server");
+        var graphDatabase = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.sql-database:application-topology-db");
+        var graphSettings = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration.store:application-topology-settings");
+        var graphSecrets = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "secrets.vault:application-topology-secrets");
+        var graphApi = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:application-topology-api");
+        var graphFrontend = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:application-topology-frontend");
+        var graphHostConfiguration = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration.host:application-topology-host-settings");
+        var nameMapping = Assert.Single(resources, resource =>
+            resource.GetProperty("typeId").GetString() == NameMappingResourceTypeProvider.ResourceTypeId.ToString()
+            && resource.GetProperty("attributes")
+                .GetProperty(NameMappingResourceTypeProvider.Attributes.HostName.ToString())
+                .GetString() == "app.application-topology.cloudshell.local");
+
+        foreach (var oldResourceId in new[]
+        {
+            "cloudshell.storage:application-topology-local",
+            "storage:application-topology-local",
+            "volume:application-topology-sql-data",
+            "application:application-topology-sql-server",
+            "application:application-topology-sql-server/database:application-topology",
+            "configuration:application-topology",
+            "secrets-vault:application-topology",
+            "application:application-topology-api",
+            "application:application-topology-frontend"
+        })
+        {
+            Assert.DoesNotContain(
+                resources,
+                resource => string.Equals(
+                    resource.GetProperty("id").GetString(),
+                    oldResourceId,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+
+        Assert.Equal(
+            "application.aspnet-core-project:application-topology-frontend",
+            nameMapping.GetProperty("attributes")
+                .GetProperty("nameMapping.targetResourceId")
+                .GetString());
+        Assert.Equal("cloudshell.volume", graphVolume.GetProperty("typeId").GetString());
+        Assert.Equal("application.sql-server", graphSqlServer.GetProperty("typeId").GetString());
+        Assert.Equal("application.sql-database", graphDatabase.GetProperty("typeId").GetString());
+        Assert.Contains(
+            "cloudshell.volume:application-topology-sql-data",
+            graphSqlServer.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Contains(
+            "application.sql-server:application-topology-sql-server",
+            graphDatabase.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal($"localhost:{sqlPort}", GetEndpointAddress(graphSqlServer, "tds"));
+        Assert.Equal("configuration.host", graphHostConfiguration.GetProperty("typeId").GetString());
+        Assert.Equal(
+            "host",
+            graphHostConfiguration.GetProperty("attributes").GetProperty("configuration.kind").GetString());
+        Assert.Equal(
+            "application-topology",
+            graphHostConfiguration.GetProperty("attributes").GetProperty("configuration.source").GetString());
+        Assert.Equal(
+            "0",
+            graphHostConfiguration.GetProperty("attributes").GetProperty("configuration.entries.count").GetString());
+        Assert.True(
+            graphHostConfiguration.GetProperty("resourceActions")
+                .TryGetProperty(HostConfigurationSourceResourceTypeProvider.Operations.Inspect.ToString(), out _));
+
+        var graphApiDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:application-topology-api")}/details");
+        Assert.Contains("Application Topology API", graphApiDetailsHtml);
+        Assert.Contains("ASP.NET Core project", graphApiDetailsHtml);
+        Assert.Contains("application.aspnet-core-project", graphApiDetailsHtml);
+
+        var graphApiEndpointsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");
+        Assert.Contains("Application exposure", graphApiEndpointsHtml);
+        Assert.Contains("Add DNS name", graphApiEndpointsHtml);
+
+        var graphApiConfigurationHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Configuration.Value)}");
+        Assert.Contains("Resource model", graphApiConfigurationHtml);
+        Assert.Contains("project.path", graphApiConfigurationHtml);
+        Assert.Contains("Capabilities and operations", graphApiConfigurationHtml);
+
+        var graphApiEnvironmentHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Environment.Value)}");
+        Assert.Contains("Environment variables", graphApiEnvironmentHtml);
+        Assert.Contains("CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT", graphApiEnvironmentHtml);
+        Assert.Contains("CLOUDSHELL_IDENTITY_CLIENT_SECRET", graphApiEnvironmentHtml);
+        Assert.Contains("redacted", graphApiEnvironmentHtml);
+
+        var graphSqlDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details");
+        Assert.Contains("Application Topology SQL Server", graphSqlDetailsHtml);
+        Assert.Contains("SQL Server", graphSqlDetailsHtml);
+        Assert.Contains("application.sql-server", graphSqlDetailsHtml);
+
+        var graphSqlConfigurationHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Configuration.Value)}");
+        Assert.Contains("Resource model", graphSqlConfigurationHtml);
+        Assert.Contains("sqlserver.version", graphSqlConfigurationHtml);
+        Assert.Contains("Endpoints", graphSqlConfigurationHtml);
+        Assert.Contains("Capabilities and operations", graphSqlConfigurationHtml);
+
+        var graphSqlDatabasesHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details?tab={Uri.EscapeDataString("application:databases")}");
+        Assert.Contains("Databases", graphSqlDatabasesHtml);
+        Assert.Contains("application_topology", graphSqlDatabasesHtml);
+        Assert.Contains("application.sql-database:application-topology-db", graphSqlDatabasesHtml);
+
+        var graphSqlStorageHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Storage.Value)}");
+        Assert.Contains("Storage", graphSqlStorageHtml);
+        Assert.Contains("Application Topology SQL Data", graphSqlStorageHtml);
+        Assert.Contains("not projected", graphSqlStorageHtml);
+
+        var graphApplicationAddHtml = await host.GetStringAsync(
+            "/resources/add?type=application.aspnet-core-project");
+        Assert.Contains("Resource model application resources", graphApplicationAddHtml);
+        Assert.DoesNotContain("Resource type not found", graphApplicationAddHtml);
+
+        await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology settings");
+        await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology secrets");
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphConfigurationEndpoint}/healthz",
+            bearerToken: null,
+            StartupTimeout);
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{graphSecretsEndpoint}/healthz",
+            bearerToken: null,
+            StartupTimeout);
+
+        await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology API");
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"http://localhost:{apiPort}/health",
+            bearerToken: null,
+            StartupTimeout);
+        var graphApiSettingsJson = await host.GetAbsoluteStringAsync(
+            $"http://localhost:{apiPort}/settings");
+        using var graphApiSettingsDocument = JsonDocument.Parse(graphApiSettingsJson);
+        var graphApiSettings = graphApiSettingsDocument.RootElement;
+        Assert.Equal("Hello from CloudShell resource configuration.", graphApiSettings.GetProperty("message").GetString());
+        Assert.Equal("Resource model", graphApiSettings.GetProperty("mode").GetString());
+        Assert.True(graphApiSettings.GetProperty("externalApiKeyConfigured").GetBoolean());
+
+        await StartGraphResourceIfAvailableAsync(host, graphFrontend, "ApplicationTopology frontend");
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"http://localhost:{frontendPort}/healthz",
+            bearerToken: null,
+            StartupTimeout);
+    }
+
+    [Fact]
+    [Trait("Category", "DockerIntegration")]
+    public async Task ApplicationTopologyHost_RunsSqlBackedWorkload()
+    {
+        var sqlContainerName = ApplicationTopologyResourceModelSqlServerDockerBridge.ResourceModelSqlServerContainerName;
+        if (!await DockerComposeStack.IsAvailableAsync() ||
+            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.ContainerImage) ||
+            await DockerComposeStack.ContainerExistsAsync(sqlContainerName))
+        {
+            return;
+        }
+
+        var apiPort = await GetFreePortAsync();
+        var frontendPort = await GetFreePortAsync();
+        var graphConfigurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var graphSecretsEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var sqlPort = await GetFreePortAsync();
+        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
+        var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
+        var shouldCleanupSqlContainer = true;
+        using var host = await SampleProcess.StartAsync(
+            "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
+                ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
+                ("ApplicationTopology__ConfigurationServiceEndpoint", graphConfigurationEndpoint),
+                ("ApplicationTopology__SecretsServiceEndpoint", graphSecretsEndpoint),
                 ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
@@ -1174,122 +1013,130 @@ public sealed class SampleSmokeTests
         try
         {
             await host.WaitForHttpOkAsync("/", StartupTimeout);
-            await host.SendAsync(
-                HttpMethod.Post,
-                "/api/control-plane/v1/resources/application%3Aapplication-topology-frontend/actions/start?startDependencies=true");
 
-            var upstreamJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
-                $"http://localhost:{frontendPort}/upstream",
-                StartupTimeout);
-            using var upstreamDocument = JsonDocument.Parse(upstreamJson);
-            var upstream = upstreamDocument.RootElement;
-            Assert.Equal("Application Topology Frontend", upstream.GetProperty("frontend").GetString());
-            Assert.Equal("https+http://application-topology-api", upstream.GetProperty("logicalApiEndpoint").GetString());
-            Assert.Equal("Hello from the referenced API project.", upstream.GetProperty("upstream").GetProperty("message").GetString());
-            Assert.Equal("Development", upstream.GetProperty("settings").GetProperty("mode").GetString());
-            Assert.True(upstream.GetProperty("settings").GetProperty("externalApiKeyConfigured").GetBoolean());
-            Assert.Equal("ok", upstream.GetProperty("database").GetProperty("status").GetString());
-            Assert.Equal("mssql", upstream.GetProperty("database").GetProperty("provider").GetString());
-            Assert.Equal("application_topology", upstream.GetProperty("database").GetProperty("database").GetString());
-
-            var eventsJson = await host.GetStringAsync(
-                "/api/control-plane/v1/resource-events?resourceId=application%3Aapplication-topology-sql-server");
-            using var eventsDocument = JsonDocument.Parse(eventsJson);
-            var credentialEvent = Assert.Single(
-                eventsDocument.RootElement.EnumerateArray(),
-                resourceEvent => string.Equals(
-                    resourceEvent.GetProperty("eventType").GetString(),
-                    "event.provider.applications.sql-server.credential.resolved",
-                    StringComparison.OrdinalIgnoreCase));
-            Assert.Equal(
-                "application:application-topology-sql-server",
-                credentialEvent.GetProperty("resourceId").GetString());
-            Assert.Equal("Information", credentialEvent.GetProperty("severity").GetString());
-            Assert.Contains(
-                "application_topology",
-                credentialEvent.GetProperty("message").GetString() ?? string.Empty);
+            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
             Assert.DoesNotContain(
-                "Password=",
-                credentialEvent.GetProperty("message").GetString() ?? string.Empty,
-                StringComparison.OrdinalIgnoreCase);
+                resources,
+                resource => resource.GetProperty("id").GetString() == "application:application-topology-sql-server");
+            var graphVolume = Assert.Single(
+                resources,
+                resource => resource.GetProperty("id").GetString() ==
+                    "cloudshell.volume:application-topology-sql-data");
+            var graphSqlServer = Assert.Single(
+                resources,
+                resource => resource.GetProperty("id").GetString() ==
+                    "application.sql-server:application-topology-sql-server");
+            var graphDatabase = Assert.Single(
+                resources,
+                resource => resource.GetProperty("id").GetString() ==
+                    "application.sql-database:application-topology-db");
+            var graphSettings = Assert.Single(
+                resources,
+                resource => resource.GetProperty("id").GetString() ==
+                    "configuration.store:application-topology-settings");
+            var graphSecrets = Assert.Single(
+                resources,
+                resource => resource.GetProperty("id").GetString() ==
+                    "secrets.vault:application-topology-secrets");
+            var graphApi = Assert.Single(
+                resources,
+                resource => resource.GetProperty("id").GetString() ==
+                    "application.aspnet-core-project:application-topology-api");
+            var graphFrontend = Assert.Single(
+                resources,
+                resource => resource.GetProperty("id").GetString() ==
+                    "application.aspnet-core-project:application-topology-frontend");
+            Assert.DoesNotContain(
+                resources,
+                resource => resource.GetProperty("id").GetString() ==
+                    "cloudshell.storage:application-topology-local");
+            Assert.Equal("cloudshell.volume", graphVolume.GetProperty("typeId").GetString());
 
-            var databasesTabId = new ResourceViewId(ResourceTabGroupIds.Application, "databases");
-            var sqlDatabasesHtml = await host.GetStringAsync(
-                $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(databasesTabId.Value)}");
-            Assert.Contains("Application Topology", sqlDatabasesHtml);
-            Assert.Contains("Declared database, exists on server", sqlDatabasesHtml);
-            Assert.Contains("Existing system database", sqlDatabasesHtml);
-            Assert.Contains("master", sqlDatabasesHtml);
-            Assert.Contains("Verified from live SQL Server", sqlDatabasesHtml);
-
-            var frontendFailureJson = await host.WaitForAbsoluteHttpStatusAsync(
-                $"http://localhost:{frontendPort}/upstream/failure",
-                HttpStatusCode.BadGateway,
+            await StartGraphResourceIfAvailableAsync(host, graphSqlServer, "ApplicationTopology SQL Server");
+            await WaitForResourceStateAsync(
+                host,
+                "application.sql-server:application-topology-sql-server",
+                ResourceState.Running,
                 StartupTimeout);
-            using var frontendFailureDocument = JsonDocument.Parse(frontendFailureJson);
-            Assert.Equal("application-topology-frontend", frontendFailureDocument.RootElement.GetProperty("resourceName").GetString());
-            Assert.Equal(500, frontendFailureDocument.RootElement.GetProperty("upstreamStatusCode").GetInt32());
-            Assert.Matches("^[0-9a-f]{32}$", frontendFailureDocument.RootElement.GetProperty("traceId").GetString() ?? string.Empty);
-        }
-        finally
-        {
-            await StopResourceIfRunningAsync(host, "application:application-topology-frontend");
-            await StopResourceIfRunningAsync(host, "application:application-topology-api");
-            await StopResourceIfRunningAsync(host, "application:application-topology-sql-server");
-        }
-    }
-
-    [Fact]
-    [Trait("Category", "DockerIntegration")]
-    public async Task ApplicationTopologyHost_GracefulShutdownRemovesSqlServerContainer()
-    {
-        const string sqlContainerName = "cloudshell-application-application-topology-sql-server";
-        if (!await DockerComposeStack.IsAvailableAsync() ||
-            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.DefaultSqlServerImage) ||
-            await DockerComposeStack.ContainerExistsAsync(sqlContainerName))
-        {
-            return;
-        }
-
-        var apiPort = await GetFreePortAsync();
-        var sqlPort = await GetFreePortAsync();
-        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
-        var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
-        SampleProcess? host = null;
-        var shouldCleanupContainer = false;
-
-        try
-        {
-            host = await SampleProcess.StartAsync(
-                "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
-                await GetFreePortAsync(),
-                [
-                    ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
-                    ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
-                    ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
-                    ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
-                ]);
-
-            await host.WaitForHttpOkAsync("/", StartupTimeout);
-            shouldCleanupContainer = true;
-            await host.SendAsync(
-                HttpMethod.Post,
-                "/api/control-plane/v1/resources/application%3Aapplication-topology-sql-server/actions/start");
             Assert.True(
                 await WaitForDockerContainerExistsAsync(sqlContainerName, StartupTimeout),
                 $"Expected Docker container '{sqlContainerName}' to be created.");
+            var sampleDataPath = Path.Combine(
+                SampleProcess.FindRepositoryRoot(),
+                "samples",
+                "ApplicationTopology",
+                "Host",
+                "Data",
+                "storage",
+                "sql-server");
+            Assert.True(
+                Directory.Exists(sampleDataPath),
+                $"Expected resource-model storage-backed SQL data path '{sampleDataPath}' to be created.");
 
-            await host.StopAsync(TimeSpan.FromSeconds(30));
+            var ensureCreatedHref = graphDatabase
+                .GetProperty("resourceActions")
+                .GetProperty(SqlDatabaseResourceTypeProvider.Operations.EnsureCreated.Value)
+                .GetProperty("href")
+                .GetString() ?? throw new InvalidOperationException("The SQL database ensure-created action did not include an href.");
+            Assert.Contains(
+                "/api/control-plane/v1/resources/application.sql-database%3Aapplication-topology-db/actions/application.sql-database.ensure-created",
+                ensureCreatedHref);
 
+            await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology settings");
+            await StartGraphResourceIfAvailableAsync(host, graphSecrets, "ApplicationTopology secrets");
+            await StartGraphResourceIfAvailableAsync(host, graphApi, "ApplicationTopology API");
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{apiPort}/health",
+                bearerToken: null,
+                StartupTimeout);
+            var graphDatabaseJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
+                $"http://localhost:{apiPort}/database",
+                StartupTimeout);
+            using var graphDatabaseDocument = JsonDocument.Parse(graphDatabaseJson);
+            Assert.Equal("ok", graphDatabaseDocument.RootElement.GetProperty("status").GetString());
+            Assert.Equal("mssql", graphDatabaseDocument.RootElement.GetProperty("provider").GetString());
+            Assert.Equal("application_topology", graphDatabaseDocument.RootElement.GetProperty("database").GetString());
+
+            await StartGraphResourceIfAvailableAsync(host, graphFrontend, "ApplicationTopology frontend");
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{frontendPort}/healthz",
+                bearerToken: null,
+                StartupTimeout);
+            var graphUpstreamJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
+                $"http://localhost:{frontendPort}/upstream",
+                StartupTimeout);
+            using var graphUpstreamDocument = JsonDocument.Parse(graphUpstreamJson);
+            var graphUpstream = graphUpstreamDocument.RootElement;
+            Assert.Equal("Application Topology Frontend", graphUpstream.GetProperty("frontend").GetString());
+            Assert.Equal("https+http://application-topology-api", graphUpstream.GetProperty("logicalApiEndpoint").GetString());
+            Assert.Equal("Hello from the referenced API project.", graphUpstream.GetProperty("upstream").GetProperty("message").GetString());
+            Assert.Equal("Resource model", graphUpstream.GetProperty("settings").GetProperty("mode").GetString());
+            Assert.True(graphUpstream.GetProperty("settings").GetProperty("externalApiKeyConfigured").GetBoolean());
+            Assert.Equal("ok", graphUpstream.GetProperty("database").GetProperty("status").GetString());
+            Assert.Equal("mssql", graphUpstream.GetProperty("database").GetProperty("provider").GetString());
+            Assert.Equal("application_topology", graphUpstream.GetProperty("database").GetProperty("database").GetString());
+
+            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:application-topology-frontend");
+            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:application-topology-api");
+            await StopResourceIfRunningAsync(host, "application.sql-server:application-topology-sql-server");
+            await WaitForResourceStateAsync(
+                host,
+                "application.sql-server:application-topology-sql-server",
+                ResourceState.Stopped,
+                StartupTimeout);
             Assert.True(
                 await WaitForDockerContainerRemovedAsync(sqlContainerName, StartupTimeout),
-                $"Expected Docker container '{sqlContainerName}' to be removed during graceful host shutdown.");
-            shouldCleanupContainer = false;
+                $"Expected Docker container '{sqlContainerName}' to be removed after SQL stop.");
+            shouldCleanupSqlContainer = false;
         }
         finally
         {
-            host?.Dispose();
-            if (shouldCleanupContainer)
+            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:application-topology-frontend");
+            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:application-topology-api");
+            await StopResourceIfRunningAsync(host, "application.sql-server:application-topology-sql-server");
+            if (shouldCleanupSqlContainer)
             {
                 await DockerComposeStack.RemoveContainerIfExistsAsync(sqlContainerName);
             }
@@ -1297,214 +1144,291 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
-    public async Task SettingsAndSecretsSample_ProjectsReferenceBackedEnvironmentResources()
+    [Trait("Category", "DockerIntegration")]
+    public async Task ApplicationTopologyHost_SqlRuntimeStopsOnGracefulHostShutdown()
     {
+        const string graphSqlServerResourceId = "application.sql-server:application-topology-sql-server";
+        var sqlContainerName = ApplicationTopologyResourceModelSqlServerDockerBridge.ResourceModelSqlServerContainerName;
+        if (!await DockerComposeStack.IsAvailableAsync() ||
+            !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.ContainerImage))
+        {
+            return;
+        }
+
+        await DockerComposeStack.RemoveContainerIfExistsAsync(sqlContainerName);
+
         var apiPort = await GetFreePortAsync();
-        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:sample-app");
-        var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:sample-app");
+        var frontendPort = await GetFreePortAsync();
+        var graphConfigurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var graphSecretsEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var sqlPort = await GetFreePortAsync();
+        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
+        var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
+        var host = await SampleProcess.StartAsync(
+            "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ApplicationTopology__ApiEndpoint", $"http://localhost:{apiPort}"),
+                ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
+                ("ApplicationTopology__ConfigurationServiceEndpoint", graphConfigurationEndpoint),
+                ("ApplicationTopology__SecretsServiceEndpoint", graphSecretsEndpoint),
+                ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
+                ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
+                ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        try
+        {
+            await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var graphSqlServer = Assert.Single(
+                resourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() == graphSqlServerResourceId);
+
+            await StartGraphResourceIfAvailableAsync(host, graphSqlServer, "ApplicationTopology SQL Server");
+            await WaitForResourceStateAsync(
+                host,
+                graphSqlServerResourceId,
+                ResourceState.Running,
+                StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerExistsAsync(sqlContainerName, StartupTimeout),
+                $"Expected Docker container '{sqlContainerName}' to be created.");
+
+            await host.StopAsync(StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerRemovedAsync(sqlContainerName, StartupTimeout),
+                $"Expected Docker container '{sqlContainerName}' to be removed during graceful host shutdown.");
+        }
+        finally
+        {
+            host.Dispose();
+            await DockerComposeStack.RemoveContainerIfExistsAsync(sqlContainerName);
+        }
+    }
+
+
+    [Fact]
+    public async Task SettingsAndSecretsSample_RunsServicesAndApiWithoutOldProviderRecords()
+    {
+        var configurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var secretsEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var apiEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        const string settingsResourceId = "configuration.store:sample-app";
+        const string secretsResourceId = "secrets.vault:sample-app";
+        const string apiResourceId = "application.aspnet-core-project:settings-secrets-api";
         using var host = await SampleProcess.StartAsync(
             "samples/SettingsAndSecrets/CloudShell.SettingsAndSecrets.csproj",
             await GetFreePortAsync(),
             [
-                ("Samples__SettingsAndSecrets__ApiEndpoint", $"http://localhost:{apiPort}"),
-                ("Samples__SettingsAndSecrets__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
-                ("Samples__SettingsAndSecrets__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
+                ("Samples__SettingsAndSecrets__ConfigurationServiceEndpoint", configurationEndpoint),
+                ("Samples__SettingsAndSecrets__SecretsServiceEndpoint", secretsEndpoint),
+                ("Samples__SettingsAndSecrets__ApiEndpoint", apiEndpoint)
             ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
 
-        var apiJson = await host.GetStringAsync("/api/control-plane/v1/resources");
-        using var document = JsonDocument.Parse(apiJson);
-        var resources = document.RootElement.EnumerateArray().ToArray();
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
         var settings = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "configuration:sample-app");
+            resource.GetProperty("id").GetString() == settingsResourceId);
         var secrets = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "secrets-vault:sample-app");
+            resource.GetProperty("id").GetString() == secretsResourceId);
         var api = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:settings-secrets-api");
-        var dependsOn = api
-            .GetProperty("dependsOn")
-            .EnumerateArray()
-            .Select(item => item.GetString())
-            .ToArray();
-        var identity = api.GetProperty("identity");
+            resource.GetProperty("id").GetString() == apiResourceId);
 
-        Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
-        Assert.Equal("secrets.vault", secrets.GetProperty("typeId").GetString());
-        Assert.Contains("configuration:sample-app", dependsOn);
-        Assert.Contains("secrets-vault:sample-app", dependsOn);
-        Assert.Equal("identity:development", identity.GetProperty("providerId").GetString());
-        Assert.Equal("settings-secrets-api", identity.GetProperty("name").GetString());
-
-        var grantsJson = await host.GetStringAsync(
-            "/api/control-plane/v1/resource-permission-grants" +
-            $"?principalKind={(int)ResourcePrincipalKind.ResourceIdentity}" +
-            $"&principalId={Uri.EscapeDataString("application:settings-secrets-api/identities/settings-secrets-api")}");
-        using var grantsDocument = JsonDocument.Parse(grantsJson);
-        var grants = grantsDocument.RootElement.EnumerateArray().ToArray();
-        Assert.Contains(
-            grants,
-            grant =>
-                grant.GetProperty("targetResourceId").GetString() == "secrets-vault:sample-app" &&
-                grant.GetProperty("permission").GetString() == SecretsVaultResourceOperationPermissions.ReadSecrets);
-        Assert.Contains(
-            grants,
-            grant =>
-                grant.GetProperty("targetResourceId").GetString() == "configuration:sample-app" &&
-                grant.GetProperty("permission").GetString() == ConfigurationStoreResourceOperationPermissions.ReadEntries);
-
-        var provisioning = await host.GetStringAsync(
-            "/api/control-plane/v1/resources/application%3Asettings-secrets-api/identity/provisioning-status");
-        using var provisioningDocument = JsonDocument.Parse(provisioning);
-        Assert.Equal(
-            "identity:development",
-            provisioningDocument.RootElement.GetProperty("providerId").GetString());
-        var provisioningStatus = Assert.Single(provisioningDocument.RootElement.GetProperty("statuses").EnumerateArray());
-        var state = provisioningStatus.GetProperty("state");
-        if (state.ValueKind == JsonValueKind.String)
-        {
-            Assert.Equal("provisioned", state.GetString()?.ToLowerInvariant());
-        }
-        else
-        {
-            Assert.Equal((int)ResourceIdentityProvisioningState.Provisioned, state.GetInt32());
-        }
-
-        var credentialSampleOutput = await RunResourceIdentityCredentialSampleAsync(host);
-        Assert.Contains(
-            "CloudShell resource credential acquired a token.",
-            credentialSampleOutput);
-        Assert.Contains(
-            "CloudShell Control Plane client listed",
-            credentialSampleOutput);
-
-        var apiDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:settings-secrets-api")}/details");
-        AssertResourceTabsInOrder(
-            apiDetailsHtml,
-            ">Overview<",
-            ">Configuration<",
-            ">Environment<",
-            ">Identity<",
-            ">Activity<");
-
-        var settingsDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("configuration:sample-app")}/details?tab={Uri.EscapeDataString("general:entries")}");
-        AssertResourceTabsInOrder(
-            settingsDetailsHtml,
-            ">Overview<",
-            ">Configuration<",
-            ">Entries<",
-            ">Endpoints<");
-        Assert.Contains("Configuration entries", settingsDetailsHtml);
-        Assert.Contains("2 entries", settingsDetailsHtml);
-        Assert.DoesNotContain(">Settings<", settingsDetailsHtml);
-        Assert.DoesNotContain("aria-label=\"Entries\"", settingsDetailsHtml);
-
-        var secretsDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("secrets-vault:sample-app")}/details?tab={Uri.EscapeDataString("general:secrets")}");
-        AssertResourceTabsInOrder(
-            secretsDetailsHtml,
-            ">Overview<",
-            ">Configuration<",
-            ">Secrets<",
-            ">Endpoints<");
-        Assert.Contains("Vault secrets", secretsDetailsHtml);
-        Assert.Contains("1 secret", secretsDetailsHtml);
-        Assert.DoesNotContain(">Settings<", secretsDetailsHtml);
-        Assert.DoesNotContain("aria-label=\"Secrets\"", secretsDetailsHtml);
-
-        await host.SendAsync(
-            HttpMethod.Post,
-            "/api/control-plane/v1/resources/application%3Asettings-secrets-api/actions/start?startDependencies=true");
-
-        var startedApiJson = await host.GetStringAsync("/api/control-plane/v1/resources");
-        using var startedDocument = JsonDocument.Parse(startedApiJson);
-        var startedResources = startedDocument.RootElement.EnumerateArray().ToArray();
-        settings = Assert.Single(startedResources, resource =>
+        Assert.DoesNotContain(resources, resource =>
             resource.GetProperty("id").GetString() == "configuration:sample-app");
-        secrets = Assert.Single(startedResources, resource =>
+        Assert.DoesNotContain(resources, resource =>
             resource.GetProperty("id").GetString() == "secrets-vault:sample-app");
-        api = Assert.Single(startedResources, resource =>
+        Assert.DoesNotContain(resources, resource =>
             resource.GetProperty("id").GetString() == "application:settings-secrets-api");
+        Assert.Equal(apiEndpoint, GetPrimaryEndpointAddress(api));
+        Assert.Equal(
+            "2",
+            settings.GetProperty("attributes").GetProperty("configuration.entries.count").GetString());
+        Assert.Equal(
+            "1",
+            secrets.GetProperty("attributes").GetProperty("secrets.entries.count").GetString());
 
-        var resourceToken = await host.GetClientCredentialsTokenAsync(
-            "application:settings-secrets-api/settings-secrets-api",
-            "local-development-settings-secrets-api-secret",
-            "ControlPlane.Access");
-        var apiEndpoint = GetPrimaryEndpointAddress(api);
-        var settingsEndpoint = GetEndpointAddress(settings, "entries");
-        var secretsEndpoint = GetEndpointAddress(secrets, "secrets");
+        await StartGraphResourceIfAvailableAsync(host, settings, "SettingsAndSecrets settings");
+        await StartGraphResourceIfAvailableAsync(host, secrets, "SettingsAndSecrets secrets");
+        await StartGraphResourceIfAvailableAsync(host, api, "SettingsAndSecrets API");
         await host.WaitForAbsoluteHttpOkAsync(
-            $"{apiEndpoint.TrimEnd('/')}/configuration",
-            null,
+            $"{configurationEndpoint}/healthz",
+            bearerToken: null,
             StartupTimeout);
-        await host.WaitForAbsoluteHttpOkAsync(settingsEndpoint, resourceToken, StartupTimeout);
         await host.WaitForAbsoluteHttpOkAsync(
-            $"{secretsEndpoint.TrimEnd('/')}/sample-api-key",
-            resourceToken,
+            $"{secretsEndpoint}/healthz",
+            bearerToken: null,
+            StartupTimeout);
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{apiEndpoint}/health",
+            bearerToken: null,
             StartupTimeout);
 
-        var settingsJson = await host.GetAbsoluteStringAsync(settingsEndpoint, resourceToken);
-        using var settingsDocument = JsonDocument.Parse(settingsJson);
+        var configurationJson = await host.GetAbsoluteStringAsync(
+            $"{apiEndpoint.TrimEnd('/')}/configuration");
+        using var configurationDocument = JsonDocument.Parse(configurationJson);
+        Assert.Equal(
+            "connected",
+            configurationDocument.RootElement.GetProperty("status").GetString());
         Assert.Contains(
-            settingsDocument.RootElement.EnumerateArray(),
+            configurationDocument.RootElement.GetProperty("entries").EnumerateArray(),
             entry =>
                 entry.GetProperty("name").GetString() == "Sample:Message" &&
                 entry.GetProperty("value").GetString() == "Hello from a configuration entry");
 
         var secretJson = await host.GetAbsoluteStringAsync(
-            $"{secretsEndpoint.TrimEnd('/')}/sample-api-key",
-            resourceToken);
+            $"{apiEndpoint.TrimEnd('/')}/secrets/sample-api-key");
         using var secretDocument = JsonDocument.Parse(secretJson);
+        Assert.Equal(
+            "connected",
+            secretDocument.RootElement.GetProperty("status").GetString());
         Assert.Equal(
             "local-development-api-key",
             secretDocument.RootElement.GetProperty("value").GetString());
+    }
 
-        var apiConfigurationJson = await host.GetAbsoluteStringAsync(
-            $"{apiEndpoint.TrimEnd('/')}/configuration");
-        using var apiConfigurationDocument = JsonDocument.Parse(apiConfigurationJson);
-        Assert.Equal(
-            "connected",
-            apiConfigurationDocument.RootElement.GetProperty("status").GetString());
-        var apiEntries = apiConfigurationDocument.RootElement
-            .GetProperty("entries")
-            .EnumerateArray()
-            .ToArray();
+    private static void AssertGraphHealthRefreshSucceeded(
+        JsonElement health,
+        string resourceId)
+    {
+        Assert.Equal(resourceId, health.GetProperty("resourceId").GetString());
+        Assert.Equal((int)ResourceHealthStatus.Healthy, health.GetProperty("status").GetInt32());
         Assert.Contains(
-            apiEntries,
-            entry =>
-                entry.GetProperty("name").GetString() == "Sample:Message" &&
-                entry.GetProperty("value").GetString() == "Hello from a configuration entry");
-
-        var serviceDiscoveryJson = await host.GetAbsoluteStringAsync(
-            $"{apiEndpoint.TrimEnd('/')}/service-discovery/configuration");
-        using var serviceDiscoveryDocument = JsonDocument.Parse(serviceDiscoveryJson);
-        Assert.Equal(
-            "connected",
-            serviceDiscoveryDocument.RootElement.GetProperty("status").GetString());
-        Assert.Equal(
-            "https+http://configuration-sample-app",
-            serviceDiscoveryDocument.RootElement.GetProperty("source").GetString());
-        var serviceDiscoveryEntries = serviceDiscoveryDocument.RootElement
-            .GetProperty("entries")
-            .EnumerateArray()
-            .ToArray();
+            health.GetProperty("checks").EnumerateArray(),
+            check =>
+                check.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy &&
+                check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Health);
         Assert.Contains(
-            serviceDiscoveryEntries,
-            entry =>
-                entry.GetProperty("name").GetString() == "Sample:Message" &&
-                entry.GetProperty("value").GetString() == "Hello from a configuration entry");
+            health.GetProperty("checks").EnumerateArray(),
+            check =>
+                check.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy &&
+                check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Liveness);
+    }
 
-        var apiSecretJson = await host.GetAbsoluteStringAsync(
-            $"{apiEndpoint.TrimEnd('/')}/secrets/sample-api-key");
-        using var apiSecretDocument = JsonDocument.Parse(apiSecretJson);
+    private static async Task StartGraphResourceIfAvailableAsync(
+        SampleProcess host,
+        JsonElement resource,
+        string label)
+    {
+        if (resource.TryGetProperty("state", out var state) &&
+            state.ValueKind == JsonValueKind.Number &&
+            state.GetInt32() == (int)ResourceState.Running)
+        {
+            return;
+        }
+
+        if (resource.GetProperty("resourceActions").TryGetProperty("start", out var startAction))
+        {
+            var href = startAction.GetProperty("href").GetString() ??
+                throw new InvalidOperationException($"The graph {label} start action did not include an href.");
+            await host.SendAsync(HttpMethod.Post, href);
+            return;
+        }
+
+        Assert.Equal((int)ResourceState.Running, resource.GetProperty("state").GetInt32());
+    }
+
+    private static async Task StopGraphResourceIfAvailableAsync(
+        SampleProcess host,
+        JsonElement resource,
+        string label)
+    {
+        if (resource.TryGetProperty("state", out var state) &&
+            state.ValueKind == JsonValueKind.Number &&
+            state.GetInt32() == (int)ResourceState.Stopped)
+        {
+            return;
+        }
+
+        if (resource.GetProperty("resourceActions").TryGetProperty("stop", out var stopAction))
+        {
+            var href = stopAction.GetProperty("href").GetString() ??
+                throw new InvalidOperationException($"The graph {label} stop action did not include an href.");
+            await host.SendAsync(HttpMethod.Post, href);
+            return;
+        }
+
+        Assert.Equal((int)ResourceState.Stopped, resource.GetProperty("state").GetInt32());
+    }
+
+    [Fact]
+    public async Task ThirdPartyIdentitySample_ProjectsIdentityProvisioningBoundary()
+    {
+        using var host = await SampleProcess.StartAsync(
+            "samples/ThirdPartyIdentity/CloudShell.ThirdPartyIdentity.csproj",
+            await GetFreePortAsync(),
+            [
+                ("Authentication__Enabled", "false"),
+                ("Authentication__OpenIdConnect__RequireHttpsMetadata", "false")
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var provisioning = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "cloudshell.identity-provisioning:keycloak");
+        var settings = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration.store:third-party-identity");
+        var api = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:keycloak-provisioned-api");
+        var attributes = provisioning.GetProperty("attributes");
+        var settingsAttributes = settings.GetProperty("attributes");
+        var apiAttributes = api.GetProperty("attributes");
+
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration:third-party-identity");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:keycloak-provisioned-api");
+        Assert.Equal("cloudshell.identity-provisioning", provisioning.GetProperty("typeId").GetString());
+        Assert.Equal("Keycloak Identity Provisioning", provisioning.GetProperty("displayName").GetString());
+        Assert.Equal("identity-provisioning", attributes.GetProperty("infrastructure.kind").GetString());
+        Assert.Equal("Keycloak", attributes.GetProperty("identity.provider").GetString());
+        Assert.Equal("identity:keycloak", attributes.GetProperty("identity.providerId").GetString());
+        Assert.Equal("oidc", attributes.GetProperty("identity.providerKind").GetString());
+        Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
+        Assert.Equal("Third-party Identity Settings", settings.GetProperty("displayName").GetString());
+        Assert.Equal("http://localhost:5138", settingsAttributes.GetProperty("configuration.endpoint").GetString());
+        Assert.Equal("1", settingsAttributes.GetProperty("configuration.entries.count").GetString());
+        Assert.Equal("application.aspnet-core-project", api.GetProperty("typeId").GetString());
+        Assert.Equal("Keycloak Provisioned API", api.GetProperty("displayName").GetString());
+        Assert.EndsWith(
+            "/samples/ThirdPartyIdentity/Api/CloudShell.ThirdPartyIdentity.Api.csproj",
+            apiAttributes.GetProperty("project.path").GetString());
+        Assert.Equal("false", apiAttributes.GetProperty("project.hotReload").GetString());
+        Assert.Equal("false", apiAttributes.GetProperty("project.useLaunchSettings").GetString());
+        Assert.Equal("http://localhost:5235", GetPrimaryEndpointAddress(api));
+        Assert.Contains(
+            "configuration.store:third-party-identity",
+            api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
         Assert.Equal(
-            "connected",
-            apiSecretDocument.RootElement.GetProperty("status").GetString());
+            "identity:keycloak",
+            api.GetProperty("identity").GetProperty("providerId").GetString());
         Assert.Equal(
-            "local-development-api-key",
-            apiSecretDocument.RootElement.GetProperty("value").GetString());
+            "keycloak-provisioned-api",
+            api.GetProperty("identity").GetProperty("name").GetString());
+        var setupAction = provisioning
+            .GetProperty("resourceActions")
+            .GetProperty("identity.provisioning.setup");
+        Assert.Equal("POST", setupAction.GetProperty("method").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(setupAction.GetProperty("href").GetString()));
+
+        var identityAddHtml = await host.GetStringAsync(
+            "/resources/add?type=cloudshell.identity-provisioning");
+        Assert.Contains("Resource model resources", identityAddHtml);
+        Assert.DoesNotContain("Resource type not found", identityAddHtml);
+
+        var configurationStoreAddHtml = await host.GetStringAsync(
+            "/resources/add?type=configuration.store");
+        Assert.Contains("Resource model resources", configurationStoreAddHtml);
+        Assert.DoesNotContain("Resource type not found", configurationStoreAddHtml);
     }
 
     [Fact]
@@ -1516,16 +1440,19 @@ public sealed class SampleSmokeTests
             return;
         }
 
-        var keycloakPort = await GetFreePortAsync();
+        await CleanupThirdPartyIdentityKeycloakStacksAsync();
         var apiPort = await GetFreePortAsync();
-        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:third-party-identity");
+        var configurationServiceBasePort = await GetServiceBasePortAsync(
+            "configuration.store:third-party-identity");
+        var configurationEndpoint =
+            $"http://localhost:{configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)}";
         var root = SampleProcess.FindRepositoryRoot();
-        var projectName = $"cloudshell-third-party-identity-test-{Guid.NewGuid():N}";
-        using var keycloak = await DockerComposeStack.StartAsync(
+        var keycloak = await StartThirdPartyIdentityKeycloakAsync(
             root,
-            "samples/ThirdPartyIdentity/docker-compose.yml",
-            projectName,
-            [("KEYCLOAK_PORT", keycloakPort.ToString(CultureInfo.InvariantCulture))]);
+            "cloudshell-third-party-identity-test");
+        var keycloakProjectName = keycloak.Stack.ProjectName;
+        using var keycloakStack = keycloak.Stack;
+        var keycloakPort = keycloak.Port;
 
         var authority = $"http://localhost:{keycloakPort}/realms/cloudshell";
         await WaitForHttpSuccessAsync(
@@ -1542,7 +1469,7 @@ public sealed class SampleSmokeTests
                 ("Keycloak__AdminBaseAddress", $"http://localhost:{keycloakPort}"),
                 ("Keycloak__TokenEndpoint", $"{authority}/protocol/openid-connect/token"),
                 ("Samples__ThirdPartyIdentity__ApiEndpoint", $"http://localhost:{apiPort}"),
-                ("Samples__ThirdPartyIdentity__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture))
+                ("Samples__ThirdPartyIdentity__ConfigurationServiceEndpoint", configurationEndpoint)
             ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
@@ -1551,64 +1478,55 @@ public sealed class SampleSmokeTests
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
         var provisioning = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "identity-provisioning:keycloak");
+            resource.GetProperty("id").GetString() == "cloudshell.identity-provisioning:keycloak");
         var settings = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "configuration:third-party-identity");
+            resource.GetProperty("id").GetString() == "configuration.store:third-party-identity");
         var api = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:keycloak-provisioned-api");
+
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration:third-party-identity");
+        Assert.DoesNotContain(resources, resource =>
             resource.GetProperty("id").GetString() == "application:keycloak-provisioned-api");
-        var identity = api.GetProperty("identity");
 
-        Assert.Equal(ResourceIdentityProvisioningResources.ResourceType, provisioning.GetProperty("typeId").GetString());
-        Assert.Equal("keycloak", provisioning.GetProperty("name").GetString());
-        Assert.Equal("Keycloak Identity Provisioning", provisioning.GetProperty("displayName").GetString());
-        Assert.Equal(JsonValueKind.Null, provisioning.GetProperty("state").ValueKind);
-        Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
-        Assert.Equal("identity:keycloak", identity.GetProperty("providerId").GetString());
-        Assert.Equal("keycloak-provisioned-api", identity.GetProperty("name").GetString());
+        var setupHref = provisioning
+            .GetProperty("resourceActions")
+            .GetProperty("identity.provisioning.setup")
+            .GetProperty("href")
+            .GetString() ?? throw new InvalidOperationException(
+                "The identity provisioning setup action did not include an href.");
+        var setupJson = await host.SendAsync(HttpMethod.Post, setupHref);
+        using var setupDocument = JsonDocument.Parse(setupJson);
         Assert.Contains(
-            "configuration:third-party-identity",
-            api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+            "Executed Identity Provisioning Setup",
+            setupDocument.RootElement.GetProperty("message").GetString());
 
-        var provisioningStatusJson = await host.GetStringAsync(
-            "/api/control-plane/v1/resources/application%3Akeycloak-provisioned-api/identity/provisioning-status");
-        using var provisioningStatusDocument = JsonDocument.Parse(provisioningStatusJson);
-        Assert.Equal(
-            "identity:keycloak",
-            provisioningStatusDocument.RootElement.GetProperty("providerId").GetString());
-        var provisioningStatus = Assert.Single(
-            provisioningStatusDocument.RootElement.GetProperty("statuses").EnumerateArray());
-        var provisioningState = provisioningStatus.GetProperty("state");
-        if (provisioningState.ValueKind == JsonValueKind.String)
-        {
-            Assert.Equal("provisioned", provisioningState.GetString()?.ToLowerInvariant());
-        }
-        else
-        {
-            Assert.Equal((int)ResourceIdentityProvisioningState.Provisioned, provisioningState.GetInt32());
-        }
-
-        await host.SendAsync(
-            HttpMethod.Post,
-            "/api/control-plane/v1/resources/application%3Akeycloak-provisioned-api/actions/start?startDependencies=true");
+        await StartGraphResourceIfAvailableAsync(host, settings, "ThirdPartyIdentity settings");
+        await StartGraphResourceIfAvailableAsync(host, api, "ThirdPartyIdentity API");
 
         var configurationJson = await WaitForJsonStatusAsync(
-            $"http://localhost:{apiPort}/configuration",
+            $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/configuration",
             "connected",
             TimeSpan.FromMinutes(1));
         using var configurationDocument = JsonDocument.Parse(configurationJson);
         var configurationRoot = configurationDocument.RootElement;
 
         Assert.Equal("connected", configurationRoot.GetProperty("status").GetString());
-        Assert.Equal("cloudshell-keycloak-provisioned-api", configurationRoot.GetProperty("clientId").GetString());
+        Assert.Equal("keycloak-provisioned-api", configurationRoot.GetProperty("clientId").GetString());
         Assert.Contains(
             configurationRoot.GetProperty("entries").EnumerateArray(),
             entry =>
                 entry.GetProperty("name").GetString() == "Sample:Message" &&
                 entry.GetProperty("value").GetString() == "Hello from a Keycloak-provisioned resource identity");
+
+        keycloakStack.Dispose();
+        Assert.True(
+            await WaitForDockerComposeProjectRemovedAsync(keycloakProjectName, StartupTimeout),
+            $"Expected ThirdPartyIdentity Keycloak compose project '{keycloakProjectName}' to be removed after cleanup.");
     }
 
     [Fact]
-    public async Task SplitHostingSample_RendersUiThroughRemoteControlPlane()
+    public async Task SplitHostingSample_RendersResourceThroughRemoteControlPlane()
     {
         var controlPlanePort = await GetFreePortAsync();
         var uiPort = await GetFreePortAsync();
@@ -1642,8 +1560,12 @@ public sealed class SampleSmokeTests
             "/api/control-plane/v1/resources",
             token);
         using var document = JsonDocument.Parse(apiJson);
-        var resource = Assert.Single(document.RootElement.EnumerateArray());
-        Assert.Equal("network:split-sample", resource.GetProperty("id").GetString());
+        var resources = document.RootElement.EnumerateArray().ToArray();
+        var network = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "cloudshell.network:split-sample");
+        Assert.Equal("cloudshell.network", network.GetProperty("typeId").GetString());
+        Assert.Equal("Logical", network.GetProperty("attributes").GetProperty("network.kind").GetString());
+        Assert.Equal("logicalOnly", network.GetProperty("attributes").GetProperty("network.hostReadiness").GetString());
     }
 
     [Fact]
@@ -1870,8 +1792,10 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
-    public async Task ContainerAppDeploymentSample_UpdatesMockImageTagThroughDeploymentApi()
+    public async Task ContainerAppDeploymentSample_UpdatesContainerAppState()
     {
+        const string sampleImage = "cloudshell/mock-api:20260608.1";
+        const string containerAppResourceId = "application.container-app:sample-api";
         var registryPort = await GetFreePortAsync();
         using var host = await SampleProcess.StartAsync(
             "samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj",
@@ -1885,288 +1809,597 @@ public sealed class SampleSmokeTests
         var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
-        var app = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:sample-api");
+        var docker = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "docker.host:sample");
         var registry = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "docker.container:sample-registry");
+        var app = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == containerAppResourceId);
+
+        Assert.DoesNotContain(resources, resource =>
             resource.GetProperty("id").GetString() == "docker:container:sample-registry");
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:sample-api");
 
         var registryAddress = $"localhost:{registryPort.ToString(CultureInfo.InvariantCulture)}";
-        var appAttributes = app.GetProperty("attributes");
+        var dockerAttributes = docker.GetProperty("attributes");
         var registryAttributes = registry.GetProperty("attributes");
-        Assert.Equal(registryAddress, appAttributes.GetProperty("container.registry").GetString());
+        var appAttributes = app.GetProperty("attributes");
+        Assert.Equal("docker.host", docker.GetProperty("typeId").GetString());
+        Assert.Equal(registryAddress, dockerAttributes.GetProperty("container.registry").GetString());
+        Assert.Equal("docker.container", registry.GetProperty("typeId").GetString());
+        Assert.Equal("registry:2", registryAttributes.GetProperty("container.image").GetString());
         Assert.Equal(registryAddress, registryAttributes.GetProperty("container.registry").GetString());
-        Assert.Equal(
-            ResourceDeclarationPersistence.Persisted.ToString(),
-            appAttributes.GetProperty(ResourceAttributeNames.DeclarationPersistence).GetString());
-        Assert.Equal(
-            ResourceDeclarationPersistence.Persisted.ToString(),
-            registryAttributes.GetProperty(ResourceAttributeNames.DeclarationPersistence).GetString());
-
-        var appDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:sample-api")}/details");
-        Assert.Contains("Persisted declaration", appDetailsHtml);
-        Assert.DoesNotContain("Startup declaration", appDetailsHtml);
-        Assert.DoesNotContain("UI changes are temporary until the resource is persisted.", appDetailsHtml);
-
-        var appMonitoringHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:sample-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Monitoring.Value)}");
-        Assert.Contains("Auto-refresh", appMonitoringHtml);
-        Assert.Contains(">Monitoring<", appMonitoringHtml);
-        Assert.DoesNotContain(">Refresh<", appMonitoringHtml);
+        Assert.Equal("application.container-app", app.GetProperty("typeId").GetString());
+        Assert.Equal(sampleImage, appAttributes.GetProperty("container.image").GetString());
+        Assert.Equal(registryAddress, appAttributes.GetProperty("container.registry").GetString());
 
         var updateJson = await host.SendJsonAsync(
             HttpMethod.Post,
-            "/api/container-apps/v1/application%3Asample-api/deployments",
+            $"/api/container-apps/v1/{Uri.EscapeDataString(containerAppResourceId)}/deployments",
             """
             {
-              "image": "cloudshell/mock-api:20260608.2",
-              "triggeredBy": "sample-smoke-test"
+              "image": "cloudshell/mock-api:20260608.4",
+              "triggeredBy": "sample-smoke-test",
+              "requestedReplicas": 2
             }
             """);
         using var updateDocument = JsonDocument.Parse(updateJson);
 
         Assert.Contains(
-            "cloudshell/mock-api:20260608.2",
+            "cloudshell/mock-api:20260608.4",
             updateDocument.RootElement.GetProperty("message").GetString());
 
         var updatedJson = await host.GetStringAsync(
-            "/api/control-plane/v1/resources/application%3Asample-api");
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(containerAppResourceId)}");
         using var updatedDocument = JsonDocument.Parse(updatedJson);
         var updatedAttributes = updatedDocument.RootElement.GetProperty("attributes");
         Assert.Equal(
-            "cloudshell/mock-api:20260608.2",
+            "cloudshell/mock-api:20260608.4",
             updatedAttributes.GetProperty("container.image").GetString());
-        Assert.NotEqual(
-            "unrevisioned",
-            updatedAttributes.GetProperty("container.revision").GetString());
-    }
+        Assert.Equal(
+            "2",
+            updatedAttributes.GetProperty("container.replicas").GetString());
 
-    [Fact]
-    public async Task ReplicatedContainerHealthSample_ProjectsReplicaHealthIntoParentAssessment()
-    {
-        using var host = await SampleProcess.StartAsync(
-            "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
-            await GetFreePortAsync());
-
-        await host.WaitForHttpOkAsync("/", StartupTimeout);
-
-        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
-        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
-        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
-        var app = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application:api");
-        var appAttributes = app.GetProperty("attributes");
-
-        Assert.Equal("true", appAttributes.GetProperty(ResourceAttributeNames.ContainerReplicasEnabled).GetString());
-        Assert.Equal("3", appAttributes.GetProperty(ResourceAttributeNames.ContainerReplicas).GetString());
-        Assert.Equal("3", appAttributes.GetProperty(ResourceAttributeNames.DeploymentMaterializedReplicas).GetString());
-        Assert.Equal("3", appAttributes.GetProperty(ResourceAttributeNames.DeploymentProjectedReplicas).GetString());
-        var observability = app.GetProperty("observability");
-        Assert.True(observability.GetProperty("logs").GetBoolean());
-        Assert.True(observability.GetProperty("traces").GetBoolean());
-        Assert.True(observability.GetProperty("metrics").GetBoolean());
-        Assert.Equal("http", observability.GetProperty("otlpEndpoint").GetString()?[..4]);
-        var telemetryScopes = observability
-            .GetProperty("scopes")
-            .EnumerateArray()
-            .OrderBy(scope => scope.GetProperty("scopeResourceId").GetString(), StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        Assert.Collection(
-            telemetryScopes,
-            scope => Assert.Equal("runtime-container:application-api:replica-1", scope.GetProperty("scopeResourceId").GetString()),
-            scope => Assert.Equal("runtime-container:application-api:replica-2", scope.GetProperty("scopeResourceId").GetString()),
-            scope => Assert.Equal("runtime-container:application-api:replica-3", scope.GetProperty("scopeResourceId").GetString()));
-
-        var childrenJson = await host.GetStringAsync(
-            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application:api")}/children");
-        using var childrenDocument = JsonDocument.Parse(childrenJson);
-        var replicas = childrenDocument.RootElement.EnumerateArray()
-            .Where(resource =>
-                resource.GetProperty("attributes").TryGetProperty(ResourceAttributeNames.RuntimeKind, out var kind) &&
-                kind.GetString() == "containerReplica")
-            .OrderBy(resource =>
-                resource.GetProperty("attributes").GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString())
-            .ToArray();
-
-        Assert.Equal(3, replicas.Length);
-        Assert.All(replicas, replica =>
-        {
-            Assert.Equal("application:api", replica.GetProperty("parentResourceId").GetString());
-            Assert.Equal("application:api", replica.GetProperty("ownerResourceId").GetString());
-            Assert.Equal("runtime.container", replica.GetProperty("typeId").GetString());
-            Assert.Equal((int)ResourceManagementMode.RuntimeManaged, replica.GetProperty("managementMode").GetInt32());
-            Assert.Equal((int)ResourceVisibility.Hidden, replica.GetProperty("visibility").GetInt32());
-        });
-
-        var logSourcesJson = await host.GetStringAsync(
-            $"/api/control-plane/v1/log-sources?resourceId={Uri.EscapeDataString("application:api")}");
-        using var logSourcesDocument = JsonDocument.Parse(logSourcesJson);
-        var replicaLogSources = logSourcesDocument.RootElement.EnumerateArray()
-            .Where(source =>
-                source.TryGetProperty("producerResourceId", out var producer) &&
-                producer.GetString() == "application:api")
-            .OrderBy(source => source.GetProperty("resourceId").GetString(), StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        Assert.Collection(
-            replicaLogSources,
-            source =>
-            {
-                Assert.Equal("Replica 1 logs", source.GetProperty("name").GetString());
-                Assert.Equal("runtime-container:application-api:replica-1", source.GetProperty("resourceId").GetString());
-            },
-            source =>
-            {
-                Assert.Equal("Replica 2 logs", source.GetProperty("name").GetString());
-                Assert.Equal("runtime-container:application-api:replica-2", source.GetProperty("resourceId").GetString());
-            },
-            source =>
-            {
-                Assert.Equal("Replica 3 logs", source.GetProperty("name").GetString());
-                Assert.Equal("runtime-container:application-api:replica-3", source.GetProperty("resourceId").GetString());
-            });
-
-        var logsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}");
-        Assert.Contains("Telemetry", logsHtml);
-        Assert.Contains("Replica 1 logs", logsHtml);
-        Assert.Contains("Replica 2 logs", logsHtml);
-        Assert.Contains("Replica 3 logs", logsHtml);
-
-        var logSourcesHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}&logView=sources");
-        Assert.Contains(
-            "href=\"/resources/application%3Aapi/logs?logSourceId=runtime-container%3Aapplication-api%3Areplica-1%3Alogs",
-            logSourcesHtml);
-        Assert.DoesNotContain(
-            "href=\"/resources/runtime-container%3Aapplication-api%3Areplica-1/logs",
-            logSourcesHtml);
-
-        var tracesHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Traces.Value)}");
-        Assert.Contains("Telemetry", tracesHtml);
-        Assert.Contains("Replica 1", tracesHtml);
-        Assert.Contains("Replica 2", tracesHtml);
-        Assert.Contains("Replica 3", tracesHtml);
-
-        var metricsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}");
-        Assert.Contains("Telemetry", metricsHtml);
-        Assert.Contains("Replica 1", metricsHtml);
-        Assert.Contains("Replica 2", metricsHtml);
-        Assert.Contains("Replica 3", metricsHtml);
-
-        var summaryJson = await host.SendAsync(
-            HttpMethod.Post,
-            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("application:api")}/health/refresh");
-        using var summaryDocument = JsonDocument.Parse(summaryJson);
-        var summary = summaryDocument.RootElement;
-        var checks = summary.GetProperty("checks").EnumerateArray().ToArray();
-
-        Assert.Equal("application:api", summary.GetProperty("resourceId").GetString());
-        Assert.Equal((int)ResourceHealthStatus.Unknown, summary.GetProperty("status").GetInt32());
-        Assert.Contains(checks, check =>
-            check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Health &&
-            check.GetProperty("check").GetProperty("name").GetString() == "health");
-        Assert.Contains(checks, check =>
-            check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Liveness &&
-            check.GetProperty("check").GetProperty("name").GetString() == "alive");
-
-        var liveness = Assert.Single(checks, check =>
-            check.GetProperty("check").GetProperty("type").GetInt32() == (int)ResourceProbeType.Liveness);
-        var observations = liveness.GetProperty("observations").EnumerateArray().ToArray();
-        Assert.Equal(3, observations.Length);
-        Assert.All(observations, observation =>
-        {
-            Assert.Equal("runtime", observation.GetProperty("scopeKind").GetString());
-            Assert.Equal("alive", observation.GetProperty("attributes").GetProperty("health.check.name").GetString());
-            Assert.Equal(ResourceProbeType.Liveness.ToString(), observation.GetProperty("attributes").GetProperty("health.check.type").GetString());
-            Assert.StartsWith(
-                "runtime-container:application-api:replica-",
-                observation.GetProperty("resourceId").GetString());
-        });
-
-        var healthHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Health.Value)}");
-        Assert.Contains("Health summary", healthHtml);
-        Assert.Contains("runtime scope check(s)", healthHtml);
-        Assert.Contains("Scale and replicas", healthHtml);
-        Assert.Contains("href=\"/resources/application%3Aapi/scale-replicas\"", healthHtml);
-
-        var globalHealthHtml = await host.GetStringAsync("/health");
-        Assert.Contains("api", globalHealthHtml);
-        Assert.Contains("runtime scope check(s)", globalHealthHtml);
-        Assert.Contains("href=\"/resources/application%3Aapi/health\"", globalHealthHtml);
-
-        var scalingHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString("application:scale-replicas")}");
-        Assert.Contains("Health</th>", scalingHtml);
-        Assert.Contains("health: No matching HTTP endpoint", scalingHtml);
-        Assert.Contains("2 check(s): 0 healthy, 2 unknown, 0 unhealthy", scalingHtml);
-    }
-
-    [Fact]
-    public async Task HostVirtualNetworkSample_ProjectsVirtualNetworkAndHostProvider()
-    {
-        using var host = await SampleProcess.StartAsync(
-            "samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj",
-            await GetFreePortAsync());
-
-        await host.WaitForHttpOkAsync("/", StartupTimeout);
-
-        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
-        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
-        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
-        var network = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "network:sample-vnet");
-        var attributes = network.GetProperty("attributes");
-
-        Assert.Equal("cloudshell.virtualNetwork", network.GetProperty("typeId").GetString());
-        Assert.Equal("providerRequired", attributes.GetProperty("network.hostReadiness").GetString());
-        Assert.Equal("networking:host-local", attributes.GetProperty("network.mappingProviders").GetString());
-
-        var endpoint = Assert.Single(network.GetProperty("endpoints").EnumerateArray());
-        Assert.Equal("api-public", endpoint.GetProperty("name").GetString());
-        Assert.Equal("http://localhost:5290", GetEndpointAddress(network, "api-public"));
-        Assert.True(endpoint.GetProperty("isExternal").GetBoolean());
-
-        var mapping = Assert.Single(network.GetProperty("endpointMappings").EnumerateArray());
-        Assert.Equal("mapping:api-public", mapping.GetProperty("id").GetString());
-        Assert.Equal("network:sample-vnet", mapping.GetProperty("source").GetProperty("resourceId").GetString());
-        Assert.Equal("api-public", mapping.GetProperty("source").GetProperty("endpointName").GetString());
-        Assert.Equal("application:vnet-api", mapping.GetProperty("target").GetProperty("resourceId").GetString());
-        Assert.Equal("http", mapping.GetProperty("target").GetProperty("endpointName").GetString());
-        Assert.Equal("networking:host-local", mapping.GetProperty("providerResourceId").GetString());
-
-        var reconcileAction = network
-            .GetProperty("resourceActions")
-            .GetProperty("reconcileEndpointMappings");
-        Assert.Equal("Reconcile endpoint mappings", reconcileAction.GetProperty("displayName").GetString());
-
-        var capabilitiesJson = await host.SendJsonAsync(
-            HttpMethod.Post,
-            "/api/control-plane/v1/resources/capabilities",
+        var replicaUpdateJson = await host.SendJsonAsync(
+            HttpMethod.Put,
+            $"/api/container-apps/v1/{Uri.EscapeDataString(containerAppResourceId)}/replicas",
             """
             {
-              "resourceIds": [
-                "network:sample-vnet"
-              ]
+              "replicas": 3,
+              "restartIfRunning": false,
+              "triggeredBy": "sample-smoke-test"
             }
             """);
-        using var capabilitiesDocument = JsonDocument.Parse(capabilitiesJson);
-        var networkCapabilities = Assert.Single(capabilitiesDocument.RootElement.EnumerateArray());
-        var reconcileCapability = Assert.Single(
-            networkCapabilities.GetProperty("resourceActionCapabilities").EnumerateArray(),
-            capability => capability.GetProperty("actionId").GetString() == "reconcileEndpointMappings");
+        using var replicaUpdateDocument = JsonDocument.Parse(replicaUpdateJson);
 
-        Assert.Contains(resources, resource =>
-            resource.GetProperty("id").GetString() == "networking:host-local");
-        Assert.True(reconcileCapability.GetProperty("canExecute").GetBoolean());
-        Assert.Equal(JsonValueKind.Null, reconcileCapability.GetProperty("reason").ValueKind);
+        Assert.Contains(
+            "3",
+            replicaUpdateDocument.RootElement.GetProperty("message").GetString());
+
+        var scaledJson = await host.GetStringAsync(
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(containerAppResourceId)}");
+        using var scaledDocument = JsonDocument.Parse(scaledJson);
+        var scaledAttributes = scaledDocument.RootElement.GetProperty("attributes");
+        Assert.Equal(
+            "cloudshell/mock-api:20260608.4",
+            scaledAttributes.GetProperty("container.image").GetString());
+        Assert.Equal(
+            "3",
+            scaledAttributes.GetProperty("container.replicas").GetString());
+        Assert.Equal("true", scaledAttributes.GetProperty(ResourceAttributeNames.ContainerReplicasEnabled).GetString());
+        Assert.Equal("3", scaledAttributes.GetProperty(ResourceAttributeNames.DeploymentRequestedReplicaSlots).GetString());
+
+        var deploymentHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString(containerAppResourceId)}/details?tab={Uri.EscapeDataString("application:deployment")}");
+        Assert.Contains("Replicated", deploymentHtml);
+        Assert.Contains("3 replica slots", deploymentHtml);
+
+        var scalingHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString(containerAppResourceId)}/details?tab={Uri.EscapeDataString("application:scale-replicas")}");
+        Assert.Contains("Replica slots", scalingHtml);
+        Assert.Contains("Slot 1", scalingHtml);
+        Assert.Contains("Slot 2", scalingHtml);
+        Assert.Contains("Slot 3", scalingHtml);
     }
 
     [Fact]
-    public async Task LoadBalancerSample_AppliesTraefikConfigurationFromAdvertisedAction()
+    [Trait("Category", "DockerIntegration")]
+    public async Task ContainerAppDeploymentSample_StartsRegistryRuntime()
+    {
+        var registryContainerName =
+            ContainerAppDeploymentDockerContainerRuntimeHandler.RegistryContainerName;
+        if (!await DockerComposeStack.IsAvailableAsync() ||
+            await DockerComposeStack.ContainerExistsAsync(registryContainerName))
+        {
+            return;
+        }
+
+        const string registryResourceId = "docker.container:sample-registry";
+        var registryPort = await GetFreePortAsync();
+        using var host = await SampleProcess.StartAsync(
+            "samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ContainerAppDeployment__EnableDockerRuntime", "true"),
+                ("ContainerAppDeployment__RegistryPort", registryPort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        try
+        {
+            await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+            var registry = Assert.Single(resources, resource =>
+                resource.GetProperty("id").GetString() == registryResourceId);
+
+            Assert.DoesNotContain(resources, resource =>
+                resource.GetProperty("id").GetString() == "docker:container:sample-registry");
+
+            await StartGraphResourceIfAvailableAsync(
+                host,
+                registry,
+                "ContainerAppDeployment registry");
+
+            Assert.True(
+                await WaitForDockerContainerExistsAsync(registryContainerName, StartupTimeout),
+                $"Expected Docker container '{registryContainerName}' to be created.");
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{registryPort.ToString(CultureInfo.InvariantCulture)}/v2/",
+                bearerToken: null,
+                StartupTimeout);
+
+            var startedRegistryJson = await host.GetStringAsync(
+                $"/api/control-plane/v1/resources/{Uri.EscapeDataString(registryResourceId)}");
+            using var startedRegistryDocument = JsonDocument.Parse(startedRegistryJson);
+            await StopGraphResourceIfAvailableAsync(
+                host,
+                startedRegistryDocument.RootElement,
+                "ContainerAppDeployment registry");
+
+            Assert.True(
+                await WaitForDockerContainerRemovedAsync(registryContainerName, StartupTimeout),
+                $"Expected Docker container '{registryContainerName}' to be removed after registry stop.");
+        }
+        finally
+        {
+            await DockerComposeStack.RemoveContainerIfExistsAsync(registryContainerName);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "DockerIntegration")]
+    public async Task ContainerAppDeploymentSample_RegistryRuntimeStopsOnGracefulHostShutdown()
+    {
+        const string registryResourceId = "docker.container:sample-registry";
+        var registryContainerName =
+            ContainerAppDeploymentDockerContainerRuntimeHandler.RegistryContainerName;
+        if (!await DockerComposeStack.IsAvailableAsync())
+        {
+            return;
+        }
+
+        await DockerComposeStack.RemoveContainerIfExistsAsync(registryContainerName);
+
+        var registryPort = await GetFreePortAsync();
+        var host = await SampleProcess.StartAsync(
+            "samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ContainerAppDeployment__EnableDockerRuntime", "true"),
+                ("ContainerAppDeployment__RegistryPort", registryPort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        try
+        {
+            await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var registry = Assert.Single(
+                resourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() == registryResourceId);
+
+            await StartGraphResourceIfAvailableAsync(
+                host,
+                registry,
+                "ContainerAppDeployment registry");
+            await WaitForResourceStateAsync(
+                host,
+                registryResourceId,
+                ResourceState.Running,
+                StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerExistsAsync(registryContainerName, StartupTimeout),
+                $"Expected Docker container '{registryContainerName}' to be created.");
+
+            await host.StopAsync(StartupTimeout);
+            Assert.True(
+                await WaitForDockerContainerRemovedAsync(registryContainerName, StartupTimeout),
+                $"Expected Docker container '{registryContainerName}' to be removed during graceful host shutdown.");
+        }
+        finally
+        {
+            host.Dispose();
+            await DockerComposeStack.RemoveContainerIfExistsAsync(registryContainerName);
+        }
+    }
+
+
+    [Fact]
+    public async Task ReplicatedContainerHealthSample_DeclaresResourcesWithoutOldProviderRecords()
+    {
+        var apiPort = await GetFreePortAsync();
+        using var host = await SampleProcess.StartAsync(
+            "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ReplicatedContainerHealth__ApiPort", apiPort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var graphDocker = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "docker.host:sample");
+        var graphApp = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.container-app:api");
+        var graphAppAttributes = graphApp.GetProperty("attributes");
+
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:api");
+        Assert.Equal("docker.host", graphDocker.GetProperty("typeId").GetString());
+        Assert.Equal("application.container-app", graphApp.GetProperty("typeId").GetString());
+        Assert.Equal(
+            "cloudshell-application-api:20260622.2",
+            graphAppAttributes.GetProperty("container.image").GetString());
+        Assert.Equal("3", graphAppAttributes.GetProperty("container.replicas").GetString());
+        Assert.Equal("true", graphAppAttributes.GetProperty(ResourceAttributeNames.ContainerReplicasEnabled).GetString());
+        Assert.Equal("3", graphAppAttributes.GetProperty(ResourceAttributeNames.DeploymentRequestedReplicaSlots).GetString());
+        Assert.Equal(
+            $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}",
+            GetPrimaryEndpointAddress(graphApp));
+        Assert.Contains(
+            "docker.host:sample",
+            graphApp.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Contains(
+            graphApp.GetProperty("capabilities").EnumerateArray(),
+            capability => capability.GetProperty("id").GetString() == ResourceHealthCheckCapabilityIds.HealthChecks.ToString());
+        Assert.Contains(
+            graphApp.GetProperty("capabilities").EnumerateArray(),
+            capability => capability.GetProperty("id").GetString() == ResourceHealthCheckCapabilityIds.Liveness.ToString());
+
+        var graphScalingHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.container-app:api")}/details?tab={Uri.EscapeDataString("application:scale-replicas")}");
+        Assert.Contains("Scale and replicas", graphScalingHtml);
+        Assert.Contains("Requested replica slots", graphScalingHtml);
+        Assert.Contains("Replica slots", graphScalingHtml);
+        Assert.Contains("Update replicas", graphScalingHtml);
+        Assert.Contains("Slot 1", graphScalingHtml);
+        Assert.Contains("Slot 2", graphScalingHtml);
+        Assert.Contains("Slot 3", graphScalingHtml);
+        Assert.Contains(">3</dd>", graphScalingHtml);
+
+        var graphDeploymentHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.container-app:api")}/details?tab={Uri.EscapeDataString("application:deployment")}");
+        Assert.Contains("Deploy image", graphDeploymentHtml);
+        Assert.Contains("Current image", graphDeploymentHtml);
+        Assert.Contains("Replicated", graphDeploymentHtml);
+        Assert.Contains("3 replica slots", graphDeploymentHtml);
+
+        var graphRevisionsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.container-app:api")}/details?tab={Uri.EscapeDataString("application:revisions")}");
+        Assert.Contains("No revisions recorded", graphRevisionsHtml);
+
+        var graphMonitoringHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application.container-app:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Monitoring.Value)}");
+        Assert.Contains("Monitoring", graphMonitoringHtml);
+    }
+
+
+    [Fact]
+    [Trait("Category", "DockerIntegration")]
+    public async Task ReplicatedContainerHealthSample_ImageRolloutAndReplicaUpdatesReconcileRuntime()
+    {
+        const string graphApiResourceId = "application.container-app:api";
+        const string updatedImage = "cloudshell-application-api:20260622.3";
+        string[] containerNames =
+        [
+            "cloudshell-replicated-health-api-replica-1",
+            "cloudshell-replicated-health-api-replica-2",
+            "cloudshell-replicated-health-api-replica-3"
+        ];
+        string[] scaledContainerNames =
+        [
+            "cloudshell-replicated-health-api-replica-1",
+            "cloudshell-replicated-health-api-replica-2"
+        ];
+        const string ingressContainerName = "cloudshell-replicated-health-api-ingress";
+        var runtimeContainerNames = containerNames
+            .Append(ingressContainerName)
+            .ToArray();
+        if (!await DockerComposeStack.IsAvailableAsync() ||
+            await AnyDockerContainerExistsAsync(runtimeContainerNames))
+        {
+            return;
+        }
+
+        var apiPort = await GetFreePortAsync();
+        var graphOnlySmokeTimeout = TimeSpan.FromSeconds(180);
+        using var host = await SampleProcess.StartAsync(
+            "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ReplicatedContainerHealth__ApiPort", apiPort.ToString(CultureInfo.InvariantCulture)),
+                ("ReplicatedContainerHealth__RuntimeStatusCacheMilliseconds", "25"),
+                ("ReplicatedContainerHealth__RuntimeReplicaCleanupLimit", "3")
+            ],
+            bindToAnyAddress: true);
+
+        try
+        {
+            await host.WaitForHttpOkAsync("/api/control-plane/v1/resources", graphOnlySmokeTimeout);
+
+            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var graphApp = Assert.Single(
+                resourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() == graphApiResourceId);
+
+            Assert.DoesNotContain(
+                resourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() == "application:api");
+
+            await StartGraphResourceIfAvailableAsync(host, graphApp, "ReplicatedContainerHealth API");
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
+                bearerToken: null,
+                graphOnlySmokeTimeout);
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/work",
+                bearerToken: null,
+                graphOnlySmokeTimeout);
+            await AssertGraphReplicaLogSourcesAsync(host, graphApiResourceId, expectedReplicas: 3);
+            var graphReplicaLogEntries = await WaitForAnyGraphReplicaLogEntriesAsync(
+                host,
+                graphApiResourceId,
+                expectedReplicas: 3,
+                message => message.Contains("reported healthy", StringComparison.OrdinalIgnoreCase));
+            Assert.NotEmpty(graphReplicaLogEntries);
+            await AssertGraphResourceHealthChecksHealthyAsync(host, graphApiResourceId, apiPort, graphOnlySmokeTimeout);
+            await AssertGraphResourceRuntimeHealthAggregatesAsync(
+                host,
+                graphApiResourceId,
+                expectedReplicas: 3,
+                graphOnlySmokeTimeout);
+            await AssertGraphReplicaRuntimeEnvironmentAsync(
+                "cloudshell-replicated-health-api-replica-1",
+                replica: 1);
+            await AssertGraphReplicaTelemetryAsync(host, replica: 1, graphOnlySmokeTimeout);
+            await AssertAnyGraphReplicaWorkTraceAsync(host, expectedReplicas: 3, graphOnlySmokeTimeout);
+            await AssertGraphReplicaResourceObservabilityAsync(host, replica: 1);
+            foreach (var containerName in containerNames)
+            {
+                Assert.True(
+                    await WaitForDockerContainerExistsAsync(containerName, graphOnlySmokeTimeout),
+                    $"Expected Docker container '{containerName}' to be created.");
+            }
+            Assert.True(
+                await WaitForDockerContainerExistsAsync(ingressContainerName, graphOnlySmokeTimeout),
+                $"Expected Docker ingress container '{ingressContainerName}' to be created.");
+            await AssertGraphReplicaChildrenProjectedAsync(
+                host,
+                graphApiResourceId,
+                expectedReplicas: 3,
+                graphOnlySmokeTimeout);
+            await AssertGraphReplicaMonitoringSnapshotsAsync(
+                host,
+                expectedReplicas: 3,
+                graphOnlySmokeTimeout);
+            await AssertGraphMonitoringPanelReplicaSnapshotsAsync(
+                host,
+                graphApiResourceId,
+                expectedReplicas: 3,
+                graphOnlySmokeTimeout);
+            await AssertGraphScalePanelReplicaOccupantsAsync(
+                host,
+                graphApiResourceId,
+                expectedReplicas: 3,
+                graphOnlySmokeTimeout);
+            var startedContainerIds = await GetDockerContainerIdsAsync(containerNames);
+
+            var graphApplyJson = await host.SendJsonAsync(
+                HttpMethod.Post,
+                $"/replicated-container-health/resource-graph/resources/{Uri.EscapeDataString(graphApiResourceId)}/container-image",
+                $$"""
+                {
+                  "image": "{{updatedImage}}"
+                }
+                """);
+            using var graphApplyDocument = JsonDocument.Parse(graphApplyJson);
+
+            Assert.True(graphApplyDocument.RootElement.GetProperty("committed").GetBoolean());
+            Assert.False(graphApplyDocument.RootElement.GetProperty("hasErrors").GetBoolean());
+
+            var updatedResourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var updatedResourcesDocument = JsonDocument.Parse(updatedResourcesJson);
+            var updatedGraphApp = Assert.Single(
+                updatedResourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() == graphApiResourceId);
+            Assert.Equal(
+                updatedImage,
+                updatedGraphApp.GetProperty("attributes").GetProperty("container.image").GetString());
+
+            var updateImageAction = updatedGraphApp
+                .GetProperty("resourceActions")
+                .GetProperty("container.image.update");
+            var updateImageHref = updateImageAction.GetProperty("href").GetString() ??
+                throw new InvalidOperationException("The container image update action did not include an href.");
+            await host.SendAsync(HttpMethod.Post, updateImageHref);
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
+                bearerToken: null,
+                graphOnlySmokeTimeout);
+            foreach (var containerName in containerNames)
+            {
+                Assert.True(
+                    await WaitForDockerContainerIdChangedAsync(
+                        containerName,
+                        startedContainerIds[containerName],
+                        graphOnlySmokeTimeout),
+                    $"Expected Docker container '{containerName}' to be recreated after image update.");
+            }
+            var imageUpdatedContainerIds = await GetDockerContainerIdsAsync(containerNames);
+
+            var graphReplicaUpdateJson = await host.SendJsonAsync(
+                HttpMethod.Put,
+                $"/api/container-apps/v1/{Uri.EscapeDataString(graphApiResourceId)}/replicas",
+                """
+                {
+                  "replicas": 2,
+                  "restartIfRunning": false,
+                  "triggeredBy": "sample-smoke-test"
+                }
+                """);
+            using var graphReplicaUpdateDocument = JsonDocument.Parse(graphReplicaUpdateJson);
+
+            Assert.Contains(
+                "2",
+                graphReplicaUpdateDocument.RootElement.GetProperty("message").GetString());
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
+                bearerToken: null,
+                graphOnlySmokeTimeout);
+            await AssertGraphResourceHealthChecksHealthyAsync(host, graphApiResourceId, apiPort, graphOnlySmokeTimeout);
+            await AssertGraphResourceRuntimeHealthAggregatesAsync(
+                host,
+                graphApiResourceId,
+                expectedReplicas: 2,
+                graphOnlySmokeTimeout);
+            await AssertGraphReplicaLogSourcesAsync(host, graphApiResourceId, expectedReplicas: 2);
+            await AssertGraphReplicaChildrenProjectedAsync(
+                host,
+                graphApiResourceId,
+                expectedReplicas: 2,
+                graphOnlySmokeTimeout);
+            await AssertGraphReplicaMonitoringSnapshotsAsync(
+                host,
+                expectedReplicas: 2,
+                graphOnlySmokeTimeout);
+            await AssertGraphMonitoringPanelReplicaSnapshotsAsync(
+                host,
+                graphApiResourceId,
+                expectedReplicas: 2,
+                graphOnlySmokeTimeout);
+            await AssertGraphScalePanelReplicaOccupantsAsync(
+                host,
+                graphApiResourceId,
+                expectedReplicas: 2,
+                graphOnlySmokeTimeout);
+            var scaledContainerIds = await GetDockerContainerIdsAsync(scaledContainerNames);
+            foreach (var containerName in scaledContainerNames)
+            {
+                Assert.Equal(imageUpdatedContainerIds[containerName], scaledContainerIds[containerName]);
+            }
+
+            Assert.True(
+                await WaitForDockerContainerRemovedAsync(
+                    "cloudshell-replicated-health-api-replica-3",
+                    graphOnlySmokeTimeout),
+                "Expected stale replica 3 to be removed after scale-down.");
+
+            var scaledResourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var scaledResourcesDocument = JsonDocument.Parse(scaledResourcesJson);
+            var scaledGraphApp = Assert.Single(
+                scaledResourcesDocument.RootElement.EnumerateArray(),
+                resource => resource.GetProperty("id").GetString() == graphApiResourceId);
+
+            Assert.Equal(
+                "2",
+                scaledGraphApp.GetProperty("attributes").GetProperty("container.replicas").GetString());
+
+            await StopGraphResourceIfAvailableAsync(
+                host,
+                scaledGraphApp,
+                "ReplicatedContainerHealth API");
+
+            foreach (var containerName in runtimeContainerNames)
+            {
+                Assert.True(
+                    await WaitForDockerContainerRemovedAsync(containerName, graphOnlySmokeTimeout),
+                    $"Expected runtime container '{containerName}' to be removed after resource stop.");
+            }
+        }
+        finally
+        {
+            await StopResourceIfRunningAsync(host, graphApiResourceId);
+            foreach (var containerName in runtimeContainerNames)
+            {
+                await DockerComposeStack.RemoveContainerIfExistsAsync(containerName);
+            }
+        }
+    }
+
+
+    [Fact]
+    public async Task HostVirtualNetworkSample_ReconcilesEndpointMappingThroughRuntimeBridge()
+    {
+        const string apiResourceId = "application.aspnet-core-project:vnet-api";
+        const string networkResourceId = "cloudshell.virtualNetwork:sample-vnet";
+        var targetPort = await GetFreePortAsync();
+        var virtualNetworkPort = await GetFreePortAsync();
+        using var host = await SampleProcess.StartAsync(
+            "samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj",
+            await GetFreePortAsync(),
+            [
+                ("HostVirtualNetwork__TargetPort", targetPort.ToString(CultureInfo.InvariantCulture)),
+                ("HostVirtualNetwork__VirtualNetworkPort", virtualNetworkPort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:vnet-api");
+        var api = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == apiResourceId);
+        var network = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == networkResourceId);
+
+        try
+        {
+            await StartGraphResourceIfAvailableAsync(host, api, "HostVirtualNetwork API");
+            await host.WaitForAbsoluteHttpOkAsync(
+                $"http://localhost:{targetPort.ToString(CultureInfo.InvariantCulture)}/health",
+                null,
+                StartupTimeout);
+
+            var reconcile = network
+                .GetProperty("resourceActions")
+                .GetProperty("reconcileEndpointMappings");
+            var href = reconcile.GetProperty("href").GetString() ??
+                throw new InvalidOperationException("The virtual network reconcile action did not include an href.");
+            await host.SendAsync(HttpMethod.Post, href);
+
+            var healthJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
+                $"http://localhost:{virtualNetworkPort.ToString(CultureInfo.InvariantCulture)}/health",
+                StartupTimeout);
+            using var healthDocument = JsonDocument.Parse(healthJson);
+            Assert.Equal("ok", healthDocument.RootElement.GetProperty("status").GetString());
+        }
+        finally
+        {
+            await StopResourceIfRunningAsync(host, apiResourceId);
+        }
+    }
+
+    [Fact]
+    public async Task LoadBalancerSample_RunsLoadBalancerAndDnsPathsWithoutOldProviderRecords()
     {
         var root = SampleProcess.FindRepositoryRoot();
         var dataDirectory = Path.Combine(root, "samples", "LoadBalancer", "Data");
@@ -2175,85 +2408,341 @@ public sealed class SampleSmokeTests
             Directory.Delete(dataDirectory, recursive: true);
         }
 
+        var hostsFilePath = Path.Combine(dataDirectory, "cloudshell.hosts");
         using var host = await SampleProcess.StartAsync(
             "samples/LoadBalancer/CloudShell.LoadBalancer.csproj",
             await GetFreePortAsync(),
-            [("CLOUDSHELL_LOADBALANCER_SKIP_TRAEFIK_RUNTIME", "true")]);
+            [
+                ("CLOUDSHELL_LOADBALANCER_SKIP_TRAEFIK_RUNTIME", "true"),
+                ("CLOUDSHELL_LOCAL_HOSTS_FILE", hostsFilePath)
+            ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
 
         var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
-        var loadBalancer = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "load-balancer:public");
-        var api = Assert.Single(resources, resource =>
+        Assert.DoesNotContain(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:web");
+        Assert.DoesNotContain(resources, resource =>
             resource.GetProperty("id").GetString() == "application:api");
-        var postgres = Assert.Single(resources, resource =>
+        Assert.DoesNotContain(resources, resource =>
             resource.GetProperty("id").GetString() == "application:postgres");
-        var dnsZone = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:cloudshell-local");
-        var appName = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:cloudshell-local:name:app-cloudshell-local");
-        var apiName = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:cloudshell-local:name:api-cloudshell-local");
-        var attributes = loadBalancer.GetProperty("attributes");
-        var apiAttributes = api.GetProperty("attributes");
-        var postgresAttributes = postgres.GetProperty("attributes");
-        var dnsAttributes = dnsZone.GetProperty("attributes");
-        var appNameAttributes = appName.GetProperty("attributes");
-        var apiNameAttributes = apiName.GetProperty("attributes");
 
-        Assert.Equal("cloudshell.loadBalancer", loadBalancer.GetProperty("typeId").GetString());
-        Assert.Equal("traefik", attributes.GetProperty("loadBalancer.provider").GetString());
-        Assert.Equal("docker:sample-host", attributes.GetProperty("loadBalancer.hostResourceId").GetString());
-        Assert.Equal("3", attributes.GetProperty("loadBalancer.routes").GetString());
-        Assert.Equal(3, loadBalancer.GetProperty("loadBalancerRoutes").GetArrayLength());
+        var loadBalancer = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "cloudshell.loadBalancer:public");
+        var dnsZone = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "cloudshell.dnsZone:cloudshell-local");
+        var api = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.container-app:api");
+        Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "cloudshell.nameMapping:app-cloudshell-local");
+        Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "cloudshell.nameMapping:api-cloudshell-local");
+        Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.container-app:web");
+        Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.container-app:postgres");
+
+        var apiAttributes = api.GetProperty("attributes");
+        var loadBalancerAttributes = loadBalancer.GetProperty("attributes");
+        Assert.Equal("application.container-app", api.GetProperty("typeId").GetString());
         Assert.Equal("traefik/whoami:v1.10", apiAttributes.GetProperty("container.image").GetString());
         Assert.Equal("3", apiAttributes.GetProperty("container.replicas").GetString());
-        Assert.Equal("postgres:16-alpine", postgresAttributes.GetProperty("container.image").GetString());
+        Assert.Contains(
+            "docker.host:sample-host",
+            api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Equal("cloudshell.loadBalancer", loadBalancer.GetProperty("typeId").GetString());
+        Assert.Equal("traefik", loadBalancerAttributes.GetProperty("loadBalancer.provider").GetString());
+        Assert.Equal("docker.host:sample-host", loadBalancerAttributes.GetProperty("loadBalancer.hostResourceId").GetString());
+        Assert.Equal("3", loadBalancerAttributes.GetProperty("loadBalancer.routes").GetString());
+        Assert.Equal("2", loadBalancerAttributes.GetProperty("loadBalancer.routes.http").GetString());
+        Assert.Equal("1", loadBalancerAttributes.GetProperty("loadBalancer.routes.tcp").GetString());
         Assert.Equal("cloudshell.dnsZone", dnsZone.GetProperty("typeId").GetString());
-        Assert.Equal("2", dnsAttributes.GetProperty("dns.records").GetString());
-        Assert.Equal("cloudshell.nameMapping", appName.GetProperty("typeId").GetString());
-        Assert.Equal("app.cloudshell.local", appNameAttributes.GetProperty("nameMapping.hostName").GetString());
-        Assert.Equal("load-balancer:public", appNameAttributes.GetProperty("nameMapping.targetResourceId").GetString());
-        Assert.Equal("http", appNameAttributes.GetProperty("nameMapping.targetEndpointName").GetString());
-        Assert.Equal("ProviderSelected", appNameAttributes.GetProperty("nameMapping.materializationStatus").GetString());
-        Assert.Equal("api.cloudshell.local", apiNameAttributes.GetProperty("nameMapping.hostName").GetString());
-        Assert.Equal("load-balancer:public", apiNameAttributes.GetProperty("nameMapping.targetResourceId").GetString());
-        Assert.Equal("ProviderSelected", apiNameAttributes.GetProperty("nameMapping.materializationStatus").GetString());
-
-        var apiEndpointsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");
-        Assert.Contains("Add route to load balancer", apiEndpointsHtml);
-        Assert.Contains("/resources/load-balancer%3Apublic", apiEndpointsHtml);
-        Assert.Contains("/configuration", apiEndpointsHtml);
-        Assert.Contains("targetResourceId=application%3Aapi", apiEndpointsHtml);
-        Assert.Contains("targetEndpointName=http", apiEndpointsHtml);
-        Assert.DoesNotContain("type=cloudshell.loadBalancer", apiEndpointsHtml);
 
         var applyAction = loadBalancer
             .GetProperty("resourceActions")
             .GetProperty("applyLoadBalancerConfiguration");
         var applyHref = applyAction.GetProperty("href").GetString() ??
             throw new InvalidOperationException("The load balancer apply action did not include an href.");
-
         var applyJson = await host.SendAsync(HttpMethod.Post, applyHref);
         using var applyDocument = JsonDocument.Parse(applyJson);
         Assert.Contains(
             "Applied Traefik configuration for 3 route(s)",
             applyDocument.RootElement.GetProperty("message").GetString());
 
-        var configPath = Path.Combine(dataDirectory, "traefik", "load-balancer-public.dynamic.yml");
+        var configPath = Path.Combine(dataDirectory, "traefik", "cloudshell-loadbalancer-public.dynamic.yml");
         var config = await File.ReadAllTextAsync(configPath);
         Assert.Contains("Host(`app.cloudshell.local`)", config);
         Assert.Contains("Host(`api.cloudshell.local`) && PathPrefix(`/v1`)", config);
-        Assert.Contains("url: \"http://cloudshell-application-web:80\"", config);
-        Assert.Contains("url: \"http://cloudshell-application-api-replica-1:80\"", config);
-        Assert.Contains("url: \"http://cloudshell-application-api-replica-2:80\"", config);
-        Assert.Contains("url: \"http://cloudshell-application-api-replica-3:80\"", config);
+        Assert.Contains("url: \"http://cloudshell-application-container-app-web:80\"", config);
+        Assert.Contains("url: \"http://cloudshell-application-container-app-api-replica-1:80\"", config);
+        Assert.Contains("url: \"http://cloudshell-application-container-app-api-replica-2:80\"", config);
+        Assert.Contains("url: \"http://cloudshell-application-container-app-api-replica-3:80\"", config);
         Assert.Contains("HostSNI(`*`)", config);
-        Assert.Contains("address: \"cloudshell-application-postgres:5432\"", config);
+        Assert.Contains("address: \"cloudshell-application-container-app-postgres:5432\"", config);
+
+        var dnsReconcileAction = dnsZone
+            .GetProperty("resourceActions")
+            .GetProperty("reconcileNameMappings");
+        var dnsReconcileHref = dnsReconcileAction.GetProperty("href").GetString() ??
+            throw new InvalidOperationException("The DNS zone reconcile action did not include an href.");
+        var dnsReconcileJson = await host.SendAsync(HttpMethod.Post, dnsReconcileHref);
+        using var dnsReconcileDocument = JsonDocument.Parse(dnsReconcileJson);
+        var dnsReconcileMessage =
+            dnsReconcileDocument.RootElement.GetProperty("message").GetString();
+        Assert.Contains(
+            "Published 2 local host name mapping(s)",
+            dnsReconcileMessage);
+
+        var hostsFile = await File.ReadAllTextAsync(hostsFilePath);
+        Assert.Contains("127.0.0.1 app.cloudshell.local", hostsFile);
+        Assert.Contains("127.0.0.1 api.cloudshell.local", hostsFile);
+    }
+
+    private static async Task<IReadOnlyList<(string Key, string Value)>> CreateSampleHostLaunchEnvironmentAsync(
+        string projectPath,
+        int hostPort)
+    {
+        List<(string Key, string Value)> environment = [];
+        var sampleName = GetSwitchReadinessSampleName(projectPath);
+
+        if (sampleName == "ApplicationTopology")
+        {
+            environment.Add(("ApplicationTopology__ApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ApplicationTopology__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ApplicationTopology__ConfigurationServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ApplicationTopology__SecretsServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ApplicationTopology__SqlServer__Port", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+        }
+        else if (sampleName == "CloudShell.ContainerHost")
+        {
+            environment.Add(("ContainerHost__SqlServer__Port", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+        }
+        else if (sampleName == "ContainerAppDeployment")
+        {
+            environment.Add(("ContainerAppDeployment__RegistryPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+        }
+        else if (sampleName == "HostVirtualNetwork")
+        {
+            environment.Add(("HostVirtualNetwork__TargetPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+            environment.Add(("HostVirtualNetwork__VirtualNetworkPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+        }
+        else if (sampleName == "LoadBalancer")
+        {
+            environment.Add(("CLOUDSHELL_LOADBALANCER_SKIP_TRAEFIK_RUNTIME", "true"));
+            environment.Add((
+                "CLOUDSHELL_LOCAL_HOSTS_FILE",
+                Path.Combine(
+                    Path.GetTempPath(),
+                    $"cloudshell-load-balancer-{Guid.NewGuid():N}.hosts")));
+        }
+        else if (sampleName == "ProjectReference")
+        {
+            environment.Add(("ProjectReference__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ProjectReference__ApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+        }
+        else if (sampleName == "ReplicatedContainerHealth")
+        {
+            environment.Add(("ReplicatedContainerHealth__ApiPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+            environment.Add(("ReplicatedContainerHealth__RuntimeStatusCacheMilliseconds", "25"));
+        }
+        else if (sampleName == "SettingsAndSecrets")
+        {
+            environment.Add(("Samples__SettingsAndSecrets__ConfigurationServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("Samples__SettingsAndSecrets__SecretsServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("Samples__SettingsAndSecrets__ApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+        }
+        else if (sampleName == "SplitHosting")
+        {
+            environment.Add(("Authentication__BuiltInAuthority__Issuer", $"http://localhost:{hostPort}"));
+        }
+        else if (sampleName == "ThirdPartyIdentity")
+        {
+            environment.Add(("Authentication__Enabled", "false"));
+            environment.Add(("Authentication__OpenIdConnect__RequireHttpsMetadata", "false"));
+            environment.Add(("Keycloak__AdminBaseAddress", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("Samples__ThirdPartyIdentity__ApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("Samples__ThirdPartyIdentity__ConfigurationServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+        }
+
+        return environment;
+    }
+
+    private static string GetSwitchReadinessSampleName(string projectPath)
+    {
+        if (projectPath.Contains("/ApplicationTopology/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ApplicationTopology";
+        }
+
+        if (projectPath.Contains("/CloudShell.ContainerHost/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "CloudShell.ContainerHost";
+        }
+
+        if (projectPath.Contains("/ContainerAppDeployment/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ContainerAppDeployment";
+        }
+
+        if (projectPath.Contains("/HostVirtualNetwork/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "HostVirtualNetwork";
+        }
+
+        if (projectPath.Contains("/LoadBalancer/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "LoadBalancer";
+        }
+
+        if (projectPath.Contains("/ProjectReference/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ProjectReference";
+        }
+
+        if (projectPath.Contains("/ReplicatedContainerHealth/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ReplicatedContainerHealth";
+        }
+
+        if (projectPath.Contains("/SettingsAndSecrets/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "SettingsAndSecrets";
+        }
+
+        if (projectPath.Contains("/SplitHosting/ControlPlane/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "SplitHosting";
+        }
+
+        if (projectPath.Contains("/ThirdPartyIdentity/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ThirdPartyIdentity";
+        }
+
+        throw new InvalidOperationException($"Could not resolve switch-readiness sample name for '{projectPath}'.");
+    }
+
+    private static void AssertNoUnexpectedLegacyResources(
+        string projectPath,
+        IReadOnlySet<string> resourceIds)
+    {
+        foreach (var legacyResourceId in GetUnexpectedLegacyResourceIds(projectPath))
+        {
+            Assert.DoesNotContain(legacyResourceId, resourceIds);
+        }
+    }
+
+    private static IReadOnlyList<string> GetUnexpectedLegacyResourceIds(string projectPath)
+    {
+        return GetSwitchReadinessSampleName(projectPath) switch
+        {
+            "ApplicationTopology" =>
+            [
+                "application:application-topology-sql-server",
+                "application:application-topology-sql-server/database:application-topology",
+                "configuration:application-topology",
+                "secrets-vault:application-topology",
+                "application:application-topology-api",
+                "application:application-topology-frontend"
+            ],
+            "CloudShell.ContainerHost" =>
+            [
+                "storage:local",
+                "volume:sql-data",
+                "application:sql-server"
+            ],
+            "ContainerAppDeployment" =>
+            [
+                "docker:container:sample-registry",
+                "application:sample-api"
+            ],
+            "HostVirtualNetwork" =>
+            [
+                "application:vnet-api"
+            ],
+            "LoadBalancer" =>
+            [
+                "application:web",
+                "application:api",
+                "application:postgres"
+            ],
+            "ProjectReference" =>
+            [
+                "application:project-reference-api",
+                "application:project-reference-frontend"
+            ],
+            "ReplicatedContainerHealth" =>
+            [
+                "application:api"
+            ],
+            "SettingsAndSecrets" =>
+            [
+                "configuration:sample-app",
+                "secrets-vault:sample-app",
+                "application:settings-secrets-api"
+            ],
+            "SplitHosting" => [],
+            "ThirdPartyIdentity" =>
+            [
+                "configuration:third-party-identity",
+                "application:keycloak-provisioned-api"
+            ],
+            _ => []
+        };
+    }
+
+    private static async Task CleanupSwitchReadinessRuntimeArtifactsAsync(string projectPath)
+    {
+        var sampleName = GetSwitchReadinessSampleName(projectPath);
+
+        if (sampleName == "CloudShell.ContainerHost")
+        {
+            await DockerComposeStack.RemoveContainerIfExistsAsync(
+                ContainerHostSqlServerDockerBridge.SqlServerContainerName);
+        }
+        else if (sampleName == "ContainerAppDeployment")
+        {
+            await DockerComposeStack.RemoveContainerIfExistsAsync(
+                ContainerAppDeploymentDockerContainerRuntimeHandler.RegistryContainerName);
+        }
+        else if (sampleName == "ApplicationTopology")
+        {
+            await DockerComposeStack.RemoveContainerIfExistsAsync(
+                ApplicationTopologyResourceModelSqlServerDockerBridge.ResourceModelSqlServerContainerName);
+        }
+        else if (sampleName == "LoadBalancer")
+        {
+            foreach (var path in Directory.EnumerateFiles(
+                Path.GetTempPath(),
+                "cloudshell-load-balancer-*.hosts"))
+            {
+                try
+                {
+                    File.Delete(path);
+                }
+                catch
+                {
+                    // Test cleanup should not hide the original test failure.
+                }
+            }
+        }
+        else if (sampleName == "ReplicatedContainerHealth")
+        {
+            await DockerComposeStack.RemoveContainerIfExistsAsync(
+                "cloudshell-replicated-health-api-ingress");
+
+            for (var replica = 1; replica <= 10; replica++)
+            {
+                await DockerComposeStack.RemoveContainerIfExistsAsync(
+                    $"cloudshell-replicated-health-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}");
+            }
+        }
+        else if (sampleName == "ThirdPartyIdentity")
+        {
+            await CleanupThirdPartyIdentityKeycloakStacksAsync();
+        }
     }
 
     private static async Task<int> GetFreePortAsync()
@@ -2294,7 +2783,7 @@ public sealed class SampleSmokeTests
     {
         using var client = new HttpClient
         {
-            Timeout = TimeSpan.FromSeconds(3)
+            Timeout = TimeSpan.FromSeconds(10)
         };
         var deadline = DateTimeOffset.UtcNow.Add(timeout);
         Exception? lastException = null;
@@ -2323,6 +2812,49 @@ public sealed class SampleSmokeTests
         throw new TimeoutException(
             $"Endpoint '{url}' did not become ready within {timeout}." +
             $"{Environment.NewLine}{lastStatus ?? lastException?.Message}");
+    }
+
+    private static async Task<(DockerComposeStack Stack, int Port)> StartThirdPartyIdentityKeycloakAsync(
+        string root,
+        string projectNamePrefix)
+    {
+        var portBindFailures = new List<Exception>();
+        for (var attempt = 1; attempt <= 3; attempt++)
+        {
+            var keycloakPort = await GetFreePortAsync();
+            var projectName = $"{projectNamePrefix}-{Guid.NewGuid():N}";
+            try
+            {
+                var stack = await DockerComposeStack.StartAsync(
+                    root,
+                    "samples/ThirdPartyIdentity/docker-compose.yml",
+                    projectName,
+                    [("KEYCLOAK_PORT", keycloakPort.ToString(CultureInfo.InvariantCulture))]);
+                return (stack, keycloakPort);
+            }
+            catch (InvalidOperationException exception) when (IsDockerPortBindFailure(exception))
+            {
+                portBindFailures.Add(exception);
+            }
+        }
+
+        throw new InvalidOperationException(
+            "Could not start the ThirdPartyIdentity Keycloak compose stack after retrying random host ports.",
+            new AggregateException(portBindFailures));
+    }
+
+    private static bool IsDockerPortBindFailure(Exception exception)
+    {
+        return exception.Message.Contains("port is already allocated", StringComparison.OrdinalIgnoreCase) ||
+            exception.Message.Contains("Ports are not available", StringComparison.OrdinalIgnoreCase) ||
+            exception.Message.Contains("failed to bind", StringComparison.OrdinalIgnoreCase) ||
+            exception.Message.Contains("address already in use", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task CleanupThirdPartyIdentityKeycloakStacksAsync()
+    {
+        await DockerComposeStack.RemoveProjectsByPrefixAsync("cloudshell-third-party-identity-test-");
+        await DockerComposeStack.RemoveProjectsByPrefixAsync("cloudshell-third-party-identity-graph-test-");
     }
 
     private static async Task<string> WaitForJsonStatusAsync(
@@ -2389,6 +2921,162 @@ public sealed class SampleSmokeTests
         }
 
         return (int)(hash % 1000);
+    }
+
+    private static async Task<string> WaitForLogSourceAsync(
+        SampleProcess host,
+        string resourceId)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(StartupTimeout);
+        string? lastBody = null;
+        do
+        {
+            lastBody = await host.GetStringAsync(
+                $"/api/control-plane/v1/log-sources?resourceId={Uri.EscapeDataString(resourceId)}");
+            using var document = JsonDocument.Parse(lastBody);
+            foreach (var source in document.RootElement.EnumerateArray())
+            {
+                if (string.Equals(
+                        source.GetProperty("resourceId").GetString(),
+                        resourceId,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return source.GetProperty("id").GetString() ??
+                        throw new InvalidOperationException("The log source did not include an id.");
+                }
+            }
+
+            await Task.Delay(250);
+        }
+        while (DateTimeOffset.UtcNow < deadline);
+
+        throw new TimeoutException(
+            $"Timed out waiting for log source for resource '{resourceId}'. Last response: {lastBody}");
+    }
+
+    private static async Task<IReadOnlyList<string>> WaitForLogEntriesAsync(
+        SampleProcess host,
+        string logSourceId,
+        Func<string, bool>? containsEntry = null)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(StartupTimeout);
+        string? lastBody = null;
+        do
+        {
+            lastBody = await host.GetStringAsync(
+                $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(logSourceId)}/entries?maxEntries=50");
+            using var document = JsonDocument.Parse(lastBody);
+            var entries = document.RootElement
+                .EnumerateArray()
+                .Select(entry => entry.GetProperty("message").GetString() ?? string.Empty)
+                .Where(message => !string.IsNullOrWhiteSpace(message))
+                .ToArray();
+            if (entries.Length > 0 &&
+                (containsEntry is null || entries.Any(containsEntry)))
+            {
+                return entries;
+            }
+
+            await Task.Delay(250);
+        }
+        while (DateTimeOffset.UtcNow < deadline);
+
+        throw new TimeoutException(
+            $"Timed out waiting for log entries for source '{logSourceId}'. Last response: {lastBody}");
+    }
+
+    private static async Task<IReadOnlyList<string>> WaitForAnyGraphReplicaLogEntriesAsync(
+        SampleProcess host,
+        string resourceId,
+        int expectedReplicas,
+        Func<string, bool> containsEntry)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(StartupTimeout);
+        var lastResponses = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        do
+        {
+            for (var replica = 1; replica <= expectedReplicas; replica++)
+            {
+                var logSourceId = $"{resourceId}:replica-{replica.ToString(CultureInfo.InvariantCulture)}:logs";
+                var body = await host.GetStringAsync(
+                    $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(logSourceId)}/entries?maxEntries=50");
+                lastResponses[logSourceId] = body;
+                using var document = JsonDocument.Parse(body);
+                var entries = document.RootElement
+                    .EnumerateArray()
+                    .Select(entry => entry.GetProperty("message").GetString() ?? string.Empty)
+                    .Where(message => !string.IsNullOrWhiteSpace(message))
+                    .ToArray();
+                if (entries.Length > 0 && entries.Any(containsEntry))
+                {
+                    return entries;
+                }
+            }
+
+            await Task.Delay(250);
+        }
+        while (DateTimeOffset.UtcNow < deadline);
+
+        var lastResponseText = string.Join(
+            Environment.NewLine,
+            lastResponses.Select(response => $"{response.Key}: {response.Value}"));
+        throw new TimeoutException(
+            $"Timed out waiting for runtime replica log entries for resource '{resourceId}'. Last responses: {lastResponseText}");
+    }
+
+    private static bool HasResourceState(JsonElement resource, ResourceState expected)
+    {
+        if (!resource.TryGetProperty("state", out var state) ||
+            state.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return false;
+        }
+
+        return state.ValueKind switch
+        {
+            JsonValueKind.String => string.Equals(
+                state.GetString(),
+                expected.ToString(),
+                StringComparison.OrdinalIgnoreCase),
+            JsonValueKind.Number => state.TryGetInt32(out var value) &&
+                value == (int)expected,
+            _ => false
+        };
+    }
+
+    private static async Task<JsonElement> WaitForResourceStateAsync(
+        SampleProcess host,
+        string resourceId,
+        ResourceState state,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        string? lastBody = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            lastBody = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var document = JsonDocument.Parse(lastBody);
+            var resource = document.RootElement
+                .EnumerateArray()
+                .FirstOrDefault(resource =>
+                    string.Equals(
+                        resource.GetProperty("id").GetString(),
+                        resourceId,
+                        StringComparison.OrdinalIgnoreCase));
+
+            if (resource.ValueKind != JsonValueKind.Undefined &&
+                HasResourceState(resource, state))
+            {
+                return resource.Clone();
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"Resource '{resourceId}' did not reach state '{state}' within {timeout}." +
+            $"{Environment.NewLine}{lastBody}");
     }
 
     private static string GetEndpointAddress(JsonElement resource, string endpointName)
@@ -2469,6 +3157,44 @@ public sealed class SampleSmokeTests
             $"{Environment.NewLine}{lastBody ?? lastException?.Message}");
     }
 
+    private static async Task<IReadOnlyList<JsonElement>> WaitForTraceSpansByResourceAsync(
+        SampleProcess host,
+        string resourceId,
+        TimeSpan timeout,
+        Func<IReadOnlyList<JsonElement>, bool> isComplete)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        Exception? lastException = null;
+        string? lastBody = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            try
+            {
+                lastBody = await host.GetStringAsync(
+                    $"/api/control-plane/v1/traces?resourceId={Uri.EscapeDataString(resourceId)}&maxSpans=50");
+                using var document = JsonDocument.Parse(lastBody);
+                var spans = document.RootElement.EnumerateArray()
+                    .Select(span => span.Clone())
+                    .ToArray();
+                if (spans.Length > 0 && isComplete(spans))
+                {
+                    return spans;
+                }
+            }
+            catch (Exception exception) when (exception is HttpRequestException or JsonException)
+            {
+                lastException = exception;
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"Traces for resource '{resourceId}' were not ingested within {timeout}." +
+            $"{Environment.NewLine}{lastBody ?? lastException?.Message}");
+    }
+
     private static bool IsHttpClientSpanForPath(
         JsonElement span,
         string path,
@@ -2539,12 +3265,81 @@ public sealed class SampleSmokeTests
         return false;
     }
 
+    private static async Task<IReadOnlyDictionary<string, string>> GetDockerContainerIdsAsync(
+        IReadOnlyCollection<string> containerNames)
+    {
+        var containerIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var containerName in containerNames)
+        {
+            var containerId = await DockerComposeStack.GetContainerIdAsync(containerName);
+            if (string.IsNullOrWhiteSpace(containerId))
+            {
+                throw new InvalidOperationException(
+                    $"Docker container '{containerName}' did not have an inspectable id.");
+            }
+
+            containerIds[containerName] = containerId;
+        }
+
+        return containerIds;
+    }
+
+    private static async Task<bool> WaitForDockerContainerIdChangedAsync(
+        string containerName,
+        string previousContainerId,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            var currentContainerId = await DockerComposeStack.GetContainerIdAsync(containerName);
+            if (!string.IsNullOrWhiteSpace(currentContainerId) &&
+                !string.Equals(currentContainerId, previousContainerId, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            await Task.Delay(250);
+        }
+
+        return false;
+    }
+
+    private static async Task<bool> AnyDockerContainerExistsAsync(IReadOnlyCollection<string> containerNames)
+    {
+        foreach (var containerName in containerNames)
+        {
+            if (await DockerComposeStack.ContainerExistsAsync(containerName))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static async Task<bool> WaitForDockerContainerRemovedAsync(string containerName, TimeSpan timeout)
     {
         var deadline = DateTimeOffset.UtcNow.Add(timeout);
         while (DateTimeOffset.UtcNow < deadline)
         {
             if (!await DockerComposeStack.ContainerExistsAsync(containerName))
+            {
+                return true;
+            }
+
+            await Task.Delay(250);
+        }
+
+        return false;
+    }
+
+    private static async Task<bool> WaitForDockerComposeProjectRemovedAsync(string projectName, TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (!await DockerComposeStack.ProjectExistsAsync(projectName))
             {
                 return true;
             }
@@ -2576,6 +3371,23 @@ public sealed class SampleSmokeTests
     {
         try
         {
+            var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+            var resource = resourcesDocument.RootElement
+                .EnumerateArray()
+                .FirstOrDefault(candidate =>
+                    string.Equals(
+                        candidate.GetProperty("id").GetString(),
+                        resourceId,
+                        StringComparison.OrdinalIgnoreCase));
+            if (resource.ValueKind != JsonValueKind.Undefined &&
+                resource.TryGetProperty("state", out var state) &&
+                state.ValueKind == JsonValueKind.Number &&
+                state.GetInt32() == (int)ResourceState.Stopped)
+            {
+                return;
+            }
+
             await host.SendAsync(
                 HttpMethod.Post,
                 $"/api/control-plane/v1/resources/{Uri.EscapeDataString(resourceId)}/actions/stop?ignoreDependentWarning=true");
@@ -2586,52 +3398,494 @@ public sealed class SampleSmokeTests
         }
     }
 
-    private static async Task<string> RunResourceIdentityCredentialSampleAsync(
-        SampleProcess host)
+    private static async Task AssertGraphResourceHealthChecksHealthyAsync(
+        SampleProcess host,
+        string resourceId,
+        int endpointPort,
+        TimeSpan timeout)
     {
-        var root = SampleProcess.FindRepositoryRoot();
-        var startInfo = new ProcessStartInfo("dotnet")
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        string? lastSummaryJson = null;
+        while (DateTimeOffset.UtcNow < deadline)
         {
-            WorkingDirectory = root,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false
-        };
-        startInfo.ArgumentList.Add("run");
-        startInfo.ArgumentList.Add("--no-build");
-        startInfo.ArgumentList.Add("--project");
-        startInfo.ArgumentList.Add(Path.Combine(
-            root,
-            "samples/ResourceIdentityCredential/CloudShell.ResourceIdentityCredential.csproj"));
-        startInfo.ArgumentList.Add("--");
-        startInfo.ArgumentList.Add("ControlPlane.Access");
-        startInfo.Environment["CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT"] =
-            new Uri(host.BaseAddress, "/api/auth/v1/token").ToString();
-        startInfo.Environment["CLOUDSHELL_IDENTITY_CLIENT_ID"] =
-            "application:settings-secrets-api/settings-secrets-api";
-        startInfo.Environment["CLOUDSHELL_IDENTITY_CLIENT_SECRET"] =
-            "local-development-settings-secrets-api-secret";
-        startInfo.Environment["CLOUDSHELL_IDENTITY_SCOPE"] = "ControlPlane.Access";
-        startInfo.Environment["CloudShell__ControlPlane__BaseAddress"] =
-            host.BaseAddress.ToString();
+            lastSummaryJson = await host.SendAsync(
+                HttpMethod.Post,
+                $"/api/control-plane/v1/resources/{Uri.EscapeDataString(resourceId)}/health/refresh");
+            using var summaryDocument = JsonDocument.Parse(lastSummaryJson);
+            var summary = summaryDocument.RootElement;
+            var checks = summary.GetProperty("checks").EnumerateArray().ToArray();
 
-        using var process = Process.Start(startInfo) ??
-            throw new InvalidOperationException("Could not start resource identity credential sample.");
-        var outputTask = process.StandardOutput.ReadToEndAsync();
-        var errorTask = process.StandardError.ReadToEndAsync();
+            if (summary.GetProperty("resourceId").GetString() == resourceId &&
+                summary.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy &&
+                checks.Any(check => IsHealthyHttpCheck(check, ResourceProbeType.Health, "health", endpointPort, "/health")) &&
+                checks.Any(check => IsHealthyHttpCheck(check, ResourceProbeType.Liveness, "alive", endpointPort, "/alive")))
+            {
+                return;
+            }
 
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        await process.WaitForExitAsync(timeout.Token);
-        var output = await outputTask;
-        var error = await errorTask;
-        if (process.ExitCode != 0)
-        {
-            throw new InvalidOperationException(
-                $"Resource identity credential sample exited with code {process.ExitCode}." +
-                $"{Environment.NewLine}{output}{Environment.NewLine}{error}");
+            await Task.Delay(250);
         }
 
-        return output;
+        throw new TimeoutException(
+            $"Graph resource '{resourceId}' health checks did not become healthy within {timeout}." +
+            $"{Environment.NewLine}{lastSummaryJson}");
+    }
+
+    private static bool IsHealthyHttpCheck(
+        JsonElement check,
+        ResourceProbeType probeType,
+        string name,
+        int endpointPort,
+        string path)
+    {
+        if (check.GetProperty("status").GetInt32() != (int)ResourceHealthStatus.Healthy ||
+            check.GetProperty("outcome").GetInt32() != (int)ResourceHealthCheckOutcome.Responded)
+        {
+            return false;
+        }
+
+        var definition = check.GetProperty("check");
+        if (definition.GetProperty("type").GetInt32() != (int)probeType ||
+            !string.Equals(definition.GetProperty("name").GetString(), name, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var uri = check.GetProperty("uri").GetString();
+        return uri is not null &&
+            uri.StartsWith($"http://localhost:{endpointPort.ToString(CultureInfo.InvariantCulture)}", StringComparison.OrdinalIgnoreCase) &&
+            uri.EndsWith(path, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task AssertGraphResourceRuntimeHealthAggregatesAsync(
+        SampleProcess host,
+        string resourceId,
+        int expectedReplicas,
+        TimeSpan? timeout = null)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout ?? TimeSpan.FromSeconds(30));
+        string? lastSummariesJson = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            lastSummariesJson = await host.SendAsync(
+                HttpMethod.Post,
+                "/api/control-plane/v1/resource-health/refresh");
+            using var summariesDocument = JsonDocument.Parse(lastSummariesJson);
+            if (!summariesDocument.RootElement.TryGetProperty(resourceId, out var summary))
+            {
+                await Task.Delay(250);
+                continue;
+            }
+
+            var checks = summary.GetProperty("checks").EnumerateArray().ToArray();
+            if (summary.GetProperty("resourceId").GetString() == resourceId &&
+                summary.GetProperty("status").GetInt32() == (int)ResourceHealthStatus.Healthy &&
+                checks.Any(check => HasRuntimeReplicaObservations(check, ResourceProbeType.Health, "health", expectedReplicas)) &&
+                checks.Any(check => HasRuntimeReplicaObservations(check, ResourceProbeType.Liveness, "alive", expectedReplicas)))
+            {
+                return;
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"Graph resource '{resourceId}' runtime-scope health did not aggregate as healthy within {timeout ?? TimeSpan.FromSeconds(30)}." +
+            $"{Environment.NewLine}{lastSummariesJson}");
+    }
+
+    private static async Task AssertGraphReplicaChildrenProjectedAsync(
+        SampleProcess host,
+        string resourceId,
+        int expectedReplicas,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        string? lastChildrenJson = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            lastChildrenJson = await host.GetStringAsync(
+                $"/api/control-plane/v1/resources/{Uri.EscapeDataString(resourceId)}/children");
+            using var childrenDocument = JsonDocument.Parse(lastChildrenJson);
+            var replicas = childrenDocument.RootElement
+                .EnumerateArray()
+                .Where(IsRuntimeReplicaChild)
+                .OrderBy(resource => int.Parse(
+                    resource.GetProperty("attributes").GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString()!,
+                    CultureInfo.InvariantCulture))
+                .ToArray();
+
+            if (replicas.Length == expectedReplicas &&
+                Enumerable.Range(1, expectedReplicas).All(replica =>
+                    replicas.Any(resource => IsExpectedRuntimeReplicaChild(resource, replica, expectedReplicas))))
+            {
+                return;
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"Graph resource '{resourceId}' did not project {expectedReplicas.ToString(CultureInfo.InvariantCulture)} runtime replica child resource(s) within {timeout}." +
+            $"{Environment.NewLine}{lastChildrenJson}");
+    }
+
+    private static async Task AssertGraphScalePanelReplicaOccupantsAsync(
+        SampleProcess host,
+        string resourceId,
+        int expectedReplicas,
+        TimeSpan timeout)
+    {
+        var tab = Uri.EscapeDataString("application:scale-replicas");
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        string? lastHtml = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            lastHtml = await host.GetStringAsync(
+                $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={tab}");
+            if (lastHtml.Contains("Occupied slots", StringComparison.OrdinalIgnoreCase) &&
+                lastHtml.Contains($">{expectedReplicas.ToString(CultureInfo.InvariantCulture)}</dd>", StringComparison.OrdinalIgnoreCase) &&
+                Enumerable.Range(1, expectedReplicas).All(replica =>
+                    lastHtml.Contains($"api replica {replica.ToString(CultureInfo.InvariantCulture)}", StringComparison.OrdinalIgnoreCase) &&
+                    lastHtml.Contains(
+                        ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica),
+                        StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"Graph scale panel did not show {expectedReplicas.ToString(CultureInfo.InvariantCulture)} occupied replica slot(s) for '{resourceId}' within {timeout}." +
+            $"{Environment.NewLine}{lastHtml}");
+    }
+
+    private static async Task AssertGraphReplicaMonitoringSnapshotsAsync(
+        SampleProcess host,
+        int expectedReplicas,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        var observed = new HashSet<int>();
+        string? lastSnapshotJson = null;
+        Exception? lastException = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            observed.Clear();
+            lastException = null;
+
+            foreach (var replica in Enumerable.Range(1, expectedReplicas))
+            {
+                var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
+                try
+                {
+                    lastSnapshotJson = await host.GetStringAsync(
+                        $"/api/control-plane/v1/resources/{Uri.EscapeDataString(replicaResourceId)}/monitoring");
+                    using var snapshotDocument = JsonDocument.Parse(lastSnapshotJson);
+                    var snapshot = snapshotDocument.RootElement;
+                    if (string.Equals(
+                            snapshot.GetProperty("resourceId").GetString(),
+                            replicaResourceId,
+                            StringComparison.OrdinalIgnoreCase) &&
+                        snapshot.GetProperty("metrics").GetArrayLength() > 0)
+                    {
+                        observed.Add(replica);
+                    }
+                }
+                catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException)
+                {
+                    lastException = exception;
+                    break;
+                }
+            }
+
+            if (observed.Count == expectedReplicas)
+            {
+                return;
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"Runtime replica monitoring did not return metric snapshots for {expectedReplicas.ToString(CultureInfo.InvariantCulture)} replica(s) within {timeout}." +
+            $"{Environment.NewLine}{lastSnapshotJson}{Environment.NewLine}{lastException?.Message}");
+    }
+
+    private static async Task AssertGraphMonitoringPanelReplicaSnapshotsAsync(
+        SampleProcess host,
+        string resourceId,
+        int expectedReplicas,
+        TimeSpan timeout)
+    {
+        var tab = Uri.EscapeDataString(ResourcePredefinedViewIds.Monitoring.Value);
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        string? lastHtml = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            lastHtml = await host.GetStringAsync(
+                $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={tab}");
+
+            if (lastHtml.Contains(
+                    $"{expectedReplicas.ToString(CultureInfo.InvariantCulture)} of {expectedReplicas.ToString(CultureInfo.InvariantCulture)} replicas observed",
+                    StringComparison.OrdinalIgnoreCase) &&
+                Enumerable.Range(1, expectedReplicas).All(replica =>
+                    lastHtml.Contains($"api replica {replica.ToString(CultureInfo.InvariantCulture)}", StringComparison.OrdinalIgnoreCase)) &&
+                !lastHtml.Contains("No snapshot", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"Graph monitoring panel did not show {expectedReplicas.ToString(CultureInfo.InvariantCulture)} observed runtime replica snapshot(s) for '{resourceId}' within {timeout}." +
+            $"{Environment.NewLine}{lastHtml}");
+    }
+
+    private static bool IsRuntimeReplicaChild(JsonElement resource) =>
+        string.Equals(resource.GetProperty("typeId").GetString(), "runtime.container", StringComparison.OrdinalIgnoreCase) &&
+        resource.TryGetProperty("attributes", out var attributes) &&
+        attributes.TryGetProperty(ResourceAttributeNames.RuntimeKind, out var runtimeKind) &&
+        string.Equals(runtimeKind.GetString(), "containerReplica", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsExpectedRuntimeReplicaChild(
+        JsonElement resource,
+        int replica,
+        int replicaCount)
+    {
+        var replicaText = replica.ToString(CultureInfo.InvariantCulture);
+        var replicaCountText = replicaCount.ToString(CultureInfo.InvariantCulture);
+        var attributes = resource.GetProperty("attributes");
+
+        return string.Equals(
+                resource.GetProperty("id").GetString(),
+                ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica),
+                StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(
+                attributes.GetProperty(ResourceAttributeNames.RuntimeContainerName).GetString(),
+                ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica),
+                StringComparison.OrdinalIgnoreCase) &&
+            attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString() == replicaText &&
+            attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaCount).GetString() == replicaCountText;
+    }
+
+    private static bool HasRuntimeReplicaObservations(
+        JsonElement check,
+        ResourceProbeType probeType,
+        string name,
+        int expectedReplicas)
+    {
+        if (check.GetProperty("check").GetProperty("type").GetInt32() != (int)probeType ||
+            !string.Equals(check.GetProperty("check").GetProperty("name").GetString(), name, StringComparison.OrdinalIgnoreCase) ||
+            check.GetProperty("status").GetInt32() != (int)ResourceHealthStatus.Healthy)
+        {
+            return false;
+        }
+
+        var observations = check.GetProperty("observations").EnumerateArray().ToArray();
+        if (observations.Length != expectedReplicas)
+        {
+            return false;
+        }
+
+        for (var replica = 1; replica <= expectedReplicas; replica++)
+        {
+            var replicaOrdinal = replica.ToString(CultureInfo.InvariantCulture);
+            if (!observations.Any(observation =>
+                    string.Equals(observation.GetProperty("scopeKind").GetString(), "runtime", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(
+                        observation.GetProperty("resourceId").GetString(),
+                        ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica),
+                        StringComparison.OrdinalIgnoreCase) &&
+                    observation.GetProperty("attributes").GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString() == replicaOrdinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static async Task AssertGraphReplicaLogSourcesAsync(
+        SampleProcess host,
+        string resourceId,
+        int expectedReplicas)
+    {
+        var logSourcesJson = await host.GetStringAsync(
+            $"/api/control-plane/v1/log-sources?resourceId={Uri.EscapeDataString(resourceId)}");
+        using var logSourcesDocument = JsonDocument.Parse(logSourcesJson);
+        var sources = logSourcesDocument.RootElement
+            .EnumerateArray()
+            .Where(source =>
+                source.TryGetProperty("producerResourceId", out var producer) &&
+                string.Equals(producer.GetString(), resourceId, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(source => source.GetProperty("name").GetString(), StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Assert.Equal(expectedReplicas, sources.Length);
+        for (var replica = 1; replica <= expectedReplicas; replica++)
+        {
+            var source = sources[replica - 1];
+            Assert.Equal(
+                $"{resourceId}:replica-{replica.ToString(CultureInfo.InvariantCulture)}:logs",
+                source.GetProperty("id").GetString());
+            Assert.Equal(
+                $"Replica {replica.ToString(CultureInfo.InvariantCulture)} logs",
+                source.GetProperty("name").GetString());
+            Assert.Equal(resourceId, source.GetProperty("resourceId").GetString());
+            Assert.Equal((int)LogSourceKind.Resource, source.GetProperty("sourceKind").GetInt32());
+            Assert.Equal((int)ResourceLogSourceKind.Container, source.GetProperty("kind").GetInt32());
+            Assert.Equal((int)LogFormat.JsonConsole, source.GetProperty("format").GetInt32());
+            Assert.Equal((int)ResourceLogSourceOrigin.ProviderProjected, source.GetProperty("origin").GetInt32());
+            Assert.Equal((int)LogSourceAvailability.ProducerRunning, source.GetProperty("availability").GetInt32());
+        }
+    }
+
+    private static async Task AssertGraphReplicaRuntimeEnvironmentAsync(
+        string containerName,
+        int replica,
+        int replicaCount = 3)
+    {
+        var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
+        var environment = await DockerComposeStack.GetContainerEnvironmentAsync(containerName);
+        Assert.Contains($"CLOUDSHELL_RESOURCE_ID={replicaResourceId}", environment);
+        Assert.Contains($"CLOUDSHELL_REPLICA_ORDINAL={replica.ToString(CultureInfo.InvariantCulture)}", environment);
+        Assert.Contains(
+            $"OTEL_SERVICE_NAME=replicated-container-health-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}",
+            environment);
+        Assert.Contains(
+            environment,
+            variable => variable.StartsWith("CLOUDSHELL_TRACE_INGEST_ENDPOINT=http://host.docker.internal:", StringComparison.Ordinal));
+        Assert.Contains(
+            environment,
+            variable => variable.StartsWith("CLOUDSHELL_METRIC_INGEST_ENDPOINT=http://host.docker.internal:", StringComparison.Ordinal));
+        var resourceAttributes = Assert.Single(
+            environment,
+            variable => variable.StartsWith("OTEL_RESOURCE_ATTRIBUTES=", StringComparison.Ordinal));
+        Assert.Contains($"cloudshell.resource.id={replicaResourceId}", resourceAttributes);
+        Assert.Contains($"telemetry.scope.resourceId={ReplicatedContainerHealthRuntimeConventions.ApiResourceId}", resourceAttributes);
+        Assert.Contains($"telemetry.scope.name=Replica {replica.ToString(CultureInfo.InvariantCulture)}", resourceAttributes);
+        Assert.Contains("telemetry.scope.kind=runtime", resourceAttributes);
+        Assert.Contains($"runtime.replica.ordinal={replica.ToString(CultureInfo.InvariantCulture)}", resourceAttributes);
+        Assert.Contains($"runtime.replica.count={replicaCount.ToString(CultureInfo.InvariantCulture)}", resourceAttributes);
+    }
+
+    private static async Task AssertGraphReplicaTelemetryAsync(
+        SampleProcess host,
+        int replica,
+        TimeSpan timeout)
+    {
+        var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
+        var metrics = await WaitForMetricPointsAsync(
+            host,
+            replicaResourceId,
+            timeout,
+            points => points.Any(point =>
+                point.GetProperty("name").GetString() == "http.server.requests" &&
+                point.GetProperty("resourceId").GetString() == replicaResourceId &&
+                point.TryGetProperty("attributes", out var attributes) &&
+                attributes.TryGetProperty("telemetry.scope.resourceId", out var scopeResourceId) &&
+                scopeResourceId.GetString() == ReplicatedContainerHealthRuntimeConventions.ApiResourceId));
+        Assert.NotEmpty(metrics);
+    }
+
+    private static async Task AssertAnyGraphReplicaWorkTraceAsync(
+        SampleProcess host,
+        int expectedReplicas,
+        TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        var lastErrors = new List<string>();
+        do
+        {
+            lastErrors.Clear();
+            for (var replica = 1; replica <= expectedReplicas; replica++)
+            {
+                var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
+                try
+                {
+                    var spans = await WaitForTraceSpansByResourceAsync(
+                        host,
+                        replicaResourceId,
+                        TimeSpan.FromMilliseconds(250),
+                        spans => spans.Any(span => IsGraphReplicaWorkSpan(span, replicaResourceId, replica)));
+                    Assert.NotEmpty(spans);
+                    return;
+                }
+                catch (TimeoutException exception)
+                {
+                    lastErrors.Add(exception.Message);
+                }
+            }
+        }
+        while (DateTimeOffset.UtcNow < deadline);
+
+        throw new TimeoutException(
+            $"Runtime replica work trace was not ingested by any of {expectedReplicas.ToString(CultureInfo.InvariantCulture)} replica(s)." +
+            $"{Environment.NewLine}{string.Join(Environment.NewLine, lastErrors)}");
+    }
+
+    private static bool IsGraphReplicaWorkSpan(
+        JsonElement span,
+        string replicaResourceId,
+        int replica)
+    {
+        if (span.GetProperty("name").GetString() != "Handle demo work" ||
+            span.GetProperty("resourceId").GetString() != replicaResourceId ||
+            !span.TryGetProperty("spanAttributes", out var attributes) ||
+            !attributes.TryGetProperty("telemetry.scope.resourceId", out var scopeResourceId) ||
+            !attributes.TryGetProperty("runtime.replica.ordinal", out var replicaOrdinal))
+        {
+            return false;
+        }
+
+        return scopeResourceId.GetString() == ReplicatedContainerHealthRuntimeConventions.ApiResourceId &&
+            replicaOrdinal.GetString() == replica.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static async Task AssertGraphReplicaResourceObservabilityAsync(
+        SampleProcess host,
+        int replica)
+    {
+        var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var runtimeReplica = Assert.Single(
+            resourcesDocument.RootElement.EnumerateArray(),
+            resource => string.Equals(
+                resource.GetProperty("id").GetString(),
+                replicaResourceId,
+                StringComparison.OrdinalIgnoreCase));
+        Assert.Equal((int)ResourceVisibility.Hidden, runtimeReplica.GetProperty("visibility").GetInt32());
+
+        var observability = runtimeReplica.GetProperty("observability");
+        Assert.True(observability.GetProperty("logs").GetBoolean());
+        Assert.True(observability.GetProperty("traces").GetBoolean());
+        Assert.True(observability.GetProperty("metrics").GetBoolean());
+        Assert.Equal(
+            $"replicated-container-health-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}",
+            observability.GetProperty("serviceName").GetString());
+
+        var attributes = observability.GetProperty("attributes");
+        Assert.Equal(
+            ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
+            attributes.GetProperty("telemetry.scope.resourceId").GetString());
+        Assert.Equal(
+            replica.ToString(CultureInfo.InvariantCulture),
+            attributes.GetProperty("runtime.replica.ordinal").GetString());
+
+        var scope = Assert.Single(observability.GetProperty("scopes").EnumerateArray());
+        Assert.Equal(
+            ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
+            scope.GetProperty("scopeResourceId").GetString());
+        Assert.Equal($"Replica {replica.ToString(CultureInfo.InvariantCulture)}", scope.GetProperty("name").GetString());
+        Assert.Equal("runtime", scope.GetProperty("kind").GetString());
     }
 
     private static void AssertResourceTabsInOrder(string html, params string[] expected)
@@ -2677,6 +3931,7 @@ public sealed class SampleSmokeTests
         private readonly string root;
         private readonly string composeFile;
         private readonly string projectName;
+        private static readonly TimeSpan DockerCleanupTimeout = TimeSpan.FromSeconds(5);
         private bool disposed;
 
         private DockerComposeStack(string root, string composeFile, string projectName)
@@ -2685,6 +3940,8 @@ public sealed class SampleSmokeTests
             this.composeFile = composeFile;
             this.projectName = projectName;
         }
+
+        public string ProjectName => projectName;
 
         public static async Task<bool> IsAvailableAsync()
         {
@@ -2740,6 +3997,39 @@ public sealed class SampleSmokeTests
             }
         }
 
+        public static async Task<string?> GetContainerIdAsync(string containerName)
+        {
+            try
+            {
+                var result = await RunDockerAsync(
+                    SampleProcess.FindRepositoryRoot(),
+                    ["container", "inspect", "--format", "{{.Id}}", containerName],
+                    null,
+                    TimeSpan.FromSeconds(10),
+                    throwOnError: false);
+                return result.ExitCode == 0
+                    ? result.Output.Trim()
+                    : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public static async Task<IReadOnlyList<string>> GetContainerEnvironmentAsync(string containerName)
+        {
+            var result = await RunDockerAsync(
+                SampleProcess.FindRepositoryRoot(),
+                ["container", "inspect", "--format", "{{json .Config.Env}}", containerName],
+                null,
+                TimeSpan.FromSeconds(10),
+                throwOnError: true);
+
+            return JsonSerializer.Deserialize<IReadOnlyList<string>>(result.Output.Trim())
+                ?? [];
+        }
+
         public static async Task RemoveContainerIfExistsAsync(string containerName)
         {
             try
@@ -2748,13 +4038,50 @@ public sealed class SampleSmokeTests
                     SampleProcess.FindRepositoryRoot(),
                     ["rm", "-f", containerName],
                     null,
-                    TimeSpan.FromSeconds(30),
+                    DockerCleanupTimeout,
                     throwOnError: false);
             }
             catch
             {
                 // Test cleanup should not hide the original test failure.
             }
+        }
+
+        public static async Task RemoveProjectsByPrefixAsync(string projectNamePrefix)
+        {
+            var projects = await ListComposeProjectsByPrefixAsync(projectNamePrefix);
+            foreach (var project in projects)
+            {
+                await RemoveProjectArtifactsAsync(SampleProcess.FindRepositoryRoot(), project);
+            }
+        }
+
+        public static async Task<bool> ProjectExistsAsync(string projectName)
+        {
+            var containers = await RunDockerAsync(
+                SampleProcess.FindRepositoryRoot(),
+                ["ps", "-a", "--filter", $"label=com.docker.compose.project={projectName}", "--format", "{{.ID}}"],
+                null,
+                TimeSpan.FromSeconds(15),
+                throwOnError: false);
+            var containerIds = containers.Output.Split(
+                '\n',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (containerIds.Length > 0)
+            {
+                return true;
+            }
+
+            var networks = await RunDockerAsync(
+                SampleProcess.FindRepositoryRoot(),
+                ["network", "ls", "--filter", $"label=com.docker.compose.project={projectName}", "--format", "{{.ID}}"],
+                null,
+                TimeSpan.FromSeconds(15),
+                throwOnError: false);
+            var networkIds = networks.Output.Split(
+                '\n',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return networkIds.Length > 0;
         }
 
         public static async Task<DockerComposeStack> StartAsync(
@@ -2764,12 +4091,21 @@ public sealed class SampleSmokeTests
             IReadOnlyList<(string Key, string Value)> environment)
         {
             var stack = new DockerComposeStack(root, composeFile, projectName);
-            await RunDockerAsync(
-                root,
-                ["compose", "-f", composeFile, "-p", projectName, "up", "-d"],
-                environment,
-                TimeSpan.FromMinutes(3),
-                throwOnError: true);
+            try
+            {
+                await RunDockerAsync(
+                    root,
+                    ["compose", "-f", composeFile, "-p", projectName, "up", "-d"],
+                    environment,
+                    TimeSpan.FromMinutes(3),
+                    throwOnError: true);
+            }
+            catch
+            {
+                stack.Dispose();
+                throw;
+            }
+
             return stack;
         }
 
@@ -2796,6 +4132,89 @@ public sealed class SampleSmokeTests
             {
                 // Test cleanup should not hide the original test failure.
             }
+
+            try
+            {
+                RemoveProjectArtifactsAsync(root, projectName)
+                    .GetAwaiter()
+                    .GetResult();
+            }
+            catch
+            {
+                // Test cleanup should not hide the original test failure.
+            }
+        }
+
+        private static async Task<IReadOnlyList<string>> ListComposeProjectsByPrefixAsync(string projectNamePrefix)
+        {
+            var result = await RunDockerAsync(
+                SampleProcess.FindRepositoryRoot(),
+                ["ps", "-a", "--filter", "label=com.docker.compose.project", "--format", "{{.Label \"com.docker.compose.project\"}}"],
+                null,
+                TimeSpan.FromSeconds(15),
+                throwOnError: false);
+            if (result.ExitCode != 0)
+            {
+                return [];
+            }
+
+            return result.Output
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(project => project.StartsWith(projectNamePrefix, StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+
+        private static async Task RemoveProjectArtifactsAsync(string workingDirectory, string projectName)
+        {
+            await RemoveProjectContainersAsync(workingDirectory, projectName);
+            await RemoveProjectNetworksAsync(workingDirectory, projectName);
+        }
+
+        private static async Task RemoveProjectContainersAsync(string workingDirectory, string projectName)
+        {
+            var containers = await RunDockerAsync(
+                workingDirectory,
+                ["ps", "-a", "--filter", $"label=com.docker.compose.project={projectName}", "--format", "{{.ID}}"],
+                null,
+                TimeSpan.FromSeconds(15),
+                throwOnError: false);
+            var containerIds = containers.Output
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (containerIds.Length == 0)
+            {
+                return;
+            }
+
+            await RunDockerAsync(
+                workingDirectory,
+                ["rm", "-f", .. containerIds],
+                null,
+                DockerCleanupTimeout,
+                throwOnError: false);
+        }
+
+        private static async Task RemoveProjectNetworksAsync(string workingDirectory, string projectName)
+        {
+            var networks = await RunDockerAsync(
+                workingDirectory,
+                ["network", "ls", "--filter", $"label=com.docker.compose.project={projectName}", "--format", "{{.ID}}"],
+                null,
+                TimeSpan.FromSeconds(15),
+                throwOnError: false);
+            var networkIds = networks.Output
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (networkIds.Length == 0)
+            {
+                return;
+            }
+
+            await RunDockerAsync(
+                workingDirectory,
+                ["network", "rm", .. networkIds],
+                null,
+                TimeSpan.FromSeconds(30),
+                throwOnError: false);
         }
 
         private static async Task<ProcessResult> RunDockerAsync(
@@ -2886,7 +4305,8 @@ public sealed class SampleSmokeTests
         public static Task<SampleProcess> StartAsync(
             string projectPath,
             int port,
-            IReadOnlyList<(string Key, string Value)>? environment = null)
+            IReadOnlyList<(string Key, string Value)>? environment = null,
+            bool bindToAnyAddress = false)
         {
             var root = FindRepositoryRoot();
             var projectFile = Path.Combine(root, projectPath);
@@ -2899,6 +4319,9 @@ public sealed class SampleSmokeTests
             }
 
             var baseAddress = new Uri($"http://127.0.0.1:{port}");
+            var listenAddress = bindToAnyAddress
+                ? new Uri($"http://0.0.0.0:{port}")
+                : baseAddress;
             var startInfo = new ProcessStartInfo("dotnet")
             {
                 WorkingDirectory = root,
@@ -2912,7 +4335,7 @@ public sealed class SampleSmokeTests
             startInfo.ArgumentList.Add(projectFile);
             startInfo.ArgumentList.Add("--");
             startInfo.ArgumentList.Add("--urls");
-            startInfo.ArgumentList.Add(baseAddress.ToString());
+            startInfo.ArgumentList.Add(listenAddress.ToString());
             startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
 
             if (environment is not null)
@@ -2936,7 +4359,7 @@ public sealed class SampleSmokeTests
             using var client = new HttpClient
             {
                 BaseAddress = BaseAddress,
-                Timeout = TimeSpan.FromSeconds(3)
+                Timeout = TimeSpan.FromSeconds(10)
             };
             var deadline = DateTimeOffset.UtcNow.Add(timeout);
             Exception? lastException = null;
@@ -2983,15 +4406,29 @@ public sealed class SampleSmokeTests
                 request.Headers.Authorization = new("Bearer", bearerToken);
             }
 
-            using var response = await client.SendAsync(request);
-            var content = await response.Content.ReadAsStringAsync();
-            if (!response.IsSuccessStatusCode)
+            HttpResponseMessage response;
+            try
             {
-                throw new HttpRequestException(
-                    $"Response status code does not indicate success: {(int)response.StatusCode} ({response.ReasonPhrase}).{Environment.NewLine}{content}");
+                response = await client.SendAsync(request);
+            }
+            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+            {
+                throw new InvalidOperationException(
+                    $"GET {path} failed before a response was received.{Environment.NewLine}{GetOutput()}",
+                    exception);
             }
 
-            return content;
+            using (response)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new HttpRequestException(
+                        $"Response status code does not indicate success: {(int)response.StatusCode} ({response.ReasonPhrase}).{Environment.NewLine}{content}");
+                }
+
+                return content;
+            }
         }
 
         public async Task WaitForAbsoluteHttpOkAsync(
@@ -3331,7 +4768,7 @@ public sealed class SampleSmokeTests
             var directory = new DirectoryInfo(AppContext.BaseDirectory);
             while (directory is not null)
             {
-                if (File.Exists(Path.Combine(directory.FullName, "CloudShell.sln")))
+                if (File.Exists(Path.Combine(directory.FullName, "CloudShell.slnx")))
                 {
                     return directory.FullName;
                 }

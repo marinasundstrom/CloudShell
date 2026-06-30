@@ -13,6 +13,7 @@ app.MapGet("/health", () => Results.Ok(new
 {
     status = "ok",
     service = "Project Reference API",
+    environmentTag = Environment.GetEnvironmentVariable("CLOUDSHELL_PROJECT_REFERENCE_ENVIRONMENT_TAG"),
     timestamp = DateTimeOffset.UtcNow
 }));
 

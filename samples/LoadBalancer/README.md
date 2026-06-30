@@ -55,3 +55,33 @@ CLOUDSHELL_LOCAL_HOSTS_FILE=samples/LoadBalancer/Data/cloudshell.hosts \
 ```
 
 The sample exposes Postgres through the TCP entrypoint on `localhost:5432`.
+
+## Resource Model Coverage
+
+The sample declares these Resource Definitions-backed resources:
+
+- `docker.host:sample-host`: Docker host used by the container app targets.
+- `application.container-app:web`: web target.
+- `application.container-app:api`: replicated API target.
+- `application.container-app:postgres`: TCP target.
+- `cloudshell.loadBalancer:public`: load balancer with typed startup dependencies on the
+  host and target resources plus declared entrypoints and host/path/TCP routes.
+- `cloudshell.dnsZone:cloudshell-local`: DNS zone using the local-hostnames provider.
+- `cloudshell.nameMapping:app-cloudshell-local` and
+  `cloudshell.nameMapping:api-cloudshell-local`: name mappings targeting
+  the public load-balancer `http` frontend.
+
+Those resources prove projection, dependency, count-summary, route payload,
+frontend endpoint projection, declarative name-mapping shape, and operation
+shape. **Apply load balancer configuration** uses a sample-local Traefik
+adapter to translate declared routes into the existing Traefik provider
+context. The provider-owned Traefik writer then materializes dynamic
+configuration. **Reconcile name mappings** uses a sample-local DNS adapter to
+translate DNS/name-mapping resources into the existing
+`INamePublishingProvider` contract, allowing the local-hostnames publisher to
+write the host names to the configured hosts file.
+
+The old Docker, container-app, load-balancer, DNS-zone, and name-mapping
+resource records are no longer declared by this sample. Traefik runtime
+container management still uses the existing Traefik provider path until that
+runtime support is moved into the new provider structure.

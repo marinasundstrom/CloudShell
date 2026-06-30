@@ -276,6 +276,24 @@ The load-balancer-specific route API should be the more ergonomic authoring
 surface for host/path/TCP routing. Endpoint mappings remain the lower-level
 resource relationship that the Control Plane can validate and display.
 
+## Relationship to Orchestrator Services
+
+Standalone load-balancer routes can target ordinary resources and endpoint
+references directly. When a target is an orchestrated workload, such as a
+container app with a replica group, the load balancer should not own replica
+enumeration or infer membership from Kubernetes-style labels. The orchestrator
+owns the service and replica-group boundary and should provide an explicit
+routing binding that says which CloudShell service id, replica group id, route
+or mapping id, and endpoint reference are currently active.
+
+The load balancer provider reacts to that binding by materializing provider
+configuration for the selected implementation. On scale-up, scale-down, image
+replacement, or replica-group cleanup, the default orchestrator updates the
+binding as part of deployment or replica-group reconciliation. Provider
+adapters can translate the binding to labels, backend pools, generated files,
+service discovery records, or native load-balancer APIs as needed, but those
+translation details remain provider-owned.
+
 ## Provider Responsibilities
 
 A load balancer provider must:

@@ -99,6 +99,9 @@ public sealed class ResourceManagerStore(
     {
         var resourceTypeClasses = GetResourceTypeClasses();
         var diagnostics = new List<ResourceModelDiagnostic>();
+        diagnostics.AddRange(Providers
+            .OfType<IResourceModelDiagnosticProvider>()
+            .SelectMany(provider => provider.GetResourceModelDiagnostics()));
         var available = Providers
             .SelectMany(provider => provider.GetResources())
             .Select(resource => ApplyResourceClass(resource, resourceTypeClasses, "provider projection", diagnostics))

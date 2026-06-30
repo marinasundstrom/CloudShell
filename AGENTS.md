@@ -47,7 +47,9 @@ For focused areas, read the relevant documentation:
 - `CloudShell.Host` — combined development host.
 - `CloudShell.Persistence` — EF Core persistence for registrations, groups,
   identity, and platform state.
-- `CloudShell.Providers.*` — built-in and reference provider extensions.
+- `CloudShell.Providers.*` — provider extension packages.
+- `CloudShell.ControlPlane.Providers.*` — built-in Resource model provider
+  packages and their UI/runtime adapter integrations.
 - `samples/` — focused hosting scenarios.
 - `CloudShell.*.Tests` — abstraction, Control Plane, client/API, and sample
   test projects.
@@ -156,5 +158,5 @@ For changes affecting the resource model, Control Plane, API/client layer, or
 samples, run:
 
 ```
-bash dotnet build CloudShell.sln --no-restore  dotnet test CloudShell.ControlPlane.Tests/CloudShell.ControlPlane.Tests.csproj --no-restore  dotnet test CloudShell.ControlPlane.Client.Tests/CloudShell.ControlPlane.Client.Tests.csproj --no-restore  dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj --no-restore  dotnet test CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj --no-restore 
+bash dotnet build CloudShell.slnx --no-restore  dotnet test CloudShell.ControlPlane.Tests/CloudShell.ControlPlane.Tests.csproj --no-restore  dotnet test CloudShell.ControlPlane.Client.Tests/CloudShell.ControlPlane.Client.Tests.csproj --no-restore  dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj --no-restore  dotnet test CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj --no-restore
 ```

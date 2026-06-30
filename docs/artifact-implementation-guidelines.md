@@ -32,6 +32,11 @@ verification path.
   provider coordination.
 - Providers own provider-specific configuration, runtime state, external
   system calls, and provider template payloads.
+- Providers must access concrete host/runtime behavior through focused adapter
+  interfaces registered by the host, sample, or default runtime package. A
+  provider may own the contract for the operation it needs, but it should not
+  depend directly on a concrete process launcher, Docker bridge, filesystem
+  materializer, network reconciler, sidecar host, or orchestrator controller.
 - API DTOs are versioned transport projections of established domain artifacts.
   They may add affordances such as `href` and `method`, but should not rename
   domain concepts into parallel Web API concepts.
@@ -141,6 +146,10 @@ resource.
      or declarations.
    - Add procedure, image update, endpoint mapping, template, log, or
      orchestration providers only when the type owns that behavior.
+   - Define focused runtime adapter interfaces for host/runtime actions the
+     provider needs, and require the host/sample/default runtime package to
+     register concrete implementations. Test providers with fake adapters so
+     resource semantics stay separate from runtime plumbing.
 3. Define the projected resource shape.
    - Project stable identity, class, type, state, parent, dependencies,
      endpoints, attributes, capabilities, actions, health checks,
@@ -161,6 +170,12 @@ resource.
 5. Implement authoring surfaces.
    - Add programmatic declaration builders or extension methods when the type
      should be declared in code.
+   - For Resource Graph provider ports, add a provider-owned
+     `ResourceDefinitionGraphBuilder` builder unless the provider README
+     explicitly defers it. The builder should cover the resource's common
+     attributes, relationships, configuration payloads, capability payloads,
+     and operation declarations without leaking runtime implementation
+     details.
    - Keep start-after-create UI behavior explicit and separate from
      programmatic startup autostart.
 6. Project through the API and remote client.
@@ -654,23 +669,36 @@ Verification:
 
 ### Template
 
-`ResourceGroupTemplate` is the portable group-level envelope owned by
-CloudShell. `ResourceTemplateDefinition.Configuration` is provider-owned.
+`ResourceTemplate` is the portable desired-state envelope owned by
+CloudShell. It contains one or more `ResourceDefinition` entries. The
+resource definition is the serialization boundary for user-authored resource
+intent; runtime deployment artifacts are produced later by Resource Manager
+and orchestrator planning.
 
 Implementation:
 
-- Keep group name, description, kind, version, resources, dependencies, and
-  provider IDs in the platform envelope.
-- Keep per-resource schema validation in `IResourceTemplateProvider`.
-- Import invalid envelopes or invalid resource payloads as diagnostics without
-  creating partial platform state for envelope-level failures.
-- Preserve provider configuration versions.
+- Keep the template envelope focused on apply metadata and resource
+  definitions. Do not wrap normal authoring in deployment-shaped DTOs such as
+  `ResourceDeploymentDefinition`.
+- Validate the envelope in Resource Manager and validate each resource
+  definition through the owning resource type provider or graph apply
+  contract.
+- Commit accepted graph state before runtime materialization. When accepted
+  state affects runtime, provider-owned planners should describe internal
+  deployment work for Resource Manager to coordinate.
+- Export accepted graph state back to resource definitions without dumping
+  provider runtime caches, logs, live container IDs, secret values, or
+  internal deployment records.
+- Retire provider-specific template serializers for graph-backed resource
+  types once those resource types can round-trip through definitions.
 
 Verification:
 
-- Add template service tests for export/import orchestration, diagnostics,
-  invalid envelopes, dependency handling, and no-partial-state guarantees.
-- Add provider tests for provider-specific template validation.
+- Add template service tests for export/apply diagnostics, invalid envelopes,
+  dependency/reference handling, graph-state commit behavior, and
+  no-partial-state guarantees for envelope-level failures.
+- Add provider or graph-apply tests for resource-definition validation,
+  normalization, incremental updates, and export round trips.
 - Add API/client tests if template endpoints or DTOs change.
 
 ### Programmatic declaration
@@ -816,7 +844,7 @@ the verification baseline from [AGENTS.md](../AGENTS.md) after targeted tests
 when practical:
 
 ```bash
-dotnet build CloudShell.sln --no-restore
+dotnet build CloudShell.slnx --no-restore
 dotnet test CloudShell.ControlPlane.Tests/CloudShell.ControlPlane.Tests.csproj --no-restore
 dotnet test CloudShell.ControlPlane.Client.Tests/CloudShell.ControlPlane.Client.Tests.csproj --no-restore
 dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj --no-restore

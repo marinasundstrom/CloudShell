@@ -77,12 +77,41 @@ resource or resource-group scope.
 
 The sample also declares the external resource identity boundary:
 
-- `identity-provisioning:keycloak` is the provisioning resource boundary.
+- `cloudshell.identity-provisioning:keycloak` is the provisioning resource boundary.
 - `identity:keycloak` is the CloudShell resource identity provider definition.
-- `application:keycloak-provisioned-api` declares a resource identity bound to
-  that provider.
-- `configuration:third-party-identity` grants that API identity configuration
-  read access.
+- `application.aspnet-core-project:keycloak-provisioned-api` declares a
+  resource identity bound to that provider.
+- `configuration.store:third-party-identity` grants that API identity
+  configuration read access.
+
+The Resource model declaration proves Resource Manager projection and setup
+operation execution by attaching a Keycloak identity provider definition and a
+sample-local adapter that delegates the setup operation to the Resource Manager
+identity setup service through an explicit bridge contract. The provisioning
+resource stores the attached provider id as non-secret configuration, while the
+provider definition remains registered in the Resource Manager declaration
+model. The existing Keycloak integration remains responsible for real provider
+setup, credential materialization, and protected configuration access.
+
+The Configuration Store can run with Keycloak `Authentication:ServiceBearer`
+settings, and the API can start through the ASP.NET Core project runtime,
+receive API identity credentials from `identity:keycloak`, and read the
+protected configuration entry. The ASP.NET Core runtime also has a sample-local
+environment adapter that resolves the API identity declaration from Resource
+Manager and delegates credential environment creation to the existing Keycloak
+integration.
+That keeps identity credential materialization in the runtime/Control Plane
+boundary while the resource model continues to store only declarative project,
+endpoint, reference, and identity attachment information.
+The sample no longer declares old application/configuration provider records
+such as `configuration:third-party-identity` or
+`application:keycloak-provisioned-api`. It still uses Resource Manager-owned
+identity provider declarations and the sample-local identity credential
+adapter; those are runtime/Control Plane concerns, not graph state.
+Docker-backed smoke coverage now runs the protected Configuration Store and
+ASP.NET Core API through the Resource model provider path, executes
+identity-provider setup, and verifies the API can read protected configuration
+with a Keycloak-issued resource identity token without old provider records.
 
 The sample registers `KeycloakResourceIdentityProvisioner` as the resource
 identity provisioner, provider setup handler, and runtime credential
@@ -116,23 +145,24 @@ application provider can inject it into a running workload.
 
 The sample configures the Configuration Store backing service with
 `Authentication:ServiceBearer` settings derived from the Keycloak authority.
-That lets the service validate Keycloak-issued JWT bearer tokens before it
-checks the `cloudshell.resource-permission` claim. Audience validation is not
-set by default because the sample uses Keycloak's local-development token
-shape; production-style hosts should register protected API audiences and set
-`Authentication:ServiceBearer:Audience`.
+That lets the service validate Keycloak-issued JWT bearer
+tokens before it checks the `cloudshell.resource-permission` claim. Audience
+validation is not set by default because the sample uses Keycloak's
+local-development token shape; production-style hosts should register protected
+API audiences and set `Authentication:ServiceBearer:Audience`.
 
 ## Workload validation
 
-The sample declares `application:keycloak-provisioned-api` as an ASP.NET Core
+The sample declares
+`application.aspnet-core-project:keycloak-provisioned-api` as the ASP.NET Core
 project resource. It is not autostarted. After Keycloak and the CloudShell host
-are running, start `Keycloak Provisioned API` from Resource Manager with its
-dependencies. The API listens on `http://localhost:5234` by default.
+are running, start the API from Resource Manager with its dependencies. The API
+listens on `http://localhost:5235` by default.
 
 Open:
 
 ```text
-http://localhost:5234/configuration
+http://localhost:5235/configuration
 ```
 
 The endpoint uses `DefaultCloudShellResourceCredential`, reads the injected
@@ -142,7 +172,9 @@ The expected response has `status` set to `connected` and includes
 `Sample:Message`.
 
 The sample smoke tests can start Keycloak with Docker Compose, run the
-CloudShell host, verify that `identity-provisioning:keycloak` is projected as
-a resource boundary, confirm provisioning status for the workload identity,
-start the dependent Configuration Store and API resources, and assert the API
-can read the protected configuration entry with a Keycloak-issued token.
+CloudShell host, verify that `cloudshell.identity-provisioning:keycloak` is projected as
+the resource boundary, execute provider setup, start the dependent
+Configuration Store/API resources, and assert the API can read protected
+configuration entries with a Keycloak-issued token. The Docker-backed path also
+verifies the generated Keycloak Docker Compose project is removed during test
+cleanup, including compose-managed containers and networks.

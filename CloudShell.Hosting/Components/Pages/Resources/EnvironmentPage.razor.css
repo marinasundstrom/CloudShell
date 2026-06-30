@@ -36,6 +36,79 @@
     min-width: 92rem;
 }
 
+.environment-map-panel {
+    min-width: 0;
+}
+
+.environment-map-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-bottom: .85rem;
+}
+
+.environment-map-summary span {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    min-height: 1.5rem;
+    padding: .15rem .5rem;
+    border: 1px solid var(--neutral-stroke-rest);
+    border-radius: 999px;
+    background: var(--neutral-layer-2);
+    color: var(--neutral-foreground-rest);
+    font-size: .78rem;
+    line-height: 1.2;
+}
+
+.environment-relationship-strip h3 {
+    margin: 0 0 .55rem;
+    color: var(--neutral-foreground-rest);
+    font-size: .92rem;
+    font-weight: 650;
+}
+
+.environment-relationship-strip {
+    min-width: 0;
+    border: 1px solid var(--neutral-stroke-rest);
+    border-radius: 8px;
+    background: var(--neutral-layer-1);
+}
+
+.environment-relationship-strip {
+    margin-top: .9rem;
+    padding: .8rem;
+}
+
+.environment-relationship-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: .5rem;
+}
+
+.environment-relationship-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: .45rem;
+    min-width: 0;
+    padding: .45rem .55rem;
+    border-radius: 6px;
+    background: var(--neutral-layer-2);
+    color: var(--neutral-foreground-hint);
+    font-size: .78rem;
+}
+
+.environment-relationship-row span {
+    overflow-wrap: anywhere;
+}
+
+.environment-relationship-row strong {
+    color: var(--accent-foreground-rest);
+    font-size: .75rem;
+    white-space: nowrap;
+}
+
 .environment-history-table ::deep th,
 .environment-history-table ::deep td,
 .environment-deployment-table ::deep th,

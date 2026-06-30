@@ -23,6 +23,9 @@
     <ProjectReference Include="..\CloudShell.ControlPlane\CloudShell.ControlPlane.csproj" />
     <ProjectReference Include="..\CloudShell.Persistence\CloudShell.Persistence.csproj" />
     <ProjectReference Include="..\CloudShell.Providers.Traefik\CloudShell.Providers.Traefik.csproj" />
+    <ProjectReference Include="..\CloudShell.ControlPlane.Providers\CloudShell.ControlPlane.Providers.csproj" />
+    <ProjectReference Include="..\CloudShell.ControlPlane.ResourceModel\CloudShell.ControlPlane.ResourceModel.csproj" />
+    <ProjectReference Include="..\CloudShell.ResourceModel\CloudShell.ResourceModel.csproj" />
   </ItemGroup>
 
 </Project>

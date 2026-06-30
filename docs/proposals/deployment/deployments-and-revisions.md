@@ -42,6 +42,13 @@ Initial implementation now adds internal data contracts for
 `ResourceOrchestratorRevision` in the orchestration abstractions, plus an
 opt-in `IResourceOrchestratorDeploymentApplier` boundary and Control Plane
 dispatcher for applying a deployment through the selected orchestrator.
+Resource Manager also exposes an internal deployment coordinator boundary for
+graph-backed apply paths. A provider or graph reconciler that has accepted
+resource state should describe the required runtime deployment and hand that
+definition back to Resource Manager, rather than calling low-level
+orchestrator appliers directly. This keeps deployment locking, deployment
+history, previous replica-group lookup, routing reconciliation, and
+post-apply cleanup in the Resource Manager deployment path.
 These are CloudShell runtime concepts: the orchestrator manages resources and
 their runtime configuration, and deployment/revisioning records the desired and
 materialized CloudShell runtime state rather than exposing a Kubernetes,
@@ -79,6 +86,35 @@ standalone runtime scope. The orchestrator service unit is the runtime boundary
 that can contain service routing or loader materialization plus a replica
 group with requested slots for a specific workload version and replicated
 configuration.
+
+As the resource-definition model matures, user-facing apply should start with
+`ResourceDefinition` entries, either individually or grouped in a
+`ResourceTemplate` as desired resource state. Resource Manager validates and
+accepts graph state, then calls the owning resource type providers to plan
+runtime changes. The orchestrator deployment remains the internal runtime
+materialization record derived from accepted resource state; resource
+definitions describe the desired state that providers translate into
+executable, container, database, network, storage, or other provider-owned
+targets.
+
+This is now the intended POC migration path, not only a later design note.
+Resource Manager should receive resource definitions from UI create/edit
+flows, API apply, imports, and template files. Once the graph accepts the new
+resource state, provider-owned planners produce internal orchestration work
+when the accepted state affects runtime. A container app image update or
+replica-slot update is therefore first a ResourceDefinition apply, then a
+deployment-planning event, then an orchestrator/controller reconciliation.
+The caller should not have to know which orchestrator service, replica group,
+replicas, routing bindings, or load-balancer backend changes are required.
+
+The internal controller boundary is the critical cleanup target for container
+apps. First start, image update, scale-out, scale-in, readiness wait,
+load-balancer or ingress rebinding, retained previous replica groups, and
+post-apply cleanup should all flow through the same deployment/reconciliation
+model. Separate provider-specific imperative paths are acceptable only as
+temporary POC seams; they should be removed as the graph-backed provider path
+becomes the default.
+
 The Control Plane also records internal orchestrator deployment history for
 apply attempts, successful orchestrator revisions, and failed apply results.
 When the default orchestrator applies a deployment, it now materializes service
@@ -113,8 +149,11 @@ deferred.
 
 ```mermaid
 flowchart TD
-    Resource["CloudShell resource\nfor example container app"] --> Provider["Resource provider\nprojects workload intent"]
-    Provider --> Deployment["Orchestrator deployment\ndesired runtime state"]
+    Definition["ResourceDefinition apply\nuser or UI intent"] --> Graph["Resource graph\naccepted resource state"]
+    Graph --> Resource["CloudShell resource\nfor example container app"]
+    Resource --> Provider["Resource provider\nplans runtime intent"]
+    Provider --> Coordinator["Resource Manager deployment coordinator"]
+    Coordinator --> Deployment["Orchestrator deployment\ndesired runtime state"]
 
     subgraph ResourceManager["Resource Manager"]
         DeploymentService["Deployment service\nrecords apply attempt"]
@@ -540,13 +579,22 @@ public sealed class OrchestratorRevision
 The deployment model should represent resource intent in the CloudShell
 environment: what the actor wants the runtime to materialize. It should not
 represent provider-private imperative commands, and it should not be the full
-user-facing resource graph. The durable shape should be a deployment
-specification, or deployment definition, containing versioned typed service
-and resource definitions or deltas. Services are first-class orchestrator
-grouping and boundary objects. A service can group related runtime resources
-such as a load balancer, replica group, and materialized replicas. The same
-deployment can also include standalone resources that are not grouped under a
-service.
+user-facing resource graph. It should also not become the default file format
+users author. The user-facing apply artifact remains Resource Definition
+state: resources plus provider-owned attributes and definition payloads. The
+Resource Manager can accept a single resource definition or an envelope of
+multiple definitions. The envelope may carry apply metadata, but it should not
+be a second template language. Add-resource flows, edit-resource flows, and
+file-based apply flows all converge on Resource Definition entries.
+
+The orchestrator deployment model is the normalized internal state produced by
+providers and controllers after that resource intent is accepted. Its durable
+internal shape should be a deployment specification, or deployment definition,
+containing versioned typed service and resource definitions or deltas.
+Services are first-class orchestrator grouping and boundary objects. A service
+can group related runtime resources such as a load balancer, replica group,
+and materialized replicas. The same internal deployment can also include
+standalone resources that are not grouped under a service.
 
 Each resource entry names the resource being reconciled, declares its resource
 type, and carries resource intent that can be validated by the owning resource
@@ -602,12 +650,175 @@ deployment specification into Docker, Docker Compose, Kubernetes, or a custom
 runtime without exposing those backend models as the common CloudShell
 contract.
 
-For example, a serialized projection of a deployment definition might contain
-a resource definition for an executable application with attributes such as
-`executable.path`, `executable.arguments`, `executable.workingDirectory`, and
-a future complex `custom.data` value. The JSON shape is only one projection;
-the model concept is a resource definition that states intent for a named
-resource of a known type.
+The user-facing authoring input should remain Resource Definition intent, not
+an exposed orchestrator deployment model. A user should declare resources and
+the state they want those resources in, such as a container app image and
+replica count. The container app resource remains the visible resource and
+acts as the control surface for the internal orchestrator service it owns or
+tracks. Deployment, orchestrator service, and replica group contracts remain
+internal orchestration API concepts unless a later workload-builder scenario
+justifies exposing them deliberately.
+
+The flow is therefore:
+
+1. A user or UI authors a `ResourceDefinition` for a new resource, or an
+   incremental `ResourceDefinition` for an existing resource.
+2. Resource Manager validates the definition with the owning resource type
+   provider and accepts the normalized resource state.
+3. A provider-owned deployment planner compares accepted resource state with
+   current materialized state when runtime materialization is required.
+4. The planner produces an internal `ResourceOrchestratorDeploymentDefinition`
+   for the orchestrator service, replica groups, routing, readiness, and
+   cleanup policy needed to materialize that accepted state.
+5. Resource Manager records and applies the internal deployment through the
+   selected orchestrator. The orchestrator/controller reconciles runtime
+   resources toward the deployment definition and records the environment
+   revision outcome.
+6. Provider-owned outcome handling updates domain-specific state such as
+   container app revision history without making the user manage the
+   orchestrator deployment object.
+
+For a container app, the resource itself continues to exist as the user-facing
+API object. It keeps track of the internal orchestrator service that
+materializes it, but callers still interact with the container app definition:
+image, replicas, ports, references, volumes, and other app-owned state.
+The container app is therefore a Resource Manager resource and a managed
+workload facade at the same time: it is the stable interface for related
+orchestration artifacts that may include deployment records, orchestrator
+services, replica groups, runtime replicas, endpoint mappings, load-balancer
+bindings, and cleanup targets. This deployment-centric related-resource model
+is what separates container apps from simpler resources that usually map to one
+provider-managed thing.
+
+For container apps, this internal planning boundary is the important refinement:
+image changes, replica-slot changes, start materialization, restore, rollback,
+and failure recovery should all converge on the same deployment controller path.
+They may start from different user-facing operations, but they should produce a
+normalized internal deployment definition before runtime resources are changed.
+That keeps gradual rollout, retained previous slots, readiness gates, ingress
+rebinding, and cleanup rules in one orchestration model instead of spreading
+them across image-update, scale, lifecycle, and provider-runtime code paths.
+
+The load balancer should react to the orchestrator runtime state rather than
+being manually rebuilt by every caller. In the default implementation this can
+be a Resource Manager/orchestrator routing reconciliation hook that receives
+the target service and replica group. Future external orchestrators can map
+the same event into provider-native routing constructs. The Environment Map
+can visualize the resulting service boundary, replica group, replicas, and
+routing bindings, but it should remain a read model over Resource Manager and
+orchestrator state.
+
+For simple changes, the caller should be able to submit an incremental
+resource patch that says what changed, such as a new image or a new replica
+count:
+
+```json
+{
+  "definitionVersion": "1",
+  "resources": [
+    {
+      "name": "sample-api",
+      "type": "application.container-app",
+      "definitionVersion": "1",
+      "attributes": {
+        "container.image": "ghcr.io/example/api:20260629.1",
+        "container.replicas": 3
+      }
+    }
+  ]
+}
+```
+
+That compact input is still declarative: it updates resource intent, not a
+runtime procedure list. The container app provider and orchestrator deployment
+controller resolve the patch against the accepted deployment state, provider
+defaults, policy, and runtime revision naming rules, then record a normalized
+internal deployment definition for apply and history.
+
+For a container app, that internal JSON projection can map the app definition
+to one orchestrator service with one service-owned replica-group resource. The
+replica group describes the desired state that the orchestrator controller
+reconciles. The load balancer and runtime provider then react to that desired
+state instead of the caller issuing imperative "delete all and recreate"
+operations:
+
+```json
+{
+  "definitionVersion": "1",
+  "services": [
+    {
+      "name": "cloudshell-application-api",
+      "type": "cloudshell.orchestrator.service",
+      "definitionVersion": "1",
+      "attributes": {
+        "deployment.reason": "image-update"
+      },
+      "resources": [
+        {
+          "name": "cloudshell-application-api-rev-3-replicas",
+          "type": "cloudshell.replica-group",
+          "definitionVersion": "1",
+          "definition": {
+            "name": "cloudshell-application-api-rev-3-replicas-replica-template",
+            "type": "cloudshell.replica",
+            "definitionVersion": "1",
+            "attributes": {
+              "deployment.replicaGroup.id": "cloudshell-application-api-rev-3-replicas",
+              "deployment.workloadVersion": "rev-3",
+              "runtime.revision": "rev-3"
+            }
+          },
+          "attributes": {
+            "runtime.revision": "rev-3",
+            "deployment.workloadVersion": "rev-3",
+            "deployment.replicas.requestedSlots": "3",
+            "deployment.replicas.requested": "3",
+            "deployment.routing.scaleOutMode": "AfterAddedReplicas",
+            "deployment.routing.scaleInMode": "BeforeRemovedReplicas",
+            "deployment.routing.replacementMode": "AfterNewReplicaGroupMaterialized",
+            "deployment.replacement.retainPreviousReplicaSlots": "1",
+            "deployment.replica.restartMode": "ReplaceOccupant",
+            "deployment.replica.failureThreshold": "1",
+            "deployment.replica.maxAttempts": "10"
+          }
+        },
+        {
+          "name": "cloudshell-application-api-http-binding",
+          "type": "cloudshell.service-routing-binding",
+          "definitionVersion": "1",
+          "attributes": {
+            "deployment.serviceId": "cloudshell-application-api",
+            "deployment.replicaGroup.id": "cloudshell-application-api-rev-3-replicas",
+            "deployment.routing.sourceResourceId": "application:api",
+            "deployment.routing.endpointName": "http",
+            "deployment.routing.loadBalancerResourceId": "cloudshell.loadBalancer:public",
+            "deployment.routing.routeId": "cloudshell.loadBalancer:public/routes/api"
+          }
+        }
+      ]
+    }
+  ],
+  "resources": []
+}
+```
+
+The internal JSON shape is only one projection; the model concept is a service
+definition with resource definitions that state intent for named resources of
+known types. The same structure can later be projected through YAML, a builder
+API, database records, or generated DTOs without changing the underlying
+orchestration contract. That does not make it the default user-facing file
+format; the default user-facing file format remains Resource Definition
+entries that the Control Plane applies.
+
+The POC now includes the replica-group and service-routing-binding definition
+contracts in the internal orchestration API. Generated service definitions
+include a routing binding for each service port, and routing reconciliation
+providers receive the matching binding set in their service procedure context.
+The Resource Model graph procedure bridge forwards that binding set to
+container-app orchestrator runtime handlers. The binding is intentionally
+identity based: controllers receive the source resource id, service id,
+replica-group id, endpoint name, and optional route, endpoint-mapping, or
+load-balancer resource id instead of inferring membership from labels.
 
 Lifecycle and materialization intent should be part of the requested resource
 or replica state in the deployment definition. This follows the same model as
@@ -993,6 +1204,79 @@ Replica-group tear-down is an orchestrator-provider boundary. A provider can
 describe which superseded replica group should be retired after deployment
 setup, and Resource Manager orchestration asks the selected orchestrator to tear
 that group down separately from the deployment apply operation.
+
+Service routing and load-balancer rebinding should follow the same boundary.
+An orchestration service is not required for ordinary single-resource
+lifecycle, but it is the right runtime boundary when several materialized
+resources need to move together, such as a load balancer route and the replica
+group that backs it. The deployment definition should describe the service,
+its active or candidate replica group, and any routing bindings that must be
+reconciled as that group changes. The default orchestrator can then ask the
+selected load-balancer or routing provider to bind an explicit service target
+to the current replica group during scale-out, scale-in, replacement, and
+cleanup.
+
+CloudShell should not use Kubernetes-style labels as the primary contract
+between services and load balancers. Labels can remain diagnostic metadata or a
+provider adapter detail when a backend requires them, but the common
+orchestration contract should use explicit CloudShell identities:
+source resource id, orchestrator service id, replica group id, endpoint
+reference, and route or mapping id. That keeps the default orchestrator an
+abstraction over potential runtime backends instead of exposing any one
+backend's selector model as the CloudShell domain model.
+
+The Resource Manager environment map should project this internal runtime state
+as service grouping, not as a second user-authored resource model. The
+[Runtime model](../../terminology.md#runtime-model) has [environment artifacts](../../terminology.md#environment-artifact):
+resources, orchestration services, replica groups, replicas, routing bindings,
+and other materialized runtime state. The [Resource model](../../terminology.md#resource-model)
+is a subset of that Runtime model and is represented as a Resource graph.
+Deployment is one way to define or change runtime artifacts, but the artifacts
+exist as part of the environment realization and can be versioned by
+environment revisions independently of a single deployment request. A managed
+workload such as a container app can be rendered as an orchestration service
+boundary with an attached resource card that identifies the container app. The
+resource and service therefore read as one operational unit: the resource is
+the stable user-facing handle, while the service boundary contains the runtime
+implementation. Replica groups should be nested inside that boundary, and
+materialized replica resources should be nested inside the replica group that
+owns their requested slot or revision. The map can later add richer live
+controller state, such as deployment progress, scale-out/scale-in, retained
+previous revisions, readiness, draining, and route switch-over, without making
+deployment, service, or replica-group artifacts part of resource authoring.
+Load-balancer nodes should appear only when a load balancer is projected as an
+actual CloudShell resource; otherwise routing can remain an edge or binding
+until the Runtime model exposes a resource-backed participant.
+
+```mermaid
+flowchart LR
+    desired["Desired state change"]
+    deployment["Deployment definition"]
+    orchestrator["Orchestrator apply"]
+    revision["Environment revision"]
+
+    subgraph artifacts["Environment artifacts"]
+        resources["Resources"]
+        services["Orchestration services"]
+        replicaGroups["Replica groups"]
+        replicas["Replicas"]
+        routing["Routing bindings"]
+    end
+
+    desired --> deployment
+    deployment --> orchestrator
+    orchestrator --> resources
+    orchestrator --> services
+    orchestrator --> replicaGroups
+    orchestrator --> replicas
+    orchestrator --> routing
+
+    resources --> revision
+    services --> revision
+    replicaGroups --> revision
+    replicas --> revision
+    routing --> revision
+```
 
 ## Resource Relationship
 
@@ -1595,17 +1879,63 @@ The current implementation already has the internal foundation:
     replica group. The longer-term model should project that baseline as an
     initial environment revision or active deployment state so predecessor
     discovery stays in the deployment/orchestration layer.
+13. Resource templates are now separate from orchestrator deployment
+    definitions. User-facing desired state is expressed as `ResourceDefinition`
+    entries in a `ResourceTemplate`; orchestrator deployment definitions are
+    internal runtime projections created after graph validation and provider
+    planning.
+
+The current container app orchestration progress is:
+
+* Done: revision-scoped replica naming, explicit replica-group definitions,
+  scale-out and scale-in routing order, replacement-group routing, previous
+  replica-slot retention, failed candidate rollback, deployment history,
+  based-on environment revision tracking, post-apply tear-down requests, and
+  visible deployment/replica-group projection for Resource Manager surfaces.
+  Resource Manager deployment apply also serializes concurrent same-resource
+  deployments so later applies resolve `BasedOnRevisionId` after earlier
+  applies complete.
+* In progress: converging image update, replica resize, and start
+  materialization on the same internal deployment path while resource-template
+  apply remains the user-facing desired-state entry point.
+* Not done: a first-class provider deployment-planning service that compares
+  accepted resource graph state with current runtime state and emits the
+  normalized `ResourceOrchestratorDeploymentDefinition`; persisted optimistic
+  concurrency for distributed Control Plane instances; explicit retained,
+  draining, superseded, and deleted replica-group runtime statuses; and
+  readiness-gate policy encoded directly in the replica group definition.
 
 The next MVP changes should stay focused:
 
 1. Keep rollback scoped to tearing down the candidate replica group. Do not add
    automatic environment replay or traffic policy machinery for MVP.
-2. Add configurable retention and cleanup policies after the basic
+2. Introduce an internal container-app deployment planner/controller boundary:
+   accepted resource graph state in, normalized orchestrator deployment
+   definition out. Image updates, replica changes, and start materialization
+   should use that same path.
+3. Make `ResourceOrchestratorDeploymentDefinition` the authoritative desired
+   runtime state over time. `ResourceOrchestratorDeploymentSpec.Service` can
+   remain a migration convenience, but the long-term source of truth should be
+   the versioned service and replica-group definitions.
+4. Extend the current same-resource deployment serialization with persisted
+   optimistic concurrency when deployment apply can run across distributed
+   Control Plane instances.
+5. Record retained and superseded replica groups as explicit runtime state,
+   not only as tear-down requests, so retained previous slots can be inspected,
+   drained, or cleaned up later.
+6. Add readiness-gate policy to replica-group definitions. The controller
+   should know whether routing can rebind after start, ready, healthy, timeout,
+   or provider-specific materialization signals.
+7. Keep rollout policy intentionally small: requested replica slots,
+   retain-previous slots, scale-in/scale-out routing order, replacement routing
+   order, readiness timeout, and one simple surge or batch-size control are
+   enough for the next iteration.
+8. Add configurable retention and cleanup policies after the basic
    best-effort cleanup model is credible.
-3. Add focused tests around failed deployment projection, readiness-gated
+9. Add focused tests around failed deployment projection, readiness-gated
    success/failure, post-apply tear-down failure visibility, and extension to
    at least one non-container-app workload shape.
-4. Revisit Docker Compose integration only after the default orchestrator and
+10. Revisit Docker Compose integration only after the default orchestrator and
    first container app path settle; adapters should translate the common model,
    not redefine it.
 

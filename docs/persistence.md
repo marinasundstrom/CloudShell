@@ -186,9 +186,10 @@ dotnet ef migrations add <Name> --project CloudShell.Persistence/CloudShell.Pers
 ## Resource Templates
 
 Resource templates provide import/export without changing the database ownership
-model. CloudShell exports a resource group envelope and asks each provider that
-implements `IResourceTemplateProvider` for a provider-owned configuration
-payload. Import creates a new resource group and delegates each resource entry
-back to the owning provider.
+model. CloudShell exports accepted Resource graph state as a `ResourceTemplate`
+containing `ResourceDefinition` entries. Applying a template validates and
+commits resource definitions through the Resource Manager graph apply path.
+Providers still own validation and runtime planning for their resource types,
+but they no longer own per-resource template serializers.
 
 See [Resource templates](resource-templates.md).

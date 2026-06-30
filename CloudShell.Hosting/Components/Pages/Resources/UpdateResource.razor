@@ -31,8 +31,7 @@
     var group = ResourceGroup;
     var resourceType = resource is null
         ? null
-        : ShellCatalog.ResourceTypes.FirstOrDefault(type =>
-            string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
+        : FindResourceTypeContribution(resource);
     var hasDefaultIdentityProvider = HasDefaultIdentityProvider();
     var tabs = BuildTabs(
         resource,
@@ -225,7 +224,6 @@
     private static readonly ResourceViewId GeneratedLogsTabId = ResourcePredefinedViewIds.Logs;
     private static readonly ResourceViewId GeneratedTracesTabId = ResourcePredefinedViewIds.Traces;
     private static readonly ResourceViewId GeneratedMetricsTabId = ResourcePredefinedViewIds.Metrics;
-
     [Parameter]
     public string? ResourceId { get; set; }
 
@@ -281,6 +279,12 @@
         ResourceManager.ResourcesChanged += OnResourcesChanged;
     }
 
+    private ResourceTypeContribution? FindResourceTypeContribution(Resource resource)
+    {
+        return ShellCatalog.ResourceTypes.FirstOrDefault(type =>
+            string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
+    }
+
     protected override async Task OnParametersSetAsync()
     {
         DisplaySelection = await DisplaySettings.GetAsync();
@@ -301,8 +305,7 @@
 
         await LoadResourceAffordancesAsync(resource);
 
-        var resourceType = ShellCatalog.ResourceTypes.FirstOrDefault(type =>
-            string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
+        var resourceType = FindResourceTypeContribution(resource);
         var tabs = BuildTabs(
             resource,
             resourceType,

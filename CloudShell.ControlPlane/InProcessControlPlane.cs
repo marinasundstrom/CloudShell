@@ -10,11 +10,14 @@ using CloudShell.ControlPlane.ResourceManager.Identity;
 using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.ControlPlane.ResourceManager.Recovery;
-using CloudShell.ControlPlane.ResourceManager.Templates;
+using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.AspNetCore.Http;
 using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
+using ResourceDefinition = CloudShell.ResourceModel.ResourceDefinition;
+using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
+using ResourceGraphCommitContext = CloudShell.ResourceModel.ResourceGraphCommitContext;
 
 namespace CloudShell.ControlPlane;
 
@@ -28,7 +31,7 @@ public sealed class InProcessControlPlane(
     ResourceReplicaGroupReconciliationService replicaGroupReconciliation,
     ResourceIdentityProvisioningService resourceIdentityProvisioning,
     ResourceIdentityProviderSetupService resourceIdentityProviderSetup,
-    ResourceTemplateService templates,
+    ResourceDefinitionTemplateService templates,
     ILogStore logs,
     ITraceStore traces,
     IMetricStore metrics,
@@ -43,7 +46,8 @@ public sealed class InProcessControlPlane(
     IHttpContextAccessor? httpContextAccessor = null,
     ResourceIdentityProviderCatalog? identityProviders = null,
     IEnumerable<IResourceIdentityDirectoryProvider>? identityDirectoryProviders = null,
-    IEnumerable<IResourcePermissionGrantStatusProvider>? permissionGrantStatusProviders = null) : IControlPlane
+    IEnumerable<IResourcePermissionGrantStatusProvider>? permissionGrantStatusProviders = null,
+    ResourceOrchestratorDeploymentCleanupCoordinator? deploymentCleanup = null) : IControlPlane
 {
     private const string PreferredUsernameClaimType = "preferred_username";
     private const string UnauthenticatedRequestActor = "user";
@@ -61,6 +65,8 @@ public sealed class InProcessControlPlane(
 
     private readonly IReadOnlyList<IResourcePermissionGrantStatusProvider> permissionGrantStatusProviders =
         (permissionGrantStatusProviders ?? []).ToArray();
+    private readonly ResourceOrchestratorDeploymentCleanupCoordinator deploymentCleanup =
+        deploymentCleanup ?? new ResourceOrchestratorDeploymentCleanupCoordinator(resourceEvents);
 
     public Task<IReadOnlyList<ResourceGroup>> ListResourceGroupsAsync(
         CancellationToken cancellationToken = default)
@@ -861,30 +867,6 @@ public sealed class InProcessControlPlane(
                 .Concat(applyResult.Signals)
                 .ToArray());
 
-    private static ResourceProcedureResult AddProcedureWarning(
-        ResourceProcedureResult result,
-        string warning) =>
-        result with
-        {
-            Signals = result.Signals
-                .Append(ResourceProcedureSignal.Warning(warning))
-                .ToArray()
-        };
-
-    private void AppendDeploymentEvent(
-        Resource resource,
-        string eventType,
-        string message,
-        string? triggeredBy,
-        ResourceSignalSeverity severity) =>
-        resourceEvents?.Append(new ResourceEvent(
-            resource.Id,
-            eventType,
-            message,
-            DateTimeOffset.UtcNow,
-            triggeredBy,
-            severity));
-
     private static string FormatRequestedReplicas(int? requestedReplicas) =>
         requestedReplicas is { } value
             ? value.ToString(CultureInfo.InvariantCulture)
@@ -1045,82 +1027,134 @@ public sealed class InProcessControlPlane(
         ResourceProcedureResult result,
         string? triggeredBy,
         string cause,
-        CancellationToken cancellationToken)
-    {
-        var tearDowns = applyResult.ReplicaGroupsToTearDown;
-        if (tearDowns.Count == 0)
-        {
-            var tearDownProvider = GetDeploymentTearDownProvider(resource);
-            if (tearDownProvider is not null &&
-                tearDownProvider.CanDescribeDeploymentTearDown(resource))
+        CancellationToken cancellationToken) =>
+        await deploymentCleanup.RunPostApplyCleanupAsync(
+            resource,
+            applyResult,
+            result,
+            triggeredBy,
+            async (appliedDeployment, token) =>
             {
-                tearDowns = await tearDownProvider.DescribeDeploymentTearDownAsync(
+                var tearDownProvider = GetDeploymentTearDownProvider(resource);
+                if (tearDownProvider is null ||
+                    !tearDownProvider.CanDescribeDeploymentTearDown(resource))
+                {
+                    return [];
+                }
+
+                return await tearDownProvider.DescribeDeploymentTearDownAsync(
                     CreateProcedureContext(resource, triggeredBy, cause),
-                    applyResult,
-                    cancellationToken);
-            }
-        }
-
-        if (tearDowns.Count == 0)
-        {
-            return result;
-        }
-
-        var mergedResult = result;
-        foreach (var tearDown in tearDowns)
-        {
-            var replicaGroup = tearDown.ReplicaGroup ??
-                ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(tearDown.Service);
-            var reason = tearDown.Reason ?? "Deployment retired superseded replica group.";
-            AppendDeploymentEvent(
-                resource,
-                ResourceEventTypes.Events.Deployment.CleanupRunning,
-                $"Cleaning up superseded replica group '{replicaGroup.Id}' for deployment '{applyResult.Deployment.Id}'. Reason: {reason}",
-                triggeredBy,
-                ResourceSignalSeverity.Info);
-            try
-            {
-                var tearDownResult = await orchestration.TearDownReplicaGroupAsync(
+                    appliedDeployment,
+                    token);
+            },
+            async (tearDown, replicaGroup, reason, token) =>
+                await orchestration.TearDownReplicaGroupAsync(
                     resource,
                     tearDown.Service,
                     replicaGroup,
-                    cancellationToken,
+                    token,
                     triggeredBy,
-                    reason);
-                AppendDeploymentEvent(
-                    resource,
-                    ResourceEventTypes.Events.Deployment.CleanupCompleted,
-                    $"Cleaned up superseded replica group '{replicaGroup.Id}' for deployment '{applyResult.Deployment.Id}'. Result: {tearDownResult.Message}",
-                    triggeredBy,
-                    ResourceSignalSeverity.Info);
-                mergedResult = MergeAppliedDeploymentResult(mergedResult, tearDownResult);
-            }
-            catch (Exception exception) when (exception is not OperationCanceledException)
-            {
-                var warning =
-                    $"Post-apply cleanup for deployment '{applyResult.Deployment.Id}' could not tear down replica group '{replicaGroup.Id}'. Reason: {exception.Message}";
-                AppendDeploymentEvent(
-                    resource,
-                    ResourceEventTypes.Events.Deployment.CleanupWarning,
-                    warning,
-                    triggeredBy,
-                    ResourceSignalSeverity.Warning);
-                mergedResult = AddProcedureWarning(mergedResult, warning);
-            }
-        }
+                    reason),
+            MergeAppliedDeploymentResult,
+            cancellationToken);
 
-        return mergedResult;
+    public async Task<ResourceTemplateExportResult> ExportResourceTemplateAsync(
+        ResourceTemplateExportRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var result = await templates.ExportTemplateAsync(
+            request.Name,
+            resourceIds: request.RequestedResourceIds,
+            environmentId: request.EnvironmentId,
+            metadata: request.Metadata,
+            cancellationToken: cancellationToken);
+
+        return new ResourceTemplateExportResult(result.Template, result.Diagnostics);
     }
 
-    public Task<ResourceGroupTemplateExportResult> ExportResourceGroupTemplateAsync(
-        string resourceGroupId,
+    public async Task<ResourceTemplateApplyResult> ApplyResourceTemplateAsync(
+        ResourceDefinitionTemplate template,
         CancellationToken cancellationToken = default) =>
-        templates.ExportGroupAsync(resourceGroupId, cancellationToken);
+        await ApplyResourceTemplateAsync(
+            new ResourceTemplateApplyRequest(template),
+            cancellationToken);
 
-    public Task<ResourceGroupTemplateImportResult> ImportResourceGroupTemplateAsync(
-        ResourceGroupTemplate template,
-        CancellationToken cancellationToken = default) =>
-        templates.ImportGroupAsync(template, cancellationToken);
+    public async Task<ResourceTemplateApplyResult> ApplyResourceTemplateAsync(
+        ResourceTemplateApplyRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.Template);
+        var apply = await templates.ApplyTemplateAsync(
+            request.Template,
+            new ResourceGraphCommitContext(
+                EnvironmentId: request.Template.EnvironmentId,
+                PrincipalId: ResolveTriggeredBy("resource-template-apply"),
+                Timestamp: DateTimeOffset.UtcNow),
+            new ResourceModelGraphDefinitionApplyOptions(request.Mode),
+            cancellationToken);
+
+        if (!apply.HasErrors && apply.IsCommitted)
+        {
+            await RegisterAppliedDefinitionsAsync(
+                request.Template.Resources,
+                GetTemplateResourceGroupId(request.Template),
+                cancellationToken);
+        }
+
+        return new ResourceTemplateApplyResult(
+            apply.Template,
+            apply.IsCommitted,
+            apply.Diagnostics);
+    }
+
+    private async Task RegisterAppliedDefinitionsAsync(
+        IReadOnlyList<ResourceDefinition> definitions,
+        string? resourceGroupId,
+        CancellationToken cancellationToken)
+    {
+        var existingRegistrations = registrations.GetRegistrations()
+            .Select(registration => registration.ResourceId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var definition in definitions)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var dependencyIds = definition.StartupDependencyIds;
+            if (existingRegistrations.Contains(definition.EffectiveResourceId))
+            {
+                await AssignResourceGroupAsync(
+                    new AssignResourceGroupCommand(
+                        definition.EffectiveResourceId,
+                        resourceGroupId,
+                        dependencyIds),
+                    cancellationToken);
+                continue;
+            }
+
+            await RegisterResourceAsync(
+                new RegisterResourceCommand(
+                    ResourceModelResourceProvider.DefaultProviderId,
+                    definition.EffectiveResourceId,
+                    resourceGroupId,
+                    dependencyIds),
+                cancellationToken);
+            existingRegistrations.Add(definition.EffectiveResourceId);
+        }
+    }
+
+    private static string? GetTemplateResourceGroupId(ResourceDefinitionTemplate template)
+    {
+        if (template.Metadata is null)
+        {
+            return null;
+        }
+
+        return template.Metadata.TryGetValue("resourceGroup.id", out var resourceGroupId)
+            ? NormalizeOptional(resourceGroupId)
+            : null;
+    }
 
     public Task<IReadOnlyList<LogSource>> ListLogSourcesAsync(
         LogQuery? query = null,
@@ -1310,7 +1344,7 @@ public sealed class InProcessControlPlane(
             return null;
         }
 
-        if (resource.ResourceHealthChecks.Count > 0)
+        if (IsHealthProbeResource(resource))
         {
             await RefreshStaleResourceHealthAsync([resource], cancellationToken);
             return resourceHealth.GetLatest(resource.Id) ?? CreateUnknownHealthSummary(resource);
@@ -1361,7 +1395,7 @@ public sealed class InProcessControlPlane(
             return null;
         }
 
-        if (resource.ResourceHealthChecks.Count > 0)
+        if (IsHealthProbeResource(resource))
         {
             await RefreshResourceHealthCoreAsync([resource], cancellationToken);
             return resourceHealth.GetLatest(resource.Id);
@@ -1764,8 +1798,12 @@ public sealed class InProcessControlPlane(
 
     private static IReadOnlyList<Resource> GetProbeHealthResources(IReadOnlyList<Resource> resources) =>
         resources
-            .Where(resource => resource.ResourceHealthChecks.Count > 0)
+            .Where(IsHealthProbeResource)
             .ToArray();
+
+    private static bool IsHealthProbeResource(Resource resource) =>
+        resource.ResourceHealthChecks.Count > 0 &&
+        resource.State is null or ResourceState.Running or ResourceState.Degraded;
 
     private IReadOnlyList<Resource> GetHealthSummaryResources(IReadOnlyList<Resource> resources) =>
         GetProbeHealthResources(resources)

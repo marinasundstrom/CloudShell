@@ -261,7 +261,15 @@ public static class ResourceOrchestratorServiceInstances
 public sealed record ResourceOrchestratorServiceProcedureContext(
     ResourceProcedureContext ResourceContext,
     ResourceOrchestratorService Service,
-    ResourceOrchestratorReplicaGroup? ReplicaGroup = null);
+    ResourceOrchestratorReplicaGroup? ReplicaGroup = null,
+    IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition>? RoutingBindings = null)
+{
+    public IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> ServiceRoutingBindings =>
+        RoutingBindings ?? [];
+
+    public ResourceOrchestratorServiceRoutingBindingDefinition? RoutingBinding =>
+        ServiceRoutingBindings.FirstOrDefault();
+}
 
 public sealed record ResourceOrchestratorServiceInstanceContext(
     ResourceProcedureContext ResourceContext,
@@ -287,6 +295,11 @@ public interface IResourceOrchestratorServiceProcedureProvider
     Task PrepareOrchestratorServiceAsync(
         ResourceOrchestratorServiceProcedureContext context,
         ResourceAction action,
+        CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
+    Task ReconcileOrchestratorServiceRoutingAsync(
+        ResourceOrchestratorServiceProcedureContext context,
         CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
 

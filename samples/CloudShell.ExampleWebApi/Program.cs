@@ -3,8 +3,18 @@ using CloudShell.Configuration.Client;
 using CloudShell.Secrets.Client;
 
 var builder = CloudShellApplication.CreateBuilder(args);
-builder.Configuration.AddCloudShellConfigurationStore();
-builder.Configuration.AddCloudShellSecretsVault();
+var configurationStoreServiceName = Environment.GetEnvironmentVariable(
+    "CLOUDSHELL_CONFIGURATION_SERVICE_NAME");
+var secretsVaultName = Environment.GetEnvironmentVariable(
+    "CLOUDSHELL_SECRETS_VAULT_NAME");
+builder.Configuration.AddCloudShellConfigurationStore(options =>
+{
+    options.ServiceName = configurationStoreServiceName;
+});
+builder.Configuration.AddCloudShellSecretsVault(options =>
+{
+    options.VaultName = secretsVaultName;
+});
 builder.Services.AddServiceDiscovery();
 builder.Services.AddHttpClient();
 builder.Services.ConfigureHttpClientDefaults(http =>
@@ -119,6 +129,93 @@ app.MapGet("/service-discovery/configuration", async (
     });
 });
 
+app.MapGet("/service-discovery/configuration-store", async (
+    IHttpClientFactory httpClientFactory,
+    CloudShellResourceCredential credential,
+    CancellationToken cancellationToken) =>
+{
+    var storeId = Environment.GetEnvironmentVariable(
+        "CLOUDSHELL_CONFIGURATION_SAMPLE_APP_STORE_ID");
+    if (string.IsNullOrWhiteSpace(storeId))
+    {
+        return Results.Problem(
+            "The configuration store id is not configured.",
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+
+    var logicalEndpoint =
+        $"https+http://configuration.store-sample-app/api/configuration/stores/{Uri.EscapeDataString(storeId)}/entries";
+    var token = await credential.GetTokenAsync(
+        new CloudShellResourceTokenRequest([ConfigurationStoreClient.DefaultScope]),
+        cancellationToken);
+    using var request = new HttpRequestMessage(HttpMethod.Get, logicalEndpoint);
+    request.Headers.Authorization = new("Bearer", token.Token);
+
+    var httpClient = httpClientFactory.CreateClient();
+    using var response = await httpClient.SendAsync(request, cancellationToken);
+    response.EnsureSuccessStatusCode();
+    var entries = await response.Content.ReadFromJsonAsync<IReadOnlyList<CloudShellConfigurationEntry>>(
+        cancellationToken: cancellationToken) ?? [];
+
+    return Results.Ok(new
+    {
+        status = "connected",
+        source = logicalEndpoint,
+        entries = entries.Select(entry => new
+        {
+            entry.Name,
+            Value = entry.IsSecret ? "Secret" : entry.Value,
+            entry.IsSecret
+        })
+    });
+});
+
+app.MapGet("/service-discovery/secrets-vault/{name}", async (
+    string name,
+    IHttpClientFactory httpClientFactory,
+    CloudShellResourceCredential credential,
+    CancellationToken cancellationToken) =>
+{
+    var vaultId = Environment.GetEnvironmentVariable(
+        "CLOUDSHELL_SECRETS_SAMPLE_APP_VAULT_ID");
+    if (string.IsNullOrWhiteSpace(vaultId))
+    {
+        return Results.Problem(
+            "The Secrets Vault id is not configured.",
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+
+    var logicalEndpoint =
+        $"https+http://secrets.vault-sample-app/api/secrets/vaults/{Uri.EscapeDataString(vaultId)}/secrets/{Uri.EscapeDataString(name)}";
+    var token = await credential.GetTokenAsync(
+        new CloudShellResourceTokenRequest([SecretsVaultClient.DefaultScope]),
+        cancellationToken);
+    using var request = new HttpRequestMessage(HttpMethod.Get, logicalEndpoint);
+    request.Headers.Authorization = new("Bearer", token.Token);
+
+    var httpClient = httpClientFactory.CreateClient();
+    using var response = await httpClient.SendAsync(request, cancellationToken);
+    response.EnsureSuccessStatusCode();
+    var secret = await response.Content.ReadFromJsonAsync<SecretValue>(
+        cancellationToken: cancellationToken);
+
+    return secret is null
+        ? Results.NotFound(new
+        {
+            status = "notFound",
+            source = logicalEndpoint,
+            name
+        })
+        : Results.Ok(new
+        {
+            status = "connected",
+            source = logicalEndpoint,
+            secret.Name,
+            secret.Value,
+            secret.Version
+        });
+});
+
 app.MapGet("/secrets/{name}", async (
     string name,
     CloudShellServiceClients clients,
@@ -231,8 +328,12 @@ static void LogProviderStatus(
 sealed class CloudShellServiceClients(CloudShellResourceCredential credential)
 {
     public ConfigurationStoreClient CreateConfigurationStoreClient() =>
-        ConfigurationStoreClient.FromEnvironment(credential);
+        ConfigurationStoreClient.FromEnvironment(
+            credential,
+            Environment.GetEnvironmentVariable("CLOUDSHELL_CONFIGURATION_SERVICE_NAME"));
 
     public SecretsVaultClient CreateSecretsVaultClient() =>
-        SecretsVaultClient.FromEnvironment(credential);
+        SecretsVaultClient.FromEnvironment(
+            credential,
+            Environment.GetEnvironmentVariable("CLOUDSHELL_SECRETS_VAULT_NAME"));
 }

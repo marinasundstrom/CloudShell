@@ -36,6 +36,34 @@ contributions when a resource is meant to be managed by users. A provider can
 intentionally be programmatic-only, but that should be a conscious product
 decision rather than an accidental omission.
 
+## Provider Runtime Adapter Boundary
+
+Providers are part of the extension model, so their dependency direction should
+point toward CloudShell abstractions and provider-owned adapter contracts, not
+toward a concrete host or runtime implementation.
+
+A Resource model provider owns the resource type semantics: accepted
+attributes, validation, graph projection, actions, log declarations, and
+operation descriptions. When the provider needs to start a process, run a
+container, reconcile a network mapping, write local files, inspect a runtime
+object, or drive an orchestrator operation, it should call a focused adapter
+interface such as a runtime controller, inspector, reconciler, command runner,
+or deployment handler. The host, sample, or default runtime package then
+registers the concrete implementation for the current environment.
+
+This keeps providers portable across hosting environments:
+
+- provider packages register resource definitions, providers, validators,
+  actions, and adapter-facing services;
+- host/runtime packages register process, Docker, filesystem, networking,
+  sidecar, and orchestration implementations for the adapters the installed
+  providers can use;
+- missing adapters should produce unavailable actions or diagnostics, not
+  hidden direct coupling to a specific host;
+- default implementations can remain near built-in providers while the
+  migration is underway, but reusable host-shaped implementations should move
+  behind a default runtime integration package.
+
 ## Programmatic Resource Factories
 
 Programmatic resource factories are extension points too. Provider packages can
@@ -258,7 +286,7 @@ Streaming implementation guidance:
   returns one bounded history page. Use it to load older entries incrementally
   instead of loading complete logs.
 
-## Docker Reference Provider
+## Docker Built-in Provider
 
 The Docker provider is the reference implementation. Container log sources
 set `SupportsStreaming: true`; `ReadLogSourceAsync` calls Docker logs with

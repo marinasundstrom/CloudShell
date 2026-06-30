@@ -1,8 +1,9 @@
 # Application Resources
 
-CloudShell includes an application provider for local development machines. It
-projects host-local workloads into Resource Manager while keeping provider-owned
-configuration and runtime state behind the provider boundary.
+CloudShell includes application resource types for local development machines.
+They project host-local workloads into Resource Manager while keeping
+provider-owned configuration and runtime state behind provider and runtime
+adapter boundaries.
 
 Resource-type-specific guidance:
 
@@ -34,79 +35,61 @@ provider-native services, non-application targets, or advanced routing. A
 normal container app should not require a separate Service resource just to act
 like a managed service.
 
-## Provider Boundaries And Shared Infrastructure
+## Provider Boundaries And Runtime Adapters
 
-`AddApplicationProvider(...)` registers the built-in application capability
-package as a group of Control Plane resource providers, not as one provider
-that owns every application-shaped resource. Executable apps, ASP.NET Core
-projects, container apps, and SQL Server each have their own provider identity
-for projection, templates, declarations, lifecycle dispatch, and future
-resource-type evolution.
+Application resource authoring now flows through ResourceDefinition entries
+and the Resource graph. The current built-in providers expose builders such as
+`AddExecutableApplication(...)`, `AddAspNetCoreProject(...)`, and
+`AddContainerApplication(...)`, then map accepted resource intent to provider
+projection, actions, logs, health, endpoint, and runtime adapter contracts.
+The earlier application-definition provider package was part of the old
+provider model and has been removed from the active solution.
 
-The providers still share internal application infrastructure for common
-concerns such as local process execution, container-backed startup,
-environment variables, app settings, endpoint projection, logs, monitoring,
-templates, and orchestration. This keeps each provider responsible for its own
-resource boundary while avoiding repeated implementation work for behavior
-that application-style resources naturally share.
+Executable apps, ASP.NET Core projects, container apps, and SQL Server each
+have their own resource type and provider-owned semantics. They can still
+share provider-neutral helpers for common concerns such as local process
+execution, container-backed startup, environment variables, app settings,
+endpoint projection, logs, monitoring, and orchestration. Shared helpers must
+stay behind provider contracts or default runtime integration registrations so
+providers do not depend directly on a concrete host/runtime implementation.
 
 ```mermaid
 flowchart TB
-    subgraph Raw["Raw Resource Provider infrastructure"]
-        Contracts["IResourceProvider and related provider contracts"]
+    subgraph ResourceModel["Resource model"]
+        Definition["ResourceDefinition entries"]
+        Graph["Resource graph"]
         ResourceManager["Resource Manager coordination"]
-        Projection["Uniform Resource projection"]
     end
 
-    subgraph Toolkit["Application Resource Provider infrastructure"]
-        Definition["ApplicationResourceDefinition"]
-        BaseProvider["ApplicationResourceTypeProvider"]
-        SharedRuntime["Shared process, container, log, endpoint, volume, and projection helpers"]
-        RoleContracts["Provider-facing role contracts"]
+    subgraph Providers["Application built-in providers"]
+        Executable["application.executable"]
+        AspNet["application.aspnet-core-project"]
+        Container["application.container-app"]
+        SqlServer["application.sql-server"]
     end
 
-    subgraph Implementors["Dogfooded application resource providers"]
-        Executable["Executable app provider"]
-        AspNet["ASP.NET Core Web project provider"]
-        Container["Container app provider"]
-        SqlServer["SQL Server application provider"]
+    subgraph Runtime["Host/runtime adapters"]
+        Process["Process controller"]
+        Docker["Docker/container handler"]
+        Network["Endpoint and networking reconcilers"]
+        Orchestrator["Orchestration handlers"]
     end
 
-    Contracts --> Toolkit
-    ResourceManager --> RoleContracts
-    Projection --> BaseProvider
-    Definition --> BaseProvider
-    SharedRuntime --> BaseProvider
-    RoleContracts --> BaseProvider
-    BaseProvider --> Executable
-    BaseProvider --> AspNet
-    BaseProvider --> Container
-    BaseProvider --> SqlServer
+    Definition --> Graph
+    Graph --> ResourceManager
+    ResourceManager --> Providers
+    Providers --> Process
+    Providers --> Docker
+    Providers --> Network
+    Providers --> Orchestrator
 ```
 
-The layering is intentional. Raw resource provider contracts are the lowest
-extension point for any resource type. Application Resource Provider
-infrastructure is a toolkit over those contracts for application-like
-resources. The built-in executable app, ASP.NET Core Web project, container
-app, and SQL Server providers dogfood that toolkit but should still own their
-resource-type-specific configuration, validation, lifecycle policy, projection
-policy, and operation semantics.
-
-The toolkit should be designed as if it could move to a shared package while
-resource providers that consume it live in separate assemblies. Shared
-application infrastructure can provide provider-neutral definition cleanup,
-runtime helpers, projection helpers, and role contracts, but provider-specific
-normalization rules and policy should be composed by the provider extension
-that brings those implementors into the host.
-
-The application-resource abstraction is intended to give provider authors as
-much as possible for free. A provider should describe the resource's authored
-shape, endpoints, configuration, dependencies, environment variables,
-observability, and runtime intent; the shared application infrastructure then
-handles the common process or container lifecycle plumbing. Providers should
-not have to reimplement routine start, stop, restart, log capture, runtime
-state tracking, endpoint projection, or host-scoped cleanup when those concerns
-match the shared model.
+The layering is intentional. ResourceDefinition entries express desired
+resource state. Resource Manager accepts that state into the graph and invokes
+provider semantics. Providers then use focused adapter interfaces for concrete
+runtime work such as process startup, Docker container execution, endpoint
+mapping reconciliation, and orchestrator operations. The host or default
+runtime package registers the concrete adapters for the current environment.
 
 An application resource can be backed by one executable, several cooperating
 executables, one container, several containers, or a provider-managed runtime
@@ -162,35 +145,12 @@ the containing application as the normal management surface. The orchestrator,
 not the application provider author, owns the lifecycle of orchestrator-managed
 replicas, runtime services, and other materialized implementation artifacts.
 
-The first reusable extension seam is now explicit. Provider authors that want
-to project application-like resources can reference
-`CloudShell.Providers.Applications`, create `ApplicationResourceDefinition`
-instances for their authored resource type, and subclass
-`ApplicationResourceTypeProvider` with an `ApplicationResourceProjection`. The
-base provider forwards common resource-provider responsibilities through
-separate provider-facing contracts for definitions, procedures, templates,
-declarations, descriptors, and action availability. `IApplicationResourceProjectionSource` and
-`ApplicationResourceProjectionSupport` let custom providers reuse the same
-definition-to-resource projection path and workload-kind conventions as the
-built-in executable, ASP.NET Core project, container app, and SQL Server
-providers. Built-in container app and SQL Server providers consume additional
-role-specific contracts for container-app operations and SQL permission status
-instead of taking a dependency on the whole application provider facade.
-Provider-specific declaration helpers can call `AddApplicationResource(...)`
-with their own provider ID and an `ApplicationResourceDefinition` to reuse the
-same declaration tracking and builder defaults as the built-in resource
-helpers.
-Server-side UI forms and provider helpers should construct definitions through
-`ApplicationResourceDefinitionBuilder` so callers describe executable,
-project, container, endpoint, health, observability, storage, and dependency
-intent without depending on the full constructor shape.
-Application resources still use the same Resource Manager registration model
-as any other resource. `ApplicationResourceDefinition` is provider-owned
-configuration for an application-backed resource, not a parallel resource
-registration. `ApplicationResourceDefinitionRegistrationService` materializes
-that definition by normalizing it, saving it in the application provider store,
-and synchronizing the normal Resource Manager registration, group, and
-dependencies.
+Application resources still use the same Resource Manager graph model as any
+other resource. Provider-specific attributes describe executable, project,
+container, endpoint, health, observability, storage, and dependency intent.
+Concrete runtime behavior is supplied by host/runtime adapters for local
+processes, project execution, Docker containers, sidecar services, and future
+orchestrator controllers.
 
 Storage state is modeled separately from application resources. A volume
 resource owns the durable storage identity and provider-backed location, which
@@ -202,66 +162,13 @@ linking the resolved volume source into the application target path before
 launch; relative target paths are resolved under the application working
 directory.
 
-This is an initial shared application-resource provider contract, not the full
-toolkit. The goal is for any resource author to be able to use the application
-resource primitives to implement their own normal resource type when the
-runtime is backed by a local executable, an ad-hoc container, or Resource
-Manager-managed sub-resources such as replicas. The provider should be able to
-declare the stable resource identity and choose the backing runtime shape, then
-opt into default wiring for lifecycle actions, endpoint projection, log
-sources, telemetry scopes, health and liveness declarations, storage mounts,
-configuration, and cleanup.
-
-Application resource behavior is now split across focused provider-facing
-operations for definitions, registration, configuration, declarations,
-templates, descriptors, projection, logging, monitoring, settings, cleanup,
-running-state checks, setting resolution, environment-variable resolution,
-action availability, container app history, container app image/replica
-updates, container app deployment descriptions, container app deployment
-outcomes, container app orchestrator service descriptions, container app
-orchestration hooks, shared container-backed service preparation, container
-image materialization, and SQL Server support. The remaining
-`ApplicationResourceRuntimeOperations` facade coordinates runtime procedure
-execution and container-app orchestration hooks while those concerns are
-separated further. Container app update intent now flows through
-`IContainerApplicationUpdateOperations`, deployment shape projection flows
-through `IContainerApplicationDeploymentDescriptionOperations`, orchestrator
-service shape creation flows through
-`IContainerApplicationOrchestratorServiceDescriptionOperations`, shared
-container-backed service preparation flows through
-`IApplicationContainerOrchestratorServicePreparationOperations`, and deployment
-apply/failure/tear-down outcomes flow through
-`IContainerApplicationDeploymentOutcomeOperations`, so image changes, replica
-changes, service/deployment description, service preparation, and deployment
-bookkeeping do not require callers to depend on the lifecycle procedure
-coordinator. The direction is to keep provider-neutral primitives reusable so
-external resource authors can reuse common declaration, projection,
-process-definition, logging, monitoring, endpoint, volume, and container-host
-command infrastructure without depending on runtime facade internals.
-
-Container image materialization is now one of those provider-neutral
-primitives. `ApplicationContainerImageMaterializer` owns project container
-publish, Dockerfile build, and shared build caching when several replicas need
-the same image during one orchestration operation. Runtime execution asks for a
-materialized image and then starts the resource instance; it no longer owns
-image-build policy directly.
-
-Volume mount validation and materialization is one such provider-neutral
-primitive. `ApplicationResourceVolumeMounts` owns the common filesystem volume
-resolution used by action availability, local process startup, and local
-container startup, while each resource provider still decides when volume
-mount policy applies to its resource type.
-
-`ApplicationResourceDefinitionNormalizer` owns the shared hygiene pass for
-application-backed definitions, such as identity, dependencies, endpoints, log
-sources, health declarations, storage mounts, and configuration references.
-Provider/type-specific defaults are applied through
-`IApplicationResourceDefinitionNormalizationRule` implementations. The built-in
-rules currently cover project-backed applications, ASP.NET Core project
-endpoint discovery, container-backed defaults, and SQL Server database
-metadata. External providers can contribute their own rules without editing
-the built-in application provider facade or making application-backed
-resources behave differently at registration time.
+The goal is for any resource author to be able to implement a normal resource
+type when the runtime is backed by a local executable, an ad-hoc container, or
+Resource Manager-managed sub-resources such as replicas. The provider should
+declare stable resource intent and choose the backing runtime shape, then opt
+into default wiring for lifecycle actions, endpoint projection, log sources,
+telemetry scopes, health and liveness declarations, storage mounts,
+configuration, and cleanup through adapter contracts.
 
 ## Endpoint And Exposure Model
 
@@ -403,21 +310,18 @@ OTEL_EXPORTER_OTLP_HEADERS=<resolved-headers>
 `OTEL_EXPORTER_OTLP_ENDPOINT` is resolved in this order:
 
 1. The resource's `WithOtlpExporter(...)` endpoint.
-2. `ApplicationProviderOptions.OtlpEndpoint`.
+2. A resource-specific `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable.
 3. `ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL`, using `grpc`.
 4. `ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL`, using `http/protobuf`.
 5. An inherited `OTEL_EXPORTER_OTLP_ENDPOINT`.
 
-Use provider options to set a process-wide collector endpoint:
+Use resource environment variables to set a collector endpoint:
 
 ```csharp
-builder
-    .AddCloudShell()
-    .AddApplicationProvider(options =>
-    {
-        options.OtlpEndpoint = "http://localhost:4317";
-        options.OtlpProtocol = "grpc";
-    });
+resources
+    .AddAspNetCoreProject("api", "src/Api/Api.csproj")
+    .WithEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+    .WithEnvironmentVariable("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc");
 ```
 
 Use fluent resource APIs to configure or disable a specific resource:
@@ -492,11 +396,11 @@ provider starts the workload, without displaying resolved values.
 Endpoint variables are generated from the application's referenced resources,
 not from its wait dependencies. For declarative application resources,
 `WithReference(...)` records an endpoint reference, while `DependsOn(...)`
-records a startup dependency. The broader resource model uses `DependsOn(...)`
-as the standard dependency relationship; `WaitFor(...)` remains available on the
-executable application builder as an Aspire-compatible alias. CloudShell only
-emits endpoint variables when the referenced resource is registered in the same
-resource group.
+records a startup dependency. The broader resource model uses
+`DependsOn(...)` as the standard explicit startup dependency declaration;
+`WaitFor(...)` remains available on the executable application builder as an
+Aspire-compatible alias. CloudShell only emits endpoint variables when the
+referenced resource is registered in the same resource group.
 
 An application can depend on any resource builder returned from the declarative
 graph, including provider sub-resources such as Docker containers.

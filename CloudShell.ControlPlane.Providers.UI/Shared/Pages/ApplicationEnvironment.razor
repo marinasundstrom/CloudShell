@@ -1,0 +1,184 @@
+@using System.Text.Json
+@inject IResourceManager ResourceManager
+
+@if (Resource is null)
+{
+    <EmptyState Title="Environment is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
+}
+else
+{
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Environment variables</h3>
+                <p>@GetEnvironmentSummary()</p>
+            </div>
+        </div>
+        @if (EnvironmentRows.Count == 0)
+        {
+            <EmptyState Title="No environment variables"
+                        Message="This resource does not declare environment variables." />
+        }
+        else
+        {
+            <ResourceTable AriaLabel="Environment variables">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Source</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in EnvironmentRows)
+                    {
+                        <tr>
+                            <td>@row.Name</td>
+                            <td>@row.Source</td>
+                            <td>@row.Value</td>
+                        </tr>
+                    }
+                </tbody>
+            </ResourceTable>
+        }
+    </section>
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private Resource? Resource { get; set; }
+    private IReadOnlyList<EnvironmentRow> EnvironmentRows { get; set; } = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Resource = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : await ResourceManager.GetResourceAsync(ResourceId);
+        EnvironmentRows = Resource is null
+            ? []
+            : GetEnvironmentRows(Resource);
+    }
+
+    private string GetEnvironmentSummary() =>
+        EnvironmentRows.Count == 1
+            ? "1 environment variable is declared for this resource."
+            : $"{EnvironmentRows.Count} environment variables are declared for this resource.";
+
+    private static IReadOnlyList<EnvironmentRow> GetEnvironmentRows(Resource resource)
+    {
+        if (!resource.ResourceAttributes.TryGetValue(
+                AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables.ToString(),
+                out var serialized) ||
+            string.IsNullOrWhiteSpace(serialized))
+        {
+            return [];
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(serialized);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return [];
+            }
+
+            return document.RootElement
+                .EnumerateObject()
+                .Select(CreateRow)
+                .OrderBy(row => row.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+        catch (JsonException)
+        {
+            return
+            [
+                new(
+                    AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables.ToString(),
+                    "raw",
+                    "unreadable value")
+            ];
+        }
+    }
+
+    private static EnvironmentRow CreateRow(JsonProperty property)
+    {
+        if (property.Value.ValueKind != JsonValueKind.Object)
+        {
+            return new(property.Name, "literal", FormatLiteralValue(property.Name, property.Value.ToString()));
+        }
+
+        if (property.Value.TryGetProperty("configurationEntryRef", out var configurationRef))
+        {
+            return new(
+                property.Name,
+                "configuration",
+                FormatReference(
+                    configurationRef,
+                    "storeResourceId",
+                    "name"));
+        }
+
+        if (property.Value.TryGetProperty("secretRef", out var secretRef))
+        {
+            return new(
+                property.Name,
+                "secret",
+                FormatReference(
+                    secretRef,
+                    "vaultResourceId",
+                    "name"));
+        }
+
+        if (property.Value.TryGetProperty("value", out var value))
+        {
+            return new(
+                property.Name,
+                "literal",
+                FormatLiteralValue(property.Name, value.GetString()));
+        }
+
+        return new(property.Name, "unknown", "not projected");
+    }
+
+    private static string FormatReference(
+        JsonElement element,
+        string resourceIdProperty,
+        string nameProperty)
+    {
+        var resourceId = TryGetString(element, resourceIdProperty);
+        var name = TryGetString(element, nameProperty);
+
+        if (!string.IsNullOrWhiteSpace(resourceId) &&
+            !string.IsNullOrWhiteSpace(name))
+        {
+            return $"{resourceId}/{name}";
+        }
+
+        return resourceId ?? name ?? "unresolved reference";
+    }
+
+    private static string FormatLiteralValue(string name, string? value) =>
+        IsSensitiveName(name)
+            ? "redacted"
+            : string.IsNullOrWhiteSpace(value)
+                ? "unset"
+                : value;
+
+    private static string? TryGetString(JsonElement element, string propertyName) =>
+        element.TryGetProperty(propertyName, out var value) &&
+        value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+
+    private static bool IsSensitiveName(string name) =>
+        name.Contains("secret", StringComparison.OrdinalIgnoreCase) ||
+        name.Contains("password", StringComparison.OrdinalIgnoreCase) ||
+        name.Contains("token", StringComparison.OrdinalIgnoreCase) ||
+        name.Contains("apikey", StringComparison.OrdinalIgnoreCase) ||
+        name.Contains("api-key", StringComparison.OrdinalIgnoreCase);
+
+    private sealed record EnvironmentRow(string Name, string Source, string Value);
+}

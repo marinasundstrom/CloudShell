@@ -76,7 +76,62 @@ public sealed class ResourceReplicaGroupReconciliationService(
                     ResourceReplicaSlotRuntimeStatus.Unhealthy,
                     request.Detail,
                     request.ObservedAt,
-                    TriggeredBy: request.TriggeredBy);
+                    TriggeredBy: request.TriggeredBy,
+                    ObservationCount: 1);
+            var policy = activeGroup?.ReplicaGroup.EffectiveManagementPolicy ??
+                ResourceOrchestratorReplicaManagementPolicy.Default;
+            var failureThreshold = Math.Max(1, policy.FailureThreshold);
+            var maxAttempts = Math.Max(1, policy.MaxAttempts);
+
+            if (currentState.AttemptCount >= maxAttempts)
+            {
+                var message =
+                    $"Replica slot {request.SlotOrdinal.ToString(CultureInfo.InvariantCulture)} repair exhausted after {currentState.AttemptCount.ToString(CultureInfo.InvariantCulture)} attempt{Pluralize(currentState.AttemptCount)}.";
+                reconciliationStore.SetRuntimeState(currentState with
+                {
+                    Status = ResourceReplicaSlotRuntimeStatus.RepairFailed,
+                    Detail = request.Detail ?? currentState.Detail,
+                    ServiceId = activeGroup?.ServiceId ?? currentState.ServiceId,
+                    ReplicaGroupId = activeGroup?.ReplicaGroup.Id ?? currentState.ReplicaGroupId,
+                    RuntimeRevisionId = activeGroup?.ReplicaGroup.RuntimeRevisionId ?? currentState.RuntimeRevisionId,
+                    LastCompletedAt = DateTimeOffset.UtcNow,
+                    TriggeredBy = request.TriggeredBy ?? currentState.TriggeredBy,
+                    LastResult = message
+                });
+                resourceEvents?.Append(new ResourceEvent(
+                    request.ResourceId,
+                    ResourceEventTypes.Events.ReplicaManagement.ReconciliationExhausted,
+                    message,
+                    DateTimeOffset.UtcNow,
+                    request.TriggeredBy,
+                    ResourceSignalSeverity.Error));
+                continue;
+            }
+
+            if (currentState.ObservationCount < failureThreshold)
+            {
+                var message =
+                    $"Replica slot {request.SlotOrdinal.ToString(CultureInfo.InvariantCulture)} has {currentState.ObservationCount.ToString(CultureInfo.InvariantCulture)}/{failureThreshold.ToString(CultureInfo.InvariantCulture)} unhealthy observations before repair.";
+                reconciliationStore.SetRuntimeState(currentState with
+                {
+                    Status = ResourceReplicaSlotRuntimeStatus.Unhealthy,
+                    Detail = request.Detail ?? currentState.Detail,
+                    ServiceId = activeGroup?.ServiceId ?? currentState.ServiceId,
+                    ReplicaGroupId = activeGroup?.ReplicaGroup.Id ?? currentState.ReplicaGroupId,
+                    RuntimeRevisionId = activeGroup?.ReplicaGroup.RuntimeRevisionId ?? currentState.RuntimeRevisionId,
+                    TriggeredBy = request.TriggeredBy ?? currentState.TriggeredBy,
+                    LastResult = message
+                });
+                resourceEvents?.Append(new ResourceEvent(
+                    request.ResourceId,
+                    ResourceEventTypes.Events.ReplicaManagement.ReconciliationDeferred,
+                    message,
+                    DateTimeOffset.UtcNow,
+                    request.TriggeredBy,
+                    ResourceSignalSeverity.Warning));
+                continue;
+            }
+
             reconciliationStore.SetRuntimeState(currentState with
             {
                 Status = ResourceReplicaSlotRuntimeStatus.Repairing,
@@ -108,7 +163,8 @@ public sealed class ResourceReplicaGroupReconciliationService(
                     LastCompletedAt = DateTimeOffset.UtcNow,
                     AttemptCount = currentState.AttemptCount + 1,
                     TriggeredBy = request.TriggeredBy ?? currentState.TriggeredBy,
-                    LastResult = result.Message
+                    LastResult = result.Message,
+                    ObservationCount = 0
                 });
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
@@ -132,10 +188,13 @@ public sealed class ResourceReplicaGroupReconciliationService(
                     $"Replica slot {request.SlotOrdinal.ToString(CultureInfo.InvariantCulture)} reconciliation failed: {exception.Message}",
                     DateTimeOffset.UtcNow,
                     request.TriggeredBy,
-                ResourceSignalSeverity.Error));
+                    ResourceSignalSeverity.Error));
             }
         }
     }
+
+    private static string Pluralize(int count) =>
+        count == 1 ? string.Empty : "s";
 
     private static ResourceReplicaSlotState ToReplicaSlotState(
         ResourceReplicaSlotRuntimeState state) =>
@@ -162,6 +221,7 @@ public sealed class ResourceReplicaGroupReconciliationService(
             ResourceReplicaSlotRuntimeStatus.Repairing => ResourceReplicaSlotReconciliationStatus.Repairing,
             ResourceReplicaSlotRuntimeStatus.Repaired => ResourceReplicaSlotReconciliationStatus.Repaired,
             ResourceReplicaSlotRuntimeStatus.RepairFailed => ResourceReplicaSlotReconciliationStatus.RepairFailed,
+            ResourceReplicaSlotRuntimeStatus.Materialized => ResourceReplicaSlotReconciliationStatus.Materialized,
             _ => ResourceReplicaSlotReconciliationStatus.Unhealthy
         };
 

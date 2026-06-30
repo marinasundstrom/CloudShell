@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CloudShell.Abstractions\CloudShell.Abstractions.csproj" />
+    <ProjectReference Include="..\CloudShell.ControlPlane.ResourceModel\CloudShell.ControlPlane.ResourceModel.csproj" />
+    <ProjectReference Include="..\CloudShell.ResourceModel\CloudShell.ResourceModel.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="CloudShell.ResourceModel" />
+    <Using Include="CloudShell.ResourceModel.Resource" Alias="Resource" />
+  </ItemGroup>
+
+</Project>

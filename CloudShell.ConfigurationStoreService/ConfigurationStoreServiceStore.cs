@@ -1,5 +1,4 @@
 using System.Text.Json;
-using CloudShell.Providers.Configuration;
 using Microsoft.Extensions.Options;
 
 namespace CloudShell.ConfigurationStoreService;

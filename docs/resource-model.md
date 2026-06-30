@@ -6,6 +6,10 @@ objects such as endpoints, mappings, actions, capabilities, ownership metadata,
 and attributes fit together.
 
 For broader product concepts, see [Domain model](domain-model.md).
+For canonical product and domain vocabulary, see
+[CloudShell Terminology](terminology.md).
+For the Resource Graph POC interchange shape, see
+[Resource Definition Structure](resource-definition-structure.md).
 
 ## Resource Projection
 
@@ -87,6 +91,13 @@ The provider for `application.executable` owns validation and application of
 those attributes. Resource Manager should not hard-code executable-specific
 attribute semantics, but it can store, compare, version, reference, and project
 resource definitions once the owning provider accepts them.
+
+Complex attribute values are represented by the Resource model value tree, not
+by a JSON-specific DOM. JSON, YAML, XML, database rows, and compact persistence
+records are serializer or store projections over the same value model.
+Consumers that implement provider/runtime behavior should be able to project a
+complex value into a concrete CLR type, work with that type, and map it back to
+the model value before validation, serialization, or persistence.
 
 A resource projection is made from these groups:
 
@@ -362,6 +373,16 @@ resource type or instance. `ResourceEndpoint` is the current projected shape for
 the resource-owned contract; concrete reachable addresses belong to endpoint
 network mappings.
 
+Endpoint is a runtime/networking concept, not a graph-native primitive. When a
+runtime or networking provider needs to persist endpoint contracts in the
+Resource graph/configuration model, it should contribute the endpoint shape and
+mapped value type, then represent endpoint contracts as typed complex attribute
+values, typically in an `endpoints` collection declared by the resource type
+definition. The complex value carries the resource-owned contract fields, such
+as endpoint name, protocol, target port, and exposure. It should not carry a
+concrete reachable address unless the attribute is explicitly provider-managed
+state for an endpoint network mapping.
+
 ## Endpoint Descriptors
 
 Resource type contributions can declare endpoint descriptors. These describe
@@ -410,6 +431,13 @@ public enum ResourceEndpointAssignment
 
 Endpoint requests are intent, not observed state. They ask a network or
 provider to assign, reserve, or use an address for an endpoint.
+
+When endpoint requests are stored in the Resource graph/configuration model,
+they should also be provider-contributed complex attribute values.
+Assignment-specific fields such as host, port, IP address, assignment mode,
+network reference, and provider endpoint ID belong to the request value.
+References to resources should use the Resource model `ResourceReference`
+primitive rather than raw resource ID strings.
 
 ## Endpoint Network Mappings
 
@@ -489,6 +517,14 @@ They are different from endpoint network mappings:
 
 Consumers that need a reachable address for a resource endpoint should resolve
 the endpoint's network mapping by endpoint name.
+
+In the Resource graph/configuration model, configured endpoint mappings should
+be provider-contributed complex values that contain endpoint references: a
+`ResourceReference` plus an endpoint name for the source and target. They may
+also include optional network and provider references. Runtime materialization
+status, observed conflicts, and concrete reachable addresses should be
+projected by provider capabilities, operations, or read-only/provider-managed
+graph attributes rather than authored as caller-managed mapping configuration.
 
 ## Actions
 

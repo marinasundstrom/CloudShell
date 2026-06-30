@@ -104,9 +104,9 @@ syntax.
 Minimal declaration shape:
 
 ```csharp
-var vnet = resources.AddVirtualNetwork(
-    "network:app",
-    "Application Network");
+var vnet = resources
+    .AddVirtualNetwork("network:app", isDefault: true)
+    .WithDisplayName("Application Network");
 
 var api = resources.Declare("applications.aspnet-core-project", "application:api");
 var gateway = resources.Declare("networking", "networking:gateway");
@@ -114,14 +114,19 @@ var gateway = resources.Declare("networking", "networking:gateway");
 var ingress = vnet.RequestHttpEndpoint(
     "api-public",
     host: "api.localhost",
-    exposure: ResourceExposureScope.Public);
+    exposure: "Public");
 
 vnet.MapEndpoint(
     ingress,
-    new ResourceEndpointReference(api.ResourceId, "http"),
+    NetworkingEndpointReferenceValue.ForResource(api, "http"),
     gateway,
-    "ingress:api");
+    id: "ingress:api");
 ```
+
+In the current graph model, these helpers compile to the same
+`network.endpoints`, `network.endpointNetworkMappings`, and
+`network.endpointMappings` attributes used by the lower-level builder methods.
+They do not introduce a separate ingress runtime model.
 
 Future convenience syntax can layer on top:
 
@@ -380,7 +385,8 @@ only introduce a richer ingress editor once routing fields become standardized.
 ## Implementation Plan
 
 1. Add a `cloudshell.virtualNetwork` resource type and builder convenience that
-   wraps the existing network definition shape.
+   wraps the existing network definition shape. Done for default marker,
+   HTTP/TCP endpoint helpers, and endpoint-reference based mapping helpers.
 2. Add `networking.virtualNetwork`, `networking.ingress`,
    `networking.backendPool`, `networking.cluster`,
    `networking.clusterNode`, `networking.healthProbe`, and

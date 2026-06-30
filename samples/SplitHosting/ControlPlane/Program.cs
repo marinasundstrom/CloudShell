@@ -1,19 +1,31 @@
 using CloudShell.Abstractions.Hosting;
-using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.ResourceModel;
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.ResourceModel;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
-var controlPlane = builder.AddCloudShellControlPlane();
+const string resourceGroupId = "split-hosting";
 
-controlPlane.Resources(resources =>
+var controlPlane = builder.AddCloudShellControlPlane();
+controlPlane.AddResourceGroup(
+    resourceGroupId,
+    "Split Hosting",
+    "Resources used to validate remote Control Plane projection.");
+controlPlane.DefineResources(resources =>
 {
     resources
-        .AddNetwork("split-sample", isDefault: true)
+        .AddNetwork("split-sample")
         .WithDisplayName("Split Sample Network")
-        .Persist();
+        .WithResourceGroup(resourceGroupId)
+        .WithNetworkKind("Logical")
+        .WithHostReadiness("logicalOnly");
 });
+builder.Services
+    .AddNetworkResourceType();
+controlPlane.UseResourceGraphIntegration();
 
 var app = builder.Build();
 

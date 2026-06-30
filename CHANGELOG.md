@@ -13,7 +13,1061 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-06-30
+
+#### Changed
+
+- ResourceModel tests now include merge-readiness hygiene coverage that rejects
+  active solution, project, and source references to deleted legacy provider
+  projects and old resource-template wrapper contracts.
+- Resource model sample resource groups now use stable sample names instead of
+  POC labels, and SQL database validation now describes the required graph
+  server dependency without POC terminology.
+- Resource template, resource definition, provider, and sample guidance now
+  describe the current Resource model migration instead of presenting active
+  guidance as POC-only work.
+
+### 2026-06-29
+
+#### Changed
+
+- Graph-backed container app deployment descriptors now derive runtime revision
+  ids from the effective container image instead of the graph resource
+  revision, so replica-only updates reconcile as same-revision scale changes
+  and keep the existing replica group/routing boundary stable.
+- ResourceDefinition apply reconciliation for graph-backed container apps now
+  describes and applies an internal orchestrator deployment when a deployment
+  applier is available, instead of invoking direct image or replica runtime
+  update operations.
+- ResourceDefinition apply reconciliation for graph-backed container apps now
+  applies generated deployments through the Resource Manager deployment
+  coordinator, preserving deployment records, deployment locking, and previous
+  replica-group lookup for incremental scale and image changes.
+- Graph-backed container app deployment reconciliation now lazily resolves the
+  Resource Manager store and deployment coordinator during post-commit apply,
+  avoiding startup-time dependency cycles in combined hosts that expose graph
+  resources as Control Plane procedure providers.
+- Graph-backed container app service stop now tears down service routing before
+  removing replicas, so the ReplicatedContainerHealth sample removes the
+  `cloudshell-replicated-health-api-ingress` container when the resource stops
+  while still keeping ingress stable during image rollout and scale changes.
+- Start-triggered resource deployments now run the same post-apply cleanup path
+  as image and replica updates, allowing deployment-capable providers to retire
+  superseded replica groups after the new deployment revision is applied.
+- Post-apply deployment cleanup now runs through a shared Control Plane
+  coordinator used by start, image-update, and replica-update deployment
+  flows, keeping cleanup events, warnings, and retired replica group teardown
+  behavior consistent across entry points.
+- Successful orchestrator deployments now stamp materialized replica slot
+  state into the replica-group reconciliation store and remove stale
+  same-resource slot states on scale-in, giving the Environment view a normal
+  desired-slot baseline before liveness repair observations arrive.
+- Replica-group reconciliation now honors the active replica group's failure
+  threshold and maximum repair-attempt policy, deferring repair until enough
+  unhealthy observations arrive and emitting exhausted repair state instead of
+  repeatedly invoking provider repair operations.
+- Container app replicated ingress configuration, start/update, and stop
+  handling now lives in a focused `ContainerApplicationIngressOperations`
+  boundary used by runtime service execution and service preparation, instead
+  of being duplicated inside the shared application runtime coordinator.
+- Container app replica Docker `run` command construction now lives in a
+  focused `ContainerApplicationContainerRunCommandFactory`, keeping container
+  command translation separate from runtime process tracking, readiness, and
+  lifecycle coordination.
+- The combined development host now installs Resource model reference
+  providers and graph Resource Manager integration by default instead of
+  loading the legacy Applications, Configuration, and Docker provider
+  extensions.
+- Configuration and secrets sidecar services now own their small file-contract
+  DTOs directly, graph-backed samples no longer reference the legacy
+  Configuration or Docker provider projects, and the old Applications,
+  Configuration, and Docker provider projects have been removed from the active
+  solution build while their folders remain as migration inventory.
+- Resource model provider guidance now records the provider/runtime
+  adapter boundary in ADR-20260629-002: providers own resource semantics and
+  call focused adapter interfaces, while hosts, samples, or default runtime
+  packages register concrete process, Docker, filesystem, networking, sidecar,
+  or orchestration implementations.
+- The refactoring tracker now records the Resource model package family as the
+  successor to the old provider model after the old provider model was removed.
+- The old Applications, Configuration, and Docker provider implementation
+  folders and their excluded legacy tests have been removed after active hosts,
+  samples, services, solution files, and tests moved to the Resource model
+  reference-provider stack.
+- README, programmatic resource docs, and application resource docs now point
+  at graph-backed ResourceDefinition reference providers instead of the deleted
+  legacy provider packages.
+- `CloudShell.sln` has been removed in favor of `CloudShell.slnx`; workflow
+  docs and repository-root discovery helpers now use the `.slnx` solution
+  file.
+- The former `CloudShell.ResourceDefinitions*` package family has been renamed
+  to `CloudShell.ResourceModel*`, keeping `ResourceDefinition` as the resource
+  intent contract name while removing the POC package label.
+- The Resource graph and runtime separation proposal file now matches the
+  current proposal title, and the migration tracker records
+  `CloudShell.Providers.DockerCompose` as retained because it integrates
+  through the orchestrator boundary rather than the deleted old resource
+  provider model.
+- Resource template apply now uses an explicit `ResourceTemplateApplyRequest`
+  with `CreateOrUpdate`, `UpdateExisting`, and `CreateOnly` modes, and graph
+  apply coverage verifies provider validation rejects without mutation while
+  runtime reconcilers run only after accepted state is committed.
+- The Resource model Control Plane bridge now lives under
+  `CloudShell.ControlPlane.ResourceModel`, and the ported built-in providers
+  now live under `CloudShell.ControlPlane.Providers` with their Resource
+  Manager UI in `CloudShell.ControlPlane.Providers.UI`; the transitional
+  `ReferenceProviders` package family has been removed.
+- The combined development host now installs the default built-in Resource
+  model provider catalog and graph bridge through
+  `UseBuiltInResourceModelProviders(...)` on the Control Plane builder,
+  keeping provider package composition behind a single registration seam while
+  still allowing hosts to configure Configuration Store and Secrets Vault
+  runtime sidecars.
+- Hosting registration now separates split and combined host seams:
+  UI-only hosts use `AddCloudShellUi()`, Control Plane hosts use
+  `AddCloudShellControlPlane()`, and combined hosts use `AddCloudShell()` plus
+  the matching combined `UseCloudShellAsync()` and `MapCloudShell(...)`
+  methods.
+- Hosting composition tests now lock the split-host boundary by verifying that
+  UI-only registration does not install Control Plane services, while combined
+  registration composes both CloudShell UI and Control Plane services.
+- ResourceTemplate apply for graph-backed container apps now tears down
+  retired replica groups returned by deployment reconciliation, so image
+  updates applied through the Resource model can switch routing to the new
+  replica group and then clean up superseded replicas.
+- ApplicationTopology sample smoke assertions now match the ResourceDefinition
+  model for ad-hoc volumes and name mappings instead of expecting the old
+  storage-wrapper resource projection.
+- Container app deployments now carry an explicit replica-group definition
+  with a revision-aware replica template, and the default deployment applier
+  treats that definition as the desired replica state when reconciling scale
+  and image changes.
+- Orchestrator service deployment definitions now include an internal
+  service-routing binding resource that links a service endpoint, replica
+  group, and optional load-balancer route or endpoint mapping by CloudShell
+  resource ids, giving routing controllers an explicit contract for
+  re-binding without exposing deployment artifacts through ResourceTemplate.
+- Generated orchestrator service definitions now include a service-routing
+  binding for each service port, and routing reconciliation providers receive
+  the matching binding set in their service procedure context so future
+  load-balancer controllers can rebind from explicit resource and route ids.
+- Resource Model graph procedure execution now forwards service-routing
+  binding definitions to container-app orchestrator runtime handlers, allowing
+  runtime adapters and samples to react to explicit load-balancer route or
+  endpoint-mapping ids instead of container-app-specific naming.
+- The Environment page now includes an interactive environment state map,
+  using the same zoomable graph interaction pattern as the Resource graph while
+  projecting resources, orchestrator service boundaries, replica groups,
+  routing artifacts, and significant environment relationships.
+- The environment state map now groups runtime state by orchestration service
+  boundary, nests replica groups and replica resources inside those services,
+  and renders container-app-managed services as service groups with an attached
+  managed-resource card instead of as separate container app nodes.
+- CloudShell terminology now defines the host environment, realized model,
+  Resource model, Runtime model, Resource graph, Environment Map, and
+  environment artifacts as the canonical terms for the managed environment, its
+  resource-focused subset, and its fuller runtime/orchestration view. See
+  ADR-20260629-001.
+- Runtime model projection for the Environment page now lives in a
+  focused Resource Manager projection class with explicit artifact metadata for
+  resources, orchestration services, replica groups, replicas, routing
+  bindings, runtime revisions, and source resource ownership.
+- ADR, proposal, and refactoring docs now use Resource model and Runtime model
+  as the canonical names, document the Resource Manager deployment coordinator
+  as the internal graph-backed apply boundary, and update template guidance
+  around `ResourceTemplate` envelopes containing `ResourceDefinition` entries.
+- Resource templates now use the ResourceDefinition-native public manager
+  contract: `IResourceTemplateManager` exports and applies `ResourceTemplate`
+  values directly, the Control Plane API/client use `/resource-templates/*`,
+  and the old `ResourceGroupTemplate`, `ResourceTemplateDefinition`,
+  `IResourceTemplateProvider`, and provider-owned template serializer path has
+  been removed.
+- Resource Manager deployment apply now treats replacement replica groups as
+  an explicit controller path: it prepares the target group, materializes new
+  replicas, applies replacement routing according to policy, and leaves
+  previous replica-group retirement to post-apply cleanup. The
+  ReplicatedContainerHealth sample runtime now applies image updates by
+  replacing desired replicas without removing ingress, and replica scaling
+  keeps retained replicas running.
+- ResourceDefinition graph apply now supports post-commit runtime
+  reconciliation hooks, and container-app image or replica changes applied
+  through ResourceDefinition templates now execute the same runtime
+  reconciliation operations as explicit image and replica commands.
+- Graph-backed container apps now describe an internal orchestrator deployment
+  with a service and replica-group definition through the Resource Manager
+  bridge, and ControlPlane deployment provider resolution now honors the
+  graph bridge provider id for deployment and service procedure boundaries.
+- The Resource Manager graph bridge now exposes a generic orchestrator service
+  execution hook, with graph-backed container apps delegating deployment
+  prepare, materialization, and scale-in service calls to the container-app
+  runtime handler so generated deployments can be driven by the default
+  deployment controller.
+- Graph-backed container app image and replica update commands now commit the
+  desired ResourceDefinition state and request runtime reconciliation instead
+  of executing runtime changes directly, allowing ControlPlane to apply the
+  generated deployment through the orchestrator deployment controller.
+- Container app runtimes can now opt into deployment-controller primitives for
+  service preparation, per-instance materialization or removal, and routing
+  reconciliation. The ReplicatedContainerHealth sample uses that path so
+  generated deployments avoid hidden all-replica teardown when changing image
+  or replica slots.
+- Resource model graph action dispatch now keeps dependency context for
+  projected operations while allowing direct action execution when optional
+  referenced graph resources are missing; structural dependency diagnostics
+  still block execution.
+- Sample smoke tests now perform collection-level cleanup for
+  ReplicatedContainerHealth runtime containers and LoadBalancer temporary host
+  files with bounded Docker removal so normal failed test runs do not leave
+  local runtime artifacts behind or hang on stuck Docker cleanup.
+- Replica-group deployment definitions now include reconciliation policy for
+  scale routing and previous-revision slot retention, and the deployment
+  proposal documents both compact container-app update JSON and the normalized
+  service definition JSON projection.
+- Resource Definition docs now define the ARM-like authoring boundary:
+  users apply resource definitions directly, while Resource Manager and the
+  orchestrator create internal deployment, service, and replica-group state.
+- Resource Definitions now expose `ResourceTemplate` as the graph-built
+  grouping of `ResourceDefinition` entries, with a Resource Manager graph
+  template service that exports from resolved graph resources and applies
+  templates without provider-specific template serialization.
+- The deployment proposal and roadmap now record the next internal
+  container-app orchestration refinement plan: keep ResourceTemplate authoring
+  separate from orchestrator deployments, add a provider-owned deployment
+  planner/controller boundary, make deployment definitions the authoritative
+  runtime desired state, serialize same-resource deployment applies, and track
+  retained/superseded replica groups plus readiness gates explicitly.
+- The container application and deployment proposals now state that a container
+  app is both a Resource Manager resource and a managed workload facade: users
+  operate the stable container app while Resource Manager reconciles related
+  internal deployment, replica, routing, endpoint, and cleanup artifacts below
+  it.
+- Container app deployment description now flows through an internal
+  orchestrator deployment planner that emits an explicit
+  `ResourceOrchestratorDeploymentDefinition`, keeping revision-scoped replica
+  group planning in one provider-owned boundary before Resource Manager applies
+  the deployment.
+- Resource Manager deployment apply now serializes concurrent applies for the
+  same source resource, preserving parallel deployment for different resources
+  while ensuring later container-app deployments resolve `BasedOnRevisionId`
+  after earlier same-resource deployments finish.
+- ApplicationTopology and CloudShell.ContainerHost SQL Server Docker cleanup now bounds
+  container removal and terminates cancelled Docker CLI processes so host shutdown is
+  not held by a stuck `docker rm -f`.
+- Resource model DNS name mappings now use `belongsTo` references for their
+  DNS zone, `reference` references for their target resource, and project into
+  Resource Manager as DNS-zone children with target-resource metadata.
+
+### 2026-06-28
+
+#### Changed
+
+- Container app deployment apply now reconciles replica routing separately
+  from replica materialization: scale-out adds replicas before updating
+  routing, scale-in updates routing before removing replicas, and image
+  deployments route to the new revision group before retiring the old group.
+  The local Docker ingress reconciler now rewrites watched routing config
+  without removing a running ingress container.
+- ReplicatedContainerHealth runtime status probing now uses a less fragile
+  Docker inspect timeout and keeps the last stable container-app lifecycle
+  state across transient probe timeouts, while still reporting mixed replica
+  states as unknown.
+- ApplicationTopology sample runtime values and primary endpoint settings now
+  use Resource model terminology instead of graph-only labels, while keeping
+  the old `Graph*` endpoint settings as compatibility fallbacks during the
+  switch.
+- ApplicationTopology and ProjectReference switch-readiness tests now use the
+  neutral API/frontend endpoint settings for Resource model resources instead
+  of configuring graph-prefixed endpoint overrides.
+- LoadBalancer name-mapping reconciler coverage now uses the same stable
+  Resource model identities as the switched sample instead of graph-prefixed
+  fixture IDs.
+- ThirdPartyIdentity setup-handler coverage now uses the same stable identity,
+  provisioning, and API resource identities as the switched sample instead of
+  graph-prefixed fixture IDs.
+- ThirdPartyIdentity's graph ASP.NET Core identity environment provider no
+  longer depends on the old application provider options just to resolve the
+  default resource identity scope.
+- ThirdPartyIdentity's sample-local identity provisioning and ASP.NET Core
+  identity-environment seams now use Resource model naming instead of
+  graph-specific class and test names.
+- Resource graph builders can now declare Resource Manager identity binding
+  and provision-on-startup intent with old-builder-compatible
+  `WithIdentity(...)` and `ProvisionIdentityOnStartup(...)` methods, and
+  ThirdPartyIdentity now uses that surface for its API resource.
+- SettingsAndSecrets and ApplicationTopology now also declare API identity
+  binding and provision-on-startup intent directly on their Resource graph
+  builders, leaving Resource Manager declarations focused on provider
+  registration and permission grants.
+- SQL Server sample runtime bridges and smoke-test guards now use defaults
+  owned by the SQL reference provider boundary instead of reading SQL runtime
+  constants from the old application provider extension class.
+- ReplicatedContainerHealth runtime monitoring now owns its Docker stats
+  parsing helper locally instead of depending on the old application provider
+  metrics helper.
+- CloudShell.ContainerHost no longer carries the unused old resource-builder
+  sample helper after moving the sample declarations to `DefineResources(...)`.
+- Resource graph builders can now register Resource Manager permission grants
+  and host-level identity providers, allowing SettingsAndSecrets,
+  ThirdPartyIdentity, and ApplicationTopology to remove old
+  `cloudShell.Resources(...).Declare(...)` blocks in favor of
+  graph-builder metadata.
+- Resource graph builder overloads that accept another resource builder now
+  infer typed `ResourceReference` metadata from the target builder for
+  startup dependencies, project references, service/name-mapping targets, and
+  load-balancer backend routes. Samples now prefer the builder-based overloads
+  instead of repeating resource type ids at call sites.
+- ResourceDefinition JSON examples now use stable sample resource identities
+  and explicit typed `ResourceReference` metadata where authors would otherwise
+  have to infer relationship, type, and provider information.
+- ASP.NET Core project ResourceDefinition environment variables now use a
+  human-authored map shape keyed by environment variable name, with values that
+  can be literals, configuration-entry references, or secret references. The
+  Resource Manager bridge resolves referenced values when the project resource
+  starts, while `configuration` remains a separate general resource
+  configuration channel.
+- Added native ASP.NET Core project graph-builder environment variable
+  authoring through `WithEnvironmentVariable(...)`, plus provider-owned convenience
+  methods for service discovery, HTTP health checks, and HTTP liveness/probe
+  declarations, and moved ProjectReference plus SettingsAndSecrets sample
+  declarations onto those APIs.
+- Added concept-compatible graph builder endpoint convenience methods for
+  ASP.NET Core projects, container applications, and SQL Server resources so
+  common HTTP, HTTPS, TCP, and health-check declarations no longer need to
+  hand-author raw endpoint request or health-check payloads.
+- Resource Manager graph host integration now automatically declares resources
+  defined through `DefineResources(...)` and `DefineInitialTemplate(...)`,
+  with graph-builder metadata helpers for resource groups and autostart policy.
+  ProjectReference, ReplicatedContainerHealth, HostVirtualNetwork,
+  CloudShell.ContainerHost, ContainerAppDeployment, LoadBalancer, and
+  SplitHosting no longer need redundant `cloudShell.Resources(...).Declare(...)`
+  blocks for graph resources.
+- ReplicatedContainerHealth Docker smoke coverage now verifies that started
+  graph container-app replicas are projected through Resource Manager child
+  resources and shown as occupied slots in the Scale and replicas view, both
+  before and after graph-backed replica scaling.
+- Added native resource graph builder configuration authoring through
+  `WithConfiguration(sectionName, value)`, writing to the ResourceDefinition
+  `configuration` channel separately from resource environment variables.
+- Added bridge-owned resource graph identity convenience helpers for
+  `IResourceDefinitionBuilder`: `Identity(...)`, `Principal(...)`, and
+  `IdentityClientId(...)`, and updated graph-backed samples to use the helper
+  instead of hand-formatting resource identity client ids.
+- Documented the resource graph builder API layering direction: core builders
+  stay aligned with Resource model concepts, while Aspire-like and old-builder
+  convenience shapes should start as extension methods until provider ports
+  prove they belong in the shared builder surface.
+- Resource graph sample declarations now omit explicit resource ids by default
+  and use name-first builders plus the host `IResourceIdConvention`; the
+  temporary Resource Manager bridge can declare a built graph resource from
+  its builder while keeping the old `Resources(...)` seam isolated until the
+  switch is complete.
+- Documented resource-id and naming conventions as deferred cleanup after the
+  provider switch, so the current `resourceTypeId:name` convention stays a POC
+  bridge rather than a settled public naming design.
+- Resource graph builders now resolve omitted resource ids through an
+  `IResourceIdConvention`. The default host convention preserves the existing
+  `resourceTypeId:name` ids, while built graphs/deployments carry the resolved
+  ids so provider APIs and references can use Aspire-like name-first builder
+  declarations.
+- SplitHosting Resource Definitions projection now uses the stable
+  `cloudshell.network:split-sample` identity and "Split Sample Network" display name
+  instead of temporary `graph-` sample naming.
+- HostVirtualNetwork Resource Definitions projection now uses stable sample
+  identities such as `cloudshell.hostNetworking.local:host-local`,
+  `application.aspnet-core-project:vnet-api`, and `cloudshell.virtualNetwork:sample-vnet`, and
+  its public sample setting is now `HostVirtualNetwork:VirtualNetworkPort`.
+- CloudShell.ContainerHost Resource Definitions projection now uses stable
+  sample identities such as `cloudshell.storage:local`,
+  `cloudshell.volume:sql-data`, and `application.sql-server:sql-server`, and
+  its SQL runtime bridge now creates `cloudshell-container-host-sql-server`.
+- ContainerAppDeployment now uses only Resource Definitions-backed resources
+  with stable sample identities (`docker.host:sample`,
+  `docker.container:sample-registry`, and
+  `application.container-app:sample-api`), removes the old `GraphOnly`
+  comparison seam, and renames its opt-in registry runtime toggle to
+  `ContainerAppDeployment:EnableDockerRuntime`.
+- ProjectReference now uses only Resource Definitions-backed ASP.NET Core
+  project resources with stable sample identities
+  (`application.aspnet-core-project:project-reference-api` and
+  `application.aspnet-core-project:project-reference-frontend`) and removes
+  the old `GraphOnly` comparison seam plus old application-provider records.
+- SettingsAndSecrets now uses only Resource Definitions-backed Configuration
+  Store, Secrets Vault, and ASP.NET Core project resources with stable sample
+  identities (`configuration.store:sample-app`, `secrets.vault:sample-app`,
+  and `application.aspnet-core-project:settings-secrets-api`) and removes the
+  old `GraphOnly` comparison seam plus old application/configuration/secrets
+  provider records.
+- ThirdPartyIdentity now uses only Resource Definitions-backed identity
+  provisioning, Configuration Store, and ASP.NET Core project resources with
+  stable sample identities (`cloudshell.identity-provisioning:keycloak`,
+  `configuration.store:third-party-identity`, and
+  `application.aspnet-core-project:keycloak-provisioned-api`) and removes the
+  old `GraphOnly` comparison seam plus old application/configuration provider
+  records.
+- LoadBalancer now uses only Resource Definitions-backed Docker host,
+  container-app, load-balancer, DNS-zone, and name-mapping resources with
+  stable sample identities such as `docker.host:sample-host`,
+  `application.container-app:api`, `cloudshell.loadBalancer:public`, and
+  `cloudshell.dnsZone:cloudshell-local`, and removes the old `GraphOnly` comparison seam plus
+  old Docker/application/load-balancer/DNS provider records.
+- ReplicatedContainerHealth now uses only Resource Definitions-backed Docker
+  host and container-app resources with stable sample identities
+  (`docker.host:sample` and `application.container-app:api`), removes the old
+  `GraphOnly` comparison seam plus old application/Docker provider records,
+  and keeps the sample-local Docker runtime bridge as the active runtime path.
+- ApplicationTopology now uses only Resource Definitions-backed storage,
+  volume, SQL Server/database, Configuration Store, Secrets Vault,
+  host-configuration source, API, frontend, and local DNS resources with
+  stable sample identities such as
+  `application.sql-server:application-topology-sql-server` and
+  `application.aspnet-core-project:application-topology-api`. The old
+  side-by-side comparison setting, old workload records, old SQL Resource
+  Manager bridge, and graph-prefixed sample names were removed while the
+  sample-local SQL Docker runtime and SQL credential endpoint seams remain
+  active.
+- Local container application graph samples now use
+  `AddLocalContainerApplicationResourceTypes(...)` to register the paired
+  container app and Docker host resource types while keeping runtime handlers
+  and extra provider types explicit per sample.
+- Storage-backed SQL graph samples now use
+  `AddStorageBackedSqlServerResourceTypes(...)` to register storage,
+  CloudShell volume, and SQL Server resource types together while keeping SQL
+  database children and runtime handlers explicit per sample.
+- The supported sample host launch matrix now assigns a free graph SQL Server
+  port for CloudShell.ContainerHost so switch-readiness startup does not
+  depend on the sample's default SQL port being unused.
+- The supported sample host launch matrix now launches the LoadBalancer sample
+  with Traefik runtime management disabled and a temporary local-hosts file so
+  the generic graph projection gate does not require Docker or host-file
+  writes.
+- The supported sample host launch matrix now cleans known graph runtime
+  artifacts before launching each graph-default sample as well as after it
+  exits, so interrupted runs do not leave stale containers that affect the
+  next switch-readiness run.
+- LoadBalancer switch-readiness cleanup now removes temporary local-hosts
+  files created by generic sample launches.
+- Switch-readiness sample coverage now verifies that the graph-only default
+  settings cover the same supported samples as the launch matrix.
+- The supported sample host launch matrix now rejects known old-provider
+  resource IDs for graph-default samples, making accidental fallback to legacy
+  resource records visible in the generic switch-readiness gate.
+- Switch-readiness sample launch setup, cleanup, and legacy-record checks now
+  share the same sample-name resolver so the graph-default test gate has one
+  source of truth for supported samples.
+- ASP.NET Core project, Configuration Store, and Secrets Vault provider READMEs
+  now include `ResourceDefinition` interchange examples that show service
+  discovery references and keep configuration/secret values out of graph
+  attributes.
+- Storage, CloudShell Volume, and SQL Server provider READMEs now include
+  `ResourceDefinition` interchange examples for the storage-backed SQL chain,
+  including typed storage dependencies, volume mounts, and declared database
+  configuration.
+- LoadBalancer provider documentation now uses the current
+  `ResourceDefinition` interchange keys in its example.
+- Documentation-structure validation tests were removed from the POC track so
+  switch readiness focuses on runtime/provider behavior. Provider docs remain
+  working status notes that should be updated as seams are removed and deferred
+  work is identified.
+- SplitHosting has switched to graph-only projection: the old persisted
+  `cloudshell.network:split-sample` comparison record, `SplitHosting:GraphOnly` setting,
+  and host-code branch were removed, leaving the split Control Plane sample as
+  a remote-client projection gate for graph-backed resources.
+- HostVirtualNetwork has switched to graph-backed resources only: the old
+  application-provider registration, legacy host-network/API/virtual-network
+  records, `HostVirtualNetwork:GraphOnly` setting, and legacy virtual-network
+  port setting were removed while the sample-local endpoint-mapping bridge
+  remains the runtime integration seam to replace later.
+- CloudShell.ContainerHost has switched to graph-backed resources only: the
+  old application-provider registration, legacy storage/volume/SQL records,
+  and `ContainerHost:GraphOnly` setting were removed while the sample-local SQL
+  Docker bridge remains the runtime integration seam to replace later.
+- Resource graph provider helper coverage now verifies grouped registration
+  seams include both change-apply and definition-apply providers, not only type
+  providers.
+- Graph-default samples now use the builder-level
+  `UseResourceGraphIntegration(...)` seam to register generic graph
+  services, current graph-provider Resource Manager projections, and the
+  graph procedure provider. Resource type providers and runtime handlers
+  remain explicit per sample.
+- Graph-default samples now use a shared
+  `AddReferenceProviderResourceManagerIntegration(...)` seam to compose
+  reference-provider Resource Manager projections with the graph procedure
+  provider. Individual resource type registrations and runtime handlers remain
+  explicit so provider-specific switch discrepancies stay visible.
+- CloudShell.ContainerHost now projects its graph-backed SQL Server resource
+  into the Resource Manager orchestration catalog with control-plane-scoped
+  lifetime metadata. A Docker smoke test verifies that a graceful host
+  shutdown removes the graph SQL container through the existing host-scoped
+  shutdown service, matching the old provider model for programmatically
+  declared resources.
+- ApplicationTopology graph-only mode now projects its sample-local graph SQL
+  Docker runtime into the Resource Manager orchestration catalog with
+  control-plane-scoped lifetime metadata. A focused Docker smoke test verifies
+  graceful host shutdown removes the graph SQL container without declaring the
+  old SQL resource.
+- ApplicationTopology graph-only SQL now declares explicit graph-backed
+  storage and volume resources for SQL data. The sample-local Docker bridge
+  resolves that graph shape, creates the storage-backed host directory, and
+  bind-mounts it into the SQL Server container before startup.
+- ApplicationTopology now declares the graph SQL backing storage through the
+  Resource Manager bridge as well, so graph-only projection shows the full
+  storage -> volume -> SQL Server -> database chain without relying on Docker.
+- ReplicatedContainerHealth graph-only Docker smoke coverage now treats the
+  app-owned ingress container as part of the runtime cleanup contract, verifying
+  graph stop removes it alongside graph-owned replica containers.
+- ThirdPartyIdentity graph-only Docker smoke coverage now verifies the
+  generated Keycloak compose project is removed after the graph-only workload
+  path completes, including compose-managed containers and networks.
+- ContainerAppDeployment now projects its opt-in graph registry Docker runtime
+  into the Resource Manager orchestration catalog with control-plane-scoped
+  lifetime metadata, and Docker smoke coverage verifies graceful host shutdown
+  removes the graph registry container without old Docker provider records.
+- LoadBalancer graph-only smoke coverage now verifies the old DNS
+  name-mapping resource records are absent while graph name mappings are
+  projected and reconciled through the graph runtime bridge.
+- The supported sample host launch matrix now cleans known graph runtime
+  artifacts for ContainerAppDeployment, ReplicatedContainerHealth, and
+  ThirdPartyIdentity after each host run, reducing stale Docker state while
+  validating graph-default sample startup.
+- The supported sample host launch matrix now verifies that graph-default
+  sample hosts project at least one Resource Manager resource through the
+  Control Plane resources API instead of treating a 200 response as enough.
+- The supported sample host launch matrix now includes the SplitHosting
+  Control Plane resources API, using the sample's client-credentials flow so
+  the graph projection gate also covers the protected split-hosting API path.
+- The supported sample host launch matrix now uses a longer readiness window
+  than focused smoke tests so cold sample host startup and local persistence
+  initialization do not hide graph-default projection regressions.
+- Graph-backed container app resources can now light up the provider-owned
+  Scale and replicas Resource Manager tab by resource type id in graph-only
+  samples without registering the legacy application providers. The proposal
+  records the broader capability/attribute-driven Shell UI selection model as
+  future work.
+- Graph-only samples can now register graph-safe application Resource Manager
+  UI metadata for ASP.NET Core project, executable, SQL Server, and container
+  app resource types without registering the legacy application providers.
+  Generated views get stable display names, icons, endpoint descriptors, and
+  probe defaults while old application edit pages remain provider-specific.
+- Resource Graph provider ports now use shared graph-model capability IDs for
+  common capabilities and distinguish provider type expectations from
+  instance-level runtime activation. ASP.NET Core project, container app,
+  Configuration Store, Secrets Vault, Docker container, and graph-only replica
+  projections activate monitoring/log-source capabilities where the current
+  runtime bridge can back the Resource Manager UI, with tests covering process
+  and Docker stats snapshots.
+- Executable application graph resources now activate runtime monitoring
+  through the programmatic builder and project process monitoring snapshots
+  through the Resource Manager bridge. Stop/restart, log streaming, endpoint,
+  template, and UI registration parity remain documented switch-over gaps.
+
+### 2026-06-27
+
+#### Changed
+
+- ThirdPartyIdentity now declares graph-backed Configuration Store and ASP.NET
+  Core project resources for its protected workload shape. Projection coverage
+  verifies the graph settings endpoint/count summary, graph API endpoint,
+  typed dependency, provider-owned configuration reference, and Resource
+  Manager-declared graph API identity. The graph API now binds to the graph
+  Keycloak identity provider definition instead of the old provider definition,
+  and Docker smoke coverage now starts the graph Configuration Store plus
+  graph API and verifies the graph API can read protected configuration with a
+  Keycloak-issued resource identity token.
+- ThirdPartyIdentity now has an opt-in graph-only mode that omits the old
+  application/configuration provider registrations and old workload resource
+  records while keeping Resource Manager-owned identity provider declarations
+  and graph runtime integrations.
+- ThirdPartyIdentity graph-only mode now has Docker smoke coverage for the
+  Keycloak-protected runtime path. The test executes graph identity-provider
+  setup, starts only the graph Configuration Store and graph ASP.NET Core API,
+  verifies the old identity/application/configuration resource records are
+  absent, and confirms the graph API can read protected graph configuration
+  with a Keycloak-issued resource identity token.
+- CloudShell.ContainerHost now wires its graph-backed SQL Server resource to a
+  sample-local Docker runtime bridge. The bridge resolves the mounted
+  CloudShell volume and storage parent from the graph, creates the
+  storage-backed host directory, and starts/restarts SQL Server with the bind
+  mount while leaving generalized storage/runtime materialization deferred.
+- CloudShell.ContainerHost graph SQL runtime now has Docker smoke coverage for
+  start, restart, stop, storage-backed volume directory creation, and container
+  cleanup through Resource Manager. The sample-local Docker bridge also removes
+  Docker's failed-created container and retries once when a newly-created bind
+  mount path is not immediately visible to the Docker daemon.
+- The Resource Graph proposal now records the builder direction: keep the core
+  programmatic declaration API aligned with CloudShell's old builder pattern
+  for migration, and add Aspire-like extension methods only as compatibility
+  conveniences over CloudShell Resource Graph semantics.
+- Configuration Store graph runtime options now support external
+  `Authentication:ServiceBearer` settings so provider-owned runtime services
+  can validate non-built-in bearer tokens without using the old configuration
+  provider aggregate.
+- ASP.NET Core graph project startup now composes provider-local runtime
+  environment providers before launching a project. Service discovery is the
+  default provider, and the ThirdPartyIdentity sample adds a sample-local
+  adapter that derives graph API identity credential variables from Resource
+  Manager declarations and the existing Keycloak credential provider.
+- ASP.NET Core graph project startup now matches the old provider's local
+  process semantics for non-interactive `dotnet watch`, rude-edit restart
+  environment, and non-hot-reload build-before-run with `dotnet run
+  --no-build`.
+- Executable application graph startup now honors provider command
+  configuration for process arguments and working directory, and can fall back
+  to the configured executable path when the path is supplied through the
+  interchange configuration payload.
+- ReplicatedContainerHealth now has an opt-in graph-only declaration mode that
+  skips old application/Docker provider registrations and omits
+  `application:api` plus `docker.host:sample`, proving the graph-backed Docker host
+  and container-app projection without old provider records.
+- ReplicatedContainerHealth graph-only mode now wires the graph-backed
+  container app to a sample-local Docker bridge that publishes the API image,
+  starts/removes graph-owned replica containers, and restarts them when graph
+  image or replica attributes are applied.
+- ReplicatedContainerHealth graph-only container app state now projects from
+  Docker inspection of the graph-owned replica containers, returning running
+  only when all expected replicas are running and stopped when all are absent
+  or stopped.
+- ReplicatedContainerHealth graph-only image and replica updates now have
+  Docker smoke coverage, and graph-only replica cleanup removes a bounded range
+  of graph-owned replica containers so scale-down does not leave stale
+  higher-ordinal replicas running.
+- ReplicatedContainerHealth graph-only Docker smoke coverage now refreshes the
+  graph container app health summary and verifies the graph-declared HTTP
+  health and liveness checks evaluate as healthy after start and scale-down.
+- ReplicatedContainerHealth graph-only mode now contributes provider-projected
+  replica container log sources for the graph container app, and smoke coverage
+  verifies the source list follows the graph replica count after scale-down.
+- ReplicatedContainerHealth graph-only log sources now read Docker logs from
+  graph-owned replica containers through the sample command runner, parse
+  timestamped JSON console output, and smoke-test log reads without depending
+  on the old application-provider runtime.
+- ReplicatedContainerHealth graph-only mode now projects hidden runtime
+  replica resources from accepted graph state through a sample-local
+  `IResourceProvider` adapter, publishes probe-only ports for each replica,
+  and smoke-tests runtime-scope health aggregation without storing runtime
+  observations in the graph.
+- ReplicatedContainerHealth graph-only startup now creates a sample-owned
+  Traefik ingress container for the stable app endpoint instead of publishing
+  the first replica directly on the app port. The graph-only container app is
+  also registered as a Control Plane-scoped runtime workload so host shutdown
+  dispatches its Stop action and removes graph-owned ingress and replica
+  containers.
+- ReplicatedContainerHealth graph-only container app startup now sweeps the
+  app-owned ingress container and graph-owned replicas when replica or ingress
+  creation fails, keeping failed starts from leaving partially materialized
+  runtime containers behind.
+- ReplicatedContainerHealth graph-only replica containers now run with Docker
+  `--rm`, matching the old control-plane-scoped container app runtime behavior
+  while retaining explicit cleanup for running graph-owned containers.
+- Control Plane API routes now disable antiforgery at the API group boundary so
+  non-browser clients and sample runtime containers can POST health refresh and
+  runtime ingestion requests without browser antiforgery tokens.
+- ReplicatedContainerHealth graph-only replica containers now receive the
+  projected runtime replica resource ID, OpenTelemetry service name, and
+  telemetry scope attributes in their runtime environment. Focused coverage
+  verifies the Docker command wiring, and smoke coverage binds the sample host
+  to a Docker-reachable address so graph-only containers can ingest live trace
+  spans and metric points under the projected runtime replica resource ID.
+- ReplicatedContainerHealth graph-only hidden replica resources now advertise
+  Resource Manager logs, traces, metrics, service name, and runtime telemetry
+  scope metadata so the projected runtime resource matches the telemetry it
+  emits.
+- ReplicatedContainerHealth now records the remaining hidden runtime replica
+  telemetry-tab parity gap: generated details pages still need
+  runtime-resource-aware health refresh behavior so inherited health checks do
+  not block trace/metric rendering.
+- ReplicatedContainerHealth now documents its temporary switch seams, and
+  graph-only state projection uses bounded, cached Docker inspection so normal
+  Resource Manager rendering does not depend on a responsive Docker daemon.
+- ReplicatedContainerHealth graph-only Resource Manager rendering no longer
+  probes health while the graph container app is stopped or unknown, treats
+  lifecycle-less graph dependencies as already available for dependency
+  auto-start, and avoids sync-context deadlocks when graph-backed providers
+  synchronously bridge Resource Graph snapshots into Resource Manager.
+- ReplicatedContainerHealth graph-only Docker smoke coverage now waits for
+  runtime-scope health aggregation to converge instead of treating the first
+  full health refresh as final, and sample GET timeout diagnostics now include
+  captured host output for runtime-route failures.
+- ReplicatedContainerHealth now defaults to graph-only mode for the sample
+  host. Side-by-side smoke coverage explicitly opts back into the old
+  application/Docker provider path so it remains a comparison baseline rather
+  than the default runtime path.
+- ApplicationTopology now defaults to graph-only mode for the sample host.
+  Side-by-side and old SQL runtime smoke coverage explicitly opts back into the
+  old application/configuration/secrets provider path so it remains comparison
+  coverage while the graph-backed workload becomes the default path.
+- ThirdPartyIdentity now defaults to graph-only mode for the sample host.
+  Side-by-side identity/configuration/application smoke coverage explicitly
+  opts back into the old provider path so the Keycloak-protected graph
+  Configuration Store and graph ASP.NET Core API path is the default.
+- ApplicationTopology, ThirdPartyIdentity, and ReplicatedContainerHealth
+  Docker-backed graph-only smoke tests now rely on the sample appsettings
+  defaults instead of forcing `GraphOnly=true`, so those heavier switch gates
+  validate the same default path used by local sample runs.
+- Sample hosts that now default to graph-only also use `true` as the code
+  fallback for their `GraphOnly` configuration setting, keeping explicit
+  `GraphOnly=false` as the old-provider comparison path instead of making the
+  old path the implicit fallback when configuration is absent.
+- SettingsAndSecrets now defaults to graph-only mode for the sample host.
+  Side-by-side smoke coverage explicitly opts back into the old
+  application/configuration/secrets provider path so the graph Configuration
+  Store, graph Secrets Vault, and graph ASP.NET Core API path is the default.
+- ProjectReference now defaults to graph-only mode for the sample host.
+  Side-by-side observability and UI smoke coverage explicitly opts back into
+  the old application provider path so the graph ASP.NET Core project
+  discovery path is the default.
+- HostVirtualNetwork now defaults to graph-only mode for the sample host.
+  Side-by-side projection coverage explicitly opts back into the old
+  application-provider host networking path so graph endpoint-mapping
+  reconciliation is the default path.
+- LoadBalancer now defaults to graph-only mode for the sample host.
+  Side-by-side Traefik/DNS projection coverage explicitly opts back into the
+  old Docker/application/load-balancer provider path so graph route generation
+  and graph DNS publishing are the default path.
+- The Resource Manager host integration now exposes `DefineResources(...)` for
+  Aspire-compatible in-memory resource declarations and
+  `DefineInitialTemplate(...)` for seed-like resource template declarations with
+  name, environment, and metadata, both backed by
+  `ResourceDefinitionGraphBuilder`; samples use `DefineResources(...)` for
+  programmatic in-memory graph declarations while template-ready hosts can
+  switch the same builder block to `DefineInitialTemplate(...)`.
+- SplitHosting, ProjectReference, ContainerAppDeployment, ThirdPartyIdentity,
+  ReplicatedContainerHealth, LoadBalancer, SettingsAndSecrets,
+  ApplicationTopology, HostVirtualNetwork, and CloudShell.ContainerHost now
+  define their graph-backed sample resources through `DefineResources(...)`
+  and provider-owned builders instead of manually registering raw graph state.
+  Provider-managed read-only count summaries are projected into graph state
+  instead of authored into `ResourceDefinition` values.
+- LoadBalancer graph resources now declare entrypoint and route payloads
+  through provider-owned complex shapes and builder methods. The LoadBalancer
+  sample wires the graph `applyLoadBalancerConfiguration` operation to a
+  sample-local Traefik adapter that translates graph-declared routes into the
+  existing Traefik provider context before delegating to the provider-owned
+  configuration writer. Resource Manager graph projections now expose
+  load-balancer frontends, endpoint mappings, and route collections from those
+  graph payloads, and action dispatch now prefers the graph bridge provider
+  for resources carrying bridge-provider metadata so legacy providers do not
+  intercept overlapping operation IDs.
+- DNS zone graph reconcile integrations now receive the same
+  `ResourceProjectionExecutionContext` used to resolve the operation, allowing
+  provider-owned reconciler implementations to inspect sibling graph resources
+  such as declared name mappings without putting name-publishing behavior in
+  the graph model itself.
+- HostVirtualNetwork now has an opt-in graph-only mode that omits the old
+  application-provider registration plus old local-host networking, target API,
+  and virtual-network resource records while keeping the graph endpoint-mapping
+  runtime bridge active through the Control Plane local-host endpoint
+  provisioner.
+- SplitHosting now defaults its Control Plane host to graph-only mode, omitting
+  the old persisted network record while keeping the remote UI and Control
+  Plane API graph resource projection path covered.
+- ApplicationTopology now declares a graph host-configuration source, giving
+  the `configuration.host` provider sample coverage for source metadata,
+  provider-managed entry-count projection, and inspect action shape without
+  exposing host configuration values in graph state.
+- The LoadBalancer sample now declares side-by-side graph-backed DNS zone and
+  name-mapping resources that target the graph-backed load balancer frontend,
+  extending the networking POC coverage from route projection into declarative
+  host-name mapping shape while leaving DNS publishing runtime integration
+  deferred.
+- The LoadBalancer sample now wires graph DNS-zone `reconcileNameMappings`
+  through a sample-local bridge that translates resolved graph name mappings
+  into the existing `INamePublishingProvider` contract. Smoke coverage writes
+  graph-backed `app.cloudshell.local` and `api.cloudshell.local` entries to a
+  temporary hosts file through the Control Plane action path.
+- The LoadBalancer sample now has an opt-in graph-only mode that omits the old
+  Docker, application, load-balancer, DNS-zone, and name-mapping resource
+  records while keeping graph Traefik configuration and graph DNS publishing
+  smoke coverage active through the sample-local runtime bridges.
+- The ContainerAppDeployment sample now defaults to graph-only mode, omitting
+  the old Docker, registry-container, and application resource records plus
+  old provider registrations while keeping graph image and replica update API
+  coverage active through a sample-local graph-state bridge. The side-by-side
+  comparison smoke test explicitly opts back into the old provider path.
+- ContainerAppDeployment graph-only Docker smoke coverage now enables the
+  sample-local graph registry materializer, starts the graph registry
+  container, verifies the registry `/v2/` endpoint, stops the graph resource,
+  and asserts Docker cleanup without declaring the old registry resource.
+- ContainerAppDeployment graph registry status projection now uses a bounded,
+  cached Docker inspect probe so enabling the graph Docker materializer does
+  not block Resource Manager rendering when Docker is slow to answer.
+- CloudShell.ContainerHost now defaults to graph-only mode, omitting the old
+  application-provider storage, volume, and SQL Server resource records plus
+  the old application provider registration while keeping graph SQL Docker
+  lifecycle coverage active through the sample-local bridge.
+- ProjectReference now has an opt-in graph-only mode that omits the old
+  application-provider project records and registration while keeping graph
+  ASP.NET Core project startup and graph-to-graph service discovery coverage.
+- SettingsAndSecrets now has an opt-in graph-only mode that omits the old
+  application, configuration, and secrets provider registrations plus old
+  workload records while keeping graph Configuration Store, Secrets Vault, API,
+  identity grant, and graph service-discovery coverage.
+- Virtual network graph resources can now carry endpoint contracts, endpoint
+  address mappings, and source-to-target endpoint mapping payloads. The
+  HostVirtualNetwork sample declares the graph public ingress mapping through
+  provider-owned builder methods and verifies the Resource Manager projection
+  beside the legacy virtual-network resource.
+- Network and host-network graph reconcile integrations now receive the
+  `ResourceProjectionExecutionContext` used to resolve the operation, matching
+  the DNS reconcile seam and giving future runtime implementations access to
+  graph-scoped endpoint mapping targets without putting runtime behavior into
+  the graph model.
+- The HostVirtualNetwork sample now wires the graph virtual-network
+  `reconcileEndpointMappings` operation to a sample-local runtime bridge. The
+  bridge projects graph resources through the Resource Manager endpoint
+  projection providers, adapts the graph local-host provider identity to the
+  existing local-host networking provisioner contract, and verifies the
+  handoff with a recording provisioner so normal tests do not bind host ports.
+- HostVirtualNetwork sample ports are configurable for smoke tests, and the
+  graph runtime bridge is now covered end to end by starting the graph ASP.NET
+  Core API, executing the graph virtual-network reconcile action through the
+  Control Plane API, and reaching the API health endpoint through the graph
+  public ingress.
+
 ### 2026-06-26
+
+#### Changed
+
+- ContainerAppDeployment graph container-app runtime behavior now goes through
+  an explicit sample-local bridge contract. The current bridge still delegates
+  image, replica, lifecycle, and state operations to the old
+  `application:sample-api` runtime app while durable graph container-app
+  materialization remains deferred.
+- ThirdPartyIdentity graph identity setup now goes through an explicit
+  sample-local bridge contract. The current bridge still delegates to the
+  attached Resource Manager identity provider setup service, but the graph
+  operation handler no longer owns that runtime lookup directly.
+- ReplicatedContainerHealth graph container-app runtime behavior now goes
+  through an explicit sample-local bridge contract. The current bridge still
+  delegates to the old `application:api` runtime app, but the graph handler no
+  longer depends directly on the old application-provider services and focused
+  tests cover the replaceable seam.
+- Graph-backed container app start, restart, image-update, and replica-update
+  operations now delegate through an injected provider-owned runtime handler
+  seam, keeping runtime orchestration outside the Resource Graph while leaving
+  the default POC behavior no-op.
+- ReplicatedContainerHealth now wires the graph container-app lifecycle seam to
+  a sample-local runtime adapter that starts and restarts the existing
+  `application:api` runtime app, projects graph container-app state from that
+  runtime app, and Docker smoke coverage verifies the graph start/restart
+  actions publish the replicated API health endpoint.
+- Graph-backed container app Resource Manager state can now project through
+  the provider-owned runtime handler seam and bridge state provider, and
+  ReplicatedContainerHealth Docker smoke coverage verifies graph stop removes
+  the revision-scoped runtime containers created by graph start.
+- ReplicatedContainerHealth Docker smoke coverage now also verifies graph
+  restart recreates the revision-scoped runtime containers instead of only
+  checking that the health endpoint comes back.
+- Container app lifecycle service descriptions now preserve active
+  revision-scoped replica names when an environment revision is active, so
+  stop/restart actions target the same runtime containers that start
+  materialized.
+- ApplicationTopology SQL-inclusive Docker smoke coverage now verifies graph
+  SQL start creates the SQL container, graph SQL restart recreates it, and
+  graph SQL stop removes it through the sample-local runtime adapter.
+- ApplicationTopology now has deterministic coverage for the graph SQL Server
+  runtime adapter, verifying start/stop/restart delegation into the existing
+  SQL Server runtime resource and cached graph status projection without
+  requiring Docker.
+- Resource Manager details now route Resource Model bridge resources through
+  generated Resource Manager views instead of old provider-specific tabs that
+  require old provider records, and ApplicationTopology smoke coverage verifies
+  graph-backed API, SQL Server, Configuration Store, and Secrets Vault pages
+  render without leaking stored secret values.
+- ThirdPartyIdentity now declares its side-by-side graph identity provisioning
+  resource through the provider-owned `ResourceDefinitionGraphBuilder`
+  identity builder instead of raw graph state, keeping the sample on the same
+  programmatic authoring path as provider tests.
+- Graph-backed Docker container lifecycle operations now delegate through an
+  injected provider-owned runtime handler seam with status-aware action
+  availability, keeping real Docker materialization outside the graph model.
+- ContainerAppDeployment now carries an opt-in sample-local graph Docker
+  container runtime materializer for the graph registry container, while the
+  default sample path keeps the materializer disabled so normal projection
+  smoke coverage does not shell out to Docker during Resource Manager state
+  projection.
+- The ContainerAppDeployment graph Docker registry materializer now uses an
+  injectable sample-local Docker command runner, with deterministic tests for
+  status projection and lifecycle command construction.
+- Resource Model graph bridge resources that project `container.image.update`
+  can now satisfy the Resource Manager image update API by applying the image
+  and requested replica attributes into the graph before executing the graph
+  operation runtime seam. ContainerAppDeployment smoke coverage now updates
+  the graph-backed container app through the same deployment API as the old
+  sample app.
+- Resource Model graph bridge resources that project `container.image.update`
+  can now satisfy the Resource Manager replica update API by applying the
+  requested replica count into the graph before executing the same container
+  app runtime seam. ContainerAppDeployment smoke coverage now scales the
+  graph-backed container app through the existing replicas API.
+- ContainerAppDeployment now wires the graph container-app runtime seam to a
+  sample-local adapter over the existing `application:sample-api` runtime path,
+  so graph image and replica updates are applied to both graph state and the
+  running sample resource model.
+- ContainerAppDeployment now has deterministic coverage for the graph
+  container-app runtime adapter, verifying status projection and
+  lifecycle/image/replica delegation into the existing runtime app resource
+  without starting Docker. The Resource Graph proposal now clarifies that
+  non-lifecycle operations are exposed through CloudShell UI only when an
+  explicit Resource Manager UI integration chooses to surface them.
+- Container app replica updates now have their own graph operation
+  (`container.replicas.update`) and runtime-handler method, so direct scale
+  requests no longer reuse the image-update operation seam.
+- ApplicationTopology now has an opt-in graph-only declaration mode that
+  declares workload resources through the Resource Model bridge, retargets the
+  local DNS mapping to the graph frontend, and keeps the old provider packages
+  only as temporary runtime bridge dependencies while the switch progresses.
+- ApplicationTopology graph SQL lifecycle handling now depends on a
+  sample-local runtime bridge contract, isolating the temporary old SQL
+  Resource Manager resource delegation behind a replaceable switch seam.
+- ApplicationTopology graph-only mode now wires that SQL bridge to a
+  sample-local Docker-backed graph SQL runtime implementation, so graph SQL
+  lifecycle operations no longer require the old SQL resource declaration in
+  that mode.
+- ApplicationTopology Docker smoke coverage now verifies graph-only mode can
+  start graph SQL, create the graph database, and run the graph API/frontend
+  `/database` and `/upstream` paths without declaring the old SQL resource.
+- ApplicationTopology graph-only mode no longer registers the old application,
+  configuration, or secrets provider implementations; side-by-side mode keeps
+  them registered for comparison and remaining bridge coverage.
+- ReplicatedContainerHealth smoke coverage now verifies the graph-backed
+  container app can scale through the existing replicas API and delegates the
+  accepted graph replica count into the runtime app declaration.
+- ContainerAppDeployment now declares its graph Docker host, registry
+  container, and container app through provider-owned graph builders instead
+  of raw graph state dictionaries.
+- ReplicatedContainerHealth now exposes a sample-local ResourceDefinition
+  overlay endpoint for the graph container image, and smoke coverage verifies
+  that executing the graph `container.image.update` operation delegates the
+  accepted graph image into the existing runtime app configuration.
+- Provider README guidance now treats concrete `ResourceDefinition` examples
+  as feedback on whether the interchange format is suitable for deployments,
+  templates, imports, exports, and external tooling.
+- Added a Resource Definition Structure document that records the common
+  interchange shape for references, attributes, endpoint requests, endpoint
+  mappings, health/liveness checks, volumes, log sources, and operations while
+  the provider ports refine the API.
+- The Resource Definition Structure document now clarifies the implicit
+  root/common contract, class/type definition inheritance, and how a
+  `ResourceDefinition` can be either a full resource rendition or an
+  incremental update overlay.
+- The Resource Definition Structure document now treats deployment definitions
+  as a future higher-level artifact and, for the POC, describes deployment
+  inputs as groupings of `ResourceDefinition` values.
+- Graph-backed resources can now be exported through the existing resource
+  group template API as JSON `resource-definition.v1` payloads, giving the POC
+  an API feedback path for the `ResourceDefinition` interchange shape.
+- Graph-backed `resource-definition.v1` template payloads can now be imported
+  through the Resource Manager template bridge, which delegates creation to
+  the graph apply path and registers the imported graph resource into the
+  requested resource group.
+- Control Plane coverage now verifies that importing a resource group template
+  containing a graph `ResourceDefinition` creates a graph-backed Resource
+  Manager resource and registration through the existing template API,
+  including startup dependency remapping between imported graph resources.
+- Graph-backed template import now preserves typed `ResourceReference`
+  metadata when the Resource Manager template container remaps startup
+  dependency keys to concrete resource ids.
+- Resource definition docs now clarify that capabilities can contribute
+  attribute definitions and validation rules for the graph state they need.
+- Resource definition docs now clarify that direct resource capability payloads
+  remain valid, while resources that inherit capabilities usually author
+  capability-defined values through qualified attributes.
+- Resource definition docs now clarify that future deployment and template
+  container names remain open, while their resource payloads should stay based
+  on `ResourceDefinition` instead of parallel resource-state models.
+- Applying `ResourceDefinition` overlays now resolves existing graph resources
+  by explicit `resourceId` first, then by `typeId` plus `name` when no
+  `resourceId` is supplied. Existing resource identity fields stay stable, and
+  rename attempts through an overlay are rejected until the model has an
+  explicit rename/change-identity operation.
+- Resource model operation projections now receive the current resolved
+  resource scope, and SQL database ensure-created handlers receive both the
+  database resource and its resolved owning SQL Server resource.
+- ApplicationTopology now registers a sample-local graph SQL database
+  ensure-created handler that uses the resolved graph SQL Server endpoint and
+  host configuration for administrator credentials, keeping secrets out of
+  graph state while proving the provider-owned runtime hook.
+- ApplicationTopology API SQL access now reads the target SQL Server resource
+  name from configuration, allowing the old-provider API path and graph-backed
+  API path to declare different SQL service-discovery targets.
+- ApplicationTopology now declares a built-in resource identity for the
+  graph-backed API resource and grants it read/write access to the graph SQL
+  Server resource, preparing the graph SQL credential runtime slice.
+- ApplicationTopology now maps a sample-local graph SQL credential endpoint
+  that validates graph resource identity grants, creates SQL login/user access,
+  and lets the graph-backed API exercise `/database` against the graph SQL
+  Server target in the Docker-backed smoke path.
+- ApplicationTopology Docker smoke coverage now starts the graph-backed
+  frontend and verifies its `/upstream` path through the graph API, graph
+  settings, and graph SQL credential flow.
+- ApplicationTopology graph-backed Configuration Store and Secrets Vault
+  resources now use separate provider-owned runtime service endpoints, seeded
+  graph runtime data, Resource Manager-declared graph API identity grants, and
+  smoke coverage for starting the backing services and reading entries/secrets
+  through the new provider runtime path.
+- ApplicationTopology graph-backed API now loads its settings and secret flag
+  through the CloudShell Configuration Store and Secrets Vault client
+  integrations derived from `project.references`, removing direct graph API
+  environment-value injection for those values.
+- ApplicationTopology topology smoke coverage now uses explicit graph
+  Configuration Store and Secrets Vault runtime endpoints and starts those
+  graph backing services before the graph API, keeping the broader sample
+  test aligned with the new provider-backed runtime path.
+- SQL Server graph resources now declare start, stop, and restart operations
+  through an injected provider-owned runtime handler seam, with Resource
+  Manager state projection ready for hosts or samples to plug in actual SQL
+  runtime behavior.
+- ApplicationTopology now wires that SQL Server graph lifecycle seam to a
+  sample-local runtime adapter, so starting the graph SQL Server resource can
+  drive the existing SQL Server runtime path and project cached graph SQL
+  lifecycle state before graph API/database smoke coverage runs; the same
+  smoke path now restarts and stops SQL through the graph action boundary.
+- Container Application graph resources now declare a stop operation through
+  the same runtime handler seam as start/restart, and ReplicatedContainerHealth
+  smoke coverage verifies graph stop delegates to the existing runtime app and
+  projects stopped state.
+- The Resource Graph proposal now clarifies that selected samples should
+  become runnable through graph-backed providers, with adapters used only as
+  temporary bridges into focused Control Plane or Resource Manager services.
+- Resource Manager graph operation execution now preserves successful
+  provider diagnostics in the returned procedure message, so runtime-backed
+  operations such as ThirdPartyIdentity Keycloak setup expose their provider
+  result through the existing action API.
+- Resource Graph programmatic authoring now starts with a manual
+  `ResourceDefinitionGraphBuilder` and a provider-owned Network builder that
+  emits `ResourceDefinition` and `ResourceTemplate` values for the
+  same apply pipeline used by interchange documents.
+- Resource Graph programmatic builders now share common resource id, display
+  name, dependency, and attribute emission, and Configuration Store plus
+  Secrets Vault have provider-owned builders for endpoint declarations without
+  storing entry or secret values in graph attributes.
+- Storage and CloudShell Volume now have provider-owned Resource Graph
+  builders, including typed storage references, and the storage provider
+  integration tests now use builders instead of raw ResourceDefinition
+  dictionaries.
+- SQL Server and SQL Database now have provider-owned Resource Graph builders,
+  including declared database configuration, volume mount capability payloads,
+  and typed server dependencies, and SQL provider tests now use those builders.
+- Resource Graph provider porting guidance now treats provider-owned manual
+  builders as part of the porting contract, and Container Host, Docker Host,
+  and Container Application have builders covering host dependencies, endpoint
+  requests, replicas, image settings, and volume mount payloads.
+- Executable Application and ASP.NET Core Project now have provider-owned
+  Resource Graph builders covering command/project settings, endpoint
+  requests, environment variables, service-discovery references, volume mounts,
+  and health-check payloads, and their provider tests now use those builders.
+- Identity Provisioning now has a provider-owned Resource Graph builder
+  covering provider identity and provider-kind attributes, and the identity
+  provider test now uses that builder.
+- Service, DNS Zone, and Name Mapping now have provider-owned Resource Graph
+  builders for code-first exposure definitions, and the exposure provider tests
+  now use those builders for target, network, DNS-zone, and name-mapping
+  dependencies.
+- Docker Container and Local Volume now have provider-owned Resource Graph
+  builders, and the Docker container plus executable deployment provider tests
+  now use those builders.
+- Load Balancer and Host Configuration Source now have provider-owned Resource
+  Graph builders, and their provider tests now use those builders.
 
 #### Fixed
 
@@ -25,24 +1079,1093 @@ on `git blame --follow`, and then by the broad type of change.
   clears the parent application runtime state, preventing stopped replicas from
   remaining as discovered Docker resources in the current environment.
 
+### 2026-06-25
+
+#### Changed
+
+- The Resource model proposal has been reframed as the Resource Graph
+  and Runtime Separation proposal, making the graph/configuration contract,
+  `ResourceDefinition` interchange role, and Control Plane runtime boundary
+  explicit for the POC.
+- SettingsAndSecrets smoke coverage now exercises graph-backed Configuration
+  Store and Secrets Vault inspect operations through Resource Manager action
+  links, proving those reference providers are projected and dispatched beyond
+  endpoint and count-summary projection.
+- Graph-backed Configuration Store and Secrets Vault reference providers now
+  declare `/healthz` health and liveness checks on their projected service
+  endpoints, with Resource Manager integration coverage confirming those checks
+  stay declarative graph data.
+- Graph-backed Configuration Store and Secrets Vault resources now expose
+  start, stop, and restart operations backed by provider-local process
+  controllers that run the existing service web apps, with SettingsAndSecrets
+  smoke coverage proving backing-service startup and health/liveness refresh.
+- SettingsAndSecrets now seeds provider-owned graph-backed Configuration Store
+  entries and Secrets Vault secrets into the backing services, grants the
+  sample API identity access to those graph resources, and verifies the API can
+  read configuration and secrets through the graph-backed endpoints.
+- SettingsAndSecrets now also declares and starts a graph-backed ASP.NET Core
+  API resource that consumes the graph-backed Configuration Store and Secrets
+  Vault services, proving a side-by-side graph-backed app/settings/secrets
+  vertical slice.
+- The SettingsAndSecrets graph-backed API now declares typed startup
+  dependencies on the graph-backed Configuration Store and Secrets Vault
+  resources, keeping the projected Resource Manager dependency view aligned
+  with the graph.
+- SettingsAndSecrets smoke coverage now refreshes Resource Manager health for
+  the graph-backed API resource, proving its graph-declared health probe is
+  evaluated through the projected endpoint.
+- ASP.NET Core graph resources now get Resource Manager state and endpoint
+  projection from the reference-provider bridge package, removing the
+  SettingsAndSecrets sample-local projection implementations.
+- ProjectReference now uses the same reference-provider bridge package for
+  graph-backed ASP.NET Core state and endpoint projection, leaving only its
+  sample-specific observability/log integrations local to the sample.
+- ASP.NET Core graph observability and process-output log projection now live
+  in the reference-provider bridge package, removing the remaining
+  ProjectReference sample-local Resource Manager bridge implementations.
+- SettingsAndSecrets now gives the graph-backed ASP.NET Core API its own
+  Resource Manager-declared identity and scoped graph settings/secrets grants,
+  so the graph-backed runtime path no longer reuses the legacy API identity.
+- SettingsAndSecrets smoke coverage now verifies that the Resource Manager
+  declaration identity is projected onto the graph-backed API resource and
+  reports provisioned status through the normal identity endpoint.
+- ProjectReference now includes a graph-backed ASP.NET Core frontend that uses
+  Aspire-style service-discovery configuration to call the graph-backed API,
+  proving graph project resources can compose with each other at runtime.
+- SQL Server graph resources now declare typed `sqlserver.endpointRequests`
+  values using the shared networking endpoint shape, and ASP.NET Core graph
+  project service discovery can derive `services__...` variables from explicit
+  SQL Server `project.references` without using `DependsOn` for discovery.
+- SQL Server graph endpoint requests now project through the reference-provider
+  Resource Manager bridge as endpoint contracts and concrete network mappings,
+  giving SQL graph resources the same endpoint surface used by service
+  discovery.
+- ApplicationTopology-inspired graph coverage now gives the ASP.NET Core API
+  explicit `project.references` for SQL Server, Configuration Store, and Secrets
+  Vault service discovery while keeping `DependsOn` focused on startup
+  ordering.
+- ApplicationTopology now declares side-by-side graph-backed storage, SQL
+  Server/database, Configuration Store, Secrets Vault, and ASP.NET Core API
+  resources in the sample host, with smoke coverage verifying their Resource
+  Manager projection and graph dependency/discovery shape.
+- HostVirtualNetwork now declares side-by-side graph-backed local host
+  networking, ASP.NET Core target API, and virtual-network resources in the
+  sample host, with smoke coverage verifying their Resource Manager projection
+  and typed graph dependency shape.
+- LoadBalancer now declares side-by-side graph-backed Docker host,
+  container-app target, and load-balancer resources in the sample host, with
+  smoke coverage verifying Resource Manager projection, typed graph
+  dependencies, and load-balancer count/operation shape while the old Traefik
+  path still proves runtime materialization.
+- ContainerAppDeployment now declares side-by-side graph-backed Docker host,
+  registry container, and container-app resources in the sample host, with
+  smoke coverage verifying Resource Manager projection, registry attributes,
+  and typed graph dependencies while the old deployment API path still owns
+  runtime image updates.
+- ReplicatedContainerHealth now declares side-by-side graph-backed Docker host
+  and replicated container-app resources in the sample host, with smoke
+  coverage verifying Resource Manager projection, replica-count attributes,
+  endpoint projection, health/liveness capability declarations, and typed graph
+  dependencies while the old runtime path still owns replica materialization
+  and telemetry.
+- Container application graph resources now support `container.endpointRequests`
+  using the shared networking endpoint request shape, plus Resource Manager
+  endpoint and endpoint-network-mapping projection.
+- ContainerHost now declares side-by-side graph-backed storage, volume, and SQL
+  Server resources in the sample host, with service-level coverage verifying
+  Resource Manager projection, storage/volume attributes, typed storage
+  dependency, and SQL Server volume-consumer capability.
+- SplitHosting now exposes a graph-backed network resource from the split
+  Control Plane host, with smoke coverage verifying that the separate UI host
+  and remote Control Plane API see it alongside the old persisted network.
+- ThirdPartyIdentity now declares a side-by-side graph-backed Keycloak
+  identity-provisioning resource, with non-Docker smoke coverage verifying
+  Resource Manager projection and setup operation shape while the Docker-backed
+  sample path still owns real Keycloak provisioning.
+- ASP.NET Core graph resources now derive CloudShell Configuration Store and
+  Secrets Vault client environment from explicit graph references, allowing the
+  SettingsAndSecrets graph-backed API to consume graph-backed settings and
+  secrets without duplicating those variables in the resource declaration.
+- ThirdPartyIdentity now attaches a graph-specific Keycloak identity provider
+  definition to the graph-backed identity provisioning resource, with a
+  sample-local graph setup adapter that delegates execution to the existing
+  Resource Manager identity setup service.
+- Graph-backed identity provisioning resources now have an optional
+  `identity.providerId` attribute so runtime integrations can attach setup
+  behavior to a Resource Manager identity provider without auto-declaring a
+  duplicate provisioning resource.
+- ApplicationTopology now includes a side-by-side graph-backed frontend project
+  paired with the graph-backed API project, using separate configurable graph
+  endpoints, runtime-ready absolute project paths, health/liveness declarations,
+  and `project.serviceDiscoveryName` plus `project.references` for frontend to
+  API service discovery. Smoke coverage now starts those graph-backed projects
+  and verifies graph API settings plus frontend-to-API discovery through the
+  intentional failure route without requiring graph SQL materialization.
+- The Resource Graph proposal now records that programmatic builders over the
+  new declaration model are deferred authoring work that may be generated,
+  partially generated, or reused by UI flows after provider ports stabilize.
+- The Resource Graph proposal now documents the lifecycle of porting tests,
+  distinguishing temporary old/new parity tests from graph-contract tests,
+  runtime seam tests, and smoke tests that should be simplified after a sample
+  switches fully to graph-backed providers.
+- Ported Resource Definitions reference providers now keep provider-local
+  `README.md` files that summarize the provider purpose, ported POC behavior,
+  runtime seams, and remaining work before the old provider path can be turned
+  off.
+- ASP.NET Core graph project startup now derives Aspire-style service-discovery
+  environment variables from provider-owned graph references, target endpoint
+  request attributes, and an optional provider-owned `project.serviceDiscoveryName`.
+  It emits aliases for the configured service-discovery name, resource name,
+  and resource id to match the existing application-provider behavior.
+- Service discovery documentation now calls out that graph-backed ASP.NET Core
+  project resources use provider-owned `project.references`, while `DependsOn`
+  remains startup ordering.
+- ASP.NET Core project graph validation now checks provider-owned service
+  references for missing targets and expected resource type mismatches without
+  treating those references as startup dependencies.
+- ASP.NET Core graph project startup can now derive service-discovery
+  environment variables from referenced graph Configuration Store and Secrets
+  Vault endpoint attributes, keeping those endpoint shapes provider-owned.
+- SettingsAndSecrets now proves that the graph-backed ASP.NET Core API can call
+  the graph-backed Configuration Store and Secrets Vault through service
+  discovery derived from `project.references`.
+- Configuration Store and Secrets Vault graph provider registration now accepts
+  provider-owned runtime options, letting SettingsAndSecrets configure backing
+  service projects and seeded runtime data through the provider boundary.
+- Configuration Store and Secrets Vault graph inspect operations now have
+  default runtime-backed inspectors that report configured entry/secret counts
+  without exposing values.
+- ProjectReference smoke coverage now verifies logs plus health/liveness
+  refresh for both graph-backed ASP.NET Core project resources.
+- ProjectReference documentation and the resource graph proposal now describe
+  the current ASP.NET Core graph runtime-state projection path instead of the
+  earlier `Unknown`-state restart gap.
+- Docker container reference resources now mark `endpoints.count` as read-only
+  provider-projected state, so deployment definitions cannot author endpoint
+  counts while resolved Resource projections still expose the default count.
+- ResourceDefinition rendering and validation now treat read-only attributes as
+  outside the interchange document surface: read-only Resource state can be
+  resolved, but authored and rendered ResourceDefinition attributes omit it.
+- Configuration store, host configuration source, load balancer, and Secrets
+  Vault reference providers now mark count attributes as read-only provider
+  facts instead of ResourceDefinition-authored desired state.
+- Resource attributes now carry `ResourceAttributeMutability`, allowing the
+  POC to mark read-only count attributes as provider-managed while preserving
+  `ReadOnly` as the caller-write enforcement rule.
+- Resource change apply now permits provider apply results to update read-only
+  attributes only when the resolved attribute is provider-managed, and keeps
+  those accepted provider-managed values out of rendered ResourceDefinition
+  interchange output.
+- ResourceDefinition filtering now uses effective class/type attribute
+  metadata, so provider-managed read-only values are omitted even when the
+  attribute has no default value in the resolved projection.
+- Resource graph references can now declare an expected resource type, and
+  graph resolution reports a diagnostic when a resource-ID reference resolves
+  to a resource with a different `ResourceTypeId`.
+- Provider-produced graph dependencies now preserve typed reference diagnostics
+  during dependency-closure resolution, and the volume-consumer dependency
+  provider emits expected local-volume references.
+- Resource Manager bridge projections now use graph-reference resolution for
+  provider-produced dependencies, keeping missing staged dependencies visible
+  while filtering and diagnosing existing targets with the wrong resource type.
+- Resource Manager bridge reference resolution now binds capability and
+  operation projections only for successfully resolved references, while still
+  returning wrong-type targets for diagnostics and debugging.
+- Resource Manager bridge dependency projection now derives dependency IDs and
+  typed-reference diagnostics from the same graph-reference resolution pass.
+- Resource Manager bridge operation availability and execution now block on
+  typed graph-reference mismatches, without turning broader dependency
+  validation into procedure policy.
+- Graph dependency resolution now lets provider-produced typed references
+  refine older untyped dependency declarations for the same resource ID.
+- The executable application start operation now delegates runtime-facing start
+  behavior to an injected provider-owned process runtime controller by default,
+  with tests for missing command diagnostics and no-op controller overrides for
+  unit-level bridge dispatch.
+- The Resource model now includes a serializer-neutral `logs.sources`
+  capability payload for graph-declared log-source metadata, and executable
+  application plus ASP.NET Core project providers project their default console
+  source into Resource Manager `ResourceLogSource` metadata while leaving log
+  read/stream sessions in Control Plane providers.
+- The Resource model now includes a serializer-neutral `health.checks`
+  capability payload for graph-declared HTTP health and liveness probes, and
+  Resource Manager bridge projections map those declarations to
+  `ResourceHealthCheck` plus the derived `liveness` capability while leaving
+  polling, snapshots, degradation, and recovery policy in Control Plane.
+- The ProjectReference sample graph-backed ASP.NET Core project resource now
+  declares `/health` and `/alive` through the Resource model `health.checks`
+  payload, and the sample smoke test verifies it appears in Resource Manager's
+  health inventory.
+- Resource Manager bridge projections can now accept a provider-owned endpoint
+  projection resolver, and the ProjectReference graph-backed ASP.NET Core
+  project maps its typed endpoint request into Resource Manager endpoint and
+  endpoint-network-mapping projections.
+- Resource Manager bridge services can now compose registered endpoint
+  projection providers from DI, letting hosts and provider packages own
+  endpoint mapping logic without passing provider-specific lambdas into graph
+  provider registration.
+- Resource Manager bridge projections can now accept provider-owned
+  observability resolvers, and bridge services can compose registered
+  observability providers from DI so runtime integrations can declare
+  Resource Manager logs, traces, and metrics support for graph resources
+  without making that provider-specific behavior part of the generic graph
+  model.
+- The ASP.NET Core project reference provider now declares and projects a
+  `stop` lifecycle operation, and the provider-owned process runtime controller
+  can stop tracked graph-backed project processes through the Resource Manager
+  bridge.
+- ASP.NET Core project lifecycle operation projections now use provider-owned
+  runtime status to expose state-sensitive execution availability: stopped
+  projects can start, and running projects can stop or restart.
+- The ProjectReference sample smoke test now stops the graph-backed ASP.NET
+  Core project through the Control Plane action API and verifies the Resource
+  Manager projection reports the stopped state.
+- The ProjectReference sample now exposes a sample-local ResourceDefinition
+  apply seam for the graph-backed ASP.NET Core project, and its smoke test
+  verifies a running graph resource can commit a configuration change while
+  returning the provider-owned restart-required diagnostic.
+- Configuration Store and Secrets Vault reference providers now have a
+  companion Resource Manager bridge package that projects their endpoint
+  attributes into Resource Manager endpoints and endpoint-network mappings,
+  with SettingsAndSecrets-inspired graph coverage.
+- The Resource model proposal now includes a sample-driven provider migration
+  tracker covering ProjectReference, SettingsAndSecrets, ApplicationTopology,
+  ContainerAppDeployment, HostVirtualNetwork, and LoadBalancer as the next
+  lenses for deciding provider ports.
+- Configuration Store, Host Configuration Source, and Secrets Vault reference
+  providers now use explicit `*.entries.count` read-only attributes for
+  provider-projected service entry summaries, while keeping actual entries and
+  secret values in provider/runtime state.
+- SettingsAndSecrets now declares side-by-side graph-backed Configuration
+  Store and Secrets Vault resources that project Resource Manager endpoints and
+  count summaries without replacing the existing runtime providers.
+- The graph-backed ASP.NET Core project runtime now retains a bounded
+  provider-local process output buffer, and the ProjectReference sample adapts
+  that output into a Control Plane `ILogProvider` so graph-declared log sources
+  can be read through the existing log-source API after Resource Manager starts
+  the project.
+- The ProjectReference sample smoke test now refreshes health for the
+  graph-backed ASP.NET Core project through the Control Plane API and verifies
+  that graph-declared health and liveness probes evaluate through the projected
+  Resource Manager endpoint mapping.
+- The ASP.NET Core project reference provider now has a provider-local
+  `project.environmentVariables` complex attribute, allowing graph-backed
+  project resources to apply non-secret process environment variables without
+  extracting a shared application-resource toolkit prematurely.
+- The ProjectReference sample smoke test now verifies that the graph-backed
+  ASP.NET Core project emits Control Plane metric points through the
+  provider-local environment variables declared on its graph resource.
+- The ProjectReference sample smoke test now verifies that the graph-backed
+  ASP.NET Core project emits Control Plane trace spans through the same
+  provider-local environment-variable seam.
+- The ProjectReference sample smoke test now verifies that the graph-backed
+  ASP.NET Core project renders through the Resource Manager details page and
+  inline logs, traces, metrics, and health tabs.
+- The Resource model proposal now defers source-generated programmatic
+  builders and resolved resource projection wrappers until after the ASP.NET
+  Core Resource Manager integration proves the basic services path.
+- The Resource model proposal now records the executable provider port finding
+  that command-shape attributes such as executable arguments and working
+  directory should be added intentionally when needed instead of copying the old
+  application definition record wholesale.
+- The Resource model proposal now records log-source declarations as a next
+  POC concept to pull into the graph model as provider-owned metadata or
+  capability-shaped complex values, while keeping log reads, streams, and
+  sessions in Control Plane `ILogProvider` implementations.
+- The Resource model proposal now records health checks and liveness as the
+  next fundamental service concepts after log sources, with graph declarations
+  feeding orchestrator and Control Plane services while polling, snapshots,
+  degradation policy, and recovery decisions remain Control Plane-owned.
+- ASP.NET Core project start/restart operations now use a provider-owned
+  process runtime controller by default, keeping runtime execution behind the
+  new provider seam without adapting old application-provider concepts into the
+  Resource model.
+- ASP.NET Core project process runtime command construction now lives in a
+  provider-local command factory with focused tests for graph-backed project
+  path, arguments, hot-reload, and Resource model environment variables.
+- ASP.NET Core project process runtime command construction now honors the
+  graph-backed `project.useLaunchSettings` attribute by passing
+  `--no-launch-profile` when launch settings are disabled.
+- The ASP.NET Core project process runtime controller now cleans up tracked
+  child processes when the DI container or host disposes the provider service.
+- Resource model integration tests now prove the graph-backed ASP.NET
+  Core project provider can start the ProjectReference API and reach its
+  `/health` endpoint through provider-owned runtime behavior.
+- The ProjectReference sample now registers a graph-backed ASP.NET Core
+  project resource through the Resource model bridge provider, giving the POC a
+  concrete host path for starting a project resource through the new provider
+  model.
+- Resource Manager bridge projections now mark graph resources with lifecycle
+  operations as `Unknown` lifecycle state, allowing registered graph-backed
+  resources to dispatch Start through the graph procedure provider.
+- Resource Manager bridge projections can now accept an optional runtime-state
+  resolver, preserving `null` as the neutral no-status case while allowing
+  runtime adapters to project observed graph resource state for actions such
+  as Restart.
+- Resource Manager bridge services can now compose registered graph
+  runtime-state providers, letting hosts supply observed Resource Manager
+  state through DI without storing runtime status in graph resource records.
+- The ASP.NET Core project process runtime now exposes provider-local runtime
+  status, and the ProjectReference sample adapts that status into the Resource
+  Manager bridge so graph-backed project resources can project running/stopped
+  lifecycle state without persisting process status in the graph.
+- The Resource model proposal now tracks a value-state naming cleanup:
+  `Undefined` should mean no attribute definition exists, while a defined
+  attribute with no value remains a separate unset/absent state.
+- The Resource model proposal now clarifies that an unset defined attribute can
+  represent no projected status value, while `Unknown` is an explicit projected
+  value for resources that participate in a status surface.
+- Resource attribute resolution now distinguishes defined/unset attributes
+  from undefined/custom attributes, and Resource Manager bridge projections
+  omit unset attributes from concrete id/string attribute maps.
+- Name mapping reference providers now declare provider-managed
+  `nameMapping.materializationStatus` as a defined-but-unset attribute, proving
+  status slots can exist without projecting `Unknown` or a Resource Manager
+  string attribute when no status is available.
+- The Resource model proposal now records the POC objective that existing
+  providers are behavioral references, while the new model should resolve old
+  inconsistencies through consistent graph attributes, provider-owned
+  capabilities/operations, apply hooks, and Resource Manager dispatch.
+- The Resource model proposal now tracks future cleanup work for redundant
+  resolved-model concepts, old-provider adapter leakage, graph lifecycle-state
+  projection, premature graph context/transaction APIs, and compatibility
+  bridge layers that do not fit the new provider seams.
+- The Resource model proposal now records the revised POC plan and progress
+  tracker, focusing on one graph-backed ASP.NET Core project replacement path
+  before broad provider porting continues.
+- The Resource model proposal now records the POC objective that, after the
+  ASP.NET Core provider integration works end-to-end, subsequent provider
+  ports should be used to identify architectural baggage, compatibility pain,
+  and model seams that do not contribute to the graph/configuration goal.
+- The Resource model and proposal now describe endpoint contracts, endpoint
+  requests, endpoint network mappings, and configured endpoint mappings as
+  runtime/networking-owned complex values that can integrate with the graph
+  value system through provider-contributed shapes, while `ResourceReference`
+  remains a graph-native primitive used inside those values.
+- Resource definitions and resource records now carry typed
+  `ResourceAttributeValue` maps, allowing complex object and collection
+  attributes to serialize through ResourceDefinition, resolve through Resource
+  projections, validate against complex shapes, and project into concrete CLR
+  types for provider/runtime consumers while preserving scalar compatibility
+  for existing provider ports.
+- Resource attribute values now have small typed-value ergonomics for
+  graph-native `ResourceReference` values and typed object extraction from
+  attribute maps and resolved Resource attributes.
+- Resource attribute definitions now expose a non-serialized `ItemShapeId`
+  alias so collection attribute declarations can refer to the item shape
+  without changing the persisted `valueShapeId` contract.
+- Resource attribute definitions now include a `Collection(...)` factory so
+  collection declarations can name `itemType` and `itemShapeId` directly while
+  still serializing through the existing `valueType` and `valueShapeId` fields.
+- The Resource graph resolver now accepts provider-contributed attribute value
+  shape providers, and the reference networking providers register runtime-owned
+  endpoint and endpoint-mapping shapes without baking endpoint into the graph
+  primitive model.
+- ASP.NET Core project graph resources can now declare provider-owned typed
+  endpoint requests, and the process runtime derives `dotnet run --urls` from
+  those requests when explicit project arguments are not supplied.
+- Resource model integration coverage now starts the ProjectReference API
+  from typed ASP.NET Core endpoint request attributes and verifies those complex
+  attributes survive graph apply/projection without being flattened into scalar
+  Resource Manager attributes.
+- Resource model integration coverage now verifies the deployment flow can
+  create a graph resource from a `ResourceDefinition`, then apply a changed
+  `ResourceDefinition` to the existing graph resource with revision and graph
+  version updates.
+- The local host networking reconcile operation now delegates endpoint-mapping
+  work to an injected provider-owned reconciler with a no-op POC default,
+  matching the provider-integration pattern without moving runtime logic into
+  the Resource model.
+- The virtual-network reconcile operation now delegates endpoint-mapping work
+  to an injected provider-owned reconciler with a no-op POC default, keeping
+  virtual network materialization behind the provider boundary.
+- The generic network reconcile operation now delegates endpoint-mapping work
+  to an injected provider-owned reconciler with a no-op POC default.
+- The macOS host networking reconcile operation now delegates endpoint-mapping
+  work to an injected provider-owned reconciler with a no-op POC default.
+- The load balancer apply-configuration operation now delegates runtime
+  materialization work to an injected provider-owned applier with a no-op POC
+  default.
+- The DNS zone reconcile name-mappings operation now delegates runtime DNS
+  materialization work to an injected provider-owned reconciler with a no-op
+  POC default.
+- The service reconcile operation now delegates runtime endpoint/service
+  materialization work to an injected provider-owned reconciler with a no-op
+  POC default.
+- The local volume provision operation now delegates runtime volume
+  materialization work to an injected provider-owned provisioner with a no-op
+  POC default.
+- The CloudShell volume provision operation now delegates storage-backed
+  runtime volume materialization work to an injected provider-owned
+  provisioner with a no-op POC default.
+- The storage inspect operation now delegates runtime storage inspection to an
+  injected provider-owned inspector with a no-op POC default.
+- The Docker host inspect operation now delegates runtime Docker host
+  inspection to an injected provider-owned inspector with a no-op POC default.
+- The generic container host inspect operation now delegates runtime host
+  inspection to an injected provider-owned inspector with a no-op POC default.
+- The configuration store inspect operation now delegates runtime
+  configuration inspection to an injected provider-owned inspector with a
+  no-op POC default.
+- The Secrets Vault inspect operation now delegates runtime vault inspection
+  to an injected provider-owned inspector with a no-op POC default without
+  storing secret values in the Resource graph.
+- The host configuration source inspect operation now delegates runtime host
+  configuration lookup to an injected provider-owned inspector with a no-op
+  POC default.
+- The identity provisioning setup operation now delegates runtime identity
+  provider setup to an injected provider-owned handler with a no-op POC
+  default.
+- The SQL Server reconcile-access operation now delegates runtime database
+  access reconciliation to an injected provider-owned reconciler with a no-op
+  POC default, and the proposal records provider-local `Runtime/`,
+  `Operations/`, and `Capabilities/` folder boundaries.
+- The SQL database ensure-created operation now delegates runtime database
+  materialization to an injected provider-owned creation handler with a no-op
+  POC default.
+- SQL Server reference-provider operation code now lives under the provider
+  `Operations/` folder, keeping runtime seams under `Runtime/`.
+- SQL database reference-provider operation code now lives under the provider
+  `Operations/` folder, keeping database materialization seams under
+  `Runtime/`.
+- Host configuration source operation code now lives under `Operations/`, and
+  the runtime inspector seam lives under the provider `Runtime/` folder.
+- Identity provisioning operation code now lives under `Operations/`, and the
+  runtime setup-handler seam lives under the provider `Runtime/` folder.
+- Configuration store operation code now lives under `Operations/`, and the
+  runtime inspector seam lives under the provider `Runtime/` folder.
+- Secrets Vault operation code now lives under `Operations/`, and the runtime
+  inspector seam lives under the provider `Runtime/` folder.
+- Storage operation code now lives under `Operations/`, and the runtime
+  inspector seam lives under the provider `Runtime/` folder.
+- Local volume and CloudShell volume operation code now lives under
+  provider-local `Operations/` folders, and their runtime provisioner seams
+  live under provider-local `Runtime/` folders.
+- Generic container host and Docker host operation code now lives under
+  provider-local `Operations/` folders, and their runtime inspector seams live
+  under provider-local `Runtime/` folders.
+- Service, DNS zone, network, virtual network, host networking, and load
+  balancer operation code now lives under provider-local `Operations/`
+  folders, and their runtime reconcile/apply seams live under provider-local
+  `Runtime/` folders.
+- Executable application, ASP.NET Core project, container application, and
+  Docker container operation code now lives under provider-local `Operations/`
+  folders, and the executable runtime-controller seam lives under
+  `ExecutableApplication/Runtime/`.
+- Provider-local graph validators now live under `Validators/` folders, while
+  shared capability validators remain under their shared capability boundary.
+- Provider-local graph dependency providers now live under `Dependencies/`
+  folders, and the proposal documents that shared capability dependency
+  providers stay with their shared capability.
+- Provider-owned configuration records now live under provider-local
+  `Configuration/` folders.
+- ASP.NET Core project start/restart operations now delegate runtime behavior
+  to an injected provider-owned runtime controller with a no-op POC default.
+- Resource graph records now have test coverage proving typed
+  `ResourceReference` dependencies survive the record persistence projection.
+- `ResourceReference` now has JSON round-trip coverage for expected resource
+  type and provider metadata.
+- Resource model provider integration tests now include an
+  ApplicationTopology-inspired graph that composes local volume, SQL Server,
+  SQL database, configuration store, Secrets Vault, and executable application
+  resources through the Resource Manager bridge.
+- Resource model provider integration tests now also cover an
+  ApplicationTopology-inspired exposure graph across container application,
+  network, service, DNS zone, and name-mapping reference providers.
+- Resource model provider integration tests now cover the ApplicationTopology
+  ASP.NET Core project workload shape with typed references to SQL database,
+  configuration store, and Secrets Vault resources.
+- Resource model provider integration tests now include a SettingsAndSecrets
+  sample-inspired graph across identity provisioning, configuration store,
+  Secrets Vault, and ASP.NET Core project reference providers.
+- Resource Manager store projection tests now cover persisted Resource model
+  records for the SettingsAndSecrets-shaped graph, proving the bridge can
+  project identity, configuration, secrets, and project resources from stored
+  graph records.
+- Resource Manager orchestration tests now route persisted SettingsAndSecrets
+  graph-record operations through the Resource model procedure bridge for
+  identity setup and configuration/secrets inspection.
+- Resource Manager orchestration tests now block persisted SettingsAndSecrets
+  graph-record operations when a typed identity dependency resolves to the
+  wrong resource type.
+- Resource Manager store projection tests now report persisted
+  SettingsAndSecrets graph-record diagnostics and omit invalid typed identity
+  dependencies from actionable Resource Manager dependency lists.
+- Resource attribute definitions now separate a small `ValueType` contract
+  from complex `ValueShape` metadata, keep reusable shapes local to the owning
+  class/type definition, and declare collection intent with optional min/max
+  size expectations.
+- Resource definition default validation now resolves locally reusable
+  attribute value shapes when checking complex defaults and collection size
+  expectations.
+- `ResourceAttributeValue` can now map concrete CLR objects such as
+  `ResourceReference` into structurally navigable attribute values and back
+  again.
+- The SQL database reference provider now declares `database.server` as a
+  read-only, provider-managed `ResourceReference` attribute for the owning SQL
+  Server relationship.
+- SQL database validation now rejects caller-authored values for
+  `database.server`; the current POC still uses existing `DependsOn` inputs as
+  temporary validation plumbing, but not as the long-term ownership model.
+- The SQL database typed wrapper now projects its owning server as a
+  `belongsTo` `ResourceReference`, keeping ownership separate from startup
+  dependency traversal.
+- Resource references now distinguish generic `resourceId` addressing from
+  `dependsOn` dependency semantics so future `belongsTo` references can be
+  resolved without becoming startup dependencies.
+- `ResourceReference` now has explicit `DependsOnResourceId` and
+  `BelongsToResourceId` factories so the current POC qualifier is visible at
+  call sites.
+- Current dependency providers, Resource model tests, and Control Plane
+  projection tests now use the explicit `DependsOnResourceId` factory instead
+  of relying on the generic `ResourceReference` default relationship.
+- The Resource model proposal now clarifies that `ResourceReference` is
+  an addressing primitive that may carry a relationship qualifier in the POC,
+  not a complete relationship model on its own.
+- The Resource model proposal now marks service, load-balancer, and
+  name-mapping target dependencies as temporary POC encodings pending concrete
+  provider-specific reference requirements.
+- Resource definitions now expose `StartupDependencies` and
+  `StartupDependencyIds` aliases for the historical `DependsOn` record field
+  so internal code can distinguish orchestrator startup metadata from broader
+  references.
+- The generic `ResourceReference.ResourceId` factory now requires an explicit
+  qualifier instead of defaulting to `dependsOn`.
+- The Resource Manager graph resource provider now projects only `dependsOn`
+  references into Resource Manager dependency lists, leaving ownership
+  references out of startup-order metadata.
+- Resource Manager store projection tests now cover persisted Resource model
+  records for an ApplicationTopology-shaped graph, proving the bridge can
+  project stored graph records alongside Resource Manager registrations.
+- The Resource model proposal now clarifies that versioned Resource
+  graph state must map to graph primitives, while runtime-only and Control
+  Plane operational state stay outside the graph unless deliberately promoted
+  to provider-managed attributes.
+- The Resource model proposal now clarifies that a Resource graph record
+  may be stored beside the Control Plane resource record, while the resolved
+  `Resource` remains a short-lived working projection over stored graph state.
+- The Resource model proposal now narrows the POC scope to stored
+  graph-state records and projection-on-demand, avoiding new graph context,
+  session, transaction, or control-service abstractions until Resource Manager
+  integration proves they are needed.
+- The Resource model proposal now records the near-term POC path:
+  stabilize the current model enough to port real provider behavior, and
+  propose new abstractions only when provider ports expose concrete gaps.
+- The Resource model proposal now clarifies that resource type providers
+  are integration points that may receive injected services, but should not own
+  recurring runtime tasks, watchers, polling loops, or reconciliation schedulers
+  in the POC.
+- The Resource model POC removed the experimental graph transaction and
+  exclusive-lock APIs, keeping graph versions, change tracking, and commit
+  contexts as the minimal write boundary while the proposal refocuses
+  integration on custom projection from Resource Manager operational records.
+- Resource model provider integration tests now include a HostVirtualNetwork
+  sample-inspired graph across local host networking, virtual network, and
+  ASP.NET Core project reference providers, keeping the next POC path focused
+  on simpler networking resources before container app orchestration.
+- Name mapping reference-provider validation now requires mappings to compose
+  a DNS zone reference and a target resource reference, keeping the simpler
+  networking provider path aligned with the DNS/name-mapping proposal.
+- The Resource model proposal now frames the POC as a resource graph and
+  configuration model: stored graph/configuration state lives in the model,
+  while capabilities and operations are behavior integration points over that
+  state.
+- CloudShell volume reference-provider validation now requires volume
+  dependencies to resolve to `cloudshell.storage` resources, keeping storage
+  relationship semantics in the provider boundary instead of generic graph
+  infrastructure.
+- Service reference-provider validation now treats typed network dependencies
+  as provider-owned graph semantics and rejects service definitions whose
+  network reference resolves to a non-network resource.
+- Load balancer reference-provider validation now keeps declared host/backend
+  dependencies as typed `ResourceReference` entries and rejects network or
+  infrastructure provider resources when they are used as backend targets.
+- Resource model provider integration tests now include a ContainerHost
+  sample-inspired graph across storage, CloudShell volume, and SQL Server
+  reference providers, and volume-consumer graph validation now accepts both
+  direct local volumes and storage-backed CloudShell volumes.
+- SQL Server reference-provider coverage now includes optional typed
+  container-host references, validating selected container hosts through the
+  SQL Server provider boundary while leaving default/preferred host resolution
+  to later Resource Manager integration.
+- The Resource model proposal now records centralized versus
+  distributed graph storage as a future projection concern, keeping the POC
+  focused on the logical Resource model and provider integration contracts.
+- Container application and SQL Server reference providers now accept typed
+  Docker host references as container-host bindings when the resolved host
+  advertises the required container-image capability.
+- Container application reference resources now model `container.registry`,
+  and integration coverage includes a ContainerAppDeployment-inspired Docker
+  host, registry container, and container app graph.
+- The Resource model proposal now includes a Resource model layer-stack
+  diagram that separates integrations, behavior, resolved projections,
+  interchange, state records, future transactions, and persistence.
+
 ### 2026-06-24
 
 #### Changed
 
+- The Resource model POC now includes a resource definition graph and
+  deployment definition shape so proposed deployments can carry desired
+  resource state before providers validate and apply it.
+- The Resource model POC now includes resource definition apply planning
+  so validated graphs can resolve resource type apply providers and return
+  explicit definition/runtime materialization steps before mutation.
+- The Resource model POC now includes a string-keyed
+  `ResourceDefinitionRecord` persistence projection that rehydrates into the
+  domain `ResourceDefinition` before validation and provider behavior.
+- The Resource model POC now includes a record-backed in-memory resource
+  state provider, proving that Resource Manager bridge projections can resolve
+  from stripped `ResourceRecord` persistence data instead of storing resolved
+  Resource model projections.
+- The Resource model POC now has an end-to-end model flow test covering
+  document serialization, persistence projection, graph validation,
+  type-specific projection, capability resolution, and apply planning.
+- The Resource model POC now includes graph-to-resource projection
+  resolution so validated definitions can be listed as generated-style upper
+  domain wrappers without deciding the final `IResourceProvider` contract.
+- The Resource model POC now removes the redundant
+  `ResourceDefinitionProjection` wrapper so capability providers, operation
+  providers, apply planning, and typed resource wrappers operate on resolved
+  `Resource` projections, while `ResourceDefinition` remains the interchange
+  document applied to or rendered from resource state.
+- The Resource model POC now binds projected capability and operation
+  work units to their owning `Resource`, adds a `ResourceOperationResolver`,
+  and exposes projected behavior through `Resource.Capabilities.Get<T>()` and
+  `Resource.Operations.Get<T>()` so wrappers can resolve volume capability
+  behavior and start operation behavior from the same resource projection.
+- The Resource model POC now gives projected capabilities and operations
+  a resource-local execution context, so they can create scoped resource
+  changes from the target resource without owning graph scope or commit
+  boundaries.
+- Resource graph transactions now expose whether they are optimistic or
+  exclusive, while projected capabilities and operations remain resource-local
+  and leave graph scope, locking, apply, and commit decisions to the caller.
+- The Resource model Resource Manager bridge now includes a graph resource
+  resolver that resolves a resource by ID, optionally includes dependencies,
+  binds registered capability and operation projections, and returns the graph
+  snapshot version while leaving apply and commit policy to the caller.
+- The Resource model Resource Manager bridge can now resolve a Resource
+  Manager action ID to the matching Resource model operation projection,
+  returning diagnostics when the operation projection is not registered instead
+  of executing or owning the operation boundary.
+- The Resource model Resource Manager bridge can now resolve declared
+  capability IDs to registered capability projections and report diagnostics
+  when the consuming boundary has not registered a capability implementation.
+- The Resource model POC now documents and tests the current rule that
+  capability and operation work units may perform integration logic but should
+  stage direct Resource model graph changes only for their attached resource
+  until a future scoped graph isolation model is defined.
+- Resource model operation projections can now opt into a generic executable
+  operation contract, giving Resource Manager and orchestrator integrations a
+  provider-neutral way to check and invoke resolved operations.
+- The Resource model Resource Manager bridge now has an explicit
+  procedure-capable graph provider that can evaluate and execute Resource
+  Manager actions by resolving executable Resource model operation projections,
+  while keeping the read-only graph provider available separately.
+- The procedure-capable Resource model bridge registration now wires the same
+  scoped bridge instance as both an `IResourceProvider` and an
+  `IResourceActionAvailabilityProvider`, so normal Control Plane composition
+  can surface operation availability reasons without host-specific plumbing.
+- Resource model bridge projections now carry bridge-provider metadata, and
+  the procedure-capable bridge uses that metadata when evaluating Resource
+  Manager actions so it does not claim unrelated provider resources with the
+  same action IDs.
+- Resource model graph service registration can now compose from
+  provider-registered `ResourceClassDefinition` and `IResourceTypeProvider`
+  services, while still allowing explicit host class-definition registrations
+  to override provider defaults by class id.
+- Resource definition validation now applies the same class-definition
+  override rule as graph service composition, so duplicate class ids are
+  resolved consistently before provider validation runs.
+- The resource definitions reference providers now include a separate local
+  volume resource type provider, proving a second provider boundary with its
+  own class defaults, type defaults, validation, change apply handling, and
+  apply planning.
+- The Resource Manager bridge tests now apply a deployment with a local volume
+  and executable application across separate provider boundaries, then project
+  both resources through the Resource Manager bridge and resolve the executable
+  dependency closure from the graph.
+- The Resource model POC now has graph-level validators that run against
+  resolved proposed graph state before commit, and the reference volume
+  consumer validator rejects missing or non-volume mount targets without
+  moving graph scope into the resource-local capability projection.
+- Resource graph dependency resolution can now compose provider-derived graph
+  dependencies with explicit `DependsOn` entries, and the reference volume
+  consumer provider contributes mounted volumes to dependency closure without
+  duplicating those relationships into every resource definition.
+- Resource definition and state dependencies now use `ResourceReference`
+  objects with relationship and addressing-mode metadata instead of raw
+  resource ID strings, while the current resolver only follows `dependsOn`
+  references addressed by `resourceId`.
+- Resource graph dependency providers now contribute `ResourceReference`
+  objects as well, keeping provider-owned graph relationships on the same
+  reference model as explicit `DependsOn` entries.
+- The resource graph resolver can now resolve individual `ResourceReference`
+  values into projected `Resource` results and exposes followed reference
+  resolutions alongside dependency-closure resources.
+- The resource graph resolver also keeps direct resource-id lookup as a
+  first-class path for consumers that already hold a graph resource address.
+- The Resource Manager bridge can now register an in-memory graph from custom
+  store records through `IResourceGraphStoreProjector<TRecord>`, proving that
+  Resource Manager-owned rows can keep operational fields while persisting the
+  Resource model graph payload.
+- Resource Manager graph resolution now carries followed resource-reference
+  resolutions alongside the resolved dependency closure, preserving the
+  relationship object and target resource projection for topology consumers.
+- The Resource Manager graph resolver can now resolve a `ResourceReference`
+  directly and bind capability and operation projections on the resolved
+  resource when the reference targets a graph resource.
+- The Resource Manager graph resolver now routes direct graph resource lookup
+  through the core `ResourceGraphResolver`, keeping missing-resource
+  diagnostics and graph lookup behavior in one place.
+- Resource Manager graph resource projection now includes provider-derived
+  graph dependencies, so capability-owned relationships such as volume mounts
+  can appear in projected `DependsOn` without duplicating them in every
+  resource definition.
+- The local volume reference provider now owns a custom
+  `storage.volume.provision` operation provider and typed projection wrapper,
+  proving that a second provider boundary can project and execute Resource
+  model operations through the Resource Manager bridge.
+- The resource definitions reference providers now include a narrow container
+  application resource type with image and replica attributes, start/restart
+  operation providers, a typed wrapper, and shared volume-consumer capability
+  support across executable and container application providers.
+- The container application reference provider now owns a typed
+  `container.image.update` operation projection that stages image and replica
+  attribute changes on its attached resource before the provider apply hook
+  accepts or rejects the proposed state.
+- The reference volume-consumer capability provider now attaches to resolved
+  capability declarations instead of hard-coding the resource types that may
+  consume volumes, keeping capability behavior independent from concrete
+  application provider implementations.
+- Capability declarations without a registered capability provider are now
+  accepted as passive capability markers; registered capability providers still
+  validate and attach behavior when present.
+- The resource definitions reference providers now include a narrow SQL Server
+  resource type with version/edition attributes, declared database
+  configuration, shared volume-consumer support, a reconcile-access operation
+  provider, typed wrapper, and Resource Manager bridge coverage.
+- The resource definitions reference providers now include a narrow ASP.NET
+  Core project resource type with project path, arguments, hot reload, and
+  launch-settings attributes, shared volume-consumer support, start/restart
+  operation providers, a typed wrapper, and Resource Manager bridge coverage.
+- The resource definitions reference providers now include a narrow SQL
+  database resource type with database attributes, server `ResourceReference`
+  graph validation, an ensure-created operation provider, typed wrapper, and
+  Resource Manager bridge coverage.
+- The resource definitions reference providers now include a narrow container
+  host resource type with host kind/endpoint/registry/default attributes,
+  passive container image/build/filesystem-mount capability markers, an
+  inspect operation provider, typed wrapper, and Resource Manager bridge
+  coverage.
+- Reference provider implementations now keep provider-owned configuration
+  records and operation provider services in separate files next to the owning
+  resource type provider, keeping type providers focused on definition shape,
+  validation, and apply planning.
+- `ResourceAttributeDefinition` now carries read-only metadata, resolved
+  attributes preserve that effective flag, unset type metadata inherits the
+  class-level read-only policy, and Resource model apply rejects
+  caller-authored create/update changes for read-only attributes before
+  dispatching to type-specific apply providers.
+- The container application reference provider now validates optional
+  container-host placement references declared as typed `ResourceReference`
+  dependencies, and the proposal records `database.server` as the future
+  structured `ResourceReference` attribute replacing
+  `database.serverResourceId`.
+- The resource definitions reference providers now include a narrow
+  configuration store resource type with endpoint and entry-count attributes,
+  an inspect operation provider, typed wrapper, and Resource Manager bridge
+  coverage, proving a non-application provider boundary in the POC.
+- The resource definitions reference providers now include a narrow host
+  configuration source resource type with source and entry-count attributes,
+  an inspect operation provider, typed wrapper, and Resource Manager bridge
+  coverage without storing host configuration values in Resource model state.
+- The resource definitions reference providers now include a narrow identity
+  provisioning resource type with provider attributes, a passive
+  identity-provisioning capability marker, a setup operation provider, typed
+  wrapper, apply planning, and Resource Manager bridge coverage.
+- The resource definitions reference providers now include a narrow local host
+  networking resource type with host-readiness, OS, and networking-mode
+  attributes, passive networking capability markers, an endpoint-mapping
+  reconcile operation provider, typed wrapper, apply planning, and Resource
+  Manager bridge coverage without persisting live mapping counts as graph
+  attributes.
+- The resource definitions reference providers now include a narrow macOS host
+  networking resource type with OS-specific host networking attributes,
+  passive networking capability markers, an endpoint-mapping reconcile
+  operation provider, typed wrapper, apply planning, and Resource Manager
+  bridge coverage while leaving platform support checks to the operational
+  provider.
+- The resource definitions reference providers now include a narrow Docker
+  container resource type with workload, image, registry, replica, and endpoint
+  count attributes, passive monitoring and log-source capability markers,
+  lifecycle operation projections, typed wrapper, apply planning, and Resource
+  Manager bridge coverage while leaving Docker API execution and log streaming
+  to the operational provider.
+- The resource definitions reference providers now include a narrow Docker
+  host resource type with Docker host kind, endpoint, registry, default-host
+  attributes, passive container capability markers, an inspect operation,
+  typed wrapper, and Resource Manager bridge coverage.
+- The resource definitions reference providers now include a narrow load
+  balancer resource type with provider, host, route, entrypoint, and endpoint
+  count attributes, passive networking capability markers, an
+  apply-configuration operation, typed wrapper, and Resource Manager bridge
+  coverage.
+- The resource definitions reference providers now include a narrow network
+  resource type with kind, host-readiness, and mapping-provider attributes,
+  passive networking capability markers, a reconcile-endpoint-mappings
+  operation, typed wrapper, and Resource Manager bridge coverage, while the
+  proposal clarifies that calculated or fetched views should live on resolved
+  capability members or operation plans instead of normal attributes.
+- The resource definitions reference providers now include a narrow DNS Zone
+  resource type with zone/provider attributes, a passive DNS-zone capability
+  marker, a reconcile-name-mappings operation, typed wrapper, and Resource
+  Manager bridge coverage while keeping derived record/conflict/materialization
+  summaries out of normal attributes.
+- The resource definitions reference providers now include a narrow name
+  mapping resource type with host/endpoint/exposure attributes,
+  `ResourceReference` dependencies, a passive name-mapping capability marker,
+  typed wrapper, apply planning, and Resource Manager bridge projection while
+  keeping derived status and DNS publishing observations out of normal
+  attributes.
+- The resource definitions reference providers now include a narrow storage
+  resource type with provider/medium/location attributes, passive
+  storage-provider and mount-provider capability markers, an inspect
+  operation, typed wrapper, apply planning, and Resource Manager bridge
+  coverage while keeping volume counts and runtime availability out of normal
+  attributes.
+- The resource definitions reference providers now include a narrow
+  CloudShell volume resource type with provider/medium/location/subpath/
+  access-mode/persistence attributes, `ResourceReference` storage dependencies,
+  a passive storage-volume capability marker, a type-specific
+  `storage.volume.provision` operation provider, typed wrapper, apply
+  planning, and Resource Manager bridge coverage while keeping runtime
+  availability out of normal attributes.
+- The resource definitions reference providers now include a narrow service
+  resource type with service kind/routing-mode attributes, `ResourceReference`
+  target/network dependencies, a passive endpoint-source capability marker,
+  reconcile operation, typed wrapper, apply planning, and Resource Manager
+  bridge coverage while keeping port, endpoint, and target collections out of
+  normal count attributes.
+- The resource definitions reference providers now include a narrow virtual
+  network resource type with virtual/default/readiness/provider attributes,
+  passive virtual-network and ingress capability markers, a type-specific
+  `reconcileEndpointMappings` operation provider, typed wrapper, apply
+  planning, and Resource Manager bridge coverage while keeping endpoint and
+  mapping observations out of normal attributes.
+- The resource definitions reference providers now include a narrow Secrets
+  Vault resource type with endpoint and secret-count attributes, an inspect
+  operation provider, typed wrapper, and Resource Manager bridge coverage
+  without storing secret values in Resource model state.
+- Reference resource provider files are now grouped into provider-specific
+  folders, with shared capability behavior in a dedicated capability folder,
+  so provider-owned constants, validators, operations, projections, and
+  registration stay inside clear management boundaries.
+- The Resource model POC now tracks pending resource projection changes
+  through `ResourceChangeSet`, supports explicit `ApplyChanges()`, and can
+  render either full proposed or incremental `ResourceDefinition` change
+  documents without implying graph-wide commit semantics.
+- Applying `ResourceDefinition` changes to existing resource state now merges
+  incremental interchange data into the current `ResourceState` while
+  preserving persisted revision and timestamp metadata until graph commit.
+- `Resource` projections can now turn incoming `ResourceDefinition` overlays
+  into `ResourceChangeSet` instances so provider apply hooks and graph commits
+  can validate and persist interchange-driven updates.
+- Resource definition overlays now return a target-mismatch diagnostic instead
+  of creating changes when the interchange definition points at another
+  resource identity or type.
+- The Resource model POC now routes staged `ResourceChangeSet` instances
+  through provider-owned change apply providers, so a resource type can accept
+  or reject proposed projection state before any future Resource Manager or
+  persistence layer treats it as committed state.
+- The Resource model POC now includes a graph-level definition change
+  applier that stages incoming `ResourceDefinition` overlays against a graph
+  snapshot, runs type-owned apply providers, and returns one commit-ready
+  `ResourceGraphChangeSet`.
+- The resource definition graph change applier now preflights incoming
+  definition batches and rejects duplicate resource IDs or missing dependency
+  targets before type-owned apply providers stage resource-local changes.
+- The resource definition graph change applier now passes environment and
+  principal context into resource resolution, allowing attribute validators to
+  evaluate the same caller context used by type-owned apply providers.
+- The Resource Manager bridge now exposes a definition apply service that
+  applies incoming `ResourceDefinition` overlays through the graph model and
+  returns staged changes plus the graph commit result for integration callers.
+- Resource model integration tests now prove provider or Control
+  Plane-owned apply policy can reject a `ResourceDefinition` overlay while a
+  resource is running, or save the same proposed graph change while reporting
+  that the resource type requires restart before the live resource
+  materializes it.
+- ASP.NET Core project graph apply now reports a restart-required diagnostic
+  when runtime-shaping project attributes are changed while the project is
+  running, keeping the saved graph configuration separate from live resource
+  materialization.
+- The Resource model POC now supports explicit create-missing behavior
+  for deployment-definition apply flows, representing new resources as graph
+  change sets and routing their initial state through type-owned apply
+  providers before commit.
+- The Resource model proposal now documents a store-backed graph
+  projector option where Resource Manager-owned resource records can carry the
+  Resource model graph payload and hydrate it through the same graph boundary.
+- The Resource model POC now includes a generic graph store projector
+  and in-memory projected state provider, proving that Resource Manager-owned
+  records can preserve operational fields while JSON graph payloads are loaded
+  and committed through the Resource model boundary.
+- The Resource model POC now groups accepted resource changes into a
+  versioned resource graph change set and proves persistence through an
+  in-memory state provider that commits all accepted resource states under one
+  graph version.
+- The Resource model POC now includes an in-memory `ResourceGraphModel`
+  for server-hosted graph state that stays synchronized with the state
+  provider through explicit reload and commit boundaries.
+- The Resource model POC now distinguishes graph version from persisted
+  resource revision, with `ResourceRevision` mapped through the existing
+  serialized resource `Version` field and advanced only for committed changed
+  resources; committed resources also expose creation and last-modified
+  timestamps through the resource projection and persistence record.
+- The Resource model proposal now documents a hybrid event-history
+  direction where graph commits can append durable events for audit,
+  changelog, debugging, and future replay without making pure event sourcing
+  the POC source of truth.
+- The Resource model POC now returns a structured graph commit summary
+  with commit status, changed resource counts, changed attribute and
+  capability counts, and per-resource revision movement so consumers can act
+  on committed, rejected, no-op, or stale changes.
+- The Resource model POC now refreshes the stored resource graph version
+  before a server-hosted graph model commits changes, keeping per-resource
+  edits staged until the graph commit boundary can reject stale state or write
+  through the state provider.
+- The Resource model POC now exposes explicit graph refresh semantics on
+  `ResourceGraphModel`, including full refreshes that advance the cached graph
+  version and selected-resource refreshes that update resource data without
+  making stale graph commits valid.
+- The Resource model proposal now documents staged changes as
+  unversioned transaction proposals, with graph versions and resource
+  revisions assigned only when the resource graph commit boundary accepts
+  changes.
+- The Resource model POC now includes a small `ResourceGraphTransaction`
+  facade that stages accepted resource changes against a graph snapshot and
+  commits them once through `ResourceGraphModel`.
+- The Resource model POC now supports an opt-in exclusive graph change
+  boundary that holds the in-process `ResourceGraphModel` lock until the
+  boundary commits or is disposed, while the proposal keeps the final
+  transaction/change-context terminology open.
+- The Resource model POC now separates graph change tracking, graph
+  commit results, graph model transactions, graph state snapshots, and
+  persistence providers into focused infrastructure files, and the proposal
+  clarifies that Control Plane resource manager state remains a complementary
+  operational model around the resource graph.
+- The Resource model proposal now clarifies that the Resource model owns
+  graph structure and resolvable behavior declarations, while Resource Manager
+  owns the Control Plane operational model and composes API projections from
+  both models when graph-aware behavior is needed.
+- The Resource model proposal now documents the expected advantages of
+  the new Resource model, including cleaner provider boundaries, lazy graph
+  resolution, deliberate interchange formats, typed wrapper support, better
+  persistence choices, and a safer Resource Manager replacement path.
+- The Resource model POC now includes a separate Resource Manager bridge
+  project that maps resolved Resource model resources to the existing
+  `CloudShell.Abstractions.ResourceManager.Resource` projection and exposes
+  them through `IResourceProvider`, proving the first integration seam without
+  replacing Resource Manager storage or orchestration.
+- The Control Plane tests now prove the Resource Manager bridge provider can
+  participate in the existing `ResourceManagerStore` composition path, so
+  registered Resource model resources flow through current registration
+  filtering, metadata composition, capabilities, and actions.
+- The Resource Manager bridge now includes a graph-backed provider that
+  resolves `ResourceGraphSnapshot` state through `ResourceResolver` at the
+  provider boundary before projecting resources into the existing Resource
+  Manager shape.
+- The Resource model POC now includes a graph resolver that resolves a
+  target resource and its declared dependency closure from a
+  `ResourceGraphSnapshot`, returning resolved resources and diagnostics for
+  missing graph nodes or dependency cycles.
+- The Resource model proposal now documents identity and authorization
+  hooks as Resource model graph data, such as a `principal` field or a
+  structured `attributes.principal` value that identity capabilities can
+  interpret while operational realization stays in Resource Manager or the
+  broader Control Plane.
+- The Resource model POC now lets `ResourceClassDefinition` and
+  `ResourceTypeDefinition` carry `ResourceAttributeDefinition` declarations
+  for scalar default values and required-attribute rules, while keeping custom
+  validation in provider or platform validator hooks.
+- The Resource model POC now adds serializer-neutral value type and
+  `ResourceAttributeValueShape` metadata so attribute definitions can describe
+  primitive values and complex nested attribute definitions without making JSON
+  the core definition contract.
+- The Resource model POC now represents `ResourceClassDefinition` and
+  `ResourceTypeDefinition` attributes as definition maps keyed by attribute
+  ID, keeps `ResourceDefinition` attributes as value maps, and documents `:`
+  as the stable ID namespace separator with `.` reserved for local hierarchy.
+- The Resource model POC now validates class/type attribute default
+  values against declared `ResourceAttributeValueShape` metadata, returning
+  diagnostics for mismatched scalar kinds and missing required object fields.
+- The Resource Manager bridge for the Resource model POC now exposes
+  resolved Resource model diagnostics through the existing
+  `GetResourceModelDiagnostics()` Control Plane store surface.
+- The Resource Manager bridge for the Resource model POC now includes
+  `IServiceCollection` registration helpers so hosts can register a graph
+  backed Resource model provider through the existing `IResourceProvider`
+  composition path.
+- The Resource Manager bridge for the Resource model POC now includes a
+  DI helper that builds `ResourceResolver` from registered class definitions,
+  `IResourceTypeProvider` implementations, and attribute validators.
+- The Resource model proposal now documents the expected provider
+  migration path: port each resource type boundary completely, including
+  definitions, validation, capabilities, operations, and provider behavior,
+  before removing the older resource provider infrastructure.
+- The resource definitions reference provider POC now registers the executable
+  application resource type as a singular provider boundary, including type,
+  capability, operation, projection, apply, and change handlers, without
+  introducing a broad application-provider aggregate.
+- The Resource Manager bridge for the Resource model POC now includes a
+  generic graph-service DI helper that composes validation, projection, apply,
+  operation, capability, and change services from separately registered
+  resource-type providers.
+- The Resource Manager bridge for the Resource model POC now includes an
+  in-memory Resource graph registration helper so hosts can back the bridge
+  with `ResourceGraphModel` instead of ad hoc snapshot delegates.
+- The Resource model proposal now clarifies that capabilities and
+  operations are integration points whose implementations may be owned by
+  Resource Manager, orchestrators, provider packages, or other Control Plane
+  services when those owners need to inject their own services and logic.
+- The Resource model POC now includes a capability resolver so
+  provider-owned capability behavior can be composed into type-specific
+  resource projections without making the definition stop being the persisted
+  data container.
+- The Resource model POC now includes a validation pipeline that resolves
+  definitions from registered resource type providers and then runs
+  type-provider, capability-provider, and operation-provider validation with
+  combined diagnostics.
+- The Resource model POC now uses strongly typed class, type,
+  attribute, capability, and operation IDs, adds an isolated resource type
+  provider validation path, and introduces a separate
+  `CloudShell.ControlPlane.Providers` project for the
+  executable reference provider. The infrastructure project no longer
+  references the broad `CloudShell.Abstractions` project just to borrow
+  resource classes or attribute constants, keeping the experiment aligned with
+  provider-boundary detangling.
+- Added the experimental `CloudShell.ResourceModel` infrastructure
+  project and `CloudShell.ResourceModel.Tests` POC test project for
+  resource-definition envelopes, class/type inheritance, effective
+  attribute/capability/operation resolution, diagnostics, and attached
+  capability/operation provider dispatch. This follows
+  [ADR-20260624-001](ADR.md#adr-20260624-001-prove-resource-definitions-in-an-isolated-experimental-project).
 - Added a resource definitions, capability providers, and operation providers
   proposal to track the distinction between projected `Resource` instances and
   persisted `ResourceDefinition` intent, including DI-backed capability and
   operation providers as attached behavior over definition payloads and
   resource commands.
-- The resource definitions proposal now tracks inherited
+- The Resource model proposal now tracks inherited
   `ResourceClassDefinition` and `ResourceTypeDefinition` expectations,
   effective attribute/capability/operation resolution, and common plus
   provider-owned attribute validators.
-- The resource definitions proposal now clarifies that operations are declared
+- The Resource model proposal now clarifies that operations are declared
   resource behavior resolved like attributes and capabilities, with operation
   providers implementing matching resolved operations and optional source
   generators as a future facade/builder aid.
-- The resource definitions proposal now distinguishes capabilities from
+- The Resource model proposal now distinguishes capabilities from
   operations and sketches resource type provider change planning for
   definition updates using resolved diffs and runtime state.
 - SQL Server declared database child-resource projection now lives in
@@ -150,6 +2273,17 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app deployment description now lives in
   `ContainerApplicationDeploymentDescriptionOperations`, separating
   Resource Manager deployment shape projection from runtime service execution.
+- Container app orchestrator deployment planning is now a provider-owned
+  service consumed by deployment description operations, so the internal
+  deployment-controller boundary can be extended without static helpers.
+- Orchestrator deployment apply now normalizes the deployment definition once
+  and stores it on the applied deployment before materialization, keeping the
+  revision record aligned with the desired runtime state used for replica
+  group reconciliation.
+- Container app post-apply cleanup now skips the legacy stable-replica
+  teardown bridge when deployment apply already had previous replica-group
+  state, so scale-only reconciliations do not tear down orchestrator-managed
+  replicas or ingress after the replica-group controller has handled the diff.
 - Container app orchestrator service description now lives in
   `ContainerApplicationOrchestratorServiceDescriptionOperations`, separating
   Resource Manager service capability and service shape creation from runtime
@@ -2260,7 +4394,7 @@ on `git blame --follow`, and then by the broad type of change.
   endpoint descriptors, endpoint requests, resolved endpoints, endpoint
   network mappings, and configured endpoint mappings. They also clarify that
   `network:host` is the default topology boundary while
-  `networking:host-local` is the provider resource that materializes
+  `cloudshell.hostNetworking.local:host-local` is the provider resource that materializes
   host-local behavior.
 - The CloudShell goal and networking docs now state the platform principle of
   exposing provider behavior through familiar, standardized concepts that
@@ -2734,7 +4868,7 @@ on `git blame --follow`, and then by the broad type of change.
   SQL Server, Local Storage, storage-owned volume, project dependencies, and
   grouped resource tabs.
 - Host-provided virtual networking now has a portable local host networking
-  provider. `networking:host-local` is an activated resource on macOS, Linux,
+  provider. `cloudshell.hostNetworking.local:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP
   proxies for HTTP, HTTPS, and TCP endpoints. This is the MVP baseline for
   cross-platform development and team-owned hosts; OS-native Linux, Windows,

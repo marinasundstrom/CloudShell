@@ -3,23 +3,34 @@
 This sample mirrors the Aspire-style local dev loop where one project resource
 references another project resource.
 
-`CloudShell.ProjectReferenceHost` declares two ASP.NET Core project resources:
+`CloudShell.ProjectReferenceHost` declares two ASP.NET Core project resources
+through the Resource model provider:
 
-- `Project Reference API` with an auto-assigned HTTP endpoint
-- `Project Reference Frontend` on `http://localhost:5218`
+- `Project Reference API` on `http://localhost:5229`
+- `Project Reference Frontend` on `http://localhost:5230`
+
+Those resources use the new `application.aspnet-core-project` resource type
+provider and provider-owned process runtime controller. The frontend keeps the
+same frontend code and declares a provider-owned resource reference to the API.
+The ASP.NET Core runtime resolver derives
+the Aspire-style service-discovery configuration from that reference, the
+API's `project.serviceDiscoveryName`, and the API endpoint request. This
+intentionally stays narrow: it proves Resource Manager can list Resource model
+resources, dispatch Start to the new provider seam, and compose one
+project with another without adapting the old application-provider
+definition/store concepts.
 
 The frontend resource uses:
 
 ```csharp
-.WithServiceDiscovery()
 .WithReference(api)
-.DependsOn(api)
 ```
 
-Both resources also enable OTLP export explicitly:
+Both resources also configure telemetry ingestion explicitly:
 
 ```csharp
-.WithOtlpExporter(otlpEndpoint, otlpProtocol)
+.WithEnvironmentVariable("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint)
+.WithEnvironmentVariable("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint)
 ```
 
 The host reads `Observability:OtlpProtocol` from `appsettings.json` and derives
@@ -50,7 +61,7 @@ http://localhost:5011/api/control-plane/v1/metrics/ingest
 ```
 
 To see traces, run the host, start the API and frontend resources from Resource
-Manager, open `http://localhost:5218/upstream`, then open
+Manager, open `http://localhost:5230/upstream`, then open
 `/observability/traces`. The trace page refreshes while it is open. CloudShell
 keeps these spans in memory while the host is running. To see metrics, open
 the resource detail page for the API or frontend and select `Telemetry` /
@@ -81,9 +92,9 @@ discovery for project resources today, but the sample keeps the requirement
 visible in the declaration.
 
 CloudShell builds each project before launch and then starts it with
-`dotnet run --no-build` by default. The API omits a port, so CloudShell assigns
-a stable local HTTP endpoint. The frontend receives that resolved endpoint
-through Aspire-compatible service discovery environment variables and uses a
+`dotnet run --no-build` by default. The API declares a local HTTP endpoint.
+The frontend receives that resolved endpoint through Aspire-compatible service
+discovery environment variables and uses a
 named `HttpClient` registered from the resource reference. The logical client
 URI is resolved by the service discovery handler at request time. Set
 `hotReload: true` on a project declaration to opt into non-interactive
@@ -113,10 +124,24 @@ Start the `Project Reference API` resource, then start the
 `Project Reference Frontend` resource. Open:
 
 ```text
-http://localhost:5218/upstream
+http://localhost:5230/upstream
 ```
 
 The response includes the resolved API endpoint and the API health payload.
+
+You can also open `http://localhost:5229/health` to verify the API directly.
+The frontend response should resolve and call the API endpoint.
+
+The ASP.NET Core built-in provider bridge projects provider-observed runtime
+state for these Resource model resources. `Unknown` remains the generic fallback
+for lifecycle-capable graph resources when no runtime state provider is
+registered, but this sample now exercises the provider-local state projection
+path for start/stop and health/liveness checks.
+
+The sample omits the old application-provider project records and the old
+application provider registration. Smoke coverage starts both project resources
+and verifies the frontend resolves and calls the API without old provider
+records.
 
 Runtime state is stored under `samples/ProjectReference/Host/Data/`
 and is ignored by git.

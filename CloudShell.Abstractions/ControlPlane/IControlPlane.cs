@@ -2,6 +2,7 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using System.Text.Json;
+using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
 
 namespace CloudShell.Abstractions.ControlPlane;
 
@@ -140,13 +141,20 @@ public interface IResourceManager
 
 public interface IResourceTemplateManager
 {
-    Task<ResourceGroupTemplateExportResult> ExportResourceGroupTemplateAsync(
-        string resourceGroupId,
+    Task<ResourceTemplateExportResult> ExportResourceTemplateAsync(
+        ResourceTemplateExportRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<ResourceGroupTemplateImportResult> ImportResourceGroupTemplateAsync(
-        ResourceGroupTemplate template,
+    Task<ResourceTemplateApplyResult> ApplyResourceTemplateAsync(
+        ResourceTemplateApplyRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<ResourceTemplateApplyResult> ApplyResourceTemplateAsync(
+        ResourceDefinitionTemplate template,
+        CancellationToken cancellationToken = default) =>
+        ApplyResourceTemplateAsync(
+            new ResourceTemplateApplyRequest(template),
+            cancellationToken);
 }
 
 public interface ILogManager
@@ -332,7 +340,8 @@ public enum ResourceReplicaSlotReconciliationStatus
     Unhealthy,
     Repairing,
     Repaired,
-    RepairFailed
+    RepairFailed,
+    Materialized
 }
 
 public sealed record ResourcePrincipalQuery(

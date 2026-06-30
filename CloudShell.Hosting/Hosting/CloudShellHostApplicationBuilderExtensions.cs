@@ -24,11 +24,7 @@ namespace CloudShell.Hosting;
 
 public static class CloudShellHostApplicationBuilderExtensions
 {
-    public static IControlPlaneBuilder AddCloudShell(
-        this WebApplicationBuilder builder) =>
-        builder.AddCloudShellUi();
-
-    public static IControlPlaneBuilder AddCloudShellUi(
+    public static ICloudShellBuilder AddCloudShellUi(
         this WebApplicationBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -50,7 +46,7 @@ public static class CloudShellHostApplicationBuilderExtensions
         builder.Services.TryAddScoped<ICloudShellUserSettingsProvider, ConfiguredCloudShellUserSettingsProvider>();
 
         var cloudShell = builder.Services
-            .AddCloudShell()
+            .AddCloudShellUi()
             .AddExtension<CoreShellExtension>();
 
         AddCloudShellUiServices(builder);

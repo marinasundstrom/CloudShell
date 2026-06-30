@@ -7,9 +7,17 @@ belong in `CHANGELOG.md`; feature shape belongs in the relevant proposal.
 
 ## Current Refactoring Goal
 
-Clarify the Resource Manager, orchestration/deployment, resource provider, and
-shared application-service boundaries so container apps prove the MVP flow
-without forcing provider-specific logic into shared helpers.
+Finish the Resource model migration boundary: ResourceDefinition-based
+desired state should become the normal Resource Manager create/update/export
+path. The active priority is finishing the switch to the `CloudShell.ResourceModel`
+package family after hosts, samples, tests, UI surfaces, and active solution
+files moved off the old provider model.
+
+Container app orchestration remains an important internal runtime direction,
+but it is on hold until the provider migration is finished. Keep the already
+landed deployment/reconciliation seams stable, but do not make orchestrator
+controller consolidation the next active slice unless it directly unblocks the
+Resource model provider migration.
 
 ## Boundary Decisions
 
@@ -22,6 +30,13 @@ without forcing provider-specific logic into shared helpers.
   availability, resource projection/listing, logs, monitoring,
   attribute-to-runtime mapping, and provider-specific commands can be separate
   concerns coordinated under that umbrella.
+- Resource model providers integrate with host/runtime behavior through
+  focused adapter contracts. Providers own resource semantics and call
+  contracts such as runtime controllers, inspectors, reconcilers, command
+  runners, and deployment handlers. Hosts, samples, or default runtime
+  integration packages register the concrete process, Docker, filesystem,
+  networking, sidecar, or orchestrator implementations. Providers should not
+  depend directly on concrete runtime services.
 - Declared resources and projected resources are related but not identical.
   Declared resources are stable authored, persisted, imported, or accepted
   resource identities. `GetResources()` currently also projects provider-
@@ -60,9 +75,31 @@ without forcing provider-specific logic into shared helpers.
 - Replica groups and replica slots are orchestration concepts. Container apps
   define requested runtime state; Resource Manager deployment/orchestration
   reconciles replica groups and records outcomes.
+- Resource templates are ResourceDefinition envelopes. They should not wrap
+  normal user-authored resource state in deployment-shaped DTOs, and they
+  should not require provider-specific serializers once a resource type can
+  round-trip through the graph definition format.
+- Orchestrator services, replica groups, replicas, routing bindings,
+  deployment attempts, and environment revisions are Runtime model artifacts.
+  They are internal orchestration boundaries unless a later
+  workload-builder scenario deliberately exposes them. The Environment Map can
+  visualize them as a read model, but it must not become a second source of
+  truth.
 
 ## Active Slice
 
+- [x] Revise the Resource model migration plan and keep `docs/roadmap.md`,
+  `docs/proposals/README.md`, resource template docs, deployment docs, and
+  container app docs aligned around the same architecture story.
+- [x] Add an internal Resource Manager deployment coordinator boundary for
+  graph-backed apply paths so accepted ResourceDefinition changes can produce
+  orchestrator deployments without bypassing deployment records, locking,
+  previous replica-group lookup, routing reconciliation, or cleanup policy.
+- [x] Replace the old provider-specific resource template engine with the
+  ResourceDefinition-native `ResourceTemplate` public manager contract. Remove
+  `ResourceGroupTemplate`, `ResourceTemplateDefinition`,
+  `IResourceTemplateProvider`, and application/configuration/secrets
+  provider-owned template serializers.
 - [x] Investigate `ApplicationResourceService` responsibilities and current
   deployment/orchestration paths.
 - [x] Route deployment-capable `Start` actions through Resource Manager
@@ -270,9 +307,127 @@ without forcing provider-specific logic into shared helpers.
 - [x] Move container app deployment outcome handling into
   `ContainerApplicationDeploymentOutcomeOperations`, separating post-apply,
   failed-apply, and tear-down planning from runtime service execution.
+- [x] Move replicated container-app ingress configuration, start, update, and
+  stop handling into `ContainerApplicationIngressOperations` so routing
+  reconciliation has a container-app-owned boundary instead of living in the
+  shared runtime/procedure coordinator or service-preparation code.
+- [x] Move container app replica Docker run command construction into
+  `ContainerApplicationContainerRunCommandFactory`, separating runtime command
+  translation from process tracking, readiness, and lifecycle coordination.
 
 ## Next Slices
 
+- [x] Rework the resource template engine around `ResourceTemplate` containing
+  `ResourceDefinition` entries. Remove `ResourceDeploymentDefinition` and
+  other deployment-shaped user-authoring wrappers unless an internal
+  orchestration API explicitly owns them.
+- [x] Move the combined development host off the legacy Applications,
+  Configuration, and Docker provider extensions and install built-in Resource
+  model providers plus graph Resource Manager integration by default.
+- [x] Add package-owned `UseBuiltInResourceModelProviders(...)` and
+  `AddBuiltInResourceModelProviderTypes(...)` registration seams so the
+  Control Plane side of the combined development host installs the default
+  built-in provider catalog and graph bridge without hand-maintaining a
+  scattered provider list.
+- [x] Split hosting registration names so UI-only hosts use
+  `AddCloudShellUi()`, `UseCloudShellUiAsync()`, and `MapCloudShellUi(...)`,
+  Control Plane hosts use the Control Plane methods, and the plain
+  `AddCloudShell()`, `UseCloudShellAsync()`, and `MapCloudShell(...)` methods
+  live in the combined host surface that composes both sides.
+- [x] Remove legacy provider project references from remaining samples where
+  built-in Resource model providers already cover the scenario.
+- [ ] Move any remaining sample-local gaps behind Resource model
+  provider-owned runtime seams instead of keeping the old provider projects
+  installed for general host behavior.
+- [x] Delete the old provider implementation folders once no active host,
+  sample, or test requires `CloudShell.Providers.Applications`,
+  `CloudShell.Providers.Configuration`, or `CloudShell.Providers.Docker`.
+- [x] Rename `CloudShell.ResourceModel*` packages after the migration is
+  complete so the new provider stack is presented as the default Resource
+  model implementation rather than as a prototype.
+- [x] Define the Resource Manager apply path for incremental
+  `ResourceDefinition` updates: target resolution, provider validation,
+  accepted graph-state commit, runtime-planning trigger, diagnostics, and
+  rollback behavior for failed validation or failed runtime materialization.
+
+## Old Provider Dependency Inventory
+
+Use this inventory before deleting old provider folders. The removal sequence is
+dependency-first: remove one host/project dependency, build that host, then run
+the graph-backed tests that cover the same resource path.
+
+- [x] Combined development host no longer references
+  `CloudShell.Providers.Applications`, `CloudShell.Providers.Configuration`,
+  or `CloudShell.Providers.Docker`. It installs Resource model reference
+  providers and graph Resource Manager integration by default.
+- [x] `CloudShell.ConfigurationStoreService` and
+  `CloudShell.SecretsVaultService` referenced
+  `CloudShell.Providers.Configuration` for old DTOs. Move the service file
+  contracts to service-local DTOs or shared Resource model runtime
+  contracts, then remove the old project reference.
+- [x] `samples/ApplicationTopology/Host` referenced the old
+  Configuration and Docker provider projects. Verify whether these are stale
+  project references/usings after the Resource model sample migration,
+  remove them, and run ApplicationTopology graph smoke coverage.
+- [x] `samples/CloudShell.ContainerHost` referenced the old Docker
+  provider project. Verify whether the sample-local Docker bridge already
+  covers the runtime behavior, remove the stale dependency, and run
+  ContainerHost graph smoke coverage.
+- [x] `CloudShell.Abstractions.Tests` contained broad tests for the old
+  provider model. Move behavior that must survive to
+  `CloudShell.ResourceModel.Tests` or sample tests, then delete tests
+  that only preserve old provider registration/template behavior. Removing the
+  old provider references from `CloudShell.Host` exposed this coupling because
+  those tests were relying on the combined host's transitive provider
+  references rather than declaring their own boundary.
+- [x] Remove `CloudShell.Providers.Applications`,
+  `CloudShell.Providers.Configuration`, and `CloudShell.Providers.Docker` from
+  `CloudShell.slnx` once no active host, sample, or
+  service project references them.
+- [x] Audit old provider folders and excluded old-provider tests as the
+  migration backlog for the new provider packages. Move forward only reusable
+  runtime/toolkit pieces that the Resource model providers still need:
+  local process execution, container command helpers, log parsing, runtime
+  monitoring, endpoint/probe projection, environment-variable resolution,
+  volume mount materialization, container host resolution, and any
+  provider-owned runtime handlers that have not yet been rebuilt. Bring those
+  pieces forward only behind provider adapter contracts or a default runtime
+  integration package. Do not bring forward old provider-owned definition
+  stores, template serializers, registration pages, direct host/runtime
+  dependencies, or `ApplicationResourceDefinition` as the public declaration
+  shape.
+- [x] Delete the old `CloudShell.Providers.Applications`,
+  `CloudShell.Providers.Configuration`, and `CloudShell.Providers.Docker`
+  implementation folders after active hosts, samples, services, solution files,
+  and tests moved off them.
+- [x] Add merge-readiness hygiene coverage that prevents active solution,
+  project, and source files from reintroducing deleted legacy provider
+  projects or old resource-template wrapper contracts.
+- [x] Keep `CloudShell.Providers.DockerCompose` out of this deletion pass
+  unless it starts exposing the old resource provider model. It is currently an
+  orchestrator/provider integration, not one of the old resource-provider
+  packages being removed.
+
+## Deferred Orchestration Cleanup
+
+The following work stays parked until the provider migration/removal track is
+stable enough that container app runtime behavior can be revisited without
+preserving old provider seams:
+
+- [ ] Finish moving container app first start, scale-in, scale-out, routing
+  rebinding, and cleanup onto the internal deployment-controller path derived
+  from accepted graph resource state. Image and replica-slot updates now enter
+  that path through ResourceDefinition apply; lifecycle and cleanup seams still
+  need consolidation.
+- [x] Define the routing/load-balancer reaction boundary for replica-group
+  changes by carrying service-routing binding definitions into the
+  orchestrator routing reconciliation context.
+- [x] Forward service-routing binding definitions through the Resource Model
+  graph procedure bridge and container-app orchestrator runtime handler
+  contract so runtime adapters can react to explicit binding ids.
+- [ ] Make the default orchestrator controller and load-balancer providers
+  react to service-routing binding definitions instead of inferring replica
+  membership from container-app-specific runtime names.
 - [ ] Continue splitting `ApplicationResourceRuntimeOperations` by separating
   remaining resource-type concerns: lifecycle procedure execution, container
   app orchestration hooks, and endpoint/probe materialization. The shared
@@ -311,6 +466,10 @@ without forcing provider-specific logic into shared helpers.
   from the runtime/procedure coordinator.
 - [x] Split container app deployment outcome handling behind
   `IContainerApplicationDeploymentOutcomeOperations`.
+- [x] Extract container app ingress/routing reconciliation support from the
+  shared runtime/procedure coordinator.
+- [x] Extract container app replica container run command construction from
+  the shared runtime/procedure coordinator.
 - [x] Extract the container app orchestrator deployment factory from the shared
   service so deployment description is independently testable.
 - [ ] Revisit post-apply teardown ownership. Prefer Resource Manager
@@ -333,15 +492,17 @@ without forcing provider-specific logic into shared helpers.
   own how validated resource intent maps to its runtime target, whether that
   target is an executable, container, orchestrator service, database, or other
   managed resource.
-- [ ] Feed the schema/validation/apply model into orchestrator deployments so
-  deployment definitions can describe resource intent consistently
+- [ ] Audit built-in-provider runtime implementations and move reusable
+  or host-shaped implementations behind default runtime integration
+  registrations, leaving provider packages dependent only on adapter contracts
+  and fakeable abstractions.
+- [ ] Feed the schema/validation/apply model into orchestrator deployment
+  planning so accepted ResourceDefinition state can be translated consistently
   across resource types while leaving type-specific reconciliation to the
-  owning provider. Conceptually, a deployment definition contains resource
-  definitions: resource identity, resource type/kind/class, and provider-owned
-  attributes such as `executable.path`, `executable.arguments`, or future
-  complex typed values. The deployment definition tells CloudShell what the
-  actor wants the runtime to materialize; providers validate and apply that
-  intent to their runtime target.
+  owning provider. Deployment definitions may reference accepted resource
+  state or carry normalized runtime definitions for services, replica groups,
+  replicas, and routing bindings, but user-authored resource intent remains in
+  `ResourceDefinition` entries and `ResourceTemplate` envelopes.
 
 ## Environment and UI Follow-Ups
 
@@ -362,7 +523,7 @@ without forcing provider-specific logic into shared helpers.
   `dotnet test CloudShell.ControlPlane.Client.Tests/CloudShell.ControlPlane.Client.Tests.csproj --no-restore`
   `dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj --no-restore`
   `dotnet test CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj --no-restore`
-  `dotnet build CloudShell.sln --no-restore`
+  `dotnet build CloudShell.slnx --no-restore`
 - If Docker-backed sample tests fail before reaching CloudShell behavior
   because the Docker daemon is unavailable, follow `CONTRIBUTIONS.md`: verify
   with `docker info`, restart or unblock Docker, and record the blocked

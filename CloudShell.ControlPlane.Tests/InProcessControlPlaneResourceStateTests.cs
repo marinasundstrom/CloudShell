@@ -13,7 +13,8 @@ using CloudShell.ControlPlane.ResourceManager.Identity;
 using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.ControlPlane.ResourceManager.Recovery;
-using CloudShell.ControlPlane.ResourceManager.Templates;
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -23,6 +24,11 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
+using GraphResource = CloudShell.ResourceModel.Resource;
+using GraphResourceAttributeId = CloudShell.ResourceModel.ResourceAttributeId;
+using GraphResourceDefinitionDiagnostic = CloudShell.ResourceModel.ResourceDefinitionDiagnostic;
+using GraphResourceOperationId = CloudShell.ResourceModel.ResourceOperationId;
+using GraphResourceState = CloudShell.ResourceModel.ResourceState;
 
 namespace CloudShell.ControlPlane.Tests;
 
@@ -980,6 +986,97 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ExecuteResourceActionAsync_DispatchesRegisteredResourceModelGraphResource()
+    {
+        var runtimeController = new RecordingAspNetCoreProjectRuntimeController(
+            AspNetCoreProjectRuntimeStatus.Stopped);
+        var graphState = new GraphResourceState(
+            "graph-project-reference-api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<GraphResourceAttributeId, string>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
+                    "samples/ProjectReference/Api/CloudShell.ProjectReferenceApi.csproj",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] =
+                    "--urls http://localhost:5229",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
+                    bool.FalseString.ToLowerInvariant()
+            });
+        var services = new ServiceCollection();
+        services.AddSingleton<IAspNetCoreProjectRuntimeController>(runtimeController);
+        services.AddInMemoryResourceModelGraph([graphState]);
+        services.AddAspNetCoreProjectResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider(
+            ResourceModelResourceProvider.DefaultProviderId,
+            "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>();
+        var projectedResource = Assert.Single(provider.GetResources());
+        var controlPlane = CreateControlPlane([projectedResource], provider);
+
+        var result = await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                projectedResource.Id,
+                ResourceActionIds.Start));
+
+        Assert.Equal("Executed Start for graph-project-reference-api.", result.Message);
+        Assert.Equal(
+            [(graphState.EffectiveResourceId, AspNetCoreProjectResourceTypeProvider.Operations.Start)],
+            runtimeController.ExecutedOperations);
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_DispatchesRegisteredResourceModelGraphResourceRestartWhenRuntimeStateIsRunning()
+    {
+        var runtimeController = new RecordingAspNetCoreProjectRuntimeController();
+        var graphState = new GraphResourceState(
+            "graph-project-reference-api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            Attributes: new Dictionary<GraphResourceAttributeId, string>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] =
+                    "samples/ProjectReference/Api/CloudShell.ProjectReferenceApi.csproj",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] =
+                    "--urls http://localhost:5229",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.HotReload] =
+                    bool.FalseString.ToLowerInvariant()
+            });
+        var services = new ServiceCollection();
+        services.AddSingleton<IAspNetCoreProjectRuntimeController>(runtimeController);
+        services.AddInMemoryResourceModelGraph([graphState]);
+        services.AddAspNetCoreProjectResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider(
+            ResourceModelResourceProvider.DefaultProviderId,
+            "Resource model",
+            projectionOptions: new ResourceModelResourceManagerProjectionOptions(
+                StateResolver: resource =>
+                    string.Equals(
+                        resource.EffectiveResourceId,
+                        graphState.EffectiveResourceId,
+                        StringComparison.OrdinalIgnoreCase)
+                        ? ResourceState.Running
+                        : null));
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ResourceModelGraphProcedureProvider>();
+        var projectedResource = Assert.Single(provider.GetResources());
+        var controlPlane = CreateControlPlane([projectedResource], provider);
+
+        var result = await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                projectedResource.Id,
+                ResourceActionIds.Restart));
+
+        Assert.Equal("Executed Restart for graph-project-reference-api.", result.Message);
+        Assert.Equal(
+            [(graphState.EffectiveResourceId, AspNetCoreProjectResourceTypeProvider.Operations.Restart)],
+            runtimeController.ExecutedOperations);
+    }
+
+    [Fact]
     public async Task ExecuteResourceActionAsync_NotifiesResourceChanges()
     {
         var provider = new TestResourceProvider();
@@ -1497,6 +1594,32 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ExecuteResourceActionAsync_TreatsLifecycleLessDependencyAsAlreadyAvailable()
+    {
+        var provider = new TestResourceProvider();
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource("api", ResourceState.Stopped, dependsOn: ["graph-sample"]),
+                CreateResource("graph-sample", ResourceState.Stopped, actions: []) with
+                {
+                    State = null
+                }
+            ],
+            provider);
+
+        var result = await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                "api",
+                ResourceActionIds.Start,
+                StartDependencies: true,
+                TriggeredBy: "operator"));
+
+        Assert.Equal(["api:start"], provider.ExecutedActions);
+        Assert.Contains("Executed start.", result.Message, StringComparison.Ordinal);
+        Assert.Empty(result.Signals);
+    }
+
+    [Fact]
     public async Task ExecuteResourceActionAsync_WarnsWhenTransitiveDependencyOfRunningDependencyFails()
     {
         var provider = new TestResourceProvider
@@ -1776,21 +1899,54 @@ public sealed class InProcessControlPlaneResourceStateTests
     [Fact]
     public async Task ListResourcesAsync_KeepsStoppedResourceStoppedWhenLivenessIsUnhealthy()
     {
+        var evaluator = new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Not alive");
         var resource = CreateResource("target", ResourceState.Stopped) with
         {
             HealthChecks = [CreateLivenessCheck()]
         };
         var controlPlane = CreateControlPlane(
             [resource],
-            probeEvaluators: [new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Not alive")]);
+            probeEvaluators: [evaluator]);
 
-        await controlPlane.RefreshResourceHealthAsync("target");
-        await controlPlane.RefreshResourceHealthAsync("target");
-        await controlPlane.RefreshResourceHealthAsync("target");
+        Assert.Null(await controlPlane.RefreshResourceHealthAsync("target"));
+        Assert.Empty(await controlPlane.RefreshResourceHealthAsync());
+
+        var projected = Assert.Single(await controlPlane.ListResourcesAsync());
+        var health = await controlPlane.ListResourceHealthAsync();
+
+        Assert.Equal(ResourceState.Stopped, projected.State);
+        Assert.Equal(0, evaluator.CallCount);
+        Assert.Empty(health);
+        Assert.Null(await controlPlane.GetResourceHealthAsync("target"));
+    }
+
+    [Fact]
+    public async Task ListResourceHealthAsync_DoesNotProbeUnknownLifecycleResource()
+    {
+        var evaluator = new StaticProbeEvaluator(ResourceHealthStatus.Unhealthy, "Not healthy");
+        var resource = CreateResource("target", ResourceState.Unknown) with
+        {
+            HealthChecks =
+            [
+                new ResourceHealthCheck(
+                    new ResourceProbeSource("test"),
+                    ResourceProbeType.Health,
+                    "health"),
+                CreateLivenessCheck()
+            ]
+        };
+        var controlPlane = CreateControlPlane(
+            [resource],
+            probeEvaluators: [evaluator]);
+
+        Assert.Empty(await controlPlane.RefreshResourceHealthAsync());
+        Assert.Empty(await controlPlane.ListResourceHealthAsync());
 
         var projected = Assert.Single(await controlPlane.ListResourcesAsync());
 
-        Assert.Equal(ResourceState.Stopped, projected.State);
+        Assert.Equal(ResourceState.Unknown, projected.State);
+        Assert.Equal(0, evaluator.CallCount);
+        Assert.Null(await controlPlane.GetResourceHealthAsync("target"));
     }
 
     [Fact]
@@ -2614,12 +2770,14 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Contains("Applied deployment 'target-deployment'", result.Message, StringComparison.Ordinal);
         Assert.Empty(provider.ExecutedActions);
         Assert.Equal(["target"], provider.DescribedDeployments);
+        Assert.Equal(["target-deployment:revision-2"], provider.DescribedTearDowns);
         Assert.Single(provider.AppliedDeployments);
         Assert.Equal(["start:target-service"], provider.PreparedActions);
         Assert.Equal(
             [
                 "start:target-service-revision-2-replica-1:1/2",
-                "start:target-service-revision-2-replica-2:2/2"
+                "start:target-service-revision-2-replica-2:2/2",
+                "stop:target-service-revision-1:1/1"
             ],
             provider.InstanceActions);
 
@@ -2637,6 +2795,14 @@ public sealed class InProcessControlPlaneResourceStateTests
                 EventType: ResourceEventTypes.Events.Deployment.Applied,
                 TriggeredBy: "operator")),
             resourceEvent => resourceEvent.Message.Contains("target-deployment", StringComparison.Ordinal));
+        Assert.Contains(
+            resourceEvents.GetEvents(new ResourceEventQuery(
+                ResourceId: "target",
+                EventType: ResourceEventTypes.Events.Deployment.CleanupCompleted,
+                TriggeredBy: "operator")),
+            resourceEvent => resourceEvent.Message.Contains(
+                "target-service-revision-1-replicas",
+                StringComparison.Ordinal));
     }
 
     [Fact]
@@ -3540,7 +3706,7 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         configureDeclarations?.Invoke(declarations);
 
-        var templates = new ResourceTemplateService(resourceManager, resourceGroups, registrations);
+        var templates = CreateResourceDefinitionTemplateService();
         var identityProvisioning = new ResourceIdentityProvisioningService(
             declarations,
             registrations,
@@ -3551,9 +3717,10 @@ public sealed class InProcessControlPlaneResourceStateTests
             new ResourceIdentityProviderCatalog(identityProviders ?? []),
             identityProviderSetupHandlers ?? []);
         var orchestrators = new IResourceOrchestrator[] { new DefaultResourceOrchestrator() };
+        var replicaReconciliationStore = new InMemoryResourceReplicaGroupReconciliationStore();
         var deploymentAppliers = new IResourceOrchestratorDeploymentApplier[]
         {
-            new DefaultResourceDeploymentService(deploymentStore)
+            new DefaultResourceDeploymentService(deploymentStore, replicaReconciliationStore)
         };
         var selectionStore = CreateSelectionStore();
         var orchestration = new ResourceOrchestrationService(
@@ -3567,7 +3734,6 @@ public sealed class InProcessControlPlaneResourceStateTests
             actionAvailabilityProviders: actionAvailabilityProviders ?? [],
             resourceEvents: resourceEvents,
             deploymentStore: deploymentStore);
-        var replicaReconciliationStore = new InMemoryResourceReplicaGroupReconciliationStore();
         var replicaGroupReconciliation = new ResourceReplicaGroupReconciliationService(
             orchestration,
             resourceManager,
@@ -3617,6 +3783,14 @@ public sealed class InProcessControlPlaneResourceStateTests
     private sealed record ControlPlaneTestHost(
         InProcessControlPlane ControlPlane,
         ResourceReplicaGroupReconciliationService ReplicaGroupReconciliation);
+
+    private static ResourceDefinitionTemplateService CreateResourceDefinitionTemplateService()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddResourceModelGraphServices();
+        return services.BuildServiceProvider().GetRequiredService<ResourceDefinitionTemplateService>();
+    }
 
     private static IHttpContextAccessor CreateHttpContextAccessor(params Claim[] claims)
     {
@@ -4406,6 +4580,29 @@ public sealed class InProcessControlPlaneResourceStateTests
         {
             ExecutedActions.Add($"{context.Resource.Id}:{action.Id}");
             return Task.FromResult(ResourceProcedureResult.Completed($"Executed {action.Id}."));
+        }
+    }
+
+    private sealed class RecordingAspNetCoreProjectRuntimeController(
+        AspNetCoreProjectRuntimeStatus status = AspNetCoreProjectRuntimeStatus.Running) :
+        IAspNetCoreProjectRuntimeController
+    {
+        private readonly List<(string ResourceId, GraphResourceOperationId OperationId)> _executedOperations = [];
+
+        public IReadOnlyList<(string ResourceId, GraphResourceOperationId OperationId)> ExecutedOperations =>
+            _executedOperations;
+
+        public AspNetCoreProjectRuntimeStatus GetStatus(GraphResource resource) =>
+            status;
+
+        public ValueTask<IReadOnlyList<GraphResourceDefinitionDiagnostic>> ExecuteAsync(
+            GraphResource resource,
+            GraphResourceOperationId operationId,
+            CancellationToken cancellationToken = default)
+        {
+            _executedOperations.Add((resource.EffectiveResourceId, operationId));
+
+            return ValueTask.FromResult<IReadOnlyList<GraphResourceDefinitionDiagnostic>>([]);
         }
     }
 

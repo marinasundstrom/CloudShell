@@ -5,77 +5,75 @@ using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
-using CloudShell.Providers.Applications;
-using CloudShell.Providers.Docker;
+using CloudShell.ResourceModel;
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.Providers.UI;
+using CloudShell.ControlPlane.ResourceModel;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
 const string registryHost = "localhost";
 var registryPort = builder.Configuration.GetValue("ContainerAppDeployment:RegistryPort", 5023);
 string registryAddress = $"{registryHost}:{registryPort}";
-const string registryResourceId = "docker:container:sample-registry";
-const string containerAppResourceId = "application:sample-api";
 const string sampleImage = "cloudshell/mock-api:20260608.1";
+const string resourceGroupId = "container-app-deployment";
 
-var cloudShell = builder.AddCloudShellControlPlane();
-builder.AddCloudShell();
+var cloudShell = builder.AddCloudShell();
+cloudShell.AddResourceGroup(
+    resourceGroupId,
+    "Container App Deployment",
+    "Resources used by the ContainerAppDeployment sample.");
+IResourceDefinitionBuilder dockerResource = null!;
+IResourceDefinitionBuilder registryResource = null!;
+cloudShell.DefineResources(resources =>
+    {
+        dockerResource = resources
+            .AddDockerHost("sample")
+            .WithResourceGroup(resourceGroupId)
+            .WithAutoStart(false)
+            .WithRegistry(registryAddress);
+        registryResource = resources
+            .AddDockerContainer("sample-registry")
+            .WithDisplayName("Sample Registry")
+            .WithResourceGroup(resourceGroupId)
+            .WithAutoStart(false)
+            .UseDockerHost(dockerResource)
+            .WithImage("registry:2")
+            .WithRegistry(registryAddress);
+        resources
+            .AddContainerApplication("sample-api")
+            .WithDisplayName("Sample API")
+            .WithResourceGroup(resourceGroupId)
+            .WithAutoStart(false)
+            .UseDockerHost(dockerResource)
+            .DependsOn(registryResource)
+            .WithImage(sampleImage)
+            .WithRegistry(registryAddress);
+    });
+if (builder.Configuration.GetValue("ContainerAppDeployment:EnableDockerRuntime", false))
+{
+    builder.Services
+        .AddSingleton<IDockerContainerRuntimeHandler, ContainerAppDeploymentDockerContainerRuntimeHandler>()
+        .AddSingleton<IResourceOrchestrationDescriptorProvider, ContainerAppDeploymentDockerContainerOrchestrationDescriptorProvider>();
+}
+
+builder.Services
+    .AddSingleton<IContainerAppDeploymentContainerApplicationRuntimeBridge, ContainerAppDeploymentContainerApplicationRuntimeBridge>()
+    .AddSingleton<IContainerApplicationRuntimeHandler, ContainerAppDeploymentContainerApplicationRuntimeHandler>();
+
+builder.Services
+    .AddLocalContainerApplicationResourceTypes()
+    .AddDockerContainerResourceType();
+cloudShell.UseResourceGraphIntegration();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>()
-    .AddApplicationProvider()
-    .AddDockerProvider()
-    .UseLocalDevelopmentDefaults(options =>
-    {
-        options.Registry = registryAddress;
-    });
-
-cloudShell.Resources(resources =>
-{
-    var docker = resources
-        .AddDocker("sample")
-        .WithRegistry(registryAddress)
-        .Persist(overwrite: true);
-
-    var registry = docker
-        .AddDockerContainer(
-            registryResourceId,
-            "registry:2")
-        .WithEndpoint(
-            "http",
-            targetPort: 5000,
-            port: registryPort,
-            protocol: "http",
-            exposure: ResourceExposureScope.Public)
-        .WithHttpHealthCheck("/v2/", "http")
-        .WithAutoStart(false)
-        .Persist(overwrite: true);
-
-    resources
-        .AddContainerApplication(
-            containerAppResourceId,
-            sampleImage,
-            registry: registryAddress)
-        .WithEndpoint(
-            "http",
-            targetPort: 80,
-            port: 5088,
-            protocol: "http",
-            exposure: ResourceExposureScope.Public)
-        .WithContainerHost(docker)
-        .DependsOn(registry)
-        .WithReference(registry)
-        .WithServiceDiscovery()
-        .WithEnvironment("SAMPLE_REGISTRY", registryAddress)
-        .WithAutoStart(false)
-        .Persist(overwrite: true);
-});
+    .AddExtension<ObservabilityExtension>();
+cloudShell.AddBuiltInProviderResourceManagerUi();
 
 var app = builder.Build();
 
-await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
-app.MapCloudShellControlPlane();
 app.MapCloudShell<App>();
 
 app.Run();

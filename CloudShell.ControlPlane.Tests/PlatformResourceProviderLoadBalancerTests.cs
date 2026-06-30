@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using CloudShell.Abstractions.ResourceManager;
@@ -136,6 +137,92 @@ public sealed class PlatformResourceProviderLoadBalancerTests
         Assert.Contains("url: \"http://cloudshell-application-api-replica-3:5000\"", config);
         Assert.Contains("rule: \"HostSNI(`*`)\"", config);
         Assert.Contains("address: \"postgres.internal:5432\"", config);
+    }
+
+    [Fact]
+    public async Task ExecuteActionAsync_UsesRuntimeReplicaAliasesWhenPresent()
+    {
+        var store = CreatePlatformStore();
+        var runtimeProvider = new TestLoadBalancerRuntimeProvider();
+        var provider = new PlatformResourceProvider(
+            store,
+            new PlatformResourceOptions(),
+            loadBalancerProviders: [runtimeProvider]);
+        var definition = CreateRuntimeLoadBalancerDefinition() with
+        {
+            Routes =
+            [
+                new LoadBalancerRoute(
+                    "api",
+                    "API",
+                    LoadBalancerRouteKind.Http,
+                    "web",
+                    new LoadBalancerRouteMatch("api.local", "/"),
+                    new LoadBalancerRouteTarget("application:api", Port: 5000))
+            ]
+        };
+        var registrations = new TestResourceRegistrationStore([]);
+        await provider.SetupLoadBalancerAsync(definition, null, registrations);
+        var loadBalancer = provider.GetResources().Single(resource => resource.Id == definition.Id);
+        var resourceManager = new TestResourceManagerStore(
+            [
+                loadBalancer,
+                CreateResource(
+                    "docker:engine",
+                    "Local Docker",
+                    [ResourceEndpoint.FromAddress("engine", "unix:///var/run/docker.sock", "docker")]),
+                CreateResource(
+                    "application:api",
+                    "API",
+                    [],
+                    new Dictionary<string, string>
+                    {
+                        [ResourceAttributeNames.ContainerReplicas] = "3"
+                    }),
+                CreateRuntimeReplicaResource(
+                    "application:api",
+                    1,
+                    "cloudshell-application-api-rev-20260627195949-e6a2eb34-replica-1",
+                    "cloudshell-application-api-r1-test0001"),
+                CreateRuntimeReplicaResource(
+                    "application:api",
+                    2,
+                    "cloudshell-application-api-rev-20260627195949-e6a2eb34-replica-2",
+                    "cloudshell-application-api-r2-test0002"),
+                CreateRuntimeReplicaResource(
+                    "application:api",
+                    3,
+                    "cloudshell-application-api-rev-20260627195949-e6a2eb34-replica-3",
+                    "cloudshell-application-api-r3-test0003")
+            ]);
+
+        var result = await provider.ExecuteActionAsync(
+            new ResourceProcedureContext(loadBalancer, null, null, registrations, resourceManager),
+            loadBalancer.StartAction!);
+
+        Assert.Equal("Started test load balancer runtime.", result.Message);
+        var started = Assert.Single(runtimeProvider.Started);
+        var route = Assert.Single(started.Routes);
+        Assert.Collection(
+            route.ResolvedBackends,
+            backend =>
+            {
+                Assert.Equal("cloudshell-application-api-r1-test0001", backend.Host);
+                Assert.Equal(5000, backend.Port);
+                Assert.Equal("http", backend.Protocol);
+            },
+            backend =>
+            {
+                Assert.Equal("cloudshell-application-api-r2-test0002", backend.Host);
+                Assert.Equal(5000, backend.Port);
+                Assert.Equal("http", backend.Protocol);
+            },
+            backend =>
+            {
+                Assert.Equal("cloudshell-application-api-r3-test0003", backend.Host);
+                Assert.Equal(5000, backend.Port);
+                Assert.Equal("http", backend.Protocol);
+            });
     }
 
     [Fact]
@@ -643,6 +730,38 @@ public sealed class PlatformResourceProviderLoadBalancerTests
             ResourceClass: resourceClass,
             Attributes: attributes,
             EndpointNetworkMappings: endpointNetworkMappings);
+
+    private static Resource CreateRuntimeReplicaResource(
+        string ownerResourceId,
+        int replica,
+        string containerName,
+        string networkAlias) =>
+        new(
+            $"runtime-container:application-api:replica-{replica.ToString(CultureInfo.InvariantCulture)}",
+            $"Replica {replica.ToString(CultureInfo.InvariantCulture)}",
+            "runtime.container",
+            "Test",
+            "test",
+            ResourceState.Running,
+            [],
+            "test",
+            DateTimeOffset.UtcNow,
+            [],
+            ParentResourceId: ownerResourceId,
+            TypeId: "runtime.container",
+            ResourceClass: ResourceClass.Infrastructure,
+            Attributes: new Dictionary<string, string>
+            {
+                [ResourceAttributeNames.DeploymentServiceId] = "cloudshell-application-api",
+                [ResourceAttributeNames.RuntimeKind] = "containerReplica",
+                [ResourceAttributeNames.RuntimeContainerName] = containerName,
+                [ResourceAttributeNames.RuntimeNetworkAlias] = networkAlias,
+                [ResourceAttributeNames.RuntimeReplicaOrdinal] = replica.ToString(CultureInfo.InvariantCulture),
+                [ResourceAttributeNames.RuntimeReplicaCount] = "3"
+            },
+            ManagementMode: ResourceManagementMode.RuntimeManaged,
+            Visibility: ResourceVisibility.Hidden,
+            OwnerResourceId: ownerResourceId);
 
     private static PlatformResourceStore CreatePlatformStore()
     {

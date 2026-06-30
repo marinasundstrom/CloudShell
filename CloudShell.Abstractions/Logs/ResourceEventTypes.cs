@@ -83,7 +83,9 @@ public static class ResourceEventTypes
             public const string ReplacementMaterializing = "event.replica.replacement.materializing";
             public const string ReplacementMaterialized = "event.replica.replacement.materialized";
             public const string SlotLeftVacant = "event.replica.slot.leftVacant";
+            public const string ReconciliationDeferred = "event.replica.reconciliation.deferred";
             public const string ReconciliationFailed = "event.replica.reconciliation.failed";
+            public const string ReconciliationExhausted = "event.replica.reconciliation.exhausted";
         }
 
         public static class Configuration

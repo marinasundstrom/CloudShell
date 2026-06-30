@@ -36,6 +36,10 @@ class library that references ASP.NET Core. Web SDK projects reference
 `CloudShell.Hosting` and keep their own `Program.cs`, appsettings, environment,
 and scenario-specific extension registrations.
 
+The combined-host convenience methods live in `CloudShell.AppHost`. That
+package references both `CloudShell.ControlPlane` and `CloudShell.Hosting`, so
+UI-only hosts do not pull in Control Plane hosting by accident.
+
 ## UI-Only Host
 
 Use the UI-only host when an application wants CloudShell navigation, layout,
@@ -85,7 +89,6 @@ For local development, the UI and Control Plane can run in the same ASP.NET Core
 process. This is the shape used by the `CloudShell.Host` development sample.
 
 ```csharp
-using CloudShell.ControlPlane.Hosting;
 using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
@@ -93,8 +96,7 @@ using CloudShell.Hosting.Shell;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var cloudShell = builder.AddCloudShellControlPlane();
-builder.AddCloudShell();
+var cloudShell = builder.AddCloudShell();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
@@ -114,13 +116,20 @@ cloudShell.Resources(resources =>
 
 var app = builder.Build();
 
-await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
-app.MapCloudShellControlPlane();
 app.MapCloudShell<App>();
 
 app.Run();
 ```
+
+`AddCloudShell()` is the combined-host convenience. It composes
+`AddCloudShellControlPlane()` and `AddCloudShellUi()` from a package that
+references both the Control Plane and UI packages. `UseCloudShellAsync()` and
+`MapCloudShell<TRootComponent>()` follow the same convention: the plain method
+name is for the combined host, while `UseCloudShellControlPlaneAsync()`,
+`MapCloudShellControlPlane()`, `UseCloudShellUiAsync()`, and
+`MapCloudShellUi<TRootComponent>()` are for split hosts that install only one
+side.
 
 In this mode, the Resource Manager UI integration consumes the same
 Control Plane-facing abstractions as a split host, but the registered

@@ -79,6 +79,12 @@ A DNS zone represents a naming boundary, such as:
 * `example.com`
 * `internal.example.com`
 
+A name mapping is owned by a DNS zone. The graph currently represents it as a
+first-class `cloudshell.nameMapping` resource so it can carry identity,
+attributes, target references, diagnostics, materialization status, and
+provider reconciliation state, but Resource Manager should present it as a DNS
+zone child/sub-resource rather than as an unrelated top-level resource.
+
 A DNS record or name mapping connects a name to a target:
 
 * public address
@@ -113,7 +119,7 @@ var publicAddress = resources.AddPublicAddress(
 
 var dns = resources.AddDnsZone(
     "dns:local",
-    "local");
+    zoneName: "local");
 
 dns.MapHost(
     "app.local",
@@ -138,7 +144,7 @@ For provider-backed DNS:
 
 ```csharp
 var dns = resources
-    .AddDnsZone("dns:dev", "dev.local")
+    .AddDnsZone("dns:dev", zoneName: "dev.local")
     .UseProvider("hosts-file");
 
 dns.MapHost("api.dev.local", ingress);
@@ -476,10 +482,12 @@ decides later whether and how a specific name is materialized.
 2. Add DNS/name-publishing capability identifiers. Done for logical DNS zone,
    name mapping, name publisher, and name resolver capabilities.
 3. Add builder APIs for DNS zones and host mappings. Done for
-   `AddDnsZone(...)` and `MapHost(...)`.
-4. Represent mappings as ordinary resources or provider-owned configuration
-   with projected target references. Initial child-resource projection is in
-   place for DNS zone mappings.
+   `AddDnsZone(...)`, `UseLocalHostNames()`, child `AddNameMapping(...)`, and
+   the convenience `MapHost(...)`.
+4. Represent mappings as DNS-zone-owned child resources with projected target
+   references. The current storage shape still encodes the DNS-zone ownership
+   and target relation through temporary resource references; a dedicated
+   ownership/relationship primitive remains future graph-model cleanup.
 5. Add validation for target existence and provider capability. Initial
    logical conflict status is projected for duplicate host/scope mappings in
    the same DNS zone, and mappings now project whether a publishing provider
@@ -537,7 +545,8 @@ decides later whether and how a specific name is materialized.
   availability. Generated name-mapping diagnostics now warn when the target
   resource, target endpoint, or local host-name target endpoint address is
   unavailable.
-* Decide whether DNS records should always be first-class resources or whether simple mappings can be projected from provider configuration.
+* Decide whether DNS records should always be first-class child resources or
+  whether simple record sets can be projected from provider configuration.
 * Add richer guided resolution for duplicate names in the same scope. Resource
   Manager-authored create/update now preflights duplicate host/exposure
   mappings before submit, and backend setup still rejects duplicates before
@@ -553,7 +562,8 @@ decides later whether and how a specific name is materialized.
 
 ## Open Questions
 
-* Should `DnsRecord` be a child resource under `DnsZone`, or should name mappings be separate root resources?
+* Should low-level `DnsRecord` be a child resource under `DnsZone`, or should
+  the MVP keep only higher-level name mappings?
 * Should CloudShell standardize only A, AAAA, and CNAME records first?
 * Should service discovery names be modeled as DNS records, endpoint aliases, or a separate resource type?
 * Should local development domains default to `.local`, `.localhost`, or a configurable suffix?

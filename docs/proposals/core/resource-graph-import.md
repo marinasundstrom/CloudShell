@@ -113,7 +113,7 @@ controlPlane.Resources(resources =>
         .AddContainerApplication("application:api", "ghcr.io/example/api:latest")
         .WithDisplayName("API")
         .WithEndpoint("http", targetPort: 8080)
-        .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development");
+        .WithEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
 
     var redis = resources
         .AddContainerApplication("application:redis", "redis:7")

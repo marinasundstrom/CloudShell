@@ -1,61 +1,86 @@
 using CloudShell.Abstractions.Hosting;
-using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.HostVirtualNetwork;
 using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
-using CloudShell.Providers.Applications;
+using CloudShell.ResourceModel;
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.Providers.UI;
+using CloudShell.ControlPlane.ResourceModel;
+using Microsoft.Extensions.Configuration;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
-const int targetPort = 5291;
-const int virtualNetworkPort = 5290;
+var targetPort = builder.Configuration.GetValue<int?>("HostVirtualNetwork:TargetPort") ?? 5291;
+var virtualNetworkPort = builder.Configuration.GetValue<int?>("HostVirtualNetwork:VirtualNetworkPort") ?? 5292;
+const string resourceGroupId = "host-virtual-network";
 
-var cloudShell = builder.AddCloudShellControlPlane();
-builder.AddCloudShell();
-
-cloudShell
-    .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>()
-    .AddApplicationProvider();
-
-cloudShell.Resources(resources =>
+var cloudShell = builder.AddCloudShell();
+cloudShell.AddResourceGroup(
+    resourceGroupId,
+    "Host Virtual Network",
+    "Resources used by the HostVirtualNetwork sample.");
+IResourceDefinitionBuilder hostNetworkingResource = null!;
+IResourceDefinitionBuilder apiResource = null!;
+cloudShell.DefineResources(resources =>
 {
-    var hostNetworking = resources.AddLocalHostNetworking();
-
-    var api = resources
+    hostNetworkingResource = resources
+        .AddLocalHostNetwork("host-local")
+        .WithResourceGroup(resourceGroupId);
+    apiResource = resources
         .AddAspNetCoreProject(
             "vnet-api",
-            "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
-            endpoint: $"http://localhost:{targetPort}")
-        .WithAutoStart(false);
+            "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
+        .WithDisplayName("VNet API")
+        .WithResourceGroup(resourceGroupId)
+        .WithAutoStart(false)
+        .WithArguments($"--urls http://localhost:{targetPort}")
+        .UseLaunchSettings(false)
+        .WithHttpEndpoint(
+            host: "localhost",
+            port: targetPort);
 
-    var network = resources
-        .AddVirtualNetwork(
-            "sample-vnet",
-            isDefault: true);
-
-    var ingress = network.AddHttpEndpoint(
-        "localhost",
-        virtualNetworkPort,
-        "api-public",
-        ResourceExposureScope.Public);
-
-    network.MapEndpoint(
-        ingress,
-        new ResourceEndpointReference(api.ResourceId, "http"),
-        hostNetworking,
+    var virtualNetwork = resources
+        .AddVirtualNetwork("sample-vnet", isDefault: true)
+        .WithResourceGroup(resourceGroupId)
+        .DependsOn(hostNetworkingResource)
+        .DependsOn(apiResource)
+        .WithHostReadiness("providerRequired")
+        .WithMappingProviders(hostNetworkingResource);
+    var publicEndpoint = virtualNetwork
+        .AddHttpEndpoint(
+            "localhost",
+            virtualNetworkPort,
+            name: "api-public",
+            exposure: "Public");
+    virtualNetwork.MapEndpoint(
+        publicEndpoint,
+        apiResource,
+        "http",
+        hostNetworkingResource,
         "mapping:api-public",
         "API public ingress");
 });
+builder.Services
+    .AddLocalHostNetworkResourceType()
+    .AddVirtualNetworkResourceType()
+    .AddAspNetCoreProjectResourceType();
+cloudShell.UseResourceGraphIntegration();
+builder.Services.AddSingleton<
+    IVirtualNetworkEndpointMappingReconciler,
+    HostVirtualNetworkEndpointMappingReconciler>();
+
+cloudShell
+    .AddExtension<ResourceManagerExtension>()
+    .AddExtension<ObservabilityExtension>();
+cloudShell.AddBuiltInProviderResourceManagerUi();
 
 var app = builder.Build();
 
-await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
-app.MapCloudShellControlPlane();
 app.MapCloudShell<App>();
 
 app.Run();

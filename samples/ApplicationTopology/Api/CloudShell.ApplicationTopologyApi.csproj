@@ -12,6 +12,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\CloudShell.Client\CloudShell.Client.csproj" />
+    <ProjectReference Include="..\..\..\CloudShell.Configuration.Client\CloudShell.Configuration.Client.csproj" />
+    <ProjectReference Include="..\..\..\CloudShell.Secrets.Client\CloudShell.Secrets.Client.csproj" />
     <ProjectReference Include="..\..\..\CloudShell.SqlServer.Client\CloudShell.SqlServer.Client.csproj" />
     <ProjectReference Include="..\ServiceDefaults\CloudShell.ApplicationTopology.ServiceDefaults.csproj" />
   </ItemGroup>

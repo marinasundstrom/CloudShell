@@ -18,9 +18,9 @@ using CloudShell.ControlPlane.ResourceManager.Networking;
 using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.ControlPlane.ResourceManager.Recovery;
-using CloudShell.ControlPlane.ResourceManager.Templates;
 using CloudShell.ControlPlane.Shell;
 using CloudShell.Persistence;
+using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
@@ -114,14 +114,18 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddScoped<ResourceHealthProbeService>();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IResourceProbeEvaluator, HttpResourceProbeEvaluator>());
-        builder.Services.AddScoped<ResourceTemplateService>();
+        builder.Services.AddInMemoryResourceModelGraph();
+        builder.Services.AddResourceModelGraphServices();
         builder.Services.AddScoped<IContainerHostResolver, ContainerHostResolver>();
+        builder.Services.AddScoped<ResourceOrchestratorDeploymentCleanupCoordinator>();
         builder.Services.AddScoped<ResourceOrchestrationService>();
         builder.Services.TryAddSingleton<
             IResourceReplicaGroupReconciliationStore,
             InMemoryResourceReplicaGroupReconciliationStore>();
         builder.Services.AddScoped<ResourceReplicaGroupReconciliationService>();
         builder.Services.AddScoped<ResourceDeploymentService>();
+        builder.Services.AddScoped<IResourceOrchestratorDeploymentCoordinator>(
+            serviceProvider => serviceProvider.GetRequiredService<ResourceDeploymentService>());
         builder.Services.AddScoped<ResourceDeclarationStartupService>();
         builder.Services.AddScoped<ResourceIdentityProvisioningService>();
         builder.Services.AddScoped<ResourceIdentityProviderSetupService>();

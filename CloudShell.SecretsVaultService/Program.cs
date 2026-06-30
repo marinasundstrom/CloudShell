@@ -1,6 +1,5 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.ControlPlane.Authentication;
-using CloudShell.Providers.Configuration;
 using CloudShell.SecretsVaultService;
 
 var builder = WebApplication.CreateBuilder(args);

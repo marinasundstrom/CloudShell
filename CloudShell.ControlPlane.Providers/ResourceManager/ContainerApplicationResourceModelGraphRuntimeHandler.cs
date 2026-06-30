@@ -1,0 +1,35 @@
+using CloudShell.Abstractions.ResourceManager;
+
+namespace CloudShell.ControlPlane.Providers;
+
+public interface IContainerApplicationOrchestratorRuntimeHandler
+{
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> PrepareOrchestratorServiceAsync(
+        Resource resource,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
+        CancellationToken cancellationToken = default);
+
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileOrchestratorServiceRoutingAsync(
+        Resource resource,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
+        CancellationToken cancellationToken = default);
+
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> TearDownOrchestratorServiceRoutingAsync(
+        Resource resource,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
+        CancellationToken cancellationToken = default);
+
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteOrchestratorServiceInstanceAsync(
+        Resource resource,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorServiceInstance instance,
+        ResourceAction action,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
+        CancellationToken cancellationToken = default);
+}

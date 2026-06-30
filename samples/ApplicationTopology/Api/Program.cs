@@ -1,13 +1,17 @@
 using CloudShell.ApplicationTopology.ServiceDefaults;
+using CloudShell.Configuration.Client;
+using CloudShell.Secrets.Client;
 using CloudShell.SqlServer.Client;
 using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 
 var builder = CloudShellApplication.CreateBuilder(args);
+builder.Configuration.AddCloudShellConfigurationStore();
+builder.Configuration.AddCloudShellSecretsVault();
 builder.AddServiceDefaults();
 builder.Services.AddCloudShellSqlServerClient(options =>
 {
-    options.SqlServerResourceName = "application-topology-sql-server";
+    options.SqlServerResourceName = GetSqlServerResourceName(builder.Configuration);
 });
 
 var app = builder.Build();
@@ -74,9 +78,10 @@ app.MapGet("/database", async (
         "api.check-sql-server",
         ActivityKind.Client);
     activity?.SetTag("cloudshell.sample.resource", "application-topology-api");
-    activity?.SetTag("cloudshell.sample.dependency", "application-topology-sql-server");
+    var sqlServerResourceName = GetSqlServerResourceName(configuration);
+    activity?.SetTag("cloudshell.sample.dependency", sqlServerResourceName);
 
-    var endpoint = configuration.GetRequiredResourceUri("application-topology-sql-server", "tds");
+    var endpoint = configuration.GetRequiredResourceUri(sqlServerResourceName, "tds");
     activity?.SetTag("cloudshell.sample.sql_endpoint", endpoint.ToString());
     logger.LogInformation(
         ApplicationTopologyLogEvents.CheckingDatabase,
@@ -150,7 +155,7 @@ static async ValueTask<SqlConnection> CreateSqlConnectionAsync(
     {
         var databaseName = GetSqlDatabaseName(configuration);
         return await sqlConnections.OpenConnectionAsync(
-            "application-topology-sql-server",
+            GetSqlServerResourceName(configuration),
             databaseName,
             cancellationToken);
     }
@@ -185,6 +190,9 @@ static bool UsesCloudShellSqlAuthentication(IConfiguration configuration) =>
 
 static string GetSqlDatabaseName(IConfiguration configuration) =>
     configuration["ApplicationTopology:SqlServer:Database"] ?? "application_topology";
+
+static string GetSqlServerResourceName(IConfiguration configuration) =>
+    configuration["ApplicationTopology:SqlServer:ResourceName"] ?? "application-topology-sql-server";
 
 static string CreateSqlDataSource(Uri endpoint)
 {

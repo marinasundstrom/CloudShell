@@ -11,8 +11,7 @@ using CloudShell.ResourceHost;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
-var cloudShell = builder.AddCloudShellControlPlane();
-builder.AddCloudShell();
+var cloudShell = builder.AddCloudShell();
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()
@@ -48,9 +47,7 @@ cloudShell.Resources(resources =>
 
 var app = builder.Build();
 
-await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
-app.MapCloudShellControlPlane();
 app.MapCloudShell<App>();
 
 app.Run();

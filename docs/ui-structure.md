@@ -48,9 +48,10 @@ Place a component in a feature or provider folder when:
 - it represents a provider-specific or feature-specific concept;
 - it should not become part of the shared shell component language.
 
-Provider-owned components should usually live under the provider feature area,
-such as `CloudShell.Providers.Applications/<resource-type>/Pages/` or a
-nearby feature folder, instead of in a global shared folder.
+Provider-owned components should usually live under the provider feature area
+or its Resource Manager UI package, such as a
+`<provider-package>/<resource-type>/Pages/` folder, instead of in a global
+shared folder.
 
 ### Shared shell components
 
