@@ -83,6 +83,13 @@ on `git blame --follow`, and then by the broad type of change.
 - SignalR Container App sample derives default API, replica, and frontend
   ports from the supplied CloudShell host URL to avoid fixed-port collisions
   when running the sample with `--urls`.
+- SignalR Container App sample now emits OpenTelemetry SignalR spans and
+  replica-attributed SignalR metrics through the CloudShell telemetry ingest
+  path, and local process container-app replicas receive the same
+  observability environment as Docker-backed replicas.
+- Traces view no longer renders recent spans through the terminal-style log
+  entry component; the page now stays focused on trace summaries until a trace
+  is opened.
 - Container app fallback runtime now reports a runtime-unavailable diagnostic
   instead of accepting lifecycle, image, and replica operations without
   materializing anything.

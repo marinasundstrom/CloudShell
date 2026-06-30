@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
+using Microsoft.Extensions.Configuration;
 
 namespace CloudShell.ControlPlane.Providers;
 
@@ -98,6 +99,7 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
             services.Configure(configure);
         }
 
+        services.TryAddSingleton<IConfiguration>(_ => new ConfigurationManager());
         services.TryAddSingleton<LocalContainerApplicationProcessRuntimeBridge>();
         services.Replace(ServiceDescriptor.Singleton<
             IContainerApplicationRuntimeHandler,

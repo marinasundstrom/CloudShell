@@ -1,7 +1,9 @@
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -10,6 +12,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Net.WebSockets;
+using System.Text;
 using System.Text.Json;
 
 namespace CloudShell.ControlPlane.Providers;
@@ -52,6 +55,12 @@ public sealed class LocalContainerApplicationProcessDefinition
     public int? IngressPort { get; set; }
 
     public int? ReplicaPortStart { get; set; }
+
+    public string ReplicaServiceNamePrefix { get; set; } = "container-app-replica-";
+
+    public string? TraceIngestEndpoint { get; set; }
+
+    public string? MetricIngestEndpoint { get; set; }
 
     public TimeSpan ReplicaStartTimeout { get; set; } = TimeSpan.FromSeconds(60);
 
@@ -149,6 +158,7 @@ public sealed class LocalContainerApplicationProcessRuntimeHandler(
 
 public sealed class LocalContainerApplicationProcessRuntimeBridge(
     IHostEnvironment hostEnvironment,
+    IConfiguration configuration,
     ILogger<LocalContainerApplicationProcessRuntimeBridge> logger) : IAsyncDisposable
 {
     private const string RuntimeDiagnosticCode = "application.container.localProcessRuntime";
@@ -643,8 +653,23 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
         startInfo.ArgumentList.Add("--no-launch-profile");
         startInfo.Environment["ASPNETCORE_URLS"] = $"http://localhost:{port.ToString(CultureInfo.InvariantCulture)}";
         startInfo.Environment["CLOUDSHELL_REPLICA_ORDINAL"] = replicaOrdinal.ToString(CultureInfo.InvariantCulture);
-        startInfo.Environment["CLOUDSHELL_RESOURCE_ID"] =
+        var replicaResourceId =
             $"{resource.EffectiveResourceId}:replica-{replicaOrdinal.ToString(CultureInfo.InvariantCulture)}";
+        var replicaCount = GetReplicaCount(resource);
+        startInfo.Environment["CLOUDSHELL_RESOURCE_ID"] = replicaResourceId;
+        startInfo.Environment["CLOUDSHELL_TELEMETRY_RESOURCE_ID"] = resource.EffectiveResourceId;
+        startInfo.Environment["OTEL_SERVICE_NAME"] =
+            $"{definition.ReplicaServiceNamePrefix}{replicaOrdinal.ToString(CultureInfo.InvariantCulture)}";
+        startInfo.Environment["OTEL_RESOURCE_ATTRIBUTES"] =
+            CreateOtelResourceAttributes(resource, replicaResourceId, replicaOrdinal, replicaCount);
+        AddEnvironment(
+            startInfo,
+            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
+            FirstNonEmpty(definition.TraceIngestEndpoint, configuration["Observability:TraceIngestEndpoint"]));
+        AddEnvironment(
+            startInfo,
+            "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
+            FirstNonEmpty(definition.MetricIngestEndpoint, configuration["Observability:MetricIngestEndpoint"]));
         foreach (var item in definition.Environment)
         {
             startInfo.Environment[item.Key] = item.Value;
@@ -764,6 +789,63 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
             ? Math.Max(1, replicas)
             : 1;
     }
+
+    private static string CreateOtelResourceAttributes(
+        Resource resource,
+        string replicaResourceId,
+        int replica,
+        int replicaCount)
+    {
+        var replicaOrdinal = replica.ToString(CultureInfo.InvariantCulture);
+        var totalReplicas = replicaCount.ToString(CultureInfo.InvariantCulture);
+        return string.Join(
+            ',',
+            CreateOtelAttribute("service.instance.id", replicaResourceId),
+            CreateOtelAttribute("cloudshell.resource.id", replicaResourceId),
+            CreateOtelAttribute("cloudshell.resource.type", "runtime.process"),
+            CreateOtelAttribute(TelemetryAttributeNames.ScopeResourceId, resource.EffectiveResourceId),
+            CreateOtelAttribute(TelemetryAttributeNames.ScopeName, $"Replica {replicaOrdinal}"),
+            CreateOtelAttribute(TelemetryAttributeNames.ScopeKind, "runtime"),
+            CreateOtelAttribute(TelemetryAttributeNames.RuntimeReplicaOrdinal, replicaOrdinal),
+            CreateOtelAttribute(TelemetryAttributeNames.RuntimeReplicaCount, totalReplicas));
+    }
+
+    private static string CreateOtelAttribute(
+        string name,
+        string value) =>
+        $"{name}={EscapeOtelAttributeValue(value)}";
+
+    private static string EscapeOtelAttributeValue(string value)
+    {
+        var builder = new StringBuilder(value.Length);
+        foreach (var current in value)
+        {
+            if (current is '\\' or ',' or '=')
+            {
+                builder.Append('\\');
+            }
+
+            builder.Append(current);
+        }
+
+        return builder.ToString();
+    }
+
+    private static void AddEnvironment(
+        ProcessStartInfo startInfo,
+        string name,
+        string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        startInfo.Environment[name] = value;
+    }
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 
     private static int GetIngressPort(
         Resource resource,

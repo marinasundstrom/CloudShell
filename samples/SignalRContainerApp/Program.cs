@@ -32,6 +32,12 @@ var frontendProjectPath = Path.GetFullPath(
 var apiProjectPath = Path.GetFullPath(
     "Api/CloudShell.SignalRContainerApp.Api.csproj",
     builder.Environment.ContentRootPath);
+var runtimeControlPlaneEndpoint = builder.Configuration["SignalRContainerApp:RuntimeControlPlaneEndpoint"]
+    ?? $"http://localhost:{(hostPort ?? 5094).ToString(CultureInfo.InvariantCulture)}";
+var traceIngestEndpoint = builder.Configuration["Observability:TraceIngestEndpoint"]
+    ?? $"{runtimeControlPlaneEndpoint}/api/control-plane/v1/traces/ingest";
+var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndpoint"]
+    ?? $"{runtimeControlPlaneEndpoint}/api/control-plane/v1/metrics/ingest";
 
 var cloudShell = builder.AddCloudShell();
 cloudShell.AddResourceGroup(
@@ -99,6 +105,9 @@ builder.Services
                 runtime.ReplicaStartTimeout = TimeSpan.FromSeconds(
                     builder.Configuration.GetValue<int?>(
                         "SignalRContainerApp:ReplicaStartTimeoutSeconds") ?? 60);
+                runtime.ReplicaServiceNamePrefix = "signalr-api-replica-";
+                runtime.TraceIngestEndpoint = traceIngestEndpoint;
+                runtime.MetricIngestEndpoint = metricIngestEndpoint;
             }))
     .AddAspNetCoreProjectResourceType();
 cloudShell.UseResourceGraphIntegration();

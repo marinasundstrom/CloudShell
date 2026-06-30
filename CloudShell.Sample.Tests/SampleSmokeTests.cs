@@ -2157,6 +2157,26 @@ public sealed class SampleSmokeTests
             Assert.Equal("Smoke test message", echoedMessage.Text);
             Assert.Equal(connectedMessage.Replica, echoedMessage.Replica);
             Assert.Equal(connectedMessage.ConnectionId, echoedMessage.ConnectionId);
+
+            const string telemetryResourceId = "application.container-app:signalr-api";
+            Assert.NotEmpty(await WaitForTraceSpansByResourceAsync(
+                host,
+                telemetryResourceId,
+                StartupTimeout,
+                spans => spans.Any(span => IsSignalRSpan(
+                    span,
+                    telemetryResourceId,
+                    connectedMessage.Replica,
+                    "SignalR message broadcast"))));
+            Assert.NotEmpty(await WaitForMetricPointsAsync(
+                host,
+                telemetryResourceId,
+                StartupTimeout,
+                points => points.Any(point => IsSignalRMetric(
+                    point,
+                    telemetryResourceId,
+                    connectedMessage.Replica,
+                    "signalr.server.messages"))));
         }
         finally
         {
@@ -2172,6 +2192,32 @@ public sealed class SampleSmokeTests
         string Machine,
         string ConnectionId,
         DateTimeOffset Timestamp);
+
+    private static bool IsSignalRSpan(
+        JsonElement span,
+        string resourceId,
+        string replica,
+        string name) =>
+        span.GetProperty("name").GetString() == name &&
+        span.GetProperty("resourceId").GetString() == resourceId &&
+        span.TryGetProperty("spanAttributes", out var attributes) &&
+        attributes.TryGetProperty("signalr.hub", out var hub) &&
+        hub.GetString() == "ReplicaHub" &&
+        attributes.TryGetProperty("runtime.replica.ordinal", out var replicaOrdinal) &&
+        replicaOrdinal.GetString() == replica;
+
+    private static bool IsSignalRMetric(
+        JsonElement point,
+        string resourceId,
+        string replica,
+        string name) =>
+        point.GetProperty("name").GetString() == name &&
+        point.GetProperty("resourceId").GetString() == resourceId &&
+        point.TryGetProperty("attributes", out var attributes) &&
+        attributes.TryGetProperty("signalr.hub", out var hub) &&
+        hub.GetString() == "ReplicaHub" &&
+        attributes.TryGetProperty("runtime.replica.ordinal", out var replicaOrdinal) &&
+        replicaOrdinal.GetString() == replica;
 
     [Fact]
     public async Task ReplicatedContainerHealthSample_DeclaresResourcesWithoutOldProviderRecords()
