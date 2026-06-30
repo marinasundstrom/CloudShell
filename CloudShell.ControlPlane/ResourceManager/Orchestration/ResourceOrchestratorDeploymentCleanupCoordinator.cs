@@ -4,7 +4,7 @@ using CloudShell.Abstractions.ResourceManager;
 namespace CloudShell.ControlPlane.ResourceManager.Orchestration;
 
 public sealed class ResourceOrchestratorDeploymentCleanupCoordinator(
-    IResourceEventSink? resourceEvents = null)
+    IResourceEventSink? resourceEvents = null) : IResourceOrchestratorDeploymentCleanupCoordinator
 {
     public async Task<ResourceProcedureResult> RunPostApplyCleanupAsync(
         Resource resource,

@@ -160,6 +160,19 @@ public interface IResourceOrchestratorDeploymentCoordinator
         string? cause = null);
 }
 
+public interface IResourceOrchestratorDeploymentCleanupCoordinator
+{
+    Task<ResourceProcedureResult> RunPostApplyCleanupAsync(
+        Resource resource,
+        ResourceOrchestratorDeploymentApplyResult applyResult,
+        ResourceProcedureResult result,
+        string? triggeredBy,
+        Func<ResourceOrchestratorDeploymentApplyResult, CancellationToken, Task<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>>>? describeTearDownsAsync,
+        Func<ResourceOrchestratorReplicaGroupTearDownRequest, ResourceOrchestratorReplicaGroup, string, CancellationToken, Task<ResourceProcedureResult>> tearDownReplicaGroupAsync,
+        Func<ResourceProcedureResult, ResourceProcedureResult, ResourceProcedureResult>? mergeResults = null,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IResourceOrchestratorServiceTearDown
 {
     bool CanTearDownService(

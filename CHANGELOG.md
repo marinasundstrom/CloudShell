@@ -87,6 +87,10 @@ on `git blame --follow`, and then by the broad type of change.
   replica-group and runtime-revision labels, and retired replica-group cleanup
   skips slots that have already been replaced by a newer revision so image
   rollouts do not delete the active replicas.
+- Resource model container-app apply reconciliation now uses the shared
+  Resource Manager deployment cleanup coordinator for post-apply replica-group
+  teardown, keeping cleanup events and warning handling on the orchestration
+  boundary instead of in the container-app graph reconciler.
 - Control Plane `DefineResources(...)` and `DefineInitialTemplate(...)` now use
   a Control Plane resource-definition context that extends graph resource
   authoring, keeps identity-provider metadata outside `ResourceDefinition` and

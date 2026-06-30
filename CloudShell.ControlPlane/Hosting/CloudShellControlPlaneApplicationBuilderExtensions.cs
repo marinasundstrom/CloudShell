@@ -118,6 +118,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddResourceModelGraphServices();
         builder.Services.AddScoped<IContainerHostResolver, ContainerHostResolver>();
         builder.Services.AddScoped<ResourceOrchestratorDeploymentCleanupCoordinator>();
+        builder.Services.AddScoped<IResourceOrchestratorDeploymentCleanupCoordinator>(
+            serviceProvider => serviceProvider.GetRequiredService<ResourceOrchestratorDeploymentCleanupCoordinator>());
         builder.Services.AddScoped<ResourceOrchestrationService>();
         builder.Services.TryAddSingleton<
             IResourceReplicaGroupReconciliationStore,

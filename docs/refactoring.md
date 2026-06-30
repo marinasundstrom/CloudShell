@@ -479,7 +479,7 @@ preserving old provider seams:
   the shared runtime/procedure coordinator.
 - [x] Extract the container app orchestrator deployment factory from the shared
   service so deployment description is independently testable.
-- [ ] Revisit post-apply teardown ownership. Prefer Resource Manager
+- [x] Revisit post-apply teardown ownership. Prefer Resource Manager
   deployment/orchestration outcome data over provider-specific predecessor
   inference.
 - [ ] Define a provider-facing change-application contract for applying

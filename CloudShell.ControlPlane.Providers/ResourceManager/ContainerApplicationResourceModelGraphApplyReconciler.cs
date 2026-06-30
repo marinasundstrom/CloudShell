@@ -12,6 +12,7 @@ public sealed class ContainerApplicationResourceModelGraphApplyReconciler(
     IEnumerable<IResourceModelGraphDeploymentDescriptor>? deploymentDescriptors = null,
     IResourceRegistrationStore? registrations = null,
     IResourceEventSink? resourceEvents = null,
+    IResourceOrchestratorDeploymentCleanupCoordinator? deploymentCleanup = null,
     IServiceProvider? serviceProvider = null) : IResourceModelGraphApplyReconciler
 {
     private static readonly ResourceAttributeId ContainerImageAttributeId =
@@ -26,6 +27,7 @@ public sealed class ContainerApplicationResourceModelGraphApplyReconciler(
     private readonly IResourceRegistrationStore _registrations =
         registrations ?? EmptyResourceRegistrationStore.Instance;
     private readonly IResourceEventSink? _resourceEvents = resourceEvents;
+    private readonly IResourceOrchestratorDeploymentCleanupCoordinator? _deploymentCleanup = deploymentCleanup;
     private readonly IServiceProvider? _serviceProvider = serviceProvider;
 
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAsync(
@@ -209,7 +211,6 @@ public sealed class ContainerApplicationResourceModelGraphApplyReconciler(
             return [];
         }
 
-        var diagnostics = new List<ResourceDefinitionDiagnostic>();
         var context = new ResourceOrchestrationContext(
             resource,
             _registrations.GetRegistration(resource.Id),
@@ -220,63 +221,51 @@ public sealed class ContainerApplicationResourceModelGraphApplyReconciler(
             triggeredBy,
             cause,
             _resourceEvents);
-        foreach (var tearDown in applyResult.ReplicaGroupsToTearDown)
+        var cleanup = ResolveDeploymentCleanupCoordinator();
+        if (cleanup is null)
         {
-            var replicaGroup = tearDown.ReplicaGroup ??
-                ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(tearDown.Service);
-            var reason = tearDown.Reason ?? "Deployment retired superseded replica group.";
-            var tearDownHandler = SelectReplicaGroupTearDown(
-                context,
-                applyResult.Deployment.OrchestratorId,
-                tearDown.Service,
-                replicaGroup);
-            if (tearDownHandler is null)
-            {
-                diagnostics.Add(ResourceDefinitionDiagnostic.Warning(
+            return
+            [
+                ResourceDefinitionDiagnostic.Warning(
                     "application.container.deploymentCleanupUnavailable",
-                    $"Container application deployment applied, but superseded replica group '{replicaGroup.Id}' could not be torn down because no orchestrator can tear it down.",
-                    resource.Id));
-                continue;
-            }
-
-            AppendDeploymentEvent(
-                resource,
-                ResourceEventTypes.Events.Deployment.CleanupRunning,
-                $"Cleaning up superseded replica group '{replicaGroup.Id}' for deployment '{applyResult.Deployment.Id}'. Reason: {reason}",
-                triggeredBy,
-                ResourceSignalSeverity.Info);
-            try
-            {
-                var result = await tearDownHandler.TearDownReplicaGroupAsync(
-                    context,
-                    tearDown.Service,
-                    replicaGroup,
-                    cancellationToken);
-                AppendDeploymentEvent(
-                    resource,
-                    ResourceEventTypes.Events.Deployment.CleanupCompleted,
-                    $"Cleaned up superseded replica group '{replicaGroup.Id}' for deployment '{applyResult.Deployment.Id}'. Result: {result.Message}",
-                    triggeredBy,
-                    ResourceSignalSeverity.Info);
-            }
-            catch (Exception exception) when (exception is not OperationCanceledException)
-            {
-                var message =
-                    $"Container application deployment applied, but superseded replica group '{replicaGroup.Id}' could not be torn down. Reason: {exception.Message}";
-                diagnostics.Add(ResourceDefinitionDiagnostic.Warning(
-                    "application.container.deploymentCleanupFailed",
-                    message,
-                    resource.Id));
-                AppendDeploymentEvent(
-                    resource,
-                    ResourceEventTypes.Events.Deployment.CleanupWarning,
-                    message,
-                    triggeredBy,
-                    ResourceSignalSeverity.Warning);
-            }
+                    "Container application deployment applied, but post-apply cleanup requires a Resource Manager deployment cleanup coordinator.",
+                    resource.Id)
+            ];
         }
 
-        return diagnostics;
+        var result = await cleanup.RunPostApplyCleanupAsync(
+            resource,
+            applyResult,
+            ResourceProcedureResult.Completed(applyResult.ProcedureResult.Message),
+            triggeredBy,
+            describeTearDownsAsync: null,
+            async (tearDown, replicaGroup, reason, token) =>
+            {
+                var tearDownHandler = SelectReplicaGroupTearDown(
+                    context,
+                    applyResult.Deployment.OrchestratorId,
+                    tearDown.Service,
+                    replicaGroup);
+                if (tearDownHandler is null)
+                {
+                    throw new InvalidOperationException("no orchestrator can tear down the replica group.");
+                }
+
+                return await tearDownHandler.TearDownReplicaGroupAsync(
+                    context with { Cause = reason },
+                    tearDown.Service,
+                    replicaGroup,
+                    token);
+            },
+            cancellationToken: cancellationToken);
+
+        return result.Signals
+            .Where(signal => signal.Severity == ResourceSignalSeverity.Warning)
+            .Select(signal => ResourceDefinitionDiagnostic.Warning(
+                "application.container.deploymentCleanupWarning",
+                signal.Message,
+                resource.Id))
+            .ToArray();
     }
 
     private IResourceOrchestratorReplicaGroupTearDown? SelectReplicaGroupTearDown(
@@ -306,20 +295,6 @@ public sealed class ContainerApplicationResourceModelGraphApplyReconciler(
             as IResourceOrchestratorReplicaGroupTearDown;
     }
 
-    private void AppendDeploymentEvent(
-        ResourceManagerResource resource,
-        string eventType,
-        string message,
-        string? triggeredBy,
-        ResourceSignalSeverity severity) =>
-        _resourceEvents?.Append(new ResourceEvent(
-            resource.Id,
-            eventType,
-            message,
-            DateTimeOffset.UtcNow,
-            triggeredBy,
-            severity));
-
     private static bool RequiresRuntimeReconciliation(
         ResourceChangeSet changeSet)
     {
@@ -340,6 +315,10 @@ public sealed class ContainerApplicationResourceModelGraphApplyReconciler(
 
     private IReadOnlyList<IResourceOrchestratorDeploymentCoordinator> ResolveDeploymentCoordinators() =>
         _serviceProvider?.GetServices<IResourceOrchestratorDeploymentCoordinator>().ToArray() ?? [];
+
+    private IResourceOrchestratorDeploymentCleanupCoordinator? ResolveDeploymentCleanupCoordinator() =>
+        _deploymentCleanup ??
+        _serviceProvider?.GetService<IResourceOrchestratorDeploymentCleanupCoordinator>();
 
     private IResourceManagerStore? ResolveResourceManager() =>
         _serviceProvider?.GetService<IResourceManagerStore>();
