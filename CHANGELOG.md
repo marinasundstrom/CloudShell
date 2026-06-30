@@ -151,6 +151,10 @@ on `git blame --follow`, and then by the broad type of change.
   that projects graph resources into the Resource Manager endpoint-mapping
   provisioner contract; HostVirtualNetwork uses it instead of a sample-local
   endpoint-mapping bridge.
+- DNS zone providers now include an opt-in graph name-mapping reconciler that
+  projects graph DNS zone/name-mapping resources into the Resource Manager
+  name-publishing provider contract; LoadBalancer and HostVirtualNetwork use
+  it instead of sample-local DNS reconciler registrations.
 - Control Plane `DefineResources(...)` and `DefineInitialTemplate(...)` now use
   a Control Plane resource-definition context that extends graph resource
   authoring, keeps identity-provider metadata outside `ResourceDefinition` and

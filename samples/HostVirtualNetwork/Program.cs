@@ -12,7 +12,6 @@ using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.Providers.UI;
 using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
@@ -123,6 +122,7 @@ builder.Services
     .AddAspNetCoreProjectResourceType()
     .AddDnsZoneResourceType()
     .AddNameMappingResourceType()
+    .AddResourceModelGraphDnsZoneNameMappingReconciler()
     .AddResourceModelGraphEndpointMappingReconciler();
 cloudShell.UseResourceGraphIntegration();
 builder.Services.AddSingleton(new CoreDnsZoneFilePublishingOptions
@@ -134,8 +134,6 @@ builder.Services.AddSingleton(new CoreDnsZoneFilePublishingOptions
 builder.Services.AddSingleton<CoreDnsZoneFilePublishingProvider>();
 builder.Services.AddSingleton<INamePublishingProvider>(
     serviceProvider => serviceProvider.GetRequiredService<CoreDnsZoneFilePublishingProvider>());
-builder.Services.Replace(
-    ServiceDescriptor.Singleton<IDnsZoneNameMappingReconciler, ResourceModelGraphDnsZoneNameMappingReconciler>());
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

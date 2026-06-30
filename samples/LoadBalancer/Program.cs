@@ -99,12 +99,11 @@ builder.Services
     .AddLocalContainerApplicationResourceTypes()
     .AddLoadBalancerResourceType()
     .AddDnsZoneResourceType()
-    .AddNameMappingResourceType();
+    .AddNameMappingResourceType()
+    .AddResourceModelGraphDnsZoneNameMappingReconciler();
 cloudShell.UseResourceGraphIntegration();
 builder.Services.Replace(
     ServiceDescriptor.Singleton<ILoadBalancerConfigurationApplier, LoadBalancerGraphTraefikConfigurationApplier>());
-builder.Services.Replace(
-    ServiceDescriptor.Singleton<IDnsZoneNameMappingReconciler, LoadBalancerGraphNameMappingReconciler>());
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

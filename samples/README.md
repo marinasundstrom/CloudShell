@@ -20,7 +20,7 @@ provider boundaries.
 | `ContainerAppDeployment` | Container app image and replica updates through the Control Plane API. | Switched to the Resource model provider path; deployment API updates graph state through provider-owned deferred container-app and local Docker container runtime adapters. |
 | `CloudShell.ContainerHost` | Storage-backed SQL Server lifecycle using a resource graph volume. | Switched to the new projection only; SQL Docker runtime materialization now uses the provider-owned local SQL Server Docker runtime adapter. |
 | `HostVirtualNetwork` | Host-local virtual network endpoint mapping. | Switched to the new projection only; endpoint mapping now uses the provider-owned graph endpoint-mapping reconciler and the Control Plane local host-network provisioner, while CoreDNS file publishing remains sample-local. |
-| `LoadBalancer` | Resource model load-balancer routes and DNS/name mapping. | Uses Resource model definitions with sample-local Traefik configuration and local hosts publishing bridges. |
+| `LoadBalancer` | Resource model load-balancer routes and DNS/name mapping. | Uses Resource model definitions with provider-owned graph DNS reconciliation; Traefik route translation remains sample-local until load-balancer runtime integration moves fully into providers. |
 | `SplitHosting` | Remote UI rendering Resource Definitions-backed resources through a separate Control Plane. | Switched to the new projection only; the old direct Resource Manager comparison record and toggle have been removed. |
 
 ## Creating a new sample

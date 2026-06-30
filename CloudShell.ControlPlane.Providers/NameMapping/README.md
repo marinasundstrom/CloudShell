@@ -20,15 +20,15 @@
   convenience APIs.
 - LoadBalancer sample graph name-mapping coverage targeting the graph-backed
   load balancer frontend.
-- LoadBalancer sample-local runtime bridge coverage that materializes graph
-  name mappings through the existing local-hostnames publisher contract.
+- Provider-owned graph DNS reconciler coverage that materializes graph name
+  mappings through the existing local-hostnames publisher contract.
 
 ## Switch-over status
 
 Ready as a supporting graph resource for the LoadBalancer graph-default sample
 path. The switch scope covers declared host/name mappings, target references,
-Resource Manager projection, and sample-local materialization through the
-existing local-hostnames publisher contract. General publisher ownership,
+Resource Manager projection, and provider-owned graph DNS reconciliation
+through the existing local-hostnames publisher contract. General publisher ownership,
 conflict/materialization views, target endpoint validation, and UI flows remain
 post-switch work.
 
@@ -37,4 +37,4 @@ post-switch work.
 - Provider-specific reference modeling if needed.
 - Target endpoint validation.
 - Conflict/materialization views as capability members or operation plans.
-- Generalized DNS publisher integration outside the sample bridge and UI registration/update flow.
+- DNS publisher integration and UI registration/update flow.
