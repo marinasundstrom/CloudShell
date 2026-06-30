@@ -34,7 +34,8 @@ The sample declares only Resource Definitions-backed resources:
   health check, and `/alive` liveness check.
 
 The old `application:api` and old Docker provider records are no longer
-declared. Starting the container app uses a sample-local Docker runtime bridge
+declared. Starting the container app uses the provider-owned local
+container-app command runner with a sample-local Docker/Traefik runtime bridge
 that builds the API image, starts replica containers, starts the sample-owned
 Traefik ingress container, and removes those containers on stop. Image and
 replica updates are applied through ResourceDefinition changes and then
@@ -58,8 +59,10 @@ These implementation seams remain temporary and should be swept when the
 provider runtime is moved out of the sample:
 
 - `ReplicatedContainerHealthContainerAppRuntimeBridge` is the
-  sample-local Docker runtime bridge. Its behavior should move into the durable
-  container-app provider runtime or be replaced by that runtime.
+  sample-local Docker/Traefik runtime bridge. The command runner it uses now
+  lives in the container-app provider; the Docker/Traefik materialization
+  behavior should move into the durable container-app provider runtime or be
+  replaced by that runtime.
 - `ReplicatedContainerHealthRuntimeResourceProvider` projects hidden
   runtime-managed replica resources through the existing flat
   `IResourceProvider` adapter. The future provider contract should distinguish

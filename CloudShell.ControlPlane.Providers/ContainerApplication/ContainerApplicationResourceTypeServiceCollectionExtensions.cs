@@ -51,6 +51,9 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
         services.TryAddSingleton<
             IContainerApplicationRuntimeHandler,
             NoopContainerApplicationRuntimeHandler>();
+        services.TryAddSingleton<
+            ILocalContainerApplicationCommandRunner,
+            ProcessLocalContainerApplicationCommandRunner>();
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProvider, ContainerApplicationStartOperationProvider>());
         services.TryAddEnumerable(

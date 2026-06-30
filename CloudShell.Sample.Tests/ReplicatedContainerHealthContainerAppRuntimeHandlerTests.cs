@@ -207,7 +207,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     {
         var commandRunner = new RecordingCommandRunner();
         commandRunner.Enqueue(new(
-            ReplicatedContainerHealthCommandResult.TimeoutExitCode,
+            LocalContainerApplicationCommandResult.TimeoutExitCode,
             string.Empty,
             "timeout"));
         var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
@@ -225,7 +225,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         var commandRunner = new RecordingCommandRunner();
         commandRunner.Enqueue(new(0, "running", string.Empty));
         commandRunner.Enqueue(new(
-            ReplicatedContainerHealthCommandResult.TimeoutExitCode,
+            LocalContainerApplicationCommandResult.TimeoutExitCode,
             string.Empty,
             "timeout"));
         var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
@@ -1210,13 +1210,13 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 
-    private sealed class RecordingCommandRunner : IReplicatedContainerHealthCommandRunner
+    private sealed class RecordingCommandRunner : ILocalContainerApplicationCommandRunner
     {
-        private readonly Queue<ReplicatedContainerHealthCommandResult> _results = [];
+        private readonly Queue<LocalContainerApplicationCommandResult> _results = [];
 
         public List<RecordingCommand> Commands { get; } = [];
 
-        public void Enqueue(ReplicatedContainerHealthCommandResult result) =>
+        public void Enqueue(LocalContainerApplicationCommandResult result) =>
             _results.Enqueue(result);
 
         public void EnqueueSuccess(int count)
@@ -1227,14 +1227,14 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             }
         }
 
-        public ReplicatedContainerHealthCommandResult Run(
+        public LocalContainerApplicationCommandResult Run(
             string fileName,
             IReadOnlyList<string> arguments,
             bool throwOnError = true,
             TimeSpan? timeout = null) =>
             RunCore(fileName, arguments, throwOnError);
 
-        public Task<ReplicatedContainerHealthCommandResult> RunAsync(
+        public Task<LocalContainerApplicationCommandResult> RunAsync(
             string fileName,
             IReadOnlyList<string> arguments,
             CancellationToken cancellationToken,
@@ -1244,14 +1244,14 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             return Task.FromResult(RunCore(fileName, arguments, throwOnError));
         }
 
-        private ReplicatedContainerHealthCommandResult RunCore(
+        private LocalContainerApplicationCommandResult RunCore(
             string fileName,
             IReadOnlyList<string> arguments,
             bool throwOnError)
         {
             Commands.Add(new(fileName, arguments.ToArray(), throwOnError));
             var result = _results.Count == 0
-                ? new ReplicatedContainerHealthCommandResult(0, string.Empty, string.Empty)
+                ? new LocalContainerApplicationCommandResult(0, string.Empty, string.Empty)
                 : _results.Dequeue();
             if (throwOnError && result.ExitCode != 0)
             {

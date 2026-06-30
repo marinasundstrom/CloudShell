@@ -62,10 +62,9 @@ cloudShell.DefineResources(resources =>
             name: "alive");
 });
 builder.Services
-    .AddSingleton<IReplicatedContainerHealthCommandRunner, ProcessReplicatedContainerHealthCommandRunner>()
     .AddSingleton<IReplicatedContainerHealthContainerAppRuntimeBridge>(
         serviceProvider => new ReplicatedContainerHealthContainerAppRuntimeBridge(
-            serviceProvider.GetRequiredService<IReplicatedContainerHealthCommandRunner>(),
+            serviceProvider.GetRequiredService<ILocalContainerApplicationCommandRunner>(),
             serviceProvider.GetRequiredService<IConfiguration>(),
             serviceProvider.GetRequiredService<IHostEnvironment>(),
             traceIngestEndpoint,

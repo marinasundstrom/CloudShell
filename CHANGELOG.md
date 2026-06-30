@@ -161,6 +161,11 @@ on `git blame --follow`, and then by the broad type of change.
   composition helpers for provider-owned Resource Model runtime adapters,
   reducing sample setup without hiding runtime materialization inside resource
   type registration.
+- Container app providers now own the local container-app process command
+  runner used by ReplicatedContainerHealth runtime materialization, removing
+  another sample-local runtime infrastructure piece while leaving the
+  sample-specific Docker/Traefik bridge as the next provider-runtime cleanup
+  target.
 - Control Plane `DefineResources(...)` and `DefineInitialTemplate(...)` now use
   a Control Plane resource-definition context that extends graph resource
   authoring, keeps identity-provider metadata outside `ResourceDefinition` and

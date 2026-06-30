@@ -1,8 +1,9 @@
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Providers;
 
 internal sealed class ReplicatedContainerHealthRuntimeMonitoringProvider(
-    IReplicatedContainerHealthCommandRunner commandRunner) : IResourceMonitoringProvider
+    ILocalContainerApplicationCommandRunner commandRunner) : IResourceMonitoringProvider
 {
     private const string ProviderDisplayName = "Replicated Container Health";
 

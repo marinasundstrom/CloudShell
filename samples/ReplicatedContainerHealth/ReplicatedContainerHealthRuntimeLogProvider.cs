@@ -1,10 +1,11 @@
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Providers;
 using System.Globalization;
 using System.Text.Json;
 
 internal sealed class ReplicatedContainerHealthRuntimeLogProvider(
-    IReplicatedContainerHealthCommandRunner commandRunner,
+    ILocalContainerApplicationCommandRunner commandRunner,
     IResourceManagerStore resourceManager) : ILogProvider
 {
     private const string ContainerReplicasAttribute = "container.replicas";

@@ -5,14 +5,13 @@ using CloudShell.ResourceModel;
 using CloudShell.ControlPlane.Providers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using System.Diagnostics;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using GraphResource = CloudShell.ResourceModel.Resource;
 
 internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
-    IReplicatedContainerHealthCommandRunner commandRunner,
+    ILocalContainerApplicationCommandRunner commandRunner,
     IConfiguration configuration,
     IHostEnvironment? hostEnvironment = null,
     string? traceIngestEndpoint = null,
@@ -96,7 +95,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
                 ],
                 throwOnError: false,
                 timeout: _statusProbeTimeout);
-            if (result.ExitCode == ReplicatedContainerHealthCommandResult.TimeoutExitCode)
+            if (result.ExitCode == LocalContainerApplicationCommandResult.TimeoutExitCode)
             {
                 return RuntimeStatusProbeResult.Transient();
             }
@@ -1009,107 +1008,5 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         Running,
         Stopped,
         Unknown
-    }
-}
-
-internal interface IReplicatedContainerHealthCommandRunner
-{
-    ReplicatedContainerHealthCommandResult Run(
-        string fileName,
-        IReadOnlyList<string> arguments,
-        bool throwOnError = true,
-        TimeSpan? timeout = null);
-
-    Task<ReplicatedContainerHealthCommandResult> RunAsync(
-        string fileName,
-        IReadOnlyList<string> arguments,
-        CancellationToken cancellationToken,
-        bool throwOnError = true,
-        TimeSpan? timeout = null);
-}
-
-internal sealed record ReplicatedContainerHealthCommandResult(
-    int ExitCode,
-    string Output,
-    string Error)
-{
-    public const int TimeoutExitCode = -1;
-}
-
-internal sealed class ProcessReplicatedContainerHealthCommandRunner :
-    IReplicatedContainerHealthCommandRunner
-{
-    public ReplicatedContainerHealthCommandResult Run(
-        string fileName,
-        IReadOnlyList<string> arguments,
-        bool throwOnError = true,
-        TimeSpan? timeout = null) =>
-        RunAsync(fileName, arguments, CancellationToken.None, throwOnError, timeout)
-            .ConfigureAwait(false)
-            .GetAwaiter()
-            .GetResult();
-
-    public async Task<ReplicatedContainerHealthCommandResult> RunAsync(
-        string fileName,
-        IReadOnlyList<string> arguments,
-        CancellationToken cancellationToken,
-        bool throwOnError = true,
-        TimeSpan? timeout = null)
-    {
-        var startInfo = new ProcessStartInfo(fileName)
-        {
-            RedirectStandardError = true,
-            RedirectStandardOutput = true,
-            UseShellExecute = false
-        };
-        foreach (var argument in arguments)
-        {
-            startInfo.ArgumentList.Add(argument);
-        }
-
-        using var process = Process.Start(startInfo) ??
-            throw new InvalidOperationException($"Command '{fileName}' could not be started.");
-        using var timeoutCancellation = timeout is null
-            ? null
-            : new CancellationTokenSource(timeout.Value);
-        using var linkedCancellation = timeoutCancellation is null
-            ? null
-            : CancellationTokenSource.CreateLinkedTokenSource(
-                cancellationToken,
-                timeoutCancellation.Token);
-        var waitCancellationToken = linkedCancellation?.Token ?? cancellationToken;
-        var outputTask = process.StandardOutput.ReadToEndAsync(waitCancellationToken);
-        var errorTask = process.StandardError.ReadToEndAsync(waitCancellationToken);
-        try
-        {
-            await process.WaitForExitAsync(waitCancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (
-            timeoutCancellation?.IsCancellationRequested == true &&
-            !cancellationToken.IsCancellationRequested)
-        {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-                await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-
-            return new ReplicatedContainerHealthCommandResult(
-                ReplicatedContainerHealthCommandResult.TimeoutExitCode,
-                string.Empty,
-                $"Command '{fileName} {string.Join(' ', arguments)}' timed out.");
-        }
-
-        var result = new ReplicatedContainerHealthCommandResult(
-            process.ExitCode,
-            await outputTask.ConfigureAwait(false),
-            await errorTask.ConfigureAwait(false));
-        if (throwOnError && result.ExitCode != 0)
-        {
-            throw new InvalidOperationException(
-                $"Command '{fileName} {string.Join(' ', arguments)}' failed with exit code {result.ExitCode.ToString(CultureInfo.InvariantCulture)}: {result.Error}");
-        }
-
-        return result;
     }
 }

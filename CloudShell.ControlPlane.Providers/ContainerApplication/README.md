@@ -93,6 +93,12 @@ orchestrator. It removes the need for each sample or migrated provider to
 implement its own `IContainerApplicationRuntimeHandler` while the container app
 orchestration path is completed.
 
+The provider also owns the local container-app command runner abstraction used
+by runtime adapters that still shell out to `dotnet` or local container tools.
+Samples can replace `ILocalContainerApplicationCommandRunner` for deterministic
+tests, but normal hosts get `ProcessLocalContainerApplicationCommandRunner`
+from `AddContainerApplicationResourceType()`.
+
 The provider also includes a deferred runtime adapter for migration scenarios
 that need graph image/replica changes to be accepted without materializing a
 real container app runtime.
@@ -120,11 +126,12 @@ services
 
 The ReplicatedContainerHealth sample currently proves this seam with a
 sample-local target that maps `application.container-app:api` to the existing
-Docker/Traefik runtime bridge. The provider-owned delegating handler covers the
-runtime and orchestrator dispatch contract, while the sample target remains
-responsible only for the sample's physical runtime materialization. The Docker
-smoke verifies that graph restart recreates the revision-scoped runtime
-containers and graph stop removes the containers that graph start created.
+Docker/Traefik runtime bridge. The provider-owned delegating handler and local
+container-app command runner cover the runtime dispatch and process execution
+contracts, while the sample target remains responsible only for the sample's
+physical runtime materialization. The Docker smoke verifies that graph restart
+recreates the revision-scoped runtime containers and graph stop removes the
+containers that graph start created.
 
 The ContainerAppDeployment sample uses the provider-owned deferred runtime
 adapter for `application.container-app:sample-api`. It accepts image and
