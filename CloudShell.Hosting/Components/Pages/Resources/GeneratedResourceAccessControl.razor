@@ -448,7 +448,7 @@
             ? ResourcesById.GetValueOrDefault(principal.SourceResourceId) is { } resource
                 ? ResourceDisplayLabels.GetQualifiedLabel(resource)
                 : principal.SourceResourceId
-            : principal.DisplayName ?? principal.Id;
+            : ResolvePrincipalName(principal);
 
     private RenderFragment PrincipalLink(ResourcePrincipalReference principal)
     {
@@ -456,7 +456,7 @@
             ? null
             : ResourcesById.GetValueOrDefault(principal.SourceResourceId);
         var label = resource is null
-            ? principal.DisplayName ?? principal.Id
+            ? ResolvePrincipalName(principal)
             : ResourceDisplayLabels.GetQualifiedLabel(resource);
         var href = resource is null
             ? null
@@ -474,6 +474,17 @@
                 ? "Default identity"
                 : principal.SourceIdentityName
             : principal.Kind.ToString();
+
+    private string ResolvePrincipalName(ResourcePrincipalReference principal) =>
+        PrincipalOptions.FirstOrDefault(option =>
+            SamePrincipal(option.Principal, principal))?.Name ??
+        principal.DisplayName ??
+        principal.Id;
+
+    private static bool SamePrincipal(ResourcePrincipalReference left, ResourcePrincipalReference right) =>
+        left.Kind == right.Kind &&
+        string.Equals(left.ProviderId, right.ProviderId, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(left.Id, right.Id, StringComparison.OrdinalIgnoreCase);
 
     private bool IsCurrentResourceIdentity(ResourcePrincipalReference principal) =>
         principal.Kind == ResourcePrincipalKind.ResourceIdentity &&

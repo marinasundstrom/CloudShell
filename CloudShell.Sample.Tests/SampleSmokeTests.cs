@@ -1581,7 +1581,15 @@ public sealed class SampleSmokeTests
 
         var apiJson = await host.GetStringAsync("/api/control-plane/v1/resources");
         using var document = JsonDocument.Parse(apiJson);
-        var apiResource = document.RootElement.EnumerateArray().Single(resource =>
+        var resources = document.RootElement.EnumerateArray().ToArray();
+        var resourceIds = resources
+            .Select(resource => resource.GetProperty("id").GetString())
+            .OfType<string>()
+            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        Assert.Equal(["sample:api", "sample:database", "sample:worker"], resourceIds);
+
+        var apiResource = resources.Single(resource =>
             resource.GetProperty("id").GetString() == "sample:api");
         Assert.Equal((int)ResourceState.Running, apiResource.GetProperty("state").GetInt32());
 
@@ -1701,12 +1709,13 @@ public sealed class SampleSmokeTests
             .EnumerateArray()
             .Select(resource => resource.GetProperty("id").GetString())
             .OfType<string>()
+            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        Assert.Equal(["sample:database"], resourceIds);
+        Assert.Equal(["sample:api", "sample:database", "sample:worker"], resourceIds);
 
         using var apiResponse = await client.GetAsync(
             "/api/control-plane/v1/resources/sample%3Aapi");
-        Assert.Equal(HttpStatusCode.NotFound, apiResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, apiResponse.StatusCode);
 
         var databaseJson = await client.GetStringAsync(
             "/api/control-plane/v1/resources/sample%3Adatabase");
@@ -1717,7 +1726,7 @@ public sealed class SampleSmokeTests
             .GetProperty("stop")
             .GetProperty("href")
             .GetString() ?? throw new InvalidOperationException("The database stop action did not include an href.");
-        using var stopResponse = await client.PostAsync(stopHref, null);
+        using var stopResponse = await client.PostAsync($"{stopHref}?ignoreDependentWarning=true", null);
         Assert.Equal(HttpStatusCode.OK, stopResponse.StatusCode);
 
         var eventsJson = await client.GetStringAsync(

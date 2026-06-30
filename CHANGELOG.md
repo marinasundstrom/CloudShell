@@ -40,6 +40,10 @@ on `git blame --follow`, and then by the broad type of change.
   content.
 - Application Topology sample resource display names now omit the repeated
   sample prefix so graph cards remain readable.
+- ResourceHost now declares every sample resource exposed by its provider and
+  grants the in-memory Alice user read access to the declared sample topology,
+  keeping Resource Manager inventory consistent in permissive and authenticated
+  runs.
 - Resource graph now has an optional network topology overlay that adds
   topology relationship links and shows internet reachability as a badge on
   resource or network cards when reachability is explicitly projected, instead

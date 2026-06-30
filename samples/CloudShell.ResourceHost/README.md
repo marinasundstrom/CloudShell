@@ -1,7 +1,7 @@
 # CloudShell Resource Host Sample
 
 This sample hosts CloudShell UI and the Control Plane in the same ASP.NET Core
-process. It adds a custom resource extension and declares two sample resources
+process. It adds a custom resource extension and declares three sample resources
 at startup.
 
 ## Run
@@ -51,13 +51,15 @@ curl http://localhost:5102/api/control-plane/v1/resources
 
 ## Access Model
 
-Alice has the `CloudShell.Reader` role and a programmatic grant for
-`resources.manage` on `sample:database`. The reader role grants shell,
-resource read, and observability read permissions, but no wildcard resource
-scope. The programmatic grant makes the guarded Resource Manager view
-intentionally scoped to the resource Alice can access. Activity created from
-Alice's browser/API session is audited with the signed-in account identifier,
-`alice@example.test`; the programmatic grant principal key remains `alice`.
+Alice has the `CloudShell.Reader` role plus programmatic grants for
+`resources.read` on the declared sample resources and `resources.manage` on
+`sample:database`. The reader role grants shell, resource read, and
+observability read permissions, but no wildcard resource scope. The
+programmatic grants make the guarded Resource Manager view intentionally
+scoped to the declared resources Alice can access while keeping database
+management as the elevated case. Activity created from Alice's browser/API
+session is audited with the signed-in account identifier, `alice@example.test`;
+the programmatic grant principal key remains `alice`.
 Username sign-in is disabled by default, so `alice` is not accepted as a login
 identifier unless `Authentication:BuiltInIdentity:AllowUserNameSignIn=true` is
 configured.
@@ -83,9 +85,9 @@ Use this sample for both cases:
 - Sample resources advertise provider-backed lifecycle actions through the
   `resourceActions` API dictionary.
 - The startup `DefineResources(...)` block uses manual `.Declare(...)`
-  provider-backed declarations for `sample:api` and `sample:database`, so they
-  are visible immediately in Resource Manager and through the Control Plane
-  API.
+  provider-backed declarations for `sample:api`, `sample:database`, and
+  `sample:worker`, so they are visible immediately in Resource Manager and
+  through the Control Plane API.
 - `Program.cs` calls `ConfigureInMemoryIdentity(...)` to register the built-in
   provider with an in-memory ASP.NET Core Identity store and an `alice` test
   user. Alice can sign in with the configured password, is exposed as a user
