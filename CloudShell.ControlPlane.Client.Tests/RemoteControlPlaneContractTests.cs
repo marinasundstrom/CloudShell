@@ -1531,12 +1531,13 @@ public sealed class RemoteControlPlaneContractTests
             builder.Services.AddSingleton<ILogProvider, ContractProviderLogProvider>();
         }
 
+        controlPlane.AddIdentityProvider(
+            "identity:contract",
+            "Contract identity",
+            ResourceIdentityProviderKind.Custom);
+
         controlPlane.DefineResources(resources =>
         {
-            resources.AddIdentityProvider(
-                "identity:contract",
-                "Contract identity",
-                ResourceIdentityProviderKind.Custom);
             var declarations = resources.Declarations;
             var network = declarations
                 .AddNetwork("network:contract", isDefault: true)

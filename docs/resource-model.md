@@ -557,12 +557,12 @@ contributes it, there is no default network or default container host to
 resolve. Explicit resources with the same default IDs override preset fallback
 resources. Host-level defaults that are not resources, such as identity
 providers used to resolve user or resource principals, stay outside the
-ResourceDefinition graph. Control Plane programmatic authoring exposes those
-host capabilities through a Control Plane resource-definition context with
-methods such as `AddIdentityProvider(...)`,
-`UseDefaultIdentityProvider(...)`, and `GetIdentityProvider()`. Those calls
-can influence the resources being declared, but they register Control Plane
-identity metadata rather than `ResourceDefinition` resources.
+ResourceDefinition graph. Control Plane host setup registers identity providers
+through host configuration, identity-specific host setup such as the built-in
+identity setup, or host-level `cloudShell.AddIdentityProvider(...)` calls.
+Control Plane programmatic resource authoring can read that host context with
+`resources.GetIdentityProvider(...)` and use it while declaring resources, but
+it does not declare identity providers as `ResourceDefinition` resources.
 `GetIdentityProvider()` returns a Control Plane identity-provider context. The
 context exposes provider metadata and principal helpers such as `GetUser(...)`;
 those helpers create provider-scoped principal references for grants without

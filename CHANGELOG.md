@@ -49,10 +49,10 @@ on `git blame --follow`, and then by the broad type of change.
 - ResourceDefinition graph builders now expose get-or-add default resource
   accessors for the Host network and default docker-compatible container host,
   matching the default-resource authoring model used by identity providers.
-- Control Plane graph authoring can now register identity providers and select
-  or retrieve the default identity provider through the host authoring context,
-  with those declarations copied into the Control Plane identity-provider
-  catalog while staying outside `ResourceDefinition` resources.
+- Control Plane graph authoring can now retrieve host-registered identity
+  provider context while keeping identity-provider registration on the host
+  itself through configuration, built-in identity setup, or host-level
+  `AddIdentityProvider(...)` calls.
 - `resources.GetIdentityProvider()` now returns a Control Plane identity-provider
   context that exposes provider metadata and creates provider-scoped user
   principal references with `GetUser(...)`.

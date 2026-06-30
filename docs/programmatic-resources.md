@@ -283,14 +283,13 @@ refer to the same resource builder. Control Plane `DefineResources(...)` and
 `DefineInitialTemplate(...)` callbacks receive a Control Plane
 resource-definition context: it behaves like the ResourceDefinition graph
 builder for resource declarations, while also exposing host-level services that
-can contribute to graph construction. Identity-provider helpers such as
-`resources.AddIdentityProvider(...)`,
-`resources.UseDefaultIdentityProvider(...)`, and
-`resources.GetIdentityProvider()` live on that Control Plane context and feed
-the Control Plane identity-provider catalog. `GetIdentityProvider()` returns a
-host identity-provider context that can create provider-scoped principal
-references, for example `resources.GetIdentityProvider().GetUser("alice")`.
-They are not emitted as `ResourceDefinition` entries.
+can contribute to graph construction. Identity providers are registered on the
+host itself, for example by built-in identity host setup, `ResourceIdentity`
+configuration, or host-level `cloudShell.AddIdentityProvider(...)` calls.
+`resources.GetIdentityProvider()` reads that host context and returns an
+identity-provider context that can create provider-scoped principal references,
+for example `resources.GetIdentityProvider().GetUser("alice")`. Identity
+providers are not emitted as `ResourceDefinition` entries.
 
 Graph-backed generic container-host resources project orchestration descriptors
 for the runtime host resolver. This means a resource such as SQL Server can call

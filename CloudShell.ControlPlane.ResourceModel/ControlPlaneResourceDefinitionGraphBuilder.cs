@@ -32,8 +32,6 @@ public sealed class ControlPlaneResourceDefinitionGraphBuilder :
         _declarationBuilder = new ControlPlaneResourceDeclarationBuilder(builder, declarations);
     }
 
-    internal ControlPlaneResourceDefinitionContextMetadata ContextMetadata => _metadata;
-
     public IResourceDeclarationBuilder Declarations => _declarationBuilder
         ?? throw new InvalidOperationException(
             "Provider-backed declarations are only available from Control Plane host authoring callbacks.");
@@ -75,37 +73,8 @@ public sealed class ControlPlaneResourceDefinitionGraphBuilder :
             identity);
     }
 
-    public ControlPlaneResourceDefinitionGraphBuilder UseDefaultIdentityProvider(string providerId)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(providerId);
-
-        _metadata.UseDefaultIdentityProvider(providerId);
-        return this;
-    }
-
     public ControlPlaneIdentityProviderContext GetIdentityProvider(string? providerId = null) =>
         new(_metadata.GetIdentityProvider(providerId));
-
-    public ControlPlaneIdentityProviderContext AddIdentityProvider(
-        string id,
-        string name,
-        ResourceIdentityProviderKind kind = ResourceIdentityProviderKind.Oidc,
-        IReadOnlyDictionary<string, string>? settings = null,
-        string? provisioningResourceId = null,
-        bool useAsDefault = false) =>
-        AddIdentityProvider(
-            new ResourceIdentityProviderDefinition(id, name, kind, settings, provisioningResourceId),
-            useAsDefault);
-
-    public ControlPlaneIdentityProviderContext AddIdentityProvider(
-        ResourceIdentityProviderDefinition provider,
-        bool useAsDefault = false)
-    {
-        ArgumentNullException.ThrowIfNull(provider);
-
-        return new ControlPlaneIdentityProviderContext(
-            _metadata.AddIdentityProvider(provider, useAsDefault));
-    }
 
     internal void SeedIdentityProviderDeclarations(ResourceDeclarationStore declarations)
     {
@@ -163,8 +132,6 @@ internal sealed class ControlPlaneResourceDeclarationBuilder(
 
 internal sealed class ControlPlaneResourceDefinitionContextMetadata
 {
-    public static ControlPlaneResourceDefinitionContextMetadata Empty { get; } = new();
-
     private readonly Dictionary<string, ResourceIdentityProviderDefinition> _identityProviders =
         new(StringComparer.OrdinalIgnoreCase);
 
@@ -192,11 +159,6 @@ internal sealed class ControlPlaneResourceDefinitionContextMetadata
 
         DefaultIdentityProviderId = providerId.Trim();
     }
-
-    public IReadOnlyList<ResourceIdentityProviderDefinition> GetIdentityProviders() =>
-        _identityProviders.Values
-            .OrderBy(provider => provider.Name, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
 
     public ResourceIdentityProviderDefinition GetIdentityProvider(string? providerId = null)
     {

@@ -237,46 +237,41 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public void ControlPlaneResourceDefinitionGraphBuilder_ExposesDefaultIdentityProvider()
+    public void ControlPlaneResourceDefinitionGraphBuilder_RequiresHostIdentityProviderContext()
     {
         var graph = new ControlPlaneResourceDefinitionGraphBuilder();
-        var provider = graph.AddIdentityProvider(
-            "identity:development",
-            "Development identity",
-            ResourceIdentityProviderKind.BuiltIn,
-            useAsDefault: true);
 
-        var resolved = graph.GetIdentityProvider();
+        var exception = Assert.Throws<InvalidOperationException>(() => graph.GetIdentityProvider());
 
-        Assert.Same(provider.Provider, resolved.Provider);
-        Assert.Equal("identity:development", resolved.Id);
-        Assert.Equal(ResourceIdentityProviderKind.BuiltIn, resolved.Kind);
-        var alice = resolved.GetUser("alice", displayName: "Alice");
-        Assert.Equal(ResourcePrincipalKind.User, alice.Kind);
-        Assert.Equal("alice", alice.Id);
-        Assert.Equal("Alice", alice.DisplayName);
-        Assert.Equal("identity:development", alice.ProviderId);
+        Assert.Contains("No default identity provider", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Host_DefineResourcesRegistersControlPlaneContextIdentityProviders()
+    public void Host_DefineResourcesConsumesHostIdentityProviderContext()
     {
+        var identityProvider = new ResourceIdentityProviderDefinition(
+            "identity:development",
+            "Development identity",
+            ResourceIdentityProviderKind.BuiltIn,
+            new Dictionary<string, string>());
         var services = new ServiceCollection();
         services
             .AddCloudShellControlPlane()
+            .AddIdentityProvider(identityProvider, useAsDefault: true)
             .DefineResources(resources =>
             {
-                var identityProvider = resources.AddIdentityProvider(
-                    "identity:development",
-                    "Development identity",
-                    ResourceIdentityProviderKind.BuiltIn,
-                    useAsDefault: true);
+                var configuredIdentityProvider = resources.GetIdentityProvider();
 
                 resources
                     .AddNetwork("api")
                     .RequireIdentity(name: "api");
 
-                Assert.Same(identityProvider.Provider, resources.GetIdentityProvider().Provider);
+                Assert.Equal(identityProvider.Id, configuredIdentityProvider.Id);
+                var alice = configuredIdentityProvider.GetUser("alice", displayName: "Alice");
+                Assert.Equal(ResourcePrincipalKind.User, alice.Kind);
+                Assert.Equal("alice", alice.Id);
+                Assert.Equal("Alice", alice.DisplayName);
+                Assert.Equal("identity:development", alice.ProviderId);
             });
         using var serviceProvider = services.BuildServiceProvider();
         var declarations = serviceProvider.GetRequiredService<ResourceDeclarationStore>();

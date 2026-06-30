@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CloudShell.Abstractions.Authorization;
+using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Hosting;
@@ -78,27 +79,20 @@ public sealed class BuiltInAuthorityHttpTests
     [Fact]
     public async Task ResourceIdentityProvisioning_CreatesBuiltInClientForDeclaredIdentity()
     {
-        await using var app = await CreateAppAsync(resources =>
-        {
-            var identityProvider = resources.AddIdentityProvider(
-                "identity:development",
-                "Development identity",
-                ResourceIdentityProviderKind.BuiltIn,
-                new Dictionary<string, string>
-                {
-                    [BuiltInResourceIdentityRegistry.ClientSecretSettingName] =
-                        "local-development-resource-secret"
-                },
-                useAsDefault: true);
-            var api = resources
-                .Declare(ResourceIdentityFlowProvider.ProviderId, ResourceIdentityFlowProvider.ApiResourceId)
-                .WithIdentity(identityProvider, name: "web-api");
-            var vault = resources.Declare(
-                ResourceIdentityFlowProvider.ProviderId,
-                ResourceIdentityFlowProvider.VaultResourceId,
-                resourceClass: ResourceClass.SecretsVault);
-            vault.Allow(api.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
-        });
+        await using var app = await CreateAppAsync(
+            resources =>
+            {
+                var identityProvider = resources.GetIdentityProvider("identity:development");
+                var api = resources
+                    .Declare(ResourceIdentityFlowProvider.ProviderId, ResourceIdentityFlowProvider.ApiResourceId)
+                    .WithIdentity(identityProvider, name: "web-api");
+                var vault = resources.Declare(
+                    ResourceIdentityFlowProvider.ProviderId,
+                    ResourceIdentityFlowProvider.VaultResourceId,
+                    resourceClass: ResourceClass.SecretsVault);
+                vault.Allow(api.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
+            },
+            RegisterBuiltInDevelopmentIdentityProvider);
         var client = app.GetTestClient();
         var adminToken = await GetTokenAsync(client);
 
@@ -135,32 +129,25 @@ public sealed class BuiltInAuthorityHttpTests
     [Fact]
     public async Task ProvisionedResourceIdentityToken_RespectsResourceActionGrantsThroughApi()
     {
-        await using var app = await CreateAppAsync(resources =>
-        {
-            var identityProvider = resources.AddIdentityProvider(
-                "identity:development",
-                "Development identity",
-                ResourceIdentityProviderKind.BuiltIn,
-                new Dictionary<string, string>
-                {
-                    [BuiltInResourceIdentityRegistry.ClientSecretSettingName] =
-                        "local-development-resource-secret"
-                },
-                useAsDefault: true);
-            var api = resources
-                .Declare(ResourceIdentityFlowProvider.ProviderId, ResourceIdentityFlowProvider.ApiResourceId)
-                .WithIdentity(identityProvider, name: "web-api");
-            var allowed = resources.Declare(
-                ResourceIdentityFlowProvider.ProviderId,
-                ResourceIdentityFlowProvider.AllowedActionResourceId);
-            var denied = resources.Declare(
-                ResourceIdentityFlowProvider.ProviderId,
-                ResourceIdentityFlowProvider.DeniedActionResourceId);
-            api.Allow(api.Principal, CloudShellPermissions.Resources.Read);
-            allowed.Allow(api.Principal, CloudShellPermissions.Resources.Read);
-            allowed.Allow(api.Principal, CommonResourceOperationPermissions.LifecycleAction);
-            denied.Allow(api.Principal, CloudShellPermissions.Resources.Read);
-        });
+        await using var app = await CreateAppAsync(
+            resources =>
+            {
+                var identityProvider = resources.GetIdentityProvider("identity:development");
+                var api = resources
+                    .Declare(ResourceIdentityFlowProvider.ProviderId, ResourceIdentityFlowProvider.ApiResourceId)
+                    .WithIdentity(identityProvider, name: "web-api");
+                var allowed = resources.Declare(
+                    ResourceIdentityFlowProvider.ProviderId,
+                    ResourceIdentityFlowProvider.AllowedActionResourceId);
+                var denied = resources.Declare(
+                    ResourceIdentityFlowProvider.ProviderId,
+                    ResourceIdentityFlowProvider.DeniedActionResourceId);
+                api.Allow(api.Principal, CloudShellPermissions.Resources.Read);
+                allowed.Allow(api.Principal, CloudShellPermissions.Resources.Read);
+                allowed.Allow(api.Principal, CommonResourceOperationPermissions.LifecycleAction);
+                denied.Allow(api.Principal, CloudShellPermissions.Resources.Read);
+            },
+            RegisterBuiltInDevelopmentIdentityProvider);
         await RegisterIdentityFlowResourcesAsync(
             app,
             ResourceIdentityFlowProvider.ApiResourceId,
@@ -217,7 +204,8 @@ public sealed class BuiltInAuthorityHttpTests
     }
 
     private static async Task<WebApplication> CreateAppAsync(
-        Action<ControlPlaneResourceDefinitionGraphBuilder>? configureResources = null)
+        Action<ControlPlaneResourceDefinitionGraphBuilder>? configureResources = null,
+        Action<IControlPlaneBuilder>? configureControlPlane = null)
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(contentRoot);
@@ -259,6 +247,7 @@ public sealed class BuiltInAuthorityHttpTests
 
         var controlPlane = builder.AddCloudShellControlPlane();
         builder.Services.AddSingleton<IResourceProvider, ResourceIdentityFlowProvider>();
+        configureControlPlane?.Invoke(controlPlane);
         controlPlane.DefineResources(resources =>
         {
             configureResources?.Invoke(resources);
@@ -268,6 +257,20 @@ public sealed class BuiltInAuthorityHttpTests
         app.MapCloudShellControlPlane();
         await app.StartAsync();
         return app;
+    }
+
+    private static void RegisterBuiltInDevelopmentIdentityProvider(IControlPlaneBuilder controlPlane)
+    {
+        controlPlane.AddIdentityProvider(
+            "identity:development",
+            "Development identity",
+            ResourceIdentityProviderKind.BuiltIn,
+            new Dictionary<string, string>
+            {
+                [BuiltInResourceIdentityRegistry.ClientSecretSettingName] =
+                    "local-development-resource-secret"
+            },
+            useAsDefault: true);
     }
 
     private static async Task<HttpResponseMessage> RequestTokenAsync(
