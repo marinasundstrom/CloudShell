@@ -302,6 +302,14 @@ class EnvironmentStateMap {
             });
         });
 
+        const topologyNodes = this.nodes
+            .filter(node => node.nodeKind === "topology" && !assigned.has(node.id))
+            .sort(compareLabels);
+        topologyNodes.forEach((node, index) => {
+            setLayoutTarget(node, 760, getStackOffset(index, topologyNodes.length, 138), resetPositions);
+            assigned.add(node.id);
+        });
+
         const resourceNodes = this.nodes
             .filter(node => node.nodeKind === "resource" && !assigned.has(node.id))
             .sort(compareLabels);
@@ -650,6 +658,8 @@ function getLaneX(nodeKind) {
             return 300;
         case "routing":
             return 560;
+        case "topology":
+            return 760;
         default:
             return 0;
     }

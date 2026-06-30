@@ -21,6 +21,9 @@ on `git blame --follow`, and then by the broad type of change.
   owning orchestration service boundary and links actual load-balancer
   resources to the routing binding they materialize, keeping service grouping
   as the primary runtime view.
+- Environment Map now includes a network topology overlay by default, with a
+  toggle for hiding network resources, configured endpoint mappings, provider
+  materialization links, and public internet reachability facts.
 - Terminology, domain, architecture, and resource-model docs now define a
   network topology overlay that can be shown in both the Resource graph and
   Environment Map, including future internet-reachability facts.

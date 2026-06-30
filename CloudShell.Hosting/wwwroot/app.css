@@ -1337,6 +1337,25 @@ h3 {
     min-height: 34rem;
 }
 
+.environment-map-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .55rem .8rem;
+    margin-bottom: .75rem;
+    color: var(--cloudshell-text-muted);
+    font-size: .82rem;
+}
+
+.environment-map-summary strong {
+    color: var(--cloudshell-text);
+    font-weight: 700;
+}
+
+.environment-map-topology-toggle {
+    margin-left: auto;
+}
+
 .environment-state-map-canvas {
     display: block;
     width: 100%;
@@ -1362,6 +1381,11 @@ h3 {
 
 .environment-map-link.routing {
     stroke-dasharray: 5 4;
+}
+
+.environment-map-link.topology {
+    stroke: color-mix(in srgb, #2563eb 70%, transparent);
+    stroke-dasharray: 2 5;
 }
 
 .environment-map-link.internal {
@@ -1503,6 +1527,10 @@ h3 {
     fill: color-mix(in srgb, #2563eb 7%, var(--cloudshell-surface));
 }
 
+.environment-map-node.topology .environment-map-node-card {
+    fill: color-mix(in srgb, #2563eb 5%, var(--cloudshell-surface));
+}
+
 .environment-map-node:hover .environment-map-node-card,
 .environment-map-node.selected .environment-map-node-card {
     stroke: var(--cloudshell-accent);
@@ -1533,6 +1561,7 @@ h3 {
 }
 
 .environment-map-node-icon.routing,
+.environment-map-node-icon.topology,
 .environment-map-node-icon.network {
     fill: #2563eb;
 }

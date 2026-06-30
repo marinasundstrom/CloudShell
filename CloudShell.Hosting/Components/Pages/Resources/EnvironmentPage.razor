@@ -70,6 +70,15 @@
                 <span><strong>@EnvironmentMap.ResourceCount</strong> @L["resources"]</span>
                 <span><strong>@EnvironmentMap.ServiceCount</strong> @L["orchestrator service(s)"]</span>
                 <span><strong>@EnvironmentMap.RoutingCount</strong> @L["routing artifact(s)"]</span>
+                @if (IncludeNetworkTopologyOverlay)
+                {
+                    <span><strong>@EnvironmentMap.NetworkTopologyCount</strong> @L["topology artifact(s)"]</span>
+                }
+                <FluentCheckbox Class="environment-map-topology-toggle"
+                                Value="@IncludeNetworkTopologyOverlay"
+                                ValueChanged="OnNetworkTopologyOverlayChanged">
+                    @L["Network topology"]
+                </FluentCheckbox>
             </div>
 
             <div class="resource-graph-shell environment-state-map-shell">
@@ -470,6 +479,7 @@
     private IJSObjectReference? EnvironmentMapModule { get; set; }
     private DotNetObjectReference<EnvironmentPage>? EnvironmentMapReference { get; set; }
     private DateTimeOffset LoadedAt { get; set; }
+    private bool IncludeNetworkTopologyOverlay { get; set; } = true;
 
     private int ReplicaGroupCount => ReplicaGroupRows.Count;
 
@@ -546,6 +556,13 @@
         {
             await EnvironmentMapModule.InvokeVoidAsync("updateEnvironmentStateMap", EnvironmentMap);
         }
+    }
+
+    private async Task OnNetworkTopologyOverlayChanged(bool enabled)
+    {
+        IncludeNetworkTopologyOverlay = enabled;
+        EnvironmentMap = CreateEnvironmentMap(Resources, DeploymentRecords, ReplicaGroupRows);
+        await UpdateEnvironmentMapAsync();
     }
 
     private string GetLoadedAtLabel() =>
@@ -683,7 +700,8 @@
                 Localize = value => L[value].Value,
                 Format = static (format, args) => string.Format(CultureInfo.CurrentCulture, format, args),
                 CreateResourceDetailUrl = resource => ResourceManagerCompositionLinks.ResourceDetails(Composition, resource.Id),
-                GetStateClass = ResourceStateDisplay.GetStateClass
+                GetStateClass = ResourceStateDisplay.GetStateClass,
+                IncludeNetworkTopologyOverlay = IncludeNetworkTopologyOverlay
             });
 
     private sealed record EnvironmentDeploymentRow(

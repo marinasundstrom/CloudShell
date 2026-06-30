@@ -130,6 +130,83 @@ public sealed class EnvironmentRuntimeMapProjectionTests
             link.ArtifactKind == EnvironmentRuntimeArtifactKinds.RoutingBinding);
     }
 
+    [Fact]
+    public void Create_ExcludesNetworkTopologyOverlayByDefault()
+    {
+        var api = CreateHttpResource();
+        var network = CreateNetworkResource(api.Id, providerResourceId: null);
+
+        var map = EnvironmentRuntimeMapProjection.Create(
+            [api, network],
+            [],
+            [],
+            new EnvironmentRuntimeMapProjectionOptions
+            {
+                CreateResourceDetailUrl = resource => $"/resources/{resource.Id}",
+                GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown"
+            });
+
+        Assert.Empty(map.Nodes);
+        Assert.Equal(0, map.NetworkTopologyCount);
+    }
+
+    [Fact]
+    public void Create_IncludesNetworkResourcesAndMappingsWhenTopologyOverlayIsEnabled()
+    {
+        var api = CreateHttpResource();
+        var provider = CreateTopologyProviderResource();
+        var network = CreateNetworkResource(api.Id, provider.Id);
+
+        var map = EnvironmentRuntimeMapProjection.Create(
+            [api, network, provider],
+            [],
+            [],
+            new EnvironmentRuntimeMapProjectionOptions
+            {
+                IncludeNetworkTopologyOverlay = true,
+                CreateResourceDetailUrl = resource => $"/resources/{resource.Id}",
+                GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown"
+            });
+
+        var networkNode = Assert.Single(map.Nodes, node =>
+            node.ArtifactKind == EnvironmentRuntimeArtifactKinds.Resource &&
+            node.ResourceId == network.Id);
+        var apiNode = Assert.Single(map.Nodes, node =>
+            node.ArtifactKind == EnvironmentRuntimeArtifactKinds.Resource &&
+            node.ResourceId == api.Id);
+        var providerNode = Assert.Single(map.Nodes, node =>
+            node.ArtifactKind == EnvironmentRuntimeArtifactKinds.Resource &&
+            node.ResourceId == provider.Id);
+        var mappingNode = Assert.Single(map.Nodes, node =>
+            node.NodeKind == "topology" &&
+            node.ArtifactKind == EnvironmentRuntimeArtifactKinds.EndpointMapping);
+        var internetNode = Assert.Single(map.Nodes, node =>
+            node.ArtifactKind == EnvironmentRuntimeArtifactKinds.InternetConnection);
+
+        Assert.Equal("public-http", mappingNode.Label);
+        Assert.Equal(2, map.NetworkTopologyCount);
+        Assert.Contains(map.Links, link =>
+            link.Source == networkNode.Id &&
+            link.Target == mappingNode.Id &&
+            link.Label == "contains" &&
+            link.Kind == "topology");
+        Assert.Contains(map.Links, link =>
+            link.Source == providerNode.Id &&
+            link.Target == mappingNode.Id &&
+            link.Label == "materializes" &&
+            link.Kind == "topology");
+        Assert.Contains(map.Links, link =>
+            link.Source == mappingNode.Id &&
+            link.Target == apiNode.Id &&
+            link.Label == "targets" &&
+            link.Kind == "topology");
+        Assert.Contains(map.Links, link =>
+            link.Source == internetNode.Id &&
+            link.Target == apiNode.Id &&
+            link.Label == "reaches" &&
+            link.Kind == "topology");
+    }
+
     private static Resource CreateContainerApp() =>
         new(
             "application.container-app:api",
@@ -166,6 +243,74 @@ public sealed class EnvironmentRuntimeMapProjectionTests
             TypeId: "cloudshell.loadBalancer",
             ResourceClass: ResourceClass.Network,
             DisplayName: "Public load balancer");
+
+    private static Resource CreateHttpResource() =>
+        new(
+            "application.executable:api",
+            "api",
+            "application.executable",
+            "test",
+            "local",
+            null,
+            [ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Public, 8080)],
+            "1",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: "application.executable",
+            ResourceClass: ResourceClass.Executable,
+            EndpointNetworkMappings:
+            [
+                ResourceEndpointNetworkMapping.ForEndpoint(
+                    "application.executable:api",
+                    "http",
+                    "https://api.example.test",
+                    ResourceExposureScope.Public,
+                    networkResourceId: "cloudshell.network:public",
+                    providerResourceId: "cloudshell.gateway:public")
+            ],
+            DisplayName: "API");
+
+    private static Resource CreateTopologyProviderResource() =>
+        new(
+            "cloudshell.gateway:public",
+            "public-gateway",
+            "cloudshell.gateway",
+            "test",
+            "local",
+            null,
+            [],
+            "1",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: "cloudshell.gateway",
+            ResourceClass: ResourceClass.Network,
+            DisplayName: "Public gateway");
+
+    private static Resource CreateNetworkResource(string targetResourceId, string? providerResourceId) =>
+        new(
+            "cloudshell.network:public",
+            "public",
+            "cloudshell.network",
+            "test",
+            "local",
+            null,
+            [],
+            "1",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: "cloudshell.network",
+            ResourceClass: ResourceClass.Network,
+            EndpointMappings:
+            [
+                new ResourceEndpointMappingDefinition(
+                    "public-http",
+                    "public-http",
+                    ResourceEndpointReference.ForEndpoint("cloudshell.network:public", "http"),
+                    ResourceEndpointReference.ForEndpoint(targetResourceId, "http"),
+                    NetworkResourceId: "cloudshell.network:public",
+                    ProviderResourceId: providerResourceId)
+            ],
+            DisplayName: "Public network");
 
     private static ResourceDeploymentRecord CreateDeploymentWithRoutingBinding(
         string resourceId,

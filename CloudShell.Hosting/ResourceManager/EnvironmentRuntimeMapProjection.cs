@@ -36,10 +36,14 @@ public static class EnvironmentRuntimeMapProjection
             var serviceNodeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var replicaGroupNodeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var activeReplicaGroupRows = replicaGroups.ToDictionary(replicaGroup => replicaGroup.ReplicaGroupId, StringComparer.OrdinalIgnoreCase);
+            var topologyResourceIds = options.IncludeNetworkTopologyOverlay
+                ? CreateTopologyResourceIds(resources)
+                : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var routingNodeCount = 0;
+            var networkTopologyNodeCount = 0;
 
             foreach (var resource in resources
-                .Where(ShouldShowEnvironmentMapResource)
+                .Where(resource => ShouldShowEnvironmentMapResource(resource, options.IncludeNetworkTopologyOverlay, topologyResourceIds))
                 .OrderBy(resource => resource.EffectiveDisplayName, StringComparer.CurrentCultureIgnoreCase))
             {
                 var nodeId = CreateNodeId("resource", resource.Id);
@@ -350,7 +354,8 @@ public static class EnvironmentRuntimeMapProjection
                 resourceNodeIds,
                 serviceNodeIds,
                 replicaGroupNodeIds,
-                ref routingNodeCount);
+                ref routingNodeCount,
+                ref networkTopologyNodeCount);
 
             return new EnvironmentRuntimeMap(
                 nodes.Values
@@ -370,7 +375,8 @@ public static class EnvironmentRuntimeMapProjection
                     .ToArray(),
                 resourceNodeIds.Count,
                 serviceNodeIds.Count,
-                routingNodeCount);
+                routingNodeCount,
+                networkTopologyNodeCount);
         }
 
         private EnvironmentRuntimeMapNode EnsureServiceNode(
@@ -465,7 +471,8 @@ public static class EnvironmentRuntimeMapProjection
             IReadOnlyDictionary<string, string> resourceNodeIds,
             IReadOnlyDictionary<string, string> serviceNodeIds,
             IReadOnlyDictionary<string, string> replicaGroupNodeIds,
-            ref int routingNodeCount)
+            ref int routingNodeCount,
+            ref int networkTopologyNodeCount)
         {
             foreach (var deployment in deployments
                 .OrderByDescending(deployment => deployment.CompletedAt ?? deployment.StartedAt))
@@ -669,6 +676,157 @@ public static class EnvironmentRuntimeMapProjection
                         null);
                 }
             }
+
+            if (options.IncludeNetworkTopologyOverlay)
+            {
+                AddNetworkTopologyNodes(
+                    resources,
+                    nodes,
+                    links,
+                    resourceNodeIds,
+                    ref networkTopologyNodeCount);
+            }
+        }
+
+        private void AddNetworkTopologyNodes(
+            IReadOnlyList<Resource> resources,
+            IDictionary<string, EnvironmentRuntimeMapNode> nodes,
+            IDictionary<string, EnvironmentRuntimeMapLink> links,
+            IReadOnlyDictionary<string, string> resourceNodeIds,
+            ref int networkTopologyNodeCount)
+        {
+            foreach (var network in resources.Where(resource => resource.ResourceEndpointMappings.Count > 0))
+            {
+                foreach (var mapping in network.ResourceEndpointMappings)
+                {
+                    var mappingNodeId = CreateNodeId("endpoint-mapping", $"{network.Id}:{mapping.Id}");
+                    nodes[mappingNodeId] = new EnvironmentRuntimeMapNode(
+                        mappingNodeId,
+                        mapping.Name,
+                        "Endpoint mapping",
+                        ResourceClass.Network.ToString(),
+                        "topology",
+                        $"{mapping.Source.ResourceId}/{mapping.Source.EndpointName} -> {mapping.Target.ResourceId}/{mapping.Target.EndpointName}",
+                        Text("Configured"),
+                        "state-running",
+                        options.CreateResourceDetailUrl(network),
+                        EnvironmentRuntimeArtifactKinds.EndpointMapping,
+                        network.Id,
+                        null,
+                        null,
+                        null);
+                    networkTopologyNodeCount++;
+
+                    var networkResourceId = FirstNonEmpty(mapping.NetworkResourceId, network.Id);
+                    if (networkResourceId is not null &&
+                        resourceNodeIds.TryGetValue(networkResourceId, out var networkNodeId))
+                    {
+                        AddLink(
+                            links,
+                            networkNodeId,
+                            mappingNodeId,
+                            Text("contains"),
+                            "topology",
+                            EnvironmentRuntimeArtifactKinds.EndpointMapping,
+                            networkResourceId,
+                            null,
+                            null,
+                            null);
+                    }
+
+                    if (resourceNodeIds.TryGetValue(mapping.Source.ResourceId, out var sourceNodeId))
+                    {
+                        AddLink(
+                            links,
+                            sourceNodeId,
+                            mappingNodeId,
+                            Text("publishes"),
+                            "topology",
+                            EnvironmentRuntimeArtifactKinds.EndpointMapping,
+                            mapping.Source.ResourceId,
+                            null,
+                            null,
+                            null);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(mapping.ProviderResourceId) &&
+                        resourceNodeIds.TryGetValue(mapping.ProviderResourceId, out var providerNodeId))
+                    {
+                        AddLink(
+                            links,
+                            providerNodeId,
+                            mappingNodeId,
+                            Text("materializes"),
+                            "topology",
+                            EnvironmentRuntimeArtifactKinds.EndpointMapping,
+                            mapping.ProviderResourceId,
+                            null,
+                            null,
+                            null);
+                    }
+
+                    if (resourceNodeIds.TryGetValue(mapping.Target.ResourceId, out var targetNodeId))
+                    {
+                        AddLink(
+                            links,
+                            mappingNodeId,
+                            targetNodeId,
+                            Text("targets"),
+                            "topology",
+                            EnvironmentRuntimeArtifactKinds.EndpointMapping,
+                            mapping.Target.ResourceId,
+                            null,
+                            null,
+                            null);
+                    }
+                }
+            }
+
+            var publicEndpointResources = resources
+                .Where(resource => resource.ResourceEndpointNetworkMappings.Any(mapping =>
+                    mapping.Exposure == ResourceExposureScope.Public))
+                .Where(resource => resourceNodeIds.ContainsKey(resource.Id))
+                .ToArray();
+            if (publicEndpointResources.Length == 0)
+            {
+                return;
+            }
+
+            var internetNodeId = CreateNodeId("internet", "public");
+            nodes[internetNodeId] = new EnvironmentRuntimeMapNode(
+                internetNodeId,
+                Text("Internet"),
+                "Internet connection",
+                ResourceClass.Network.ToString(),
+                "topology",
+                Text("Public reachability"),
+                Text("Projected"),
+                "state-running",
+                null,
+                EnvironmentRuntimeArtifactKinds.InternetConnection,
+                null,
+                null,
+                null,
+                null);
+            networkTopologyNodeCount++;
+
+            foreach (var resource in publicEndpointResources)
+            {
+                if (resourceNodeIds.TryGetValue(resource.Id, out var resourceNodeId))
+                {
+                    AddLink(
+                        links,
+                        internetNodeId,
+                        resourceNodeId,
+                        Text("reaches"),
+                        "topology",
+                        EnvironmentRuntimeArtifactKinds.InternetConnection,
+                        resource.Id,
+                        null,
+                        null,
+                        null);
+                }
+            }
         }
 
         private string Text(string value) => options.Localize(value);
@@ -677,13 +835,71 @@ public static class EnvironmentRuntimeMapProjection
             options.Format(options.Localize(value), args);
     }
 
-    private static bool ShouldShowEnvironmentMapResource(Resource resource) =>
+    private static bool ShouldShowEnvironmentMapResource(
+        Resource resource,
+        bool includeNetworkTopologyOverlay,
+        IReadOnlySet<string> topologyResourceIds) =>
         !IsContainerApplicationResource(resource) &&
         (IsContainerReplicaResource(resource) ||
             resource.ManagementMode != ResourceManagementMode.UserManaged ||
             resource.State is not null ||
             resource.ResourceLoadBalancerRoutes.Count > 0 ||
-            ResourceNameMappingDisplay.IsNameMappingResource(resource));
+            ResourceNameMappingDisplay.IsNameMappingResource(resource) ||
+            includeNetworkTopologyOverlay && topologyResourceIds.Contains(resource.Id));
+
+    private static HashSet<string> CreateTopologyResourceIds(IReadOnlyList<Resource> resources)
+    {
+        var resourceIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var resource in resources)
+        {
+            if (resource.ResourceClass == ResourceClass.Network ||
+                resource.ResourceEndpointMappings.Count > 0 ||
+                resource.ResourceLoadBalancerRoutes.Count > 0 ||
+                ResourceNameMappingDisplay.IsNameMappingResource(resource))
+            {
+                resourceIds.Add(resource.Id);
+            }
+
+            foreach (var mapping in resource.ResourceEndpointMappings)
+            {
+                AddTopologyResourceId(resourceIds, mapping.Source.ResourceId);
+                AddTopologyResourceId(resourceIds, mapping.Target.ResourceId);
+                AddTopologyResourceId(resourceIds, mapping.NetworkResourceId);
+                AddTopologyResourceId(resourceIds, mapping.ProviderResourceId);
+            }
+
+            foreach (var mapping in resource.ResourceEndpointNetworkMappings)
+            {
+                if (mapping.Exposure == ResourceExposureScope.Public)
+                {
+                    resourceIds.Add(resource.Id);
+                }
+
+                AddTopologyResourceId(resourceIds, mapping.NetworkResourceId);
+                AddTopologyResourceId(resourceIds, mapping.ProviderResourceId);
+            }
+
+            foreach (var route in resource.ResourceLoadBalancerRoutes)
+            {
+                AddTopologyResourceId(resourceIds, route.Target.ResourceId);
+            }
+
+            if (ResourceNameMappingDisplay.IsNameMappingResource(resource))
+            {
+                AddTopologyResourceId(resourceIds, ResourceNameMappingDisplay.GetTargetResourceId(resource));
+            }
+        }
+
+        return resourceIds;
+    }
+
+    private static void AddTopologyResourceId(ISet<string> resourceIds, string? resourceId)
+    {
+        if (!string.IsNullOrWhiteSpace(resourceId))
+        {
+            resourceIds.Add(resourceId.Trim());
+        }
+    }
 
     private static bool IsContainerApplicationResource(Resource resource) =>
         string.Equals(resource.EffectiveTypeId, "application.container-app", StringComparison.OrdinalIgnoreCase) ||
@@ -874,9 +1090,10 @@ public sealed record EnvironmentRuntimeMap(
     IReadOnlyList<EnvironmentRuntimeMapLink> Links,
     int ResourceCount,
     int ServiceCount,
-    int RoutingCount)
+    int RoutingCount,
+    int NetworkTopologyCount)
 {
-    public static EnvironmentRuntimeMap Empty { get; } = new([], [], [], 0, 0, 0);
+    public static EnvironmentRuntimeMap Empty { get; } = new([], [], [], 0, 0, 0, 0);
 }
 
 public sealed record EnvironmentRuntimeMapNode(
@@ -934,6 +1151,8 @@ public sealed record EnvironmentRuntimeMapReplicaGroup(
 
 public sealed record EnvironmentRuntimeMapProjectionOptions
 {
+    public bool IncludeNetworkTopologyOverlay { get; init; }
+
     public Func<string, string> Localize { get; init; } = static value => value;
 
     public Func<string, object?[], string> Format { get; init; } =
@@ -953,6 +1172,7 @@ public static class EnvironmentRuntimeArtifactKinds
     public const string RoutingBinding = "routing-binding";
     public const string LoadBalancerRoute = "load-balancer-route";
     public const string EndpointMapping = "endpoint-mapping";
+    public const string InternetConnection = "internet-connection";
     public const string Deployment = "deployment";
 }
 
