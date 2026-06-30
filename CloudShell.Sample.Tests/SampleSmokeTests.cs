@@ -894,7 +894,7 @@ public sealed class SampleSmokeTests
 
         var graphApiDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:application-topology-api")}/details");
-        Assert.Contains("Application Topology API", graphApiDetailsHtml);
+        Assert.Contains("API", graphApiDetailsHtml);
         Assert.Contains("ASP.NET Core project", graphApiDetailsHtml);
         Assert.Contains("application.aspnet-core-project", graphApiDetailsHtml);
 
@@ -918,7 +918,6 @@ public sealed class SampleSmokeTests
 
         var graphSqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details");
-        Assert.Contains("Application Topology SQL Server", graphSqlDetailsHtml);
         Assert.Contains("SQL Server", graphSqlDetailsHtml);
         Assert.Contains("application.sql-server", graphSqlDetailsHtml);
 
@@ -938,7 +937,7 @@ public sealed class SampleSmokeTests
         var graphSqlStorageHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Storage.Value)}");
         Assert.Contains("Storage", graphSqlStorageHtml);
-        Assert.Contains("Application Topology SQL Data", graphSqlStorageHtml);
+        Assert.Contains("SQL Data", graphSqlStorageHtml);
         Assert.Contains("not projected", graphSqlStorageHtml);
 
         var graphApplicationAddHtml = await host.GetStringAsync(

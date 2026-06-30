@@ -142,6 +142,7 @@ class ResourceDependencyGraph {
                 label: node.label,
                 name: node.name,
                 type: node.type,
+                iconName: node.iconName,
                 resourceClass: node.resourceClass,
                 nodeKind: node.nodeKind,
                 endpointText: node.endpointText,
@@ -285,21 +286,20 @@ class ResourceDependencyGraph {
         newNodes.append("rect")
             .attr("class", "resource-graph-node-card")
             .attr("x", -84)
-            .attr("y", -56)
+            .attr("y", -52)
             .attr("width", 168)
-            .attr("height", 112)
+            .attr("height", 104)
             .attr("rx", 6);
 
         newNodes.append("circle")
-            .attr("class", node => `resource-graph-node-icon ${getClassName(node.resourceClass)}`)
-            .attr("cx", -54)
-            .attr("cy", -14)
-            .attr("r", 19);
+            .attr("class", node => `resource-graph-node-icon-frame ${getClassName(node.resourceClass)}`)
+            .attr("cx", -62)
+            .attr("cy", -26)
+            .attr("r", 12);
 
-        newNodes.append("text")
-            .attr("class", "resource-graph-node-initials")
-            .attr("x", -54)
-            .attr("y", -9);
+        newNodes.append("path")
+            .attr("class", "resource-graph-node-icon-glyph")
+            .attr("transform", "translate(-69,-33) scale(.7)");
 
         newNodes.append("circle")
             .attr("class", node => `resource-graph-status ${node.stateClass}`)
@@ -327,17 +327,17 @@ class ResourceDependencyGraph {
         newNodes.append("text")
             .attr("class", "resource-graph-node-label")
             .attr("x", 0)
-            .attr("y", 17);
+            .attr("y", 13);
 
         newNodes.append("text")
             .attr("class", "resource-graph-node-type")
             .attr("x", 0)
-            .attr("y", 35);
+            .attr("y", 31);
 
         newNodes.append("text")
             .attr("class", "resource-graph-node-endpoint")
             .attr("x", 0)
-            .attr("y", 50);
+            .attr("y", 46);
 
         newNodes.append("title")
             .attr("class", "resource-graph-node-title");
@@ -349,10 +349,10 @@ class ResourceDependencyGraph {
         this.nodeElements = newNodes.merge(this.nodeElements);
         this.nodeElements
             .attr("class", node => `resource-graph-node ${getClassName(node.nodeKind)}`);
-        this.nodeElements.select(".resource-graph-node-icon")
-            .attr("class", node => `resource-graph-node-icon ${getClassName(node.nodeKind)} ${getClassName(node.resourceClass)}`);
-        this.nodeElements.select(".resource-graph-node-initials")
-            .text(node => getInitials(node.label));
+        this.nodeElements.select(".resource-graph-node-icon-frame")
+            .attr("class", node => `resource-graph-node-icon-frame ${getClassName(node.nodeKind)} ${getClassName(node.resourceClass)}`);
+        this.nodeElements.select(".resource-graph-node-icon-glyph")
+            .attr("d", node => getResourceIconPath(node.iconName || node.type || node.resourceClass));
         this.nodeElements.select(".resource-graph-status")
             .attr("class", node => `resource-graph-status ${node.stateClass}`)
             .select("title")
@@ -372,16 +372,6 @@ class ResourceDependencyGraph {
             .text(node => trimText(node.endpointText, 28));
         this.nodeElements.select(".resource-graph-node-title")
             .text(node => `${node.label}\n${node.type}\n${node.endpointText}\n${node.stateLabel}`);
-
-        function getInitials(value) {
-            return String(value || "?")
-                .split(/[\s:_-]+/)
-                .filter(Boolean)
-                .slice(0, 2)
-                .map(part => part[0])
-                .join("")
-                .toUpperCase() || "?";
-        }
 
         function trimText(value, maxLength) {
             const text = String(value || "");
@@ -465,6 +455,54 @@ function getNodeId(value) {
 
 function getClassName(value) {
     return String(value || "generic").toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
+}
+
+function getResourceIconPath(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+
+    if (normalized.includes("secret") || normalized.includes("vault") || normalized.includes("key") ||
+        normalized.includes("identity") || normalized.includes("permission") || normalized.includes("access-control")) {
+        return "M7 11a3 3 0 1 1 2.8-4H16v3h-2v2h-2v2H9.8A3 3 0 0 1 7 11z";
+    }
+
+    if (normalized.includes("sql-database") || normalized.includes("database-item")) {
+        return "M5 6c0-1.1 2.2-2 5-2s5 .9 5 2v8c0 1.1-2.2 2-5 2s-5-.9-5-2V6zM5 6c0 1.1 2.2 2 5 2s5-.9 5-2M5 10c0 1.1 2.2 2 5 2s5-.9 5-2";
+    }
+
+    if (normalized.includes("database") || normalized.includes("sql")) {
+        return "M4 6c0-1.1 2.7-2 6-2s6 .9 6 2v8c0 1.1-2.7 2-6 2s-6-.9-6-2V6zM4 6c0 1.1 2.7 2 6 2s6-.9 6-2M4 10c0 1.1 2.7 2 6 2s6-.9 6-2";
+    }
+
+    if (normalized.includes("storage") || normalized.includes("volume")) {
+        return "M4 6h12v10H4zM4 9h12M7 13h2";
+    }
+
+    if (normalized.includes("route") || normalized.includes("load-balancer") || normalized.includes("loadbalancer")) {
+        return "M5 6h5a3 3 0 0 1 0 6H7M7 12l2-2M7 12l2 2M14 6l2-2M14 6l2 2";
+    }
+
+    if (normalized.includes("network") || normalized.includes("dns") || normalized.includes("mapping") ||
+        normalized.includes("endpoint") || normalized.includes("ingress")) {
+        return "M10 4l5 3v6l-5 3-5-3V7zM5 7l5 3 5-3M10 10v6";
+    }
+
+    if (normalized.includes("container") || normalized.includes("replica") || normalized.includes("runtime")) {
+        return "M10 4l5 3v6l-5 3-5-3V7zM5 7l5 3 5-3M10 10v6";
+    }
+
+    if (normalized.includes("configuration") || normalized.includes("settings") || normalized.includes("provisioning")) {
+        return "M10 5v2M10 13v2M5 10h2M13 10h2M7.2 7.2l1.4 1.4M11.4 11.4l1.4 1.4M12.8 7.2l-1.4 1.4M8.6 11.4l-1.4 1.4M8 10a2 2 0 1 0 4 0 2 2 0 0 0-4 0z";
+    }
+
+    if (normalized.includes("web") || normalized.includes("internet")) {
+        return "M10 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12zM4 10h12M10 4c1.5 1.6 2.2 3.6 2.2 6s-.7 4.4-2.2 6M10 4c-1.5 1.6-2.2 3.6-2.2 6s.7 4.4 2.2 6";
+    }
+
+    if (normalized.includes("service") || normalized.includes("docker")) {
+        return "M5 5h10v4H5zM5 11h10v4H5zM8 7h.01M8 13h.01";
+    }
+
+    return "M5 5h10v10H5zM8 8h4M8 11h4";
 }
 
 function trimText(value, maxLength) {

@@ -55,6 +55,7 @@ public static class EnvironmentRuntimeMapProjection
                     nodeId,
                     resource.EffectiveDisplayName,
                     options.GetResourceTypeLabel(resource),
+                    options.GetResourceIconName(resource),
                     resource.ResourceClass.ToString(),
                     IsContainerReplicaResource(resource) ? "replica" : "resource",
                     CreateResourceMapSummary(resource),
@@ -67,7 +68,9 @@ public static class EnvironmentRuntimeMapProjection
                     GetAttribute(resource, ResourceAttributeNames.DeploymentReplicaGroupId),
                     GetAttribute(resource, ResourceAttributeNames.RuntimeRevision),
                     internetReachability.GetValueOrDefault(resource.Id),
-                    GetEndpointText(resource));
+                    options.IncludeNetworkTopologyOverlay
+                        ? ResourceEndpointDisplay.GetPreferredEndpointText(resource, resources)
+                        : null);
             }
 
             if (options.IncludeNetworkTopologyOverlay)
@@ -166,6 +169,7 @@ public static class EnvironmentRuntimeMapProjection
                     replicaNodeId,
                     replicaGroup.ReplicaGroupId,
                     "Replica group",
+                    "container",
                     ResourceClass.Container.ToString(),
                     "replica-group",
                     Text(
@@ -260,6 +264,7 @@ public static class EnvironmentRuntimeMapProjection
                         replicaGroupNodeId,
                         replicaGroupId,
                         "Replica group",
+                        "container",
                         ResourceClass.Container.ToString(),
                         "replica-group",
                         Text("Materialized replica resources"),
@@ -418,6 +423,7 @@ public static class EnvironmentRuntimeMapProjection
                 serviceNodeId,
                 label,
                 "Orchestrator service",
+                "service",
                 ResourceClass.Service.ToString(),
                 "service",
                 summary,
@@ -502,6 +508,7 @@ public static class EnvironmentRuntimeMapProjection
                         bindingNodeId,
                         binding.Name,
                         "Routing binding",
+                        "route",
                         ResourceClass.Network.ToString(),
                         "routing",
                         $"{binding.SourceEndpoint.ResourceId}/{binding.SourceEndpoint.EndpointName} -> {binding.ReplicaGroupName}",
@@ -598,6 +605,7 @@ public static class EnvironmentRuntimeMapProjection
                         routeNodeId,
                         route.Name,
                         "Load-balancer route",
+                        "load-balancer",
                         loadBalancer.EffectiveTypeId,
                         "routing",
                         $"{loadBalancer.EffectiveDisplayName} -> {route.Target.ResourceId}/{GetOptional(endpoint)}",
@@ -650,6 +658,7 @@ public static class EnvironmentRuntimeMapProjection
                     mappingNodeId,
                     ResourceNameMappingDisplay.GetHostName(mapping),
                     "Name mapping",
+                    "name-mapping",
                     mapping.EffectiveTypeId,
                     "routing",
                     $"{ResourceNameMappingDisplay.GetTargetResourceId(mapping)}/{ResourceNameMappingDisplay.GetTargetEndpointName(mapping)}",
@@ -739,6 +748,7 @@ public static class EnvironmentRuntimeMapProjection
                         mappingNodeId,
                         mapping.Name,
                         GetEndpointMappingText(mapping, resources),
+                        "endpoint",
                         ResourceClass.Network.ToString(),
                         "topology",
                         $"{mapping.Source.ResourceId}/{mapping.Source.EndpointName} -> {mapping.Target.ResourceId}/{mapping.Target.EndpointName}",
@@ -849,6 +859,7 @@ public static class EnvironmentRuntimeMapProjection
                 internetNodeId,
                 Text("Internet"),
                 "Internet connection",
+                "web",
                 ResourceClass.Network.ToString(),
                 "topology",
                 Text("Public reachability"),
@@ -929,14 +940,6 @@ public static class EnvironmentRuntimeMapProjection
             return Text("Endpoint mapping");
         }
 
-        private static string? GetEndpointText(Resource resource)
-        {
-            var address = resource.ResourceEndpointNetworkMappings.FirstOrDefault()?.Address;
-            return string.IsNullOrWhiteSpace(address)
-                ? null
-                : FormatEndpointAddress(address);
-        }
-
         private static string FormatEndpointAddress(string address) =>
             TryFormatEndpointHost(address) ?? address;
 
@@ -977,6 +980,7 @@ public static class EnvironmentRuntimeMapProjection
                 hostNetworkNodeId,
                 Text("Host network"),
                 "cloudshell.network",
+                "network",
                 ResourceClass.Network.ToString(),
                 "topology",
                 Text("Implicit host network for local development"),
@@ -1360,6 +1364,7 @@ public sealed record EnvironmentRuntimeMapNode(
     string Id,
     string Label,
     string Type,
+    string? IconName,
     string ResourceClass,
     string NodeKind,
     string Summary,
@@ -1425,6 +1430,8 @@ public sealed record EnvironmentRuntimeMapProjectionOptions
     public Func<ResourceState?, string> GetStateClass { get; init; } = static _ => "state-unknown";
 
     public Func<Resource, string> GetResourceTypeLabel { get; init; } = static resource => resource.EffectiveTypeId;
+
+    public Func<Resource, string?> GetResourceIconName { get; init; } = static resource => resource.EffectiveTypeId;
 }
 
 public static class EnvironmentRuntimeArtifactKinds

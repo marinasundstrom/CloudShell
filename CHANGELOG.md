@@ -33,7 +33,13 @@ on `git blame --follow`, and then by the broad type of change.
   inherits reachability.
 - Resource graph and Environment Map cards now use resource type display names
   from the shell catalog, while keeping concrete endpoint host/IP/name text
-  visible on mapped resources and endpoint mapping topology nodes.
+  visible on mapped resources and endpoint mapping topology nodes when the
+  network topology layer is shown.
+- Resource graph and Environment Map cards now use compact type/artifact icons
+  instead of initials, keeping resource display names as the dominant card
+  content.
+- Application Topology sample resource display names now omit the repeated
+  sample prefix so graph cards remain readable.
 - Resource graph now has an optional network topology overlay that adds
   topology relationship links and shows internet reachability as a badge on
   resource or network cards when reachability is explicitly projected, instead

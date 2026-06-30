@@ -37,10 +37,13 @@ public sealed class ResourceDependencyGraphProjectionTests
 
         var graph = ResourceDependencyGraphProjection.Create(
             [api],
-            CreateOptions(getResourceTypeLabel: _ => "Executable application"));
+            CreateOptions(
+                getResourceTypeLabel: _ => "Executable application",
+                getResourceIconName: _ => "application"));
 
         var apiNode = Assert.Single(graph.Nodes);
         Assert.Equal("Executable application", apiNode.Type);
+        Assert.Equal("application", apiNode.IconName);
     }
 
     [Fact]
@@ -58,6 +61,7 @@ public sealed class ResourceDependencyGraphProjectionTests
         Assert.Equal(0, graph.TopologyCount);
         Assert.Empty(graph.Links);
         Assert.All(graph.Nodes, node => Assert.Null(node.InternetReachability));
+        Assert.All(graph.Nodes, node => Assert.Null(node.EndpointText));
     }
 
     [Fact]
@@ -76,6 +80,7 @@ public sealed class ResourceDependencyGraphProjectionTests
         Assert.Equal(3, graph.TopologyCount);
         var apiNode = Assert.Single(graph.Nodes, node => node.Id == api.Id);
         Assert.Null(apiNode.InternetReachability);
+        Assert.Equal("https://api.example.test", apiNode.EndpointText);
         Assert.Contains(graph.Links, link =>
             link.Source == network.Id &&
             link.Target == api.Id &&
@@ -106,6 +111,8 @@ public sealed class ResourceDependencyGraphProjectionTests
             [frontend, dnsZone, nameMapping],
             CreateOptions(includeNetworkTopologyOverlay: true));
 
+        var frontendNode = Assert.Single(graph.Nodes, node => node.Id == frontend.Id);
+        Assert.Equal("app.local", frontendNode.EndpointText);
         Assert.Contains(graph.Links, link =>
             link.Source == dnsZone.Id &&
             link.Target == nameMapping.Id &&
@@ -288,12 +295,14 @@ public sealed class ResourceDependencyGraphProjectionTests
     private static ResourceDependencyGraphProjectionOptions CreateOptions(
         bool includeNetworkTopologyOverlay = false,
         IReadOnlyList<Resource>? relationshipResources = null,
-        Func<Resource, string>? getResourceTypeLabel = null) =>
+        Func<Resource, string>? getResourceTypeLabel = null,
+        Func<Resource, string?>? getResourceIconName = null) =>
         new()
         {
             IncludeNetworkTopologyOverlay = includeNetworkTopologyOverlay,
             RelationshipResources = relationshipResources,
             GetResourceTypeLabel = getResourceTypeLabel ?? (resource => resource.EffectiveTypeId),
+            GetResourceIconName = getResourceIconName ?? (resource => resource.EffectiveTypeId),
             CreateResourceDetailUrl = resource => $"/resources/{resource.Id}",
             GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown"
         };

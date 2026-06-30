@@ -115,7 +115,7 @@ cloudShell.DefineResources(resources =>
         .AddVolume(
             "application-topology-sql-data",
             path: "./Data/storage/sql-server")
-        .WithDisplayName("Application Topology SQL Data")
+        .WithDisplayName("SQL Data")
         .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false);
     containerHostResource = resources
@@ -124,7 +124,7 @@ cloudShell.DefineResources(resources =>
         .WithAutoStart(false);
     sqlServerResource = resources
         .AddSqlServer("application-topology-sql-server")
-        .WithDisplayName("Application Topology SQL Server")
+        .WithDisplayName("SQL Server")
         .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false)
         .UseContainerHost(containerHostResource)
@@ -134,6 +134,7 @@ cloudShell.DefineResources(resources =>
         .MountVolume(sqlVolumeResource, "/var/opt/mssql");
     databaseResource = resources
         .AddSqlDatabase("application-topology-db")
+        .WithDisplayName("SQL Database")
         .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false)
         .BelongsToServer(sqlServerResource)
@@ -141,19 +142,19 @@ cloudShell.DefineResources(resources =>
         .EnsureCreated();
     settingsResource = resources
         .AddConfigurationStore("application-topology-settings")
-        .WithDisplayName("Application Topology Settings")
+        .WithDisplayName("Settings")
         .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false)
         .WithEndpoint(graphConfigurationEndpoint);
     secretsResource = resources
         .AddSecretsVault("application-topology-secrets")
-        .WithDisplayName("Application Topology Secrets")
+        .WithDisplayName("Secrets")
         .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false)
         .WithEndpoint(graphSecretsEndpoint);
     hostConfigurationResource = resources
         .AddHostConfigurationSource("application-topology-host-settings")
-        .WithDisplayName("Application Topology Host Settings")
+        .WithDisplayName("Host Settings")
         .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false)
         .WithSource("application-topology");
@@ -162,7 +163,7 @@ cloudShell.DefineResources(resources =>
     apiResource = api;
     var apiIdentityClientId = apiResource.IdentityClientId(apiIdentityName);
     api
-        .WithDisplayName("Application Topology API")
+        .WithDisplayName("API")
         .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false)
         .DependsOn(databaseResource)
@@ -228,7 +229,7 @@ cloudShell.DefineResources(resources =>
 
     frontendResource = resources
         .AddAspNetCoreProject("application-topology-frontend", frontendProjectPath)
-        .WithDisplayName("Application Topology Frontend")
+        .WithDisplayName("Frontend")
         .WithResourceGroup(resourceGroupId)
         .WithAutoStart(false)
         .DependsOn(apiResource)

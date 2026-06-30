@@ -174,6 +174,9 @@ public sealed class EnvironmentRuntimeMapProjectionTests
                 GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown",
                 GetResourceTypeLabel = resource => resource.Id == api.Id
                     ? "Executable application"
+                    : resource.EffectiveTypeId,
+                GetResourceIconName = resource => resource.Id == api.Id
+                    ? "application"
                     : resource.EffectiveTypeId
             });
 
@@ -195,7 +198,8 @@ public sealed class EnvironmentRuntimeMapProjectionTests
         Assert.Equal("reachable", networkNode.InternetReachability);
         Assert.Equal("inferred", apiNode.InternetReachability);
         Assert.Equal("Executable application", apiNode.Type);
-        Assert.Equal("api.example.test", apiNode.EndpointText);
+        Assert.Equal("application", apiNode.IconName);
+        Assert.Equal("https://api.example.test", apiNode.EndpointText);
         Assert.Equal("public-http", mappingNode.Label);
         Assert.Equal("api.example.test", mappingNode.Type);
         Assert.Equal(3, map.NetworkTopologyCount);
@@ -273,6 +277,7 @@ public sealed class EnvironmentRuntimeMapProjectionTests
             });
 
         var apiNode = Assert.Single(map.Nodes, node => node.ResourceId == api.Id);
+        Assert.Equal("http://localhost:8080", apiNode.EndpointText);
         var hostNetworkNode = Assert.Single(map.Nodes, node =>
             node.ResourceId == "network:host" &&
             node.Label == "Host network" &&
@@ -294,6 +299,26 @@ public sealed class EnvironmentRuntimeMapProjectionTests
         Assert.DoesNotContain(map.Links, link =>
             link.Source == internetNode.Id &&
             link.Target == apiNode.Id);
+    }
+
+    [Fact]
+    public void Create_HidesEndpointTextWhenNetworkTopologyOverlayIsDisabled()
+    {
+        var api = CreateLocalHostHttpResource();
+
+        var map = EnvironmentRuntimeMapProjection.Create(
+            [api],
+            [],
+            [],
+            new EnvironmentRuntimeMapProjectionOptions
+            {
+                IncludeNetworkTopologyOverlay = false,
+                CreateResourceDetailUrl = resource => $"/resources/{resource.Id}",
+                GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown"
+            });
+
+        var apiNode = Assert.Single(map.Nodes, node => node.ResourceId == api.Id);
+        Assert.Null(apiNode.EndpointText);
     }
 
     [Fact]

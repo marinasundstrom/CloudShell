@@ -159,6 +159,7 @@
                 GetResourceLabel = displaySelection.GetResourceLabel,
                 GetResourceName = displaySelection.GetResourceName,
                 GetResourceTypeLabel = GetResourceTypeDisplayName,
+                GetResourceIconName = GetResourceTypeIconName,
                 CreateResourceDetailUrl = resource => ResourceManagerCompositionLinks.ResourceDetails(Composition, resource.Id),
                 GetStateClass = ResourceStateDisplay.GetStateClass
             });
@@ -209,6 +210,15 @@
         (string.Equals(resource.Kind, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase)
             ? resource.Kind
             : $"{resource.Kind} ({resource.EffectiveTypeId})");
+
+    private string? GetResourceTypeIconName(Resource resource) =>
+        ShellCatalog.ResourceTypes.FirstOrDefault(type =>
+            string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase))
+            ?.Icon ??
+        FirstNonEmpty(resource.EffectiveTypeId, resource.ResourceClass.ToString(), resource.Kind);
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
     public async ValueTask DisposeAsync()
     {

@@ -700,6 +700,12 @@
             ? resource.Kind
             : $"{resource.Kind} ({resource.EffectiveTypeId})");
 
+    private string? GetResourceTypeIconName(Resource resource) =>
+        ShellCatalog.ResourceTypes.FirstOrDefault(type =>
+            string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase))
+            ?.Icon ??
+        FirstNonEmpty(resource.EffectiveTypeId, resource.ResourceClass.ToString(), resource.Kind);
+
     private string GetEnvironmentMapNodeLabel(string nodeId) =>
         EnvironmentMap.Nodes.FirstOrDefault(node =>
             string.Equals(node.Id, nodeId, StringComparison.OrdinalIgnoreCase))?.Label ?? nodeId;
@@ -730,6 +736,7 @@
                 CreateResourceDetailUrl = resource => ResourceManagerCompositionLinks.ResourceDetails(Composition, resource.Id),
                 GetStateClass = ResourceStateDisplay.GetStateClass,
                 GetResourceTypeLabel = GetResourceTypeDisplayName,
+                GetResourceIconName = GetResourceTypeIconName,
                 IncludeNetworkTopologyOverlay = IncludeNetworkTopologyOverlay
             });
 

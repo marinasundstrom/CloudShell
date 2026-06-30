@@ -30,9 +30,12 @@ public static class ResourceDependencyGraphProjection
                 projectionOptions.GetResourceLabel(resource),
                 projectionOptions.GetResourceName(resource),
                 projectionOptions.GetResourceTypeLabel(resource),
+                projectionOptions.GetResourceIconName(resource),
                 resource.ResourceClass.ToString(),
                 ResourceDependencyGraphNodeKinds.Resource,
-                GetEndpointText(resource),
+                projectionOptions.IncludeNetworkTopologyOverlay
+                    ? ResourceEndpointDisplay.GetPreferredEndpointText(resource, relationshipResources)
+                    : null,
                 resource.State?.ToString() ?? "No lifecycle status",
                 projectionOptions.GetStateClass(resource.State),
                 projectionOptions.CreateResourceDetailUrl(resource),
@@ -244,22 +247,6 @@ public static class ResourceDependencyGraphProjection
         links[id] = new ResourceDependencyGraphLink(source, target, label, kind, resourceId);
     }
 
-    private static string GetEndpointText(Resource resource)
-    {
-        var address = resource.ResourceEndpointNetworkMappings.FirstOrDefault()?.Address;
-        if (!string.IsNullOrWhiteSpace(address))
-        {
-            return TryFormatEndpointHost(address) ?? address;
-        }
-
-        return resource.Endpoints.Count switch
-        {
-            0 => "No endpoints",
-            1 => "1 endpoint",
-            _ => string.Create(CultureInfo.InvariantCulture, $"{resource.Endpoints.Count} endpoints")
-        };
-    }
-
     private static bool TryGetDatabaseServerResourceId(Resource resource, out string serverResourceId)
     {
         if (resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.DatabaseServerResourceId, out var projectedServerResourceId) &&
@@ -291,18 +278,6 @@ public static class ResourceDependencyGraphProjection
         string.Equals(resource.EffectiveTypeId, "application.sql-database", StringComparison.OrdinalIgnoreCase) ||
         resource.EffectiveTypeId.Contains("sql-database", StringComparison.OrdinalIgnoreCase);
 
-    private static string? TryFormatEndpointHost(string address)
-    {
-        if (!Uri.TryCreate(address, UriKind.Absolute, out var uri))
-        {
-            return null;
-        }
-
-        return uri.IsDefaultPort
-            ? uri.Host
-            : string.Create(CultureInfo.InvariantCulture, $"{uri.Host}:{uri.Port}");
-    }
-
     private static int GetNodeSortOrder(string nodeKind) =>
         string.Equals(nodeKind, ResourceDependencyGraphNodeKinds.Resource, StringComparison.OrdinalIgnoreCase)
             ? 0
@@ -330,9 +305,10 @@ public sealed record ResourceDependencyGraphNode(
     string Label,
     string Name,
     string Type,
+    string? IconName,
     string ResourceClass,
     string NodeKind,
-    string EndpointText,
+    string? EndpointText,
     string StateLabel,
     string StateClass,
     string? DetailUrl,
@@ -357,6 +333,8 @@ public sealed record ResourceDependencyGraphProjectionOptions
     public Func<Resource, string> GetResourceName { get; init; } = static resource => resource.Name;
 
     public Func<Resource, string> GetResourceTypeLabel { get; init; } = static resource => resource.EffectiveTypeId;
+
+    public Func<Resource, string?> GetResourceIconName { get; init; } = static resource => resource.EffectiveTypeId;
 
     public Func<Resource, string?> CreateResourceDetailUrl { get; init; } = static _ => null;
 

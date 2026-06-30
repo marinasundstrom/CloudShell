@@ -1281,49 +1281,55 @@ h3 {
     opacity: 1;
 }
 
-.resource-graph-node-icon {
+.resource-graph-node-icon-frame {
     fill: #64748b;
 }
 
-.resource-graph-node-icon.project,
-.resource-graph-node-icon.executable {
+.resource-graph-node-icon-frame.project,
+.resource-graph-node-icon-frame.executable {
     fill: #7c3aed;
 }
 
-.resource-graph-node-icon.container {
+.resource-graph-node-icon-frame.container {
     fill: #0f766e;
 }
 
-.resource-graph-node-icon.service {
+.resource-graph-node-icon-frame.service {
     fill: #d97706;
 }
 
-.resource-graph-node-icon.network {
+.resource-graph-node-icon-frame.network {
     fill: #2563eb;
 }
 
-.resource-graph-node-icon.topology {
+.resource-graph-node-icon-frame.topology {
     fill: #2563eb;
 }
 
-.resource-graph-node-icon.storage {
+.resource-graph-node-icon-frame.storage {
     fill: #0891b2;
 }
 
-.resource-graph-node-icon.configuration {
+.resource-graph-node-icon-frame.configuration {
     fill: #9333ea;
 }
 
-.resource-graph-node-icon.secretsvault {
+.resource-graph-node-icon-frame.secretsvault {
     fill: #be123c;
 }
 
-.resource-graph-node-initials {
-    fill: white;
-    font-size: .72rem;
-    font-weight: 700;
+.resource-graph-node-icon-glyph {
+    fill: none;
     pointer-events: none;
-    text-anchor: middle;
+    stroke: white;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+}
+
+.resource-graph-node-icon-frame,
+.resource-graph-node-icon-glyph {
+    pointer-events: none;
 }
 
 .resource-graph-status {
@@ -1633,44 +1639,50 @@ h3 {
     opacity: 1;
 }
 
-.environment-map-node-icon {
+.environment-map-node-icon-frame {
     fill: #64748b;
 }
 
-.environment-map-node-icon.service {
+.environment-map-node-icon-frame.service {
     fill: #d97706;
 }
 
-.environment-map-node-icon.replica-group,
-.environment-map-node-icon.replica,
-.environment-map-node-icon.container {
+.environment-map-node-icon-frame.replica-group,
+.environment-map-node-icon-frame.replica,
+.environment-map-node-icon-frame.container {
     fill: #0f766e;
 }
 
-.environment-map-node-icon.routing,
-.environment-map-node-icon.topology,
-.environment-map-node-icon.network {
+.environment-map-node-icon-frame.routing,
+.environment-map-node-icon-frame.topology,
+.environment-map-node-icon-frame.network {
     fill: #2563eb;
 }
 
-.environment-map-node-icon.storage {
+.environment-map-node-icon-frame.storage {
     fill: #0891b2;
 }
 
-.environment-map-node-icon.configuration {
+.environment-map-node-icon-frame.configuration {
     fill: #9333ea;
 }
 
-.environment-map-node-icon.secretsvault {
+.environment-map-node-icon-frame.secretsvault {
     fill: #be123c;
 }
 
-.environment-map-node-initials {
-    fill: white;
-    font-size: .72rem;
-    font-weight: 700;
+.environment-map-node-icon-glyph {
+    fill: none;
     pointer-events: none;
-    text-anchor: middle;
+    stroke: white;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+}
+
+.environment-map-node-icon-frame,
+.environment-map-node-icon-glyph {
+    pointer-events: none;
 }
 
 .environment-map-status {
