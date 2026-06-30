@@ -52,6 +52,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The Replicated Container Health sample Traefik bridge now maps cookie
   session-affinity routing bindings to Traefik sticky-cookie configuration
   when reconciling replicated app ingress.
+- Added a SignalR Container App sample that declares a Blazor WebAssembly
+  frontend resource connected to a three-replica container app backend with
+  cookie session affinity, leaving runtime materialization to the shared
+  container app runtime/orchestrator path.
 - Application Topology sample resource display names now omit the repeated
   sample prefix so graph cards remain readable.
 - ResourceHost now declares every sample resource exposed by its provider so

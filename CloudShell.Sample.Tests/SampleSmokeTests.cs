@@ -175,6 +175,11 @@ public sealed class SampleSmokeTests
         };
         yield return new object[]
         {
+            "samples/SignalRContainerApp/CloudShell.SignalRContainerApp.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
             "samples/SettingsAndSecrets/CloudShell.SettingsAndSecrets.csproj",
             resourceHostPaths
         };
@@ -2041,6 +2046,53 @@ public sealed class SampleSmokeTests
 
 
     [Fact]
+    public async Task SignalRContainerAppSample_DeclaresFrontendAndContainerAppIntent()
+    {
+        var apiPort = await GetFreePortAsync();
+        var frontendPort = await GetFreePortAsync();
+        using var host = await SampleProcess.StartAsync(
+            "samples/SignalRContainerApp/CloudShell.SignalRContainerApp.csproj",
+            await GetFreePortAsync(),
+            [
+                ("SignalRContainerApp__ApiPort", apiPort.ToString(CultureInfo.InvariantCulture)),
+                ("SignalRContainerApp__FrontendEndpoint", $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}")
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var frontend = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:signalr-frontend");
+        var api = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.container-app:signalr-api");
+        var apiAttributes = api.GetProperty("attributes");
+        var frontendAttributes = frontend.GetProperty("attributes");
+
+        Assert.Equal("application.aspnet-core-project", frontend.GetProperty("typeId").GetString());
+        Assert.Equal("application.container-app", api.GetProperty("typeId").GetString());
+        Assert.Equal("SignalR Frontend", frontend.GetProperty("displayName").GetString());
+        Assert.Equal("SignalR API", api.GetProperty("displayName").GetString());
+        Assert.Equal(
+            $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}",
+            GetPrimaryEndpointAddress(frontend));
+        Assert.Equal(
+            $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}",
+            GetPrimaryEndpointAddress(api));
+        Assert.Equal(
+            "cloudshell-signalr-api:20260630.1",
+            apiAttributes.GetProperty("container.image").GetString());
+        Assert.Equal("3", apiAttributes.GetProperty("container.replicas").GetString());
+        Assert.Equal("Cookie", apiAttributes.GetProperty("container.routing.sessionAffinity.mode").GetString());
+        Assert.Equal("CloudShellSignalRReplica", apiAttributes.GetProperty("container.routing.sessionAffinity.cookieName").GetString());
+        Assert.Equal("3600", apiAttributes.GetProperty("container.routing.sessionAffinity.durationSeconds").GetString());
+        Assert.Contains(
+            $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}",
+            frontendAttributes.GetRawText());
+    }
+
+    [Fact]
     public async Task ReplicatedContainerHealthSample_DeclaresResourcesWithoutOldProviderRecords()
     {
         var apiPort = await GetFreePortAsync();
@@ -2599,6 +2651,11 @@ public sealed class SampleSmokeTests
             environment.Add(("ReplicatedContainerHealth__ApiPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
             environment.Add(("ReplicatedContainerHealth__RuntimeStatusCacheMilliseconds", "25"));
         }
+        else if (sampleName == "SignalRContainerApp")
+        {
+            environment.Add(("SignalRContainerApp__ApiPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+            environment.Add(("SignalRContainerApp__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+        }
         else if (sampleName == "SettingsAndSecrets")
         {
             environment.Add(("Samples__SettingsAndSecrets__ConfigurationServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
@@ -2656,6 +2713,11 @@ public sealed class SampleSmokeTests
         if (projectPath.Contains("/ReplicatedContainerHealth/", StringComparison.OrdinalIgnoreCase))
         {
             return "ReplicatedContainerHealth";
+        }
+
+        if (projectPath.Contains("/SignalRContainerApp/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "SignalRContainerApp";
         }
 
         if (projectPath.Contains("/SettingsAndSecrets/", StringComparison.OrdinalIgnoreCase))
@@ -2728,6 +2790,11 @@ public sealed class SampleSmokeTests
             "ReplicatedContainerHealth" =>
             [
                 "application:api"
+            ],
+            "SignalRContainerApp" =>
+            [
+                "application:signalr-api",
+                "application:signalr-frontend"
             ],
             "SettingsAndSecrets" =>
             [

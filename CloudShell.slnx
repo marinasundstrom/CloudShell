@@ -26,6 +26,18 @@
   <Folder Name="/samples/ReplicatedContainerHealth/">
     <Project Path="samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj" />
   </Folder>
+  <Folder Name="/samples/SignalRContainerApp/">
+    <Project Path="samples/SignalRContainerApp/CloudShell.SignalRContainerApp.csproj" />
+  </Folder>
+  <Folder Name="/samples/SignalRContainerApp/Api/">
+    <Project Path="samples/SignalRContainerApp/Api/CloudShell.SignalRContainerApp.Api.csproj" />
+  </Folder>
+  <Folder Name="/samples/SignalRContainerApp/Frontend/">
+    <Project Path="samples/SignalRContainerApp/Frontend/CloudShell.SignalRContainerApp.Frontend.csproj" />
+  </Folder>
+  <Folder Name="/samples/SignalRContainerApp/Frontend.Client/">
+    <Project Path="samples/SignalRContainerApp/Frontend.Client/CloudShell.SignalRContainerApp.Frontend.Client.csproj" />
+  </Folder>
   <Folder Name="/samples/HostVirtualNetwork/">
     <Project Path="samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj" />
   </Folder>
