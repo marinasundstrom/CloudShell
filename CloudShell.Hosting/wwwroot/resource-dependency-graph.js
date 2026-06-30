@@ -285,9 +285,9 @@ class ResourceDependencyGraph {
         newNodes.append("rect")
             .attr("class", "resource-graph-node-card")
             .attr("x", -84)
-            .attr("y", -54)
+            .attr("y", -56)
             .attr("width", 168)
-            .attr("height", 108)
+            .attr("height", 112)
             .attr("rx", 6);
 
         newNodes.append("circle")
@@ -327,17 +327,17 @@ class ResourceDependencyGraph {
         newNodes.append("text")
             .attr("class", "resource-graph-node-label")
             .attr("x", 0)
-            .attr("y", 10);
+            .attr("y", 17);
 
         newNodes.append("text")
             .attr("class", "resource-graph-node-type")
             .attr("x", 0)
-            .attr("y", 28);
+            .attr("y", 35);
 
         newNodes.append("text")
             .attr("class", "resource-graph-node-endpoint")
             .attr("x", 0)
-            .attr("y", 43);
+            .attr("y", 50);
 
         newNodes.append("title")
             .attr("class", "resource-graph-node-title");

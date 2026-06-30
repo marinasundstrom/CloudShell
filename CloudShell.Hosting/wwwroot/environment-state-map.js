@@ -473,9 +473,9 @@ class EnvironmentStateMap {
         newNodes.append("rect")
             .attr("class", "environment-map-node-card")
             .attr("x", -90)
-            .attr("y", -52)
+            .attr("y", -56)
             .attr("width", 180)
-            .attr("height", 104)
+            .attr("height", 112)
             .attr("rx", 6);
 
         newNodes.append("circle")
@@ -515,17 +515,17 @@ class EnvironmentStateMap {
         newNodes.append("text")
             .attr("class", "environment-map-node-label")
             .attr("x", 0)
-            .attr("y", 13);
+            .attr("y", 18);
 
         newNodes.append("text")
             .attr("class", "environment-map-node-kind")
             .attr("x", 0)
-            .attr("y", 31);
+            .attr("y", 36);
 
         newNodes.append("text")
             .attr("class", "environment-map-node-endpoint")
             .attr("x", 0)
-            .attr("y", 46);
+            .attr("y", 51);
 
         newNodes.append("title")
             .attr("class", "environment-map-node-title");
