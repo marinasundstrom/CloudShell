@@ -213,6 +213,41 @@ public sealed class EnvironmentRuntimeMapProjectionTests
             link.Target == networkNode.Id &&
             link.Label == "reaches" &&
             link.Kind == "topology");
+        Assert.DoesNotContain(map.Links, link =>
+            link.Source == internetNode.Id &&
+            link.Target == apiNode.Id);
+    }
+
+    [Fact]
+    public void Create_DoesNotShowInternetConnectionForUnreachableNetworkTopology()
+    {
+        var api = CreatePrivateNetworkHttpResource();
+        var provider = CreateTopologyProviderResource();
+        var network = CreateNetworkResource(api.Id, provider.Id);
+
+        var map = EnvironmentRuntimeMapProjection.Create(
+            [api, network, provider],
+            [],
+            [],
+            new EnvironmentRuntimeMapProjectionOptions
+            {
+                IncludeNetworkTopologyOverlay = true,
+                CreateResourceDetailUrl = resource => $"/resources/{resource.Id}",
+                GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown"
+            });
+
+        var apiNode = Assert.Single(map.Nodes, node =>
+            node.ArtifactKind == EnvironmentRuntimeArtifactKinds.Resource &&
+            node.ResourceId == api.Id);
+        var networkNode = Assert.Single(map.Nodes, node =>
+            node.ArtifactKind == EnvironmentRuntimeArtifactKinds.Resource &&
+            node.ResourceId == network.Id);
+
+        Assert.Null(networkNode.InternetReachability);
+        Assert.Null(apiNode.InternetReachability);
+        Assert.DoesNotContain(map.Nodes, node =>
+            node.ArtifactKind == EnvironmentRuntimeArtifactKinds.InternetConnection);
+        Assert.DoesNotContain(map.Links, link => link.Label == "reaches");
     }
 
     [Fact]
@@ -238,16 +273,21 @@ public sealed class EnvironmentRuntimeMapProjectionTests
             node.NodeKind == "topology");
         Assert.Equal("inferred", apiNode.InternetReachability);
         Assert.Equal("inferred", hostNetworkNode.InternetReachability);
+        var internetNode = Assert.Single(map.Nodes, node =>
+            node.ArtifactKind == EnvironmentRuntimeArtifactKinds.InternetConnection);
         Assert.Contains(map.Links, link =>
             link.Source == hostNetworkNode.Id &&
             link.Target == apiNode.Id &&
             link.Label == "connects" &&
             link.Kind == "topology");
         Assert.Contains(map.Links, link =>
-            link.Source == "internet:public" &&
-            link.Target == apiNode.Id &&
+            link.Source == internetNode.Id &&
+            link.Target == hostNetworkNode.Id &&
             link.Label == "reaches" &&
             link.Kind == "topology");
+        Assert.DoesNotContain(map.Links, link =>
+            link.Source == internetNode.Id &&
+            link.Target == apiNode.Id);
     }
 
     [Fact]
@@ -393,6 +433,32 @@ public sealed class EnvironmentRuntimeMapProjectionTests
                     "http://localhost:8080",
                     ResourceExposureScope.Public,
                     networkResourceId: "network:host")
+            ],
+            DisplayName: "API");
+
+    private static Resource CreatePrivateNetworkHttpResource() =>
+        new(
+            "application.executable:api",
+            "api",
+            "application.executable",
+            "test",
+            "local",
+            ResourceState.Running,
+            [ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Network, 8080)],
+            "1",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: "application.executable",
+            ResourceClass: ResourceClass.Executable,
+            EndpointNetworkMappings:
+            [
+                ResourceEndpointNetworkMapping.ForEndpoint(
+                    "application.executable:api",
+                    "http",
+                    "http://api.internal:8080",
+                    ResourceExposureScope.Network,
+                    networkResourceId: "cloudshell.network:public",
+                    providerResourceId: "cloudshell.gateway:public")
             ],
             DisplayName: "API");
 

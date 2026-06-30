@@ -432,8 +432,9 @@ preserving old provider seams:
   resource-owned endpoint mappings, network resources, load-balancer routes,
   name mappings, and explicit or observed internet reachability facts. The
   Environment Map shows the overlay by default with a toggle; the Resource
-  graph has an optional overlay and renders internet reachability as a node
-  badge.
+  graph has an optional overlay, and both views render internet reachability as
+  a resource or network badge. When the Environment Map shows an Internet
+  anchor, it links to the carrier boundary instead of every reachable resource.
 - [ ] Continue splitting `ApplicationResourceRuntimeOperations` by separating
   remaining resource-type concerns: lifecycle procedure execution, container
   app orchestration hooks, and endpoint/probe materialization. The shared

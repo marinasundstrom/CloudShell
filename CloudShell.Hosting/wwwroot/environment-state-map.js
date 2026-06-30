@@ -7,9 +7,9 @@ export function initializeEnvironmentStateMap(selector, environmentInterop) {
     graph = new EnvironmentStateMap(selector, environmentInterop);
 }
 
-export function updateEnvironmentStateMap(map) {
+export function updateEnvironmentStateMap(map, layers) {
     if (graph) {
-        graph.update(map || { nodes: [], links: [] });
+        graph.update(map || { nodes: [], links: [] }, layers || {});
     }
 }
 
@@ -27,6 +27,9 @@ class EnvironmentStateMap {
         this.nodes = [];
         this.groups = [];
         this.links = [];
+        this.layers = {
+            showLinkLabels: false
+        };
         this.selectedNode = null;
         this.svg = d3.select(selector);
         this.svg.selectAll("*").remove();
@@ -125,7 +128,11 @@ class EnvironmentStateMap {
         this.svg.attr("viewBox", `${-width / 2} ${-height / 2} ${width} ${height}`);
     }
 
-    update(map) {
+    update(map, layers) {
+        this.layers = {
+            ...this.layers,
+            showLinkLabels: Boolean(layers.showLinkLabels ?? layers.ShowLinkLabels)
+        };
         const nodes = map.nodes || [];
         const groups = map.groups || [];
         const links = map.links || [];
@@ -432,7 +439,7 @@ class EnvironmentStateMap {
             .attr("opacity", 1);
 
         this.linkLabelElements = newLabels.merge(this.linkLabelElements)
-            .attr("class", link => `environment-map-link-label ${getClassName(link.kind)} ${getClassName(link.scope)}`)
+            .attr("class", link => `environment-map-link-label ${getClassName(link.kind)} ${getClassName(link.scope)} ${this.layers.showLinkLabels ? "" : "hidden-layer"}`)
             .text(link => trimText(link.label, 16));
     }
 
@@ -574,7 +581,8 @@ class EnvironmentStateMap {
 
         this.linkLabelElements
             ?.classed("related", link => activeNode && this.isNeighborLink(activeNode, link))
-            .classed("dimmed", link => activeNode && !this.isNeighborLink(activeNode, link));
+            .classed("dimmed", link => activeNode && !this.isNeighborLink(activeNode, link))
+            .classed("hidden-layer", () => !this.layers.showLinkLabels);
 
         this.groupElements
             ?.classed("related", group => activeNode && group.nodeIds.includes(activeNode.id))

@@ -157,7 +157,7 @@ The overlay is not a separate model or source of truth. It is derived from the
 same Resource model and Runtime model artifacts as the Resource graph and the
 Environment Map. In the Resource graph, it explains how resources are connected
 through networks and published endpoints. In the Environment Map, it can add
-runtime routing, replica, service-boundary, and internet-reachability context
+runtime routing, replica, service-boundary, and internet-reachability badges
 when those details matter.
 
 ### Internet Connection
@@ -170,6 +170,13 @@ CloudShell should prefer explicit network resources, endpoint mappings,
 load-balancer routes, DNS/name mappings, provider capabilities, and observed
 runtime facts over broad assumptions. When internet reachability is inferred,
 the projection should make that clear.
+
+Internet reachability is currently a fact on a resource, network, route, or
+service boundary. Visualizations can show it as a badge or, when useful, as an
+Internet topology anchor. The anchor should connect to the concrete network,
+gateway, load balancer, provider, or explicitly reachable resource that carries
+the reachability, not to every resource that only inherits reachability through
+that carrier.
 
 ## Runtime and Deployment Terms
 

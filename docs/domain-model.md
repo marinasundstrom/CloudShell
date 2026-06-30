@@ -289,9 +289,11 @@ Resource graph, the overlay should emphasize network resources, endpoint
 mappings, published names, routes, and whether resources are connected through
 networks. In the Environment Map, the same overlay can include runtime service
 boundaries, routing bindings, replica groups, load-balancer materialization,
-and **[internet connection](terminology.md#internet-connection)** facts. This
-keeps network and internet reachability visible where useful without making
-the Resource graph or Environment Map a separate source of truth.
+and **[internet connection](terminology.md#internet-connection)** facts. The
+internet facts are rendered as reachability badges or, when useful, as an
+Internet topology anchor connected to the concrete carrier boundary. This keeps
+network and internet reachability visible where useful without making the
+Resource graph or Environment Map a separate source of truth.
 
 ```mermaid
 flowchart TB

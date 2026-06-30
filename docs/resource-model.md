@@ -529,8 +529,8 @@ graph attributes rather than authored as caller-managed mapping configuration.
 Network topology and internet reachability are graph projections over these
 resource-owned networking facts. A Resource graph view can choose to include a
 network topology overlay that shows network resources, endpoint mappings,
-published names, load-balancer routes, and internet connection facts. The same
-facts can be projected into the Environment Map with runtime context such as
+published names, load-balancer routes, and internet reachability facts. The
+same facts can be projected into the Environment Map with runtime context such as
 orchestration service boundaries, replica groups, replicas, and routing
 bindings. The resource model should provide the relationships and attributes;
 the map projection decides whether to render the normal resource view, the
@@ -574,7 +574,10 @@ ports and still not have verified internet connectivity. Providers, runtime
 observers, or network resources can project `internet.reachability` or
 `network.internetReachability` with values such as `verified`, `reachable`, or
 `inferred`; graph views can then show a reachability badge on that resource or
-network.
+network. If the Environment Map shows Internet as a topology anchor, it should
+connect to the concrete network, gateway, load balancer, provider, or explicitly
+reachable resource that carries the reachability rather than drawing direct
+Internet links to every resource that merely inherits that reachability.
 
 ## Actions
 

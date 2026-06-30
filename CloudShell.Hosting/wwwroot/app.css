@@ -1415,8 +1415,14 @@ h3 {
     font-weight: 700;
 }
 
-.environment-map-topology-toggle {
+.environment-map-layer-label {
     margin-left: auto;
+    color: var(--cloudshell-text);
+    font-weight: 650;
+}
+
+.environment-map-layer-toggle {
+    margin-inline-start: .15rem;
 }
 
 .environment-state-map-canvas {
@@ -1486,9 +1492,14 @@ h3 {
     stroke-linejoin: round;
 }
 
+.environment-map-link-label.hidden-layer {
+    opacity: 0;
+}
+
 .environment-map-link-label.related {
     fill: var(--cloudshell-accent);
     font-weight: 650;
+    opacity: 1;
 }
 
 .environment-map-link-label.internal {
@@ -1497,6 +1508,11 @@ h3 {
 
 .environment-map-link-label.external {
     font-weight: 600;
+}
+
+.environment-map-link-label.related.internal,
+.environment-map-link-label.related.external {
+    opacity: 1;
 }
 
 .environment-map-group {

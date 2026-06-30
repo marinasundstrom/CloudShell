@@ -816,11 +816,29 @@ public static class EnvironmentRuntimeMapProjection
                 }
             }
 
-            var internetReachableResourceIds = internetReachability
-                .Where(item => resourceNodeIds.ContainsKey(item.Key))
-                .Select(item => item.Key)
-                .ToArray();
-            if (internetReachableResourceIds.Length == 0)
+            AddInternetConnectivityNode(
+                resources,
+                internetReachability,
+                nodes,
+                links,
+                resourceNodeIds,
+                ref networkTopologyNodeCount);
+        }
+
+        private void AddInternetConnectivityNode(
+            IReadOnlyList<Resource> resources,
+            IReadOnlyDictionary<string, string> internetReachability,
+            IDictionary<string, EnvironmentRuntimeMapNode> nodes,
+            IDictionary<string, EnvironmentRuntimeMapLink> links,
+            IReadOnlyDictionary<string, string> resourceNodeIds,
+            ref int networkTopologyNodeCount)
+        {
+            var carrierNodeIds = CreateInternetCarrierNodeIds(
+                resources,
+                internetReachability,
+                nodes,
+                resourceNodeIds);
+            if (carrierNodeIds.Count == 0)
             {
                 return;
             }
@@ -843,24 +861,58 @@ public static class EnvironmentRuntimeMapProjection
                 null);
             networkTopologyNodeCount++;
 
-            foreach (var resourceId in internetReachableResourceIds)
+            foreach (var carrier in carrierNodeIds)
             {
-                if (resourceNodeIds.TryGetValue(resourceId, out var resourceNodeId))
-                {
-                    AddLink(
-                        links,
-                        internetNodeId,
-                        resourceNodeId,
-                        Text("reaches"),
-                        "topology",
-                        EnvironmentRuntimeArtifactKinds.InternetConnection,
-                        resourceId,
-                        null,
-                        null,
-                        null);
-                }
+                AddLink(
+                    links,
+                    internetNodeId,
+                    carrier.Value,
+                    Text("reaches"),
+                    "topology",
+                    EnvironmentRuntimeArtifactKinds.InternetConnection,
+                    carrier.Key,
+                    null,
+                    null,
+                    null);
             }
         }
+
+        private static IReadOnlyDictionary<string, string> CreateInternetCarrierNodeIds(
+            IReadOnlyList<Resource> resources,
+            IReadOnlyDictionary<string, string> internetReachability,
+            IDictionary<string, EnvironmentRuntimeMapNode> nodes,
+            IReadOnlyDictionary<string, string> resourceNodeIds)
+        {
+            var carriers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var hostNetworkNodeId = CreateNodeId("resource", ResourceInternetReachabilityProjection.HostNetworkResourceId);
+            if (nodes.TryGetValue(hostNetworkNodeId, out var hostNetworkNode) &&
+                !string.IsNullOrWhiteSpace(hostNetworkNode.InternetReachability))
+            {
+                carriers[ResourceInternetReachabilityProjection.HostNetworkResourceId] = hostNetworkNodeId;
+            }
+
+            foreach (var resource in resources)
+            {
+                if (!resourceNodeIds.TryGetValue(resource.Id, out var nodeId) ||
+                    !internetReachability.ContainsKey(resource.Id))
+                {
+                    continue;
+                }
+
+                if (resource.ResourceClass == ResourceClass.Network ||
+                    HasExplicitInternetReachability(resource))
+                {
+                    carriers[resource.Id] = nodeId;
+                }
+            }
+
+            return carriers;
+        }
+
+        private static bool HasExplicitInternetReachability(Resource resource) =>
+            !string.IsNullOrWhiteSpace(FirstNonEmpty(
+                resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.InternetReachability),
+                resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.NetworkInternetReachability)));
 
         private void AddInferredHostNetworkNode(
             IReadOnlyList<Resource> resources,

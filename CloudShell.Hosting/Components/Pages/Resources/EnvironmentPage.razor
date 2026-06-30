@@ -74,10 +74,16 @@
                 {
                     <span><strong>@EnvironmentMap.NetworkTopologyCount</strong> @L["topology artifact(s)"]</span>
                 }
-                <FluentCheckbox Class="environment-map-topology-toggle"
+                <span class="environment-map-layer-label">@L["Layers"]</span>
+                <FluentCheckbox Class="environment-map-layer-toggle"
                                 Value="@IncludeNetworkTopologyOverlay"
                                 ValueChanged="OnNetworkTopologyOverlayChanged">
                     @L["Network topology"]
+                </FluentCheckbox>
+                <FluentCheckbox Class="environment-map-layer-toggle"
+                                Value="@ShowEnvironmentMapLinkLabels"
+                                ValueChanged="OnLinkLabelsChanged">
+                    @L["Relationship labels"]
                 </FluentCheckbox>
             </div>
 
@@ -480,6 +486,7 @@
     private DotNetObjectReference<EnvironmentPage>? EnvironmentMapReference { get; set; }
     private DateTimeOffset LoadedAt { get; set; }
     private bool IncludeNetworkTopologyOverlay { get; set; } = true;
+    private bool ShowEnvironmentMapLinkLabels { get; set; }
 
     private int ReplicaGroupCount => ReplicaGroupRows.Count;
 
@@ -554,7 +561,13 @@
     {
         if (EnvironmentMapModule is not null)
         {
-            await EnvironmentMapModule.InvokeVoidAsync("updateEnvironmentStateMap", EnvironmentMap);
+            await EnvironmentMapModule.InvokeVoidAsync(
+                "updateEnvironmentStateMap",
+                EnvironmentMap,
+                new
+                {
+                    ShowLinkLabels = ShowEnvironmentMapLinkLabels
+                });
         }
     }
 
@@ -562,6 +575,12 @@
     {
         IncludeNetworkTopologyOverlay = enabled;
         EnvironmentMap = CreateEnvironmentMap(Resources, DeploymentRecords, ReplicaGroupRows);
+        await UpdateEnvironmentMapAsync();
+    }
+
+    private async Task OnLinkLabelsChanged(bool enabled)
+    {
+        ShowEnvironmentMapLinkLabels = enabled;
         await UpdateEnvironmentMapAsync();
     }
 
