@@ -49,7 +49,6 @@ builder.Services
     .AddSingleton<IContainerHostSqlServerRuntimeBridge, ContainerHostSqlServerDockerBridge>()
     .AddSingleton<ISqlServerRuntimeHandler, ContainerHostSqlServerRuntimeHandler>()
     .AddSingleton<IResourceOrchestrationDescriptorProvider, ContainerHostSqlServerOrchestrationDescriptorProvider>()
-    .AddContainerHostResourceType()
     .AddStorageBackedSqlServerResourceTypes();
 cloudShell.UseResourceGraphIntegration();
 

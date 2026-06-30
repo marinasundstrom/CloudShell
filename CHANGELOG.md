@@ -56,6 +56,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Graph-backed generic container-host resources now project orchestration
   descriptors for runtime host resolution, and the SQL container-host samples
   author `DefaultContainerHost()` as a real default host resource.
+- Built-in Resource model provider presets now contribute fallback default Host
+  network and default docker-compatible container-host resources through the
+  lazy graph-builder accessors, while explicit resources with those IDs remain
+  authoritative.
 - Terminology, domain, architecture, and resource-model docs now define a
   network topology overlay that can be shown in both the Resource graph and
   Environment Map, including future internet-reachability facts.

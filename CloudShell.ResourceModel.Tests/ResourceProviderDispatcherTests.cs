@@ -1479,10 +1479,13 @@ public sealed class ResourceProviderDispatcherTests
     {
         var services = new ServiceCollection();
         services.AddLocalVolumeResourceType();
-        services.AddContainerHostResourceType();
         services.AddContainerApplicationResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
+        var typeIds = serviceProvider
+            .GetServices<IResourceTypeProvider>()
+            .Select(provider => provider.TypeId)
+            .ToHashSet();
         var volume = new ResourceDefinition(
             "data",
             LocalVolumeResourceTypeProvider.ResourceTypeId);
@@ -1533,6 +1536,7 @@ public sealed class ResourceProviderDispatcherTests
                 new ResourceDefinitionValidationContext("local", "developer"));
 
         Assert.False(validation.HasErrors);
+        Assert.Contains(ContainerHostResourceTypeProvider.ResourceTypeId, typeIds);
         var containerValidation = validation.Resources.Single(resource =>
             resource.Resource.EffectiveResourceId == definition.EffectiveResourceId);
         Assert.Equal(ContainerApplicationResourceTypeProvider.ClassId, containerValidation.Resource.Class.ClassId);
@@ -1681,12 +1685,25 @@ public sealed class ResourceProviderDispatcherTests
         services.AddSqlServerResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
+        var typeIds = serviceProvider
+            .GetServices<IResourceTypeProvider>()
+            .Select(provider => provider.TypeId)
+            .ToHashSet();
         var volume = new ResourceDefinition(
             "sql-data",
             LocalVolumeResourceTypeProvider.ResourceTypeId);
+        var host = new ResourceDefinition(
+            "docker",
+            ContainerHostResourceTypeProvider.ResourceTypeId);
         var definition = new ResourceDefinition(
             "sql",
             SqlServerResourceTypeProvider.ResourceTypeId,
+            DependsOn:
+            [
+                ResourceReference.DependsOnResourceId(
+                    host.EffectiveResourceId,
+                    typeId: ContainerHostResourceTypeProvider.ResourceTypeId)
+            ],
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [SqlServerResourceTypeProvider.Attributes.Version] = "2022",
@@ -1723,10 +1740,11 @@ public sealed class ResourceProviderDispatcherTests
         var validation = await serviceProvider
             .GetRequiredService<ResourceDefinitionGraphValidationPipeline>()
             .ValidateAsync(
-                new ResourceDefinitionGraph([volume, definition]),
+                new ResourceDefinitionGraph([host, volume, definition]),
                 new ResourceDefinitionValidationContext("local", "developer"));
 
         Assert.False(validation.HasErrors);
+        Assert.Contains(ContainerHostResourceTypeProvider.ResourceTypeId, typeIds);
         var sqlValidation = validation.Resources.Single(resource =>
             resource.Resource.EffectiveResourceId == definition.EffectiveResourceId);
         Assert.Equal(SqlServerResourceTypeProvider.ClassId, sqlValidation.Resource.Class.ClassId);

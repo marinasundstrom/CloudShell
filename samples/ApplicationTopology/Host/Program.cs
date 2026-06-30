@@ -280,7 +280,6 @@ builder.Services
     .AddSingleton<IApplicationTopologyResourceModelSqlServerRuntimeBridge, ApplicationTopologyResourceModelSqlServerDockerBridge>()
     .AddSingleton<IResourceOrchestrationDescriptorProvider, ApplicationTopologyResourceModelSqlServerOrchestrationDescriptorProvider>()
     .AddSingleton<ISqlServerRuntimeHandler, ApplicationTopologyResourceModelSqlServerRuntimeHandler>()
-    .AddContainerHostResourceType()
     .AddStorageBackedSqlServerResourceTypes()
     .AddSqlDatabaseResourceType()
     .AddConfigurationStoreResourceType(options =>

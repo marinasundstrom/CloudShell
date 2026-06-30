@@ -208,13 +208,13 @@ public sealed class ResourceManagerIntegrationTests
             "appdb",
             dependsOn: [],
             includeVolumeConsumer: false) with
-            {
-                DependsOn =
+        {
+            DependsOn =
                 [
                     ResourceReference.BelongsToResourceId(
                         server.EffectiveResourceId)
                 ]
-            };
+        };
         var provider = new ResourceModelGraphResourceProvider(
             "resource-model",
             "Resource model",
@@ -508,7 +508,7 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
-    public void UseBuiltInResourceModelProviders_RegistersProviderCatalogAndGraphBridge()
+    public async Task UseBuiltInResourceModelProviders_RegistersProviderCatalogGraphBridgeAndPresetDefaults()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
@@ -536,6 +536,8 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Contains(ContainerApplicationResourceTypeProvider.ResourceTypeId, typeIds);
         Assert.Contains(ConfigurationStoreResourceTypeProvider.ResourceTypeId, typeIds);
         Assert.Contains(SecretsVaultResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(NetworkResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(ContainerHostResourceTypeProvider.ResourceTypeId, typeIds);
         Assert.Equal(
             "services/configuration-store.csproj",
             serviceProvider.GetRequiredService<ConfigurationStoreRuntimeOptions>().ServiceProjectPath);
@@ -549,6 +551,47 @@ public sealed class ResourceManagerIntegrationTests
             Assert.Single(serviceProvider.GetServices<IResourceActionAvailabilityProvider>()));
 
         Assert.Same(provider, availabilityProvider);
+
+        var snapshot = await serviceProvider
+            .GetRequiredService<ResourceGraphModel>()
+            .GetSnapshotAsync();
+
+        Assert.Contains(snapshot.Resources, resource =>
+            resource.EffectiveResourceId == NetworkResourceDefinitionBuilderExtensions.DefaultNetworkResourceId);
+        Assert.Contains(snapshot.Resources, resource =>
+            resource.EffectiveResourceId == ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId);
+        Assert.Contains(snapshot.Resources, resource =>
+            resource.EffectiveResourceId == CreateExecutableState().EffectiveResourceId);
+    }
+
+    [Fact]
+    public async Task AddDefaultInMemoryResourceModelGraphResources_DoesNotOverrideExplicitInitialState()
+    {
+        var explicitHost = new ResourceState(
+            "default",
+            ContainerHostResourceTypeProvider.ResourceTypeId,
+            ResourceId: ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId,
+            ProviderId: ContainerHostResourceTypeProvider.ProviderId,
+            DisplayName: "Explicit container host");
+        var presetGraph = new ResourceDefinitionGraphBuilder();
+        presetGraph.DefaultContainerHost();
+        var presetResources = presetGraph
+            .BuildGraph()
+            .Resources
+            .Select(ResourceState.FromDefinition);
+        var services = new ServiceCollection();
+
+        services.AddInMemoryResourceModelGraph([explicitHost]);
+        services.AddDefaultInMemoryResourceModelGraphResources(presetResources);
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var snapshot = await serviceProvider
+            .GetRequiredService<ResourceGraphModel>()
+            .GetSnapshotAsync();
+        var host = Assert.Single(snapshot.Resources, resource =>
+            resource.EffectiveResourceId == ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId);
+
+        Assert.Equal("Explicit container host", host.DisplayName);
     }
 
     [Fact]
@@ -561,14 +604,14 @@ public sealed class ResourceManagerIntegrationTests
         var api = CreateExecutableState(
             dependsOn: [],
             includeVolumeConsumer: false) with
-            {
-                DependsOn =
+        {
+            DependsOn =
                 [
                     ResourceReference.DependsOnResourceId(
                         worker.EffectiveResourceId,
                         typeId: LocalVolumeResourceTypeProvider.ResourceTypeId)
                 ]
-            };
+        };
         var provider = new ResourceModelGraphResourceProvider(
             "resource-model",
             "Resource model",
@@ -1043,14 +1086,14 @@ public sealed class ResourceManagerIntegrationTests
         var api = CreateExecutableState(
             dependsOn: [],
             includeVolumeConsumer: false) with
-            {
-                DependsOn =
+        {
+            DependsOn =
                 [
                     ResourceReference.DependsOnResourceId(
                         worker.EffectiveResourceId,
                         typeId: LocalVolumeResourceTypeProvider.ResourceTypeId)
                 ]
-            };
+        };
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([api, worker]);
         services.AddExecutableApplicationResourceType();

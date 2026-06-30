@@ -41,6 +41,11 @@ cloudShell.DefineResources(resources =>
 Use it from a Control Plane host or from the Control Plane builder returned by
 the combined `AddCloudShell()` host method. A split UI host installs UI
 integrations and remote client adapters instead of provider runtime packages.
+The built-in provider preset contributes fallback default environment
+resources for the Host network and the default docker-compatible container
+host. Those defaults are authored through the same lazy graph builder accessors
+as explicit code (`DefaultNetwork()` and `DefaultContainerHost()`), and they do
+not replace explicit resources with the same default IDs.
 
 Built-in Resource model providers expose specialized extension methods
 for their own resource types. Current provider methods include:
