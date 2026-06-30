@@ -13,13 +13,13 @@ using CloudShell.ControlPlane.ResourceModel;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
-const string resourceGroupId = "container-host-poc";
+const string resourceGroupId = "container-host";
 var sqlServerPort = builder.Configuration.GetValue<int?>("ContainerHost:SqlServer:Port") ?? 14334;
 
 var cloudShell = builder.AddCloudShell();
 cloudShell.AddResourceGroup(
     resourceGroupId,
-    "Container Host POC",
+    "Container Host",
     "Resources used by the ContainerHost sample.");
 IResourceDefinitionBuilder volumeResource = null!;
 cloudShell.DefineResources(resources =>

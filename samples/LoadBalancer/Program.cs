@@ -15,7 +15,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
-const string resourceGroupId = "load-balancer-poc";
+const string resourceGroupId = "load-balancer";
 var dynamicConfigurationDirectory = Path.Combine(
     builder.Environment.ContentRootPath,
     "Data",
@@ -31,7 +31,7 @@ if (!string.IsNullOrWhiteSpace(localHostsFilePath))
 var cloudShell = builder.AddCloudShell();
 cloudShell.AddResourceGroup(
     resourceGroupId,
-    "Load Balancer POC",
+    "Load Balancer",
     "Resource model resources used by the LoadBalancer sample.");
 IResourceDefinitionBuilder dockerHostResource = null!;
 IResourceDefinitionBuilder webResource = null!;

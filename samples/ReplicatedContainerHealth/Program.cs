@@ -15,7 +15,7 @@ using CloudShell.ControlPlane.ResourceModel;
 var builder = CloudShellApplication.CreateBuilder(args);
 
 const string sampleImageTag = "20260622.2";
-const string resourceGroupId = "replicated-container-health-poc";
+const string resourceGroupId = "replicated-container-health";
 
 var apiEndpointPort = builder.Configuration.GetValue<int?>("ReplicatedContainerHealth:ApiPort") ?? 5092;
 var cloudShellEndpoint = ResolveCloudShellEndpoint(builder.Configuration);
@@ -29,7 +29,7 @@ var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndp
 var cloudShell = builder.AddCloudShell();
 cloudShell.AddResourceGroup(
     resourceGroupId,
-    "Replicated Container Health POC",
+    "Replicated Container Health",
     "Resource model resources used by the ReplicatedContainerHealth sample.");
 IResourceDefinitionBuilder dockerResource = null!;
 IResourceDefinitionBuilder apiResource = null!;

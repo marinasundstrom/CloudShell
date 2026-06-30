@@ -16,12 +16,12 @@ var builder = CloudShellApplication.CreateBuilder(args);
 
 var targetPort = builder.Configuration.GetValue<int?>("HostVirtualNetwork:TargetPort") ?? 5291;
 var virtualNetworkPort = builder.Configuration.GetValue<int?>("HostVirtualNetwork:VirtualNetworkPort") ?? 5292;
-const string resourceGroupId = "host-virtual-network-poc";
+const string resourceGroupId = "host-virtual-network";
 
 var cloudShell = builder.AddCloudShell();
 cloudShell.AddResourceGroup(
     resourceGroupId,
-    "Host Virtual Network POC",
+    "Host Virtual Network",
     "Resources used by the HostVirtualNetwork sample.");
 IResourceDefinitionBuilder hostNetworkingResource = null!;
 IResourceDefinitionBuilder apiResource = null!;

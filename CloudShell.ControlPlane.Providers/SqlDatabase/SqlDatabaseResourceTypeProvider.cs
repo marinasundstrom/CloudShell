@@ -169,7 +169,7 @@ public sealed class SqlDatabaseResourceTypeProvider :
 
         diagnostics.Add(ResourceDefinitionDiagnostic.Error(
             "application.sqlDatabase.serverReferenceRequired",
-            "SQL database owning server reference is required; the current POC supplies it through DependsOn.",
+            "SQL database owning server reference is required; add a DependsOn reference to the SQL Server resource.",
             "dependsOn"));
     }
 

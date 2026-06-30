@@ -16,12 +16,12 @@ const string registryHost = "localhost";
 var registryPort = builder.Configuration.GetValue("ContainerAppDeployment:RegistryPort", 5023);
 string registryAddress = $"{registryHost}:{registryPort}";
 const string sampleImage = "cloudshell/mock-api:20260608.1";
-const string resourceGroupId = "container-app-deployment-poc";
+const string resourceGroupId = "container-app-deployment";
 
 var cloudShell = builder.AddCloudShell();
 cloudShell.AddResourceGroup(
     resourceGroupId,
-    "Container App Deployment POC",
+    "Container App Deployment",
     "Resources used by the ContainerAppDeployment sample.");
 IResourceDefinitionBuilder dockerResource = null!;
 IResourceDefinitionBuilder registryResource = null!;

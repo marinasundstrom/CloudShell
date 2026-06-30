@@ -20,6 +20,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ResourceModel tests now include merge-readiness hygiene coverage that rejects
   active solution, project, and source references to deleted legacy provider
   projects and old resource-template wrapper contracts.
+- Resource model sample resource groups now use stable sample names instead of
+  POC labels, and SQL database validation now describes the required graph
+  server dependency without POC terminology.
 
 ### 2026-06-29
 

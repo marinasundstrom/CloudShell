@@ -7,12 +7,12 @@ using CloudShell.ControlPlane.ResourceModel;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
-const string resourceGroupId = "split-hosting-poc";
+const string resourceGroupId = "split-hosting";
 
 var controlPlane = builder.AddCloudShellControlPlane();
 controlPlane.AddResourceGroup(
     resourceGroupId,
-    "Split Hosting POC",
+    "Split Hosting",
     "Resources used to validate remote Control Plane projection.");
 controlPlane.DefineResources(resources =>
 {
