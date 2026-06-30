@@ -62,7 +62,6 @@ cloudShell.DefineResources(resources =>
             name: "alive");
 });
 builder.Services
-    .AddLocalContainerApplicationResourceTypes()
     .AddLocalDockerContainerApplicationRuntime(options =>
         options.AddApplication(
             apiResource.EffectiveResourceId,
@@ -91,7 +90,10 @@ builder.Services
                     builder.Configuration.GetValue<int?>(
                         "ReplicatedContainerHealth:RuntimeStatusCacheMilliseconds") ?? 2_000);
             }));
-cloudShell.UseResourceGraphIntegration();
+cloudShell.UseBuiltInResourceModelProviders(options =>
+{
+    options.IncludeDefaultEnvironmentResources = false;
+});
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

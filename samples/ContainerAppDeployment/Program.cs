@@ -67,11 +67,12 @@ if (builder.Configuration.GetValue("ContainerAppDeployment:EnableDockerRuntime",
 }
 
 builder.Services
-    .AddLocalContainerApplicationResourceTypes()
     .AddDeferredContainerApplicationRuntime(options =>
-        options.AddResource(sampleApiResourceId))
-    .AddDockerContainerResourceType();
-cloudShell.UseResourceGraphIntegration();
+        options.AddResource(sampleApiResourceId));
+cloudShell.UseBuiltInResourceModelProviders(options =>
+{
+    options.IncludeDefaultEnvironmentResources = false;
+});
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

@@ -8,6 +8,8 @@ public sealed class BuiltInResourceModelProviderOptions
 {
     public bool IncludeDefaultEnvironmentResources { get; set; } = true;
 
+    public bool IncludeRuntimeAdapters { get; set; } = true;
+
     public Action<ConfigurationStoreRuntimeOptions>? ConfigureConfigurationStoreRuntime { get; set; }
 
     public Action<SecretsVaultRuntimeOptions>? ConfigureSecretsVaultRuntime { get; set; }
@@ -54,6 +56,11 @@ public static class BuiltInResourceModelProviderServiceCollectionExtensions
 
         var options = CreateOptions(configure);
         builder.Services.AddBuiltInResourceModelProviderTypes(options);
+        if (options.IncludeRuntimeAdapters)
+        {
+            builder.Services.AddBuiltInResourceModelRuntimeAdapters();
+        }
+
         if (options.IncludeDefaultEnvironmentResources)
         {
             builder.Services.AddDefaultInMemoryResourceModelGraphResources(

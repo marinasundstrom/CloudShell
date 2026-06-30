@@ -93,13 +93,10 @@ cloudShell.DefineResources(resources =>
             name: "api-cloudshell-local",
             configure: mapping => mapping.WithResourceGroup(resourceGroupId));
 });
-builder.Services
-    .AddLocalContainerApplicationResourceTypes()
-    .AddLoadBalancerResourceType()
-    .AddDnsZoneResourceType()
-    .AddNameMappingResourceType()
-    .AddBuiltInResourceModelRuntimeAdapters();
-cloudShell.UseResourceGraphIntegration();
+cloudShell.UseBuiltInResourceModelProviders(options =>
+{
+    options.IncludeDefaultEnvironmentResources = false;
+});
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

@@ -544,6 +544,12 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(
             "services/secrets-vault.csproj",
             serviceProvider.GetRequiredService<SecretsVaultRuntimeOptions>().ServiceProjectPath);
+        Assert.IsType<ResourceModelGraphEndpointMappingReconciler>(
+            serviceProvider.GetRequiredService<INetworkEndpointMappingReconciler>());
+        Assert.IsType<ResourceModelGraphEndpointMappingReconciler>(
+            serviceProvider.GetRequiredService<IVirtualNetworkEndpointMappingReconciler>());
+        Assert.IsType<ResourceModelGraphDnsZoneNameMappingReconciler>(
+            serviceProvider.GetRequiredService<IDnsZoneNameMappingReconciler>());
 
         var provider = Assert.IsType<ResourceModelGraphProcedureProvider>(
             Assert.Single(serviceProvider.GetServices<IResourceProvider>()));

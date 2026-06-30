@@ -99,6 +99,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Local-process container app runtime replicas now expose process-level
   monitoring snapshots, while Docker-backed replica monitoring remains scoped
   to runtime containers with provider-projected Docker container names.
+- Built-in Resource Model provider registration now includes provider-owned
+  runtime adapters by default, and migrated several samples from manually
+  wiring individual built-in resource types to the capability-level provider
+  registration path.
 - Traces view no longer renders recent spans through the terminal-style log
   entry component; the page now stays focused on trace summaries until a trace
   is opened.

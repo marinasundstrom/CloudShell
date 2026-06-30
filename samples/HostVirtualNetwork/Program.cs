@@ -116,14 +116,10 @@ cloudShell.DefineResources(resources =>
             exposure: "Private",
             configure: mapping => mapping.WithResourceGroup(resourceGroupId));
 });
-builder.Services
-    .AddLocalHostNetworkResourceType()
-    .AddVirtualNetworkResourceType()
-    .AddAspNetCoreProjectResourceType()
-    .AddDnsZoneResourceType()
-    .AddNameMappingResourceType()
-    .AddBuiltInResourceModelRuntimeAdapters();
-cloudShell.UseResourceGraphIntegration();
+cloudShell.UseBuiltInResourceModelProviders(options =>
+{
+    options.IncludeDefaultEnvironmentResources = false;
+});
 builder.Services.AddCoreDnsZoneFilePublishingProvider(options =>
 {
     options.OutputDirectory = string.IsNullOrWhiteSpace(coreDnsDirectory)
