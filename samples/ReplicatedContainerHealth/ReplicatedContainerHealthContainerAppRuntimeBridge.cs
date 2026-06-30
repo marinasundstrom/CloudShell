@@ -313,7 +313,8 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
             await StartIngressAsync(
                 resource,
                 cancellationToken,
-                createWhenMissing: ResolveReplicas(resource) > 1);
+                createWhenMissing: ResolveReplicas(resource) > 1,
+                routingBindings: routingBindings);
             ClearStatusCache();
             return [];
         }
@@ -622,14 +623,19 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         GraphResource resource,
         CancellationToken cancellationToken,
         bool createWhenMissing = true,
-        bool reuseExisting = true)
+        bool reuseExisting = true,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition>? routingBindings = null)
     {
         if (!TryResolveHttpEndpoint(resource, out var endpoint))
         {
             return;
         }
 
-        await WriteIngressConfigurationAsync(resource, endpoint, cancellationToken);
+        await WriteIngressConfigurationAsync(
+            resource,
+            endpoint,
+            routingBindings ?? [],
+            cancellationToken);
         if (reuseExisting)
         {
             var ingressStatus = await InspectContainerAsync(
@@ -734,20 +740,23 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
     private async Task WriteIngressConfigurationAsync(
         GraphResource resource,
         NetworkingEndpointRequestValue endpoint,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(_ingressConfigurationDirectory);
         await File.WriteAllTextAsync(
             Path.Combine(_ingressConfigurationDirectory, "dynamic.yml"),
-            CreateIngressConfiguration(resource, endpoint),
+            CreateIngressConfiguration(resource, endpoint, routingBindings),
             cancellationToken);
     }
 
     private static string CreateIngressConfiguration(
         GraphResource resource,
-        NetworkingEndpointRequestValue endpoint)
+        NetworkingEndpointRequestValue endpoint,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings)
     {
         var targetPort = endpoint.TargetPort ?? endpoint.Port!.Value;
+        var sessionAffinity = ResolveSessionAffinity(resource, endpoint, routingBindings);
         var builder = new StringBuilder();
         builder.AppendLine("http:");
         builder.AppendLine("  routers:");
@@ -766,8 +775,91 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
                 $"          - url: \"http://{ReplicatedContainerHealthRuntimeConventions.CreateReplicaNetworkAlias(replica)}:{targetPort.ToString(CultureInfo.InvariantCulture)}\"");
         }
 
+        if (sessionAffinity?.Mode == ResourceOrchestratorSessionAffinityMode.Cookie)
+        {
+            builder.AppendLine("        sticky:");
+            builder.AppendLine("          cookie:");
+            if (!string.IsNullOrWhiteSpace(sessionAffinity.CookieName))
+            {
+                builder.AppendLine(
+                    CultureInfo.InvariantCulture,
+                    $"            name: \"{EscapeYamlString(sessionAffinity.CookieName)}\"");
+            }
+
+            if (sessionAffinity.DurationSeconds is { } durationSeconds)
+            {
+                builder.AppendLine(
+                    CultureInfo.InvariantCulture,
+                    $"            maxAge: {Math.Max(1, durationSeconds).ToString(CultureInfo.InvariantCulture)}");
+            }
+        }
+
         return builder.ToString();
     }
+
+    private static ResourceOrchestratorSessionAffinityPolicy? ResolveSessionAffinity(
+        GraphResource resource,
+        NetworkingEndpointRequestValue endpoint,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings)
+    {
+        var routingBinding = routingBindings.FirstOrDefault(binding =>
+            string.Equals(
+                binding.SourceEndpoint.ResourceId,
+                resource.EffectiveResourceId,
+                StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(
+                binding.SourceEndpoint.EndpointName,
+                endpoint.Name,
+                StringComparison.OrdinalIgnoreCase));
+        if (routingBinding?.SessionAffinity is { } sessionAffinity &&
+            sessionAffinity.Mode != ResourceOrchestratorSessionAffinityMode.None)
+        {
+            return sessionAffinity;
+        }
+
+        return CreateSessionAffinityPolicyFromResource(resource);
+    }
+
+    private static ResourceOrchestratorSessionAffinityPolicy? CreateSessionAffinityPolicyFromResource(
+        GraphResource resource)
+    {
+        var modeValue = resource.Attributes.GetString(
+            ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityMode);
+        if (string.IsNullOrWhiteSpace(modeValue) ||
+            !Enum.TryParse<ResourceOrchestratorSessionAffinityMode>(
+                modeValue,
+                ignoreCase: true,
+                out var mode) ||
+            mode == ResourceOrchestratorSessionAffinityMode.None)
+        {
+            return null;
+        }
+
+        var durationValue = resource.Attributes.GetString(
+            ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityDurationSeconds);
+        var durationSeconds = int.TryParse(
+            durationValue,
+            NumberStyles.Integer,
+            CultureInfo.InvariantCulture,
+            out var parsedDuration) && parsedDuration > 0
+                ? parsedDuration
+                : (int?)null;
+        return mode switch
+        {
+            ResourceOrchestratorSessionAffinityMode.Cookie =>
+                ResourceOrchestratorSessionAffinityPolicy.Cookie(
+                    resource.Attributes.GetString(
+                        ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityCookieName),
+                    durationSeconds),
+            ResourceOrchestratorSessionAffinityMode.ClientIp =>
+                ResourceOrchestratorSessionAffinityPolicy.ClientIp,
+            _ => null
+        };
+    }
+
+    private static string EscapeYamlString(string value) =>
+        value.Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\"", "\\\"", StringComparison.Ordinal);
 
     private void AddEnvironment(
         List<string> arguments,

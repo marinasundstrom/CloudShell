@@ -49,6 +49,9 @@ on `git blame --follow`, and then by the broad type of change.
   app-level routing session affinity, and deployment projection carries that
   policy into orchestrator service-routing bindings; the Replicated Container
   Health sample declares cookie affinity as the first visible proof.
+- The Replicated Container Health sample Traefik bridge now maps cookie
+  session-affinity routing bindings to Traefik sticky-cookie configuration
+  when reconciling replicated app ingress.
 - Application Topology sample resource display names now omit the repeated
   sample prefix so graph cards remain readable.
 - ResourceHost now declares every sample resource exposed by its provider so

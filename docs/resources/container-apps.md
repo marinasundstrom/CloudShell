@@ -276,7 +276,8 @@ policy into the orchestrator service routing binding so an orchestrator or
 load-balancer provider can keep repeated requests or upgraded connections,
 such as WebSockets, pinned to the same replica when that policy is enabled.
 Runtime enforcement is provider-specific; the current local sample projects
-the policy but does not yet configure sticky routing in its Traefik bridge.
+cookie affinity into the sample Traefik bridge by writing sticky-cookie
+configuration when routing is reconciled.
 
 Inside the orchestration layer, CloudShell represents this management group as
 a `ResourceOrchestratorService` descriptor. Container apps produce this

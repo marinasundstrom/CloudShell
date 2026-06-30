@@ -5,6 +5,8 @@ using CloudShell.ResourceModel;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using System.Globalization;
 using System.Text.Json;
 using GraphResource = CloudShell.ResourceModel.Resource;
@@ -438,6 +440,63 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     }
 
     [Fact]
+    public async Task RuntimeBridge_RoutingReconciliationWritesTraefikStickyCookieConfiguration()
+    {
+        var contentRoot = Path.Combine(
+            Path.GetTempPath(),
+            $"cloudshell-replicated-health-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(contentRoot);
+        try
+        {
+            var commandRunner = new RecordingCommandRunner();
+            var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+                commandRunner,
+                CreateConfiguration(replicaCleanupLimit: 2),
+                new TestHostEnvironment(contentRoot));
+            var resource = await CreateGraphAppResourceAsync(
+                replicas: 2,
+                endpointPort: 5092);
+            var service = CreateOrchestratorService(resource, replicas: 2);
+            var replicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+                service,
+                "rev-test");
+            var routingBinding = new ResourceOrchestratorServiceRoutingBindingDefinition(
+                "api-http-routing",
+                ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+                service.Name,
+                replicaGroup.Id,
+                ResourceEndpointReference.ForEndpoint(resource.EffectiveResourceId, "http"),
+                SessionAffinity: ResourceOrchestratorSessionAffinityPolicy.Cookie(
+                    "CloudShellReplica",
+                    durationSeconds: 3600));
+            commandRunner.Enqueue(new(0, "running", string.Empty));
+
+            var diagnostics = await bridge.ReconcileOrchestratorServiceRoutingAsync(
+                resource,
+                service,
+                replicaGroup,
+                [routingBinding]);
+
+            Assert.Empty(diagnostics);
+            var configuration = await File.ReadAllTextAsync(
+                Path.Combine(contentRoot, "Data", "runtime-ingress", "dynamic.yml"));
+            Assert.Contains("sticky:", configuration);
+            Assert.Contains("cookie:", configuration);
+            Assert.Contains("name: \"CloudShellReplica\"", configuration);
+            Assert.Contains("maxAge: 3600", configuration);
+            Assert.Contains("cloudshell-replicated-health-api-replica-1:8080", configuration);
+            Assert.Contains("cloudshell-replicated-health-api-replica-2:8080", configuration);
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task RuntimeBridge_ReplicaGroupStopDoesNotRemoveSlotReplacedByNewReplicaGroup()
     {
         var commandRunner = new RecordingCommandRunner();
@@ -673,7 +732,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         string image = "cloudshell-application-api:20260622.2",
         int replicas = 3,
         int? endpointPort = null,
-        bool includeHealthChecks = false)
+        bool includeHealthChecks = false,
+        bool includeCookieSessionAffinity = false)
     {
         var operationProviders = CreateContainerApplicationOperationProviders();
         var pipeline = new ResourceDefinitionValidationPipeline(
@@ -699,6 +759,16 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                         Port: endpointPort.Value,
                         Exposure: "Local")
                 });
+        }
+
+        if (includeCookieSessionAffinity)
+        {
+            attributes[ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityMode] =
+                ResourceOrchestratorSessionAffinityMode.Cookie.ToString();
+            attributes[ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityCookieName] =
+                "CloudShellReplica";
+            attributes[ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityDurationSeconds] =
+                3600;
         }
 
         var result = await pipeline.ValidateAsync(
@@ -1122,6 +1192,17 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         public ResourceGroup? GetGroupForResource(string resourceId) => null;
 
         public bool IsRegistered(string resourceId) => true;
+    }
+
+    private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = Environments.Development;
+
+        public string ApplicationName { get; set; } = "CloudShell.Sample.Tests";
+
+        public string ContentRootPath { get; set; } = contentRootPath;
+
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 
     private sealed class RecordingCommandRunner : IReplicatedContainerHealthCommandRunner

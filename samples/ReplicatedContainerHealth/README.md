@@ -42,9 +42,9 @@ delegated through the container-app runtime operation seam.
 
 The app declares cookie session affinity with the `CloudShellReplica` cookie.
 The current sample projects that setting into the orchestrator service routing
-binding so the Resource Manager UI can edit and inspect it. Runtime enforcement
-inside the sample Traefik bridge is intentionally deferred to the durable
-container-app runtime.
+binding so the Resource Manager UI can edit and inspect it. During routing
+reconciliation, the sample Traefik bridge writes sticky-cookie configuration
+for that binding so repeated requests can stay pinned to the same replica.
 
 Replica telemetry is posted back to the Control Plane from inside the
 containers. For local `localhost` sample URLs, the sample maps the runtime
