@@ -35,11 +35,13 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
                     context.GraphResource,
                     context.Service,
                     context.ReplicaGroup,
+                    context.ServiceRoutingBindings,
                     cancellationToken),
                 ResourceActionKind.Stop => await _orchestratorRuntimeHandler.TearDownOrchestratorServiceRoutingAsync(
                     context.GraphResource,
                     context.Service,
                     context.ReplicaGroup,
+                    context.ServiceRoutingBindings,
                     cancellationToken),
                 _ => []
             };
@@ -76,6 +78,7 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
             context.GraphResource,
             context.Service,
             context.ReplicaGroup,
+            context.ServiceRoutingBindings,
             cancellationToken);
         ThrowIfErrors(diagnostics);
     }

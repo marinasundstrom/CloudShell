@@ -2334,6 +2334,17 @@ public sealed class ResourceManagerIntegrationTests
         var replicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
             service,
             "rev-test");
+        var routingBindings = new[]
+        {
+            new ResourceOrchestratorServiceRoutingBindingDefinition(
+                "api-public-http-routing",
+                ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+                service.Name,
+                replicaGroup.Id,
+                ResourceEndpointReference.ForEndpoint(projectedContainer.Id, "http"),
+                LoadBalancerResourceId: "cloudshell.loadBalancer:public",
+                RouteId: "cloudshell.loadBalancer:public/routes/api")
+        };
         var previousReplicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
             service with
             {
@@ -2350,7 +2361,11 @@ public sealed class ResourceManagerIntegrationTests
             ResourceAction.Start));
 
         await serviceProviderBridge.PrepareOrchestratorServiceAsync(
-            new ResourceOrchestratorServiceProcedureContext(procedure, service, replicaGroup),
+            new ResourceOrchestratorServiceProcedureContext(
+                procedure,
+                service,
+                replicaGroup,
+                routingBindings),
             ResourceAction.Start);
         foreach (var instance in replicaGroup.Instances)
         {
@@ -2428,6 +2443,17 @@ public sealed class ResourceManagerIntegrationTests
         var replicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
             service,
             "rev-test");
+        var routingBindings = new[]
+        {
+            new ResourceOrchestratorServiceRoutingBindingDefinition(
+                "api-public-http-routing",
+                ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+                service.Name,
+                replicaGroup.Id,
+                ResourceEndpointReference.ForEndpoint(projectedContainer.Id, "http"),
+                LoadBalancerResourceId: "cloudshell.loadBalancer:public",
+                RouteId: "cloudshell.loadBalancer:public/routes/api")
+        };
         var previousReplicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
             service with
             {
@@ -2440,7 +2466,11 @@ public sealed class ResourceManagerIntegrationTests
             "rev-previous");
 
         await serviceProviderBridge.PrepareOrchestratorServiceAsync(
-            new ResourceOrchestratorServiceProcedureContext(procedure, service, replicaGroup),
+            new ResourceOrchestratorServiceProcedureContext(
+                procedure,
+                service,
+                replicaGroup,
+                routingBindings),
             ResourceAction.Start);
         foreach (var instance in replicaGroup.Instances)
         {
@@ -2450,7 +2480,11 @@ public sealed class ResourceManagerIntegrationTests
         }
 
         await serviceProviderBridge.ReconcileOrchestratorServiceRoutingAsync(
-            new ResourceOrchestratorServiceProcedureContext(procedure, service, replicaGroup));
+            new ResourceOrchestratorServiceProcedureContext(
+                procedure,
+                service,
+                replicaGroup,
+                routingBindings));
         foreach (var instance in previousReplicaGroup.Instances)
         {
             await serviceProviderBridge.ExecuteOrchestratorServiceInstanceAsync(
@@ -2461,7 +2495,12 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Empty(runtimeHandler.Events);
         Assert.Collection(
             runtimeHandler.OrchestratorEvents,
-            first => Assert.Equal("prepare", first.Stage),
+            first =>
+            {
+                Assert.Equal("prepare", first.Stage);
+                Assert.Equal(1, first.RoutingBindingCount);
+                Assert.Equal("cloudshell.loadBalancer:public/routes/api", first.RoutingRouteId);
+            },
             second =>
             {
                 Assert.Equal("instance", second.Stage);
@@ -2474,7 +2513,12 @@ public sealed class ResourceManagerIntegrationTests
                 Assert.Equal(ResourceActionKind.Start, third.ActionKind);
                 Assert.Equal(2, third.ReplicaOrdinal);
             },
-            fourth => Assert.Equal("routing", fourth.Stage),
+            fourth =>
+            {
+                Assert.Equal("routing", fourth.Stage);
+                Assert.Equal(1, fourth.RoutingBindingCount);
+                Assert.Equal("cloudshell.loadBalancer:public/routes/api", fourth.RoutingRouteId);
+            },
             fifth =>
             {
                 Assert.Equal("instance", fifth.Stage);
@@ -6794,9 +6838,10 @@ public sealed class ResourceManagerIntegrationTests
             Resource resource,
             ResourceOrchestratorService service,
             ResourceOrchestratorReplicaGroup? replicaGroup,
+            IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
             CancellationToken cancellationToken = default)
         {
-            RecordOrchestrator("prepare", resource, replicaGroup);
+            RecordOrchestrator("prepare", resource, replicaGroup, routingBindings: routingBindings);
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
 
@@ -6804,9 +6849,10 @@ public sealed class ResourceManagerIntegrationTests
             Resource resource,
             ResourceOrchestratorService service,
             ResourceOrchestratorReplicaGroup? replicaGroup,
+            IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
             CancellationToken cancellationToken = default)
         {
-            RecordOrchestrator("routing", resource, replicaGroup);
+            RecordOrchestrator("routing", resource, replicaGroup, routingBindings: routingBindings);
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
 
@@ -6814,9 +6860,10 @@ public sealed class ResourceManagerIntegrationTests
             Resource resource,
             ResourceOrchestratorService service,
             ResourceOrchestratorReplicaGroup? replicaGroup,
+            IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
             CancellationToken cancellationToken = default)
         {
-            RecordOrchestrator("routing-teardown", resource, replicaGroup);
+            RecordOrchestrator("routing-teardown", resource, replicaGroup, routingBindings: routingBindings);
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
 
@@ -6848,16 +6895,20 @@ public sealed class ResourceManagerIntegrationTests
             Resource resource,
             ResourceOrchestratorReplicaGroup? replicaGroup,
             ResourceOrchestratorServiceInstance? instance = null,
-            ResourceActionKind? actionKind = null)
+            ResourceActionKind? actionKind = null,
+            IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition>? routingBindings = null)
         {
             var container = new ContainerApplicationResource(resource);
+            var bindings = routingBindings ?? [];
             _orchestratorEvents.Add(new ContainerApplicationOrchestratorRuntimeEvent(
                 stage,
                 actionKind,
                 instance?.ReplicaOrdinal,
                 replicaGroup?.RequestedReplicas,
                 container.Image,
-                container.Replicas));
+                container.Replicas,
+                bindings.Count,
+                bindings.FirstOrDefault()?.RouteId));
         }
     }
 
@@ -6872,7 +6923,9 @@ public sealed class ResourceManagerIntegrationTests
         int? ReplicaOrdinal,
         int? RequestedReplicas,
         string? Image,
-        int Replicas);
+        int Replicas,
+        int RoutingBindingCount,
+        string? RoutingRouteId);
 
     private sealed class StaticResourceModelEndpointProjectionProvider(
         string resourceId) : IResourceModelResourceManagerEndpointProjectionProvider

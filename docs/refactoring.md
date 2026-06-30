@@ -419,6 +419,9 @@ preserving old provider seams:
 - [x] Define the routing/load-balancer reaction boundary for replica-group
   changes by carrying service-routing binding definitions into the
   orchestrator routing reconciliation context.
+- [x] Forward service-routing binding definitions through the Resource Model
+  graph procedure bridge and container-app orchestrator runtime handler
+  contract so runtime adapters can react to explicit binding ids.
 - [ ] Make the default orchestrator controller and load-balancer providers
   react to service-routing binding definitions instead of inferring replica
   membership from container-app-specific runtime names.

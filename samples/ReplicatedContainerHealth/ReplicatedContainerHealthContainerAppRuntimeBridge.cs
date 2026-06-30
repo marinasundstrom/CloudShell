@@ -283,6 +283,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         GraphResource resource,
         ResourceOrchestratorService service,
         ResourceOrchestratorReplicaGroup? replicaGroup,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken = default)
     {
         try
@@ -301,6 +302,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         GraphResource resource,
         ResourceOrchestratorService service,
         ResourceOrchestratorReplicaGroup? replicaGroup,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken = default)
     {
         try
@@ -322,6 +324,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeBridge(
         GraphResource resource,
         ResourceOrchestratorService service,
         ResourceOrchestratorReplicaGroup? replicaGroup,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken = default)
     {
         try

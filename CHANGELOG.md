@@ -137,6 +137,10 @@ on `git blame --follow`, and then by the broad type of change.
   binding for each service port, and routing reconciliation providers receive
   the matching binding set in their service procedure context so future
   load-balancer controllers can rebind from explicit resource and route ids.
+- Resource Model graph procedure execution now forwards service-routing
+  binding definitions to container-app orchestrator runtime handlers, allowing
+  runtime adapters and samples to react to explicit load-balancer route or
+  endpoint-mapping ids instead of container-app-specific naming.
 - The Environment page now includes an interactive environment state map,
   using the same zoomable graph interaction pattern as the Resource graph while
   projecting resources, orchestrator service boundaries, replica groups,

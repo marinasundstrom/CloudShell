@@ -395,7 +395,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         var prepareDiagnostics = await bridge.PrepareOrchestratorServiceAsync(
             resource,
             service,
-            replicaGroup);
+            replicaGroup,
+            []);
         var startDiagnostics = await bridge.ExecuteOrchestratorServiceInstanceAsync(
             resource,
             service,
@@ -405,7 +406,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         var routingDiagnostics = await bridge.ReconcileOrchestratorServiceRoutingAsync(
             resource,
             service,
-            replicaGroup);
+            replicaGroup,
+            []);
 
         Assert.Empty(prepareDiagnostics);
         Assert.Empty(startDiagnostics);
@@ -580,7 +582,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         var diagnostics = await handler.TearDownOrchestratorServiceRoutingAsync(
             resource,
             service,
-            replicaGroup);
+            replicaGroup,
+            []);
 
         Assert.Empty(diagnostics);
         var command = Assert.Single(bridge.OrchestratorCommands);
@@ -985,9 +988,10 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             GraphResource resource,
             ResourceOrchestratorService service,
             ResourceOrchestratorReplicaGroup? replicaGroup,
+            IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
             CancellationToken cancellationToken = default)
         {
-            OrchestratorCommands.Add(new("prepare", resource, null, null));
+            OrchestratorCommands.Add(new("prepare", resource, null, null, routingBindings.Count));
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
 
@@ -995,9 +999,10 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             GraphResource resource,
             ResourceOrchestratorService service,
             ResourceOrchestratorReplicaGroup? replicaGroup,
+            IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
             CancellationToken cancellationToken = default)
         {
-            OrchestratorCommands.Add(new("routing", resource, null, null));
+            OrchestratorCommands.Add(new("routing", resource, null, null, routingBindings.Count));
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
 
@@ -1005,9 +1010,10 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             GraphResource resource,
             ResourceOrchestratorService service,
             ResourceOrchestratorReplicaGroup? replicaGroup,
+            IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
             CancellationToken cancellationToken = default)
         {
-            OrchestratorCommands.Add(new("routing-teardown", resource, null, null));
+            OrchestratorCommands.Add(new("routing-teardown", resource, null, null, routingBindings.Count));
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
 
@@ -1019,7 +1025,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             ResourceOrchestratorReplicaGroup? replicaGroup,
             CancellationToken cancellationToken = default)
         {
-            OrchestratorCommands.Add(new("instance", resource, instance.ReplicaOrdinal, action.Kind));
+            OrchestratorCommands.Add(new("instance", resource, instance.ReplicaOrdinal, action.Kind, 0));
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
     }
@@ -1032,7 +1038,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         string Stage,
         GraphResource Resource,
         int? ReplicaOrdinal,
-        ResourceActionKind? ActionKind);
+        ResourceActionKind? ActionKind,
+        int RoutingBindingCount);
 
     private sealed class RecordingResourceManagerStore(
         CloudShell.Abstractions.ResourceManager.Resource resource) : IResourceManagerStore

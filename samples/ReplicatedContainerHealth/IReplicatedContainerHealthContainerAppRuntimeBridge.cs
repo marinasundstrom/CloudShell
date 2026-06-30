@@ -24,18 +24,21 @@ internal interface IReplicatedContainerHealthContainerAppRuntimeBridge
         GraphResource resource,
         ResourceOrchestratorService service,
         ResourceOrchestratorReplicaGroup? replicaGroup,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken = default);
 
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileOrchestratorServiceRoutingAsync(
         GraphResource resource,
         ResourceOrchestratorService service,
         ResourceOrchestratorReplicaGroup? replicaGroup,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken = default);
 
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> TearDownOrchestratorServiceRoutingAsync(
         GraphResource resource,
         ResourceOrchestratorService service,
         ResourceOrchestratorReplicaGroup? replicaGroup,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken = default);
 
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteOrchestratorServiceInstanceAsync(

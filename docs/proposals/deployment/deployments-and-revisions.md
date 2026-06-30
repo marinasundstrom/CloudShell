@@ -814,10 +814,11 @@ The POC now includes the replica-group and service-routing-binding definition
 contracts in the internal orchestration API. Generated service definitions
 include a routing binding for each service port, and routing reconciliation
 providers receive the matching binding set in their service procedure context.
-The binding is intentionally identity based: controllers receive the source
-resource id, service id, replica-group id, endpoint name, and optional route,
-endpoint-mapping, or load-balancer resource id instead of inferring membership
-from labels.
+The Resource Model graph procedure bridge forwards that binding set to
+container-app orchestrator runtime handlers. The binding is intentionally
+identity based: controllers receive the source resource id, service id,
+replica-group id, endpoint name, and optional route, endpoint-mapping, or
+load-balancer resource id instead of inferring membership from labels.
 
 Lifecycle and materialization intent should be part of the requested resource
 or replica state in the deployment definition. This follows the same model as

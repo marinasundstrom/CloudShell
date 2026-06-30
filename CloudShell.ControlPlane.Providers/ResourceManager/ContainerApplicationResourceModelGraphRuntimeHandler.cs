@@ -8,18 +8,21 @@ public interface IContainerApplicationOrchestratorRuntimeHandler
         Resource resource,
         ResourceOrchestratorService service,
         ResourceOrchestratorReplicaGroup? replicaGroup,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken = default);
 
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileOrchestratorServiceRoutingAsync(
         Resource resource,
         ResourceOrchestratorService service,
         ResourceOrchestratorReplicaGroup? replicaGroup,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken = default);
 
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> TearDownOrchestratorServiceRoutingAsync(
         Resource resource,
         ResourceOrchestratorService service,
         ResourceOrchestratorReplicaGroup? replicaGroup,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken = default);
 
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteOrchestratorServiceInstanceAsync(

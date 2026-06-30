@@ -46,7 +46,15 @@ public sealed record ResourceModelGraphOrchestratorServiceProcedureContext(
     Resource GraphResource,
     CloudShell.Abstractions.ResourceManager.ResourceProcedureContext ProcedureContext,
     CloudShell.Abstractions.ResourceManager.ResourceOrchestratorService Service,
-    CloudShell.Abstractions.ResourceManager.ResourceOrchestratorReplicaGroup? ReplicaGroup = null);
+    CloudShell.Abstractions.ResourceManager.ResourceOrchestratorReplicaGroup? ReplicaGroup = null,
+    IReadOnlyList<CloudShell.Abstractions.ResourceManager.ResourceOrchestratorServiceRoutingBindingDefinition>? RoutingBindings = null)
+{
+    public IReadOnlyList<CloudShell.Abstractions.ResourceManager.ResourceOrchestratorServiceRoutingBindingDefinition> ServiceRoutingBindings =>
+        RoutingBindings ?? [];
+
+    public CloudShell.Abstractions.ResourceManager.ResourceOrchestratorServiceRoutingBindingDefinition? RoutingBinding =>
+        ServiceRoutingBindings.FirstOrDefault();
+}
 
 public sealed record ResourceModelGraphOrchestratorServiceInstanceContext(
     ResourceManagerResource Resource,

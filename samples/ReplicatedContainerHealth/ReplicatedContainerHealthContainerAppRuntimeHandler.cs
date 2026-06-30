@@ -56,6 +56,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeHandler(
         GraphResource resource,
         ResourceOrchestratorService service,
         ResourceOrchestratorReplicaGroup? replicaGroup,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken = default)
     {
         if (!IsApiResource(resource))
@@ -67,6 +68,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeHandler(
             resource,
             service,
             replicaGroup,
+            routingBindings,
             cancellationToken);
     }
 
@@ -74,6 +76,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeHandler(
         GraphResource resource,
         ResourceOrchestratorService service,
         ResourceOrchestratorReplicaGroup? replicaGroup,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken = default)
     {
         if (!IsApiResource(resource))
@@ -85,6 +88,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeHandler(
             resource,
             service,
             replicaGroup,
+            routingBindings,
             cancellationToken);
     }
 
@@ -92,6 +96,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeHandler(
         GraphResource resource,
         ResourceOrchestratorService service,
         ResourceOrchestratorReplicaGroup? replicaGroup,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken = default)
     {
         if (!IsApiResource(resource))
@@ -103,6 +108,7 @@ internal sealed class ReplicatedContainerHealthContainerAppRuntimeHandler(
             resource,
             service,
             replicaGroup,
+            routingBindings,
             cancellationToken);
     }
 

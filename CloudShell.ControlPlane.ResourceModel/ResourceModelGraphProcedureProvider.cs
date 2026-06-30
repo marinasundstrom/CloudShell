@@ -419,7 +419,8 @@ public sealed class ResourceModelGraphProcedureProvider :
                 graphResource,
                 context.ResourceContext,
                 context.Service,
-                context.ReplicaGroup));
+                context.ReplicaGroup,
+                context.ServiceRoutingBindings));
     }
 
     private async ValueTask<ResourceModelGraphServiceInstanceExecutorResolution> CreateServiceInstanceContextAsync(
