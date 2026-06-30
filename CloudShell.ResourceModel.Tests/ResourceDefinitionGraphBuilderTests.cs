@@ -248,9 +248,14 @@ public sealed class ResourceDefinitionGraphBuilderTests
 
         var resolved = graph.GetIdentityProvider();
 
-        Assert.Same(provider, resolved);
+        Assert.Same(provider.Provider, resolved.Provider);
         Assert.Equal("identity:development", resolved.Id);
         Assert.Equal(ResourceIdentityProviderKind.BuiltIn, resolved.Kind);
+        var alice = resolved.GetUser("alice", displayName: "Alice");
+        Assert.Equal(ResourcePrincipalKind.User, alice.Kind);
+        Assert.Equal("alice", alice.Id);
+        Assert.Equal("Alice", alice.DisplayName);
+        Assert.Equal("identity:development", alice.ProviderId);
     }
 
     [Fact]
@@ -271,7 +276,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
                     .AddNetwork("api")
                     .RequireIdentity(name: "api");
 
-                Assert.Same(identityProvider, resources.GetIdentityProvider());
+                Assert.Same(identityProvider.Provider, resources.GetIdentityProvider().Provider);
             });
         using var serviceProvider = services.BuildServiceProvider();
         var declarations = serviceProvider.GetRequiredService<ResourceDeclarationStore>();

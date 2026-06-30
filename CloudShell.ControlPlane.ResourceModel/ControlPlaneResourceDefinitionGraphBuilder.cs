@@ -83,10 +83,10 @@ public sealed class ControlPlaneResourceDefinitionGraphBuilder :
         return this;
     }
 
-    public ResourceIdentityProviderDefinition GetIdentityProvider(string? providerId = null) =>
-        _metadata.GetIdentityProvider(providerId);
+    public ControlPlaneIdentityProviderContext GetIdentityProvider(string? providerId = null) =>
+        new(_metadata.GetIdentityProvider(providerId));
 
-    public ResourceIdentityProviderDefinition AddIdentityProvider(
+    public ControlPlaneIdentityProviderContext AddIdentityProvider(
         string id,
         string name,
         ResourceIdentityProviderKind kind = ResourceIdentityProviderKind.Oidc,
@@ -97,13 +97,14 @@ public sealed class ControlPlaneResourceDefinitionGraphBuilder :
             new ResourceIdentityProviderDefinition(id, name, kind, settings, provisioningResourceId),
             useAsDefault);
 
-    public ResourceIdentityProviderDefinition AddIdentityProvider(
+    public ControlPlaneIdentityProviderContext AddIdentityProvider(
         ResourceIdentityProviderDefinition provider,
         bool useAsDefault = false)
     {
         ArgumentNullException.ThrowIfNull(provider);
 
-        return _metadata.AddIdentityProvider(provider, useAsDefault);
+        return new ControlPlaneIdentityProviderContext(
+            _metadata.AddIdentityProvider(provider, useAsDefault));
     }
 
     internal void SeedIdentityProviderDeclarations(ResourceDeclarationStore declarations)

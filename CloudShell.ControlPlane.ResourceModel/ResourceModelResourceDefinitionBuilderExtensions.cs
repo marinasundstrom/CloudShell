@@ -76,6 +76,25 @@ public static class ResourceModelResourceDefinitionBuilderExtensions
 
     public static TBuilder WithIdentity<TBuilder>(
         this TBuilder builder,
+        ControlPlaneIdentityProviderContext provider,
+        string? subject = null,
+        IReadOnlyList<string>? scopes = null,
+        IReadOnlyDictionary<string, string>? claims = null,
+        string? name = null)
+        where TBuilder : IResourceDefinitionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+
+        return builder.WithIdentity(
+            provider.Provider,
+            subject,
+            scopes,
+            claims,
+            name);
+    }
+
+    public static TBuilder WithIdentity<TBuilder>(
+        this TBuilder builder,
         ResourceIdentityProviderDefinition provider,
         Action<ResourceIdentityDeclarationBuilder> configure)
         where TBuilder : IResourceDefinitionBuilder
@@ -95,6 +114,17 @@ public static class ResourceModelResourceDefinitionBuilderExtensions
         }
 
         return builder.WithIdentity(identity.Build());
+    }
+
+    public static TBuilder WithIdentity<TBuilder>(
+        this TBuilder builder,
+        ControlPlaneIdentityProviderContext provider,
+        Action<ResourceIdentityDeclarationBuilder> configure)
+        where TBuilder : IResourceDefinitionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+
+        return builder.WithIdentity(provider.Provider, configure);
     }
 
     public static TBuilder WithIdentity<TBuilder>(

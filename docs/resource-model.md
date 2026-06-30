@@ -563,6 +563,10 @@ methods such as `AddIdentityProvider(...)`,
 `UseDefaultIdentityProvider(...)`, and `GetIdentityProvider()`. Those calls
 can influence the resources being declared, but they register Control Plane
 identity metadata rather than `ResourceDefinition` resources.
+`GetIdentityProvider()` returns a Control Plane identity-provider context. The
+context exposes provider metadata and principal helpers such as `GetUser(...)`;
+those helpers create provider-scoped principal references for grants without
+adding identity or user resources to the Resource graph.
 
 Internet reachability should be explicit or observed, not inferred from local
 endpoint exposure alone. Local development resources can expose `localhost`

@@ -53,6 +53,9 @@ on `git blame --follow`, and then by the broad type of change.
   or retrieve the default identity provider through the host authoring context,
   with those declarations copied into the Control Plane identity-provider
   catalog while staying outside `ResourceDefinition` resources.
+- `resources.GetIdentityProvider()` now returns a Control Plane identity-provider
+  context that exposes provider metadata and creates provider-scoped user
+  principal references with `GetUser(...)`.
 - Graph-backed generic container-host resources now project orchestration
   descriptors for runtime host resolution, and the SQL container-host samples
   author `DefaultContainerHost()` as a real default host resource.

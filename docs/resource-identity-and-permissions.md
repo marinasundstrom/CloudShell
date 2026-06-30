@@ -249,6 +249,12 @@ cloudShell.DefineResources(resources =>
 });
 ```
 
+`resources.GetIdentityProvider()` returns a Control Plane identity-provider
+context, not a Resource graph node. `GetUser(...)` creates a provider-scoped
+principal reference using the selected provider ID. User existence and
+credentials remain owned by the configured identity provider and are validated
+by the provider/authentication path rather than by the resource template.
+
 Persisted users for the built-in provider use the same ASP.NET Core Identity
 manager path backed by the configured database store and are managed by the
 account UI. The in-memory setup exists so local development and sample projects

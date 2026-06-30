@@ -287,8 +287,10 @@ can contribute to graph construction. Identity-provider helpers such as
 `resources.AddIdentityProvider(...)`,
 `resources.UseDefaultIdentityProvider(...)`, and
 `resources.GetIdentityProvider()` live on that Control Plane context and feed
-the Control Plane identity-provider catalog. They are not emitted as
-`ResourceDefinition` entries.
+the Control Plane identity-provider catalog. `GetIdentityProvider()` returns a
+host identity-provider context that can create provider-scoped principal
+references, for example `resources.GetIdentityProvider().GetUser("alice")`.
+They are not emitted as `ResourceDefinition` entries.
 
 Graph-backed generic container-host resources project orchestration descriptors
 for the runtime host resolver. This means a resource such as SQL Server can call
