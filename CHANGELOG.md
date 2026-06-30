@@ -24,6 +24,11 @@ on `git blame --follow`, and then by the broad type of change.
 - Environment Map now includes a network topology overlay by default, with a
   toggle for hiding network resources, configured endpoint mappings, provider
   materialization links, and public internet reachability facts.
+- Resource graph now has an optional network topology overlay that adds
+  topology relationship links and shows internet reachability as a badge on
+  resource or network cards when reachability is explicitly projected, instead
+  of inferring it from local public endpoint exposure or adding internet as a
+  resource node.
 - Terminology, domain, architecture, and resource-model docs now define a
   network topology overlay that can be shown in both the Resource graph and
   Environment Map, including future internet-reachability facts.

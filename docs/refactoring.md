@@ -428,11 +428,12 @@ preserving old provider seams:
 - [ ] Make the default orchestrator controller and load-balancer providers
   react to service-routing binding definitions instead of inferring replica
   membership from container-app-specific runtime names.
-- [ ] Project the network topology overlay into graph views from
+- [x] Project the initial network topology overlay into graph views from
   resource-owned endpoint mappings, network resources, load-balancer routes,
   name mappings, and explicit or observed internet reachability facts. The
-  Environment Map now shows the overlay by default with a toggle; the Resource
-  graph selector remains future work.
+  Environment Map shows the overlay by default with a toggle; the Resource
+  graph has an optional overlay and renders internet reachability as a node
+  badge.
 - [ ] Continue splitting `ApplicationResourceRuntimeOperations` by separating
   remaining resource-type concerns: lifecycle procedure execution, container
   app orchestration hooks, and endpoint/probe materialization. The shared

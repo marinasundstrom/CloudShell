@@ -1132,6 +1132,7 @@ h3 {
 
 .resource-graph-summary {
     display: flex;
+    align-items: center;
     gap: .65rem;
     flex-wrap: wrap;
 }
@@ -1154,6 +1155,10 @@ h3 {
 .resource-graph-summary strong {
     font-size: 1.2rem;
     font-weight: 650;
+}
+
+.resource-graph-topology-toggle {
+    margin-left: auto;
 }
 
 .resource-graph-shell {
@@ -1209,7 +1214,40 @@ h3 {
     stroke-width: 2.4;
 }
 
+.resource-graph-link.topology {
+    stroke: color-mix(in srgb, #2563eb 68%, transparent);
+    stroke-dasharray: 4 4;
+}
+
 .resource-graph-link.dimmed {
+    opacity: .18;
+}
+
+.resource-graph-link-label {
+    fill: var(--cloudshell-text-muted);
+    font-size: .66rem;
+    pointer-events: none;
+    text-anchor: middle;
+    paint-order: stroke;
+    stroke: var(--cloudshell-surface-muted);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+}
+
+.resource-graph-link-label.dependency {
+    opacity: .58;
+}
+
+.resource-graph-link-label.topology {
+    fill: #2563eb;
+    font-weight: 650;
+}
+
+.resource-graph-link-label.related {
+    fill: var(--cloudshell-accent);
+}
+
+.resource-graph-link-label.dimmed {
     opacity: .18;
 }
 
@@ -1261,6 +1299,10 @@ h3 {
 }
 
 .resource-graph-node-icon.network {
+    fill: #2563eb;
+}
+
+.resource-graph-node-icon.topology {
     fill: #2563eb;
 }
 
@@ -1316,6 +1358,27 @@ h3 {
 
 .resource-graph-status.state-unknown {
     fill: #8b5cf6;
+}
+
+.resource-graph-internet-badge {
+    pointer-events: none;
+}
+
+.resource-graph-internet-badge-frame {
+    fill: #2563eb;
+    stroke: var(--cloudshell-surface);
+    stroke-width: 3;
+}
+
+.resource-graph-internet-badge.inferred .resource-graph-internet-badge-frame {
+    fill: #64748b;
+}
+
+.resource-graph-internet-badge-icon {
+    fill: white;
+    font-size: .62rem;
+    font-weight: 800;
+    text-anchor: middle;
 }
 
 .resource-graph-node-label {

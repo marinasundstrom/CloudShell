@@ -782,12 +782,11 @@ public static class EnvironmentRuntimeMapProjection
                 }
             }
 
-            var publicEndpointResources = resources
-                .Where(resource => resource.ResourceEndpointNetworkMappings.Any(mapping =>
-                    mapping.Exposure == ResourceExposureScope.Public))
+            var internetReachableResources = resources
+                .Where(resource => GetInternetReachability(resource) is not null)
                 .Where(resource => resourceNodeIds.ContainsKey(resource.Id))
                 .ToArray();
-            if (publicEndpointResources.Length == 0)
+            if (internetReachableResources.Length == 0)
             {
                 return;
             }
@@ -810,7 +809,7 @@ public static class EnvironmentRuntimeMapProjection
                 null);
             networkTopologyNodeCount++;
 
-            foreach (var resource in publicEndpointResources)
+            foreach (var resource in internetReachableResources)
             {
                 if (resourceNodeIds.TryGetValue(resource.Id, out var resourceNodeId))
                 {
@@ -870,13 +869,13 @@ public static class EnvironmentRuntimeMapProjection
 
             foreach (var mapping in resource.ResourceEndpointNetworkMappings)
             {
-                if (mapping.Exposure == ResourceExposureScope.Public)
-                {
-                    resourceIds.Add(resource.Id);
-                }
-
                 AddTopologyResourceId(resourceIds, mapping.NetworkResourceId);
                 AddTopologyResourceId(resourceIds, mapping.ProviderResourceId);
+            }
+
+            if (GetInternetReachability(resource) is not null)
+            {
+                resourceIds.Add(resource.Id);
             }
 
             foreach (var route in resource.ResourceLoadBalancerRoutes)
@@ -1082,6 +1081,27 @@ public static class EnvironmentRuntimeMapProjection
 
     private static string GetOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "not projected" : value;
+
+    private static string? GetInternetReachability(Resource resource)
+    {
+        var explicitReachability = FirstNonEmpty(
+            resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.InternetReachability),
+            resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.NetworkInternetReachability));
+        return explicitReachability is null
+            ? null
+            : NormalizeInternetReachability(explicitReachability);
+    }
+
+    private static string? NormalizeInternetReachability(string value) =>
+        value.Trim() switch
+        {
+            var reachable when string.Equals(reachable, "reachable", StringComparison.OrdinalIgnoreCase) => "reachable",
+            var verified when string.Equals(verified, "verified", StringComparison.OrdinalIgnoreCase) => "reachable",
+            var yes when string.Equals(yes, "true", StringComparison.OrdinalIgnoreCase) => "reachable",
+            var yes when string.Equals(yes, "yes", StringComparison.OrdinalIgnoreCase) => "reachable",
+            var inferred when string.Equals(inferred, "inferred", StringComparison.OrdinalIgnoreCase) => "inferred",
+            _ => null
+        };
 }
 
 public sealed record EnvironmentRuntimeMap(

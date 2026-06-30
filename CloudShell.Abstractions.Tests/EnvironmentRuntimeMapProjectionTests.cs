@@ -155,7 +155,13 @@ public sealed class EnvironmentRuntimeMapProjectionTests
     {
         var api = CreateHttpResource();
         var provider = CreateTopologyProviderResource();
-        var network = CreateNetworkResource(api.Id, provider.Id);
+        var network = CreateNetworkResource(api.Id, provider.Id) with
+        {
+            Attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.NetworkInternetReachability] = "verified"
+            }
+        };
 
         var map = EnvironmentRuntimeMapProjection.Create(
             [api, network, provider],
@@ -202,7 +208,7 @@ public sealed class EnvironmentRuntimeMapProjectionTests
             link.Kind == "topology");
         Assert.Contains(map.Links, link =>
             link.Source == internetNode.Id &&
-            link.Target == apiNode.Id &&
+            link.Target == networkNode.Id &&
             link.Label == "reaches" &&
             link.Kind == "topology");
     }

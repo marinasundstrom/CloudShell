@@ -536,6 +536,14 @@ bindings. The resource model should provide the relationships and attributes;
 the map projection decides whether to render the normal resource view, the
 runtime view, or the network-focused overlay.
 
+Internet reachability should be explicit or observed, not inferred from local
+endpoint exposure alone. Local development resources can expose `localhost`
+ports and still not have verified internet connectivity. Providers, runtime
+observers, or network resources can project `internet.reachability` or
+`network.internetReachability` with values such as `verified`, `reachable`, or
+`inferred`; graph views can then show a reachability badge on that resource or
+network.
+
 ## Actions
 
 `ResourceActions` exposes operations a resource supports.

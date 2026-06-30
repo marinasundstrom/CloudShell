@@ -287,7 +287,9 @@ public static class ResourceAttributeNames
     public const string EndpointCount = "endpoints.count";
     public const string ConfigurationEntryCount = "configuration.entries";
     public const string InfrastructureKind = "infrastructure.kind";
+    public const string InternetReachability = "internet.reachability";
     public const string NetworkKind = "network.kind";
+    public const string NetworkInternetReachability = "network.internetReachability";
     public const string NetworkHostReadiness = "network.hostReadiness";
     public const string NetworkMappingProviders = "network.mappingProviders";
     public const string NetworkProvisionedMappingCount = "network.provisionedMappings";

@@ -31,6 +31,7 @@ class ResourceDependencyGraph {
         this.svg.selectAll("*").remove();
         this.baseGroup = this.svg.append("g").attr("class", "resource-graph-stage");
         this.linkGroup = this.baseGroup.append("g").attr("class", "resource-graph-links");
+        this.linkLabelGroup = this.baseGroup.append("g").attr("class", "resource-graph-link-labels");
         this.nodeGroup = this.baseGroup.append("g").attr("class", "resource-graph-nodes");
 
         const defs = this.svg.append("defs");
@@ -125,38 +126,45 @@ class ResourceDependencyGraph {
         this.svg.attr("viewBox", `${-width / 2} ${-height / 2} ${width} ${height}`);
     }
 
-    update(resources) {
-        const changed = this.hasStructureChanged(resources);
+    update(graph) {
+        const nodes = graph?.nodes || [];
+        const links = graph?.links || [];
+        const changed = this.hasStructureChanged(nodes, links);
         const previousNodes = new Map(this.nodes.map(node => [node.id, node]));
-        const degreeMap = this.getDegrees(resources);
+        const degreeMap = this.getDegrees(nodes, links);
 
-        this.resources = resources;
-        this.nodes = resources.map(resource => {
-            const existing = previousNodes.get(resource.id);
+        this.resources = nodes;
+        this.nodes = nodes.map(node => {
+            const existing = previousNodes.get(node.id);
             return {
                 ...existing,
-                id: resource.id,
-                label: resource.label,
-                name: resource.name,
-                type: resource.type,
-                resourceClass: resource.resourceClass,
-                endpointText: resource.endpointText,
-                stateLabel: resource.stateLabel,
-                stateClass: resource.stateClass,
-                detailUrl: resource.detailUrl,
-                degree: degreeMap.get(resource.id) || 1
+                id: node.id,
+                label: node.label,
+                name: node.name,
+                type: node.type,
+                resourceClass: node.resourceClass,
+                nodeKind: node.nodeKind,
+                endpointText: node.endpointText,
+                stateLabel: node.stateLabel,
+                stateClass: node.stateClass,
+                detailUrl: node.detailUrl,
+                resourceId: node.resourceId,
+                internetReachability: node.internetReachability,
+                degree: degreeMap.get(node.id) || 1
             };
         });
 
-        const visibleIds = new Set(resources.map(resource => resource.id));
-        this.links = resources.flatMap(resource =>
-            resource.dependsOn
-                .filter(dependencyId => visibleIds.has(dependencyId))
-                .map(dependencyId => ({
-                    id: `${resource.id}->${dependencyId}`,
-                    source: resource.id,
-                    target: dependencyId
-                })));
+        const visibleIds = new Set(this.nodes.map(node => node.id));
+        this.links = links
+            .filter(link => visibleIds.has(link.source) && visibleIds.has(link.target))
+            .map(link => ({
+                id: `${link.source}->${link.label}->${link.target}`,
+                source: link.source,
+                target: link.target,
+                label: link.label,
+                kind: link.kind,
+                resourceId: link.resourceId
+            }));
 
         this.renderLinks();
         this.renderNodes();
@@ -176,28 +184,26 @@ class ResourceDependencyGraph {
         this.updateHighlights();
     }
 
-    hasStructureChanged(resources) {
-        if (resources.length !== this.resources.length) {
+    hasStructureChanged(nodes, links) {
+        if (nodes.length !== this.resources.length ||
+            links.length !== this.links.length) {
             return true;
         }
 
         const oldIds = new Set(this.resources.map(resource => resource.id));
-        if (resources.some(resource => !oldIds.has(resource.id))) {
+        if (nodes.some(node => !oldIds.has(node.id))) {
             return true;
         }
 
-        const edgeKeys = new Set(this.resources.flatMap(resource =>
-            resource.dependsOn.map(dependencyId => `${resource.id}->${dependencyId}`)));
-        return resources.some(resource =>
-            resource.dependsOn.some(dependencyId => !edgeKeys.has(`${resource.id}->${dependencyId}`)));
+        const edgeKeys = new Set(this.links.map(link => `${getNodeId(link.source)}->${link.label}->${getNodeId(link.target)}`));
+        return links.some(link => !edgeKeys.has(`${link.source}->${link.label}->${link.target}`));
     }
 
-    getDegrees(resources) {
-        const degrees = new Map(resources.map(resource => [resource.id, resource.dependsOn.length]));
-        resources.forEach(resource => {
-            resource.dependsOn.forEach(dependencyId => {
-                degrees.set(dependencyId, (degrees.get(dependencyId) || 0) + 1);
-            });
+    getDegrees(nodes, links) {
+        const degrees = new Map(nodes.map(node => [node.id, 0]));
+        links.forEach(link => {
+            degrees.set(link.source, (degrees.get(link.source) || 0) + 1);
+            degrees.set(link.target, (degrees.get(link.target) || 0) + 1);
         });
         return degrees;
     }
@@ -215,14 +221,38 @@ class ResourceDependencyGraph {
 
         const newLinks = this.linkElements.enter()
             .append("line")
-            .attr("class", "resource-graph-link")
+            .attr("class", link => `resource-graph-link ${getClassName(link.kind)}`)
             .attr("opacity", 0);
 
         newLinks.transition()
             .duration(140)
             .attr("opacity", 1);
 
-        this.linkElements = newLinks.merge(this.linkElements);
+        this.linkElements = newLinks.merge(this.linkElements)
+            .attr("class", link => `resource-graph-link ${getClassName(link.kind)}`);
+
+        this.linkLabelElements = this.linkLabelGroup
+            .selectAll("text")
+            .data(this.links, link => link.id);
+
+        this.linkLabelElements.exit()
+            .transition()
+            .duration(140)
+            .attr("opacity", 0)
+            .remove();
+
+        const newLabels = this.linkLabelElements.enter()
+            .append("text")
+            .attr("class", "resource-graph-link-label")
+            .attr("opacity", 0);
+
+        newLabels.transition()
+            .duration(140)
+            .attr("opacity", 1);
+
+        this.linkLabelElements = newLabels.merge(this.linkLabelElements)
+            .attr("class", link => `resource-graph-link-label ${getClassName(link.kind)}`)
+            .text(link => trimText(link.label, 16));
     }
 
     renderNodes() {
@@ -278,6 +308,22 @@ class ResourceDependencyGraph {
             .attr("r", 9)
             .append("title");
 
+        const internetBadge = newNodes.append("g")
+            .attr("class", "resource-graph-internet-badge");
+
+        internetBadge.append("circle")
+            .attr("class", "resource-graph-internet-badge-frame")
+            .attr("cx", 42)
+            .attr("cy", -34)
+            .attr("r", 9);
+
+        internetBadge.append("text")
+            .attr("class", "resource-graph-internet-badge-icon")
+            .attr("x", 42)
+            .attr("y", -30);
+
+        internetBadge.append("title");
+
         newNodes.append("text")
             .attr("class", "resource-graph-node-label")
             .attr("x", 0)
@@ -296,24 +342,29 @@ class ResourceDependencyGraph {
             .attr("opacity", 1);
 
         this.nodeElements = newNodes.merge(this.nodeElements);
+        this.nodeElements
+            .attr("class", node => `resource-graph-node ${getClassName(node.nodeKind)}`);
         this.nodeElements.select(".resource-graph-node-icon")
-            .attr("class", node => `resource-graph-node-icon ${getClassName(node.resourceClass)}`);
+            .attr("class", node => `resource-graph-node-icon ${getClassName(node.nodeKind)} ${getClassName(node.resourceClass)}`);
         this.nodeElements.select(".resource-graph-node-initials")
             .text(node => getInitials(node.label));
         this.nodeElements.select(".resource-graph-status")
             .attr("class", node => `resource-graph-status ${node.stateClass}`)
             .select("title")
             .text(node => node.stateLabel);
+        this.nodeElements.select(".resource-graph-internet-badge")
+            .attr("display", node => node.internetReachability ? null : "none")
+            .attr("class", node => `resource-graph-internet-badge ${getClassName(node.internetReachability)}`);
+        this.nodeElements.select(".resource-graph-internet-badge-icon")
+            .text("I");
+        this.nodeElements.select(".resource-graph-internet-badge title")
+            .text(node => node.internetReachability === "inferred" ? "Internet reachability inferred" : "Internet reachable");
         this.nodeElements.select(".resource-graph-node-label")
             .text(node => trimText(node.label, 24));
         this.nodeElements.select(".resource-graph-node-endpoint")
             .text(node => trimText(node.endpointText, 28));
         this.nodeElements.select(".resource-graph-node-title")
             .text(node => `${node.label}\n${node.type}\n${node.endpointText}\n${node.stateLabel}`);
-
-        function getClassName(value) {
-            return String(value || "generic").toLowerCase();
-        }
 
         function getInitials(value) {
             return String(value || "?")
@@ -337,7 +388,9 @@ class ResourceDependencyGraph {
     }
 
     openResource(node) {
-        this.resourcesInterop.invokeMethodAsync("OpenResource", node.id);
+        if (node.resourceId) {
+            this.resourcesInterop.invokeMethodAsync("OpenResource", node.resourceId);
+        }
     }
 
     updateHighlights() {
@@ -350,6 +403,10 @@ class ResourceDependencyGraph {
             .classed("dimmed", node => neighborIds !== null && !neighborIds.has(node.id));
 
         this.linkElements
+            ?.classed("related", link => activeNode && this.isNeighborLink(activeNode, link))
+            .classed("dimmed", link => activeNode && !this.isNeighborLink(activeNode, link));
+
+        this.linkLabelElements
             ?.classed("related", link => activeNode && this.isNeighborLink(activeNode, link))
             .classed("dimmed", link => activeNode && !this.isNeighborLink(activeNode, link));
     }
@@ -379,6 +436,9 @@ class ResourceDependencyGraph {
             .attr("y1", link => link.source.y)
             .attr("x2", link => link.target.x)
             .attr("y2", link => link.target.y);
+        this.linkLabelElements
+            ?.attr("x", link => (link.source.x + link.target.x) / 2)
+            .attr("y", link => (link.source.y + link.target.y) / 2 - 6);
     }
 
     dispose() {
@@ -394,4 +454,13 @@ class ResourceDependencyGraph {
 
 function getNodeId(value) {
     return typeof value === "string" ? value : value.id;
+}
+
+function getClassName(value) {
+    return String(value || "generic").toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
+}
+
+function trimText(value, maxLength) {
+    const text = String(value || "");
+    return text.length > maxLength ? `${text.slice(0, maxLength - 1)}...` : text;
 }
