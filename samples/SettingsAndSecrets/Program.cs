@@ -129,28 +129,30 @@ cloudShell.DefineResources(resources =>
     settingsResource.Allow(apiResource, ConfigurationStoreResourceOperationPermissions.ReadEntries);
     secretsResource.Allow(apiResource, SecretsVaultResourceOperationPermissions.ReadSecrets);
 }, AddProjectionState);
-builder.Services
-    .AddConfigurationStoreResourceType(options =>
+cloudShell
+    .UseBuiltInResourceModelProviders(options =>
     {
-        options.ServiceProjectPath = configurationStoreServiceProjectPath;
-        options.ServiceWorkingDirectory = repositoryRootPath;
-        options.ServiceAuthenticationIssuer = identityIssuer;
-        options.ServiceAuthenticationAudience = identityAudience;
-        options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
-        options.Entries.Add(new("Sample:Message", "Hello from a configuration entry"));
-        options.Entries.Add(new("Sample:Mode", "Development"));
+        options.IncludeDefaultEnvironmentResources = false;
     })
-    .AddSecretsVaultResourceType(options =>
+    .UseConfigurationStoreResourceProvider(runtime =>
     {
-        options.ServiceProjectPath = secretsVaultServiceProjectPath;
-        options.ServiceWorkingDirectory = repositoryRootPath;
-        options.ServiceAuthenticationIssuer = identityIssuer;
-        options.ServiceAuthenticationAudience = identityAudience;
-        options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
-        options.Secrets.Add(new("sample-api-key", "local-development-api-key"));
+        runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
+        runtime.ServiceWorkingDirectory = repositoryRootPath;
+        runtime.ServiceAuthenticationIssuer = identityIssuer;
+        runtime.ServiceAuthenticationAudience = identityAudience;
+        runtime.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
+        runtime.Entries.Add(new("Sample:Message", "Hello from a configuration entry"));
+        runtime.Entries.Add(new("Sample:Mode", "Development"));
     })
-    .AddAspNetCoreProjectResourceType();
-cloudShell.UseResourceGraphIntegration();
+    .UseSecretsVaultResourceProvider(runtime =>
+    {
+        runtime.ServiceProjectPath = secretsVaultServiceProjectPath;
+        runtime.ServiceWorkingDirectory = repositoryRootPath;
+        runtime.ServiceAuthenticationIssuer = identityIssuer;
+        runtime.ServiceAuthenticationAudience = identityAudience;
+        runtime.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
+        runtime.Secrets.Add(new("sample-api-key", "local-development-api-key"));
+    });
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

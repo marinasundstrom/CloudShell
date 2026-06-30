@@ -9,6 +9,27 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-07-01
+
+### ADR-20260701-001: Keep Control Plane application defaults separate from UI shell registration
+
+CloudShell's Aspire-like application setup should produce an opinionated
+Control Plane application by default, not a combined UI and Control Plane
+host. The Control Plane owns the runtime/resource-management surface and can
+register built-in Resource Model provider defaults through an application
+preset such as `AddCloudShellControlPlaneApplication(...)`.
+
+The CloudShell UI remains an explicit shell surface. Hosts that want the UI in
+the same ASP.NET Core process should call `AddCloudShellUi(...)` separately.
+UI extensions, Resource Manager UI extensions, and provider-owned Resource
+Manager views belong in the UI registration callback so UI composition stays
+separate from Control Plane provider/runtime registration.
+
+`AddCloudShell()` remains a convenience for the combined development host, but
+the architectural split is Control Plane first, UI opt-in.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ## 2026-06-30
 
 ### ADR-20260630-001: Keep host-level authoring context outside resource templates

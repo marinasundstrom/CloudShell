@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -5,6 +6,17 @@ namespace CloudShell.ControlPlane.Providers;
 
 public static class DnsZoneResourceTypeServiceCollectionExtensions
 {
+    public static IControlPlaneBuilder UseDnsZoneResourceProvider(
+        this IControlPlaneBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Services.AddDnsZoneResourceType();
+        builder.Services.AddResourceGraphIntegration();
+
+        return builder;
+    }
+
     public static IServiceCollection AddDnsZoneResourceType(
         this IServiceCollection services)
     {

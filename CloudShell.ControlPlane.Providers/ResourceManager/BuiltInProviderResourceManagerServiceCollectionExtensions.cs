@@ -37,7 +37,15 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        if (services.Any(descriptor =>
+                descriptor.ServiceType == typeof(ResourceGraphIntegrationRegistration)))
+        {
+            return services;
+        }
+
+        services.AddSingleton(new ResourceGraphIntegrationRegistration(id, displayName));
         services.AddResourceModelGraphServices();
+        services.AddBuiltInResourceModelRuntimeAdapters();
         services.AddBuiltInProviderResourceManagerIntegration(
             id,
             displayName,
@@ -191,4 +199,6 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
 
         return services;
     }
+
+    private sealed record ResourceGraphIntegrationRegistration(string Id, string DisplayName);
 }

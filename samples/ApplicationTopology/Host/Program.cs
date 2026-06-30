@@ -278,7 +278,6 @@ cloudShell.DefineResources(resources =>
             configure: mapping => mapping.WithResourceGroup(resourceGroupId));
 }, AddGraphProjectionState);
 builder.Services
-    .AddStorageBackedSqlServerResourceTypes()
     .AddLocalSqlServerDockerRuntime(options =>
         options.AddServer(
             sqlServerResourceId,
@@ -290,33 +289,32 @@ builder.Services
             }),
         descriptors => descriptors.AddResource(
             sqlServerResourceId,
-            "application-topology.resource-model-sql-runtime.v1"))
-    .AddSqlDatabaseResourceType()
-    .AddResourceModelSqlDatabaseCreationHandler()
-    .AddConfigurationStoreResourceType(options =>
+            "application-topology.resource-model-sql-runtime.v1"));
+cloudShell
+    .UseBuiltInResourceModelProviders(options =>
     {
-        options.ServiceProjectPath = configurationStoreServiceProjectPath;
-        options.ServiceWorkingDirectory = repositoryRootPath;
-        options.ServiceAuthenticationIssuer = identityIssuer;
-        options.ServiceAuthenticationAudience = identityAudience;
-        options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
-        options.Entries.Add(new("ApplicationTopology:Message", "Hello from CloudShell resource configuration."));
-        options.Entries.Add(new("ApplicationTopology:Mode", "Resource model"));
+        options.IncludeDefaultEnvironmentResources = false;
     })
-    .AddSecretsVaultResourceType(options =>
+    .UseSqlDatabaseResourceProvider(useResourceModelCreationHandler: true)
+    .UseConfigurationStoreResourceProvider(runtime =>
     {
-        options.ServiceProjectPath = secretsVaultServiceProjectPath;
-        options.ServiceWorkingDirectory = repositoryRootPath;
-        options.ServiceAuthenticationIssuer = identityIssuer;
-        options.ServiceAuthenticationAudience = identityAudience;
-        options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
-        options.Secrets.Add(new("ApplicationTopology--ExternalApiKey", "local-development-application-topology-api-key"));
+        runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
+        runtime.ServiceWorkingDirectory = repositoryRootPath;
+        runtime.ServiceAuthenticationIssuer = identityIssuer;
+        runtime.ServiceAuthenticationAudience = identityAudience;
+        runtime.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
+        runtime.Entries.Add(new("ApplicationTopology:Message", "Hello from CloudShell resource configuration."));
+        runtime.Entries.Add(new("ApplicationTopology:Mode", "Resource model"));
     })
-    .AddHostConfigurationSourceResourceType()
-    .AddDnsZoneResourceType()
-    .AddNameMappingResourceType()
-    .AddAspNetCoreProjectResourceType();
-cloudShell.UseResourceGraphIntegration();
+    .UseSecretsVaultResourceProvider(runtime =>
+    {
+        runtime.ServiceProjectPath = secretsVaultServiceProjectPath;
+        runtime.ServiceWorkingDirectory = repositoryRootPath;
+        runtime.ServiceAuthenticationIssuer = identityIssuer;
+        runtime.ServiceAuthenticationAudience = identityAudience;
+        runtime.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
+        runtime.Secrets.Add(new("ApplicationTopology--ExternalApiKey", "local-development-application-topology-api-key"));
+    });
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

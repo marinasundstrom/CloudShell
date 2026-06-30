@@ -29,7 +29,10 @@ var frontendProjectPath = Path.GetFullPath(
     "../Frontend/CloudShell.ProjectReferenceFrontend.csproj",
     builder.Environment.ContentRootPath);
 
-var cloudShell = builder.AddCloudShell();
+var cloudShell = builder.AddCloudShellControlPlaneApplication(options =>
+{
+    options.IncludeDefaultEnvironmentResources = false;
+});
 IResourceDefinitionBuilder apiResource = null!;
 cloudShell.DefineResources(resources =>
 {
@@ -83,14 +86,13 @@ cloudShell.DefineResources(resources =>
             "/alive",
             endpointName: "http");
 });
-builder.Services
-    .AddAspNetCoreProjectResourceType();
-cloudShell.UseResourceGraphIntegration();
-
-cloudShell
-    .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>();
-cloudShell.AddBuiltInProviderResourceManagerUi();
+builder.AddCloudShellUi(ui =>
+{
+    ui
+        .AddExtension<ResourceManagerExtension>()
+        .AddExtension<ObservabilityExtension>();
+    ui.AddBuiltInProviderResourceManagerUi();
+});
 
 var app = builder.Build();
 

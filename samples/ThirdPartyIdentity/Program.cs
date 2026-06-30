@@ -85,22 +85,23 @@ cloudShell.AddIdentityProvider(CreateKeycloakIdentityProviderDefinition(
     identityProviderId,
     "Keycloak",
     identityProvisioningResource.EffectiveResourceId));
-builder.Services
-    .AddIdentityProvisioningResourceType()
-    .AddConfigurationStoreResourceType(options =>
+cloudShell
+    .UseBuiltInResourceModelProviders(options =>
     {
-        options.ServiceProjectPath = configurationStoreServiceProjectPath;
-        options.ServiceWorkingDirectory = repositoryRootPath;
-        options.ServiceBearerAuthority = authority;
-        options.ServiceBearerIssuer = authority;
-        options.ServiceBearerRequireHttpsMetadata =
+        options.IncludeDefaultEnvironmentResources = false;
+    })
+    .UseConfigurationStoreResourceProvider(runtime =>
+    {
+        runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
+        runtime.ServiceWorkingDirectory = repositoryRootPath;
+        runtime.ServiceBearerAuthority = authority;
+        runtime.ServiceBearerIssuer = authority;
+        runtime.ServiceBearerRequireHttpsMetadata =
             builder.Configuration.GetValue("Authentication:OpenIdConnect:RequireHttpsMetadata", true);
-        options.Entries.Add(new(
+        runtime.Entries.Add(new(
             "Sample:Message",
             "Hello from a Keycloak-provisioned resource identity"));
-    })
-    .AddAspNetCoreProjectResourceType();
-cloudShell.UseResourceGraphIntegration();
+    });
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

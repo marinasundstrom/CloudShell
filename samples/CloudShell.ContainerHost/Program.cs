@@ -47,7 +47,6 @@ cloudShell.DefineResources(resources =>
         .MountVolume(volumeResource, "/var/opt/mssql");
 });
 builder.Services
-    .AddStorageBackedSqlServerResourceTypes()
     .AddLocalSqlServerDockerRuntime(options =>
         options.AddServer(
             sqlServerResourceId,
@@ -59,7 +58,11 @@ builder.Services
         descriptors => descriptors.AddResource(
             sqlServerResourceId,
             "container-host.sql-runtime.v1"));
-cloudShell.UseResourceGraphIntegration();
+cloudShell
+    .UseBuiltInResourceModelProviders(options =>
+    {
+        options.IncludeDefaultEnvironmentResources = false;
+    });
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -5,6 +6,17 @@ namespace CloudShell.ControlPlane.Providers;
 
 public static class DockerHostResourceTypeServiceCollectionExtensions
 {
+    public static IControlPlaneBuilder UseDockerHostResourceProvider(
+        this IControlPlaneBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Services.AddDockerHostResourceType();
+        builder.Services.AddResourceGraphIntegration();
+
+        return builder;
+    }
+
     public static IServiceCollection AddDockerHostResourceType(
         this IServiceCollection services)
     {

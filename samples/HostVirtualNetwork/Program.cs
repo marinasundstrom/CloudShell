@@ -116,10 +116,11 @@ cloudShell.DefineResources(resources =>
             exposure: "Private",
             configure: mapping => mapping.WithResourceGroup(resourceGroupId));
 });
-cloudShell.UseBuiltInResourceModelProviders(options =>
-{
-    options.IncludeDefaultEnvironmentResources = false;
-});
+cloudShell
+    .UseBuiltInResourceModelProviders(options =>
+    {
+        options.IncludeDefaultEnvironmentResources = false;
+    });
 builder.Services.AddCoreDnsZoneFilePublishingProvider(options =>
 {
     options.OutputDirectory = string.IsNullOrWhiteSpace(coreDnsDirectory)

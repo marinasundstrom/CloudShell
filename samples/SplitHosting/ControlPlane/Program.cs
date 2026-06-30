@@ -23,9 +23,8 @@ controlPlane.DefineResources(resources =>
         .WithNetworkKind("Logical")
         .WithHostReadiness("logicalOnly");
 });
-builder.Services
-    .AddNetworkResourceType();
-controlPlane.UseResourceGraphIntegration();
+controlPlane
+    .UseNetworkResourceProvider();
 
 var app = builder.Build();
 

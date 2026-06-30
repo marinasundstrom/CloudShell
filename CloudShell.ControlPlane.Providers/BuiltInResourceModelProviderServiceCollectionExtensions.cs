@@ -8,12 +8,6 @@ public sealed class BuiltInResourceModelProviderOptions
 {
     public bool IncludeDefaultEnvironmentResources { get; set; } = true;
 
-    public bool IncludeRuntimeAdapters { get; set; } = true;
-
-    public Action<ConfigurationStoreRuntimeOptions>? ConfigureConfigurationStoreRuntime { get; set; }
-
-    public Action<SecretsVaultRuntimeOptions>? ConfigureSecretsVaultRuntime { get; set; }
-
     public string ResourceGraphProviderId { get; set; } =
         ResourceModelResourceProvider.DefaultProviderId;
 
@@ -56,11 +50,6 @@ public static class BuiltInResourceModelProviderServiceCollectionExtensions
 
         var options = CreateOptions(configure);
         builder.Services.AddBuiltInResourceModelProviderTypes(options);
-        if (options.IncludeRuntimeAdapters)
-        {
-            builder.Services.AddBuiltInResourceModelRuntimeAdapters();
-        }
-
         if (options.IncludeDefaultEnvironmentResources)
         {
             builder.Services.AddDefaultInMemoryResourceModelGraphResources(
@@ -115,23 +104,8 @@ public static class BuiltInResourceModelProviderServiceCollectionExtensions
             .AddLoadBalancerResourceType()
             .AddServiceResourceType();
 
-        if (options.ConfigureConfigurationStoreRuntime is { } configureConfigurationStore)
-        {
-            services.AddConfigurationStoreResourceType(configureConfigurationStore);
-        }
-        else
-        {
-            services.AddConfigurationStoreResourceType();
-        }
-
-        if (options.ConfigureSecretsVaultRuntime is { } configureSecretsVault)
-        {
-            services.AddSecretsVaultResourceType(configureSecretsVault);
-        }
-        else
-        {
-            services.AddSecretsVaultResourceType();
-        }
+        services.AddConfigurationStoreResourceType();
+        services.AddSecretsVaultResourceType();
 
         return services;
     }

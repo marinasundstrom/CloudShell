@@ -13,6 +13,24 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-07-01
+
+#### Changed
+
+- Built-in Control Plane providers now expose explicit `Use*ResourceProvider`
+  registration methods so hosts can compose individual provider capabilities
+  while still keeping `UseBuiltInResourceModelProviders()` as the broad preset;
+  provider registration ensures Resource Graph integration, and Resource Graph
+  integration registers the common graph-backed runtime adapters by default.
+- Added `AddCloudShellControlPlaneApplication(...)` as the opinionated
+  Control Plane application setup path for built-in Resource Model provider
+  defaults while keeping the CloudShell UI as an explicit host registration
+  ([ADR-20260701-001](ADR.md#adr-20260701-001-keep-control-plane-application-defaults-separate-from-ui-shell-registration)).
+- `AddCloudShellUi(...)` now accepts a UI registration callback so shell
+  extensions, Resource Manager extensions, and provider-owned Resource Manager
+  UI contributions can be registered on the UI surface instead of through the
+  Control Plane builder.
+
 ### 2026-06-30
 
 #### Changed

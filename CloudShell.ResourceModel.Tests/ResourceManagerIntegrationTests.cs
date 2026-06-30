@@ -508,23 +508,50 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public void UseResourceProviderMethods_EnsureSingleResourceGraphIntegration()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        var builder = services.AddCloudShellControlPlane();
+
+        builder
+            .UseConfigurationStoreResourceProvider()
+            .UseSecretsVaultResourceProvider()
+            .UseAspNetCoreProjectResourceProvider();
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var typeIds = serviceProvider
+            .GetServices<IResourceTypeProvider>()
+            .Select(provider => provider.TypeId)
+            .ToHashSet();
+
+        Assert.Contains(ConfigurationStoreResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(SecretsVaultResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(AspNetCoreProjectResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.NotNull(serviceProvider.GetService<ResourceResolver>());
+        Assert.IsType<ResourceModelGraphProcedureProvider>(
+            Assert.Single(serviceProvider.GetServices<IResourceProvider>()));
+        Assert.IsType<ResourceModelGraphProcedureProvider>(
+            Assert.Single(serviceProvider.GetServices<IResourceActionAvailabilityProvider>()));
+    }
+
+    [Fact]
     public async Task UseBuiltInResourceModelProviders_RegistersProviderCatalogGraphBridgeAndPresetDefaults()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
         var builder = services.AddCloudShellControlPlane();
 
-        builder.UseBuiltInResourceModelProviders(options =>
-        {
-            options.ConfigureConfigurationStoreRuntime = runtime =>
+        builder
+            .UseBuiltInResourceModelProviders()
+            .UseConfigurationStoreResourceProvider(runtime =>
             {
                 runtime.ServiceProjectPath = "services/configuration-store.csproj";
-            };
-            options.ConfigureSecretsVaultRuntime = runtime =>
+            })
+            .UseSecretsVaultResourceProvider(runtime =>
             {
                 runtime.ServiceProjectPath = "services/secrets-vault.csproj";
-            };
-        });
+            });
         using var serviceProvider = services.BuildServiceProvider();
 
         var typeIds = serviceProvider

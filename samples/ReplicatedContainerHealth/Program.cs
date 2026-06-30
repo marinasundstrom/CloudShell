@@ -90,10 +90,11 @@ builder.Services
                     builder.Configuration.GetValue<int?>(
                         "ReplicatedContainerHealth:RuntimeStatusCacheMilliseconds") ?? 2_000);
             }));
-cloudShell.UseBuiltInResourceModelProviders(options =>
-{
-    options.IncludeDefaultEnvironmentResources = false;
-});
+cloudShell
+    .UseBuiltInResourceModelProviders(options =>
+    {
+        options.IncludeDefaultEnvironmentResources = false;
+    });
 
 cloudShell
     .AddExtension<ResourceManagerExtension>()

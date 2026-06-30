@@ -32,18 +32,16 @@ public sealed class ResourceProviderDispatcherTests
     public void AddBuiltInResourceModelProviderTypes_RegistersDefaultProviderCatalog()
     {
         var services = new ServiceCollection();
-        services.AddBuiltInResourceModelProviderTypes(options =>
+        services.AddBuiltInResourceModelProviderTypes();
+        services.AddConfigurationStoreResourceType(runtime =>
         {
-            options.ConfigureConfigurationStoreRuntime = runtime =>
-            {
-                runtime.ServiceProjectPath = "services/configuration-store.csproj";
-                runtime.Entries.Add(new("Sample:Message", "Hello from graph"));
-            };
-            options.ConfigureSecretsVaultRuntime = runtime =>
-            {
-                runtime.ServiceProjectPath = "services/secrets-vault.csproj";
-                runtime.Secrets.Add(new("sample-api-key", "secret-value", "v1"));
-            };
+            runtime.ServiceProjectPath = "services/configuration-store.csproj";
+            runtime.Entries.Add(new("Sample:Message", "Hello from graph"));
+        });
+        services.AddSecretsVaultResourceType(runtime =>
+        {
+            runtime.ServiceProjectPath = "services/secrets-vault.csproj";
+            runtime.Secrets.Add(new("sample-api-key", "secret-value", "v1"));
         });
         using var serviceProvider = services.BuildServiceProvider();
 

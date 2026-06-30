@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
@@ -10,6 +11,17 @@ namespace CloudShell.ControlPlane.Providers;
 
 public static class ContainerApplicationResourceTypeServiceCollectionExtensions
 {
+    public static IControlPlaneBuilder UseContainerApplicationResourceProvider(
+        this IControlPlaneBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Services.AddContainerApplicationResourceType();
+        builder.Services.AddResourceGraphIntegration();
+
+        return builder;
+    }
+
     public static IServiceCollection AddLocalContainerApplicationResourceTypes(
         this IServiceCollection services)
     {

@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -5,6 +6,26 @@ namespace CloudShell.ControlPlane.Providers;
 
 public static class SecretsVaultResourceTypeServiceCollectionExtensions
 {
+    public static IControlPlaneBuilder UseSecretsVaultResourceProvider(
+        this IControlPlaneBuilder builder,
+        Action<SecretsVaultRuntimeOptions>? configureRuntime = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        if (configureRuntime is null)
+        {
+            builder.Services.AddSecretsVaultResourceType();
+        }
+        else
+        {
+            builder.Services.AddSecretsVaultResourceType(configureRuntime);
+        }
+
+        builder.Services.AddResourceGraphIntegration();
+
+        return builder;
+    }
+
     public static IServiceCollection AddSecretsVaultResourceType(
         this IServiceCollection services)
     {
