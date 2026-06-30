@@ -86,6 +86,27 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public void AddBuiltInResourceModelRuntimeAdapters_RegistersProviderOwnedResourceModelRuntimeAdapters()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddResourceModelGraphServices();
+        services.AddBuiltInResourceModelRuntimeAdapters();
+        using var serviceProvider = services.BuildServiceProvider();
+
+        Assert.IsType<ResourceModelGraphEndpointMappingReconciler>(
+            serviceProvider.GetRequiredService<INetworkEndpointMappingReconciler>());
+        Assert.IsType<ResourceModelGraphEndpointMappingReconciler>(
+            serviceProvider.GetRequiredService<IVirtualNetworkEndpointMappingReconciler>());
+        Assert.IsType<ResourceModelGraphEndpointMappingReconciler>(
+            serviceProvider.GetRequiredService<ILocalHostNetworkEndpointMappingReconciler>());
+        Assert.IsType<ResourceModelGraphEndpointMappingReconciler>(
+            serviceProvider.GetRequiredService<IMacOSHostNetworkEndpointMappingReconciler>());
+        Assert.IsType<ResourceModelGraphDnsZoneNameMappingReconciler>(
+            serviceProvider.GetRequiredService<IDnsZoneNameMappingReconciler>());
+    }
+
+    [Fact]
     public void AddResourceModelResolver_AcceptsExplicitClassDefinitions()
     {
         var services = new ServiceCollection();

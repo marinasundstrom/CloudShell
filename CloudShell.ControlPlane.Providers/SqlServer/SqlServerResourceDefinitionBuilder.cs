@@ -122,7 +122,7 @@ public sealed class SqlServerResourceDefinitionBuilder(string name) :
 public static class SqlServerResourceDefinitionBuilderExtensions
 {
     public static SqlServerResourceDefinitionBuilder AddSqlServer(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);

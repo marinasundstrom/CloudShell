@@ -17,7 +17,7 @@
   that honors configured arguments and working directory.
 - Typed wrapper plus Resource Manager bridge projection, execution, and
   process monitoring snapshots.
-- Manual `ResourceDefinitionGraphBuilder.AddExecutableApplication(...)`
+- Manual `ResourceGraphBuilder.AddExecutableApplication(...)`
   builder for code-first executable definition authoring with command
   configuration, volume mount capability setup, and runtime monitoring
   capability activation.

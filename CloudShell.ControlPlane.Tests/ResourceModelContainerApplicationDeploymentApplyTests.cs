@@ -56,7 +56,7 @@ public sealed class ResourceModelContainerApplicationDeploymentApplyTests
 
         await using var serviceProvider = services.BuildServiceProvider();
         var apply = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph
             .AddContainerHost("docker")
             .UseDocker();
@@ -155,7 +155,7 @@ public sealed class ResourceModelContainerApplicationDeploymentApplyTests
 
         await using var serviceProvider = services.BuildServiceProvider();
         var apply = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var network = graph.AddVirtualNetwork("apps");
         var app = graph
             .AddContainerApplication("api")

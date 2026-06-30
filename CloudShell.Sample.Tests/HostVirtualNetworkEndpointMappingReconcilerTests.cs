@@ -28,7 +28,7 @@ public sealed class HostVirtualNetworkEndpointMappingReconcilerTests
         services.AddBuiltInProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var hostNetwork = graph
             .AddLocalHostNetwork("host-local")
             .WithResourceId(hostNetworkingResourceId);

@@ -274,7 +274,7 @@ front. When choosing work, prefer the slice that most improves a developer's
 ability to run, understand, diagnose, and persist a realistic distributed
 application from Resource Manager.
 
-The immediate planning anchor is the Resource Graph POC migration. Supported
+The immediate planning anchor is the Resource Model POC migration. Supported
 samples should continue moving from the old provider-definition path to
 graph-backed `ResourceDefinition` state and the Resource Manager bridge. The
 goal is not to expose deployments publicly yet; it is to make resource
@@ -317,7 +317,7 @@ Plan and verify MVP work through use cases. The priority use cases are:
 6. Persist the resource graph deliberately and understand what changes from
    transient code-first declarations to durable Control Plane state.
 
-The most urgent near-term slice is Resource Graph POC convergence:
+The most urgent near-term slice is Resource Model POC convergence:
 run the graph-backed switch-readiness samples as the standing proof, identify
 where old provider/template/runtime behavior is still required, and close
 those gaps with small provider or Resource Manager bridge changes. Application
@@ -439,7 +439,7 @@ external-format import/code generation, and initial on-premise hosting.
 
 For the next run, prefer these slices in order:
 
-1. Finish Resource Graph POC alignment for the supported samples: keep the
+1. Finish Resource Model POC alignment for the supported samples: keep the
    `ResourceTemplate` envelope ResourceDefinition-based, remove remaining old
    resource-template serialization dependencies where graph-backed providers
    can round-trip definitions, and document non-parity rather than preserving

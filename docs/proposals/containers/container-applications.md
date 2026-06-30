@@ -29,7 +29,7 @@ state, but most do not need this deployment-centric set of versioned related
 resources.
 
 The current implementation direction is to finish moving container apps onto
-the Resource Graph POC path. User-facing creation and updates should be
+the Resource Model POC path. User-facing creation and updates should be
 expressed as full or incremental `ResourceDefinition` entries: image, replica
 slots, endpoints, volume mounts, references, and other app-owned intent. After
 Resource Manager accepts that graph state, the container app provider should

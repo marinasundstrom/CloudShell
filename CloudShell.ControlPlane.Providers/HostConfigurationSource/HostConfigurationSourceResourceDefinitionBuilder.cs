@@ -16,7 +16,7 @@ public sealed class HostConfigurationSourceResourceDefinitionBuilder(string name
 public static class HostConfigurationSourceResourceDefinitionBuilderExtensions
 {
     public static HostConfigurationSourceResourceDefinitionBuilder AddHostConfigurationSource(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);

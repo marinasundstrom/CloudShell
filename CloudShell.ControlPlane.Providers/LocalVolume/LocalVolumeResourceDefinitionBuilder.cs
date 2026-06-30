@@ -16,7 +16,7 @@ public sealed class LocalVolumeResourceDefinitionBuilder(string name) :
 public static class LocalVolumeResourceDefinitionBuilderExtensions
 {
     public static LocalVolumeResourceDefinitionBuilder AddLocalVolume(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);

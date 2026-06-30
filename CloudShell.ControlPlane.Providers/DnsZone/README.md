@@ -13,7 +13,7 @@
 - Passive DNS-zone capability marker.
 - Reconcile name mappings operation with a context-aware injected reconciler seam.
 - Typed wrapper plus Resource Manager bridge projection and execution.
-- Manual `ResourceDefinitionGraphBuilder.AddDnsZone(...)` builder for
+- Manual `ResourceGraphBuilder.AddDnsZone(...)` builder for
   code-first DNS zone definition authoring.
 - `UseLocalHostNames()`, child `AddNameMapping(...)`, and `MapHost(...)`
   convenience builders. Name mappings remain explicit graph resources but are

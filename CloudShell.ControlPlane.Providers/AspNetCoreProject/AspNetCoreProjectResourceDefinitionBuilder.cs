@@ -312,7 +312,7 @@ public static class AspNetCoreProjectResourceDefinitionBuilderExtensions
     }
 
     public static AspNetCoreProjectResourceDefinitionBuilder AddAspNetCoreProject(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name,
         string projectPath)
     {

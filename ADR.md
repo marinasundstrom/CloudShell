@@ -11,10 +11,10 @@ link to the decision so the dependency is visible.
 
 ## 2026-06-30
 
-### ADR-20260630-001: Keep host-level authoring context outside ResourceDefinition graphs
+### ADR-20260630-001: Keep host-level authoring context outside resource templates
 
-CloudShell should keep `ResourceDefinitionGraphBuilder` focused on resources
-and templates. Host-level capabilities that can influence graph construction,
+CloudShell should keep `ResourceGraphBuilder` focused on resources
+and templates. Host-level capabilities that can influence resource construction,
 such as identity-provider registration and default identity-provider lookup,
 belong to the Control Plane authoring context used by host registration
 methods such as `DefineResources(...)` and `DefineInitialTemplate(...)`.
@@ -24,12 +24,12 @@ builder methods remain available, but metadata such as identity providers is
 not emitted as `ResourceDefinition` entries and is not part of
 `ResourceTemplate` interchange. The Control Plane context copies that metadata
 to Control Plane services, such as the identity-provider catalog, when the host
-registers the graph.
+registers the resources.
 
 Resource defaults that are themselves resources, such as the Host network or
-default container host, can remain lazy graph builder accessors because they
+default container host, can remain lazy `ResourceGraphBuilder` accessors because they
 represent realized resources in the environment. Identity-provider defaults
-stay outside the graph until CloudShell deliberately introduces a resource type
+stay outside resource templates until CloudShell deliberately introduces a resource type
 for identity providers.
 
 Related changes: [Changelog](CHANGELOG.md).
@@ -90,7 +90,7 @@ runtime capabilities they can use; the hosting environment decides which
 concrete adapters are available.
 
 Default reference implementations may live beside reference providers while
-the Resource Graph POC is being migrated. When those implementations become
+the Resource Model POC is being migrated. When those implementations become
 host-shaped or reusable across providers, they should move behind a default
 runtime integration package rather than becoming direct dependencies from
 providers to the host. Missing adapters should surface clear diagnostics or

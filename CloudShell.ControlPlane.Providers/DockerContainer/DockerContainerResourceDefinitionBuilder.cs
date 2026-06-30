@@ -48,7 +48,7 @@ public sealed class DockerContainerResourceDefinitionBuilder(string name) :
 public static class DockerContainerResourceDefinitionBuilderExtensions
 {
     public static DockerContainerResourceDefinitionBuilder AddDockerContainer(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);

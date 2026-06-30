@@ -14,7 +14,7 @@
 - Typed `ResourceReference` storage dependencies and storage-reference graph validation.
 - Type-specific `storage.volume.provision` operation provider with an injected provider-owned provisioner seam.
 - Typed wrapper plus apply planning and Resource Manager bridge projection/execution.
-- Manual `ResourceDefinitionGraphBuilder.AddCloudShellVolume(...)` builder
+- Manual `ResourceGraphBuilder.AddCloudShellVolume(...)` builder
   plus `AddVolume(...)` convenience builders for code-first volume authoring.
   Graph-level `AddVolume(...)` creates an ad-hoc local filesystem volume;
   storage builder `AddVolume(...)` creates a storage-bound volume with typed

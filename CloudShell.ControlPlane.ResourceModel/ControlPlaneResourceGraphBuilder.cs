@@ -5,20 +5,20 @@ using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceCla
 
 namespace CloudShell.ControlPlane.ResourceModel;
 
-public sealed class ControlPlaneResourceDefinitionGraphBuilder :
-    ResourceDefinitionGraphBuilder
+public sealed class ControlPlaneResourceGraphBuilder :
+    ResourceGraphBuilder
 {
     private readonly ControlPlaneResourceDefinitionContextMetadata _metadata = new();
     private readonly IControlPlaneBuilder? _builder;
     private readonly ResourceDeclarationStore? _declarations;
     private readonly IResourceDeclarationBuilder? _declarationBuilder;
 
-    public ControlPlaneResourceDefinitionGraphBuilder(IResourceIdConvention? resourceIdConvention = null)
+    public ControlPlaneResourceGraphBuilder(IResourceIdConvention? resourceIdConvention = null)
         : base(resourceIdConvention)
     {
     }
 
-    internal ControlPlaneResourceDefinitionGraphBuilder(
+    internal ControlPlaneResourceGraphBuilder(
         IControlPlaneBuilder builder,
         ResourceDeclarationStore declarations,
         IResourceIdConvention? resourceIdConvention = null)

@@ -14,7 +14,7 @@
 - Passive name-mapping capability marker.
 - Temporary `ResourceReference` DNS-zone and target dependencies.
 - Typed wrapper, apply planning, graph validation, and Resource Manager bridge projection.
-- Manual `ResourceDefinitionGraphBuilder.AddNameMapping(...)` builder for
+- Manual `ResourceGraphBuilder.AddNameMapping(...)` builder for
   lower-level code-first name mapping definition authoring, plus preferred
   DNS-zone-owned `dnsZone.AddNameMapping(...)` and `dnsZone.MapHost(...)`
   convenience APIs.

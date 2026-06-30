@@ -16,9 +16,9 @@
 - Orchestration descriptor projection to `ContainerHostDescriptor`, allowing
   graph-backed generic container-host resources to satisfy explicit or default
   runtime host resolution.
-- Manual `ResourceDefinitionGraphBuilder.AddContainerHost(...)` builder for
+- Manual `ResourceGraphBuilder.AddContainerHost(...)` builder for
   code-first generic container-host definition authoring. The built-in
-  `ResourceDefinitionGraphBuilder.DefaultContainerHost()` helper authors the
+  `ResourceGraphBuilder.DefaultContainerHost()` helper authors the
   default local docker-compatible host resource.
 
 ## Switch-over status

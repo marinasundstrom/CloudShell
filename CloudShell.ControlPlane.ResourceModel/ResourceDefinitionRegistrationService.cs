@@ -27,7 +27,7 @@ public sealed class ResourceDefinitionRegistrationService(
 
         var convention = services.GetService<IResourceIdConvention>() ??
             DefaultResourceIdConvention.Instance;
-        var graph = new ResourceDefinitionGraphBuilder(convention);
+        var graph = new ResourceGraphBuilder(convention);
         graph.Add(resource);
         var definition = graph.BuildGraph().Resources.Single();
         var result = await definitionApply.ApplyTemplateAsync(

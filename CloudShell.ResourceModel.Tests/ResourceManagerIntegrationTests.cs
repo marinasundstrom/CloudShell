@@ -573,7 +573,7 @@ public sealed class ResourceManagerIntegrationTests
             ResourceId: ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId,
             ProviderId: ContainerHostResourceTypeProvider.ProviderId,
             DisplayName: "Explicit container host");
-        var presetGraph = new ResourceDefinitionGraphBuilder();
+        var presetGraph = new ResourceGraphBuilder();
         presetGraph.DefaultContainerHost();
         var presetResources = presetGraph
             .BuildGraph()
@@ -1956,7 +1956,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphResourceProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var volume = graph.AddLocalVolume("data");
         var executable = graph
             .AddExecutableApplication("api")
@@ -2024,7 +2024,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var volume = new ResourceDefinition(
             "data",
             LocalVolumeResourceTypeProvider.ResourceTypeId);
@@ -2219,7 +2219,7 @@ public sealed class ResourceManagerIntegrationTests
                 serviceProvider.GetServices<IResourceProvider>().ToArray()));
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph
             .AddContainerHost("docker")
             .UseDocker();
@@ -2325,7 +2325,7 @@ public sealed class ResourceManagerIntegrationTests
                 serviceProvider.GetServices<IResourceProvider>().ToArray()));
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph
             .AddContainerHost("docker")
             .UseDocker();
@@ -2387,7 +2387,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var apply = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph
             .AddContainerHost("docker")
             .UseDocker();
@@ -2497,7 +2497,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var apply = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph
             .AddContainerHost("docker")
             .UseDocker();
@@ -2639,7 +2639,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var apply = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph
             .AddContainerHost("docker")
             .UseDocker();
@@ -2693,7 +2693,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph.AddDockerHost("engine");
         var container = graph
             .AddContainerApplication("api")
@@ -2868,7 +2868,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var volume = new ResourceDefinition(
             "data",
             LocalVolumeResourceTypeProvider.ResourceTypeId);
@@ -3080,7 +3080,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph
             .AddContainerHost("docker")
             .UseDocker();
@@ -3139,7 +3139,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph
             .AddDockerHost("engine")
             .UseLocalDocker();
@@ -3210,7 +3210,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var container = graph
             .AddDockerContainer("api")
             .WithImage("example/api:1.0")
@@ -3411,7 +3411,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var hostConfiguration = graph.AddHostConfigurationSource("host-settings");
 
         var result = await service.ApplyTemplateAsync(
@@ -3480,7 +3480,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph.AddDockerHost("engine");
         var target = graph
             .AddContainerApplication("api")
@@ -4035,7 +4035,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var zone = graph
             .AddDnsZone("local")
             .WithProvider("hosts-file");
@@ -4108,7 +4108,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var zone = graph.AddDnsZone("local");
         var target = new ResourceDefinition(
             "api",
@@ -4244,7 +4244,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var api = graph
             .AddContainerApplication("application-topology-api")
             .WithImage("example/application-topology-api:1.0");
@@ -4329,7 +4329,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var storageBuilder = graph.AddLocalStorage(
             "local",
             "Data/storage/local");
@@ -4411,7 +4411,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var storage = graph.AddLocalStorage("local");
         var volume = storage.AddVolume(
             "data",
@@ -4543,7 +4543,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var target = graph
             .AddContainerApplication("api")
             .WithImage("example/api:1.0");
@@ -4763,7 +4763,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var identity = graph
             .AddIdentityProvisioning("built-in")
             .WithIdentityProvider("Built-in Identity")
@@ -4838,7 +4838,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var volume = new ResourceDefinition(
             "sql-data",
             LocalVolumeResourceTypeProvider.ResourceTypeId);
@@ -4924,7 +4924,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var server = graph.AddSqlServer("sql");
         var database = graph
             .AddSqlDatabase("appdb")

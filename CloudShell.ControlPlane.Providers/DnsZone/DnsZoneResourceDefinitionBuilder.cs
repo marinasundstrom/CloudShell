@@ -2,7 +2,7 @@ namespace CloudShell.ControlPlane.Providers;
 
 public sealed class DnsZoneResourceDefinitionBuilder(
     string name,
-    ResourceDefinitionGraphBuilder? graph = null) :
+    ResourceGraphBuilder? graph = null) :
     ResourceDefinitionBuilder<DnsZoneResourceDefinitionBuilder>(name)
 {
     protected override ResourceTypeId TypeId =>
@@ -25,7 +25,7 @@ public sealed class DnsZoneResourceDefinitionBuilder(
         if (graph is null)
         {
             throw new InvalidOperationException(
-                "The DNS zone builder is not attached to a resource graph builder.");
+                "The DNS zone builder is not attached to a ResourceGraphBuilder.");
         }
 
         return graph
@@ -84,7 +84,7 @@ public sealed class DnsZoneResourceDefinitionBuilder(
 public static class DnsZoneResourceDefinitionBuilderExtensions
 {
     public static DnsZoneResourceDefinitionBuilder AddDnsZone(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name,
         string? zoneName = null)
     {

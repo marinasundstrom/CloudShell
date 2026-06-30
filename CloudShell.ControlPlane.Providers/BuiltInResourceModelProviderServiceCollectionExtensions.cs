@@ -24,6 +24,28 @@ public sealed class BuiltInResourceModelProviderOptions
 
 public static class BuiltInResourceModelProviderServiceCollectionExtensions
 {
+    public static IControlPlaneBuilder UseBuiltInResourceModelRuntimeAdapters(
+        this IControlPlaneBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Services.AddBuiltInResourceModelRuntimeAdapters();
+
+        return builder;
+    }
+
+    public static IServiceCollection AddBuiltInResourceModelRuntimeAdapters(
+        this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services
+            .AddResourceModelGraphEndpointMappingReconciler()
+            .AddResourceModelGraphDnsZoneNameMappingReconciler();
+
+        return services;
+    }
+
     public static IControlPlaneBuilder UseBuiltInResourceModelProviders(
         this IControlPlaneBuilder builder,
         Action<BuiltInResourceModelProviderOptions>? configure = null)
@@ -118,7 +140,7 @@ public static class BuiltInResourceModelProviderServiceCollectionExtensions
 
     private static IReadOnlyList<ResourceState> CreateDefaultEnvironmentResourceStates()
     {
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         graph.DefaultNetwork();
         graph.DefaultContainerHost();
 

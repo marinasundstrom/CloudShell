@@ -204,7 +204,7 @@ public sealed class BuiltInAuthorityHttpTests
     }
 
     private static async Task<WebApplication> CreateAppAsync(
-        Action<ControlPlaneResourceDefinitionGraphBuilder>? configureResources = null,
+        Action<ControlPlaneResourceGraphBuilder>? configureResources = null,
         Action<IControlPlaneBuilder>? configureControlPlane = null)
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));

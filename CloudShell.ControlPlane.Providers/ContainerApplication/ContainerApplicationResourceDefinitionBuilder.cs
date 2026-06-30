@@ -315,7 +315,7 @@ public static class ContainerApplicationResourceDefinitionBuilderExtensions
     }
 
     public static ContainerApplicationResourceDefinitionBuilder AddContainerApplication(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);

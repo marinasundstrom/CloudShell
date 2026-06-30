@@ -12,7 +12,7 @@
 - Source and read-only entry-count attributes.
 - Inspect operation with an injected provider-owned inspector seam.
 - Typed wrapper plus Resource Manager bridge projection and execution.
-- Manual `ResourceDefinitionGraphBuilder.AddHostConfigurationSource(...)`
+- Manual `ResourceGraphBuilder.AddHostConfigurationSource(...)`
   builder for code-first host configuration source definition authoring.
 - ApplicationTopology sample coverage declares
   `configuration.host:application-topology-host-settings` as host

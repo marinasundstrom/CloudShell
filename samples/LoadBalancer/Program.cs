@@ -100,7 +100,7 @@ builder.Services
     .AddLoadBalancerResourceType()
     .AddDnsZoneResourceType()
     .AddNameMappingResourceType()
-    .AddResourceModelGraphDnsZoneNameMappingReconciler();
+    .AddBuiltInResourceModelRuntimeAdapters();
 cloudShell.UseResourceGraphIntegration();
 builder.Services.Replace(
     ServiceDescriptor.Singleton<ILoadBalancerConfigurationApplier, LoadBalancerGraphTraefikConfigurationApplier>());

@@ -6,12 +6,12 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.ResourceModel.Tests;
 
-public sealed class ResourceDefinitionGraphBuilderTests
+public sealed class ResourceGraphBuilderTests
 {
     [Fact]
-    public void ResourceDefinitionGraphBuilder_DefineResourcesGroupsResourceDeclarations()
+    public void ResourceGraphBuilder_DefineResourcesGroupsResourceDeclarations()
     {
-        var graph = new ResourceDefinitionGraphBuilder()
+        var graph = new ResourceGraphBuilder()
             .DefineResources(resources =>
             {
                 resources
@@ -34,9 +34,9 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public void ResourceDefinitionGraphBuilder_BuildTemplateProjectsGraphIntoResourceTemplate()
+    public void ResourceGraphBuilder_BuildTemplateProjectsGraphIntoResourceTemplate()
     {
-        var graph = new ResourceDefinitionGraphBuilder()
+        var graph = new ResourceGraphBuilder()
             .DefineResources(resources =>
             {
                 resources.AddNetwork("app");
@@ -61,9 +61,9 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public void ResourceDefinitionGraphBuilder_BuildGraphAssignsResourceIdsByConvention()
+    public void ResourceGraphBuilder_BuildGraphAssignsResourceIdsByConvention()
     {
-        var graph = new ResourceDefinitionGraphBuilder()
+        var graph = new ResourceGraphBuilder()
             .DefineResources(resources =>
             {
                 resources.AddNetwork("app");
@@ -76,9 +76,9 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public void ResourceDefinitionGraphBuilder_ExposesDefaultNetworkAndContainerHostAccessors()
+    public void ResourceGraphBuilder_ExposesDefaultNetworkAndContainerHostAccessors()
     {
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
 
         var network = graph.DefaultNetwork();
         var sameNetwork = graph.DefaultNetwork();
@@ -107,9 +107,9 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public void ResourceDefinitionGraphBuilder_BuildsConfigurationPayloadFromNativeBuilderApi()
+    public void ResourceGraphBuilder_BuildsConfigurationPayloadFromNativeBuilderApi()
     {
-        var graph = new ResourceDefinitionGraphBuilder()
+        var graph = new ResourceGraphBuilder()
             .DefineResources(resources =>
             {
                 resources
@@ -128,9 +128,9 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public void ResourceDefinitionGraphBuilder_UsesConfiguredResourceIdConventionForReferences()
+    public void ResourceGraphBuilder_UsesConfiguredResourceIdConventionForReferences()
     {
-        var graph = new ResourceDefinitionGraphBuilder(new TestResourceIdConvention("host"))
+        var graph = new ResourceGraphBuilder(new TestResourceIdConvention("host"))
             .DefineResources(resources =>
             {
                 var docker = resources.AddDockerHost("sample");
@@ -237,9 +237,9 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public void ControlPlaneResourceDefinitionGraphBuilder_RequiresHostIdentityProviderContext()
+    public void ControlPlaneResourceGraphBuilder_RequiresHostIdentityProviderContext()
     {
-        var graph = new ControlPlaneResourceDefinitionGraphBuilder();
+        var graph = new ControlPlaneResourceGraphBuilder();
 
         var exception = Assert.Throws<InvalidOperationException>(() => graph.GetIdentityProvider());
 
@@ -374,7 +374,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
     [Fact]
     public void ResourceDefinitionBuilder_ProjectsIdentityAuthoringReferences()
     {
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var api = graph.AddAspNetCoreProject("api", "src/Api/Api.csproj");
 
         var identity = api.Identity("api-service");
@@ -396,9 +396,9 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public void ResourceDefinitionGraphBuilder_BuildsManualNetworkDefinition()
+    public void ResourceGraphBuilder_BuildsManualNetworkDefinition()
     {
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
 
         graph
             .AddNetwork("app")
@@ -427,14 +427,14 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public async Task ResourceDefinitionGraphBuilder_FeedsGraphApplyPipeline()
+    public async Task ResourceGraphBuilder_FeedsGraphApplyPipeline()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
         services.AddNetworkResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         graph
             .AddNetwork("app")
             .WithDisplayName("App Network")
@@ -466,7 +466,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public async Task ResourceDefinitionGraphBuilder_BuildsServiceDefinitionsWithDependencies()
+    public async Task ResourceGraphBuilder_BuildsServiceDefinitionsWithDependencies()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
@@ -475,7 +475,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
         services.AddSecretsVaultResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var network = graph
             .AddNetwork("app")
             .WithDisplayName("App Network");
@@ -539,7 +539,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public async Task ResourceDefinitionGraphBuilder_BuildsStorageAndVolumeDefinitions()
+    public async Task ResourceGraphBuilder_BuildsStorageAndVolumeDefinitions()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
@@ -547,7 +547,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
         services.AddCloudShellVolumeResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var storage = graph.AddLocalStorage(
             "local",
             "Data/storage/local");
@@ -598,14 +598,14 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public async Task ResourceDefinitionGraphBuilder_BuildsDirectLocalVolumeDefinitions()
+    public async Task ResourceGraphBuilder_BuildsDirectLocalVolumeDefinitions()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
         services.AddCloudShellVolumeResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
 
         graph.AddVolume(
             "data",
@@ -647,7 +647,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public async Task ResourceDefinitionGraphBuilder_BuildsSqlServerAndDatabaseDefinitions()
+    public async Task ResourceGraphBuilder_BuildsSqlServerAndDatabaseDefinitions()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
@@ -657,7 +657,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
         services.AddSqlDatabaseResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var volume = graph.AddVolume(
             "sql-data",
             path: "./Data/storage/sql-server");
@@ -734,7 +734,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public async Task ResourceDefinitionGraphBuilder_BuildsContainerHostAndApplicationDefinitions()
+    public async Task ResourceGraphBuilder_BuildsContainerHostAndApplicationDefinitions()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
@@ -744,7 +744,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
         services.AddContainerApplicationResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var volume = graph.AddVolume(
             "data",
             path: "./Data/storage/api");
@@ -832,14 +832,14 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public void ResourceDefinitionGraphBuilder_BuildsContainerApplicationVirtualNetworkEndpointRequest()
+    public void ResourceGraphBuilder_BuildsContainerApplicationVirtualNetworkEndpointRequest()
     {
         var services = new ServiceCollection();
         services.AddContainerApplicationResourceType();
         services.AddVirtualNetworkResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var network = graph
             .AddVirtualNetwork("apps")
             .WithDisplayName("Apps network");
@@ -875,7 +875,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public async Task ResourceDefinitionGraphBuilder_BuildsExecutableAndProjectDefinitions()
+    public async Task ResourceGraphBuilder_BuildsExecutableAndProjectDefinitions()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
@@ -886,7 +886,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
         services.AddAspNetCoreProjectResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var volume = graph.AddVolume(
             "app-data",
             path: "./Data/storage/app");
@@ -983,7 +983,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
     [Fact]
     public void AspNetCoreProjectResourceDefinitionBuilder_CanDeclareVirtualNetworkPrivateEndpointRequest()
     {
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var network = graph
             .AddVirtualNetwork("app", isDefault: true)
             .WithDisplayName("App Network");
@@ -1018,14 +1018,14 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public async Task ResourceDefinitionGraphBuilder_BuildsIdentityProvisioningDefinitions()
+    public async Task ResourceGraphBuilder_BuildsIdentityProvisioningDefinitions()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
         services.AddIdentityProvisioningResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
 
         graph
             .AddIdentityProvisioning("built-in")
@@ -1058,7 +1058,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public async Task ResourceDefinitionGraphBuilder_BuildsExposureDefinitions()
+    public async Task ResourceGraphBuilder_BuildsExposureDefinitions()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
@@ -1069,7 +1069,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
         services.AddNameMappingResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var api = graph
             .AddContainerApplication("application-topology-api")
             .WithImage("example/application-topology-api:1.0");
@@ -1133,7 +1133,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public async Task ResourceDefinitionGraphBuilder_BuildsDockerContainerAndLocalVolumeDefinitions()
+    public async Task ResourceGraphBuilder_BuildsDockerContainerAndLocalVolumeDefinitions()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
@@ -1141,7 +1141,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
         services.AddLocalVolumeResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
 
         graph
             .AddDockerContainer("api")
@@ -1183,7 +1183,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public async Task ResourceDefinitionGraphBuilder_BuildsLoadBalancerAndHostConfigurationDefinitions()
+    public async Task ResourceGraphBuilder_BuildsLoadBalancerAndHostConfigurationDefinitions()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
@@ -1193,7 +1193,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
         services.AddHostConfigurationSourceResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph.AddDockerHost("engine");
         var target = graph
             .AddContainerApplication("api")
@@ -1240,7 +1240,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public async Task ResourceDefinitionGraphBuilder_BuildsHostNetworkingDefinitions()
+    public async Task ResourceGraphBuilder_BuildsHostNetworkingDefinitions()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
@@ -1249,7 +1249,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
         services.AddAspNetCoreProjectResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var hostNetwork = graph
             .AddLocalHostNetwork("host-local")
             .WithHostReadiness("ready")

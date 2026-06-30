@@ -13,7 +13,7 @@
 - Passive storage-provider and mount-provider capability markers.
 - Inspect operation with an injected provider-owned inspector seam.
 - Typed wrapper plus apply planning and Resource Manager bridge projection/execution.
-- Manual `ResourceDefinitionGraphBuilder.AddStorage(...)` builder plus
+- Manual `ResourceGraphBuilder.AddStorage(...)` builder plus
   `AddLocalStorage(...)` convenience builder for code-first storage definition
   authoring and test setup.
 

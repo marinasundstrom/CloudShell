@@ -122,8 +122,7 @@ builder.Services
     .AddAspNetCoreProjectResourceType()
     .AddDnsZoneResourceType()
     .AddNameMappingResourceType()
-    .AddResourceModelGraphDnsZoneNameMappingReconciler()
-    .AddResourceModelGraphEndpointMappingReconciler();
+    .AddBuiltInResourceModelRuntimeAdapters();
 cloudShell.UseResourceGraphIntegration();
 builder.Services.AddSingleton(new CoreDnsZoneFilePublishingOptions
 {

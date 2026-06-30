@@ -114,10 +114,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource graph now hides implicit default resources such as the Host network
   and default container host by default, while adding an explicit toggle to
   show them when the user wants the complete realized resource set.
-- ResourceDefinition graph builders now expose get-or-add default resource
+- Resource Model builders now expose get-or-add default resource
   accessors for the Host network and default docker-compatible container host,
   matching the default-resource authoring model used by identity providers.
-- Control Plane graph authoring can now retrieve host-registered identity
+- Control Plane resource authoring can now retrieve host-registered identity
   provider context while keeping identity-provider registration on the host
   itself through configuration, built-in identity setup, or host-level
   `AddIdentityProvider(...)` calls.
@@ -155,6 +155,12 @@ on `git blame --follow`, and then by the broad type of change.
   projects graph DNS zone/name-mapping resources into the Resource Manager
   name-publishing provider contract; LoadBalancer and HostVirtualNetwork use
   it instead of sample-local DNS reconciler registrations.
+- Built-in Resource model providers now expose
+  `AddBuiltInResourceModelRuntimeAdapters()` and
+  `UseBuiltInResourceModelRuntimeAdapters()` as explicit local-runtime
+  composition helpers for provider-owned Resource Model runtime adapters,
+  reducing sample setup without hiding runtime materialization inside resource
+  type registration.
 - Control Plane `DefineResources(...)` and `DefineInitialTemplate(...)` now use
   a Control Plane resource-definition context that extends graph resource
   authoring, keeps identity-provider metadata outside `ResourceDefinition` and
@@ -429,19 +435,19 @@ on `git blame --follow`, and then by the broad type of change.
   fixture IDs.
 - ThirdPartyIdentity setup-handler coverage now uses the same stable identity,
   provisioning, and API resource identities as the switched sample instead of
-  graph-prefixed fixture IDs.
+  resource-model fixture IDs.
 - ThirdPartyIdentity's graph ASP.NET Core identity environment provider no
   longer depends on the old application provider options just to resolve the
   default resource identity scope.
 - ThirdPartyIdentity's sample-local identity provisioning and ASP.NET Core
   identity-environment seams now use Resource model naming instead of
   graph-specific class and test names.
-- Resource graph builders can now declare Resource Manager identity binding
+- Resource Model builders can now declare Resource Manager identity binding
   and provision-on-startup intent with old-builder-compatible
   `WithIdentity(...)` and `ProvisionIdentityOnStartup(...)` methods, and
   ThirdPartyIdentity now uses that surface for its API resource.
 - SettingsAndSecrets and ApplicationTopology now also declare API identity
-  binding and provision-on-startup intent directly on their Resource graph
+  binding and provision-on-startup intent directly on their Resource Model
   builders, leaving Resource Manager declarations focused on provider
   registration and permission grants.
 - SQL Server sample runtime bridges and smoke-test guards now use defaults
@@ -452,12 +458,12 @@ on `git blame --follow`, and then by the broad type of change.
   metrics helper.
 - CloudShell.ContainerHost no longer carries the unused old resource-builder
   sample helper after moving the sample declarations to `DefineResources(...)`.
-- Resource graph builders can now register Resource Manager permission grants
+- Resource Model builders can now register Resource Manager permission grants
   and host-level identity providers, allowing SettingsAndSecrets,
   ThirdPartyIdentity, and ApplicationTopology to remove old
   `cloudShell.Resources(...).Declare(...)` blocks in favor of
-  graph-builder metadata.
-- Resource graph builder overloads that accept another resource builder now
+  Resource Model builder metadata.
+- Resource Model builder overloads that accept another resource builder now
   infer typed `ResourceReference` metadata from the target builder for
   startup dependencies, project references, service/name-mapping targets, and
   load-balancer backend routes. Samples now prefer the builder-based overloads
@@ -471,18 +477,18 @@ on `git blame --follow`, and then by the broad type of change.
   Resource Manager bridge resolves referenced values when the project resource
   starts, while `configuration` remains a separate general resource
   configuration channel.
-- Added native ASP.NET Core project graph-builder environment variable
+- Added native ASP.NET Core project Resource Model builder environment variable
   authoring through `WithEnvironmentVariable(...)`, plus provider-owned convenience
   methods for service discovery, HTTP health checks, and HTTP liveness/probe
   declarations, and moved ProjectReference plus SettingsAndSecrets sample
   declarations onto those APIs.
-- Added concept-compatible graph builder endpoint convenience methods for
+- Added concept-compatible Resource Model builder endpoint convenience methods for
   ASP.NET Core projects, container applications, and SQL Server resources so
   common HTTP, HTTPS, TCP, and health-check declarations no longer need to
   hand-author raw endpoint request or health-check payloads.
-- Resource Manager graph host integration now automatically declares resources
+- Resource Manager host integration now automatically declares resources
   defined through `DefineResources(...)` and `DefineInitialTemplate(...)`,
-  with graph-builder metadata helpers for resource groups and autostart policy.
+  with Resource Model builder metadata helpers for resource groups and autostart policy.
   ProjectReference, ReplicatedContainerHealth, HostVirtualNetwork,
   CloudShell.ContainerHost, ContainerAppDeployment, LoadBalancer, and
   SplitHosting no longer need redundant `cloudShell.Resources(...).Declare(...)`
@@ -491,18 +497,18 @@ on `git blame --follow`, and then by the broad type of change.
   graph container-app replicas are projected through Resource Manager child
   resources and shown as occupied slots in the Scale and replicas view, both
   before and after graph-backed replica scaling.
-- Added native resource graph builder configuration authoring through
+- Added native Resource Model builder configuration authoring through
   `WithConfiguration(sectionName, value)`, writing to the ResourceDefinition
   `configuration` channel separately from resource environment variables.
-- Added bridge-owned resource graph identity convenience helpers for
+- Added bridge-owned Resource Model identity convenience helpers for
   `IResourceDefinitionBuilder`: `Identity(...)`, `Principal(...)`, and
   `IdentityClientId(...)`, and updated graph-backed samples to use the helper
   instead of hand-formatting resource identity client ids.
-- Documented the resource graph builder API layering direction: core builders
+- Documented the Resource Model builder API layering direction: core builders
   stay aligned with Resource model concepts, while Aspire-like and old-builder
   convenience shapes should start as extension methods until provider ports
   prove they belong in the shared builder surface.
-- Resource graph sample declarations now omit explicit resource ids by default
+- Resource Model sample declarations now omit explicit resource ids by default
   and use name-first builders plus the host `IResourceIdConvention`; the
   temporary Resource Manager bridge can declare a built graph resource from
   its builder while keeping the old `Resources(...)` seam isolated until the
@@ -510,7 +516,7 @@ on `git blame --follow`, and then by the broad type of change.
 - Documented resource-id and naming conventions as deferred cleanup after the
   provider switch, so the current `resourceTypeId:name` convention stays a POC
   bridge rather than a settled public naming design.
-- Resource graph builders now resolve omitted resource ids through an
+- Resource Model builders now resolve omitted resource ids through an
   `IResourceIdConvention`. The default host convention preserves the existing
   `resourceTypeId:name` ids, while built graphs/deployments carry the resolved
   ids so provider APIs and references can use Aspire-like name-first builder
@@ -873,7 +879,7 @@ on `git blame --follow`, and then by the broad type of change.
   Aspire-compatible in-memory resource declarations and
   `DefineInitialTemplate(...)` for seed-like resource template declarations with
   name, environment, and metadata, both backed by
-  `ResourceDefinitionGraphBuilder`; samples use `DefineResources(...)` for
+  `ResourceGraphBuilder`; samples use `DefineResources(...)` for
   programmatic in-memory graph declarations while template-ready hosts can
   switch the same builder block to `DefineInitialTemplate(...)`.
 - SplitHosting, ProjectReference, ContainerAppDeployment, ThirdPartyIdentity,
@@ -1020,7 +1026,7 @@ on `git blame --follow`, and then by the broad type of change.
   graph-backed API, SQL Server, Configuration Store, and Secrets Vault pages
   render without leaking stored secret values.
 - ThirdPartyIdentity now declares its side-by-side graph identity provisioning
-  resource through the provider-owned `ResourceDefinitionGraphBuilder`
+  resource through the provider-owned `ResourceGraphBuilder`
   identity builder instead of raw graph state, keeping the sample on the same
   programmatic authoring path as provider tests.
 - Graph-backed Docker container lifecycle operations now delegate through an
@@ -1180,7 +1186,7 @@ on `git blame --follow`, and then by the broad type of change.
   operations such as ThirdPartyIdentity Keycloak setup expose their provider
   result through the existing action API.
 - Resource Graph programmatic authoring now starts with a manual
-  `ResourceDefinitionGraphBuilder` and a provider-owned Network builder that
+  `ResourceGraphBuilder` and a provider-owned Network builder that
   emits `ResourceDefinition` and `ResourceTemplate` values for the
   same apply pipeline used by interchange documents.
 - Resource Graph programmatic builders now share common resource id, display

@@ -95,7 +95,7 @@ public sealed class ExecutableApplicationResourceDefinitionBuilder(string name) 
 public static class ExecutableApplicationResourceDefinitionBuilderExtensions
 {
     public static ExecutableApplicationResourceDefinitionBuilder AddExecutableApplication(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);

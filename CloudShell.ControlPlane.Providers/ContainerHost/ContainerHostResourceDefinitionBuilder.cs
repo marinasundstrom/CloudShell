@@ -38,7 +38,7 @@ public static class ContainerHostResourceDefinitionBuilderExtensions
     public const string DefaultContainerHostResourceId = "cloudshell.container-host:default";
 
     public static ContainerHostResourceDefinitionBuilder DefaultContainerHost(
-        this ResourceDefinitionGraphBuilder graph)
+        this ResourceGraphBuilder graph)
     {
         ArgumentNullException.ThrowIfNull(graph);
 
@@ -51,7 +51,7 @@ public static class ContainerHostResourceDefinitionBuilderExtensions
     }
 
     public static ContainerHostResourceDefinitionBuilder AddContainerHost(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);

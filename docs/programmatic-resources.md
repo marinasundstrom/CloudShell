@@ -47,6 +47,21 @@ host. Those defaults are authored through the same lazy graph builder accessors
 as explicit code (`DefaultNetwork()` and `DefaultContainerHost()`), and they do
 not replace explicit resources with the same default IDs.
 
+Runtime adapters remain explicit host choices. For local-development Resource
+Model operations that should materialize endpoint mappings or DNS/name mappings
+through the Control Plane runtime contracts, add the built-in runtime adapter
+preset:
+
+```csharp
+cloudShell
+    .UseBuiltInResourceModelProviders()
+    .UseBuiltInResourceModelRuntimeAdapters();
+```
+
+The preset currently composes provider-owned Resource Model endpoint-mapping
+and DNS name-mapping runtime adapters. Individual provider registration methods
+remain available for specialized hosts and future split provider packages.
+
 Built-in Resource model providers expose specialized extension methods
 for their own resource types. Current provider methods include:
 
@@ -130,22 +145,22 @@ String IDs remain available as lower-level references for existing resources
 and advanced scenarios, but new declarations should treat the authored value
 as a resource name unless the API explicitly asks for a resource ID.
 
-The Resource Graph POC is adding a separate `ResourceDefinitionGraphBuilder`
-for code-first authoring of graph resources and resource templates. These
-builders emit `ResourceDefinition` values, not Resource Manager declarations,
-so the same authored graph can be serialized, imported, applied as a
+The Resource Model POC is adding a separate `ResourceGraphBuilder`
+for code-first authoring of resources and resource templates. These builders
+emit `ResourceDefinition` values, not Resource Manager declarations, so the
+same authored resource graph can be serialized, imported, applied as a
 `ResourceTemplate`, or used by tests. Provider builders should start as small
 manual implementations next to the resource type provider they target. Source
 generation remains a future option once several manual builders show the
 stable conventions and the customization points providers need.
-For Resource Graph provider ports, creating the provider-owned manual builder
+For Resource Model provider ports, creating the provider-owned manual builder
 is part of the porting work unless the provider README explicitly records why
 the builder is deferred. The builder is the first code-first authoring surface
 for the provider's `ResourceDefinition` shape and is used by tests to keep
 resource-template setup aligned with the provider-owned interchange contract.
 
 ```csharp
-var graph = new ResourceDefinitionGraphBuilder();
+var graph = new ResourceGraphBuilder();
 
 graph
     .AddNetwork("app")
@@ -157,8 +172,8 @@ var template = graph.BuildTemplate("local-app", environmentId: "local");
 
 `BuildTemplate(...)` produces desired resource state. It does not produce an
 orchestrator deployment. Resource Manager applies the resource template into the
-graph, providers validate and plan provider-owned changes, and deployment
-planning then projects accepted resource state to orchestrator services,
+Resource Model, providers validate and plan provider-owned changes, and
+deployment planning then projects accepted resource state to orchestrator services,
 replica groups, load-balancer bindings, and the running system.
 
 The initial manual builders cover generic networks, Configuration Store,

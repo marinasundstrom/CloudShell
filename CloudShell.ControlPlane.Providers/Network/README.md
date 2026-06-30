@@ -16,7 +16,7 @@
   resources to the Resource Manager endpoint-mapping provisioner contract and
   can serve network, virtual-network, and host-network reconcile operations.
 - Typed wrapper plus Resource Manager bridge projection and execution.
-- Manual `ResourceDefinitionGraphBuilder.AddNetwork(...)` builder for
+- Manual `ResourceGraphBuilder.AddNetwork(...)` builder for
   code-first `ResourceDefinition` and deployment authoring.
 
 ## Switch-over status

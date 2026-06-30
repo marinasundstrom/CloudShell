@@ -10,7 +10,7 @@ public static class ResourceModelGraphBuilderHostExtensions
 {
     public static IControlPlaneBuilder DefineResources(
         this IControlPlaneBuilder builder,
-        Action<ControlPlaneResourceDefinitionGraphBuilder> configure,
+        Action<ControlPlaneResourceGraphBuilder> configure,
         Func<ResourceState, ResourceState>? projectState = null,
         IResourceIdConvention? resourceIdConvention = null)
     {
@@ -21,7 +21,7 @@ public static class ResourceModelGraphBuilderHostExtensions
         builder.Services.TryAddSingleton<IResourceIdConvention>(convention);
 
         var declarations = ResourceModelResourceDefinitionBuilderExtensions.GetOrAddDeclarationStore(builder.Services);
-        var graph = new ControlPlaneResourceDefinitionGraphBuilder(builder, declarations, convention);
+        var graph = new ControlPlaneResourceGraphBuilder(builder, declarations, convention);
         graph.SeedIdentityProviderDeclarations(declarations);
         configure(graph);
         RegisterDeclarations(builder, graph);
@@ -36,7 +36,7 @@ public static class ResourceModelGraphBuilderHostExtensions
     public static IControlPlaneBuilder DefineInitialTemplate(
         this IControlPlaneBuilder builder,
         string name,
-        Action<ControlPlaneResourceDefinitionGraphBuilder> configure,
+        Action<ControlPlaneResourceGraphBuilder> configure,
         string? environmentId = null,
         IReadOnlyDictionary<string, string>? metadata = null,
         Func<ResourceState, ResourceState>? projectState = null,
@@ -50,7 +50,7 @@ public static class ResourceModelGraphBuilderHostExtensions
         builder.Services.TryAddSingleton<IResourceIdConvention>(convention);
 
         var declarations = ResourceModelResourceDefinitionBuilderExtensions.GetOrAddDeclarationStore(builder.Services);
-        var graph = new ControlPlaneResourceDefinitionGraphBuilder(builder, declarations, convention);
+        var graph = new ControlPlaneResourceGraphBuilder(builder, declarations, convention);
         graph.SeedIdentityProviderDeclarations(declarations);
         configure(graph);
         RegisterDeclarations(builder, graph);
@@ -68,7 +68,7 @@ public static class ResourceModelGraphBuilderHostExtensions
 
     private static void RegisterDeclarations(
         IControlPlaneBuilder builder,
-        ControlPlaneResourceDefinitionGraphBuilder graph)
+        ControlPlaneResourceGraphBuilder graph)
     {
         var declarations = ResourceModelResourceDefinitionBuilderExtensions
             .GetOrAddDeclarationStore(builder.Services);

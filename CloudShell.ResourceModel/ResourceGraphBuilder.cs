@@ -247,7 +247,7 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
     }
 }
 
-public class ResourceDefinitionGraphBuilder(
+public class ResourceGraphBuilder(
     IResourceIdConvention? resourceIdConvention = null)
 {
     private readonly List<IResourceDefinitionBuilder> _resources = [];
@@ -256,8 +256,8 @@ public class ResourceDefinitionGraphBuilder(
 
     public IReadOnlyList<IResourceDefinitionBuilder> ResourceBuilders => _resources;
 
-    public ResourceDefinitionGraphBuilder DefineResources(
-        Action<ResourceDefinitionGraphBuilder> configure)
+    public ResourceGraphBuilder DefineResources(
+        Action<ResourceGraphBuilder> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
 
@@ -265,7 +265,7 @@ public class ResourceDefinitionGraphBuilder(
         return this;
     }
 
-    public ResourceDefinitionGraphBuilder Add(IResourceDefinitionBuilder resource)
+    public ResourceGraphBuilder Add(IResourceDefinitionBuilder resource)
     {
         ArgumentNullException.ThrowIfNull(resource);
 
@@ -278,7 +278,7 @@ public class ResourceDefinitionGraphBuilder(
         return this;
     }
 
-    public ResourceDefinitionGraphBuilder Add(ResourceDefinition definition)
+    public ResourceGraphBuilder Add(ResourceDefinition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
 

@@ -25,7 +25,7 @@
   ReplicatedContainerHealth smoke coverage where graph start, stop, restart,
   image-update, and replica-update actions delegate to runtime adapters and stop
   verifies Docker runtime container cleanup.
-- Manual `ResourceDefinitionGraphBuilder.AddContainerApplication(...)`
+- Manual `ResourceGraphBuilder.AddContainerApplication(...)`
   builder for code-first container app definition authoring with typed host
   dependencies, endpoint requests, replicas, and volume mount capability setup.
 - Provider-owned Resource Manager UI registration for Resource model samples.
