@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -15,6 +16,9 @@ using System.Net;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
+using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
+using ResourceManagerState = CloudShell.Abstractions.ResourceManager.ResourceState;
 
 namespace CloudShell.ControlPlane.Providers;
 
@@ -202,6 +206,22 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
         }
     }
 
+    public IReadOnlyList<ResourceManagerResource> GetRuntimeReplicaResources()
+    {
+        lock (states)
+        {
+            return states.Values
+                .Where(state =>
+                    !string.IsNullOrWhiteSpace(state.ResourceId) &&
+                    state.ParentResource is not null &&
+                    state.Replicas.Count > 0)
+                .SelectMany(state => state.Replicas.Select(replica =>
+                    CreateRuntimeReplicaResource(state, replica)))
+                .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+    }
+
     public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
         string logSourceId,
         int maxEntries = 200,
@@ -275,6 +295,7 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
             var replicaPortStart = definition.ReplicaPortStart ?? ingressPort + 1;
             state.ResourceId = resource.EffectiveResourceId;
             state.ResourceName = resource.Name;
+            state.ParentResource = ResourceModelResourceManagerMapper.ToResourceManagerResource(resource);
             state.LogFormat = ResolveRuntimeLogFormat(resource);
 
             for (var replica = 1; replica <= replicaCount; replica++)
@@ -879,6 +900,108 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
                 : LogSourceAvailability.ProducerRunning);
     }
 
+    private static ResourceManagerResource CreateRuntimeReplicaResource(
+        LocalContainerApplicationProcessRuntimeState state,
+        ReplicaProcess replica)
+    {
+        var parent = state.ParentResource ??
+            throw new InvalidOperationException("Local process replica resources require a parent resource.");
+        var replicaOrdinal = replica.Ordinal.ToString(CultureInfo.InvariantCulture);
+        var totalReplicas = state.Replicas.Count.ToString(CultureInfo.InvariantCulture);
+        var replicaName = $"Replica {replicaOrdinal}";
+        var endpoint = ResolveReplicaEndpoint(parent);
+        var protocol = NormalizeProtocol(endpoint?.Protocol);
+        var endpointName = endpoint?.Name ?? "http";
+        var resourceId = replica.ResourceId;
+
+        return new ResourceManagerResource(
+            resourceId,
+            $"{parent.EffectiveDisplayName} replica {replicaOrdinal}",
+            "runtime.container",
+            "Container app local process runtime",
+            parent.Region,
+            replica.Process.HasExited ? ResourceManagerState.Stopped : ResourceManagerState.Running,
+            [ResourceEndpoint.Contract(endpointName, protocol, ResourceExposureScope.Local, replica.Port)],
+            parent.Version,
+            DateTimeOffset.UtcNow,
+            [],
+            ParentResourceId: parent.Id,
+            TypeId: "runtime.container",
+            HealthChecks: parent.ResourceHealthChecks,
+            ResourceClass: ResourceManagerClass.Container,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.RuntimeKind] = "containerReplica",
+                [ResourceAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
+                [ResourceAttributeNames.RuntimeReplicaCount] = totalReplicas,
+                [ResourceAttributeNames.RuntimeMaterialization] = "localProcess"
+            },
+            Capabilities:
+            [
+                new(ResourceCapabilityIds.LogSources)
+            ],
+            EndpointNetworkMappings:
+            [
+                ResourceEndpointNetworkMapping.ForEndpoint(
+                    resourceId,
+                    endpointName,
+                    $"{protocol}://localhost:{replica.Port.ToString(CultureInfo.InvariantCulture)}",
+                    ResourceExposureScope.Local,
+                    sourceEndpointName: endpointName)
+            ],
+            Source: ResourceSource.Orchestrator,
+            ManagementMode: ResourceManagementMode.RuntimeManaged,
+            Visibility: ResourceVisibility.Hidden,
+            OwnerResourceId: parent.Id,
+            CleanupBehavior: ResourceCleanupBehavior.DeleteWithOwner,
+            Observability: CreateRuntimeReplicaObservability(
+                parent.Id,
+                resourceId,
+                replicaName,
+                replicaOrdinal,
+                totalReplicas));
+    }
+
+    private static ResourceEndpoint? ResolveReplicaEndpoint(ResourceManagerResource parent) =>
+        parent.Endpoints.FirstOrDefault(endpoint =>
+            string.Equals(endpoint.Name, "http", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(endpoint.Protocol, "http", StringComparison.OrdinalIgnoreCase)) ??
+        parent.Endpoints.FirstOrDefault();
+
+    private static ResourceObservability CreateRuntimeReplicaObservability(
+        string parentResourceId,
+        string replicaResourceId,
+        string replicaName,
+        string replicaOrdinal,
+        string replicaCount) =>
+        new(
+            Logs: true,
+            Traces: true,
+            Metrics: true,
+            ResourceAttributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["cloudshell.resource.id"] = replicaResourceId,
+                ["cloudshell.resource.type"] = "runtime.container",
+                [TelemetryAttributeNames.ScopeResourceId] = parentResourceId,
+                [TelemetryAttributeNames.ScopeName] = replicaName,
+                [TelemetryAttributeNames.ScopeKind] = "runtime",
+                [TelemetryAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
+                [TelemetryAttributeNames.RuntimeReplicaCount] = replicaCount
+            },
+            Scopes:
+            [
+                new(
+                    parentResourceId,
+                    replicaName,
+                    "runtime",
+                    $"Runtime replica {replicaOrdinal}",
+                    Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [TelemetryAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
+                        [TelemetryAttributeNames.RuntimeReplicaCount] = replicaCount
+                    })
+            ]);
+
     private static string CreateLogSourceId(
         string resourceId,
         int replicaOrdinal) =>
@@ -915,6 +1038,9 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
             ? Math.Max(1, replicas)
             : 1;
     }
+
+    private static string NormalizeProtocol(string? protocol) =>
+        string.IsNullOrWhiteSpace(protocol) ? "http" : protocol.Trim().ToLowerInvariant();
 
     private static string CreateOtelResourceAttributes(
         Resource resource,
@@ -1078,6 +1204,8 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
         public string ResourceId { get; set; } = string.Empty;
 
         public string ResourceName { get; set; } = string.Empty;
+
+        public ResourceManagerResource? ParentResource { get; set; }
 
         public LogFormat LogFormat { get; set; } = LogFormat.PlainText;
 

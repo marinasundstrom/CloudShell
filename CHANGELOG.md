@@ -93,6 +93,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app console log sources now carry a declared format, allowing
   ASP.NET Core JSON console output from local-process and Docker-backed
   replicas to be parsed as structured log entries instead of raw JSON text.
+- Local-process container app runtime replicas now project `runtime.container`
+  resources, allowing the Environment Map to render replica nodes inside the
+  container app service and replica-group boundaries.
 - Traces view no longer renders recent spans through the terminal-style log
   entry component; the page now stays focused on trace summaries until a trace
   is opened.

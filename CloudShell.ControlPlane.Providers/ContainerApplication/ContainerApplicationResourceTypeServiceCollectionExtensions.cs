@@ -105,6 +105,8 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
         services.TryAddSingleton<IConfiguration>(_ => new ConfigurationManager());
         services.TryAddSingleton<LocalContainerApplicationProcessRuntimeBridge>();
         services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<IResourceProvider, LocalContainerApplicationProcessRuntimeResourceProvider>());
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<ILogProvider, LocalContainerApplicationProcessRuntimeLogProvider>());
         services.Replace(ServiceDescriptor.Singleton<
             IContainerApplicationRuntimeHandler,

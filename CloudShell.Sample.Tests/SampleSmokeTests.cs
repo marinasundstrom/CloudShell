@@ -2108,6 +2108,7 @@ public sealed class SampleSmokeTests
             await WaitForHttpSuccessAsync(
                 $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
                 StartupTimeout);
+            await AssertSignalRRuntimeReplicaResourcesAsync(host);
             await AssertSignalRReplicaLogSourcesAsync(host);
             await StartGraphResourceIfAvailableAsync(host, frontend, "SignalR Frontend");
             await WaitForHttpSuccessAsync(
@@ -2223,6 +2224,52 @@ public sealed class SampleSmokeTests
         hub.GetString() == "ReplicaHub" &&
         attributes.TryGetProperty("runtime.replica.ordinal", out var replicaOrdinal) &&
         replicaOrdinal.GetString() == replica;
+
+    private static async Task AssertSignalRRuntimeReplicaResourcesAsync(SampleProcess host)
+    {
+        const string apiResourceId = "application.container-app:signalr-api";
+        var deadline = DateTimeOffset.UtcNow.Add(StartupTimeout);
+        string? lastBody = null;
+        do
+        {
+            lastBody = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(lastBody);
+            var replicas = resourcesDocument.RootElement
+                .EnumerateArray()
+                .Where(resource =>
+                    string.Equals(resource.GetProperty("typeId").GetString(), "runtime.container", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(resource.GetProperty("ownerResourceId").GetString(), apiResourceId, StringComparison.OrdinalIgnoreCase) &&
+                    resource.TryGetProperty("attributes", out var attributes) &&
+                    attributes.TryGetProperty(ResourceAttributeNames.RuntimeKind, out var runtimeKind) &&
+                    string.Equals(runtimeKind.GetString(), "containerReplica", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(resource => resource.GetProperty("id").GetString(), StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (replicas.Length == 3)
+            {
+                for (var replica = 1; replica <= 3; replica++)
+                {
+                    var replicaText = replica.ToString(CultureInfo.InvariantCulture);
+                    var resource = replicas[replica - 1];
+                    var attributes = resource.GetProperty("attributes");
+                    Assert.Equal($"{apiResourceId}:replica-{replicaText}", resource.GetProperty("id").GetString());
+                    Assert.Equal(apiResourceId, resource.GetProperty("parentResourceId").GetString());
+                    Assert.Equal((int)ResourceState.Running, resource.GetProperty("state").GetInt32());
+                    Assert.Equal("localProcess", attributes.GetProperty(ResourceAttributeNames.RuntimeMaterialization).GetString());
+                    Assert.Equal(replicaText, attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString());
+                    Assert.Equal("3", attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaCount).GetString());
+                }
+
+                return;
+            }
+
+            await Task.Delay(250);
+        }
+        while (DateTimeOffset.UtcNow < deadline);
+
+        throw new TimeoutException(
+            $"Timed out waiting for SignalR local-process runtime replica resources. Last response: {lastBody}");
+    }
 
     private static async Task AssertSignalRReplicaLogSourcesAsync(SampleProcess host)
     {

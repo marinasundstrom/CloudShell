@@ -1,6 +1,18 @@
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ControlPlane.Providers;
+
+public sealed class LocalContainerApplicationProcessRuntimeResourceProvider(
+    LocalContainerApplicationProcessRuntimeBridge bridge) : IResourceProvider
+{
+    public string Id => "resource-model.container-app.local-process-runtime.resources";
+
+    public string DisplayName => "Container app local process runtime";
+
+    public IReadOnlyList<CloudShell.Abstractions.ResourceManager.Resource> GetResources() =>
+        bridge.GetRuntimeReplicaResources();
+}
 
 public sealed class LocalContainerApplicationProcessRuntimeLogProvider(
     LocalContainerApplicationProcessRuntimeBridge bridge) : ILogProvider
