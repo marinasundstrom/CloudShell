@@ -317,9 +317,9 @@ declarative API models Docker as the parent resource and containers as
 sub-resources:
 
 ```csharp
-controlPlane.Resources(resources =>
+controlPlane.DefineResources(resources =>
 {
-    var docker = resources.AddDocker("docker:dev")
+    var docker = resources.Declarations.AddDocker("docker:dev")
         .WithDisplayName("Development Docker");
 
     var redis = docker

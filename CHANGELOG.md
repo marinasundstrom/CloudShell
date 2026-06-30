@@ -49,10 +49,10 @@ on `git blame --follow`, and then by the broad type of change.
 - ResourceDefinition graph builders now expose get-or-add default resource
   accessors for the Host network and default docker-compatible container host,
   matching the default-resource authoring model used by identity providers.
-- ResourceDefinition graph authoring can now register identity providers and
-  select or retrieve the default identity provider, with those declarations
-  copied into the Control Plane identity-provider catalog when the graph is
-  registered with the host.
+- Control Plane graph authoring can now register identity providers and select
+  or retrieve the default identity provider through the host authoring context,
+  with those declarations copied into the Control Plane identity-provider
+  catalog while staying outside `ResourceDefinition` resources.
 - Graph-backed generic container-host resources now project orchestration
   descriptors for runtime host resolution, and the SQL container-host samples
   author `DefaultContainerHost()` as a real default host resource.
@@ -60,6 +60,11 @@ on `git blame --follow`, and then by the broad type of change.
   network and default docker-compatible container-host resources through the
   lazy graph-builder accessors, while explicit resources with those IDs remain
   authoritative.
+- Control Plane `DefineResources(...)` and `DefineInitialTemplate(...)` now use
+  a Control Plane resource-definition context that extends graph resource
+  authoring, keeps identity-provider metadata outside `ResourceDefinition` and
+  `ResourceTemplate` interchange, and keeps `.Declare(...)` as the manual
+  provider-backed resource declaration escape hatch. See ADR-20260630-001.
 - Terminology, domain, architecture, and resource-model docs now define a
   network topology overlay that can be shown in both the Resource graph and
   Environment Map, including future internet-reachability facts.

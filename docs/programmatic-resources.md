@@ -279,11 +279,16 @@ points when the template wants to make them explicit. In the ResourceDefinition
 builder, `resources.DefaultNetwork()` returns the Host network resource and
 `resources.DefaultContainerHost()` returns the default docker-compatible
 container host resource. The accessors are get-or-add helpers, so repeated calls
-refer to the same resource builder. ResourceDefinition graph authoring also
-supports identity-provider metadata through `resources.AddIdentityProvider(...)`,
-`resources.UseDefaultIdentityProvider(...)`, and `resources.GetIdentityProvider()`.
-Those calls feed the Control Plane identity-provider catalog when the graph is
-registered with the host.
+refer to the same resource builder. Control Plane `DefineResources(...)` and
+`DefineInitialTemplate(...)` callbacks receive a Control Plane
+resource-definition context: it behaves like the ResourceDefinition graph
+builder for resource declarations, while also exposing host-level services that
+can contribute to graph construction. Identity-provider helpers such as
+`resources.AddIdentityProvider(...)`,
+`resources.UseDefaultIdentityProvider(...)`, and
+`resources.GetIdentityProvider()` live on that Control Plane context and feed
+the Control Plane identity-provider catalog. They are not emitted as
+`ResourceDefinition` entries.
 
 Graph-backed generic container-host resources project orchestration descriptors
 for the runtime host resolver. This means a resource such as SQL Server can call
@@ -414,7 +419,7 @@ example, the built-in SQL Server builder exposes a top-level SQL Server
 resource without making the caller declare a generic container app:
 
 ```csharp
-cloudShell.Resources(resources =>
+cloudShell.DefineResources(resources =>
 {
     var sqlData = resources
         .AddVolume("sql-data")
@@ -443,12 +448,10 @@ provider-specific credentials. Top-level container applications are the place
 where image selection is part of the logical declaration:
 
 ```csharp
-cloudShell.Resources(resources =>
+cloudShell.DefineResources(resources =>
 {
     resources
-        .AddContainerApplication("redis", "redis:7.2")
-        .WithRegistry("http://localhost:5000")
-        .WithRegistryCredentialsFromEnvironment("registry-user", "REGISTRY_PASSWORD")
+        .AddContainerApplication("redis")
         .WithImage("redis:7.2-alpine");
 });
 ```
@@ -640,57 +643,51 @@ chooses to declare more of them in code.
 Programmatic declarations are registered when CloudShell starts. They appear in
 Resource Manager, participate in authorization, can be assigned to a resource
 group with `WithResourceGroup(...)`, and can declare dependencies with
-`DependsOn(...)` or provider-specific dependency methods.
+`DependsOn(...)` or provider-specific dependency methods. Use
+`resources.Declare(...)` inside `DefineResources(...)` for manual
+provider-backed resource declarations that do not yet have a typed
+ResourceDefinition builder.
 
 Startup auto-start is the declaration intent for local-dev scenarios where
 programmatically declared resources should start when the Control Plane starts.
-Configure the graph default with `resources.WithAutoStart(...)`:
+Configure startup on individual resource builders with `WithAutoStart(...)`:
 
 ```csharp
-controlPlane.Resources(resources =>
+controlPlane.DefineResources(resources =>
 {
-    resources.WithAutoStart(true);
-
     resources
         .AddAspNetCoreProject(
-        "api",
-            "API",
+            "api",
             "src/Api/Api.csproj")
         .WithAutoStart(false);
 });
 ```
 
-The graph default is inherited by resources that do not set their own value.
 Provider policies can also define defaults for their resource declarations.
-Effective startup behavior is resolved as resource override, provider default,
-then graph default. UI-created resources do not use this startup path; create
-flows use an explicit start-after-create option whose initial value comes from
-provider policy.
+UI-created resources do not use this startup path; create flows use an explicit
+start-after-create option whose initial value comes from provider policy.
 
 Dependency auto-start is a separate lifecycle policy. When a Start or Restart
 action is executed with dependency startup enabled, CloudShell may start stopped
-dependencies before starting the requested resource. Configure the graph default
-with `resources.WithDependencyAutoStart(...)`:
+dependencies before starting the requested resource. Configure dependency
+startup on individual resource builders with `WithDependencyAutoStart(...)`:
 
 ```csharp
-controlPlane.Resources(resources =>
+controlPlane.DefineResources(resources =>
 {
-    resources.WithDependencyAutoStart(false);
-
     var database = resources
-        .AddContainer("postgres", "postgres:16-alpine")
+        .AddContainerApplication("postgres")
+        .WithImage("postgres:16-alpine")
         .WithDependencyAutoStart(true);
 
     resources
         .AddAspNetCoreProject(
-        "api",
-            "API",
+            "api",
             "src/Api/Api.csproj")
         .DependsOn(database);
 });
 ```
 
-The graph default is inherited by resources that do not set their own value.
 Use `WithDependencyAutoStart(false)` on a resource when it should not be started
 automatically as a dependency, such as an expensive local database or an
 externally managed service. Explicitly running that resource still works. If a
@@ -776,12 +773,12 @@ configuration and the core resource registration store using the same provider
 setup logic as the UI:
 
 ```csharp
-controlPlane.Resources(resources =>
+controlPlane.DefineResources(resources =>
 {
     resources
         .AddConfigurationStore("shared")
         .WithDisplayName("Shared Configuration")
-        .WithEntry("FeatureFlags:UseNewFlow", "true")
+        .WithEndpoint("http://localhost:5138")
         .Persist();
 });
 ```
@@ -822,12 +819,12 @@ The intended flow is:
 current persisted provider configuration and registration metadata:
 
 ```csharp
-controlPlane.Resources(resources =>
+controlPlane.DefineResources(resources =>
 {
     resources
         .AddConfigurationStore("shared")
         .WithDisplayName("Shared Configuration")
-        .WithEntry("FeatureFlags:UseNewFlow", "true")
+        .WithEndpoint("http://localhost:5138")
         .Persist(overwrite: true);
 });
 ```

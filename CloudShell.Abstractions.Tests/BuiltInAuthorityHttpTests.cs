@@ -6,6 +6,7 @@ using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Hosting;
+using CloudShell.ControlPlane.ResourceModel;
 using CloudShell.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
@@ -216,7 +217,7 @@ public sealed class BuiltInAuthorityHttpTests
     }
 
     private static async Task<WebApplication> CreateAppAsync(
-        Action<IResourceGraphBuilder>? configureResources = null)
+        Action<ControlPlaneResourceDefinitionGraphBuilder>? configureResources = null)
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(contentRoot);
@@ -258,7 +259,7 @@ public sealed class BuiltInAuthorityHttpTests
 
         var controlPlane = builder.AddCloudShellControlPlane();
         builder.Services.AddSingleton<IResourceProvider, ResourceIdentityFlowProvider>();
-        controlPlane.Resources(resources =>
+        controlPlane.DefineResources(resources =>
         {
             configureResources?.Invoke(resources);
         });

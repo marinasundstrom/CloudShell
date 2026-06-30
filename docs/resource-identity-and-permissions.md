@@ -96,10 +96,10 @@ programmatic resource declarations.
 
 When multiple providers are available, set a default explicitly for `Required`
 identity bindings. Hosts can use `ResourceIdentity:DefaultProviderId`;
-programmatic declarations and ResourceDefinition graphs can call
-`resources.UseDefaultIdentityProvider(...)`. If a binding cannot resolve to a
-configured or programmatically registered provider, Resource Manager reports a
-`resourceIdentityProviderUnresolved` resource model diagnostic.
+programmatic declarations and Control Plane resource-definition authoring can
+call `resources.UseDefaultIdentityProvider(...)`. If a binding cannot resolve
+to a configured or programmatically registered provider, Resource Manager
+reports a `resourceIdentityProviderUnresolved` resource model diagnostic.
 
 ```csharp
 resources.AddIdentityProvider(
@@ -113,8 +113,8 @@ var api = resources
     .RequireIdentity();
 ```
 
-ResourceDefinition graph authoring can use the same identity-provider metadata
-surface:
+Control Plane resource-definition authoring can use the same identity-provider
+metadata surface while declaring graph resources:
 
 ```csharp
 cloudShell.DefineResources(resources =>
@@ -132,9 +132,11 @@ cloudShell.DefineResources(resources =>
 ```
 
 `resources.AddIdentityProvider(...)` registers provider metadata with the
-declaration model. In ResourceDefinition graphs, the provider metadata is copied
-to the Control Plane identity-provider catalog when the graph is registered
-with the host. When the provider has a provisioning resource, callers must have
+Control Plane declaration model. The metadata is available while building graph
+resources, but it is not part of the `ResourceDefinition` interchange format
+and is copied to the Control Plane identity-provider catalog when the host
+registers the declarations. When the provider has a provisioning resource,
+callers must have
 `CloudShell.Identity/provisioningServices/identities/provision/action` or
 `resources.manage` on that resource before provisioning identities. The
 provisioning resource is not required to be the identity provider itself; it can
@@ -236,7 +238,7 @@ cloudShell.ConfigureInMemoryIdentity(identity =>
         role: "CloudShell.Reader");
 });
 
-cloudShell.Resources(resources =>
+cloudShell.DefineResources(resources =>
 {
     var identity = resources.GetIdentityProvider();
     var alice = identity.GetUser("alice");

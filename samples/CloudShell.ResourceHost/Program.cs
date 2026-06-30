@@ -7,6 +7,7 @@ using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.ControlPlane.Authentication;
+using CloudShell.ControlPlane.ResourceModel;
 using CloudShell.ResourceHost;
 
 var builder = CloudShellApplication.CreateBuilder(args);
@@ -28,10 +29,9 @@ cloudShell.ConfigureInMemoryIdentity(identity =>
         role: "CloudShell.Reader");
 });
 
-cloudShell.Resources(resources =>
+cloudShell.DefineResources(resources =>
 {
-    var identity = resources.GetIdentityProvider();
-    var alice = identity.GetUser("alice");
+    var alice = resources.GetIdentityProvider().GetUser("alice");
     var database = resources.Declare(
         SampleResourceProvider.ProviderId,
         "sample:database");

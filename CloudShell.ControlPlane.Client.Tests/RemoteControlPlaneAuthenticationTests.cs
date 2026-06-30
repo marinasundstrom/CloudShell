@@ -5,6 +5,7 @@ using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Hosting;
+using CloudShell.ControlPlane.ResourceModel;
 using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
@@ -377,7 +378,7 @@ public sealed class RemoteControlPlaneAuthenticationTests
             builder.Services.AddSingleton<ContractLifecycleResourceProvider>();
             builder.Services.AddSingleton<IResourceProvider>(serviceProvider =>
                 serviceProvider.GetRequiredService<ContractLifecycleResourceProvider>());
-            controlPlane.Resources(resources =>
+            controlPlane.DefineResources(resources =>
             {
                 resources.Declare(
                     ContractLifecycleResourceProvider.ProviderId,
@@ -440,7 +441,7 @@ public sealed class RemoteControlPlaneAuthenticationTests
             builder.Services.AddSingleton<ContractLifecycleResourceProvider>();
             builder.Services.AddSingleton<IResourceProvider>(serviceProvider =>
                 serviceProvider.GetRequiredService<ContractLifecycleResourceProvider>());
-            controlPlane.Resources(resources =>
+            controlPlane.DefineResources(resources =>
             {
                 resources.Declare(
                     ContractLifecycleResourceProvider.ProviderId,

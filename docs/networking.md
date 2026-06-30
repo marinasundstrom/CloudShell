@@ -394,14 +394,14 @@ are intentionally validating a macOS-specific provider path.
 The authoring shape is:
 
 ```csharp
-cloudShell.Resources(resources =>
+cloudShell.DefineResources(resources =>
 {
-    var hostNetworking = resources.AddLocalHostNetworking();
+    var hostNetworking = resources.AddLocalHostNetwork("host-local");
     var api = resources.Declare("applications.aspnet-core-project", "application:api");
 
-    var network = resources.AddVirtualNetwork(
-        "network:app",
-        "Application Network");
+    var network = resources
+        .AddVirtualNetwork("app")
+        .WithDisplayName("Application Network");
 
     var ingress = network.AddHttpEndpoint(
         "localhost",

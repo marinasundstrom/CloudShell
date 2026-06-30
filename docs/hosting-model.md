@@ -106,12 +106,12 @@ cloudShell
     .AddApplicationProvider()
     .UseLocalDevelopmentDefaults();
 
-cloudShell.Resources(resources =>
+cloudShell.DefineResources(resources =>
 {
     resources
         .AddConfigurationStore("example")
         .WithDisplayName("Example Configuration")
-        .WithEntry("SampleMessage", "Hello from checked-in configuration");
+        .WithEndpoint("http://localhost:5138");
 });
 
 var app = builder.Build();
@@ -192,12 +192,12 @@ var controlPlane = builder
     .AddConfigurationProvider()
     .AddSecretsProvider();
 
-controlPlane.Resources(resources =>
+controlPlane.DefineResources(resources =>
 {
     resources
         .AddConfigurationStore("shared")
         .WithDisplayName("Shared Configuration")
-        .WithEntry("FeatureFlags:UseNewFlow", "true");
+        .WithEndpoint("http://localhost:5138");
 });
 
 var app = builder.Build();
@@ -290,12 +290,12 @@ var controlPlane = builder
     .AddConfigurationProvider()
     .AddSecretsProvider();
 
-controlPlane.Resources(resources =>
+controlPlane.DefineResources(resources =>
 {
     resources
         .AddConfigurationStore("shared")
         .WithDisplayName("Shared Configuration")
-        .WithEntry("FeatureFlags:UseNewFlow", "true");
+        .WithEndpoint("http://localhost:5138");
 });
 ```
 

@@ -91,10 +91,6 @@ public interface IResourceDeclarationBuilder
         ResourceIdentityBinding? identity = null);
 }
 
-public interface IResourceGraphBuilder : IResourceDeclarationBuilder
-{
-}
-
 public interface IProgrammaticResourceDeclarationProvider
 {
     bool CanApplyDeclaration(ResourceDeclaration declaration);
@@ -218,107 +214,6 @@ public sealed class ResourcePermissionGrantEvaluator(
 
 public static class ResourceDeclarationBuilderExtensions
 {
-    public static IResourceGraphBuilder UseDefaultIdentityProvider(
-        this IResourceGraphBuilder builder,
-        string providerId)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        GetOrAddDeclarationStore(builder.Services)
-            .UseDefaultIdentityProvider(providerId);
-        return builder;
-    }
-
-    public static ResourceIdentityProviderDefinition AddIdentityProvider(
-        this IResourceGraphBuilder builder,
-        string id,
-        string name,
-        ResourceIdentityProviderKind kind = ResourceIdentityProviderKind.Oidc,
-        IReadOnlyDictionary<string, string>? settings = null,
-        string? provisioningResourceId = null,
-        bool useAsDefault = false)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        if (!string.IsNullOrWhiteSpace(provisioningResourceId))
-        {
-            builder.Declare(
-                ResourceIdentityProvisioningResources.ProviderId,
-                provisioningResourceId.Trim(),
-                resourceClass: ResourceClass.Infrastructure,
-                attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    [ResourceAttributeNames.InfrastructureKind] = "identity-provisioning",
-                    ["identity.provider"] = name.Trim()
-                });
-        }
-
-        var provider = new ResourceIdentityProviderDefinition(id, name, kind, settings, provisioningResourceId);
-        return GetOrAddDeclarationStore(builder.Services)
-            .AddIdentityProvider(provider, useAsDefault);
-    }
-
-    public static IResourceGraphBuilder AddResourceGroup(
-        this IResourceGraphBuilder builder,
-        string id,
-        string name,
-        string description = "")
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        GetOrAddDeclarationStore(builder.Services)
-            .AddResourceGroup(id, name, description);
-        return builder;
-    }
-
-    public static IControlPlaneBuilder Resources(
-        this IControlPlaneBuilder builder,
-        Action<IResourceGraphBuilder> configure)
-    {
-        ArgumentNullException.ThrowIfNull(configure);
-
-        var declarations = GetOrAddDeclarationStore(builder.Services);
-        configure(new ResourceGraphBuilder(builder, declarations));
-        return builder;
-    }
-
-    public static IControlPlaneBuilder ConfigureResources(
-        this IControlPlaneBuilder builder,
-        Action<IResourceDeclarationBuilder> configure)
-    {
-        ArgumentNullException.ThrowIfNull(configure);
-
-        var declarations = GetOrAddDeclarationStore(builder.Services);
-
-        configure(new ResourceGraphBuilder(builder, declarations));
-        return builder;
-    }
-
-    public static IControlPlaneBuilder AddResources(
-        this IControlPlaneBuilder builder,
-        Action<IResourceDeclarationBuilder> configure) =>
-        builder.ConfigureResources(configure);
-
-    public static IResourceDeclarationBuilder WithAutoStart(
-        this IResourceDeclarationBuilder builder,
-        bool autoStart = true)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        GetOrAddDeclarationStore(builder.Services).SetDefaultAutoStart(autoStart);
-        return builder;
-    }
-
-    public static IResourceGraphBuilder WithAutoStart(
-        this IResourceGraphBuilder builder,
-        bool autoStart = true)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        GetOrAddDeclarationStore(builder.Services).SetDefaultAutoStart(autoStart);
-        return builder;
-    }
-
     public static TBuilder WithAutoStart<TBuilder>(
         this TBuilder builder,
         bool autoStart = true)
@@ -328,26 +223,6 @@ public static class ResourceDeclarationBuilderExtensions
 
         GetOrAddDeclarationStore(builder.CloudShellBuilder.Services)
             .SetAutoStart(builder.ResourceId, autoStart);
-        return builder;
-    }
-
-    public static IResourceDeclarationBuilder WithDependencyAutoStart(
-        this IResourceDeclarationBuilder builder,
-        bool autoStart = true)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        GetOrAddDeclarationStore(builder.Services).SetDefaultDependencyAutoStart(autoStart);
-        return builder;
-    }
-
-    public static IResourceGraphBuilder WithDependencyAutoStart(
-        this IResourceGraphBuilder builder,
-        bool autoStart = true)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        GetOrAddDeclarationStore(builder.Services).SetDefaultDependencyAutoStart(autoStart);
         return builder;
     }
 
@@ -604,41 +479,6 @@ public static class ResourceDeclarationBuilderExtensions
         services.AddSingleton(declarations);
         return declarations;
     }
-}
-
-internal sealed class ResourceGraphBuilder(
-    ICloudShellBuilder cloudShellBuilder,
-    ResourceDeclarationStore declarations) : IResourceGraphBuilder
-{
-    public ICloudShellBuilder CloudShellBuilder { get; } = cloudShellBuilder;
-
-    public IServiceCollection Services => CloudShellBuilder.Services;
-
-    public IResourceBuilder Declare(
-        string providerId,
-        string resourceId,
-        string? parentResourceId = null,
-        string? resourceGroupId = null,
-        IReadOnlyList<string>? dependsOn = null,
-        ResourceDeclarationPersistence persistence = ResourceDeclarationPersistence.Transient,
-        bool overwritePersistedState = false,
-        ResourceClass? resourceClass = null,
-        IReadOnlyDictionary<string, string>? attributes = null,
-        Action<ResourceDeclaration>? onChanged = null,
-        ResourceIdentityBinding? identity = null) =>
-        declarations.Declare(
-            CloudShellBuilder,
-            providerId,
-            resourceId,
-            parentResourceId,
-            resourceGroupId,
-            dependsOn,
-            persistence,
-            overwritePersistedState,
-            resourceClass,
-            attributes,
-            onChanged,
-            identity);
 }
 
 public sealed class ResourceIdentityDeclarationBuilder

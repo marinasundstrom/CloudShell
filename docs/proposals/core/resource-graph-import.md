@@ -107,10 +107,11 @@ resource type.
 The minimal useful output is a code block like:
 
 ```csharp
-controlPlane.Resources(resources =>
+controlPlane.DefineResources(resources =>
 {
     var api = resources
-        .AddContainerApplication("application:api", "ghcr.io/example/api:latest")
+        .AddContainerApplication("api")
+        .WithImage("ghcr.io/example/api:latest")
         .WithDisplayName("API")
         .WithEndpoint("http", targetPort: 8080)
         .WithEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
@@ -264,7 +265,7 @@ needs manual completion.
 
 ## Open Questions
 
-* Should generated declarations be emitted as a full `controlPlane.Resources`
+* Should generated declarations be emitted as a full `controlPlane.DefineResources`
   block, a method body, or smaller snippets grouped by resource type?
 * Should direct UI apply default to transient declarations, persisted provider
   state, or resource group template import?

@@ -547,19 +547,22 @@ but it can expose a toggle for showing implicit/default resources when the user
 needs the complete realized resource set. Authored default overrides remain
 visible as declared resources.
 
-ResourceDefinition authoring should expose those defaults through named graph
-builder accessors rather than forcing every caller to know the default IDs.
+ResourceDefinition authoring should expose resource defaults through named
+graph builder accessors rather than forcing every caller to know the default IDs.
 `DefaultNetwork()` returns the Host network and `DefaultContainerHost()` returns
 the configured default container-host resource. The resources are created
 lazily only when those accessors are called or when a host preset calls them.
 If a host does not declare a default resource and does not install a preset that
 contributes it, there is no default network or default container host to
 resolve. Explicit resources with the same default IDs override preset fallback
-resources. ResourceDefinition graph authoring can also register identity
-providers and select the default provider with `AddIdentityProvider(...)`,
-`UseDefaultIdentityProvider(...)`, and `GetIdentityProvider()`. Identity
-providers remain Control Plane identity metadata rather than ResourceDefinition
-resources until the identity-provider resource shape is designed.
+resources. Host-level defaults that are not resources, such as identity
+providers used to resolve user or resource principals, stay outside the
+ResourceDefinition graph. Control Plane programmatic authoring exposes those
+host capabilities through a Control Plane resource-definition context with
+methods such as `AddIdentityProvider(...)`,
+`UseDefaultIdentityProvider(...)`, and `GetIdentityProvider()`. Those calls
+can influence the resources being declared, but they register Control Plane
+identity metadata rather than `ResourceDefinition` resources.
 
 Internet reachability should be explicit or observed, not inferred from local
 endpoint exposure alone. Local development resources can expose `localhost`

@@ -247,7 +247,7 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
     }
 }
 
-public sealed class ResourceDefinitionGraphBuilder(
+public class ResourceDefinitionGraphBuilder(
     IResourceIdConvention? resourceIdConvention = null)
 {
     private readonly List<IResourceDefinitionBuilder> _resources = [];

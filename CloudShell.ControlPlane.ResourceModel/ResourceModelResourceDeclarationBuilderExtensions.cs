@@ -6,7 +6,7 @@ namespace CloudShell.ControlPlane.ResourceModel;
 public static class ResourceModelResourceDeclarationBuilderExtensions
 {
     public static IResourceBuilder Declare(
-        this IResourceGraphBuilder builder,
+        this ControlPlaneResourceDefinitionGraphBuilder builder,
         IResourceDefinitionBuilder resource,
         string? parentResourceId = null,
         string? resourceGroupId = null,

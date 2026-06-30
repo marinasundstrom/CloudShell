@@ -9,6 +9,31 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-06-30
+
+### ADR-20260630-001: Keep host-level authoring context outside ResourceDefinition graphs
+
+CloudShell should keep `ResourceDefinitionGraphBuilder` focused on resources
+and templates. Host-level capabilities that can influence graph construction,
+such as identity-provider registration and default identity-provider lookup,
+belong to the Control Plane authoring context used by host registration
+methods such as `DefineResources(...)` and `DefineInitialTemplate(...)`.
+
+That context may extend or wrap the graph builder so provider-owned resource
+builder methods remain available, but metadata such as identity providers is
+not emitted as `ResourceDefinition` entries and is not part of
+`ResourceTemplate` interchange. The Control Plane context copies that metadata
+to Control Plane services, such as the identity-provider catalog, when the host
+registers the graph.
+
+Resource defaults that are themselves resources, such as the Host network or
+default container host, can remain lazy graph builder accessors because they
+represent realized resources in the environment. Identity-provider defaults
+stay outside the graph until CloudShell deliberately introduces a resource type
+for identity providers.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ## 2026-06-29
 
 ### ADR-20260629-001: Name the Resource model and Runtime model

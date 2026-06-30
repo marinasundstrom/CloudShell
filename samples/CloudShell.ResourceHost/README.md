@@ -82,9 +82,10 @@ Use this sample for both cases:
 - `SampleResourceProvider` exposes sample API, database, and worker resources.
 - Sample resources advertise provider-backed lifecycle actions through the
   `resourceActions` API dictionary.
-- The startup `Resources(...)` block declares `sample:api` and
-  `sample:database`, so they are visible immediately in Resource Manager and
-  through the Control Plane API.
+- The startup `DefineResources(...)` block uses manual `.Declare(...)`
+  provider-backed declarations for `sample:api` and `sample:database`, so they
+  are visible immediately in Resource Manager and through the Control Plane
+  API.
 - `Program.cs` calls `ConfigureInMemoryIdentity(...)` to register the built-in
   provider with an in-memory ASP.NET Core Identity store and an `alice` test
   user. Alice can sign in with the configured password, is exposed as a user

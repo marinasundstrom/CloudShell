@@ -237,9 +237,9 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public void ResourceDefinitionGraphBuilder_ExposesDefaultIdentityProvider()
+    public void ControlPlaneResourceDefinitionGraphBuilder_ExposesDefaultIdentityProvider()
     {
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ControlPlaneResourceDefinitionGraphBuilder();
         var provider = graph.AddIdentityProvider(
             "identity:development",
             "Development identity",
@@ -254,7 +254,7 @@ public sealed class ResourceDefinitionGraphBuilderTests
     }
 
     [Fact]
-    public void Host_DefineResourcesRegistersGraphIdentityProviders()
+    public void Host_DefineResourcesRegistersControlPlaneContextIdentityProviders()
     {
         var services = new ServiceCollection();
         services
@@ -285,6 +285,39 @@ public sealed class ResourceDefinitionGraphBuilderTests
         Assert.Equal("identity:development", declarations.DefaultIdentityProviderId);
         Assert.Equal("identity:development", catalog.DefaultProviderId);
         Assert.Equal(ResourceIdentityBindingKind.Required, declaration.IdentityBinding?.Kind);
+        Assert.Equal("api", declaration.IdentityBinding?.Name);
+    }
+
+    [Fact]
+    public void Host_DefineResourcesCanReadConfiguredDefaultIdentityProvider()
+    {
+        var identityProvider = new ResourceIdentityProviderDefinition(
+            "identity:development",
+            "Development identity",
+            ResourceIdentityProviderKind.BuiltIn,
+            new Dictionary<string, string>());
+        var services = new ServiceCollection();
+        services
+            .AddCloudShellControlPlane()
+            .AddIdentityProvider(identityProvider, useAsDefault: true)
+            .DefineResources(resources =>
+            {
+                var configuredIdentityProvider = resources.GetIdentityProvider();
+
+                resources
+                    .AddNetwork("api")
+                    .WithIdentity(configuredIdentityProvider, name: "api");
+            });
+        using var serviceProvider = services.BuildServiceProvider();
+        var declarations = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var provider = Assert.Single(declarations.GetIdentityProviders());
+        var declaration = Assert.Single(
+            declarations.GetDeclarations(),
+            declaration => declaration.ResourceId == "cloudshell.network:api");
+
+        Assert.Equal("identity:development", provider.Id);
+        Assert.Equal("identity:development", declarations.DefaultIdentityProviderId);
+        Assert.Equal("identity:development", declaration.IdentityBinding?.ProviderId);
         Assert.Equal("api", declaration.IdentityBinding?.Name);
     }
 
