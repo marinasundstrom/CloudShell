@@ -94,6 +94,8 @@
   <Project Path="CloudShell.AppHost/CloudShell.AppHost.csproj" />
   <Project Path="CloudShell.Client.Tests/CloudShell.Client.Tests.csproj" />
   <Project Path="CloudShell.Client/CloudShell.Client.csproj" />
+  <Project Path="CloudShell.Cli.Tests/CloudShell.Cli.Tests.csproj" />
+  <Project Path="CloudShell.Cli/CloudShell.Cli.csproj" />
   <Project Path="CloudShell.Components/CloudShell.Components.csproj" />
   <Project Path="CloudShell.Configuration.Client/CloudShell.Configuration.Client.csproj" />
   <Project Path="CloudShell.Configuration/CloudShell.Configuration.csproj" />

@@ -24,6 +24,7 @@ Useful references:
 - [Programmatic resources](programmatic-resources.md)
 - [Control Plane API](control-plane-api.md)
 - [CloudShell and Aspire](cloudshell-and-aspire.md)
+- [CloudShell CLI](cli.md)
 - [Refactoring tracker](refactoring.md)
 - [Cross-language local development proposal](proposals/core/cross-language-local-development.md)
 - [Container applications proposal](proposals/containers/container-applications.md)
@@ -52,7 +53,7 @@ MVP scope:
 | Identity, Built-in | The built-in ASP.NET Core identity provider is enough for simple local-development cases: it can provision resource identities, issue scoped resource-permission tokens, expose provisioned resource identity clients through the standard principal lookup hook, and enforce permissions for Control Plane actions, configuration reads, and secret reads. |
 | Identity, external OIDC validation | The identity model is proven against at least one standards-compliant third-party OIDC/OAuth provider, such as Keycloak, without changing the CloudShell resource identity contract. |
 | App settings and secrets integrations | App settings, configuration-entry references, and secret references work through programmatic declarations, runtime transfer, redaction, authorization, and Resource Manager views that explain runtime impact without leaking values. |
-| Ecosystem-neutral authoring path | CloudShell's local-development model is not C#-only. The MVP must preserve the ResourceDefinition and Control Plane boundaries needed for TypeScript/JavaScript and future language SDKs to author graphs, launch or attach to a host, and use Resource Manager without becoming parallel Control Plane implementations. First full SDK delivery can land after MVP stabilization. |
+| Ecosystem-neutral authoring path | CloudShell's local-development model is not C#-only. The MVP must preserve the ResourceDefinition and Control Plane boundaries needed for the CloudShell CLI, TypeScript/JavaScript, and future language SDKs to author graphs, launch or attach to a host, and use Resource Manager without becoming parallel Control Plane implementations. First full SDK delivery can land after MVP stabilization. |
 | UX polish | Resource Manager common workflows are solid and understandable without being overdone: diagnostics are actionable, generated details are useful, and the app-centric path for identity, configuration, secrets, networking, storage, telemetry, and app controls is discoverable without bespoke sample code. |
 | Samples should work | Supported samples build and smoke-test, including combined hosting, split hosting, container host, settings and secrets, host virtual networking, load balancer, project references, third-party identity, application topology, and container app deployment. |
 

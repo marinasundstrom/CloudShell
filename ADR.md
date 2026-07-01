@@ -11,6 +11,40 @@ link to the decision so the dependency is visible.
 
 ## 2026-07-01
 
+### ADR-20260701-003: Start cross-language bootstrapping with a CloudShell CLI
+
+CloudShell should introduce a first-party CLI before building language-specific
+app-host SDKs. The CLI is the stable local automation entry point, similar in
+role to Azure CLI: it manages CloudShell host processes, discovers or records
+the active Control Plane endpoint, performs common resource operations, applies
+resource templates, configures selected local machine development affordances,
+and later owns login/profile selection for command-line workflows.
+
+The CLI communicates with CloudShell hosts through the Control Plane API. It
+does not validate provider-specific resource semantics, dispatch lifecycle
+operations directly to providers, or become a second resource manager. Starting
+a host is process management; applying a template, querying status, and future
+resource operations are Control Plane API calls using normal identity.
+Although the first local workflow can manage a daemon process, the same CLI
+must be able to target any Control Plane host by URL and, later, by a named
+profile.
+
+Local machine configuration commands, such as adding development host-name
+mappings to a hosts file, are CLI-owned system integration commands. They must
+be explicit, visible, and permission-aware. The CLI may tell the user to rerun
+with elevated privileges or target a custom hosts file, but it should not
+silently escalate with `sudo` or persist secrets in local daemon state.
+
+For the first implementation, bearer tokens can be supplied explicitly or
+through environment variables so authenticated Control Plane APIs are usable
+without designing the full profile store. Tokens must not be written to daemon
+state. A later credential/profile store should be standardized in one
+well-known CloudShell location, similar in role to Azure CLI's local profile,
+so CLI commands and language SDK launchers can resolve the active account,
+Control Plane target, environment, and credential material consistently.
+
+Related proposal: [Cross-language local development](docs/proposals/core/cross-language-local-development.md).
+
 ### ADR-20260701-002: Keep local-development host authoring ecosystem-neutral
 
 CloudShell should not require C# as the only app-host authoring language for

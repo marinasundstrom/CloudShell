@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>cloudshell</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CloudShell.Abstractions\CloudShell.Abstractions.csproj" />
+    <ProjectReference Include="..\CloudShell.ControlPlane.Client\CloudShell.ControlPlane.Client.csproj" />
+    <ProjectReference Include="..\CloudShell.ResourceModel\CloudShell.ResourceModel.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Spectre.Console" Version="0.57.1" />
+  </ItemGroup>
+
+</Project>

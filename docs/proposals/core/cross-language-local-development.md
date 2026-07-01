@@ -50,12 +50,23 @@ then operate the environment through Resource Manager and the Control Plane API.
 
 ## Proposed model
 
-Cross-language local development uses three layers:
+Cross-language local development starts with the CloudShell CLI and then grows
+language SDKs around it. The CLI is the common local automation entry point,
+similar in role to Azure CLI: it can manage the local host process, remember
+the active Control Plane endpoint, target local or remote Control Plane hosts,
+perform common resource operations, apply resource templates, configure
+selected local machine development affordances such as hosts-file name
+mappings, and later own login/profile selection for command-line workflows.
+Language SDKs can invoke the CLI or use the same Control Plane API directly,
+but they should not reimplement host/process/profile behavior differently in
+every ecosystem.
+
+The model uses three layers:
 
 | Layer | Owner | Responsibility |
 | --- | --- | --- |
 | Language SDK | TypeScript/JavaScript, Java, or another ecosystem package | Provides fluent graph builders, local command integration, generated API clients, and ergonomic references for that ecosystem. |
-| Host launcher | CloudShell CLI or launch package | Starts a known .NET CloudShell host profile, passes graph input and settings, watches readiness, and returns endpoint metadata to the SDK. |
+| Host launcher | CloudShell CLI | Starts a known .NET CloudShell host profile, records daemon state, passes graph input and settings, watches readiness, and returns endpoint metadata to the SDK. |
 | Control Plane | CloudShell .NET host | Owns resource validation, provider setup, lifecycle actions, persistence, logs, traces, authorization, API projection, and Resource Manager UI. |
 
 The SDK authors resource intent as a `ResourceTemplate` or equivalent
@@ -118,6 +129,12 @@ The SDK can target a running Control Plane by base URL and credential. In this
 mode it does not launch a host; it applies or previews the graph through the
 API and can query resources and endpoints afterward.
 
+The first CLI accepts an explicit Control Plane URL. Later CLI profile work
+should let users select a named Control Plane target, similar to how cloud CLIs
+select an active subscription, tenant, or environment. That target can be a
+local daemon, split local Control Plane, team-owned host, or on-premise
+Control Plane.
+
 ### Export only
 
 The SDK can emit the ResourceTemplate without applying it. This supports
@@ -164,7 +181,7 @@ Control Plane, and Resource Manager.
 
 ## Host launcher expectations
 
-The launcher is responsible for process concerns:
+The CloudShell CLI launcher is responsible for process concerns:
 
 - finding or installing the selected CloudShell host profile
 - passing appsettings, environment variables, graph files, and port settings
@@ -176,6 +193,33 @@ The launcher is responsible for process concerns:
 The launcher should not validate provider-specific resource semantics itself.
 It may validate launcher arguments and template envelope shape, then leave
 resource validation to the Control Plane and providers.
+
+The CLI can also own local machine integration commands that are outside the
+Control Plane API boundary, such as adding development host-name mappings to a
+hosts file. Those commands should be explicit and permission-aware. When a
+system file requires elevated privileges, the CLI should fail with a clear
+message or support `--dry-run`/custom file targets; it should not silently run
+`sudo`.
+
+## Identity and credentials
+
+The CLI and language SDKs should call the Control Plane API using the same
+identity model as other remote clients. A local unauthenticated host can still
+exist for quick development, but the CLI surface should not assume that
+localhost means unauthenticated.
+
+The initial CLI can accept an explicit bearer token or read one from an
+environment variable. That keeps authenticated Control Plane calls possible
+without prematurely defining a credential store. Tokens and secrets must not be
+persisted in daemon state.
+
+Later work should standardize a CloudShell credential/profile store, similar in
+role to Azure CLI's local profile. That store should let commands resolve the
+active account, selected Control Plane target, selected environment, default
+subscription/project equivalent if CloudShell adds one, and credential
+material from one well-known location. The store design must define secret
+storage, target selection, profile selection, logout behavior, and how language
+SDK launchers discover the same active profile.
 
 ## Resource Manager behavior
 
@@ -191,8 +235,8 @@ not deployment to another environment.
 
 ## Open questions
 
-- Should the first launcher be a standalone `cloudshell` CLI, an npm package
-  that wraps `dotnet`, or both?
+- Which parts of the first `cloudshell` CLI should become stable before
+  language SDKs start depending on them?
 - Which host profiles should be shipped as supported defaults for local
   combined-host and Control Plane-only runs?
 - How should the launcher discover provider packages required by a graph?
@@ -202,13 +246,16 @@ not deployment to another environment.
   versus hand-authored in each language package?
 - How should editor tooling surface source spans from generated
   ResourceDefinition diagnostics?
+- What is the CloudShell credential/profile store layout, and which OS-native
+  secure storage backends should protect token material?
 
 ## Implementation plan
 
-1. Define the launcher contract and ResourceTemplate envelope expected by
+1. Add the first `cloudshell` CLI with `control-plane start|stop|status`,
+   common `resource` operations, local host-name mapping helpers, and
+   `template apply` over the Control Plane API.
+2. Define the launcher contract and ResourceTemplate envelope expected by
    external language SDKs.
-2. Add a minimal local launcher that can start a known combined host profile
-   and apply a graph file.
 3. Add a TypeScript SDK POC with graph builders for ASP.NET Core or generic
    process apps, container apps, configuration, secrets, SQL Server, and basic
    endpoint references.

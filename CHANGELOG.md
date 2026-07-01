@@ -67,6 +67,11 @@ on `git blame --follow`, and then by the broad type of change.
   TypeScript/JavaScript and future non-C# app-host authoring around
   ResourceDefinition interchange, host launchers, generated clients, and the
   existing Control Plane authority.
+- Added the first `cloudshell` CLI project with Spectre.Console output,
+  Control Plane daemon start/stop/status commands, resource list and resource
+  action execution over the Control Plane API, ResourceTemplate apply,
+  transient bearer-token support, local hosts-file name mapping commands,
+  parser and hosts-file tests, and CLI documentation.
 - Built-in Control Plane providers now expose explicit `Use*ResourceProvider`
   registration methods so hosts can compose individual provider capabilities
   while still keeping `UseBuiltInResourceModelProviders()` as the broad preset;
