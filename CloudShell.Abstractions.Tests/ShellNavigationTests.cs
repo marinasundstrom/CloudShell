@@ -192,6 +192,60 @@ public sealed class ShellNavigationTests
     }
 
     [Fact]
+    public async Task CoreShellExtension_RegistersMainMenuItemsAsCoreShellNavigation()
+    {
+        var navigation = CreateCoreShellCatalog(new CoreShellExtension());
+
+        var menu = await navigation.GetMenuAsync(ShellIds.MainMenu);
+
+        Assert.NotNull(menu);
+        Assert.Collection(
+            menu.Groups,
+            workspace =>
+            {
+                Assert.Equal(ShellIds.WorkspaceMenuGroup, workspace.Id);
+                var overview = Assert.Single(workspace.Items);
+                Assert.Equal(ShellIds.OverviewMenuItem, overview.Id);
+                Assert.Equal(ShellIds.OverviewPage.Value, overview.Target.Value);
+            });
+    }
+
+    [Fact]
+    public async Task CoreShellExtension_ResolvesSettingsPageAndNestedSectionTargets()
+    {
+        var catalog = CreateCoreShellCatalog(
+            new CoreShellExtension(),
+            new ResourceManagerExtension());
+        ICoreShellRouteService routes = catalog;
+        ICoreShellSectionService sections = catalog;
+
+        var settings = await routes.ResolveTargetAsync(CoreShellTarget.ForPage(ShellIds.SettingsPage));
+        var users = await routes.ResolveTargetAsync(CoreShellTarget.ForSection(ShellIds.SettingsUsersSection));
+        var resourceManager = await routes.ResolveTargetAsync(
+            CoreShellTarget.ForSection(ResourceManagerShellIds.SettingsGeneralSection));
+        var orchestration = await routes.ResolveTargetAsync(
+            CoreShellTarget.ForSection(ResourceManagerShellIds.SettingsOrchestrationSection));
+        var settingsSections = await sections.GetSectionsAsync(ShellIds.SettingsMainOutlet);
+
+        Assert.Equal("/settings", settings.Href);
+        Assert.Equal("/settings/users", users.Href);
+        Assert.Equal("/settings/resource-manager", resourceManager.Href);
+        Assert.Equal("/settings/resource-manager-orchestration", orchestration.Href);
+        Assert.Equal(
+            "General",
+            settingsSections.Single(section => section.Id == ShellIds.SettingsUsersSection)
+                .Attributes[CoreShellAttributeNames.Group]);
+        Assert.Equal(
+            "Resource Management",
+            settingsSections.Single(section => section.Id == ResourceManagerShellIds.SettingsGeneralSection)
+                .Attributes[CoreShellAttributeNames.Group]);
+        Assert.Equal(
+            "Resource Management",
+            settingsSections.Single(section => section.Id == ResourceManagerShellIds.SettingsOrchestrationSection)
+                .Attributes[CoreShellAttributeNames.Group]);
+    }
+
+    [Fact]
     public void MainMenu_CanCombineProjectedLegacyItemsAndNativeCompositionItems()
     {
         var services = new ServiceCollection();
@@ -221,6 +275,24 @@ public sealed class ShellNavigationTests
         Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ResourceManagerCompositionIds.ResourcesPage.Value);
         Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ResourceManagerCompositionIds.EnvironmentPage.Value);
         Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ResourceManagerCompositionIds.HealthPage.Value);
+    }
+
+    [Fact]
+    public async Task MainMenu_CanCombineCoreShellExtensionItems()
+    {
+        var navigation = CreateCoreShellCatalog(
+            new CoreShellExtension(),
+            new ResourceManagerExtension(includeSettings: false));
+
+        var menu = await navigation.GetMenuAsync(ShellIds.MainMenu);
+
+        Assert.NotNull(menu);
+        var workspaceGroup = Assert.Single(menu.Groups, group => group.Id == ShellIds.WorkspaceMenuGroup);
+        Assert.Equal(4, workspaceGroup.Items.Count);
+        Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ShellIds.OverviewPage.Value);
+        Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ResourceManagerShellIds.ResourcesPage.Value);
+        Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ResourceManagerShellIds.EnvironmentPage.Value);
+        Assert.Contains(workspaceGroup.Items, item => item.Target.Value == ResourceManagerShellIds.HealthPage.Value);
     }
 
     [Fact]
@@ -392,6 +464,22 @@ public sealed class ShellNavigationTests
 
         using var serviceProvider = services.BuildServiceProvider();
         return CompositionRegistry.FromModules(serviceProvider.GetServices<CompositionModule>());
+    }
+
+    private static CoreShellModuleCatalog CreateCoreShellCatalog(
+        params ICloudShellExtension[] extensions)
+    {
+        var services = new ServiceCollection();
+        services.TryAddSingleton<ShellHostContext>();
+
+        var builder = services.AddCloudShellUi();
+        foreach (var extension in extensions)
+        {
+            builder.AddExtension(extension);
+        }
+
+        using var serviceProvider = services.BuildServiceProvider();
+        return new CoreShellModuleCatalog(serviceProvider.GetServices<CoreShellModule>());
     }
 
     private static void ConfigureCoreShellProjection(IServiceCollection services)

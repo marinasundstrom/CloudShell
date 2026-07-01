@@ -42,6 +42,9 @@ sections, content references, layout references, target resolution, and page
 materialization services. The Blazor-specific mapping from CoreShell content
 or layout references to component types belongs in the host adapter, not in
 the foundational CoreShell contracts.
+CloudShell's primary navigation renders from CoreShell services; direct
+composition registry access remains an infrastructure and compatibility path
+while page and section presenters move up to CoreShell.
 Because CloudShell Hosting is a Fluent UI shell, shell-specific presenters
 should use Fluent UI components for navigation, commands, inputs, and other
 interactive elements whenever those components provide the needed semantics and

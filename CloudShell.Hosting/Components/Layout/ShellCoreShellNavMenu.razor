@@ -1,0 +1,244 @@
+@inject ICoreShellNavigationService Navigation
+@inject ICoreShellRouteService Routes
+@inject ICloudShellAuthorizationService Authorization
+@inject ICloudShellUserSettingsProvider Settings
+@inject IStringLocalizer<SharedResource> L
+@using CoreShell
+@using System.Text.Json
+
+@if (Menu is not null && CanShowAuthorization(Menu.Authorization))
+{
+    var visibleItems = BuildVisibleItemContexts(Menu);
+    var itemContextsById = visibleItems.ToDictionary(
+        context => context.Item.Id.Value,
+        StringComparer.OrdinalIgnoreCase);
+    var childItemsByParent = visibleItems
+        .Where(context => context.Item.ParentId is not null)
+        .GroupBy(context => context.Item.ParentId!.Value.Value, StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
+
+    <div class="coreshell-nav-menu">
+        <FluentNavMenu Class="cloudshell-nav-menu"
+                       Title="@L[Menu.Title]"
+                       Margin="0">
+            @foreach (var item in Menu.Items.Where(item => item.ParentId is null))
+            {
+                if (itemContextsById.TryGetValue(item.Id.Value, out var context))
+                {
+                    @RenderItem(context, childItemsByParent)
+                }
+            }
+
+            @foreach (var group in Menu.Groups)
+            {
+                if (!CanShowAuthorization(group.Authorization))
+                {
+                    continue;
+                }
+
+                var rootItems = group.Items
+                    .Where(item => item.ParentId is null && itemContextsById.ContainsKey(item.Id.Value))
+                    .ToArray();
+
+                if (rootItems.Length == 0)
+                {
+                    continue;
+                }
+
+                <section class="nav-group" data-coreshell-menu-group="@group.Id.Value">
+                    <div class="nav-group-title">@L[group.Title]</div>
+
+                    @foreach (var item in rootItems)
+                    {
+                        @RenderItem(itemContextsById[item.Id.Value], childItemsByParent)
+                    }
+                </section>
+            }
+        </FluentNavMenu>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public CoreShellMenuId Id { get; set; }
+
+    private HashSet<string> CollapsedGroups { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    private Dictionary<string, string> Hrefs { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    private CoreShellMenuContribution? Menu { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Menu = await Navigation.GetMenuAsync(Id);
+        if (Menu is not null)
+        {
+            await ResolveHrefsAsync(Menu);
+        }
+
+        var setting = await Settings.GetSettingAsync(CloudShellUserSettingKeys.NavigationCollapsedGroups);
+        foreach (var groupId in ParseCollapsedGroups(setting?.Value))
+        {
+            CollapsedGroups.Add(groupId);
+        }
+    }
+
+    private RenderFragment RenderItem(
+        CoreShellMenuItemContext context,
+        IReadOnlyDictionary<string, CoreShellMenuItemContext[]> childItemsByParent) => @<text>
+        @{
+            var item = context.Item;
+            var href = GetHref(item);
+            var hasChildren = childItemsByParent.TryGetValue(item.Id.Value, out var childItems);
+            var childrenCollapsed = IsGroupCollapsed(item.Id);
+        }
+
+        <div class="nav-parent-row @(hasChildren ? "has-children" : null)"
+             data-coreshell-menu-item="@item.Id.Value">
+            <FluentNavLink Class="cloudshell-nav-link"
+                           Href="@href"
+                           Match="@GetMatch(href)"
+                           Icon="@ShellNavigationIcons.FromName(GetIcon(item))"
+                           IconColor="Color.Neutral"
+                           Tooltip="@L[item.Title]"
+                           ActiveClass="active">
+                <span class="nav-label">@L[item.Title]</span>
+            </FluentNavLink>
+
+            @if (hasChildren)
+            {
+                <button type="button"
+                        class="nav-group-toggle @(childrenCollapsed ? "collapsed" : null)"
+                        title="@GetGroupToggleTitle(item, childrenCollapsed)"
+                        aria-label="@GetGroupToggleTitle(item, childrenCollapsed)"
+                        aria-expanded="@(!childrenCollapsed)"
+                        @onclick="() => ToggleGroupAsync(item.Id)">
+                    <span class="nav-chevron" aria-hidden="true"></span>
+                </button>
+            }
+        </div>
+
+        @if (hasChildren && !childrenCollapsed)
+        {
+            <div class="nav-subitems">
+                @foreach (var childContext in childItems!)
+                {
+                    var child = childContext.Item;
+                    var childHref = GetHref(child);
+                    <div data-coreshell-menu-item="@child.Id.Value">
+                        <FluentNavLink Class="cloudshell-nav-link cloudshell-nav-sub-link"
+                                       Href="@childHref"
+                                       Match="@GetMatch(childHref)"
+                                       Icon="@ShellNavigationIcons.FromName(GetIcon(child))"
+                                       IconColor="Color.Neutral"
+                                       Tooltip="@L[child.Title]"
+                                       ActiveClass="active">
+                            <span class="nav-label">@L[child.Title]</span>
+                        </FluentNavLink>
+                    </div>
+                }
+            </div>
+        }
+    </text>;
+
+    private IReadOnlyList<CoreShellMenuItemContext> BuildVisibleItemContexts(
+        CoreShellMenuContribution menu)
+    {
+        var contexts = new List<CoreShellMenuItemContext>();
+
+        foreach (var item in menu.Items)
+        {
+            var context = new CoreShellMenuItemContext(menu, null, item);
+            if (CanShowNavigationItem(context))
+            {
+                contexts.Add(context);
+            }
+        }
+
+        foreach (var group in menu.Groups)
+        {
+            foreach (var item in group.Items)
+            {
+                var context = new CoreShellMenuItemContext(menu, group, item);
+                if (CanShowNavigationItem(context))
+                {
+                    contexts.Add(context);
+                }
+            }
+        }
+
+        return contexts;
+    }
+
+    private async Task ResolveHrefsAsync(CoreShellMenuContribution menu)
+    {
+        Hrefs.Clear();
+        foreach (var item in menu.Items.Concat(menu.Groups.SelectMany(group => group.Items)))
+        {
+            var resolved = await Routes.ResolveTargetAsync(item.Target);
+            Hrefs[item.Id.Value] = resolved.Href;
+        }
+    }
+
+    private string GetHref(CoreShellMenuItemContribution item) =>
+        Hrefs.GetValueOrDefault(item.Id.Value, "#");
+
+    private static NavLinkMatch GetMatch(string href) =>
+        href == "/" ? NavLinkMatch.All : NavLinkMatch.Prefix;
+
+    private bool CanShowNavigationItem(CoreShellMenuItemContext context) =>
+        CanShowAuthorization(context.Menu.Authorization) &&
+        (context.Group is null || CanShowAuthorization(context.Group.Authorization)) &&
+        CanShowAuthorization(context.Item.Authorization);
+
+    private bool CanShowAuthorization(CoreShellAuthorizationRequirements requirements) =>
+        requirements.AnyPermissions.Count == 0 ||
+        Authorization.HasAnyPermission(requirements.AnyPermissions);
+
+    private bool IsGroupCollapsed(CoreShellMenuItemId itemId) =>
+        CollapsedGroups.Contains(itemId.Value);
+
+    private async Task ToggleGroupAsync(CoreShellMenuItemId itemId)
+    {
+        if (!CollapsedGroups.Add(itemId.Value))
+        {
+            CollapsedGroups.Remove(itemId.Value);
+        }
+
+        await Settings.SetSettingAsync(
+            CloudShellUserSettingKeys.NavigationCollapsedGroups,
+            JsonSerializer.Serialize(CollapsedGroups.Order(StringComparer.OrdinalIgnoreCase)));
+    }
+
+    private string GetGroupToggleTitle(CoreShellMenuItemContribution item, bool collapsed) =>
+        collapsed
+            ? L["Expand {0}", L[item.Title]].Value
+            : L["Collapse {0}", L[item.Title]].Value;
+
+    private static string GetIcon(CoreShellMenuItemContribution item) =>
+        item.Attributes.GetValueOrDefault(CoreShellAttributeNames.Icon) ?? string.Empty;
+
+    private static IReadOnlyList<string> ParseCollapsedGroups(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return [];
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<string[]>(value) ?? [];
+        }
+        catch (JsonException)
+        {
+            return value
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToArray();
+        }
+    }
+
+    private sealed record CoreShellMenuItemContext(
+        CoreShellMenuContribution Menu,
+        CoreShellMenuGroupContribution? Group,
+        CoreShellMenuItemContribution Item);
+}
