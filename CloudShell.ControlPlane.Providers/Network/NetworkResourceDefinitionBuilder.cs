@@ -34,7 +34,7 @@ public static class NetworkResourceDefinitionBuilderExtensions
 {
     public const string DefaultNetworkResourceId = "network:host";
 
-    public static NetworkResourceDefinitionBuilder DefaultNetwork(
+    public static NetworkResourceDefinitionBuilder GetDefaultNetwork(
         this ResourceGraphBuilder graph)
     {
         ArgumentNullException.ThrowIfNull(graph);
@@ -47,6 +47,10 @@ public static class NetworkResourceDefinitionBuilderExtensions
                 .WithNetworkKind("Host")
                 .WithHostReadiness("hostReady"));
     }
+
+    public static NetworkResourceDefinitionBuilder DefaultNetwork(
+        this ResourceGraphBuilder graph) =>
+        graph.GetDefaultNetwork();
 
     public static NetworkResourceDefinitionBuilder AddNetwork(
         this ResourceGraphBuilder graph,

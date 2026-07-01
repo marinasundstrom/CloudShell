@@ -76,14 +76,14 @@ public sealed class ResourceGraphBuilderTests
     }
 
     [Fact]
-    public void ResourceGraphBuilder_ExposesDefaultNetworkAndContainerHostAccessors()
+    public void ResourceGraphBuilder_LazilyCreatesDefaultNetworkAndContainerHost()
     {
         var graph = new ResourceGraphBuilder();
 
-        var network = graph.DefaultNetwork();
-        var sameNetwork = graph.DefaultNetwork();
-        var containerHost = graph.DefaultContainerHost();
-        var sameContainerHost = graph.DefaultContainerHost();
+        var network = graph.GetDefaultNetwork();
+        var sameNetwork = graph.GetDefaultNetwork();
+        var containerHost = graph.GetContainerHost();
+        var sameContainerHost = graph.GetContainerHost();
 
         Assert.Same(network, sameNetwork);
         Assert.Same(containerHost, sameContainerHost);

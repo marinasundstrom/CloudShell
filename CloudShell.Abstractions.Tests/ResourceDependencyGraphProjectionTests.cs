@@ -214,7 +214,7 @@ public sealed class ResourceDependencyGraphProjectionTests
     }
 
     [Fact]
-    public void Create_DoesNotProjectImplicitHostNetworkConnectivity()
+    public void Create_HidesImplicitHostNetworkConnectivityByDefault()
     {
         var localApi = CreateLocalHostHttpResource();
 
@@ -222,7 +222,54 @@ public sealed class ResourceDependencyGraphProjectionTests
             [localApi],
             CreateOptions(includeNetworkTopologyOverlay: true));
 
+        Assert.Equal(1, graph.ResourceCount);
+        Assert.DoesNotContain(graph.Nodes, node => node.Id == "network:host");
         Assert.Null(Assert.Single(graph.Nodes, node => node.Id == localApi.Id).InternetReachability);
+    }
+
+    [Fact]
+    public void Create_ProjectsImplicitHostNetworkWithoutTopologyOverlayWhenImplicitResourcesAreIncluded()
+    {
+        var localApi = CreateLocalHostHttpResource();
+
+        var graph = ResourceDependencyGraphProjection.Create(
+            [localApi],
+            CreateOptions(includeImplicitResources: true));
+
+        Assert.Equal(2, graph.ResourceCount);
+        Assert.Equal(0, graph.TopologyCount);
+        Assert.Contains(graph.Nodes, node =>
+            node.Id == "network:host" &&
+            node.Label == "Host network" &&
+            node.EndpointText is null);
+        Assert.Empty(graph.Links);
+    }
+
+    [Fact]
+    public void Create_ProjectsImplicitHostNetworkWhenImplicitResourcesAreIncluded()
+    {
+        var localApi = CreateLocalHostHttpResource();
+
+        var graph = ResourceDependencyGraphProjection.Create(
+            [localApi],
+            CreateOptions(
+                includeNetworkTopologyOverlay: true,
+                includeImplicitResources: true));
+
+        Assert.Equal(2, graph.ResourceCount);
+        Assert.Equal(1, graph.TopologyCount);
+        var hostNetwork = Assert.Single(graph.Nodes, node => node.Id == "network:host");
+        Assert.Equal("Host network", hostNetwork.Label);
+        Assert.Equal("Network", hostNetwork.Type);
+        Assert.Equal(ResourceDependencyGraphInternetReachability.Inferred, hostNetwork.InternetReachability);
+        Assert.Equal(
+            ResourceDependencyGraphInternetReachability.Inferred,
+            Assert.Single(graph.Nodes, node => node.Id == localApi.Id).InternetReachability);
+        Assert.Contains(graph.Links, link =>
+            link.Source == "network:host" &&
+            link.Target == localApi.Id &&
+            link.Label == "connects" &&
+            link.Kind == ResourceDependencyGraphLinkKinds.Topology);
     }
 
     [Fact]
@@ -294,12 +341,14 @@ public sealed class ResourceDependencyGraphProjectionTests
 
     private static ResourceDependencyGraphProjectionOptions CreateOptions(
         bool includeNetworkTopologyOverlay = false,
+        bool includeImplicitResources = false,
         IReadOnlyList<Resource>? relationshipResources = null,
         Func<Resource, string>? getResourceTypeLabel = null,
         Func<Resource, string?>? getResourceIconName = null) =>
         new()
         {
             IncludeNetworkTopologyOverlay = includeNetworkTopologyOverlay,
+            IncludeImplicitResources = includeImplicitResources,
             RelationshipResources = relationshipResources,
             GetResourceTypeLabel = getResourceTypeLabel ?? (resource => resource.EffectiveTypeId),
             GetResourceIconName = getResourceIconName ?? (resource => resource.EffectiveTypeId),

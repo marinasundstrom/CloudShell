@@ -21,7 +21,9 @@ public static class ResourceDependencyGraphProjection
         var relationshipResources = projectionOptions.RelationshipResources ?? resources;
         var relationshipResourcesById = relationshipResources
             .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
-        var internetReachability = ResourceInternetReachabilityProjection.CreateMap(resources);
+        var internetReachability = ResourceInternetReachabilityProjection.CreateMap(
+            resources,
+            includeImplicitHostNetwork: projectionOptions.IncludeImplicitResources);
 
         foreach (var resource in resources)
         {
@@ -69,6 +71,24 @@ public static class ResourceDependencyGraphProjection
             AddNetworkTopologyOverlay(resources, visibleResourceIds, internetReachability, nodes, links);
         }
 
+        var inferredResourceCount = projectionOptions.IncludeImplicitResources
+            ? AddInferredHostNetworkNode(
+                resources,
+                internetReachability,
+                projectionOptions.IncludeNetworkTopologyOverlay,
+                visibleResourceIds,
+                nodes,
+                links)
+            : 0;
+        var dependencyCount = links.Values.Count(link => string.Equals(
+            link.Kind,
+            ResourceDependencyGraphLinkKinds.Dependency,
+            StringComparison.OrdinalIgnoreCase));
+        var topologyCount = links.Values.Count(link => string.Equals(
+            link.Kind,
+            ResourceDependencyGraphLinkKinds.Topology,
+            StringComparison.OrdinalIgnoreCase));
+
         return new ResourceDependencyGraphModel(
             nodes.Values
                 .OrderBy(node => GetNodeSortOrder(node.NodeKind))
@@ -80,15 +100,9 @@ public static class ResourceDependencyGraphProjection
                 .ThenBy(link => link.Source, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(link => link.Target, StringComparer.OrdinalIgnoreCase)
                 .ToArray(),
-            resources.Count,
-            links.Values.Count(link => string.Equals(
-                link.Kind,
-                ResourceDependencyGraphLinkKinds.Dependency,
-                StringComparison.OrdinalIgnoreCase)),
-            links.Values.Count(link => string.Equals(
-                link.Kind,
-                ResourceDependencyGraphLinkKinds.Topology,
-                StringComparison.OrdinalIgnoreCase)));
+            resources.Count + inferredResourceCount,
+            dependencyCount,
+            topologyCount);
     }
 
     private static void AddNetworkTopologyOverlay(
@@ -196,6 +210,63 @@ public static class ResourceDependencyGraphProjection
                 };
             }
         }
+    }
+
+    private static int AddInferredHostNetworkNode(
+        IReadOnlyList<Resource> resources,
+        IReadOnlyDictionary<string, string> internetReachability,
+        bool includeNetworkTopologyOverlay,
+        ISet<string> visibleResourceIds,
+        IDictionary<string, ResourceDependencyGraphNode> nodes,
+        IDictionary<string, ResourceDependencyGraphLink> links)
+    {
+        if (visibleResourceIds.Contains(ResourceInternetReachabilityProjection.HostNetworkResourceId))
+        {
+            return 0;
+        }
+
+        var connectedResourceIds = ResourceInternetReachabilityProjection.GetHostNetworkConnectedResourceIds(resources)
+            .Where(visibleResourceIds.Contains)
+            .ToArray();
+        if (connectedResourceIds.Length == 0)
+        {
+            return 0;
+        }
+
+        nodes[ResourceInternetReachabilityProjection.HostNetworkResourceId] = new ResourceDependencyGraphNode(
+            ResourceInternetReachabilityProjection.HostNetworkResourceId,
+            "Host network",
+            "host-network",
+            "Network",
+            "network",
+            ResourceClass.Network.ToString(),
+            ResourceDependencyGraphNodeKinds.Resource,
+            includeNetworkTopologyOverlay
+                ? "Implicit host network"
+                : null,
+            "Inferred",
+            "state-running",
+            null,
+            null,
+            internetReachability.GetValueOrDefault(ResourceInternetReachabilityProjection.HostNetworkResourceId) ??
+                ResourceDependencyGraphInternetReachability.Inferred);
+        visibleResourceIds.Add(ResourceInternetReachabilityProjection.HostNetworkResourceId);
+
+        if (includeNetworkTopologyOverlay)
+        {
+            foreach (var resourceId in connectedResourceIds)
+            {
+                AddLink(
+                    links,
+                    ResourceInternetReachabilityProjection.HostNetworkResourceId,
+                    resourceId,
+                    "connects",
+                    ResourceDependencyGraphLinkKinds.Topology,
+                    resourceId);
+            }
+        }
+
+        return 1;
     }
 
     private static void AddDerivedResourceRelationshipLinks(
@@ -325,6 +396,8 @@ public sealed record ResourceDependencyGraphLink(
 public sealed record ResourceDependencyGraphProjectionOptions
 {
     public bool IncludeNetworkTopologyOverlay { get; init; }
+
+    public bool IncludeImplicitResources { get; init; }
 
     public IReadOnlyList<Resource>? RelationshipResources { get; init; }
 

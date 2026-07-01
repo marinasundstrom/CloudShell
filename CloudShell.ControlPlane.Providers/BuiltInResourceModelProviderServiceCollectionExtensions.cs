@@ -122,8 +122,8 @@ public static class BuiltInResourceModelProviderServiceCollectionExtensions
     private static IReadOnlyList<ResourceState> CreateDefaultEnvironmentResourceStates()
     {
         var graph = new ResourceGraphBuilder();
-        graph.DefaultNetwork();
-        graph.DefaultContainerHost();
+        graph.GetDefaultNetwork();
+        graph.GetContainerHost();
 
         return graph
             .BuildGraph()
