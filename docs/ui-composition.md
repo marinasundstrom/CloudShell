@@ -56,16 +56,15 @@ CloudShell's primary navigation renders from CoreShell services; direct
 composition registry access remains an infrastructure and compatibility path
 while page and section presenters move up to CoreShell.
 Shell links that target CoreShell pages or targets should use the CoreShell
-anchor adapter. Composition anchors remain for compatibility with presenters
-that still consume composition page and section IDs directly.
+anchor adapter. CloudShell Hosting no longer carries Composition-specific
+anchor presenters for shell links.
 Resource Manager page and detail links should use the CoreShell-backed
 Resource Manager shell link helper. Composition registry access remains for
-presenters that still build tab and section state from composition
-projections, not for Resource Manager href generation.
+the internal CoreShell-to-Composition projection bridge and sandbox-oriented
+composition hosts, not for Resource Manager href generation.
 CloudShell Settings now renders from CoreShell page, section address, route,
 and Blazor projection services; the Composition-backed tabbed section layout
-remains a compatibility presenter for surfaces that have not moved to
-CoreShell yet.
+has been removed from CloudShell Hosting.
 Because CloudShell Hosting is a Fluent UI shell, shell-specific presenters
 should use Fluent UI components for navigation, commands, inputs, and other
 interactive elements whenever those components provide the needed semantics and
