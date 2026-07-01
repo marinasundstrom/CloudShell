@@ -312,6 +312,25 @@ public sealed class ResourceDependencyGraphProjectionTests
     }
 
     [Fact]
+    public void Create_IgnoresDuplicateResourceIds()
+    {
+        var hostNetwork = CreateHostNetworkResource();
+        var duplicateHostNetwork = CreateHostNetworkResource();
+        var localApi = CreateLocalHostHttpResource();
+
+        var graph = ResourceDependencyGraphProjection.Create(
+            [localApi, hostNetwork, duplicateHostNetwork],
+            CreateOptions(
+                includeNetworkTopologyOverlay: true,
+                includeImplicitResources: true,
+                relationshipResources: [localApi, hostNetwork, duplicateHostNetwork]));
+
+        Assert.Equal(2, graph.ResourceCount);
+        Assert.Single(graph.Nodes, node => node.Id == hostNetwork.Id);
+        Assert.Single(graph.Nodes, node => node.Id == localApi.Id);
+    }
+
+    [Fact]
     public void IsImplicitDefaultResource_IdentifiesOnlyProjectedDefaultResources()
     {
         var hostNetwork = CreateHostNetworkResource();

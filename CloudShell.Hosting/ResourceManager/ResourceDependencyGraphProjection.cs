@@ -13,19 +13,23 @@ public static class ResourceDependencyGraphProjection
         ArgumentNullException.ThrowIfNull(resources);
 
         var projectionOptions = options ?? new ResourceDependencyGraphProjectionOptions();
+        var distinctResources = DistinctResources(resources);
         var nodes = new Dictionary<string, ResourceDependencyGraphNode>(StringComparer.OrdinalIgnoreCase);
         var links = new Dictionary<string, ResourceDependencyGraphLink>(StringComparer.OrdinalIgnoreCase);
-        var visibleResourceIds = resources
+        var visibleResourceIds = distinctResources
             .Select(resource => resource.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var relationshipResources = projectionOptions.RelationshipResources ?? resources;
+        var relationshipResources = DistinctResources(projectionOptions.RelationshipResources ?? distinctResources);
         var relationshipResourcesById = relationshipResources
-            .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(
+                resource => resource.Id,
+                resource => resource,
+                StringComparer.OrdinalIgnoreCase);
         var internetReachability = ResourceInternetReachabilityProjection.CreateMap(
-            resources,
+            distinctResources,
             includeImplicitHostNetwork: projectionOptions.IncludeImplicitResources);
 
-        foreach (var resource in resources)
+        foreach (var resource in distinctResources)
         {
             nodes[resource.Id] = new ResourceDependencyGraphNode(
                 resource.Id,
@@ -44,7 +48,7 @@ public static class ResourceDependencyGraphProjection
                 resource.Id);
         }
 
-        foreach (var resource in resources)
+        foreach (var resource in distinctResources)
         {
             foreach (var dependencyId in resource.DependsOn
                 .Where(visibleResourceIds.Contains)
@@ -64,16 +68,16 @@ public static class ResourceDependencyGraphProjection
             }
         }
 
-        AddDerivedResourceRelationshipLinks(resources, relationshipResourcesById, visibleResourceIds, links);
+        AddDerivedResourceRelationshipLinks(distinctResources, relationshipResourcesById, visibleResourceIds, links);
 
         if (projectionOptions.IncludeNetworkTopologyOverlay)
         {
-            AddNetworkTopologyOverlay(resources, visibleResourceIds, internetReachability, nodes, links);
+            AddNetworkTopologyOverlay(distinctResources, visibleResourceIds, internetReachability, nodes, links);
         }
 
         var inferredResourceCount = projectionOptions.IncludeImplicitResources
             ? AddInferredHostNetworkNode(
-                resources,
+                distinctResources,
                 internetReachability,
                 projectionOptions.IncludeNetworkTopologyOverlay,
                 visibleResourceIds,
@@ -100,10 +104,16 @@ public static class ResourceDependencyGraphProjection
                 .ThenBy(link => link.Source, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(link => link.Target, StringComparer.OrdinalIgnoreCase)
                 .ToArray(),
-            resources.Count + inferredResourceCount,
+            distinctResources.Count + inferredResourceCount,
             dependencyCount,
             topologyCount);
     }
+
+    private static IReadOnlyList<Resource> DistinctResources(IReadOnlyList<Resource> resources) =>
+        resources
+            .GroupBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToArray();
 
     private static void AddNetworkTopologyOverlay(
         IReadOnlyList<Resource> resources,

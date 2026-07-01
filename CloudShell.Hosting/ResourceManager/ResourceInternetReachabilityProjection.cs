@@ -15,9 +15,13 @@ internal static class ResourceInternetReachabilityProjection
         ArgumentNullException.ThrowIfNull(resources);
 
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var resourcesById = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        var distinctResources = DistinctResources(resources);
+        var resourcesById = distinctResources.ToDictionary(
+            resource => resource.Id,
+            resource => resource,
+            StringComparer.OrdinalIgnoreCase);
 
-        foreach (var resource in resources)
+        foreach (var resource in distinctResources)
         {
             if (GetExplicitReachability(resource) is { } reachability)
             {
@@ -25,7 +29,7 @@ internal static class ResourceInternetReachabilityProjection
             }
         }
 
-        foreach (var resource in resources)
+        foreach (var resource in distinctResources)
         {
             if (result.ContainsKey(resource.Id))
             {
@@ -39,7 +43,7 @@ internal static class ResourceInternetReachabilityProjection
             }
         }
 
-        foreach (var network in resources.Where(resource => result.ContainsKey(resource.Id)))
+        foreach (var network in distinctResources.Where(resource => result.ContainsKey(resource.Id)))
         {
             foreach (var mapping in network.ResourceEndpointMappings)
             {
@@ -56,11 +60,19 @@ internal static class ResourceInternetReachabilityProjection
         ArgumentNullException.ThrowIfNull(resources);
 
         return resources
+            .GroupBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
             .Where(HasHostNetworkBinding)
             .Select(resource => resource.Id)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
+
+    private static IReadOnlyList<Resource> DistinctResources(IReadOnlyList<Resource> resources) =>
+        resources
+            .GroupBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToArray();
 
     private static void AddInferredIfVisible(
         IDictionary<string, string> reachability,
