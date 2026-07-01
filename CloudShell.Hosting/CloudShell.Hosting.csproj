@@ -18,8 +18,6 @@
     <ProjectReference Include="..\CloudShell.Components\CloudShell.Components.csproj" />
     <ProjectReference Include="..\CoreShell\CoreShell.csproj" />
     <ProjectReference Include="..\CoreShell.Blazor\CoreShell.Blazor.csproj" />
-    <ProjectReference Include="..\CoreShell.Composition\CoreShell.Composition.csproj" />
-    <ProjectReference Include="..\CoreShell.Composition.Blazor\CoreShell.Composition.Blazor.csproj" />
   </ItemGroup>
 
 </Project>

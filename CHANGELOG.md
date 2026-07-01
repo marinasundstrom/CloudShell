@@ -48,6 +48,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Removed the legacy ShellCatalog-to-Composition navigation projector and the
   obsolete CloudShell Hosting Composition ID compatibility classes. CloudShell
   navigation now flows through CoreShell menu and route services.
+- Moved the remaining CoreShell-to-Composition Blazor host bridge out of
+  CloudShell Hosting and into `CoreShell.Blazor`. CloudShell Hosting now
+  registers and renders the shell through CoreShell.Blazor instead of
+  referencing Composition UI packages directly.
 - CloudShell's primary navigation menu now renders from CoreShell navigation
   and route services instead of reading the Composition UI registry directly.
 - Shell chrome and dashboard page links can now use a CoreShell-backed anchor

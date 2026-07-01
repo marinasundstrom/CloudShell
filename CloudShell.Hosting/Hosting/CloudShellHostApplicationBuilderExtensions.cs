@@ -10,8 +10,6 @@ using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CoreShell;
 using CoreShell.Blazor;
-using CoreShell.Composition;
-using CoreShell.Composition.Blazor;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
@@ -83,8 +81,7 @@ public static class CloudShellHostApplicationBuilderExtensions
             builder.Configuration.GetSection(MetricVisualizationOptions.SectionName));
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
-        builder.Services.AddCloudShellUiComposition();
-        builder.Services.AddCoreShellBlazor();
+        builder.Services.AddCoreShellBlazorHost();
         builder.Services.TryAddSingleton<ShellHostContext>();
         builder.Services.TryAddSingleton<CoreShellModuleCatalog>();
         builder.Services.TryAddSingleton<ICoreShellPageService>(
@@ -98,12 +95,6 @@ public static class CloudShellHostApplicationBuilderExtensions
         builder.Services.TryAddSingleton<ICoreShellSectionAddressService, CoreShellSectionAddressService>();
         builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<ICoreShellPageResolver, CoreShellModuleCatalog>());
         builder.Services.TryAddSingleton<ICoreShellPageResolutionService, CoreShellPageResolutionService>();
-        builder.Services.TryAddSingleton<CoreShellCompositionModuleFactory>();
-        builder.Services.AddSingleton<CompositionModule>(serviceProvider =>
-            serviceProvider
-                .GetRequiredService<CoreShellCompositionModuleFactory>()
-                .CreateModule(serviceProvider.GetServices<CoreShellModule>()));
-
         ConfigureLocalization(builder);
 
         builder.Services.AddSingleton<ShellCatalog>();

@@ -52,6 +52,10 @@ custom host still decide how those descriptors are presented.
 It can also resolve a specific CoreShell page/outlet pair into Blazor section
 descriptors, which lets host presenters render a tabset, sidebar, accordion,
 or section stack without reading `CoreShell.Composition` projections.
+`CoreShell.Blazor` also owns the internal Blazor host bridge that projects
+CoreShell modules into the lower-level Composition graph used by the current
+route/context host. CloudShell Hosting consumes that bridge through
+CoreShell.Blazor and no longer references Composition UI packages directly.
 CloudShell's primary navigation renders from CoreShell services; direct
 composition registry access remains an infrastructure and compatibility path
 while page and section presenters move up to CoreShell.
@@ -318,10 +322,10 @@ builder.AddCompositionModule<ShellCompositionHostContext>(
     });
 ```
 
-CloudShell Hosting now treats Composition UI as CoreShell infrastructure.
-CloudShell extensions should contribute through CoreShell shell services and
-domain-specific extension points rather than registering composition modules
-directly. Plain Blazor composition hosts can still use
+CloudShell Hosting now treats Composition UI as CoreShell implementation
+infrastructure. CloudShell extensions should contribute through CoreShell
+shell services and domain-specific extension points rather than registering
+composition modules directly. Plain Blazor composition hosts can still use
 `builder.Services.AddCloudShellUiCompositionModule(...)` outside CloudShell
 when they intentionally consume the lower-level composition library.
 

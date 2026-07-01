@@ -3,7 +3,7 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> L
-@using CoreShell.Composition.Blazor
+@using CoreShell.Blazor
 @implements IDisposable
 
 <div class="shell @CollapsedClass">
@@ -15,9 +15,9 @@
         <ShellTopbar />
 
         <article class="shell-content">
-            <CompositionHost RequireRegisteredPage="false">
+            <CoreShellBlazorHost RequireRegisteredPage="false">
                 @Body
-            </CompositionHost>
+            </CoreShellBlazorHost>
         </article>
     </main>
 </div>

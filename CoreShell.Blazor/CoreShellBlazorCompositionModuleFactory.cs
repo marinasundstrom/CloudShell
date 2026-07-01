@@ -1,13 +1,12 @@
-using CoreShell;
 using CoreShell.Composition;
 
-namespace CloudShell.Hosting.Shell;
+namespace CoreShell.Blazor;
 
-internal sealed class CoreShellCompositionModuleFactory(
+internal sealed class CoreShellBlazorCompositionModuleFactory(
     ICoreShellContentResolver contentResolver)
 {
     private static readonly CompositionModuleId ProjectedModuleId =
-        CompositionModuleId.Create("cloudshell.coreshell.projected");
+        CompositionModuleId.Create("coreshell.blazor.projected");
 
     public CompositionModule CreateModule(IEnumerable<CoreShellModule> modules)
     {
