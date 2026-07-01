@@ -81,7 +81,7 @@ public sealed class CloudShellVolumeResourceDefinitionBuilder(string name) :
 public static class CloudShellVolumeResourceDefinitionBuilderExtensions
 {
     public static CloudShellVolumeResourceDefinitionBuilder AddCloudShellVolume(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);
@@ -92,7 +92,7 @@ public static class CloudShellVolumeResourceDefinitionBuilderExtensions
     }
 
     public static CloudShellVolumeResourceDefinitionBuilder AddVolume(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name,
         string? path = StorageResourceDefaults.DefaultAdHocVolumePath,
         StorageVolumeAccessMode accessMode = CloudShellVolumeResourceDefinitionBuilder.DefaultAccessMode,
@@ -106,7 +106,7 @@ public static class CloudShellVolumeResourceDefinitionBuilderExtensions
     }
 
     public static CloudShellVolumeResourceDefinitionBuilder AddVolume(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name,
         IResourceDefinitionBuilder storage,
         string? subPath = null,

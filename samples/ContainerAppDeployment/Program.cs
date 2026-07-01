@@ -17,63 +17,74 @@ var registryPort = builder.Configuration.GetValue("ContainerAppDeployment:Regist
 string registryAddress = $"{registryHost}:{registryPort}";
 const string sampleImage = "cloudshell/mock-api:20260608.1";
 const string resourceGroupId = "container-app-deployment";
+const string registryResourceId = "docker.container:sample-registry";
+const string registryContainerName = "cloudshell-container-app-deployment-registry";
+const string sampleApiResourceId = "application.container-app:sample-api";
 
-var cloudShell = builder.AddCloudShell();
-cloudShell.AddResourceGroup(
-    resourceGroupId,
-    "Container App Deployment",
-    "Resources used by the ContainerAppDeployment sample.");
-IResourceDefinitionBuilder dockerResource = null!;
-IResourceDefinitionBuilder registryResource = null!;
-cloudShell.DefineResources(resources =>
+builder.AddCloudShellControlPlaneApplication(
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
     {
-        dockerResource = resources
-            .AddDockerHost("sample")
-            .WithResourceGroup(resourceGroupId)
-            .WithAutoStart(false)
-            .WithRegistry(registryAddress);
-        registryResource = resources
-            .AddDockerContainer("sample-registry")
-            .WithDisplayName("Sample Registry")
-            .WithResourceGroup(resourceGroupId)
-            .WithAutoStart(false)
-            .UseDockerHost(dockerResource)
-            .WithImage("registry:2")
-            .WithRegistry(registryAddress);
-        resources
-            .AddContainerApplication("sample-api")
-            .WithDisplayName("Sample API")
-            .WithResourceGroup(resourceGroupId)
-            .WithAutoStart(false)
-            .UseDockerHost(dockerResource)
-            .DependsOn(registryResource)
-            .WithImage(sampleImage)
-            .WithRegistry(registryAddress);
+        controlPlane.DefineResources(resources =>
+        {
+            var resourceGroup = resources.AddResourceGroup(
+                resourceGroupId,
+                "Container App Deployment",
+                "Resources used by the ContainerAppDeployment sample.");
+
+            var dockerResource = resources
+                .AddDockerHost("sample")
+                .WithResourceGroup(resourceGroup)
+                .WithAutoStart(false)
+                .WithRegistry(registryAddress);
+            var registryResource = resources
+                .AddDockerContainer("sample-registry")
+                .WithDisplayName("Sample Registry")
+                .WithResourceGroup(resourceGroup)
+                .WithAutoStart(false)
+                .UseDockerHost(dockerResource)
+                .WithImage("registry:2")
+                .WithRegistry(registryAddress);
+            resources
+                .AddContainerApplication("sample-api")
+                .WithDisplayName("Sample API")
+                .WithResourceGroup(resourceGroup)
+                .WithAutoStart(false)
+                .UseDockerHost(dockerResource)
+                .DependsOn(registryResource)
+                .WithImage(sampleImage)
+                .WithRegistry(registryAddress);
+        });
     });
 if (builder.Configuration.GetValue("ContainerAppDeployment:EnableDockerRuntime", false))
 {
     builder.Services
-        .AddSingleton<IDockerContainerRuntimeHandler, ContainerAppDeploymentDockerContainerRuntimeHandler>()
-        .AddSingleton<IResourceOrchestrationDescriptorProvider, ContainerAppDeploymentDockerContainerOrchestrationDescriptorProvider>();
+        .AddLocalDockerContainerRuntime(options =>
+            options.AddContainer(
+                registryResourceId,
+                registryContainerName,
+                runtime => runtime.TargetPort = 5000),
+            descriptors => descriptors.AddResource(
+                registryResourceId,
+                "container-app-deployment.registry-runtime.v1"));
 }
 
 builder.Services
-    .AddSingleton<IContainerAppDeploymentContainerApplicationRuntimeBridge, ContainerAppDeploymentContainerApplicationRuntimeBridge>()
-    .AddSingleton<IContainerApplicationRuntimeHandler, ContainerAppDeploymentContainerApplicationRuntimeHandler>();
-
-builder.Services
-    .AddLocalContainerApplicationResourceTypes()
-    .AddDockerContainerResourceType();
-cloudShell.UseResourceGraphIntegration();
-
-cloudShell
-    .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>();
-cloudShell.AddBuiltInProviderResourceManagerUi();
+    .AddDeferredContainerApplicationRuntime(options =>
+        options.AddResource(sampleApiResourceId));
+builder.AddCloudShellUi(ui =>
+{
+    ui
+        .AddExtension<ResourceManagerExtension>()
+        .AddExtension<ObservabilityExtension>();
+    ui.AddBuiltInProviderResourceManagerUi();
+});
 
 var app = builder.Build();
 
-await app.UseCloudShellAsync();
-app.MapCloudShell<App>();
+await app.UseCloudShellControlPlaneAsync();
+await app.UseCloudShellUiAsync();
+app.MapCloudShellControlPlane();
+app.MapCloudShellUi<App>();
 
 app.Run();

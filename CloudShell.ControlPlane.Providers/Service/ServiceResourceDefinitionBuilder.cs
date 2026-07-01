@@ -50,7 +50,7 @@ public sealed class ServiceResourceDefinitionBuilder(string name) :
 public static class ServiceResourceDefinitionBuilderExtensions
 {
     public static ServiceResourceDefinitionBuilder AddService(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);

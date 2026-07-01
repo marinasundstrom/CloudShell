@@ -412,22 +412,6 @@ else if (ShowHeading)
                         </div>
                     }
 
-                    <div class="log-entry-list wrap" role="log" aria-label="@L["Recent spans"]">
-                        @foreach (var span in spans)
-                        {
-                            <div class="log-entry">
-                                <time>@span.StartTime.ToLocalTime().ToString("HH:mm:ss")</time>
-                                <span class="log-entry-source">@span.Kind</span>
-                                <span class="log-entry-level">@span.Duration.TotalMilliseconds.ToString("0.#")ms</span>
-                                <div class="log-entry-body">
-                                    <pre>@span.Name
-trace <a class="resource-link" href="@BuildTraceRoute(span.ResourceId, span.TraceId)">@FormatTraceId(span.TraceId)</a>
-span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.ParentSpanId}")
-@GetSpanAttributes(span)</pre>
-                                </div>
-                            </div>
-                        }
-                    </div>
                 }
             }
         }
@@ -495,8 +479,8 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
     protected override async Task OnParametersSetAsync()
     {
         DisplaySelection = await DisplaySettings.GetAsync();
-        var resources = await ResourceManager.ListResourcesAsync();
-        ResourcesById = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        var resources = ResourceCollectionProjection.DistinctById(await ResourceManager.ListResourcesAsync());
+        ResourcesById = ResourceCollectionProjection.ToDictionaryById(resources);
         TraceResources = resources
             .Where(resource => resource.EffectiveObservability.Traces)
             .OrderBy(DisplaySelection.GetResourceSortLabel, StringComparer.OrdinalIgnoreCase)
@@ -760,11 +744,6 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
 
         return string.Join(", ", attributes.Select(attribute => $"{attribute.Key}={attribute.Value}"));
     }
-
-    private static string GetSpanAttributes(TraceSpan span) =>
-        span.SpanAttributes.Count == 0
-            ? string.Empty
-            : string.Join(", ", span.SpanAttributes.Select(attribute => $"{attribute.Key}={attribute.Value}"));
 
     private static TraceViewModel BuildTraceView(IReadOnlyList<TraceSpan> spans)
     {

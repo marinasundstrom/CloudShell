@@ -240,8 +240,15 @@ than opening new platform fronts or repeatedly polishing secondary editor
 surfaces:
 
 - Keep supported samples building and smoke-testing.
+- Keep process-backed sample smoke tests serialized until the samples stop
+  sharing mutable runtime resources. Current parallel-safe coverage is limited
+  to fake-adapter and in-memory sample tests that use recording runners,
+  isolated service providers, and unique temporary paths.
 - Make the primary application Resource Manager path understandable without
   sample-specific knowledge.
+- Continue provider runtime enforcement for modeled routing policy, especially
+  container app session affinity/sticky routing now that the resource intent
+  and orchestration routing binding metadata exist.
 - Stabilize the UI contracts behind the main path before adding new UI
   surface area: resource view registration, menu grouping, route/link
   resolution, shared selectors, action controls, status pills, generated
@@ -271,7 +278,7 @@ front. When choosing work, prefer the slice that most improves a developer's
 ability to run, understand, diagnose, and persist a realistic distributed
 application from Resource Manager.
 
-The immediate planning anchor is the Resource Graph POC migration. Supported
+The immediate planning anchor is the Resource Model POC migration. Supported
 samples should continue moving from the old provider-definition path to
 graph-backed `ResourceDefinition` state and the Resource Manager bridge. The
 goal is not to expose deployments publicly yet; it is to make resource
@@ -314,7 +321,7 @@ Plan and verify MVP work through use cases. The priority use cases are:
 6. Persist the resource graph deliberately and understand what changes from
    transient code-first declarations to durable Control Plane state.
 
-The most urgent near-term slice is Resource Graph POC convergence:
+The most urgent near-term slice is Resource Model POC convergence:
 run the graph-backed switch-readiness samples as the standing proof, identify
 where old provider/template/runtime behavior is still required, and close
 those gaps with small provider or Resource Manager bridge changes. Application
@@ -436,7 +443,7 @@ external-format import/code generation, and initial on-premise hosting.
 
 For the next run, prefer these slices in order:
 
-1. Finish Resource Graph POC alignment for the supported samples: keep the
+1. Finish Resource Model POC alignment for the supported samples: keep the
    `ResourceTemplate` envelope ResourceDefinition-based, remove remaining old
    resource-template serialization dependencies where graph-backed providers
    can round-trip definitions, and document non-parity rather than preserving
@@ -883,10 +890,10 @@ listed here before pulling in broader proposal work.
   Server with mounted storage, configuration, secrets, identity, structured
   logs, traces, container apps, and networking should converge as those
   primitives stabilize. The first ApplicationTopology SQL/storage slice is in
-  place: Local Storage, a storage-owned SQL data volume, and a sample-local SQL
-  Server container app are declared, with the backend API resolving SQL Server
-  through CloudShell service discovery and exposing a `/database` check that
-  the frontend calls through the API. A later SQL/database identity slice
+  place: Local Storage, a storage-owned SQL data volume, and a provider-owned
+  local SQL Server Docker runtime are declared, with the backend API resolving
+  SQL Server through CloudShell service discovery and exposing a `/database`
+  check that the frontend calls through the API. A later SQL/database identity slice
   should let application resources use CloudShell resource identity for
   database authentication in an Azure-like flow.
 - Treat the Settings and Secrets sample as the current proof of the developer

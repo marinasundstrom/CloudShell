@@ -150,3 +150,10 @@ or virtual network to resolve CloudShell resources without CloudShell tracking
 programmatic application references or projecting per-application environment
 variables. That future capability should complement this developer flow, not
 reinterpret resource identity or lifecycle dependencies as endpoint discovery.
+
+The first manual proof lives in the HostVirtualNetwork sample. It declares
+virtual-network-scoped private endpoint mappings such as
+`http://10.42.0.10:80` and `http://10.42.0.11:80` on different resources, then
+maps DNS names to those endpoint mappings through a CoreDNS zone-file provider.
+That sample intentionally requires explicit resource model configuration; it
+does not yet auto-assign addresses or create discovery names for every service.

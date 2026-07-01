@@ -425,6 +425,13 @@ h3 {
     white-space: nowrap;
 }
 
+.inventory-options {
+    display: flex;
+    align-items: center;
+    gap: .9rem;
+    flex: 0 0 auto;
+}
+
 .resource-list-header,
 .resource-tree-row {
     display: grid;
@@ -1132,6 +1139,7 @@ h3 {
 
 .resource-graph-summary {
     display: flex;
+    align-items: center;
     gap: .65rem;
     flex-wrap: wrap;
 }
@@ -1154,6 +1162,10 @@ h3 {
 .resource-graph-summary strong {
     font-size: 1.2rem;
     font-weight: 650;
+}
+
+.resource-graph-topology-toggle {
+    margin-left: auto;
 }
 
 .resource-graph-shell {
@@ -1209,7 +1221,40 @@ h3 {
     stroke-width: 2.4;
 }
 
+.resource-graph-link.topology {
+    stroke: color-mix(in srgb, #2563eb 68%, transparent);
+    stroke-dasharray: 4 4;
+}
+
 .resource-graph-link.dimmed {
+    opacity: .18;
+}
+
+.resource-graph-link-label {
+    fill: var(--cloudshell-text-muted);
+    font-size: .66rem;
+    pointer-events: none;
+    text-anchor: middle;
+    paint-order: stroke;
+    stroke: var(--cloudshell-surface-muted);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+}
+
+.resource-graph-link-label.dependency {
+    opacity: .58;
+}
+
+.resource-graph-link-label.topology {
+    fill: #2563eb;
+    font-weight: 650;
+}
+
+.resource-graph-link-label.related {
+    fill: var(--cloudshell-accent);
+}
+
+.resource-graph-link-label.dimmed {
     opacity: .18;
 }
 
@@ -1243,45 +1288,55 @@ h3 {
     opacity: 1;
 }
 
-.resource-graph-node-icon {
+.resource-graph-node-icon-frame {
     fill: #64748b;
 }
 
-.resource-graph-node-icon.project,
-.resource-graph-node-icon.executable {
+.resource-graph-node-icon-frame.project,
+.resource-graph-node-icon-frame.executable {
     fill: #7c3aed;
 }
 
-.resource-graph-node-icon.container {
+.resource-graph-node-icon-frame.container {
     fill: #0f766e;
 }
 
-.resource-graph-node-icon.service {
+.resource-graph-node-icon-frame.service {
     fill: #d97706;
 }
 
-.resource-graph-node-icon.network {
+.resource-graph-node-icon-frame.network {
     fill: #2563eb;
 }
 
-.resource-graph-node-icon.storage {
+.resource-graph-node-icon-frame.topology {
+    fill: #2563eb;
+}
+
+.resource-graph-node-icon-frame.storage {
     fill: #0891b2;
 }
 
-.resource-graph-node-icon.configuration {
+.resource-graph-node-icon-frame.configuration {
     fill: #9333ea;
 }
 
-.resource-graph-node-icon.secretsvault {
+.resource-graph-node-icon-frame.secretsvault {
     fill: #be123c;
 }
 
-.resource-graph-node-initials {
-    fill: white;
-    font-size: .72rem;
-    font-weight: 700;
+.resource-graph-node-icon-glyph {
+    fill: none;
     pointer-events: none;
-    text-anchor: middle;
+    stroke: white;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+}
+
+.resource-graph-node-icon-frame,
+.resource-graph-node-icon-glyph {
+    pointer-events: none;
 }
 
 .resource-graph-status {
@@ -1318,6 +1373,27 @@ h3 {
     fill: #8b5cf6;
 }
 
+.resource-graph-internet-badge {
+    pointer-events: none;
+}
+
+.resource-graph-internet-badge-frame {
+    fill: #2563eb;
+    stroke: var(--cloudshell-surface);
+    stroke-width: 3;
+}
+
+.resource-graph-internet-badge.inferred .resource-graph-internet-badge-frame {
+    fill: #64748b;
+}
+
+.resource-graph-internet-badge-icon {
+    fill: white;
+    font-size: .62rem;
+    font-weight: 800;
+    text-anchor: middle;
+}
+
 .resource-graph-node-label {
     fill: var(--cloudshell-text);
     font-size: .84rem;
@@ -1326,15 +1402,48 @@ h3 {
     text-anchor: middle;
 }
 
+.resource-graph-node-type {
+    fill: var(--cloudshell-text-muted);
+    font-size: .68rem;
+    font-weight: 600;
+    pointer-events: none;
+    text-anchor: middle;
+}
+
 .resource-graph-node-endpoint {
     fill: var(--cloudshell-text-muted);
-    font-size: .72rem;
+    font-size: .66rem;
     pointer-events: none;
     text-anchor: middle;
 }
 
 .environment-state-map-shell {
     min-height: 34rem;
+}
+
+.environment-map-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .55rem .8rem;
+    margin-bottom: .75rem;
+    color: var(--cloudshell-text-muted);
+    font-size: .82rem;
+}
+
+.environment-map-summary strong {
+    color: var(--cloudshell-text);
+    font-weight: 700;
+}
+
+.environment-map-layer-label {
+    margin-left: auto;
+    color: var(--cloudshell-text);
+    font-weight: 650;
+}
+
+.environment-map-layer-toggle {
+    margin-inline-start: .15rem;
 }
 
 .environment-state-map-canvas {
@@ -1362,6 +1471,11 @@ h3 {
 
 .environment-map-link.routing {
     stroke-dasharray: 5 4;
+}
+
+.environment-map-link.topology {
+    stroke: color-mix(in srgb, #2563eb 70%, transparent);
+    stroke-dasharray: 2 5;
 }
 
 .environment-map-link.internal {
@@ -1399,9 +1513,14 @@ h3 {
     stroke-linejoin: round;
 }
 
+.environment-map-link-label.hidden-layer {
+    opacity: 0;
+}
+
 .environment-map-link-label.related {
     fill: var(--cloudshell-accent);
     font-weight: 650;
+    opacity: 1;
 }
 
 .environment-map-link-label.internal {
@@ -1410,6 +1529,11 @@ h3 {
 
 .environment-map-link-label.external {
     font-weight: 600;
+}
+
+.environment-map-link-label.related.internal,
+.environment-map-link-label.related.external {
+    opacity: 1;
 }
 
 .environment-map-group {
@@ -1503,6 +1627,10 @@ h3 {
     fill: color-mix(in srgb, #2563eb 7%, var(--cloudshell-surface));
 }
 
+.environment-map-node.topology .environment-map-node-card {
+    fill: color-mix(in srgb, #2563eb 5%, var(--cloudshell-surface));
+}
+
 .environment-map-node:hover .environment-map-node-card,
 .environment-map-node.selected .environment-map-node-card {
     stroke: var(--cloudshell-accent);
@@ -1518,43 +1646,50 @@ h3 {
     opacity: 1;
 }
 
-.environment-map-node-icon {
+.environment-map-node-icon-frame {
     fill: #64748b;
 }
 
-.environment-map-node-icon.service {
+.environment-map-node-icon-frame.service {
     fill: #d97706;
 }
 
-.environment-map-node-icon.replica-group,
-.environment-map-node-icon.replica,
-.environment-map-node-icon.container {
+.environment-map-node-icon-frame.replica-group,
+.environment-map-node-icon-frame.replica,
+.environment-map-node-icon-frame.container {
     fill: #0f766e;
 }
 
-.environment-map-node-icon.routing,
-.environment-map-node-icon.network {
+.environment-map-node-icon-frame.routing,
+.environment-map-node-icon-frame.topology,
+.environment-map-node-icon-frame.network {
     fill: #2563eb;
 }
 
-.environment-map-node-icon.storage {
+.environment-map-node-icon-frame.storage {
     fill: #0891b2;
 }
 
-.environment-map-node-icon.configuration {
+.environment-map-node-icon-frame.configuration {
     fill: #9333ea;
 }
 
-.environment-map-node-icon.secretsvault {
+.environment-map-node-icon-frame.secretsvault {
     fill: #be123c;
 }
 
-.environment-map-node-initials {
-    fill: white;
-    font-size: .72rem;
-    font-weight: 700;
+.environment-map-node-icon-glyph {
+    fill: none;
     pointer-events: none;
-    text-anchor: middle;
+    stroke: white;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+}
+
+.environment-map-node-icon-frame,
+.environment-map-node-icon-glyph {
+    pointer-events: none;
 }
 
 .environment-map-status {
@@ -1591,6 +1726,28 @@ h3 {
     fill: #8b5cf6;
 }
 
+.environment-map-internet-badge {
+    pointer-events: none;
+}
+
+.environment-map-internet-badge-frame {
+    fill: #2563eb;
+    stroke: var(--cloudshell-surface);
+    stroke-width: 3;
+}
+
+.environment-map-internet-badge.inferred .environment-map-internet-badge-frame {
+    fill: #64748b;
+}
+
+.environment-map-internet-badge-icon {
+    fill: white;
+    font-size: .62rem;
+    font-weight: 800;
+    pointer-events: none;
+    text-anchor: middle;
+}
+
 .environment-map-node-label {
     fill: var(--cloudshell-text);
     font-size: .82rem;
@@ -1602,6 +1759,13 @@ h3 {
 .environment-map-node-kind {
     fill: var(--cloudshell-text-muted);
     font-size: .7rem;
+    pointer-events: none;
+    text-anchor: middle;
+}
+
+.environment-map-node-endpoint {
+    fill: var(--cloudshell-text-muted);
+    font-size: .66rem;
     pointer-events: none;
     text-anchor: middle;
 }

@@ -15,11 +15,30 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        var initialResources = (resources ?? []).ToArray();
+        var initialResources = GetOrAddInitialStateStore(services);
+        initialResources.Upsert(resources ?? []);
 
-        services.AddSingleton<IResourceStateProvider>(
-            _ => new InMemoryResourceStateProvider(initialResources));
-        services.AddSingleton<ResourceGraphModel>();
+        services.TryAddSingleton<IResourceStateProvider>(
+            serviceProvider => new InMemoryResourceStateProvider(
+                serviceProvider.GetRequiredService<ResourceModelInitialStateStore>().GetResources()));
+        services.TryAddSingleton<ResourceGraphModel>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddDefaultInMemoryResourceModelGraphResources(
+        this IServiceCollection services,
+        IEnumerable<ResourceState>? resources = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        var initialResources = GetOrAddInitialStateStore(services);
+        initialResources.AddIfAbsent(resources ?? []);
+
+        services.TryAddSingleton<IResourceStateProvider>(
+            serviceProvider => new InMemoryResourceStateProvider(
+                serviceProvider.GetRequiredService<ResourceModelInitialStateStore>().GetResources()));
+        services.TryAddSingleton<ResourceGraphModel>();
 
         return services;
     }
@@ -140,6 +159,10 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
         services.TryAddScoped<ResourceChangeApplyDispatcher>();
         services.TryAddScoped<ResourceDefinitionGraphChangeApplier>();
         services.TryAddScoped<ResourceModelGraphDefinitionApplyService>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                IResourceModelGraphApplyReconciler,
+                ResourceModelGraphMaterializedChangeReconciler>());
         services.TryAddScoped<ResourceDefinitionTemplateService>();
         services.TryAddScoped<IResourceDefinitionRegistrationService, ResourceDefinitionRegistrationService>();
 
@@ -339,6 +362,23 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
         };
     }
 
+    private static ResourceModelInitialStateStore GetOrAddInitialStateStore(IServiceCollection services)
+    {
+        var store = services
+            .Where(descriptor => descriptor.ServiceType == typeof(ResourceModelInitialStateStore))
+            .Select(descriptor => descriptor.ImplementationInstance)
+            .OfType<ResourceModelInitialStateStore>()
+            .SingleOrDefault();
+        if (store is not null)
+        {
+            return store;
+        }
+
+        store = new ResourceModelInitialStateStore();
+        services.AddSingleton(store);
+        return store;
+    }
+
     private static ResourceManagerState? ResolveState(
         ResourceModelResource resource,
         ResourceModelResourceManagerStateResolver? stateResolver,
@@ -462,4 +502,32 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
 
         return null;
     }
+}
+
+internal sealed class ResourceModelInitialStateStore
+{
+    private readonly Dictionary<string, ResourceState> _resources = new(StringComparer.OrdinalIgnoreCase);
+
+    public void Upsert(IEnumerable<ResourceState> resources)
+    {
+        ArgumentNullException.ThrowIfNull(resources);
+
+        foreach (var resource in resources)
+        {
+            _resources[resource.EffectiveResourceId] = resource;
+        }
+    }
+
+    public void AddIfAbsent(IEnumerable<ResourceState> resources)
+    {
+        ArgumentNullException.ThrowIfNull(resources);
+
+        foreach (var resource in resources)
+        {
+            _resources.TryAdd(resource.EffectiveResourceId, resource);
+        }
+    }
+
+    public IReadOnlyList<ResourceState> GetResources() =>
+        _resources.Values.ToArray();
 }

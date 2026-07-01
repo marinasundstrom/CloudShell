@@ -22,6 +22,17 @@ public static class ResourceModelResourceDefinitionBuilderExtensions
         return builder;
     }
 
+    public static TBuilder WithResourceGroup<TBuilder>(
+        this TBuilder builder,
+        ResourceGroupDefinition? resourceGroup)
+        where TBuilder : IResourceDefinitionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        GetMetadata(builder).ResourceGroupId = resourceGroup?.Id;
+        return builder;
+    }
+
     public static TBuilder WithAutoStart<TBuilder>(
         this TBuilder builder,
         bool autoStart = true)
@@ -76,6 +87,25 @@ public static class ResourceModelResourceDefinitionBuilderExtensions
 
     public static TBuilder WithIdentity<TBuilder>(
         this TBuilder builder,
+        ControlPlaneIdentityProviderContext provider,
+        string? subject = null,
+        IReadOnlyList<string>? scopes = null,
+        IReadOnlyDictionary<string, string>? claims = null,
+        string? name = null)
+        where TBuilder : IResourceDefinitionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+
+        return builder.WithIdentity(
+            provider.Provider,
+            subject,
+            scopes,
+            claims,
+            name);
+    }
+
+    public static TBuilder WithIdentity<TBuilder>(
+        this TBuilder builder,
         ResourceIdentityProviderDefinition provider,
         Action<ResourceIdentityDeclarationBuilder> configure)
         where TBuilder : IResourceDefinitionBuilder
@@ -95,6 +125,17 @@ public static class ResourceModelResourceDefinitionBuilderExtensions
         }
 
         return builder.WithIdentity(identity.Build());
+    }
+
+    public static TBuilder WithIdentity<TBuilder>(
+        this TBuilder builder,
+        ControlPlaneIdentityProviderContext provider,
+        Action<ResourceIdentityDeclarationBuilder> configure)
+        where TBuilder : IResourceDefinitionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+
+        return builder.WithIdentity(provider.Provider, configure);
     }
 
     public static TBuilder WithIdentity<TBuilder>(
@@ -211,19 +252,6 @@ public static class ResourceModelResourceDefinitionBuilderExtensions
         ArgumentNullException.ThrowIfNull(resource);
 
         return builder.Allow(resource.Principal(), access);
-    }
-
-    public static IControlPlaneBuilder AddResourceGroup(
-        this IControlPlaneBuilder builder,
-        string id,
-        string name,
-        string description = "")
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        GetOrAddDeclarationStore(builder.Services)
-            .AddResourceGroup(id, name, description);
-        return builder;
     }
 
     public static IControlPlaneBuilder AddIdentityProvider(

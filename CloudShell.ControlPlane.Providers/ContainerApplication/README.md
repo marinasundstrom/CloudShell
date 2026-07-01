@@ -23,9 +23,9 @@
 - ContainerAppDeployment and ReplicatedContainerHealth sample-inspired graph coverage,
   including ContainerAppDeployment image/replica update delegation and
   ReplicatedContainerHealth smoke coverage where graph start, stop, restart,
-  image-update, and replica-update actions delegate to sample-local runtime
+  image-update, and replica-update actions delegate to provider-owned runtime
   adapters and stop verifies Docker runtime container cleanup.
-- Manual `ResourceDefinitionGraphBuilder.AddContainerApplication(...)`
+- Manual `ResourceGraphBuilder.AddContainerApplication(...)`
   builder for code-first container app definition authoring with typed host
   dependencies, endpoint requests, replicas, and volume mount capability setup.
 - Provider-owned Resource Manager UI registration for Resource model samples.
@@ -47,9 +47,9 @@ Ready to start integration for the container app scenarios covered by
 ContainerAppDeployment and ReplicatedContainerHealth. The Resource model path can
 start, stop, restart, update image/replica intent, project endpoints, drive the
 container-app UI tabs by type id, and expose runtime replica logs, health,
-traces, metrics, and monitoring through the sample bridges. Full old-provider
-parity is not expected yet: rich revision history, final container-host
-runtime ownership, richer startup-state projection, and old edit surfaces are
+traces, metrics, and monitoring through the current runtime adapters. Full old-provider
+parity is not expected yet: rich revision history, richer startup-state
+projection, and old edit surfaces are
 explicitly deferred.
 
 ## Runtime Integration
@@ -72,27 +72,84 @@ the Resource Manager bridge when needed, apply the operation through the
 runtime it owns, and return diagnostics instead of throwing for expected
 runtime outcomes.
 
-The ReplicatedContainerHealth sample currently proves this seam with a
-sample-local adapter that maps `application.container-app:api` to the
-existing `application:api` runtime resource. It covers start, stop, and
-restart delegation, projects graph state from the runtime app through the
-provider bridge so Resource Manager action availability can evaluate lifecycle
-commands, and applies accepted graph `container.image` and
-`container.replicas` changes through the graph `container.image.update` and
-`container.replicas.update` operations. That adapter is intentionally not a
-reusable provider toolkit yet; it exists to validate the graph-to-runtime
-boundary while the old application-provider runtime still owns replica
-materialization. The Docker smoke verifies that graph restart recreates the
-revision-scoped runtime containers and graph stop removes the containers that
-graph start created.
+For local development and migration samples, the provider includes an opt-in
+process-backed runtime adapter. It maps a container app resource id to a local
+.NET project, starts one process per requested replica slot, exposes the
+declared endpoint through a local HTTP/WebSocket proxy, and preserves sticky
+SignalR routing by keeping negotiated connection tokens on the selected
+replica.
 
-The ContainerAppDeployment sample also wires this seam to a sample-local
-bridge. It accepts image and replica updates for
-`application.container-app:sample-api` through the existing Resource Manager
-deployment and replicas APIs without registering the old application-provider
-resource. Those operations are migration adapter hooks; in the current API
-path, deployment and scale remain Control Plane workflows, and the durable
-container runtime provider remains future work.
+```csharp
+services
+    .AddLocalContainerApplicationResourceTypes()
+    .AddLocalContainerApplicationProcessRuntime(options =>
+        options.AddProject(
+            "application.container-app:api",
+            "/workspace/samples/MyApp/Api/MyApp.Api.csproj"));
+```
+
+This adapter is intentionally a local runtime bridge, not the durable
+orchestrator. It removes the need for each sample or migrated provider to
+implement its own `IContainerApplicationRuntimeHandler` while the container app
+orchestration path is completed.
+
+The provider also owns the local container-app command runner abstraction used
+by runtime adapters that still shell out to `dotnet` or local container tools.
+Samples can replace `ILocalContainerApplicationCommandRunner` for deterministic
+tests, but normal hosts get `ProcessLocalContainerApplicationCommandRunner`
+from `AddContainerApplicationResourceType()`.
+
+Projected runtime container replicas with `runtime.container` type and
+`containerReplica` runtime metadata automatically get provider-owned Docker
+log and stats support. The runtime projection provider still decides whether
+to surface those hidden replica resources, but once it does, the container-app
+provider supplies the `ILogProvider` and `IResourceMonitoringProvider`
+implementation.
+
+The provider also includes a deferred runtime adapter for migration scenarios
+that need graph image/replica changes to be accepted without materializing a
+real container app runtime.
+
+```csharp
+services
+    .AddLocalContainerApplicationResourceTypes()
+    .AddDeferredContainerApplicationRuntime(options =>
+        options.AddResource("application.container-app:api"));
+```
+
+For migration hosts that still need explicit runtime mapping, the provider
+includes an opt-in delegating runtime handler. Targets implement
+`IContainerApplicationRuntimeTarget`, declare whether they can handle a
+resolved graph resource, and receive lifecycle, image, replica, and
+orchestrator-service routing calls through the provider-owned
+`DelegatingContainerApplicationRuntimeHandler`.
+
+```csharp
+services
+    .AddLocalContainerApplicationResourceTypes()
+    .AddLocalDockerContainerApplicationRuntime(options =>
+        options.AddApplication(
+            "application.container-app:api",
+            "Api/MyApp.Api.csproj"));
+```
+
+The ReplicatedContainerHealth sample currently proves this seam with the
+provider-owned local Docker container-app runtime. That adapter maps
+`application.container-app:api` to the sample API project, builds the image,
+creates replica containers, reconciles the local Traefik ingress container,
+and projects hidden runtime replicas with the metadata consumed by the
+provider-owned log and monitoring providers. The Docker smoke verifies that
+graph image updates recreate revision-scoped runtime containers, replica
+updates retain active slots where possible, and graph stop removes the
+containers that graph start created.
+
+The ContainerAppDeployment sample uses the provider-owned deferred runtime
+adapter for `application.container-app:sample-api`. It accepts image and
+replica updates through the existing Resource Manager deployment and replicas
+APIs without registering the old application-provider resource. Those
+operations are migration adapter hooks; in the current API path, deployment and
+scale remain Control Plane workflows, and the durable container runtime provider
+remains future work.
 
 ## Example ResourceDefinition
 

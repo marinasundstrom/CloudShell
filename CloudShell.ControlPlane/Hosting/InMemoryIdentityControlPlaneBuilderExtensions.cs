@@ -35,37 +35,6 @@ public static class InMemoryIdentityControlPlaneBuilderExtensions
         return builder;
     }
 
-    public static InMemoryIdentityProviderDeclaration GetIdentityProvider(
-        this IResourceGraphBuilder builder,
-        string? providerId = null)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        var declarations = GetOrAddDeclarationStore(builder.Services);
-        var setup = GetOrAddSetupOptions(builder.Services);
-        var resolvedProviderId = string.IsNullOrWhiteSpace(providerId)
-            ? declarations.DefaultIdentityProviderId
-            : providerId.Trim();
-        if (string.IsNullOrWhiteSpace(resolvedProviderId))
-        {
-            throw new InvalidOperationException("No default identity provider is configured.");
-        }
-
-        var provider = declarations
-            .GetIdentityProviders()
-            .SingleOrDefault(provider => string.Equals(
-                provider.Id,
-                resolvedProviderId,
-                StringComparison.OrdinalIgnoreCase));
-        if (provider is null)
-        {
-            throw new InvalidOperationException(
-                $"Identity provider '{resolvedProviderId}' is not configured.");
-        }
-
-        return new InMemoryIdentityProviderDeclaration(provider, setup);
-    }
-
     private static InMemoryIdentitySetupOptions GetOrAddSetupOptions(IServiceCollection services)
     {
         var setup = services
@@ -110,26 +79,4 @@ public static class InMemoryIdentityControlPlaneBuilderExtensions
         services.AddSingleton(declarations);
         return declarations;
     }
-}
-
-public sealed class InMemoryIdentityProviderDeclaration(
-    ResourceIdentityProviderDefinition provider,
-    InMemoryIdentitySetupOptions setup)
-{
-    public ResourceIdentityProviderDefinition Provider { get; } = provider;
-
-    public ResourcePrincipalReference GetUser(string userName)
-    {
-        if (!setup.Users.TryGetValue(userName, out var user))
-        {
-            throw new InvalidOperationException(
-                $"Built-in in-memory user '{userName}' is not configured.");
-        }
-
-        return user.ToPrincipal(Provider.Id);
-    }
-
-    public static implicit operator ResourceIdentityProviderDefinition(
-        InMemoryIdentityProviderDeclaration declaration) =>
-        declaration.Provider;
 }

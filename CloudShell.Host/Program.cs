@@ -21,40 +21,45 @@ var secretsVaultServiceProjectPath = Path.GetFullPath(
     builder.Environment.ContentRootPath);
 var repositoryRootPath = Path.GetFullPath("..", builder.Environment.ContentRootPath);
 
-var cloudShell = builder.AddCloudShell();
-
-cloudShell.UseBuiltInResourceModelProviders(options =>
+var cloudShell = builder.AddCloudShellControlPlaneApplication(
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
+    {
+        controlPlane.DefineResources(resources =>
+        {
+            resources
+                .AddConfigurationStore("example")
+                .WithDisplayName("Example Configuration");
+        });
+    });
+builder.AddCloudShellUi(ui =>
 {
-    options.ConfigureConfigurationStoreRuntime = runtime =>
+    ui
+        .AddExtension<ResourceManagerExtension>()
+        .AddExtension<ObservabilityExtension>()
+        .AddExtension<DevelopmentShellExtension>();
+    ui.AddBuiltInProviderResourceManagerUi();
+});
+
+cloudShell
+    .UseConfigurationStoreResourceProvider(runtime =>
     {
         runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
         runtime.ServiceWorkingDirectory = repositoryRootPath;
         runtime.Entries.Add(new("SampleMessage", "Hello from CloudShell configuration"));
         runtime.Entries.Add(new("SampleMode", "Development"));
-    };
-    options.ConfigureSecretsVaultRuntime = runtime =>
+    })
+    .UseSecretsVaultResourceProvider(runtime =>
     {
         runtime.ServiceProjectPath = secretsVaultServiceProjectPath;
         runtime.ServiceWorkingDirectory = repositoryRootPath;
-    };
-});
-
-cloudShell.DefineResources(resources =>
-{
-    resources
-        .AddConfigurationStore("example")
-        .WithDisplayName("Example Configuration");
-});
-
-cloudShell
-    .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>()
-    .AddExtension<DevelopmentShellExtension>();
-cloudShell.AddBuiltInProviderResourceManagerUi();
+    });
 
 var app = builder.Build();
 
-await app.UseCloudShellAsync();
-app.MapCloudShell<App>();
+await app.UseCloudShellControlPlaneAsync();
+await app.UseCloudShellUiAsync();
+app.MapCloudShellControlPlane();
+app.MapCloudShellUi<App>();
 
 app.Run();

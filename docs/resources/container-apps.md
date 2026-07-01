@@ -197,6 +197,19 @@ endpoint in the local/programmatic flow, then use resource identity and grants
 when the container app needs authorized access to the service provided by that
 resource.
 
+Container apps can also declare app-level virtual-network endpoint intent on
+their endpoint requests. The app endpoint may carry a network resource
+reference, private IP address, and assignment mode. That metadata belongs to
+the stable container app service, not to individual replicas. Runtime
+orchestrators can use it to bind the app service into a virtual network and to
+publish a stable DNS/name mapping for the app. Per-replica DNS names are a
+future operational diagnostic concern, not the default service-discovery
+contract.
+The graph DNS reconciliation path resolves name mappings against this
+container app endpoint projection, so an internal name such as
+`api.internal.example` targets the stable app endpoint address rather than a
+specific replica instance.
+
 ## Replicas
 
 Container apps default to single-instance mode. In that mode the app binds its
@@ -255,11 +268,21 @@ Scale-in updates routing to the retained slots before removing superseded
 replicas. Image deployments materialize the new revision's replica group,
 route traffic to that group, and then retire the superseded group as
 post-apply cleanup.
+Container apps can declare app-level service-routing session affinity with
+`WithCookieSessionAffinity(...)`, `WithClientIpSessionAffinity()`, or
+`WithSessionAffinity(...)`. The Resource Manager Scale and replicas tab exposes
+the same setting as resource intent. The deployment projection carries the
+policy into the orchestrator service routing binding so an orchestrator or
+load-balancer provider can keep repeated requests or upgraded connections,
+such as WebSockets, pinned to the same replica when that policy is enabled.
+Runtime enforcement is provider-specific; the current local sample projects
+cookie affinity into the sample Traefik bridge by writing sticky-cookie
+configuration when routing is reconciled.
 
 Inside the orchestration layer, CloudShell represents this management group as
 a `ResourceOrchestratorService` descriptor. Container apps produce this
 descriptor today. It is built from the container app's workload configuration,
-ports, dependencies, networks, and replica count, and it is the
+ports, dependencies, networks, replica count, and routing policy, and it is the
 orchestrator-facing descriptor used to group the service contained by the
 resource: replicas, endpoint bindings, dependency ordering, network membership,
 and related provider-owned runtime services such as app ingress. Docker Compose

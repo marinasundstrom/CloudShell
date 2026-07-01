@@ -208,13 +208,13 @@ public sealed class ResourceManagerIntegrationTests
             "appdb",
             dependsOn: [],
             includeVolumeConsumer: false) with
-            {
-                DependsOn =
+        {
+            DependsOn =
                 [
                     ResourceReference.BelongsToResourceId(
                         server.EffectiveResourceId)
                 ]
-            };
+        };
         var provider = new ResourceModelGraphResourceProvider(
             "resource-model",
             "Resource model",
@@ -508,23 +508,50 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
-    public void UseBuiltInResourceModelProviders_RegistersProviderCatalogAndGraphBridge()
+    public void UseResourceProviderMethods_EnsureSingleResourceGraphIntegration()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
         var builder = services.AddCloudShellControlPlane();
 
-        builder.UseBuiltInResourceModelProviders(options =>
-        {
-            options.ConfigureConfigurationStoreRuntime = runtime =>
+        builder
+            .UseConfigurationStoreResourceProvider()
+            .UseSecretsVaultResourceProvider()
+            .UseAspNetCoreProjectResourceProvider();
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var typeIds = serviceProvider
+            .GetServices<IResourceTypeProvider>()
+            .Select(provider => provider.TypeId)
+            .ToHashSet();
+
+        Assert.Contains(ConfigurationStoreResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(SecretsVaultResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(AspNetCoreProjectResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.NotNull(serviceProvider.GetService<ResourceResolver>());
+        Assert.IsType<ResourceModelGraphProcedureProvider>(
+            Assert.Single(serviceProvider.GetServices<IResourceProvider>()));
+        Assert.IsType<ResourceModelGraphProcedureProvider>(
+            Assert.Single(serviceProvider.GetServices<IResourceActionAvailabilityProvider>()));
+    }
+
+    [Fact]
+    public async Task UseBuiltInResourceModelProviders_RegistersProviderCatalogAndGraphBridgeWithoutMaterializingDefaults()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
+        var builder = services.AddCloudShellControlPlane();
+
+        builder
+            .UseBuiltInResourceModelProviders()
+            .UseConfigurationStoreResourceProvider(runtime =>
             {
                 runtime.ServiceProjectPath = "services/configuration-store.csproj";
-            };
-            options.ConfigureSecretsVaultRuntime = runtime =>
+            })
+            .UseSecretsVaultResourceProvider(runtime =>
             {
                 runtime.ServiceProjectPath = "services/secrets-vault.csproj";
-            };
-        });
+            });
         using var serviceProvider = services.BuildServiceProvider();
 
         var typeIds = serviceProvider
@@ -536,12 +563,20 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Contains(ContainerApplicationResourceTypeProvider.ResourceTypeId, typeIds);
         Assert.Contains(ConfigurationStoreResourceTypeProvider.ResourceTypeId, typeIds);
         Assert.Contains(SecretsVaultResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(NetworkResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(ContainerHostResourceTypeProvider.ResourceTypeId, typeIds);
         Assert.Equal(
             "services/configuration-store.csproj",
             serviceProvider.GetRequiredService<ConfigurationStoreRuntimeOptions>().ServiceProjectPath);
         Assert.Equal(
             "services/secrets-vault.csproj",
             serviceProvider.GetRequiredService<SecretsVaultRuntimeOptions>().ServiceProjectPath);
+        Assert.IsType<ResourceModelGraphEndpointMappingReconciler>(
+            serviceProvider.GetRequiredService<INetworkEndpointMappingReconciler>());
+        Assert.IsType<ResourceModelGraphEndpointMappingReconciler>(
+            serviceProvider.GetRequiredService<IVirtualNetworkEndpointMappingReconciler>());
+        Assert.IsType<ResourceModelGraphDnsZoneNameMappingReconciler>(
+            serviceProvider.GetRequiredService<IDnsZoneNameMappingReconciler>());
 
         var provider = Assert.IsType<ResourceModelGraphProcedureProvider>(
             Assert.Single(serviceProvider.GetServices<IResourceProvider>()));
@@ -549,6 +584,47 @@ public sealed class ResourceManagerIntegrationTests
             Assert.Single(serviceProvider.GetServices<IResourceActionAvailabilityProvider>()));
 
         Assert.Same(provider, availabilityProvider);
+
+        var snapshot = await serviceProvider
+            .GetRequiredService<ResourceGraphModel>()
+            .GetSnapshotAsync();
+
+        Assert.DoesNotContain(snapshot.Resources, resource =>
+            resource.EffectiveResourceId == NetworkResourceDefinitionBuilderExtensions.DefaultNetworkResourceId);
+        Assert.DoesNotContain(snapshot.Resources, resource =>
+            resource.EffectiveResourceId == ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId);
+        Assert.Contains(snapshot.Resources, resource =>
+            resource.EffectiveResourceId == CreateExecutableState().EffectiveResourceId);
+    }
+
+    [Fact]
+    public async Task AddDefaultInMemoryResourceModelGraphResources_DoesNotOverrideExplicitInitialState()
+    {
+        var explicitHost = new ResourceState(
+            "default",
+            ContainerHostResourceTypeProvider.ResourceTypeId,
+            ResourceId: ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId,
+            ProviderId: ContainerHostResourceTypeProvider.ProviderId,
+            DisplayName: "Explicit container host");
+        var presetGraph = new ResourceGraphBuilder();
+        presetGraph.GetContainerHost();
+        var presetResources = presetGraph
+            .BuildGraph()
+            .Resources
+            .Select(ResourceState.FromDefinition);
+        var services = new ServiceCollection();
+
+        services.AddInMemoryResourceModelGraph([explicitHost]);
+        services.AddDefaultInMemoryResourceModelGraphResources(presetResources);
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var snapshot = await serviceProvider
+            .GetRequiredService<ResourceGraphModel>()
+            .GetSnapshotAsync();
+        var host = Assert.Single(snapshot.Resources, resource =>
+            resource.EffectiveResourceId == ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId);
+
+        Assert.Equal("Explicit container host", host.DisplayName);
     }
 
     [Fact]
@@ -561,14 +637,14 @@ public sealed class ResourceManagerIntegrationTests
         var api = CreateExecutableState(
             dependsOn: [],
             includeVolumeConsumer: false) with
-            {
-                DependsOn =
+        {
+            DependsOn =
                 [
                     ResourceReference.DependsOnResourceId(
                         worker.EffectiveResourceId,
                         typeId: LocalVolumeResourceTypeProvider.ResourceTypeId)
                 ]
-            };
+        };
         var provider = new ResourceModelGraphResourceProvider(
             "resource-model",
             "Resource model",
@@ -1043,14 +1119,14 @@ public sealed class ResourceManagerIntegrationTests
         var api = CreateExecutableState(
             dependsOn: [],
             includeVolumeConsumer: false) with
-            {
-                DependsOn =
+        {
+            DependsOn =
                 [
                     ResourceReference.DependsOnResourceId(
                         worker.EffectiveResourceId,
                         typeId: LocalVolumeResourceTypeProvider.ResourceTypeId)
                 ]
-            };
+        };
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([api, worker]);
         services.AddExecutableApplicationResourceType();
@@ -1581,6 +1657,46 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesMaterializedChangesThroughMatchingAppliers()
+    {
+        var matchingApplier = new RecordingMaterializedChangeApplier(
+            ExecutableApplicationResourceTypeProvider.ResourceTypeId);
+        var nonMatchingApplier = new RecordingMaterializedChangeApplier(
+            LocalVolumeResourceTypeProvider.ResourceTypeId);
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph([CreateLocalVolumeState(), CreateExecutableState()]);
+        services.AddLocalVolumeResourceType();
+        services.AddExecutableApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddSingleton<IResourceModelGraphMaterializedChangeApplier>(matchingApplier);
+        services.AddSingleton<IResourceModelGraphMaterializedChangeApplier>(nonMatchingApplier);
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+
+        var result = await service.ApplyDefinitionsAsync(
+            [
+                new(
+                    "api",
+                    ExecutableApplicationResourceTypeProvider.ResourceTypeId,
+                    Attributes: new Dictionary<ResourceAttributeId, string>
+                    {
+                        [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet-watch"
+                    })
+            ],
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 6, 30, 12, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        var context = Assert.Single(matchingApplier.Contexts);
+        Assert.Equal("application.executable:api", context.ChangeSet.Resource.EffectiveResourceId);
+        Assert.Equal("developer", context.Reconciliation.CommitContext.PrincipalId);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, context.Reconciliation.Commit.Summary.Status);
+        Assert.Empty(nonMatchingApplier.Contexts);
+    }
+
+    [Fact]
     public async Task ResourceDefinitionTemplateService_ExportsResourceTemplateFromGraph()
     {
         var services = new ServiceCollection();
@@ -1873,7 +1989,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphResourceProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var volume = graph.AddLocalVolume("data");
         var executable = graph
             .AddExecutableApplication("api")
@@ -1941,7 +2057,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var volume = new ResourceDefinition(
             "data",
             LocalVolumeResourceTypeProvider.ResourceTypeId);
@@ -2136,7 +2252,7 @@ public sealed class ResourceManagerIntegrationTests
                 serviceProvider.GetServices<IResourceProvider>().ToArray()));
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph
             .AddContainerHost("docker")
             .UseDocker();
@@ -2234,13 +2350,15 @@ public sealed class ResourceManagerIntegrationTests
             retirePreviousReplicaGroup: true);
         var tearDownOrchestrator = new RecordingReplicaGroupTearDownOrchestrator();
         services.AddSingleton<IResourceOrchestratorDeploymentCoordinator>(deploymentCoordinator);
+        services.AddSingleton<IResourceOrchestratorDeploymentCleanupCoordinator>(
+            new TestResourceOrchestratorDeploymentCleanupCoordinator());
         services.AddSingleton<IResourceOrchestrator>(tearDownOrchestrator);
         services.AddScoped<IResourceManagerStore>(serviceProvider =>
             new ProjectedResourceManagerStore(() =>
                 serviceProvider.GetServices<IResourceProvider>().ToArray()));
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph
             .AddContainerHost("docker")
             .UseDocker();
@@ -2282,7 +2400,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Contains("previous-revision-replicas", tearDown, StringComparison.Ordinal);
         Assert.Contains(":developer:", tearDown, StringComparison.Ordinal);
         Assert.Contains(
-            "ResourceDefinition apply requested runtime reconciliation for principal 'developer'.",
+            "Retire previous graph apply revision.",
             tearDown,
             StringComparison.Ordinal);
     }
@@ -2302,7 +2420,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var apply = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph
             .AddContainerHost("docker")
             .UseDocker();
@@ -2412,7 +2530,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var apply = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph
             .AddContainerHost("docker")
             .UseDocker();
@@ -2554,7 +2672,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var apply = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph
             .AddContainerHost("docker")
             .UseDocker();
@@ -2608,7 +2726,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph.AddDockerHost("engine");
         var container = graph
             .AddContainerApplication("api")
@@ -2783,7 +2901,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var volume = new ResourceDefinition(
             "data",
             LocalVolumeResourceTypeProvider.ResourceTypeId);
@@ -2995,7 +3113,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph
             .AddContainerHost("docker")
             .UseDocker();
@@ -3054,7 +3172,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph
             .AddDockerHost("engine")
             .UseLocalDocker();
@@ -3125,7 +3243,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var container = graph
             .AddDockerContainer("api")
             .WithImage("example/api:1.0")
@@ -3326,7 +3444,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var hostConfiguration = graph.AddHostConfigurationSource("host-settings");
 
         var result = await service.ApplyTemplateAsync(
@@ -3395,7 +3513,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var host = graph.AddDockerHost("engine");
         var target = graph
             .AddContainerApplication("api")
@@ -3950,7 +4068,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var zone = graph
             .AddDnsZone("local")
             .WithProvider("hosts-file");
@@ -4023,7 +4141,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var zone = graph.AddDnsZone("local");
         var target = new ResourceDefinition(
             "api",
@@ -4159,7 +4277,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var api = graph
             .AddContainerApplication("application-topology-api")
             .WithImage("example/application-topology-api:1.0");
@@ -4244,7 +4362,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var storageBuilder = graph.AddLocalStorage(
             "local",
             "Data/storage/local");
@@ -4326,7 +4444,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var storage = graph.AddLocalStorage("local");
         var volume = storage.AddVolume(
             "data",
@@ -4458,7 +4576,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var target = graph
             .AddContainerApplication("api")
             .WithImage("example/api:1.0");
@@ -4678,7 +4796,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var identity = graph
             .AddIdentityProvisioning("built-in")
             .WithIdentityProvider("Built-in Identity")
@@ -4753,7 +4871,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var volume = new ResourceDefinition(
             "sql-data",
             LocalVolumeResourceTypeProvider.ResourceTypeId);
@@ -4839,7 +4957,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var server = graph.AddSqlServer("sql");
         var database = graph
             .AddSqlDatabase("appdb")
@@ -6982,6 +7100,66 @@ public sealed class ResourceManagerIntegrationTests
         {
             _contexts.Add(context);
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RecordingMaterializedChangeApplier(
+        ResourceTypeId typeId) : IResourceModelGraphMaterializedChangeApplier
+    {
+        private readonly List<ResourceModelGraphMaterializedChangeContext> _contexts = [];
+
+        public IReadOnlyList<ResourceModelGraphMaterializedChangeContext> Contexts => _contexts;
+
+        public bool CanApplyMaterializedChange(
+            ResourceModelGraphMaterializedChangeContext context) =>
+            context.ChangeSet.Resource.Type.TypeId == typeId;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyMaterializedChangeAsync(
+            ResourceModelGraphMaterializedChangeContext context,
+            CancellationToken cancellationToken = default)
+        {
+            _contexts.Add(context);
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class TestResourceOrchestratorDeploymentCleanupCoordinator :
+        IResourceOrchestratorDeploymentCleanupCoordinator
+    {
+        public async Task<ResourceProcedureResult> RunPostApplyCleanupAsync(
+            ResourceManagerResource resource,
+            ResourceOrchestratorDeploymentApplyResult applyResult,
+            ResourceProcedureResult result,
+            string? triggeredBy,
+            Func<ResourceOrchestratorDeploymentApplyResult, CancellationToken, Task<IReadOnlyList<ResourceOrchestratorReplicaGroupTearDownRequest>>>? describeTearDownsAsync,
+            Func<ResourceOrchestratorReplicaGroupTearDownRequest, ResourceOrchestratorReplicaGroup, string, CancellationToken, Task<ResourceProcedureResult>> tearDownReplicaGroupAsync,
+            Func<ResourceProcedureResult, ResourceProcedureResult, ResourceProcedureResult>? mergeResults = null,
+            CancellationToken cancellationToken = default)
+        {
+            var tearDowns = applyResult.ReplicaGroupsToTearDown;
+            if (tearDowns.Count == 0 && describeTearDownsAsync is not null)
+            {
+                tearDowns = await describeTearDownsAsync(
+                    applyResult,
+                    cancellationToken);
+            }
+
+            var results = new List<ResourceProcedureResult> { result };
+            foreach (var tearDown in tearDowns)
+            {
+                var replicaGroup = tearDown.ReplicaGroup ??
+                    ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(tearDown.Service);
+                var reason = tearDown.Reason ?? "Deployment retired superseded replica group.";
+                results.Add(await tearDownReplicaGroupAsync(
+                    tearDown,
+                    replicaGroup,
+                    reason,
+                    cancellationToken));
+            }
+
+            return ResourceProcedureResult.Combine(
+                results,
+                result.Message);
         }
     }
 }

@@ -62,8 +62,8 @@ provider, not the platform abstraction.
 
 - Model runtime placement as host selection, not as direct engine selection.
 - Keep user-managed Docker hosts and provider-owned runtime state separate.
-- Let local development work with an implicit default host from `UseDocker()`
-  or equivalent provider defaults.
+- Let local development work with an implicit default host resource projected
+  from `UseDocker()` or equivalent provider defaults.
 - Let on-premise and multi-host environments select explicit host resources.
 - Reuse the existing resource/orchestration descriptor path instead of
   inventing a parallel Web API concept.
@@ -97,10 +97,10 @@ deliberately projects them as child resources for inspection.
 
 ### Hosts Are Placement Boundaries
 
-A host is a resource or configured runtime/control boundary that CloudShell can
-target. It may be a `docker.host` resource, an implicit local Docker host from
-`UseDocker()`, a Podman host, a Kubernetes cluster, a systemd machine, or a
-vendor appliance API.
+A host is a resource in the realized environment model that CloudShell can
+target. It may be an authored `docker.host` resource, an implicit local
+docker-compatible container host projected from `UseDocker()`, a Podman host,
+a Kubernetes cluster, a systemd machine, or a vendor appliance API.
 
 The selected host is a stable reference in provider-owned configuration when a
 resource needs explicit placement. Existing fields named `ContainerHostId`
@@ -422,7 +422,7 @@ not introduce a second out-of-band local management API for the shell.
 
 1. The app has no explicit host selection.
 2. The orchestrator asks `IContainerHostResolver` for a container-image host.
-3. The resolver returns the default Docker host from `UseDocker()`.
+3. The resolver returns the default container host configured by `UseDocker()`.
 4. The Docker Compose orchestrator materializes the app using that host.
 5. The app remains the stable resource for image updates and lifecycle actions.
 

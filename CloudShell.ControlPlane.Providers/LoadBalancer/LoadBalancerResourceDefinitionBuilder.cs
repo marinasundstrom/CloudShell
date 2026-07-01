@@ -307,7 +307,7 @@ public sealed class LoadBalancerResourceDefinitionBuilder(string name) :
 public static class LoadBalancerResourceDefinitionBuilderExtensions
 {
     public static LoadBalancerResourceDefinitionBuilder AddLoadBalancer(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);

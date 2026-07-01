@@ -7,47 +7,59 @@ using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.ControlPlane.Authentication;
+using CloudShell.ControlPlane.ResourceModel;
 using CloudShell.ResourceHost;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
-var cloudShell = builder.AddCloudShell();
-
-cloudShell
-    .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>()
-    .AddExtension<SampleResourceExtension>();
-
-cloudShell.ConfigureInMemoryIdentity(identity =>
+builder.AddCloudShellControlPlane(controlPlane =>
 {
-    identity.Users.Add(
-        "alice",
-        password: "CloudShell123!",
-        displayName: "Alice Local Developer",
-        email: "alice@example.test",
-        role: "CloudShell.Reader");
+    controlPlane
+        .AddExtension<SampleResourceControlPlaneExtension>();
+
+    controlPlane.ConfigureInMemoryIdentity(identity =>
+    {
+        identity.Users.Add(
+            "alice",
+            password: "CloudShell123!",
+            displayName: "Alice Local Developer",
+            email: "alice@example.test",
+            role: "CloudShell.Reader");
+    });
+
+    controlPlane.DefineResources(resources =>
+    {
+        var alice = resources.GetIdentityProvider().GetUser("alice");
+        var database = resources.Declare(
+            SampleResourceProvider.ProviderId,
+            "sample:database");
+        var api = resources
+            .Declare(
+                SampleResourceProvider.ProviderId,
+                "sample:api")
+            .DependsOn(database);
+        resources.Declare(
+            SampleResourceProvider.ProviderId,
+            "sample:worker");
+
+        api.Allow(alice, CloudShellPermissions.Resources.Read);
+        database.Allow(alice, CloudShellPermissions.Resources.Manage);
+    });
 });
 
-cloudShell.Resources(resources =>
+builder.AddCloudShellUi(ui =>
 {
-    var identity = resources.GetIdentityProvider();
-    var alice = identity.GetUser("alice");
-    var database = resources.Declare(
-        SampleResourceProvider.ProviderId,
-        "sample:database");
-
-    resources
-        .Declare(
-            SampleResourceProvider.ProviderId,
-            "sample:api")
-        .DependsOn(database);
-
-    database.Allow(alice, CloudShellPermissions.Resources.Manage);
+    ui
+        .AddExtension<ResourceManagerExtension>()
+        .AddExtension<ObservabilityExtension>()
+        .AddExtension<SampleResourceManagerUiExtension>();
 });
 
 var app = builder.Build();
 
-await app.UseCloudShellAsync();
-app.MapCloudShell<App>();
+await app.UseCloudShellControlPlaneAsync();
+await app.UseCloudShellUiAsync();
+app.MapCloudShellControlPlane();
+app.MapCloudShellUi<App>();
 
 app.Run();

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using CloudShell.ControlPlane.Providers;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Orchestration;
@@ -120,6 +121,32 @@ public sealed class ContainerHostResolverTests
 
         Assert.True(result.IsResolved);
         Assert.Equal("docker:registered", result.Host?.Id);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_UsesGraphBackedDefaultContainerHostDescriptor()
+    {
+        var hostResource = CreateContainerHostResource(
+            "cloudshell.container-host:default",
+            "Default container host",
+            isDefault: true);
+        var resolver = CreateResolver(
+            [hostResource],
+            descriptorProviders: [new ContainerHostOrchestrationDescriptorProvider()]);
+
+        var result = await resolver.ResolveAsync(new ContainerHostResolutionRequest(
+            "application:api",
+            "team-a",
+            RequiredCapability: ContainerHostCapabilityIds.ContainerBuild));
+
+        Assert.True(result.IsResolved);
+        Assert.Equal("cloudshell.container-host:default", result.Host?.Id);
+        Assert.Equal("Default container host", result.Host?.Name);
+        Assert.Equal(ContainerHostKind.Docker, result.Host?.Kind);
+        Assert.Equal("unix:///var/run/docker.sock", result.Host?.Endpoint);
+        Assert.Equal("docker.io", result.Host?.Registry);
+        Assert.True(result.Host?.IsDefault);
+        Assert.Contains(ContainerHostCapabilityIds.ContainerBuild, result.Host?.HostCapabilities ?? []);
     }
 
     [Fact]
@@ -276,6 +303,38 @@ public sealed class ContainerHostResolverTests
             [],
             TypeId: "docker.host",
             ResourceClass: ResourceClass.Infrastructure);
+
+    private static Resource CreateContainerHostResource(
+        string id,
+        string name,
+        bool isDefault,
+        ResourceState state = ResourceState.Running) =>
+        new(
+            id,
+            name,
+            ContainerHostResourceTypeProvider.ResourceTypeId,
+            ContainerHostResourceTypeProvider.ProviderId,
+            "local",
+            state,
+            [],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: ContainerHostResourceTypeProvider.ResourceTypeId,
+            ResourceClass: ResourceClass.Infrastructure,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ContainerHostResourceTypeProvider.Attributes.HostKind] = "Docker",
+                [ContainerHostResourceTypeProvider.Attributes.Endpoint] = "unix:///var/run/docker.sock",
+                [ContainerHostResourceTypeProvider.Attributes.Registry] = "docker.io",
+                [ContainerHostResourceTypeProvider.Attributes.IsDefault] = isDefault.ToString()
+            },
+            Capabilities:
+            [
+                new(ContainerHostResourceTypeProvider.Capabilities.ContainerImage),
+                new(ContainerHostResourceTypeProvider.Capabilities.ContainerBuild),
+                new(ContainerHostResourceTypeProvider.Capabilities.StorageMountFileSystem)
+            ]);
 
     private sealed class StaticHostProvider(ContainerHostDescriptor host) : IContainerHostProvider
     {

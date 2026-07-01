@@ -9,6 +9,52 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-07-01
+
+### ADR-20260701-001: Keep Control Plane application defaults separate from UI shell registration
+
+CloudShell's Aspire-like application setup should produce an opinionated
+Control Plane application by default, not a combined UI and Control Plane
+host. The Control Plane owns the runtime/resource-management surface and can
+register built-in Resource Model provider defaults through an application
+preset such as `AddCloudShellControlPlaneApplication(...)`.
+
+The CloudShell UI remains an explicit shell surface. Hosts that want the UI in
+the same ASP.NET Core process should call `AddCloudShellUi(...)` separately.
+UI extensions, Resource Manager UI extensions, and provider-owned Resource
+Manager views belong in the UI registration callback so UI composition stays
+separate from Control Plane provider/runtime registration.
+
+`AddCloudShell()` remains a convenience for the combined development host, but
+the architectural split is Control Plane first, UI opt-in.
+
+Related changes: [Changelog](CHANGELOG.md).
+
+## 2026-06-30
+
+### ADR-20260630-001: Keep host-level authoring context outside resource templates
+
+CloudShell should keep `ResourceGraphBuilder` focused on resources
+and templates. Host-level capabilities that can influence resource construction,
+such as identity-provider registration and default identity-provider lookup,
+belong to the Control Plane authoring context used by host registration
+methods such as `DefineResources(...)` and `DefineInitialTemplate(...)`.
+
+That context may extend or wrap the graph builder so provider-owned resource
+builder methods remain available, but metadata such as identity providers is
+not emitted as `ResourceDefinition` entries and is not part of
+`ResourceTemplate` interchange. The Control Plane context copies that metadata
+to Control Plane services, such as the identity-provider catalog, when the host
+registers the resources.
+
+Resource defaults that are themselves resources, such as the Host network or
+default container host, can remain lazy `ResourceGraphBuilder` accessors because they
+represent realized resources in the environment. Identity-provider defaults
+stay outside resource templates until CloudShell deliberately introduces a resource type
+for identity providers.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ## 2026-06-29
 
 ### ADR-20260629-001: Name the Resource model and Runtime model
@@ -65,7 +111,7 @@ runtime capabilities they can use; the hosting environment decides which
 concrete adapters are available.
 
 Default reference implementations may live beside reference providers while
-the Resource Graph POC is being migrated. When those implementations become
+the Resource Model POC is being migrated. When those implementations become
 host-shaped or reusable across providers, they should move behind a default
 runtime integration package rather than becoming direct dependencies from
 providers to the host. Missing adapters should surface clear diagnostics or

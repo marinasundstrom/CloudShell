@@ -7,6 +7,7 @@
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> L
 @inject CloudShell.UI.Composition.CompositionRegistry Composition
+@inject ShellCatalog ShellCatalog
 
 <PageTitle>@L["Resource graph"]</PageTitle>
 
@@ -27,7 +28,7 @@
 </PageHeading>
 
 <section class="resource-graph-page panel">
-    @if (GraphResources.Count == 0)
+    @if (Graph.Nodes.Count == 0)
     {
         <EmptyState Title="@L["No resources in this scope"].Value"
                     Message="@L["Resources that match Resource Manager display settings will appear here."].Value" />
@@ -37,15 +38,32 @@
         <div class="resource-graph-summary">
             <div>
                 <span>@L["Resources"]</span>
-                <strong>@GraphResources.Count</strong>
+                <strong>@Graph.ResourceCount</strong>
             </div>
             <div>
                 <span>@L["Dependencies"]</span>
-                <strong>@DependencyCount</strong>
+                <strong>@Graph.DependencyCount</strong>
             </div>
+            @if (IncludeNetworkTopologyOverlay)
+            {
+                <div>
+                    <span>@L["Topology"]</span>
+                    <strong>@Graph.TopologyCount</strong>
+                </div>
+            }
+            <FluentCheckbox Class="resource-graph-topology-toggle"
+                            Value="@IncludeImplicitResources"
+                            ValueChanged="OnImplicitResourcesChanged">
+                @L["Implicit resources"]
+            </FluentCheckbox>
+            <FluentCheckbox Class="resource-graph-topology-toggle"
+                            Value="@IncludeNetworkTopologyOverlay"
+                            ValueChanged="OnNetworkTopologyOverlayChanged">
+                @L["Network topology"]
+            </FluentCheckbox>
         </div>
     }
-    <div class="resource-graph-shell @(GraphResources.Count == 0 ? "empty" : null)">
+    <div class="resource-graph-shell @(Graph.Nodes.Count == 0 ? "empty" : null)">
         <svg class="resource-dependency-graph-canvas" role="img" aria-label="@L["Resource dependency graph"]"></svg>
         <div class="resource-graph-controls" aria-label="@L["Graph controls"]">
             <FluentButton Appearance="Appearance.Stealth"
@@ -75,10 +93,11 @@
 
     private DotNetObjectReference<ResourceDependencyGraph>? DotNetReference { get; set; }
 
-    private IReadOnlyList<GraphResource> GraphResources { get; set; } = [];
+    private ResourceDependencyGraphModel Graph { get; set; } = ResourceDependencyGraphModel.Empty;
 
-    private int DependencyCount =>
-        GraphResources.Sum(resource => resource.DependsOn.Count);
+    private bool IncludeNetworkTopologyOverlay { get; set; }
+
+    private bool IncludeImplicitResources { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -125,38 +144,48 @@
     private async Task LoadGraphAsync()
     {
         var displaySelection = await DisplaySettings.GetAsync();
-        var resources = (await ResourceManager.ListResourcesAsync())
+        var allResources = await ResourceManager.ListResourcesAsync();
+        var resources = allResources
             .Where(displaySelection.ShowsResource)
+            .Where(resource => IncludeImplicitResources || !ResourceGraphVisibility.IsImplicitDefaultResource(resource))
             .OrderBy(displaySelection.GetResourceSortLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        var visibleIds = resources
-            .Select(resource => resource.Id)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        GraphResources = resources
-            .Select(resource => new GraphResource(
-                resource.Id,
-                displaySelection.GetResourceLabel(resource),
-                displaySelection.GetResourceName(resource),
-                resource.EffectiveTypeId,
-                resource.ResourceClass.ToString(),
-                GetEndpointText(resource),
-                GetStateLabel(resource),
-                ResourceStateDisplay.GetStateClass(resource.State),
-                ResourceManagerCompositionLinks.ResourceDetails(Composition, resource.Id),
-                resource.DependsOn
-                    .Where(visibleIds.Contains)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToArray()))
-            .ToArray();
+        Graph = ResourceDependencyGraphProjection.Create(
+            resources,
+            new ResourceDependencyGraphProjectionOptions
+            {
+                IncludeNetworkTopologyOverlay = IncludeNetworkTopologyOverlay,
+                IncludeImplicitResources = IncludeImplicitResources,
+                RelationshipResources = allResources,
+                GetResourceLabel = displaySelection.GetResourceLabel,
+                GetResourceName = displaySelection.GetResourceName,
+                GetResourceTypeLabel = GetResourceTypeDisplayName,
+                GetResourceIconName = GetResourceTypeIconName,
+                CreateResourceDetailUrl = resource => ResourceManagerCompositionLinks.ResourceDetails(Composition, resource.Id),
+                GetStateClass = ResourceStateDisplay.GetStateClass
+            });
     }
 
     private async Task UpdateGraphAsync()
     {
         if (Module is not null)
         {
-            await Module.InvokeVoidAsync("updateResourceDependencyGraph", GraphResources);
+            await Module.InvokeVoidAsync("updateResourceDependencyGraph", Graph);
         }
+    }
+
+    private async Task OnNetworkTopologyOverlayChanged(bool enabled)
+    {
+        IncludeNetworkTopologyOverlay = enabled;
+        await LoadGraphAsync();
+        await UpdateGraphAsync();
+    }
+
+    private async Task OnImplicitResourcesChanged(bool enabled)
+    {
+        IncludeImplicitResources = enabled;
+        await LoadGraphAsync();
+        await UpdateGraphAsync();
     }
 
     private async void OnResourcesChanged(object? sender, ResourceChangeNotification notification)
@@ -169,42 +198,28 @@
         });
     }
 
-    private static string GetEndpointText(Resource resource)
-    {
-        var address = resource.ResourceEndpointNetworkMappings.FirstOrDefault()?.Address;
-        if (!string.IsNullOrWhiteSpace(address))
-        {
-            return TryFormatEndpointHost(address) ?? address;
-        }
-
-        return resource.Endpoints.Count switch
-        {
-            0 => "No endpoints",
-            1 => "1 endpoint",
-            _ => $"{resource.Endpoints.Count} endpoints"
-        };
-    }
-
-    private static string? TryFormatEndpointHost(string address)
-    {
-        if (!Uri.TryCreate(address, UriKind.Absolute, out var uri))
-        {
-            return null;
-        }
-
-        return uri.IsDefaultPort
-            ? uri.Host
-            : $"{uri.Host}:{uri.Port.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
-    }
-
-    private static string GetStateLabel(Resource resource) =>
-        resource.State?.ToString() ?? "No lifecycle status";
-
     private string GetResourcesRoute() =>
         ResourceManagerCompositionLinks.ResourceManagerPage(
             Composition,
             ResourceManagerCompositionIds.ResourcesPage,
             ResourceManagerRoutes.Resources);
+
+    private string GetResourceTypeDisplayName(Resource resource) =>
+        ShellCatalog.ResourceTypes.FirstOrDefault(type =>
+            string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase))
+            ?.DisplayName ??
+        (string.Equals(resource.Kind, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase)
+            ? resource.Kind
+            : $"{resource.Kind} ({resource.EffectiveTypeId})");
+
+    private string? GetResourceTypeIconName(Resource resource) =>
+        ShellCatalog.ResourceTypes.FirstOrDefault(type =>
+            string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase))
+            ?.Icon ??
+        FirstNonEmpty(resource.EffectiveTypeId, resource.ResourceClass.ToString(), resource.Kind);
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
     public async ValueTask DisposeAsync()
     {
@@ -218,16 +233,4 @@
 
         DotNetReference?.Dispose();
     }
-
-    private sealed record GraphResource(
-        string Id,
-        string Label,
-        string Name,
-        string Type,
-        string ResourceClass,
-        string EndpointText,
-        string StateLabel,
-        string StateClass,
-        string DetailUrl,
-        IReadOnlyList<string> DependsOn);
 }

@@ -578,7 +578,8 @@ else
         string graphMode,
         ResourceManagerDisplaySelection displaySelection)
     {
-        var resourceById = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        resources = ResourceCollectionProjection.DistinctById(resources);
+        var resourceById = ResourceCollectionProjection.ToDictionaryById(resources);
         var nodes = new Dictionary<string, DependencyNode>(StringComparer.OrdinalIgnoreCase);
         var spansByNodeId = new Dictionary<string, List<TraceSpan>>(StringComparer.OrdinalIgnoreCase);
         var edges = new Dictionary<string, DependencyEdgeBuilder>(StringComparer.OrdinalIgnoreCase);

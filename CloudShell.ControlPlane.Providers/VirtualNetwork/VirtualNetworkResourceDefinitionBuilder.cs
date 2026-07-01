@@ -375,7 +375,7 @@ public sealed class VirtualNetworkResourceDefinitionBuilder(string name) :
 public static class VirtualNetworkResourceDefinitionBuilderExtensions
 {
     public static VirtualNetworkResourceDefinitionBuilder AddVirtualNetwork(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name,
         bool isDefault = false)
     {

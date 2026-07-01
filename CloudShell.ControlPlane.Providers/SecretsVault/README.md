@@ -17,7 +17,7 @@
 - Provider-owned runtime secret seed options.
 - Inspect operation with a runtime-backed inspector that reports configured counts without exposing values.
 - Typed wrapper plus Resource Manager bridge projection and execution.
-- Manual `ResourceDefinitionGraphBuilder.AddSecretsVault(...)` builder for
+- Manual `ResourceGraphBuilder.AddSecretsVault(...)` builder for
   code-first resource and endpoint declaration. Secret values remain
   provider/runtime data and are not authored as graph attributes.
 - SettingsAndSecrets smoke coverage for endpoint projection, inspect execution, authorized secret reads, and API consumption through the graph-backed endpoint.

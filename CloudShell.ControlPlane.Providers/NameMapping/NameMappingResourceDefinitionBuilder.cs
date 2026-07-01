@@ -50,7 +50,7 @@ public sealed class NameMappingResourceDefinitionBuilder(string name) :
 public static class NameMappingResourceDefinitionBuilderExtensions
 {
     public static NameMappingResourceDefinitionBuilder AddNameMapping(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);

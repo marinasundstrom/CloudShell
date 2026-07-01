@@ -32,11 +32,15 @@ same host process as the Control Plane for local development.
 The hosting methods mirror that boundary. `AddCloudShellUi()`,
 `UseCloudShellUiAsync()`, and `MapCloudShellUi<TRootComponent>()` are UI-only
 composition points. `AddCloudShellControlPlane()`,
+`AddCloudShellControlPlaneApplication(...)`,
 `UseCloudShellControlPlaneAsync()`, and `MapCloudShellControlPlane()` are
-Control Plane composition points. Plain `AddCloudShell()`,
-`UseCloudShellAsync()`, and `MapCloudShell<TRootComponent>()` belong to the
-combined host surface and compose both sides explicitly; they should not live
-in a UI-only package that can be referenced by a split CloudShell UI host.
+Control Plane composition points. A local development host that wants both
+surfaces registers the Control Plane application first, then calls
+`AddCloudShellUi(...)` with a UI-registration callback for shell extensions,
+Resource Manager UI extensions, and provider-owned UI contributions. The
+request pipeline follows the same rule: map `UseCloudShellControlPlaneAsync()`
+and `MapCloudShellControlPlane()` for the backend, and
+`UseCloudShellUiAsync()` plus `MapCloudShellUi<TRootComponent>()` for the UI.
 
 CoreShell acts as a shell for integrations. It owns common visual structure and
 shell services:
@@ -183,6 +187,14 @@ revisions, and environment revisions. Resource Manager may visualize the
 Runtime model in the [Environment Map](terminology.md#environment-map), but
 that map is a read model over Control Plane and orchestrator state, not another
 source of truth.
+
+Network topology is a shared overlay over those models, not a third model.
+Resource Manager may project networks, endpoint mappings, load-balancer
+routes, name mappings, and internet reachability in both the Resource graph and
+the Environment Map. The Resource graph uses that overlay to explain resource
+connectivity; the Environment Map can combine it with runtime service
+boundaries, replica groups, replicas, routing bindings, and load-balancer
+materialization.
 
 ```mermaid
 flowchart TD

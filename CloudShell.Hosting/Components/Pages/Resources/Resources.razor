@@ -173,7 +173,13 @@
                     </FluentButton>
                 }
             </div>
-            <div class="toolbar-meta">@GetPaginationRangeLabel(rows.Count)</div>
+            <div class="inventory-options">
+                <FluentCheckbox Value="@IncludeImplicitResources"
+                                ValueChanged="OnImplicitResourcesChanged">
+                    @L["Implicit resources"]
+                </FluentCheckbox>
+                <div class="toolbar-meta">@GetPaginationRangeLabel(rows.Count)</div>
+            </div>
         </div>
 
         <div class="resource-list-header">
@@ -673,6 +679,7 @@
     private string selectedClassFilter = AllResourceClassesFilter;
     private string selectedTypeFilter = AllResourceTypesFilter;
     private string selectedResourceGroupFilter = AllResourceGroupsFilter;
+    private bool IncludeImplicitResources { get; set; }
     private int lastUrlPageIndex = -1;
     private int lastUrlPageSize = -1;
     private Resource? SelectedResource { get; set; }
@@ -858,7 +865,9 @@ StringComparer.OrdinalIgnoreCase);
         }
     }
 
-    private bool IsVisibleInInventory(Resource resource) => DisplaySelection.ShowsResource(resource);
+    private bool IsVisibleInInventory(Resource resource) =>
+        DisplaySelection.ShowsResource(resource) &&
+        (IncludeImplicitResources || !ResourceGraphVisibility.IsImplicitDefaultResource(resource));
 
     private string GetResourceLabel(Resource resource) => DisplaySelection.GetResourceLabel(resource);
 
@@ -1108,6 +1117,15 @@ resourceGroups) =>
     {
         SelectedResourceGroupFilter = option?.Id ?? AllResourceGroupsFilter;
         SelectedResource = null;
+    }
+
+    private void OnImplicitResourcesChanged(bool enabled)
+    {
+        IncludeImplicitResources = enabled;
+        SelectedResource = SelectedResource is null || IsVisibleInInventory(SelectedResource)
+            ? SelectedResource
+            : null;
+        ResetPagination();
     }
 
     private async Task ChangePageSizeAsync(int pageSize)

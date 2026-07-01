@@ -31,7 +31,7 @@ public sealed class ConfigurationStoreResourceDefinitionBuilder(string name) :
 public static class ConfigurationStoreResourceDefinitionBuilderExtensions
 {
     public static ConfigurationStoreResourceDefinitionBuilder AddConfigurationStore(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);

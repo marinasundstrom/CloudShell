@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -5,6 +6,17 @@ namespace CloudShell.ControlPlane.Providers;
 
 public static class DockerContainerResourceTypeServiceCollectionExtensions
 {
+    public static IControlPlaneBuilder UseDockerContainerResourceProvider(
+        this IControlPlaneBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Services.AddDockerContainerResourceType();
+        builder.Services.AddResourceGraphIntegration();
+
+        return builder;
+    }
+
     public static IServiceCollection AddDockerContainerResourceType(
         this IServiceCollection services)
     {
@@ -49,6 +61,32 @@ public static class DockerContainerResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, DockerContainerUnpauseOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, DockerContainerResourceProjectionProvider>());
+
+        return services;
+    }
+
+    public static IServiceCollection AddLocalDockerContainerRuntime(
+        this IServiceCollection services,
+        Action<LocalDockerContainerRuntimeOptions>? configure = null,
+        Action<LocalExecutableResourceOrchestrationDescriptorOptions>? configureOrchestrationDescriptors = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        if (configure is not null)
+        {
+            services.Configure(configure);
+        }
+
+        services.TryAddSingleton<
+            ILocalDockerContainerCommandRunner,
+            ProcessLocalDockerContainerCommandRunner>();
+        services.Replace(ServiceDescriptor.Singleton<
+            IDockerContainerRuntimeHandler,
+            LocalDockerContainerRuntimeHandler>());
+        if (configureOrchestrationDescriptors is not null)
+        {
+            services.AddLocalExecutableResourceOrchestrationDescriptors(configureOrchestrationDescriptors);
+        }
 
         return services;
     }

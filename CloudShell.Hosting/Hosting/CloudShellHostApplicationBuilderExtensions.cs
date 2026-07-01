@@ -25,6 +25,18 @@ namespace CloudShell.Hosting;
 public static class CloudShellHostApplicationBuilderExtensions
 {
     public static ICloudShellBuilder AddCloudShellUi(
+        this WebApplicationBuilder builder,
+        Action<ICloudShellBuilder> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+
+        var cloudShell = builder.AddCloudShellUi();
+        configure(cloudShell);
+
+        return cloudShell;
+    }
+
+    public static ICloudShellBuilder AddCloudShellUi(
         this WebApplicationBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);

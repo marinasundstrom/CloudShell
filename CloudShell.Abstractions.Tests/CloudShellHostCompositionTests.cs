@@ -2,8 +2,12 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Extensions;
+using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Providers;
 using CloudShell.Hosting;
+using CloudShell.Hosting.ResourceManager;
+using CloudShell.ResourceModel;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -33,11 +37,11 @@ public sealed class CloudShellHostCompositionTests
     }
 
     [Fact]
-    public void AddCloudShell_ComposesControlPlaneAndUiServices()
+    public void AddCloudShellControlPlaneApplication_RegistersControlPlaneDefaultsWithoutUi()
     {
         var builder = CreateBuilder();
 
-        builder.AddCloudShell();
+        builder.AddCloudShellControlPlaneApplication();
 
         Assert.Contains(
             builder.Services,
@@ -45,13 +49,34 @@ public sealed class CloudShellHostCompositionTests
         Assert.Contains(
             builder.Services,
             descriptor => descriptor.ServiceType == typeof(IResourceManagerStore));
+        Assert.Contains(
+            builder.Services,
+            descriptor =>
+                descriptor.ServiceType == typeof(IResourceTypeProvider) &&
+                descriptor.ImplementationType == typeof(ContainerApplicationResourceTypeProvider));
 
         var registry = GetExtensionRegistry(builder.Services);
-        Assert.Contains(registry.Extensions, extension => extension.Id == "cloudshell.core");
+        Assert.DoesNotContain(registry.Extensions, extension => extension.Id == "cloudshell.core");
     }
 
     [Fact]
-    public void CombinedHostMethodNames_AreOwnedByAppHost()
+    public void AddCloudShellUi_CallbackRegistersUiExtensions()
+    {
+        var builder = CreateBuilder();
+
+        builder.AddCloudShellUi(ui =>
+        {
+            ui.AddExtension<ResourceManagerExtension>();
+        });
+
+        var registry = GetExtensionRegistry(builder.Services);
+
+        Assert.Contains(registry.Extensions, extension => extension.Id == "cloudshell.core");
+        Assert.Contains(registry.Extensions, extension => extension.Id == "cloudshell.resource-manager");
+    }
+
+    [Fact]
+    public void HostRegistrationMethods_KeepControlPlaneAndUiBoundariesExplicit()
     {
         Assert.DoesNotContain(
             GetPublicStaticMethodNames(typeof(CloudShellHostApplicationBuilderExtensions)),
@@ -62,13 +87,10 @@ public sealed class CloudShellHostCompositionTests
 
         Assert.Contains(
             GetPublicStaticMethodNames(typeof(CloudShellCombinedHostApplicationBuilderExtensions)),
+            name => name == "AddCloudShellControlPlaneApplication");
+        Assert.DoesNotContain(
+            GetPublicStaticMethodNames(typeof(CloudShellCombinedHostApplicationBuilderExtensions)),
             name => name == "AddCloudShell");
-        Assert.Contains(
-            GetPublicStaticMethodNames(typeof(CloudShellCombinedHostApplicationExtensions)),
-            name => name == "UseCloudShellAsync");
-        Assert.Contains(
-            GetPublicStaticMethodNames(typeof(CloudShellCombinedHostApplicationExtensions)),
-            name => name == "MapCloudShell");
     }
 
     private static WebApplicationBuilder CreateBuilder() =>

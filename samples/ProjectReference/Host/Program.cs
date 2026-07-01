@@ -29,73 +29,78 @@ var frontendProjectPath = Path.GetFullPath(
     "../Frontend/CloudShell.ProjectReferenceFrontend.csproj",
     builder.Environment.ContentRootPath);
 
-var cloudShell = builder.AddCloudShell();
 IResourceDefinitionBuilder apiResource = null!;
-cloudShell.DefineResources(resources =>
+builder.AddCloudShellControlPlaneApplication(
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
+    {
+        controlPlane.DefineResources(resources =>
+        {
+            apiResource = resources
+                .AddAspNetCoreProject("project-reference-api", apiProjectPath)
+                .WithDisplayName("Project Reference API")
+                .WithHotReload(false)
+                .UseLaunchSettings(false)
+                .WithServiceDiscovery()
+                .WithHttpEndpoint(
+                    host: apiEndpointUri.Host,
+                    port: apiEndpointUri.Port)
+                .WithEnvironmentVariable(
+                    "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
+                    traceIngestEndpoint ?? string.Empty)
+                .WithEnvironmentVariable(
+                    "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
+                    metricIngestEndpoint ?? string.Empty)
+                .WithEnvironmentVariable(
+                    "OTEL_SERVICE_NAME",
+                    "project-reference-api")
+                .WithHttpHealthCheck(
+                    "/health",
+                    endpointName: "http")
+                .WithHttpLivenessCheck(
+                    "/alive",
+                    endpointName: "http");
+
+            resources
+                .AddAspNetCoreProject("project-reference-frontend", frontendProjectPath)
+                .WithDisplayName("Project Reference Frontend")
+                .WithHotReload(false)
+                .UseLaunchSettings(false)
+                .WithReference(apiResource)
+                .WithHttpEndpoint(
+                    host: frontendEndpointUri.Host,
+                    port: frontendEndpointUri.Port)
+                .WithEnvironmentVariable(
+                    "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
+                    traceIngestEndpoint ?? string.Empty)
+                .WithEnvironmentVariable(
+                    "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
+                    metricIngestEndpoint ?? string.Empty)
+                .WithEnvironmentVariable(
+                    "OTEL_SERVICE_NAME",
+                    "project-reference-frontend")
+                .WithHttpHealthCheck(
+                    "/healthz",
+                    endpointName: "http")
+                .WithHttpLivenessCheck(
+                    "/alive",
+                    endpointName: "http");
+        });
+    });
+builder.AddCloudShellUi(ui =>
 {
-    apiResource = resources
-        .AddAspNetCoreProject("project-reference-api", apiProjectPath)
-        .WithDisplayName("Project Reference API")
-        .WithHotReload(false)
-        .UseLaunchSettings(false)
-        .WithServiceDiscovery()
-        .WithHttpEndpoint(
-            host: apiEndpointUri.Host,
-            port: apiEndpointUri.Port)
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
-            traceIngestEndpoint ?? string.Empty)
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
-            metricIngestEndpoint ?? string.Empty)
-        .WithEnvironmentVariable(
-            "OTEL_SERVICE_NAME",
-            "project-reference-api")
-        .WithHttpHealthCheck(
-            "/health",
-            endpointName: "http")
-        .WithHttpLivenessCheck(
-            "/alive",
-            endpointName: "http");
-
-    resources
-        .AddAspNetCoreProject("project-reference-frontend", frontendProjectPath)
-        .WithDisplayName("Project Reference Frontend")
-        .WithHotReload(false)
-        .UseLaunchSettings(false)
-        .WithReference(apiResource)
-        .WithHttpEndpoint(
-            host: frontendEndpointUri.Host,
-            port: frontendEndpointUri.Port)
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
-            traceIngestEndpoint ?? string.Empty)
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
-            metricIngestEndpoint ?? string.Empty)
-        .WithEnvironmentVariable(
-            "OTEL_SERVICE_NAME",
-            "project-reference-frontend")
-        .WithHttpHealthCheck(
-            "/healthz",
-            endpointName: "http")
-        .WithHttpLivenessCheck(
-            "/alive",
-            endpointName: "http");
+    ui
+        .AddExtension<ResourceManagerExtension>()
+        .AddExtension<ObservabilityExtension>();
+    ui.AddBuiltInProviderResourceManagerUi();
 });
-builder.Services
-    .AddAspNetCoreProjectResourceType();
-cloudShell.UseResourceGraphIntegration();
-
-cloudShell
-    .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>();
-cloudShell.AddBuiltInProviderResourceManagerUi();
 
 var app = builder.Build();
 
-await app.UseCloudShellAsync();
-app.MapCloudShell<App>();
+await app.UseCloudShellControlPlaneAsync();
+await app.UseCloudShellUiAsync();
+app.MapCloudShellControlPlane();
+app.MapCloudShellUi<App>();
 app.MapPost(
     "/project-reference/resource-graph/resources/{resourceId}/environment-variables",
     async (
@@ -144,12 +149,12 @@ static ResourceDefinition CreateApiDefinition(
 {
     var environmentVariables =
         new Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["CLOUDSHELL_TRACE_INGEST_ENDPOINT"] = new(traceIngestEndpoint ?? string.Empty),
-        ["CLOUDSHELL_METRIC_INGEST_ENDPOINT"] = new(metricIngestEndpoint ?? string.Empty),
-        ["OTEL_SERVICE_NAME"] = new("project-reference-api"),
-        [changedEnvironmentVariableName] = changedEnvironmentVariable
-    };
+        {
+            ["CLOUDSHELL_TRACE_INGEST_ENDPOINT"] = new(traceIngestEndpoint ?? string.Empty),
+            ["CLOUDSHELL_METRIC_INGEST_ENDPOINT"] = new(metricIngestEndpoint ?? string.Empty),
+            ["OTEL_SERVICE_NAME"] = new("project-reference-api"),
+            [changedEnvironmentVariableName] = changedEnvironmentVariable
+        };
 
     return new ResourceDefinition(
         "project-reference-api",

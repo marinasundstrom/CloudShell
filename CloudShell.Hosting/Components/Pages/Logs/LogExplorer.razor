@@ -670,7 +670,7 @@ else if (ShowHeading)
             string.IsNullOrWhiteSpace(ResourceId)
             ? []
             : await ResourceManager.ListResourcesAsync();
-        var resourcesById = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        var resourcesById = ResourceCollectionProjection.ToDictionaryById(resources);
         LogResourcesById = resourcesById;
 
         LogResourceFilters = resourceIds

@@ -20,27 +20,58 @@ using CloudShell.Hosting;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
 
-var cloudShell = builder.AddCloudShell();
+builder.AddCloudShellControlPlaneApplication(
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
+    {
+        controlPlane.DefineResources(resources =>
+        {
+            var group = resources.AddResourceGroup(
+                "sample",
+                "Sample",
+                "Sample resources.");
 
-cloudShell.UseBuiltInResourceModelProviders();
-
-cloudShell.DefineResources(resources =>
-{
-    resources
-        .AddConfigurationStore("example")
-        .WithDisplayName("Example Configuration")
-        .WithEntries(
-        [
-            new("SampleMessage", "Hello from CloudShell configuration"),
-            new("SampleSecret", "local-development-secret", IsSecret: true)
-        ]);
-});
+            resources
+                .AddConfigurationStore("example")
+                .WithDisplayName("Example Configuration")
+                .WithResourceGroup(group)
+                .WithEntries(
+                [
+                    new("SampleMessage", "Hello from CloudShell configuration"),
+                    new("SampleSecret", "local-development-secret", IsSecret: true)
+                ]);
+        });
+    });
 ```
 
-`UseBuiltInResourceModelProviders(...)` is a Control Plane registration seam.
-Use it from a Control Plane host or from the Control Plane builder returned by
-the combined `AddCloudShell()` host method. A split UI host installs UI
+`AddCloudShellControlPlaneApplication(...)` is the preferred local-development
+Control Plane setup path. It installs the built-in Resource Model provider
+preset and graph-backed Resource Manager integration. A host that also wants
+CloudShell UI should add it separately with `AddCloudShellUi(...)` and register
+Resource Manager UI extensions in that UI callback. A split UI host installs UI
 integrations and remote client adapters instead of provider runtime packages.
+Built-in provider registration does not seed default environment resources.
+Defaults are authored through lazy graph builder accessors or through graph
+helpers that need them. When a helper needs a network and none was supplied, it
+uses `GetDefaultNetwork()`. When a container-backed helper needs a host and none
+was supplied, it uses `GetContainerHost()`. If no resource needs a default, the
+default Host network or container host is not added to the graph.
+
+Runtime adapters remain host choices, but the built-in provider preset installs
+the common graph-backed Resource Model runtime adapters by default. This covers
+local-development endpoint-mapping and DNS/name-mapping reconciliation through
+the Control Plane runtime contracts. Specialized hosts can still compose
+individual provider registration methods or call
+`UseBuiltInResourceModelRuntimeAdapters()` explicitly when they do not use the
+broad provider preset.
+
+```csharp
+cloudShell
+    .UseBuiltInResourceModelRuntimeAdapters();
+```
+
+Individual provider registration methods remain available for specialized
+hosts and future split provider packages.
 
 Built-in Resource model providers expose specialized extension methods
 for their own resource types. Current provider methods include:
@@ -125,22 +156,22 @@ String IDs remain available as lower-level references for existing resources
 and advanced scenarios, but new declarations should treat the authored value
 as a resource name unless the API explicitly asks for a resource ID.
 
-The Resource Graph POC is adding a separate `ResourceDefinitionGraphBuilder`
-for code-first authoring of graph resources and resource templates. These
-builders emit `ResourceDefinition` values, not Resource Manager declarations,
-so the same authored graph can be serialized, imported, applied as a
+The Resource Model POC is adding a separate `ResourceGraphBuilder`
+for code-first authoring of resources and resource templates. These builders
+emit `ResourceDefinition` values, not Resource Manager declarations, so the
+same authored resource graph can be serialized, imported, applied as a
 `ResourceTemplate`, or used by tests. Provider builders should start as small
 manual implementations next to the resource type provider they target. Source
 generation remains a future option once several manual builders show the
 stable conventions and the customization points providers need.
-For Resource Graph provider ports, creating the provider-owned manual builder
+For Resource Model provider ports, creating the provider-owned manual builder
 is part of the porting work unless the provider README explicitly records why
 the builder is deferred. The builder is the first code-first authoring surface
 for the provider's `ResourceDefinition` shape and is used by tests to keep
 resource-template setup aligned with the provider-owned interchange contract.
 
 ```csharp
-var graph = new ResourceDefinitionGraphBuilder();
+var graph = new ResourceGraphBuilder();
 
 graph
     .AddNetwork("app")
@@ -152,8 +183,8 @@ var template = graph.BuildTemplate("local-app", environmentId: "local");
 
 `BuildTemplate(...)` produces desired resource state. It does not produce an
 orchestrator deployment. Resource Manager applies the resource template into the
-graph, providers validate and plan provider-owned changes, and deployment
-planning then projects accepted resource state to orchestrator services,
+Resource Model, providers validate and plan provider-owned changes, and
+deployment planning then projects accepted resource state to orchestrator services,
 replica groups, load-balancer bindings, and the running system.
 
 The initial manual builders cover generic networks, Configuration Store,
@@ -260,13 +291,38 @@ resources
 Applications can depend on any declared resource builder, including sub-resources
 such as containers returned from `resources.AddDocker().AddContainer(...)`.
 
-CloudShell also includes an implied local network, explicit logical and
-virtual network resources, and optional service resources. Programmatic
+CloudShell also includes an implicit Host network resource, explicit logical
+and virtual network resources, and optional service resources. Programmatic
 endpoint helpers can keep local development Aspire-compatible by declaring an
-application endpoint and producing an endpoint mapping to the implied default
-local network. In the current local development topology, that mapping resolves
-to a local address such as `localhost:<port>` or `127.0.0.1:<port>`. That
+application endpoint and producing an endpoint mapping to the default Host
+network. In the current local development topology, that mapping resolves to a
+local address such as `localhost:<port>` or `127.0.0.1:<port>`. Resources may
+default to the Host network when policy allows host-local bindings, but that
 helper behavior is not the canonical networking model.
+
+Default environment resources should be accessed through named builder entry
+points when the template wants to make them explicit. In the ResourceDefinition
+builder, `resources.GetDefaultNetwork()` returns the Host network resource and
+`resources.GetContainerHost()` returns the default docker-compatible container
+host resource. The accessors are get-or-add helpers, so repeated calls refer to
+the same resource builder. Control Plane `DefineResources(...)` and
+`DefineInitialTemplate(...)` callbacks receive a Control Plane
+resource-definition context: it behaves like the ResourceDefinition graph
+builder for resource declarations, while also exposing host-level services that
+can contribute to graph construction. Identity providers are registered on the
+host itself, for example by built-in identity host setup, `ResourceIdentity`
+configuration, or host-level `controlPlane.AddIdentityProvider(...)` calls.
+`resources.GetIdentityProvider()` reads that host context and returns an
+identity-provider context that can create provider-scoped principal references,
+for example `resources.GetIdentityProvider().GetUser("alice")`. Identity
+providers are not emitted as `ResourceDefinition` entries.
+
+Graph-backed generic container-host resources project orchestration descriptors
+for the runtime host resolver. This means a resource such as SQL Server can omit
+an explicit host and let the SQL Server builder call `GetContainerHost()` while
+building the graph. The runtime resolver can then select that authored default
+host without a separate `UseDocker()` host registration path. Explicit
+`UseContainerHost(...)` calls still win.
 
 A resource endpoint describes the named protocol/port exposed by the resource.
 Endpoint-network mappings connect that resource endpoint to a network or
@@ -391,7 +447,7 @@ example, the built-in SQL Server builder exposes a top-level SQL Server
 resource without making the caller declare a generic container app:
 
 ```csharp
-cloudShell.Resources(resources =>
+controlPlane.DefineResources(resources =>
 {
     var sqlData = resources
         .AddVolume("sql-data")
@@ -420,12 +476,10 @@ provider-specific credentials. Top-level container applications are the place
 where image selection is part of the logical declaration:
 
 ```csharp
-cloudShell.Resources(resources =>
+controlPlane.DefineResources(resources =>
 {
     resources
-        .AddContainerApplication("redis", "redis:7.2")
-        .WithRegistry("http://localhost:5000")
-        .WithRegistryCredentialsFromEnvironment("registry-user", "REGISTRY_PASSWORD")
+        .AddContainerApplication("redis")
         .WithImage("redis:7.2-alpine");
 });
 ```
@@ -510,14 +564,18 @@ declared explicitly. Named endpoints match the Aspire URI shape
 `https+http://_endpointName.serviceName`.
 
 Endpoint helpers compile down to the networking primitives. A fixed endpoint
-URI or fixed helper port becomes a manual endpoint mapping in the implied local
-network. An endpoint helper without a fixed port becomes an explicit
-auto-assigned mapping, allowing the local network/provider to choose the
+URI or fixed helper port becomes a manual endpoint mapping in the Host network.
+An endpoint helper without a fixed port becomes an explicit auto-assigned
+mapping, allowing the selected network/provider to choose the
 concrete address while keeping the resource-owned service port stable.
 
-`AddDocker()` declares the default local Docker host resource. The Docker
-resource can specify a registry with `WithRegistry(...)`; the registry defaults
-to Docker Hub (`docker.io`) and declared child containers inherit it. Add
+`AddDocker()` declares the default local docker-compatible container host
+resource. A configured default container host from `UseDocker(...)` is also
+treated as an implicit container-host resource in the realized runtime model;
+authored resources may default to it when the selected provider and environment
+policy allow it. The Docker resource can specify a registry with
+`WithRegistry(...)`; the registry defaults to Docker Hub (`docker.io`) and
+declared child containers inherit it. Add
 `WithRegistryCredentialsFromEnvironment(username, passwordEnvironmentVariable)`
 when the registry requires authentication. Containers are declared from that
 Docker resource with `AddContainer(id, image, tag)`, following the
@@ -614,56 +672,52 @@ Programmatic declarations are registered when CloudShell starts. They appear in
 Resource Manager, participate in authorization, can be assigned to a resource
 group with `WithResourceGroup(...)`, and can declare dependencies with
 `DependsOn(...)` or provider-specific dependency methods.
+`resources.AddResourceGroup(...)` returns a group definition object that can be
+passed to `WithResourceGroup(group)`; the string id overload remains available
+for cases where only an id is known. Use `resources.Declare(...)` inside
+`DefineResources(...)` for manual provider-backed resource declarations that do
+not yet have a typed ResourceDefinition builder.
 
 Startup auto-start is the declaration intent for local-dev scenarios where
 programmatically declared resources should start when the Control Plane starts.
-Configure the graph default with `resources.WithAutoStart(...)`:
+Configure startup on individual resource builders with `WithAutoStart(...)`:
 
 ```csharp
-controlPlane.Resources(resources =>
+controlPlane.DefineResources(resources =>
 {
-    resources.WithAutoStart(true);
-
     resources
         .AddAspNetCoreProject(
-        "api",
-            "API",
+            "api",
             "src/Api/Api.csproj")
         .WithAutoStart(false);
 });
 ```
 
-The graph default is inherited by resources that do not set their own value.
 Provider policies can also define defaults for their resource declarations.
-Effective startup behavior is resolved as resource override, provider default,
-then graph default. UI-created resources do not use this startup path; create
-flows use an explicit start-after-create option whose initial value comes from
-provider policy.
+UI-created resources do not use this startup path; create flows use an explicit
+start-after-create option whose initial value comes from provider policy.
 
 Dependency auto-start is a separate lifecycle policy. When a Start or Restart
 action is executed with dependency startup enabled, CloudShell may start stopped
-dependencies before starting the requested resource. Configure the graph default
-with `resources.WithDependencyAutoStart(...)`:
+dependencies before starting the requested resource. Configure dependency
+startup on individual resource builders with `WithDependencyAutoStart(...)`:
 
 ```csharp
-controlPlane.Resources(resources =>
+controlPlane.DefineResources(resources =>
 {
-    resources.WithDependencyAutoStart(false);
-
     var database = resources
-        .AddContainer("postgres", "postgres:16-alpine")
+        .AddContainerApplication("postgres")
+        .WithImage("postgres:16-alpine")
         .WithDependencyAutoStart(true);
 
     resources
         .AddAspNetCoreProject(
-        "api",
-            "API",
+            "api",
             "src/Api/Api.csproj")
         .DependsOn(database);
 });
 ```
 
-The graph default is inherited by resources that do not set their own value.
 Use `WithDependencyAutoStart(false)` on a resource when it should not be started
 automatically as a dependency, such as an expensive local database or an
 externally managed service. Explicitly running that resource still works. If a
@@ -680,9 +734,11 @@ network, service, and exposure descriptors into runtime-specific artifacts.
 The Docker Compose orchestrator runs lifecycle commands through `docker compose`
 for matching Compose service names. For example, `application:api` maps to the
 `api` Compose service. `UseDocker(...)` registers Docker as the implicit
-default container host and enables Docker Compose orchestration without adding
-Docker to the resource graph. `UseContainerHost(...)` can register an explicit
-configured host when the app should target a non-default host.
+default container host and enables Docker Compose orchestration without
+requiring a user-authored Docker host definition. The runtime may still project
+that configured default as an implicit container-host resource in the realized
+environment model. `UseContainerHost(...)` can register an explicit configured
+host when the app should target a non-default host.
 
 `AsContainer(...)` is the project-to-container hook for ASP.NET Core project
 resources. It converts the projected resource to an `application.container-app`
@@ -710,10 +766,10 @@ but application and service declarations do not need to be tied to a specific
 runtime implementation in the user-facing graph.
 
 The explicit Docker resource model remains available separately. Use
-`AddDockerProvider()` plus `resources.AddDocker()` when Docker itself should
-appear as a managed resource with child container resources. It can coexist with
-an implicit default container host; CloudShell does not enforce that both point
-at the same runtime instance.
+`AddDockerProvider()` plus `resources.AddDocker()` when the Docker host should
+be authored in the resource template and manage child container resources. It
+can coexist with an implicit default container host; CloudShell does not enforce
+that both point at the same runtime instance.
 
 Declaring a Docker container under a Docker host is a local-development desired
 state statement. It means CloudShell expects that container to exist on that
@@ -747,12 +803,12 @@ configuration and the core resource registration store using the same provider
 setup logic as the UI:
 
 ```csharp
-controlPlane.Resources(resources =>
+controlPlane.DefineResources(resources =>
 {
     resources
         .AddConfigurationStore("shared")
         .WithDisplayName("Shared Configuration")
-        .WithEntry("FeatureFlags:UseNewFlow", "true")
+        .WithEndpoint("http://localhost:5138")
         .Persist();
 });
 ```
@@ -793,12 +849,12 @@ The intended flow is:
 current persisted provider configuration and registration metadata:
 
 ```csharp
-controlPlane.Resources(resources =>
+controlPlane.DefineResources(resources =>
 {
     resources
         .AddConfigurationStore("shared")
         .WithDisplayName("Shared Configuration")
-        .WithEntry("FeatureFlags:UseNewFlow", "true")
+        .WithEndpoint("http://localhost:5138")
         .Persist(overwrite: true);
 });
 ```

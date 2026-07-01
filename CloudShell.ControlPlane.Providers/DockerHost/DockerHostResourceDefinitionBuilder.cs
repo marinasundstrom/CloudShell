@@ -36,7 +36,7 @@ public sealed class DockerHostResourceDefinitionBuilder(string name) :
 public static class DockerHostResourceDefinitionBuilderExtensions
 {
     public static DockerHostResourceDefinitionBuilder AddDockerHost(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);

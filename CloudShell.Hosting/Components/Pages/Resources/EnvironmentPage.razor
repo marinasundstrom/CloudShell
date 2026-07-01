@@ -10,6 +10,7 @@
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 @inject CloudShell.UI.Composition.CompositionRegistry Composition
+@inject ShellCatalog ShellCatalog
 
 <PageTitle>@L["Environment"]</PageTitle>
 
@@ -70,6 +71,26 @@
                 <span><strong>@EnvironmentMap.ResourceCount</strong> @L["resources"]</span>
                 <span><strong>@EnvironmentMap.ServiceCount</strong> @L["orchestrator service(s)"]</span>
                 <span><strong>@EnvironmentMap.RoutingCount</strong> @L["routing artifact(s)"]</span>
+                @if (IncludeNetworkTopologyOverlay)
+                {
+                    <span><strong>@EnvironmentMap.NetworkTopologyCount</strong> @L["topology artifact(s)"]</span>
+                }
+                <span class="environment-map-layer-label">@L["Layers"]</span>
+                <FluentCheckbox Class="environment-map-layer-toggle"
+                                Value="@IncludeNetworkTopologyOverlay"
+                                ValueChanged="OnNetworkTopologyOverlayChanged">
+                    @L["Network topology"]
+                </FluentCheckbox>
+                <FluentCheckbox Class="environment-map-layer-toggle"
+                                Value="@IncludeDependencyRelationships"
+                                ValueChanged="OnDependencyRelationshipsChanged">
+                    @L["Dependencies"]
+                </FluentCheckbox>
+                <FluentCheckbox Class="environment-map-layer-toggle"
+                                Value="@ShowEnvironmentMapLinkLabels"
+                                ValueChanged="OnLinkLabelsChanged">
+                    @L["Relationship labels"]
+                </FluentCheckbox>
             </div>
 
             <div class="resource-graph-shell environment-state-map-shell">
@@ -470,6 +491,9 @@
     private IJSObjectReference? EnvironmentMapModule { get; set; }
     private DotNetObjectReference<EnvironmentPage>? EnvironmentMapReference { get; set; }
     private DateTimeOffset LoadedAt { get; set; }
+    private bool IncludeNetworkTopologyOverlay { get; set; } = true;
+    private bool IncludeDependencyRelationships { get; set; }
+    private bool ShowEnvironmentMapLinkLabels { get; set; }
 
     private int ReplicaGroupCount => ReplicaGroupRows.Count;
 
@@ -544,8 +568,34 @@
     {
         if (EnvironmentMapModule is not null)
         {
-            await EnvironmentMapModule.InvokeVoidAsync("updateEnvironmentStateMap", EnvironmentMap);
+            await EnvironmentMapModule.InvokeVoidAsync(
+                "updateEnvironmentStateMap",
+                EnvironmentMap,
+                new
+                {
+                    ShowLinkLabels = ShowEnvironmentMapLinkLabels
+                });
         }
+    }
+
+    private async Task OnNetworkTopologyOverlayChanged(bool enabled)
+    {
+        IncludeNetworkTopologyOverlay = enabled;
+        EnvironmentMap = CreateEnvironmentMap(Resources, DeploymentRecords, ReplicaGroupRows);
+        await UpdateEnvironmentMapAsync();
+    }
+
+    private async Task OnDependencyRelationshipsChanged(bool enabled)
+    {
+        IncludeDependencyRelationships = enabled;
+        EnvironmentMap = CreateEnvironmentMap(Resources, DeploymentRecords, ReplicaGroupRows);
+        await UpdateEnvironmentMapAsync();
+    }
+
+    private async Task OnLinkLabelsChanged(bool enabled)
+    {
+        ShowEnvironmentMapLinkLabels = enabled;
+        await UpdateEnvironmentMapAsync();
     }
 
     private string GetLoadedAtLabel() =>
@@ -655,6 +705,20 @@
     private static string GetOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "not projected" : value;
 
+    private string GetResourceTypeDisplayName(Resource resource) =>
+        ShellCatalog.ResourceTypes.FirstOrDefault(type =>
+            string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase))
+            ?.DisplayName ??
+        (string.Equals(resource.Kind, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase)
+            ? resource.Kind
+            : $"{resource.Kind} ({resource.EffectiveTypeId})");
+
+    private string? GetResourceTypeIconName(Resource resource) =>
+        ShellCatalog.ResourceTypes.FirstOrDefault(type =>
+            string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase))
+            ?.Icon ??
+        FirstNonEmpty(resource.EffectiveTypeId, resource.ResourceClass.ToString(), resource.Kind);
+
     private string GetEnvironmentMapNodeLabel(string nodeId) =>
         EnvironmentMap.Nodes.FirstOrDefault(node =>
             string.Equals(node.Id, nodeId, StringComparison.OrdinalIgnoreCase))?.Label ?? nodeId;
@@ -683,7 +747,11 @@
                 Localize = value => L[value].Value,
                 Format = static (format, args) => string.Format(CultureInfo.CurrentCulture, format, args),
                 CreateResourceDetailUrl = resource => ResourceManagerCompositionLinks.ResourceDetails(Composition, resource.Id),
-                GetStateClass = ResourceStateDisplay.GetStateClass
+                GetStateClass = ResourceStateDisplay.GetStateClass,
+                GetResourceTypeLabel = GetResourceTypeDisplayName,
+                GetResourceIconName = GetResourceTypeIconName,
+                IncludeNetworkTopologyOverlay = IncludeNetworkTopologyOverlay,
+                IncludeDependencyRelationships = IncludeDependencyRelationships
             });
 
     private sealed record EnvironmentDeploymentRow(

@@ -118,6 +118,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddResourceModelGraphServices();
         builder.Services.AddScoped<IContainerHostResolver, ContainerHostResolver>();
         builder.Services.AddScoped<ResourceOrchestratorDeploymentCleanupCoordinator>();
+        builder.Services.AddScoped<IResourceOrchestratorDeploymentCleanupCoordinator>(
+            serviceProvider => serviceProvider.GetRequiredService<ResourceOrchestratorDeploymentCleanupCoordinator>());
         builder.Services.AddScoped<ResourceOrchestrationService>();
         builder.Services.TryAddSingleton<
             IResourceReplicaGroupReconciliationStore,
@@ -218,6 +220,17 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, ResourceReplicaGroupReconciliationPollingService>());
 
+        return controlPlane;
+    }
+
+    public static IControlPlaneBuilder AddCloudShellControlPlane(
+        this WebApplicationBuilder builder,
+        Action<IControlPlaneBuilder> configureControlPlane)
+    {
+        ArgumentNullException.ThrowIfNull(configureControlPlane);
+
+        var controlPlane = builder.AddCloudShellControlPlane();
+        configureControlPlane(controlPlane);
         return controlPlane;
     }
 

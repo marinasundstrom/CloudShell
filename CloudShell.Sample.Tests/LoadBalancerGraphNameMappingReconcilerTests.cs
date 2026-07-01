@@ -1,17 +1,15 @@
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Networking;
 using CloudShell.ControlPlane.ResourceManager.Platform;
-using CloudShell.LoadBalancer;
 using CloudShell.ResourceModel;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using ResourceGraphState = CloudShell.ResourceModel.ResourceState;
 
 namespace CloudShell.Sample.Tests;
 
-public sealed class LoadBalancerGraphNameMappingReconcilerTests
+public sealed class ResourceModelGraphDnsZoneNameMappingReconcilerTests
 {
     [Fact]
     public async Task ReconcileNameMappings_PublishesGraphMappingsThroughLocalHostNamesProvider()
@@ -90,10 +88,9 @@ public sealed class LoadBalancerGraphNameMappingReconcilerTests
             .AddLoadBalancerResourceType()
             .AddDnsZoneResourceType()
             .AddNameMappingResourceType()
+            .AddResourceModelGraphDnsZoneNameMappingReconciler()
             .AddResourceModelGraphServices()
             .AddBuiltInProviderResourceManagerProjections();
-        services.Replace(
-            ServiceDescriptor.Singleton<IDnsZoneNameMappingReconciler, LoadBalancerGraphNameMappingReconciler>());
         using var serviceProvider = services.BuildServiceProvider();
 
         var operationResolution = await serviceProvider
@@ -109,7 +106,7 @@ public sealed class LoadBalancerGraphNameMappingReconcilerTests
 
         Assert.False(execution.HasErrors, FormatDiagnostics(execution.Diagnostics));
         Assert.Contains(execution.Diagnostics, diagnostic =>
-            diagnostic.Code == "loadBalancer.graphNameMappingsReconciled" &&
+            diagnostic.Code == "dns.zone.graphNameMappingsReconciled" &&
             diagnostic.Message.Contains("Published 1 local host name mapping", StringComparison.Ordinal));
         var hostsFile = await File.ReadAllTextAsync(hostsFilePath);
         Assert.Contains("127.0.0.1 api.cloudshell.local", hostsFile);

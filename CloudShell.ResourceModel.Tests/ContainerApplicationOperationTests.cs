@@ -120,6 +120,44 @@ public sealed class ContainerApplicationOperationTests
         Assert.Empty(runtimeHandler.ImageApplyInvocations);
     }
 
+    [Fact]
+    public async Task NoopRuntimeHandler_ReturnsRuntimeUnavailableDiagnostics()
+    {
+        var runtimeHandler = new NoopContainerApplicationRuntimeHandler();
+        var startProvider = new ContainerApplicationStartOperationProvider(runtimeHandler);
+        var stopProvider = new ContainerApplicationStopOperationProvider(runtimeHandler);
+        var restartProvider = new ContainerApplicationRestartOperationProvider(runtimeHandler);
+        var imageProvider = new ContainerApplicationImageUpdateOperationProvider(runtimeHandler);
+        var replicasProvider = new ContainerApplicationReplicasUpdateOperationProvider(runtimeHandler);
+        var pipeline = CreatePipeline(startProvider, stopProvider, restartProvider, imageProvider, replicasProvider);
+
+        var result = await pipeline.ValidateAsync(
+            CreateDefinition(),
+            new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(result.HasErrors);
+
+        var startOperation = Assert.IsType<ContainerApplicationLifecycleOperation>(
+            result.Resource.Operations.Get(ContainerApplicationResourceTypeProvider.Operations.Start));
+        var imageOperation = Assert.IsType<ContainerApplicationImageUpdateOperation>(
+            result.Resource.Operations.Get(ContainerApplicationResourceTypeProvider.Operations.UpdateImage));
+        var replicasOperation = Assert.IsType<ContainerApplicationReplicasUpdateOperation>(
+            result.Resource.Operations.Get(ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas));
+
+        await AssertRuntimeUnavailableAsync(
+            startOperation.ExecuteAsync(),
+            result.Resource,
+            ContainerApplicationResourceTypeProvider.Operations.Start);
+        await AssertRuntimeUnavailableAsync(
+            imageOperation.ExecuteAsync(),
+            result.Resource,
+            ContainerApplicationResourceTypeProvider.Operations.UpdateImage);
+        await AssertRuntimeUnavailableAsync(
+            replicasOperation.ExecuteAsync(),
+            result.Resource,
+            ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas);
+    }
+
     private static ResourceDefinitionValidationPipeline CreatePipeline(
         ContainerApplicationStartOperationProvider startProvider,
         ContainerApplicationStopOperationProvider stopProvider,
@@ -154,6 +192,26 @@ public sealed class ContainerApplicationOperationTests
                 [ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas] =
                     2
             });
+
+    private static async Task AssertRuntimeUnavailableAsync(
+        ValueTask<ResourceOperationExecutionResult> executionTask,
+        Resource resource,
+        ResourceOperationId operationId)
+    {
+        var execution = await executionTask;
+
+        Assert.True(execution.HasErrors);
+        Assert.Same(resource, execution.Resource);
+        Assert.Equal(operationId, execution.OperationId);
+        var diagnostic = Assert.Single(execution.Diagnostics);
+        Assert.Equal(
+            NoopContainerApplicationRuntimeHandler.RuntimeUnavailableDiagnosticCode,
+            diagnostic.Code);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal(resource.EffectiveResourceId, diagnostic.Target);
+        Assert.Contains("No container application runtime is configured", diagnostic.Message);
+        Assert.Contains(operationId.Value, diagnostic.Message);
+    }
 
     private sealed class TestContainerApplicationRuntimeHandler :
         IContainerApplicationRuntimeHandler

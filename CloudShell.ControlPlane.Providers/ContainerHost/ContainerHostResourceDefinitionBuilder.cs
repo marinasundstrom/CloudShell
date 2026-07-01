@@ -35,8 +35,27 @@ public sealed class ContainerHostResourceDefinitionBuilder(string name) :
 
 public static class ContainerHostResourceDefinitionBuilderExtensions
 {
+    public const string DefaultContainerHostResourceId = "cloudshell.container-host:default";
+
+    public static ContainerHostResourceDefinitionBuilder GetContainerHost(
+        this ResourceGraphBuilder graph)
+    {
+        ArgumentNullException.ThrowIfNull(graph);
+
+        return graph.GetOrAddResource(
+            DefaultContainerHostResourceId,
+            () => new ContainerHostResourceDefinitionBuilder("default")
+                .WithResourceId(DefaultContainerHostResourceId)
+                .WithDisplayName("Default container host")
+                .UseDocker());
+    }
+
+    public static ContainerHostResourceDefinitionBuilder DefaultContainerHost(
+        this ResourceGraphBuilder graph) =>
+        graph.GetContainerHost();
+
     public static ContainerHostResourceDefinitionBuilder AddContainerHost(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);

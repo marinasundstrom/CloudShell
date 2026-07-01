@@ -86,39 +86,69 @@ Supported provider kinds:
 ## Provider Selection
 
 Resource identity bindings resolve through `ResourceIdentityProviderCatalog`.
-Providers can come from `ResourceIdentity` host configuration or from
-programmatic resource declarations.
+Providers can come from `ResourceIdentity` host configuration, built-in identity
+host setup, or host-level provider registration.
 
 | Binding kind | Selection rule |
 | --- | --- |
 | `Provider` | Resolve by `ProviderId`. |
-| `Required` | Resolve to the configured or programmatically declared default provider. If exactly one provider is available, that provider is the implicit default. |
+| `Required` | Resolve to the configured or host-registered default provider. If exactly one provider is available, that provider is the implicit default. |
 
 When multiple providers are available, set a default explicitly for `Required`
-identity bindings. Hosts can use `ResourceIdentity:DefaultProviderId`;
-programmatic declarations can call `resources.UseDefaultIdentityProvider(...)`.
-If a binding cannot resolve to a configured or programmatically registered
-provider, Resource Manager reports a `resourceIdentityProviderUnresolved`
-resource model diagnostic.
+identity bindings. Hosts can use `ResourceIdentity:DefaultProviderId`, built-in
+identity host setup, or `controlPlane.AddIdentityProvider(..., useAsDefault: true)`.
+If a binding cannot resolve to a configured or host-registered provider,
+Resource Manager reports a `resourceIdentityProviderUnresolved` resource model
+diagnostic.
 
 ```csharp
-resources.AddIdentityProvider(
+controlPlane.AddIdentityProvider(
     "identity:dev",
     "Development Identity",
     ResourceIdentityProviderKind.BuiltIn,
     useAsDefault: true);
 
-var api = resources
-    .Declare("applications.aspnet-core-project", "application:api")
-    .RequireIdentity();
+controlPlane.DefineResources(resources =>
+{
+    var api = resources
+        .Declare("applications.aspnet-core-project", "application:api")
+        .RequireIdentity();
+});
 ```
 
-`resources.AddIdentityProvider(...)` registers provider metadata with the
-declaration model. When the provider has a provisioning resource, callers must
-have `CloudShell.Identity/provisioningServices/identities/provision/action` or
+Control Plane resource-definition authoring can read host-registered
+identity-provider metadata while declaring graph resources:
+
+```csharp
+controlPlane.AddIdentityProvider(
+    "identity:dev",
+    "Development Identity",
+    ResourceIdentityProviderKind.BuiltIn,
+    useAsDefault: true);
+
+controlPlane.DefineResources(resources =>
+{
+    var identityProvider = resources.GetIdentityProvider("identity:dev");
+
+    resources
+        .AddAspNetCoreProject("api", apiProjectPath)
+        .WithIdentity(identityProvider);
+});
+```
+
+`controlPlane.AddIdentityProvider(...)` registers provider metadata with the
+Control Plane declaration model. `resources.GetIdentityProvider(...)` only
+reads that host context while building graph resources; it does not declare an
+identity provider resource and it is not part of the `ResourceDefinition`
+interchange format. The built-in identity setup also adds its built-in identity
+provider at host level, not as a resource. Future identity-provider resources
+may be modeled separately, but they are intentionally out of scope for the
+current ResourceDefinition authoring model. When the provider has a
+provisioning resource, callers must have
+`CloudShell.Identity/provisioningServices/identities/provision/action` or
 `resources.manage` on that resource before provisioning identities. The
-provisioning resource is not required to be the identity provider itself; it
-can be a third-party service that calls an external authority API.
+provisioning resource is not required to be the identity provider itself; it can
+be a third-party service that calls an external authority API.
 
 ## Identity Bindings
 
@@ -206,7 +236,7 @@ directory lookups. Built-in Identity sign-in remains email-only unless the host
 explicitly enables `Authentication:BuiltInIdentity:AllowUserNameSignIn`.
 
 ```csharp
-cloudShell.ConfigureInMemoryIdentity(identity =>
+controlPlane.ConfigureInMemoryIdentity(identity =>
 {
     identity.Users.Add(
         "alice",
@@ -216,7 +246,7 @@ cloudShell.ConfigureInMemoryIdentity(identity =>
         role: "CloudShell.Reader");
 });
 
-cloudShell.Resources(resources =>
+controlPlane.DefineResources(resources =>
 {
     var identity = resources.GetIdentityProvider();
     var alice = identity.GetUser("alice");
@@ -226,6 +256,12 @@ cloudShell.Resources(resources =>
     database.Allow(alice, "Database/databases/manage/action");
 });
 ```
+
+`resources.GetIdentityProvider()` returns a Control Plane identity-provider
+context, not a Resource graph node. `GetUser(...)` creates a provider-scoped
+principal reference using the selected provider ID. User existence and
+credentials remain owned by the configured identity provider and are validated
+by the provider/authentication path rather than by the resource template.
 
 Persisted users for the built-in provider use the same ASP.NET Core Identity
 manager path backed by the configured database store and are managed by the

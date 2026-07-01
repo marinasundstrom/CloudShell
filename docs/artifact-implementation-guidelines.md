@@ -170,8 +170,8 @@ resource.
 5. Implement authoring surfaces.
    - Add programmatic declaration builders or extension methods when the type
      should be declared in code.
-   - For Resource Graph provider ports, add a provider-owned
-     `ResourceDefinitionGraphBuilder` builder unless the provider README
+   - For Resource Model provider ports, add a provider-owned
+     `ResourceGraphBuilder` builder unless the provider README
      explicitly defers it. The builder should cover the resource's common
      attributes, relationships, configuration payloads, capability payloads,
      and operation declarations without leaking runtime implementation

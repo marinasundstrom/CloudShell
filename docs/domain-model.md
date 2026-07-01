@@ -283,6 +283,18 @@ developers than the Resource model, but it becomes important for operations,
 diagnostics, deployment progress, scaling behavior, versioning the environment,
 and understanding why a running system changed.
 
+A **[network topology overlay](terminology.md#network-topology-overlay)** can
+be projected over both the Resource model and the Runtime model. In the
+Resource graph, the overlay should emphasize network resources, endpoint
+mappings, published names, routes, and whether resources are connected through
+networks. In the Environment Map, the same overlay can include runtime service
+boundaries, routing bindings, replica groups, load-balancer materialization,
+and **[internet connection](terminology.md#internet-connection)** facts. The
+internet facts are rendered as reachability badges or, when useful, as an
+Internet topology anchor connected to the concrete carrier boundary. This keeps
+network and internet reachability visible where useful without making the
+Resource graph or Environment Map a separate source of truth.
+
 ```mermaid
 flowchart TB
     host["Host environment"]
@@ -299,6 +311,8 @@ flowchart TB
         replicaGroups["Replica groups"]
         replicas["Replicas"]
         routing["Routing bindings"]
+        topology["Network topology overlay"]
+        internet["Internet connection facts"]
         deployments["Deployments"]
         revisions["Environment revisions"]
     end
@@ -307,10 +321,13 @@ flowchart TB
     runtimeResources --> dependencies
     runtimeResources --> endpoints
     endpoints --> mappings
+    mappings --> topology
+    topology --> internet
     runtimeResources --> services
     services --> replicaGroups
     replicaGroups --> replicas
     services --> routing
+    routing --> topology
     deployments --> services
     deployments --> replicaGroups
     deployments --> routing
@@ -319,6 +336,7 @@ flowchart TB
     revisions --> replicaGroups
     revisions --> replicas
     revisions --> routing
+    revisions --> topology
 ```
 
 The default orchestration mode is managing standalone resources. A resource
@@ -724,7 +742,7 @@ the current resolved address for that topology. Resources project these
 topology-specific addresses through `Resource.ResourceEndpointNetworkMappings`.
 For local development, an Aspire-compatible helper such as
 `WithHttpEndpoint(port: 6000)` declares an HTTP endpoint descriptor and creates
-assignment intent for the implied local network; the resulting network mapping
+assignment intent for the Host network; the resulting network mapping
 is the address the provider passes to the service when it starts.
 
 Configured endpoint mappings connect a source endpoint to a target endpoint. A
@@ -748,8 +766,9 @@ reserve endpoints advertise `networking.endpointProvider`.
 
 CloudShell uses three basic network resource kinds:
 
-- Host network: the implicit default when no network resource has been created.
-  The default Control Plane projects it as the local host environment.
+- Host network: the implicit default resource when no network resource has been
+  authored. The default Control Plane projects it as the local host environment,
+  and resources may default to it when policy allows host-local bindings.
 - Logical network: a named CloudShell boundary for endpoint requests and
   configured endpoint mappings.
 - Virtual network: a richer environment boundary intended for on-premise or
@@ -765,6 +784,17 @@ localhost ports from the configured range on Windows, macOS, and Linux. Richer
 network topology, routing, policy, TLS, DNS, clustering, and load-balancing
 behavior should be expressed as capabilities on authored resources and
 implemented by provider-owned configuration behind those resources.
+
+Network topology should be visualized as an overlay rather than a separate
+resource model. The Resource graph can use the overlay to show network
+resources, endpoint mappings, name mappings, load-balancer routes, and
+internet reachability. The Environment Map can use the same topology facts
+while adding runtime context such as orchestration service boundaries, replica
+groups, replicas, routing bindings, and load-balancer materialization. A
+resource or network should be shown as internet-connected only when that is
+declared by a network/public endpoint resource, projected by a capable
+provider, or observed by the runtime; inferred reachability should be presented
+as inferred.
 
 When a virtual network is projected by the default host-local implementation
 without external mapping providers, it carries

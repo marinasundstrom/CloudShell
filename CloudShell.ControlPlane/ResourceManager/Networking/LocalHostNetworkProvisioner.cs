@@ -24,7 +24,7 @@ public sealed class LocalHostNetworkProvisioner : IResourceEndpointMappingProvis
 
     public bool CanProvisionEndpointMapping(ResourceEndpointMappingProvisioningContext context) =>
         IsSupported &&
-        IsSupportedProviderResource(context.ProviderResource.Id) &&
+        IsSupportedProviderResource(context.ProviderResource) &&
         IsSupportedProtocol(context.SourceEndpoint.Protocol) &&
         IsSupportedProtocol(context.TargetEndpoint.Protocol);
 
@@ -102,9 +102,11 @@ public sealed class LocalHostNetworkProvisioner : IResourceEndpointMappingProvis
         protocol.Equals("https", StringComparison.OrdinalIgnoreCase) ||
         protocol.Equals("tcp", StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsSupportedProviderResource(string resourceId) =>
-        string.Equals(resourceId, LocalHostNetworkProvider.ResourceId, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(resourceId, MacOSHostNetworkProvider.ResourceId, StringComparison.OrdinalIgnoreCase);
+    private static bool IsSupportedProviderResource(Resource providerResource) =>
+        string.Equals(providerResource.Id, LocalHostNetworkProvider.ResourceId, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(providerResource.Id, MacOSHostNetworkProvider.ResourceId, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(providerResource.EffectiveTypeId, LocalHostNetworkProvider.ResourceType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(providerResource.EffectiveTypeId, MacOSHostNetworkProvider.ResourceType, StringComparison.OrdinalIgnoreCase);
 
     private static HostEndpoint ParseEndpoint(
         ResourceEndpoint endpoint,

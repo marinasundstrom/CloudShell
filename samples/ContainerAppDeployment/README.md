@@ -52,10 +52,10 @@ deployment-definition work.
 
 The sample no longer declares the old application/Docker provider resources.
 The deployment and replica APIs update the Resource graph resource directly and
-execute a sample-local runtime bridge that accepts the state change without
-materializing a real container app runtime yet. This is a switch-readiness gate
-for the API and graph apply path; real container-app materialization remains a
-provider runtime follow-up.
+execute the provider-owned deferred container app runtime adapter, which
+accepts the state change without materializing a real container app runtime yet.
+This is a switch-readiness gate for the API and graph apply path; real
+container-app materialization remains a provider runtime follow-up.
 
 The sample also includes an opt-in registry runtime materializer behind:
 
@@ -69,9 +69,10 @@ Docker registry container named
 `cloudshell-container-app-deployment-registry`. It is disabled by default
 so normal sample projection and smoke coverage do not depend on Docker CLI
 availability or latency. The Docker command runner is sample-local and covered
-by deterministic command-construction tests plus Docker smoke
-coverage that starts the registry, verifies `/v2/`, and stops/removes the
-container without old provider records. The runtime also contributes
+availability or latency. The local Docker container runtime is provided by the
+Docker container provider and covered by deterministic command-construction
+tests plus Docker smoke coverage that starts the registry, verifies `/v2/`, and
+stops/removes the container without old provider records. The runtime also contributes
 control-plane-scoped workload metadata so graceful host shutdown removes the
 registry container through the host-scoped shutdown service. It is not
 the durable Docker provider runtime implementation. Registry status projection

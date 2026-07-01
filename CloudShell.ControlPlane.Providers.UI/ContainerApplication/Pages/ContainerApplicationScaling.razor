@@ -2,6 +2,7 @@
 @using CloudShell.ControlPlane.Providers
 @implements IDisposable
 @inject IResourceManager ResourceManager
+@inject IResourceTemplateManager Templates
 
 @if (Resource is null)
 {
@@ -41,6 +42,8 @@ else
             <dd>@OccupiedReplicaSlots.ToString(CultureInfo.InvariantCulture)</dd>
             <dt>Materialized slots</dt>
             <dd>@GetAttribute(ResourceAttributeNames.DeploymentMaterializedReplicas, "not projected")</dd>
+            <dt>Session affinity</dt>
+            <dd>@GetSessionAffinityLabel(Resource)</dd>
             <dt>Resource type</dt>
             <dd>@Resource.EffectiveTypeId</dd>
         </dl>
@@ -66,6 +69,59 @@ else
                               Severity="@ReplicaUpdateSeverity"
                               Role="status">
                 @ReplicaUpdateMessage
+            </ProcedureMessage>
+        }
+    </section>
+
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Routing</h3>
+            </div>
+        </div>
+
+        <label for="container-app-session-affinity">Session affinity</label>
+        <FluentSelect TOption="string"
+                      Id="container-app-session-affinity"
+                      Disabled="@IsReadOnly"
+                      @bind-Value="SessionAffinityMode"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="None">None</FluentOption>
+            <FluentOption TOption="string" Value="Cookie">Cookie</FluentOption>
+            <FluentOption TOption="string" Value="ClientIp">Client IP</FluentOption>
+        </FluentSelect>
+
+        @if (IsCookieSessionAffinity)
+        {
+            <label for="container-app-session-affinity-cookie">Cookie name</label>
+            <FluentTextField Id="container-app-session-affinity-cookie"
+                             Disabled="@IsReadOnly"
+                             @bind-Value="SessionAffinityCookieName"
+                             Placeholder="CloudShellReplica" />
+
+            <label for="container-app-session-affinity-duration">Duration seconds</label>
+            <FluentNumberField TValue="int"
+                               Id="container-app-session-affinity-duration"
+                               Min="1"
+                               Disabled="@IsReadOnly"
+                               @bind-Value="SessionAffinityDurationSeconds" />
+        }
+
+        <GeneratedRowActions>
+            <FluentButton Appearance="Appearance.Accent"
+                          IconStart="@(new Icons.Regular.Size20.Save())"
+                          Disabled="@(!CanUpdateRouting)"
+                          OnClick="UpdateRoutingAsync">
+                @(IsUpdatingRouting ? "Updating routing" : "Update routing")
+            </FluentButton>
+        </GeneratedRowActions>
+
+        @if (!string.IsNullOrWhiteSpace(RoutingUpdateMessage))
+        {
+            <ProcedureMessage Compact="true"
+                              Severity="@RoutingUpdateSeverity"
+                              Role="status">
+                @RoutingUpdateMessage
             </ProcedureMessage>
         }
     </section>
@@ -158,6 +214,12 @@ else
     private bool IsDisposed { get; set; }
     private string? ReplicaUpdateMessage { get; set; }
     private ResourceSignalSeverity? ReplicaUpdateSeverity { get; set; }
+    private string SessionAffinityMode { get; set; } = "None";
+    private string? SessionAffinityCookieName { get; set; }
+    private int SessionAffinityDurationSeconds { get; set; } = 3600;
+    private bool IsUpdatingRouting { get; set; }
+    private string? RoutingUpdateMessage { get; set; }
+    private ResourceSignalSeverity? RoutingUpdateSeverity { get; set; }
 
     private bool CanUpdateReplicaCount =>
         !IsReadOnly &&
@@ -165,6 +227,19 @@ else
         Resource is not null &&
         BuiltInProviderResourceUiTypes.IsContainerApplication(Resource.EffectiveTypeId) &&
         Math.Max(1, Replicas) != Math.Max(1, RequestedReplicaSlots);
+
+    private bool IsCookieSessionAffinity =>
+        string.Equals(
+            SessionAffinityMode,
+            ResourceOrchestratorSessionAffinityMode.Cookie.ToString(),
+            StringComparison.OrdinalIgnoreCase);
+
+    private bool CanUpdateRouting =>
+        !IsReadOnly &&
+        !IsUpdatingRouting &&
+        Resource is not null &&
+        BuiltInProviderResourceUiTypes.IsContainerApplication(Resource.EffectiveTypeId) &&
+        (!IsCookieSessionAffinity || !string.IsNullOrWhiteSpace(SessionAffinityCookieName));
 
     protected override Task OnParametersSetAsync() => RefreshAsync();
 
@@ -190,6 +265,7 @@ else
             RequestedReplicaSlots = Math.Max(1, GetReplicaCount(Resource));
             ReplicaSlots = CreateReplicaSlots(RequestedReplicaSlots, MaterializedReplicas);
             Replicas = RequestedReplicaSlots;
+            InitializeRoutingFields();
         }
         finally
         {
@@ -255,6 +331,83 @@ else
         }
     }
 
+    private async Task UpdateRoutingAsync()
+    {
+        if (IsUpdatingRouting)
+        {
+            return;
+        }
+
+        if (IsReadOnly)
+        {
+            RoutingUpdateSeverity = ResourceSignalSeverity.Warning;
+            RoutingUpdateMessage = "Resource Manager is in read-only mode.";
+            return;
+        }
+
+        if (Resource is null || !BuiltInProviderResourceUiTypes.IsContainerApplication(Resource.EffectiveTypeId))
+        {
+            RoutingUpdateSeverity = ResourceSignalSeverity.Warning;
+            RoutingUpdateMessage = "Routing settings are not supported for this resource.";
+            return;
+        }
+
+        if (IsCookieSessionAffinity && string.IsNullOrWhiteSpace(SessionAffinityCookieName))
+        {
+            RoutingUpdateSeverity = ResourceSignalSeverity.Warning;
+            RoutingUpdateMessage = "Cookie session affinity requires a cookie name.";
+            return;
+        }
+
+        IsUpdatingRouting = true;
+        RoutingUpdateMessage = null;
+        RoutingUpdateSeverity = null;
+        try
+        {
+            var attributes = new Dictionary<CloudShell.ResourceModel.ResourceAttributeId, CloudShell.ResourceModel.ResourceAttributeValue>
+            {
+                [ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityMode] =
+                    NormalizeSessionAffinityMode(SessionAffinityMode)
+            };
+            if (IsCookieSessionAffinity)
+            {
+                attributes[ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityCookieName] =
+                    SessionAffinityCookieName!.Trim();
+                attributes[ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityDurationSeconds] =
+                    Math.Max(1, SessionAffinityDurationSeconds);
+            }
+
+            var result = await Templates.ApplyResourceTemplateAsync(
+                new CloudShell.ResourceModel.ResourceTemplate(
+                    "Update container app routing",
+                    [
+                        new CloudShell.ResourceModel.ResourceDefinition(
+                            Resource.Name,
+                            ContainerApplicationResourceTypeProvider.ResourceTypeId,
+                            ResourceId: Resource.Id,
+                            ProviderId: ContainerApplicationResourceTypeProvider.ProviderId,
+                            Attributes: new CloudShell.ResourceModel.ResourceAttributeValueMap(attributes))
+                    ]));
+
+            RoutingUpdateSeverity = result.IsCommitted && !result.HasErrors
+                ? ResourceSignalSeverity.Success
+                : ResourceSignalSeverity.Error;
+            RoutingUpdateMessage = result.IsCommitted && !result.HasErrors
+                ? "Routing settings were updated."
+                : FormatDiagnostics(result.Diagnostics);
+            await RefreshAsync();
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            RoutingUpdateSeverity = ResourceSignalSeverity.Error;
+            RoutingUpdateMessage = $"Routing update failed: {exception.Message}";
+        }
+        finally
+        {
+            IsUpdatingRouting = false;
+        }
+    }
+
     private string GetModeLabel() =>
         RequestedReplicaSlots > 1 ? "Replicated" : "Single instance";
 
@@ -273,6 +426,73 @@ else
         !string.IsNullOrWhiteSpace(value)
             ? value
             : fallback;
+
+    private void InitializeRoutingFields()
+    {
+        SessionAffinityMode = NormalizeSessionAffinityMode(GetAttribute(
+            ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityMode,
+            ResourceOrchestratorSessionAffinityMode.None.ToString()));
+        SessionAffinityCookieName = GetAttribute(
+            ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityCookieName,
+            "CloudShellReplica");
+        SessionAffinityDurationSeconds =
+            TryGetPositiveInt(
+                Resource,
+                ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityDurationSeconds) ??
+            3600;
+    }
+
+    private static string GetSessionAffinityLabel(Resource resource)
+    {
+        var mode = NormalizeSessionAffinityMode(GetAttribute(
+            resource,
+            ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityMode,
+            ResourceOrchestratorSessionAffinityMode.None.ToString()));
+        if (string.Equals(mode, ResourceOrchestratorSessionAffinityMode.Cookie.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return "Cookie";
+        }
+
+        if (string.Equals(mode, ResourceOrchestratorSessionAffinityMode.ClientIp.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return "Client IP";
+        }
+
+        return "None";
+    }
+
+    private static string NormalizeSessionAffinityMode(string? value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        Enum.TryParse<ResourceOrchestratorSessionAffinityMode>(
+            value,
+            ignoreCase: true,
+            out var mode)
+            ? mode.ToString()
+            : ResourceOrchestratorSessionAffinityMode.None.ToString();
+
+    private static int? TryGetPositiveInt(Resource? resource, string attributeName)
+    {
+        if (resource is null ||
+            !resource.ResourceAttributes.TryGetValue(attributeName, out var value) ||
+            !int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var count) ||
+            count < 1)
+        {
+            return null;
+        }
+
+        return count;
+    }
+
+    private static string FormatDiagnostics(IEnumerable<CloudShell.ResourceModel.ResourceDefinitionDiagnostic> diagnostics)
+    {
+        var messages = diagnostics
+            .Where(diagnostic => diagnostic.Severity == CloudShell.ResourceModel.ResourceDefinitionDiagnosticSeverity.Error)
+            .Select(diagnostic => diagnostic.Message)
+            .ToArray();
+        return messages.Length == 0
+            ? "Routing settings could not be updated."
+            : string.Join(" ", messages);
+    }
 
     private static bool IsReplicaResource(Resource resource) =>
         string.Equals(resource.EffectiveTypeId, "runtime.container", StringComparison.OrdinalIgnoreCase) &&

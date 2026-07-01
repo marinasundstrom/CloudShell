@@ -110,10 +110,12 @@ the Fluent UI presenters used by the built-in shell.
 
 ## Entry Point
 
-Implement one `ICloudShellExtension`:
+Implement extension entry points for the surfaces the package supports. A
+package can expose both a Control Plane extension and a CloudShell UI
+extension, but their registrations should stay separate:
 
 ```csharp
-public sealed class AcmeExtension : ICloudShellExtension
+public sealed class AcmeControlPlaneExtension : ICloudShellExtension
 {
     public CloudShellExtensionManifest Manifest => new(
         Id: "acme.infrastructure",
@@ -121,6 +123,25 @@ public sealed class AcmeExtension : ICloudShellExtension
         Description: "Tools for Acme's on-premise environment.",
         Version: "1.0.0",
         Provides: ["acme.resources"],
+        Consumes: ["resource-manager.resources"]);
+
+    public void Configure(ICloudShellExtensionBuilder builder)
+    {
+        builder
+            .AddResourceProvider<AcmeResourceProvider>()
+            .AddLogProvider<AcmeLogProvider>()
+            .AddScoped<IAcmeClient, AcmeClient>();
+    }
+}
+
+public sealed class AcmeUiExtension : ICloudShellExtension
+{
+    public CloudShellExtensionManifest Manifest => new(
+        Id: "acme.infrastructure.ui",
+        DisplayName: "Acme Infrastructure UI",
+        Description: "CloudShell UI integration for Acme infrastructure.",
+        Version: "1.0.0",
+        Provides: ["acme.resources.ui"],
         Consumes: ["resource-manager.resources"]);
 
     public void Configure(ICloudShellExtensionBuilder builder)
@@ -136,8 +157,6 @@ public sealed class AcmeExtension : ICloudShellExtension
             });
 
         builder
-            .AddResourceProvider<AcmeResourceProvider>()
-            .AddLogProvider<AcmeLogProvider>()
             .AddResourceType<Pages.RegisterAcmeCluster>(
                 id: "acme.cluster",
                 displayName: "Acme Cluster",
@@ -148,8 +167,7 @@ public sealed class AcmeExtension : ICloudShellExtension
             .AddNavigationItem<Pages.AcmeDashboard>(
                 text: "Acme Dashboard",
                 icon: "grid",
-                order: 51)
-            .AddScoped<IAcmeClient, AcmeClient>();
+                order: 51);
     }
 }
 ```
@@ -164,18 +182,30 @@ Expose a package-level registration method:
 ```csharp
 public static class AcmeCloudShellExtensions
 {
-    public static ICloudShellBuilder AddAcme(
+    public static IControlPlaneBuilder AddAcmeBackend(
+        this IControlPlaneBuilder builder) =>
+        builder.AddExtension<AcmeControlPlaneExtension>();
+
+    public static ICloudShellBuilder AddAcmeUi(
         this ICloudShellBuilder builder) =>
-        builder.AddExtension<AcmeExtension>();
+        builder.AddExtension<AcmeUiExtension>();
 }
 ```
 
 The host installs the extension through DI:
 
 ```csharp
-builder
-    .AddCloudShell()
-    .AddAcme();
+builder.AddCloudShellControlPlaneApplication(
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
+    {
+        controlPlane.AddAcmeBackend();
+    });
+
+builder.AddCloudShellUi(ui =>
+{
+    ui.AddAcmeUi();
+});
 ```
 
 In the intended NuGet distribution flow, the host references the package and
@@ -194,18 +224,20 @@ Shared environments can register an extension as supported but leave activation
 to the Extensions UI and the persisted activation store:
 
 ```csharp
-builder
-    .AddCloudShell()
-    .AddSupportedExtension<AcmeExtension>();
+builder.AddCloudShellUi(ui =>
+{
+    ui.AddSupportedExtension<AcmeExtension>();
+});
 ```
 
 Supported extensions are disabled until the UI enables them. Host
 configuration can also force an extension off:
 
 ```csharp
-builder
-    .AddCloudShell()
-    .DisableExtension<AcmeExtension>();
+builder.AddCloudShellUi(ui =>
+{
+    ui.DisableExtension<AcmeExtension>();
+});
 ```
 
 Host-enabled and host-disabled extensions cannot be changed from the UI. UI

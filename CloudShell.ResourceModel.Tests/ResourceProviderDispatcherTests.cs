@@ -2,6 +2,10 @@ using System.Text.Json;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CloudShell.ResourceModel.Tests;
 
@@ -28,18 +32,16 @@ public sealed class ResourceProviderDispatcherTests
     public void AddBuiltInResourceModelProviderTypes_RegistersDefaultProviderCatalog()
     {
         var services = new ServiceCollection();
-        services.AddBuiltInResourceModelProviderTypes(options =>
+        services.AddBuiltInResourceModelProviderTypes();
+        services.AddConfigurationStoreResourceType(runtime =>
         {
-            options.ConfigureConfigurationStoreRuntime = runtime =>
-            {
-                runtime.ServiceProjectPath = "services/configuration-store.csproj";
-                runtime.Entries.Add(new("Sample:Message", "Hello from graph"));
-            };
-            options.ConfigureSecretsVaultRuntime = runtime =>
-            {
-                runtime.ServiceProjectPath = "services/secrets-vault.csproj";
-                runtime.Secrets.Add(new("sample-api-key", "secret-value", "v1"));
-            };
+            runtime.ServiceProjectPath = "services/configuration-store.csproj";
+            runtime.Entries.Add(new("Sample:Message", "Hello from graph"));
+        });
+        services.AddSecretsVaultResourceType(runtime =>
+        {
+            runtime.ServiceProjectPath = "services/secrets-vault.csproj";
+            runtime.Secrets.Add(new("sample-api-key", "secret-value", "v1"));
         });
         using var serviceProvider = services.BuildServiceProvider();
 
@@ -79,6 +81,27 @@ public sealed class ResourceProviderDispatcherTests
         var secretsVault = serviceProvider.GetRequiredService<SecretsVaultRuntimeOptions>();
         Assert.Equal("services/secrets-vault.csproj", secretsVault.ServiceProjectPath);
         Assert.Equal("sample-api-key", Assert.Single(secretsVault.Secrets).Name);
+    }
+
+    [Fact]
+    public void AddBuiltInResourceModelRuntimeAdapters_RegistersProviderOwnedResourceModelRuntimeAdapters()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddResourceModelGraphServices();
+        services.AddBuiltInResourceModelRuntimeAdapters();
+        using var serviceProvider = services.BuildServiceProvider();
+
+        Assert.IsType<ResourceModelGraphEndpointMappingReconciler>(
+            serviceProvider.GetRequiredService<INetworkEndpointMappingReconciler>());
+        Assert.IsType<ResourceModelGraphEndpointMappingReconciler>(
+            serviceProvider.GetRequiredService<IVirtualNetworkEndpointMappingReconciler>());
+        Assert.IsType<ResourceModelGraphEndpointMappingReconciler>(
+            serviceProvider.GetRequiredService<ILocalHostNetworkEndpointMappingReconciler>());
+        Assert.IsType<ResourceModelGraphEndpointMappingReconciler>(
+            serviceProvider.GetRequiredService<IMacOSHostNetworkEndpointMappingReconciler>());
+        Assert.IsType<ResourceModelGraphDnsZoneNameMappingReconciler>(
+            serviceProvider.GetRequiredService<IDnsZoneNameMappingReconciler>());
     }
 
     [Fact]
@@ -561,6 +584,9 @@ public sealed class ResourceProviderDispatcherTests
         services.AddContainerHostResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
+        var descriptorProvider = Assert.Single(serviceProvider
+            .GetServices<CloudShell.Abstractions.ResourceManager.IResourceOrchestrationDescriptorProvider>()
+            .OfType<ContainerHostOrchestrationDescriptorProvider>());
         var definition = new ResourceDefinition(
             "docker",
             ContainerHostResourceTypeProvider.ResourceTypeId,
@@ -618,6 +644,7 @@ public sealed class ResourceProviderDispatcherTests
         Assert.NotNull(inspect);
         Assert.True(await inspect.CanExecuteAsync());
         Assert.Equal("Docker", inspect.PlanInspection().HostKind);
+        Assert.NotNull(descriptorProvider);
     }
 
     [Fact]
@@ -1475,10 +1502,13 @@ public sealed class ResourceProviderDispatcherTests
     {
         var services = new ServiceCollection();
         services.AddLocalVolumeResourceType();
-        services.AddContainerHostResourceType();
         services.AddContainerApplicationResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
+        var typeIds = serviceProvider
+            .GetServices<IResourceTypeProvider>()
+            .Select(provider => provider.TypeId)
+            .ToHashSet();
         var volume = new ResourceDefinition(
             "data",
             LocalVolumeResourceTypeProvider.ResourceTypeId);
@@ -1529,6 +1559,7 @@ public sealed class ResourceProviderDispatcherTests
                 new ResourceDefinitionValidationContext("local", "developer"));
 
         Assert.False(validation.HasErrors);
+        Assert.Contains(ContainerHostResourceTypeProvider.ResourceTypeId, typeIds);
         var containerValidation = validation.Resources.Single(resource =>
             resource.Resource.EffectiveResourceId == definition.EffectiveResourceId);
         Assert.Equal(ContainerApplicationResourceTypeProvider.ClassId, containerValidation.Resource.Class.ClassId);
@@ -1636,6 +1667,36 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddLocalContainerApplicationProcessRuntime_ReplacesNoopContainerAppRuntimeHandler()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Directory.GetCurrentDirectory()));
+        services.AddSingleton<ILogger<LocalContainerApplicationProcessRuntimeBridge>>(
+            NullLogger<LocalContainerApplicationProcessRuntimeBridge>.Instance);
+
+        services
+            .AddLocalContainerApplicationResourceTypes()
+            .AddLocalContainerApplicationProcessRuntime(options =>
+                options.AddProject(
+                    "application.container-app:api",
+                    "/tmp/api.csproj",
+                    runtime => runtime.ReplicaPortStart = 6100));
+
+        await using var serviceProvider = services.BuildServiceProvider();
+        var handler = serviceProvider.GetRequiredService<IContainerApplicationRuntimeHandler>();
+        var options = serviceProvider
+            .GetRequiredService<Microsoft.Extensions.Options.IOptions<
+                LocalContainerApplicationProcessRuntimeOptions>>()
+            .Value;
+
+        Assert.IsType<LocalContainerApplicationProcessRuntimeHandler>(handler);
+        var application = Assert.Single(options.Applications);
+        Assert.Equal("application.container-app:api", application.Key);
+        Assert.Equal(6100, application.Value.ReplicaPortStart);
+    }
+
+    [Fact]
     public void AddStorageBackedSqlServerResourceTypes_RegistersStorageVolumeAndSqlServerTypes()
     {
         var services = new ServiceCollection();
@@ -1677,12 +1738,25 @@ public sealed class ResourceProviderDispatcherTests
         services.AddSqlServerResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
+        var typeIds = serviceProvider
+            .GetServices<IResourceTypeProvider>()
+            .Select(provider => provider.TypeId)
+            .ToHashSet();
         var volume = new ResourceDefinition(
             "sql-data",
             LocalVolumeResourceTypeProvider.ResourceTypeId);
+        var host = new ResourceDefinition(
+            "docker",
+            ContainerHostResourceTypeProvider.ResourceTypeId);
         var definition = new ResourceDefinition(
             "sql",
             SqlServerResourceTypeProvider.ResourceTypeId,
+            DependsOn:
+            [
+                ResourceReference.DependsOnResourceId(
+                    host.EffectiveResourceId,
+                    typeId: ContainerHostResourceTypeProvider.ResourceTypeId)
+            ],
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [SqlServerResourceTypeProvider.Attributes.Version] = "2022",
@@ -1719,10 +1793,11 @@ public sealed class ResourceProviderDispatcherTests
         var validation = await serviceProvider
             .GetRequiredService<ResourceDefinitionGraphValidationPipeline>()
             .ValidateAsync(
-                new ResourceDefinitionGraph([volume, definition]),
+                new ResourceDefinitionGraph([host, volume, definition]),
                 new ResourceDefinitionValidationContext("local", "developer"));
 
         Assert.False(validation.HasErrors);
+        Assert.Contains(ContainerHostResourceTypeProvider.ResourceTypeId, typeIds);
         var sqlValidation = validation.Resources.Single(resource =>
             resource.Resource.EffectiveResourceId == definition.EffectiveResourceId);
         Assert.Equal(SqlServerResourceTypeProvider.ClassId, sqlValidation.Resource.Class.ClassId);
@@ -2130,4 +2205,14 @@ public sealed class ResourceProviderDispatcherTests
             ValueTask.FromResult(ResourceDefinitionValidationResult.Success);
     }
 
+    private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = Environments.Development;
+
+        public string ApplicationName { get; set; } = "CloudShell.ResourceModel.Tests";
+
+        public string ContentRootPath { get; set; } = contentRootPath;
+
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+    }
 }

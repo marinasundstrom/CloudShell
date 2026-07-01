@@ -11,6 +11,7 @@ public static class ResourceLogSourceDefinitionValues
 {
     public const string ProcessOutput = "processOutput";
     public const string PlainText = "plainText";
+    public const string JsonConsole = "jsonConsole";
     public const string Read = "read";
     public const string Stream = "stream";
     public const string ProviderDefault = "providerDefault";

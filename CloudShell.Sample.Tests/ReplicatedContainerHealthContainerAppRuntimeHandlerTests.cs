@@ -5,6 +5,9 @@ using CloudShell.ResourceModel;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using System.Globalization;
 using System.Text.Json;
 using GraphResource = CloudShell.ResourceModel.Resource;
@@ -17,7 +20,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     public async Task RuntimeBridge_StartPublishesImageAndRunsGraphReplicaContainers()
     {
         var commandRunner = new RecordingCommandRunner();
-        var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+        var bridge = CreateRuntimeBridge(
             commandRunner,
             CreateConfiguration(replicaCleanupLimit: 2));
         var resource = await CreateGraphAppResourceAsync(
@@ -40,7 +43,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 Assert.Contains("-p:ContainerRepository=cloudshell-application-api", command.Arguments);
                 Assert.Contains("-p:ContainerImageTag=20260622.2", command.Arguments);
             },
-            command => AssertDockerRemove(command, ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()),
+            command => AssertDockerRemove(command, LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName()),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-1"),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-2"),
             AssertDockerNetworkCreate,
@@ -63,7 +66,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         var commandRunner = new RecordingCommandRunner();
         commandRunner.EnqueueSuccess(6);
         commandRunner.Enqueue(new(1, string.Empty, "replica failed"));
-        var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+        var bridge = CreateRuntimeBridge(
             commandRunner,
             CreateConfiguration(replicaCleanupLimit: 2));
         var resource = await CreateGraphAppResourceAsync(
@@ -76,12 +79,12 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             ContainerApplicationResourceTypeProvider.Operations.Start);
 
         var diagnostic = Assert.Single(diagnostics);
-        Assert.Equal("replicatedContainerHealth.runtimeFailed", diagnostic.Code);
+        Assert.Equal("localDockerContainerApplication.runtimeFailed", diagnostic.Code);
         Assert.Contains("replica failed", diagnostic.Message);
         Assert.Collection(
             commandRunner.Commands,
             command => Assert.Equal("dotnet", command.FileName),
-            command => AssertDockerRemove(command, ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()),
+            command => AssertDockerRemove(command, LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName()),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-1"),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-2"),
             AssertDockerNetworkCreate,
@@ -95,7 +98,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 "cloudshell-replicated-health-api-replica-2",
                 replica: 2,
                 expectedProbePort: 5193),
-            command => AssertDockerRemove(command, ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()),
+            command => AssertDockerRemove(command, LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName()),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-1"),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-2"));
     }
@@ -116,11 +119,12 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests));
 
         var graph = new ResourceGraphModel(new InMemoryResourceStateProvider([resource.State]));
-        var provider = new ReplicatedContainerHealthRuntimeResourceProvider(
+        var provider = new LocalDockerContainerApplicationRuntimeResourceProvider(
             graph,
             resolver,
             new RecordingContainerAppRuntimeBridge(ContainerApplicationRuntimeStatus.Running),
-            CreateConfiguration());
+            CreateConfiguration(),
+            Options.Create(CreateRuntimeOptions()));
 
         var replicas = provider.GetResources();
 
@@ -134,7 +138,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     public async Task RuntimeBridge_StopRemovesGraphReplicaContainers()
     {
         var commandRunner = new RecordingCommandRunner();
-        var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+        var bridge = CreateRuntimeBridge(
             commandRunner,
             CreateConfiguration(replicaCleanupLimit: 2));
         var resource = await CreateGraphAppResourceAsync(replicas: 2);
@@ -146,7 +150,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         Assert.Empty(diagnostics);
         Assert.Collection(
             commandRunner.Commands,
-            command => AssertDockerRemove(command, ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()),
+            command => AssertDockerRemove(command, LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName()),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-1"),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-2"));
     }
@@ -157,7 +161,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         var commandRunner = new RecordingCommandRunner();
         commandRunner.Enqueue(new(0, "running", string.Empty));
         commandRunner.Enqueue(new(0, "running", string.Empty));
-        var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+        var bridge = CreateRuntimeBridge(
             commandRunner,
             CreateConfiguration());
 
@@ -176,7 +180,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         var commandRunner = new RecordingCommandRunner();
         commandRunner.Enqueue(new(1, string.Empty, "No such container"));
         commandRunner.Enqueue(new(1, string.Empty, "No such container"));
-        var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+        var bridge = CreateRuntimeBridge(
             commandRunner,
             CreateConfiguration());
 
@@ -191,7 +195,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         var commandRunner = new RecordingCommandRunner();
         commandRunner.Enqueue(new(0, "running", string.Empty));
         commandRunner.Enqueue(new(0, "exited", string.Empty));
-        var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+        var bridge = CreateRuntimeBridge(
             commandRunner,
             CreateConfiguration());
 
@@ -205,10 +209,10 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     {
         var commandRunner = new RecordingCommandRunner();
         commandRunner.Enqueue(new(
-            ReplicatedContainerHealthCommandResult.TimeoutExitCode,
+            LocalContainerApplicationCommandResult.TimeoutExitCode,
             string.Empty,
             "timeout"));
-        var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+        var bridge = CreateRuntimeBridge(
             commandRunner,
             CreateConfiguration());
 
@@ -223,10 +227,10 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         var commandRunner = new RecordingCommandRunner();
         commandRunner.Enqueue(new(0, "running", string.Empty));
         commandRunner.Enqueue(new(
-            ReplicatedContainerHealthCommandResult.TimeoutExitCode,
+            LocalContainerApplicationCommandResult.TimeoutExitCode,
             string.Empty,
             "timeout"));
-        var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+        var bridge = CreateRuntimeBridge(
             commandRunner,
             CreateConfiguration(statusCacheMilliseconds: 0));
         var resource = await CreateGraphAppResourceAsync(replicas: 1);
@@ -246,7 +250,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         commandRunner.Enqueue(new(0, "running", string.Empty));
         commandRunner.Enqueue(new(0, "running", string.Empty));
         commandRunner.Enqueue(new(0, "exited", string.Empty));
-        var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+        var bridge = CreateRuntimeBridge(
             commandRunner,
             CreateConfiguration(statusCacheMilliseconds: 0));
         var resource = await CreateGraphAppResourceAsync(replicas: 2);
@@ -262,7 +266,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     public async Task RuntimeBridge_ApplyImageReplacesReplicasWithoutRemovingIngress()
     {
         var commandRunner = new RecordingCommandRunner();
-        var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+        var bridge = CreateRuntimeBridge(
             commandRunner,
             CreateConfiguration(replicaCleanupLimit: 2));
         var resource = await CreateGraphAppResourceAsync(
@@ -298,14 +302,14 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 "cloudshell-replicated-health-api-replica-2",
                 replica: 2,
                 expectedProbePort: 5193),
-            command => AssertDockerInspect(command, ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()));
+            command => AssertDockerInspect(command, LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName()));
     }
 
     [Fact]
     public async Task RuntimeBridge_ApplyReplicasAddsReplicasBeforeUpdatingIngress()
     {
         var commandRunner = new RecordingCommandRunner();
-        var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+        var bridge = CreateRuntimeBridge(
             commandRunner,
             CreateConfiguration(replicaCleanupLimit: 2));
         var resource = await CreateGraphAppResourceAsync(
@@ -340,14 +344,14 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 replica: 4,
                 expectedProbePort: 5195,
                 expectedReplicaCount: 4),
-            command => AssertDockerInspect(command, ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()));
+            command => AssertDockerInspect(command, LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName()));
     }
 
     [Fact]
     public async Task RuntimeBridge_ApplyReplicasUpdatesIngressBeforeRemovingStaleReplicas()
     {
         var commandRunner = new RecordingCommandRunner();
-        var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+        var bridge = CreateRuntimeBridge(
             commandRunner,
             CreateConfiguration(replicaCleanupLimit: 4));
         var resource = await CreateGraphAppResourceAsync(
@@ -370,7 +374,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             command => AssertDockerInspect(command, "cloudshell-replicated-health-api-replica-3"),
             command => AssertDockerInspect(command, "cloudshell-replicated-health-api-replica-4"),
             AssertDockerNetworkCreate,
-            command => AssertDockerInspect(command, ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()),
+            command => AssertDockerInspect(command, LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName()),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-4"),
             command => AssertDockerRemove(command, "cloudshell-replicated-health-api-replica-3"));
     }
@@ -379,7 +383,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     public async Task RuntimeBridge_OrchestratorPrimitivesStartReplicaAndReconcileIngressWithoutSweepingRuntime()
     {
         var commandRunner = new RecordingCommandRunner();
-        var bridge = new ReplicatedContainerHealthContainerAppRuntimeBridge(
+        var bridge = CreateRuntimeBridge(
             commandRunner,
             CreateConfiguration(replicaCleanupLimit: 4));
         var resource = await CreateGraphAppResourceAsync(
@@ -426,11 +430,106 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 "cloudshell-replicated-health-api-replica-2",
                 replica: 2,
                 expectedProbePort: 5193),
-            command => AssertDockerInspect(command, ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()));
+            command => AssertDockerInspect(command, LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName()));
         Assert.DoesNotContain(
             commandRunner.Commands,
             command => command.Arguments.SequenceEqual(
-                ["rm", "-f", ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName()]));
+                ["rm", "-f", LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName()]));
+        Assert.DoesNotContain(
+            commandRunner.Commands,
+            command => command.Arguments.SequenceEqual(
+                ["rm", "-f", "cloudshell-replicated-health-api-replica-1"]));
+    }
+
+    [Fact]
+    public async Task RuntimeBridge_RoutingReconciliationWritesTraefikStickyCookieConfiguration()
+    {
+        var contentRoot = Path.Combine(
+            Path.GetTempPath(),
+            $"cloudshell-replicated-health-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(contentRoot);
+        try
+        {
+            var commandRunner = new RecordingCommandRunner();
+            var bridge = CreateRuntimeBridge(
+                commandRunner,
+                CreateConfiguration(replicaCleanupLimit: 2),
+                new TestHostEnvironment(contentRoot));
+            var resource = await CreateGraphAppResourceAsync(
+                replicas: 2,
+                endpointPort: 5092);
+            var service = CreateOrchestratorService(resource, replicas: 2);
+            var replicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+                service,
+                "rev-test");
+            var routingBinding = new ResourceOrchestratorServiceRoutingBindingDefinition(
+                "api-http-routing",
+                ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+                service.Name,
+                replicaGroup.Id,
+                ResourceEndpointReference.ForEndpoint(resource.EffectiveResourceId, "http"),
+                SessionAffinity: ResourceOrchestratorSessionAffinityPolicy.Cookie(
+                    "CloudShellReplica",
+                    durationSeconds: 3600));
+            commandRunner.Enqueue(new(0, "running", string.Empty));
+
+            var diagnostics = await bridge.ReconcileOrchestratorServiceRoutingAsync(
+                resource,
+                service,
+                replicaGroup,
+                [routingBinding]);
+
+            Assert.Empty(diagnostics);
+            var configuration = await File.ReadAllTextAsync(
+                Path.Combine(contentRoot, "Data", "runtime-ingress", "dynamic.yml"));
+            Assert.Contains("sticky:", configuration);
+            Assert.Contains("cookie:", configuration);
+            Assert.Contains("name: \"CloudShellReplica\"", configuration);
+            Assert.Contains("maxAge: 3600", configuration);
+            Assert.Contains("cloudshell-replicated-health-api-replica-1:8080", configuration);
+            Assert.Contains("cloudshell-replicated-health-api-replica-2:8080", configuration);
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RuntimeBridge_ReplicaGroupStopDoesNotRemoveSlotReplacedByNewReplicaGroup()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        var bridge = CreateRuntimeBridge(
+            commandRunner,
+            CreateConfiguration(replicaCleanupLimit: 4));
+        var resource = await CreateGraphAppResourceAsync(
+            replicas: 2,
+            endpointPort: 5092);
+        var service = CreateOrchestratorService(resource, replicas: 2);
+        var oldReplicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+            service,
+            "rev-old");
+        var newReplicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+            service,
+            "rev-new");
+        commandRunner.Enqueue(new(0, newReplicaGroup.Id, string.Empty));
+
+        var diagnostics = await bridge.ExecuteOrchestratorServiceInstanceAsync(
+            resource,
+            service,
+            oldReplicaGroup.Instances[0],
+            ResourceAction.Stop,
+            oldReplicaGroup);
+
+        Assert.Empty(diagnostics);
+        Assert.Collection(
+            commandRunner.Commands,
+            command => AssertDockerReplicaGroupLabelInspect(
+                command,
+                "cloudshell-replicated-health-api-replica-1"));
         Assert.DoesNotContain(
             commandRunner.Commands,
             command => command.Arguments.SequenceEqual(
@@ -440,9 +539,12 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     [Fact]
     public void RuntimeLogProvider_ProjectsReplicaLogSourcesFromGraphState()
     {
-        var provider = new ReplicatedContainerHealthRuntimeLogProvider(
+        var provider = new LocalContainerApplicationRuntimeLogProvider(
             new RecordingCommandRunner(),
-            new RecordingResourceManagerStore(CreateResourceManagerGraphAppResource(replicas: 2)));
+            new RecordingResourceManagerStore(
+                CreateResourceManagerGraphAppResource(replicas: 2),
+                CreateGraphReplicaResource(replica: 1),
+                CreateGraphReplicaResource(replica: 2)));
 
         var sources = provider.GetLogSources();
 
@@ -477,12 +579,15 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
 
             """,
             string.Empty));
-        var provider = new ReplicatedContainerHealthRuntimeLogProvider(
+        var provider = new LocalContainerApplicationRuntimeLogProvider(
             commandRunner,
-            new RecordingResourceManagerStore(CreateResourceManagerGraphAppResource(replicas: 2)));
+            new RecordingResourceManagerStore(
+                CreateResourceManagerGraphAppResource(replicas: 2),
+                CreateGraphReplicaResource(replica: 1),
+                CreateGraphReplicaResource(replica: 2)));
 
         var entries = await provider.ReadLogSourceAsync(
-            ReplicatedContainerHealthRuntimeLogProvider.GetLogSourceId(2),
+            LocalContainerApplicationRuntimeLogProvider.CreateLogSourceId(CreateGraphReplicaResource(replica: 2)),
             maxEntries: 10);
 
         var command = Assert.Single(commandRunner.Commands);
@@ -519,7 +624,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             {"Name":"cloudshell-replicated-health-api-replica-2","CPUPerc":"7.5%","MemUsage":"32MiB / 1GiB","NetIO":"2kB / 4kB","BlockIO":"1MiB / 2MiB","PIDs":"12"}
             """,
             string.Empty));
-        var provider = new ReplicatedContainerHealthRuntimeMonitoringProvider(commandRunner);
+        var provider = new LocalContainerApplicationRuntimeMonitoringProvider(commandRunner);
         var replica = CreateGraphReplicaResource(replica: 2);
 
         Assert.True(provider.CanMonitor(replica));
@@ -553,7 +658,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     public async Task Handler_DelegatesMappedGraphApiToBridge()
     {
         var bridge = new RecordingContainerAppRuntimeBridge(ContainerApplicationRuntimeStatus.Running);
-        var handler = new ReplicatedContainerHealthContainerAppRuntimeHandler(bridge);
+        var handler = CreateHandler(bridge);
         var resource = await CreateGraphAppResourceAsync();
 
         Assert.Equal(ContainerApplicationRuntimeStatus.Running, handler.GetStatus(resource));
@@ -572,7 +677,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     public async Task Handler_DelegatesMappedGraphApiRoutingTearDownToBridge()
     {
         var bridge = new RecordingContainerAppRuntimeBridge(ContainerApplicationRuntimeStatus.Running);
-        var handler = new ReplicatedContainerHealthContainerAppRuntimeHandler(bridge);
+        var handler = CreateHandler(bridge);
         var resource = await CreateGraphAppResourceAsync();
         var service = CreateOrchestratorService(resource, replicas: 2);
         var replicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
@@ -595,7 +700,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     public async Task Handler_IgnoresUnmappedContainerAppWithoutCallingBridge()
     {
         var bridge = new RecordingContainerAppRuntimeBridge(ContainerApplicationRuntimeStatus.Running);
-        var handler = new ReplicatedContainerHealthContainerAppRuntimeHandler(bridge);
+        var handler = CreateHandler(bridge);
         var resource = await CreateGraphAppResourceAsync(
             name: "other",
             resourceId: "application.container-app:other");
@@ -604,7 +709,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             resource,
             ContainerApplicationResourceTypeProvider.Operations.Start);
 
-        Assert.Empty(diagnostics);
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal(NoopContainerApplicationRuntimeHandler.RuntimeUnavailableDiagnosticCode, diagnostic.Code);
         Assert.Empty(bridge.LifecycleCommands);
         Assert.Equal(ContainerApplicationRuntimeStatus.Unknown, handler.GetStatus(resource));
     }
@@ -612,7 +718,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     [Fact]
     public async Task RuntimeDescriptorProvider_MarksGraphApiAsControlPlaneScopedRuntimeWorkload()
     {
-        var provider = new ReplicatedContainerHealthOrchestrationDescriptorProvider();
+        var provider = new LocalDockerContainerApplicationOrchestrationDescriptorProvider(
+            Options.Create(CreateRuntimeOptions()));
         var resource = CreateResourceManagerGraphAppResource(replicas: 3);
 
         Assert.True(provider.CanDescribe(resource));
@@ -635,7 +742,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         string image = "cloudshell-application-api:20260622.2",
         int replicas = 3,
         int? endpointPort = null,
-        bool includeHealthChecks = false)
+        bool includeHealthChecks = false,
+        bool includeCookieSessionAffinity = false)
     {
         var operationProviders = CreateContainerApplicationOperationProviders();
         var pipeline = new ResourceDefinitionValidationPipeline(
@@ -661,6 +769,16 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                         Port: endpointPort.Value,
                         Exposure: "Local")
                 });
+        }
+
+        if (includeCookieSessionAffinity)
+        {
+            attributes[ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityMode] =
+                ResourceOrchestratorSessionAffinityMode.Cookie.ToString();
+            attributes[ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityCookieName] =
+                "CloudShellReplica";
+            attributes[ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityDurationSeconds] =
+                3600;
         }
 
         var result = await pipeline.ValidateAsync(
@@ -689,6 +807,47 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 result.Diagnostics.Select(diagnostic =>
                     $"{diagnostic.Severity}: {diagnostic.Code}: {diagnostic.Message}")));
         return result.Resource;
+    }
+
+    private static DelegatingContainerApplicationRuntimeHandler CreateHandler(
+        ILocalDockerContainerApplicationRuntimeBridge bridge) =>
+        new([new LocalDockerContainerApplicationRuntimeTarget(bridge)]);
+
+    private static LocalDockerContainerApplicationRuntimeBridge CreateRuntimeBridge(
+        RecordingCommandRunner commandRunner,
+        IConfiguration configuration,
+        IHostEnvironment? hostEnvironment = null) =>
+        new(
+            commandRunner,
+            Options.Create(CreateRuntimeOptions(contentRootRelative: hostEnvironment is not null)),
+            configuration,
+            hostEnvironment);
+
+    private static LocalDockerContainerApplicationRuntimeOptions CreateRuntimeOptions(
+        bool contentRootRelative = false)
+    {
+        var options = new LocalDockerContainerApplicationRuntimeOptions();
+        options.AddApplication(
+            LocalDockerContainerApplicationRuntimeConventions.ApiResourceId,
+            contentRootRelative
+                ? Path.Combine("Api", "CloudShell.ReplicatedContainerHealth.Api.csproj")
+                : LocalDockerContainerApplicationRuntimeConventions.ReplicatedContainerHealthDefaults.ProjectPath,
+            definition =>
+            {
+                var defaults = LocalDockerContainerApplicationRuntimeConventions.ReplicatedContainerHealthDefaults;
+                definition.IngressContainerName = defaults.IngressContainerName;
+                definition.IngressConfigurationDirectory = contentRootRelative
+                    ? Path.Combine("Data", "runtime-ingress")
+                    : defaults.IngressConfigurationDirectory;
+                definition.ReplicaContainerNamePrefix = defaults.ReplicaContainerNamePrefix;
+                definition.ReplicaNetworkAliasPrefix = defaults.ReplicaNetworkAliasPrefix;
+                definition.ReplicaResourceIdPrefix = defaults.ReplicaResourceIdPrefix;
+                definition.ReplicaServiceNamePrefix = defaults.ReplicaServiceNamePrefix;
+                definition.RuntimeResourceProviderId = defaults.RuntimeResourceProviderId;
+                definition.RuntimeResourceProviderName = defaults.RuntimeResourceProviderName;
+                definition.RuntimeMaterialization = defaults.RuntimeMaterialization;
+            });
+        return options;
     }
 
     private static ResourceResolver CreateResourceResolver()
@@ -725,7 +884,16 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             Attributes: new Dictionary<string, string>
             {
                 ["container.replicas"] = replicas.ToString(CultureInfo.InvariantCulture)
-            });
+            },
+            LogSources:
+            [
+                new(
+                    "console",
+                    "Console logs",
+                    ResourceLogSourceKind.Container,
+                    LogFormat.JsonConsole,
+                    Purpose: ResourceLogSourcePurpose.Default)
+            ]);
 
     private static CloudShell.Abstractions.ResourceManager.Resource CreateGraphReplicaResource(
         int replica)
@@ -733,7 +901,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         var replicaOrdinal = replica.ToString(CultureInfo.InvariantCulture);
 
         return new CloudShell.Abstractions.ResourceManager.Resource(
-            ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica),
+            LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica),
             $"api replica {replicaOrdinal}",
             "Container replica",
             "Replicated Container Health",
@@ -743,14 +911,14 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             "v1",
             DateTimeOffset.UtcNow,
             [],
-            ParentResourceId: ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
+            ParentResourceId: LocalDockerContainerApplicationRuntimeConventions.ApiResourceId,
             TypeId: "runtime.container",
             ResourceClass: CloudShell.Abstractions.ResourceManager.ResourceClass.Container,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 [ResourceAttributeNames.RuntimeKind] = "containerReplica",
                 [ResourceAttributeNames.RuntimeContainerName] =
-                    ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica),
+                    LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(replica),
                 [ResourceAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
                 [ResourceAttributeNames.RuntimeReplicaCount] = "3",
                 [ResourceAttributeNames.RuntimeMaterialization] = "sampleRuntime"
@@ -763,7 +931,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             Source: ResourceSource.Orchestrator,
             ManagementMode: ResourceManagementMode.RuntimeManaged,
             Visibility: ResourceVisibility.Hidden,
-            OwnerResourceId: ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
+            OwnerResourceId: LocalDockerContainerApplicationRuntimeConventions.ApiResourceId,
             CleanupBehavior: ResourceCleanupBehavior.DeleteWithOwner);
     }
 
@@ -825,6 +993,23 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         Assert.False(command.ThrowOnError);
     }
 
+    private static void AssertDockerReplicaGroupLabelInspect(
+        RecordingCommand command,
+        string containerName)
+    {
+        Assert.Equal("docker", command.FileName);
+        Assert.Equal(
+            [
+                "container",
+                "inspect",
+                "--format",
+                "{{ index .Config.Labels \"cloudshell.replica-group-id\" }}",
+                containerName
+            ],
+            command.Arguments);
+        Assert.False(command.ThrowOnError);
+    }
+
     private static void AssertDockerNetworkCreate(RecordingCommand command)
     {
         Assert.Equal("docker", command.FileName);
@@ -848,11 +1033,11 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         Assert.Contains("cloudshell", command.Arguments);
         Assert.Contains("--network-alias", command.Arguments);
         Assert.Contains(
-            ReplicatedContainerHealthRuntimeConventions.CreateReplicaNetworkAlias(replica),
+            LocalDockerContainerApplicationRuntimeConventions.CreateReplicaNetworkAlias(replica),
             command.Arguments);
         Assert.Contains($"CLOUDSHELL_REPLICA_ORDINAL={replica}", command.Arguments);
         Assert.Contains(
-            $"CLOUDSHELL_RESOURCE_ID={ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica)}",
+            $"CLOUDSHELL_RESOURCE_ID={LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica)}",
             command.Arguments);
         Assert.Contains(
             $"OTEL_SERVICE_NAME=replicated-container-health-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}",
@@ -880,7 +1065,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         Assert.Equal("docker", command.FileName);
         Assert.Equal("run", command.Arguments[0]);
         Assert.Contains("--name", command.Arguments);
-        Assert.Contains(ReplicatedContainerHealthRuntimeConventions.CreateIngressContainerName(), command.Arguments);
+        Assert.Contains(LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName(), command.Arguments);
         Assert.DoesNotContain("--rm", command.Arguments);
         Assert.Contains("--network", command.Arguments);
         Assert.Contains("cloudshell", command.Arguments);
@@ -899,14 +1084,14 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         int replica,
         int replicaCount)
     {
-        var resourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
-        var containerName = ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica);
+        var resourceId = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica);
+        var containerName = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(replica);
         return string.Join(
             ',',
             $"OTEL_RESOURCE_ATTRIBUTES=service.instance.id={resourceId}",
             $"cloudshell.resource.id={resourceId}",
             "cloudshell.resource.type=runtime.container",
-            $"telemetry.scope.resourceId={ReplicatedContainerHealthRuntimeConventions.ApiResourceId}",
+            $"telemetry.scope.resourceId={LocalDockerContainerApplicationRuntimeConventions.ApiResourceId}",
             $"telemetry.scope.name=Replica {replica.ToString(CultureInfo.InvariantCulture)}",
             "telemetry.scope.kind=runtime",
             $"runtime.replica.ordinal={replica.ToString(CultureInfo.InvariantCulture)}",
@@ -920,16 +1105,16 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         int port)
     {
         Assert.Equal(
-            ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(ordinal),
+            LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(ordinal),
             replica.Id);
-        Assert.Equal(ReplicatedContainerHealthRuntimeConventions.ApiResourceId, replica.ParentResourceId);
+        Assert.Equal(LocalDockerContainerApplicationRuntimeConventions.ApiResourceId, replica.ParentResourceId);
         Assert.Equal(ResourceManagementMode.RuntimeManaged, replica.ManagementMode);
         Assert.Equal(ResourceVisibility.Hidden, replica.Visibility);
         Assert.Equal(CloudShell.Abstractions.ResourceManager.ResourceState.Running, replica.State);
         Assert.Equal("runtime.container", replica.TypeId);
         Assert.Equal("containerReplica", replica.ResourceAttributes[ResourceAttributeNames.RuntimeKind]);
         Assert.Equal(
-            ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(ordinal),
+            LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(ordinal),
             replica.ResourceAttributes[ResourceAttributeNames.RuntimeContainerName]);
         Assert.Equal(ordinal.ToString(CultureInfo.InvariantCulture), replica.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal]);
         Assert.Equal("2", replica.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaCount]);
@@ -944,13 +1129,13 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             $"replicated-container-health-api-replica-{ordinal.ToString(CultureInfo.InvariantCulture)}",
             replica.EffectiveObservability.ServiceName);
         Assert.Equal(
-            ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
+            LocalDockerContainerApplicationRuntimeConventions.ApiResourceId,
             replica.EffectiveObservability.Attributes["telemetry.scope.resourceId"]);
         Assert.Equal(
             ordinal.ToString(CultureInfo.InvariantCulture),
             replica.EffectiveObservability.Attributes["runtime.replica.ordinal"]);
         var scope = Assert.Single(replica.EffectiveObservability.TelemetryScopes);
-        Assert.Equal(ReplicatedContainerHealthRuntimeConventions.ApiResourceId, scope.ScopeResourceId);
+        Assert.Equal(LocalDockerContainerApplicationRuntimeConventions.ApiResourceId, scope.ScopeResourceId);
         Assert.Equal($"Replica {ordinal.ToString(CultureInfo.InvariantCulture)}", scope.Name);
         Assert.Equal("runtime", scope.Kind);
         var mapping = Assert.Single(replica.ResourceEndpointNetworkMappings);
@@ -958,10 +1143,16 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     }
 
     private sealed class RecordingContainerAppRuntimeBridge(
-        ContainerApplicationRuntimeStatus status) : IReplicatedContainerHealthContainerAppRuntimeBridge
+        ContainerApplicationRuntimeStatus status) : ILocalDockerContainerApplicationRuntimeBridge
     {
         public List<LifecycleCommand> LifecycleCommands { get; } = [];
         public List<OrchestratorCommand> OrchestratorCommands { get; } = [];
+
+        public bool CanHandle(GraphResource resource) =>
+            string.Equals(
+                resource.EffectiveResourceId,
+                LocalDockerContainerApplicationRuntimeConventions.ApiResourceId,
+                StringComparison.OrdinalIgnoreCase);
 
         public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource) => status;
 
@@ -1042,15 +1233,15 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         int RoutingBindingCount);
 
     private sealed class RecordingResourceManagerStore(
-        CloudShell.Abstractions.ResourceManager.Resource resource) : IResourceManagerStore
+        params CloudShell.Abstractions.ResourceManager.Resource[] resources) : IResourceManagerStore
     {
         public IReadOnlyList<IResourceProvider> Providers => [];
 
         public IReadOnlyList<ResourceGroup> GetResourceGroups() => [];
 
-        public IReadOnlyList<CloudShell.Abstractions.ResourceManager.Resource> GetAvailableResources() => [resource];
+        public IReadOnlyList<CloudShell.Abstractions.ResourceManager.Resource> GetAvailableResources() => resources;
 
-        public IReadOnlyList<CloudShell.Abstractions.ResourceManager.Resource> GetResources() => [resource];
+        public IReadOnlyList<CloudShell.Abstractions.ResourceManager.Resource> GetResources() => resources;
 
         public IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics() => [];
 
@@ -1058,9 +1249,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             CloudShell.Abstractions.ResourceManager.ResourceClass.Container;
 
         public CloudShell.Abstractions.ResourceManager.Resource? GetResource(string id) =>
-            string.Equals(id, resource.Id, StringComparison.OrdinalIgnoreCase)
-                ? resource
-                : null;
+            resources.FirstOrDefault(resource =>
+                string.Equals(id, resource.Id, StringComparison.OrdinalIgnoreCase));
 
         public IReadOnlyList<CloudShell.Abstractions.ResourceManager.Resource> GetChildren(string resourceId) => [];
 
@@ -1069,13 +1259,24 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         public bool IsRegistered(string resourceId) => true;
     }
 
-    private sealed class RecordingCommandRunner : IReplicatedContainerHealthCommandRunner
+    private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment
     {
-        private readonly Queue<ReplicatedContainerHealthCommandResult> _results = [];
+        public string EnvironmentName { get; set; } = Environments.Development;
+
+        public string ApplicationName { get; set; } = "CloudShell.Sample.Tests";
+
+        public string ContentRootPath { get; set; } = contentRootPath;
+
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+    }
+
+    private sealed class RecordingCommandRunner : ILocalContainerApplicationCommandRunner
+    {
+        private readonly Queue<LocalContainerApplicationCommandResult> _results = [];
 
         public List<RecordingCommand> Commands { get; } = [];
 
-        public void Enqueue(ReplicatedContainerHealthCommandResult result) =>
+        public void Enqueue(LocalContainerApplicationCommandResult result) =>
             _results.Enqueue(result);
 
         public void EnqueueSuccess(int count)
@@ -1086,14 +1287,14 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             }
         }
 
-        public ReplicatedContainerHealthCommandResult Run(
+        public LocalContainerApplicationCommandResult Run(
             string fileName,
             IReadOnlyList<string> arguments,
             bool throwOnError = true,
             TimeSpan? timeout = null) =>
             RunCore(fileName, arguments, throwOnError);
 
-        public Task<ReplicatedContainerHealthCommandResult> RunAsync(
+        public Task<LocalContainerApplicationCommandResult> RunAsync(
             string fileName,
             IReadOnlyList<string> arguments,
             CancellationToken cancellationToken,
@@ -1103,14 +1304,14 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             return Task.FromResult(RunCore(fileName, arguments, throwOnError));
         }
 
-        private ReplicatedContainerHealthCommandResult RunCore(
+        private LocalContainerApplicationCommandResult RunCore(
             string fileName,
             IReadOnlyList<string> arguments,
             bool throwOnError)
         {
             Commands.Add(new(fileName, arguments.ToArray(), throwOnError));
             var result = _results.Count == 0
-                ? new ReplicatedContainerHealthCommandResult(0, string.Empty, string.Empty)
+                ? new LocalContainerApplicationCommandResult(0, string.Empty, string.Empty)
                 : _results.Dequeue();
             if (throwOnError && result.ExitCode != 0)
             {

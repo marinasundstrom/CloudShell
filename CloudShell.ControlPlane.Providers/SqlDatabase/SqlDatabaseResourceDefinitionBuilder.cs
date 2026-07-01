@@ -32,7 +32,7 @@ public sealed class SqlDatabaseResourceDefinitionBuilder(string name) :
 public static class SqlDatabaseResourceDefinitionBuilderExtensions
 {
     public static SqlDatabaseResourceDefinitionBuilder AddSqlDatabase(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);

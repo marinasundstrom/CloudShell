@@ -37,7 +37,15 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        if (services.Any(descriptor =>
+                descriptor.ServiceType == typeof(ResourceGraphIntegrationRegistration)))
+        {
+            return services;
+        }
+
+        services.AddSingleton(new ResourceGraphIntegrationRegistration(id, displayName));
         services.AddResourceModelGraphServices();
+        services.AddBuiltInResourceModelRuntimeAdapters();
         services.AddBuiltInProviderResourceManagerIntegration(
             id,
             displayName,
@@ -83,8 +91,8 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
                 ContainerApplicationResourceManagerEndpointProjectionProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
-                IResourceModelGraphApplyReconciler,
-                ContainerApplicationResourceModelGraphApplyReconciler>());
+                IResourceModelGraphMaterializedChangeApplier,
+                ContainerApplicationResourceModelGraphMaterializedChangeApplier>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceModelGraphDeploymentDescriptor,
@@ -147,6 +155,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
                 NameMappingResourceManagerProjectionProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerAttributeProvider,
+                SqlDatabaseResourceManagerProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerParentProvider,
                 NameMappingResourceManagerProjectionProvider>());
         services.TryAddEnumerable(
@@ -187,4 +199,6 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
 
         return services;
     }
+
+    private sealed record ResourceGraphIntegrationRegistration(string Id, string DisplayName);
 }

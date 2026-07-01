@@ -31,7 +31,7 @@ public sealed class SecretsVaultResourceDefinitionBuilder(string name) :
 public static class SecretsVaultResourceDefinitionBuilderExtensions
 {
     public static SecretsVaultResourceDefinitionBuilder AddSecretsVault(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);

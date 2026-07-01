@@ -252,6 +252,9 @@ public static class ResourceAttributeNames
     public const string DeploymentRoutingRouteId = "deployment.routing.routeId";
     public const string DeploymentRoutingEndpointMappingId = "deployment.routing.endpointMappingId";
     public const string DeploymentRoutingLoadBalancerResourceId = "deployment.routing.loadBalancerResourceId";
+    public const string DeploymentRoutingSessionAffinityMode = "deployment.routing.sessionAffinity.mode";
+    public const string DeploymentRoutingSessionAffinityCookieName = "deployment.routing.sessionAffinity.cookieName";
+    public const string DeploymentRoutingSessionAffinityDurationSeconds = "deployment.routing.sessionAffinity.durationSeconds";
     public const string DeploymentReplacementRetainPreviousReplicaSlots = "deployment.replacement.retainPreviousReplicaSlots";
     public const string DeploymentReplicaRestartMode = "deployment.replica.restartMode";
     public const string DeploymentReplicaFailureThreshold = "deployment.replica.failureThreshold";
@@ -287,7 +290,9 @@ public static class ResourceAttributeNames
     public const string EndpointCount = "endpoints.count";
     public const string ConfigurationEntryCount = "configuration.entries";
     public const string InfrastructureKind = "infrastructure.kind";
+    public const string InternetReachability = "internet.reachability";
     public const string NetworkKind = "network.kind";
+    public const string NetworkInternetReachability = "network.internetReachability";
     public const string NetworkHostReadiness = "network.hostReadiness";
     public const string NetworkMappingProviders = "network.mappingProviders";
     public const string NetworkProvisionedMappingCount = "network.provisionedMappings";

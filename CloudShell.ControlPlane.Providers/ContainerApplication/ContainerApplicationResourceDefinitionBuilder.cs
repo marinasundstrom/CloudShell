@@ -1,3 +1,6 @@
+using CloudShell.Abstractions.Logs;
+using ResourceOrchestratorSessionAffinityMode = CloudShell.Abstractions.ResourceManager.ResourceOrchestratorSessionAffinityMode;
+
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
@@ -22,11 +25,63 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
     public ContainerApplicationResourceDefinitionBuilder WithReplicas(long replicas) =>
         SetScalarAttribute(ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas, replicas);
 
+    public ContainerApplicationResourceDefinitionBuilder WithSessionAffinity(
+        ResourceOrchestratorSessionAffinityMode mode,
+        string? cookieName = null,
+        int? durationSeconds = null)
+    {
+        SetScalarAttribute(
+            ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityMode,
+            mode.ToString());
+
+        if (!string.IsNullOrWhiteSpace(cookieName))
+        {
+            SetScalarAttribute(
+                ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityCookieName,
+                cookieName.Trim());
+        }
+
+        if (durationSeconds is { } seconds)
+        {
+            SetScalarAttribute(
+                ContainerApplicationResourceTypeProvider.Attributes.RoutingSessionAffinityDurationSeconds,
+                Math.Max(1, seconds));
+        }
+
+        return this;
+    }
+
+    public ContainerApplicationResourceDefinitionBuilder WithClientIpSessionAffinity() =>
+        WithSessionAffinity(ResourceOrchestratorSessionAffinityMode.ClientIp);
+
+    public ContainerApplicationResourceDefinitionBuilder WithCookieSessionAffinity(
+        string cookieName = "CloudShellReplica",
+        int? durationSeconds = null) =>
+        WithSessionAffinity(
+            ResourceOrchestratorSessionAffinityMode.Cookie,
+            cookieName,
+            durationSeconds);
+
+    public ContainerApplicationResourceDefinitionBuilder WithoutSessionAffinity() =>
+        WithSessionAffinity(ResourceOrchestratorSessionAffinityMode.None);
+
     public ContainerApplicationResourceDefinitionBuilder WithRuntimeMonitoring() =>
         DeclareCapability(ResourceCommonCapabilityIds.Monitoring);
 
     public ContainerApplicationResourceDefinitionBuilder WithRuntimeLogSources() =>
-        DeclareCapability(ResourceLogSourceCapabilityIds.LogSources);
+        WithRuntimeLogSources(ResourceLogSourceDefinitionValues.PlainText);
+
+    public ContainerApplicationResourceDefinitionBuilder WithRuntimeLogSources(LogFormat format) =>
+        WithRuntimeLogSources(ToResourceLogFormat(format));
+
+    public ContainerApplicationResourceDefinitionBuilder WithRuntimeLogSources(string format)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(format);
+
+        return SetCapability(
+            ResourceLogSourceCapabilityIds.LogSources,
+            ResourceLogSourceDefinitionSet.DefaultConsole(format.Trim()));
+    }
 
     public ContainerApplicationResourceDefinitionBuilder UseContainerHost(
         IResourceDefinitionBuilder host,
@@ -39,10 +94,13 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
 
     public ContainerApplicationResourceDefinitionBuilder UseContainerHost(
         string hostResourceId,
-        ResourceTypeId? typeId = null) =>
-        AddDependency(ResourceReference.DependsOnResourceId(
+        ResourceTypeId? typeId = null)
+    {
+        RemoveContainerHostDependencies();
+        return AddDependency(ResourceReference.DependsOnResourceId(
             hostResourceId,
             typeId ?? ContainerHostResourceTypeProvider.ResourceTypeId));
+    }
 
     public ContainerApplicationResourceDefinitionBuilder UseDockerHost(
         IResourceDefinitionBuilder host)
@@ -88,10 +146,15 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
         int targetPort,
         string? host = null,
         int? port = null,
-        string? exposure = null)
+        string? exposure = null,
+        string? ipAddress = null,
+        IResourceDefinitionBuilder? network = null,
+        string? assignment = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(protocol);
+
+        var effectiveNetwork = network ?? ResourceGraph?.GetDefaultNetwork();
 
         _endpointRequests.Add(new NetworkingEndpointRequestValue(
             name.Trim(),
@@ -99,7 +162,15 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
             TargetPort: targetPort,
             Host: string.IsNullOrWhiteSpace(host) ? null : host.Trim(),
             Port: port,
-            Exposure: string.IsNullOrWhiteSpace(exposure) ? null : exposure.Trim()));
+            IpAddress: string.IsNullOrWhiteSpace(ipAddress) ? null : ipAddress.Trim(),
+            Exposure: string.IsNullOrWhiteSpace(exposure) ? null : exposure.Trim(),
+            Assignment: string.IsNullOrWhiteSpace(assignment) ? null : assignment.Trim(),
+            Network: effectiveNetwork is null
+                ? null
+                : ResourceReference.ReferenceResourceId(
+                    effectiveNetwork.EffectiveResourceId,
+                    effectiveNetwork.ResourceTypeId,
+                    effectiveNetwork.ResourceProviderId)));
         return SetObjectAttribute(
             ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests,
             _endpointRequests.ToArray());
@@ -111,32 +182,80 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
         int? port = null,
         string protocol = "tcp",
         string? host = null,
-        string exposure = "Local") =>
-        AddEndpointRequest(name, protocol, targetPort, host, port, exposure);
+        string exposure = "Local",
+        string? ipAddress = null,
+        IResourceDefinitionBuilder? network = null,
+        string? assignment = null) =>
+        AddEndpointRequest(
+            name,
+            protocol,
+            targetPort,
+            host,
+            port,
+            exposure,
+            ipAddress,
+            network,
+            assignment);
 
     public ContainerApplicationResourceDefinitionBuilder WithHttpEndpoint(
         int targetPort = 80,
         int? port = null,
         string name = "http",
         string? host = null,
-        string exposure = "Local") =>
-        AddEndpointRequest(name, "http", targetPort, host, port, exposure);
+        string exposure = "Local",
+        string? ipAddress = null,
+        IResourceDefinitionBuilder? network = null,
+        string? assignment = null) =>
+        AddEndpointRequest(
+            name,
+            "http",
+            targetPort,
+            host,
+            port,
+            exposure,
+            ipAddress,
+            network,
+            assignment);
 
     public ContainerApplicationResourceDefinitionBuilder WithHttpsEndpoint(
         int targetPort = 443,
         int? port = null,
         string name = "https",
         string? host = null,
-        string exposure = "Local") =>
-        AddEndpointRequest(name, "https", targetPort, host, port, exposure);
+        string exposure = "Local",
+        string? ipAddress = null,
+        IResourceDefinitionBuilder? network = null,
+        string? assignment = null) =>
+        AddEndpointRequest(
+            name,
+            "https",
+            targetPort,
+            host,
+            port,
+            exposure,
+            ipAddress,
+            network,
+            assignment);
 
     public ContainerApplicationResourceDefinitionBuilder WithTcpEndpoint(
         string name,
         int targetPort,
         int? port = null,
         string? host = null,
-        string exposure = "Local") =>
-        AddEndpointRequest(name, "tcp", targetPort, host, port, exposure);
+        string exposure = "Local",
+        string? ipAddress = null,
+        IResourceDefinitionBuilder? network = null,
+        string? assignment = null) =>
+        AddEndpointRequest(
+            name,
+            "tcp",
+            targetPort,
+            host,
+            port,
+            exposure,
+            ipAddress,
+            network,
+            assignment);
 
     public ContainerApplicationResourceDefinitionBuilder AddHealthCheck(
         ResourceHealthCheckDefinition check)
@@ -148,6 +267,35 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
             ResourceHealthCheckCapabilityIds.HealthChecks,
             new ResourceHealthCheckDefinitionSet(_healthChecks.ToArray()));
     }
+
+    private static string ToResourceLogFormat(LogFormat format) =>
+        format switch
+        {
+            LogFormat.PlainText => ResourceLogSourceDefinitionValues.PlainText,
+            LogFormat.JsonConsole => ResourceLogSourceDefinitionValues.JsonConsole,
+            _ => format.ToString()
+        };
+
+    protected override void OnBeforeBuild()
+    {
+        if (HasContainerHostDependency() ||
+            ResourceGraph is not { } graph)
+        {
+            return;
+        }
+
+        UseContainerHost(graph.GetContainerHost());
+    }
+
+    private bool HasContainerHostDependency() =>
+        Dependencies.Any(IsContainerHostDependency);
+
+    private ContainerApplicationResourceDefinitionBuilder RemoveContainerHostDependencies() =>
+        RemoveDependencies(IsContainerHostDependency);
+
+    private static bool IsContainerHostDependency(ResourceReference reference) =>
+        reference.TypeId is { } typeId &&
+        ContainerApplicationResourceTypeProvider.IsContainerHostResourceType(typeId);
 }
 
 public static class ContainerApplicationResourceDefinitionBuilderExtensions
@@ -214,7 +362,7 @@ public static class ContainerApplicationResourceDefinitionBuilderExtensions
     }
 
     public static ContainerApplicationResourceDefinitionBuilder AddContainerApplication(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);

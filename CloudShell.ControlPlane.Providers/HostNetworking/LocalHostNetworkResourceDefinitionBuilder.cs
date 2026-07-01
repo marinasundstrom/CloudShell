@@ -25,7 +25,7 @@ public sealed class LocalHostNetworkResourceDefinitionBuilder(string name) :
 public static class LocalHostNetworkResourceDefinitionBuilderExtensions
 {
     public static LocalHostNetworkResourceDefinitionBuilder AddLocalHostNetwork(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);

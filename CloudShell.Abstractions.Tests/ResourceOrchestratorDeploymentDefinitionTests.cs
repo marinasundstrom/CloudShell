@@ -152,6 +152,37 @@ public sealed class ResourceOrchestratorDeploymentDefinitionTests
     }
 
     [Fact]
+    public void ServiceDefinition_ProjectsRoutingBindingSessionAffinity()
+    {
+        var affinity = ResourceOrchestratorSessionAffinityPolicy.Cookie(
+            cookieName: "CloudShellReplica",
+            durationSeconds: 3600);
+        var service = CreateService(
+            replicas: 3,
+            sessionAffinity: affinity);
+        var spec = new ResourceOrchestratorDeploymentSpec(service, "rev-2");
+
+        var serviceDefinition = Assert.Single(spec.DeploymentDefinition.DeploymentServices);
+        var routingResource = Assert.Single(serviceDefinition.ServiceResources, resource =>
+            resource.Type == ResourceOrchestratorDeploymentDefinitionTypes.ServiceRoutingBinding);
+        var routingBinding = Assert.Single(serviceDefinition.RoutingBindingDefinitions);
+
+        Assert.Equal(
+            ResourceOrchestratorSessionAffinityMode.Cookie.ToString(),
+            routingResource.ResourceAttributes[ResourceAttributeNames.DeploymentRoutingSessionAffinityMode]);
+        Assert.Equal(
+            "CloudShellReplica",
+            routingResource.ResourceAttributes[ResourceAttributeNames.DeploymentRoutingSessionAffinityCookieName]);
+        Assert.Equal(
+            "3600",
+            routingResource.ResourceAttributes[ResourceAttributeNames.DeploymentRoutingSessionAffinityDurationSeconds]);
+        Assert.NotNull(routingBinding.SessionAffinity);
+        Assert.Equal(ResourceOrchestratorSessionAffinityMode.Cookie, routingBinding.SessionAffinity!.Mode);
+        Assert.Equal("CloudShellReplica", routingBinding.SessionAffinity.CookieName);
+        Assert.Equal(3600, routingBinding.SessionAffinity.DurationSeconds);
+    }
+
+    [Fact]
     public void ServiceDefinition_IgnoresIncompleteRoutingBindingDefinitions()
     {
         var service = CreateService(replicas: 1);
@@ -235,7 +266,9 @@ public sealed class ResourceOrchestratorDeploymentDefinitionTests
         Assert.Equal("rev-2", replicaGroup.ResourceAttributes[ResourceAttributeNames.DeploymentWorkloadVersion]);
     }
 
-    private static ResourceOrchestratorService CreateService(int replicas) =>
+    private static ResourceOrchestratorService CreateService(
+        int replicas,
+        ResourceOrchestratorSessionAffinityPolicy? sessionAffinity = null) =>
         new(
             "application:api",
             "cloudshell-application-api",
@@ -245,7 +278,7 @@ public sealed class ResourceOrchestratorDeploymentDefinitionTests
                 Image: "ghcr.io/example/api:2",
                 Replicas: replicas,
                 ReplicasEnabled: replicas > 1),
-            Ports: [new ServicePort("http", 8080, Protocol: "http")],
+            Ports: [new ServicePort("http", 8080, Protocol: "http", SessionAffinity: sessionAffinity)],
             Networks: ["cloudshell"],
             RuntimeRevisionId: "rev-2");
 }

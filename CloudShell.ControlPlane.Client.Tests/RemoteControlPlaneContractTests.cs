@@ -11,6 +11,7 @@ using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Deployment;
 using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using CloudShell.ControlPlane.ResourceManager.Platform;
+using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
@@ -1530,13 +1531,15 @@ public sealed class RemoteControlPlaneContractTests
             builder.Services.AddSingleton<ILogProvider, ContractProviderLogProvider>();
         }
 
-        controlPlane.Resources(resources =>
+        controlPlane.AddIdentityProvider(
+            "identity:contract",
+            "Contract identity",
+            ResourceIdentityProviderKind.Custom);
+
+        controlPlane.DefineResources(resources =>
         {
-            resources.AddIdentityProvider(
-                "identity:contract",
-                "Contract identity",
-                ResourceIdentityProviderKind.Custom);
-            var network = resources
+            var declarations = resources.Declarations;
+            var network = declarations
                 .AddNetwork("network:contract", isDefault: true)
                 .WithDisplayName("Contract Network")
                 .Persist()
@@ -1565,7 +1568,7 @@ public sealed class RemoteControlPlaneContractTests
                 var dockerHost = resources.Declare("docker", "docker:engine");
                 var app = resources.Declare("applications", "contract:app");
                 var postgres = resources.Declare("applications", "contract:postgres");
-                resources
+                declarations
                     .AddLoadBalancer("public")
                     .UseProvider("traefik")
                     .UseContainerHost(dockerHost)

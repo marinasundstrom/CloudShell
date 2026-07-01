@@ -1,6 +1,4 @@
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ControlPlane.ResourceManager.Networking;
-using CloudShell.HostVirtualNetwork;
 using CloudShell.ResourceModel;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
@@ -21,7 +19,7 @@ public sealed class HostVirtualNetworkEndpointMappingReconcilerTests
         services.AddSingleton<IResourceEndpointMappingProvisioner>(provisioner);
         services.AddSingleton<
             IVirtualNetworkEndpointMappingReconciler,
-            HostVirtualNetworkEndpointMappingReconciler>();
+            ResourceModelGraphEndpointMappingReconciler>();
         services.AddInMemoryResourceModelGraph();
         services.AddLocalHostNetworkResourceType();
         services.AddVirtualNetworkResourceType();
@@ -30,7 +28,7 @@ public sealed class HostVirtualNetworkEndpointMappingReconcilerTests
         services.AddBuiltInProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
-        var graph = new ResourceDefinitionGraphBuilder();
+        var graph = new ResourceGraphBuilder();
         var hostNetwork = graph
             .AddLocalHostNetwork("host-local")
             .WithResourceId(hostNetworkingResourceId);
@@ -99,8 +97,8 @@ public sealed class HostVirtualNetworkEndpointMappingReconcilerTests
         var context = Assert.Single(provisioner.Contexts);
         Assert.Equal("mapping:api-public", context.Mapping.Id);
         Assert.Equal(networkResourceId, context.NetworkResource.Id);
-        Assert.Equal(LocalHostNetworkProvider.ResourceId, context.ProviderResource.Id);
-        Assert.Equal(LocalHostNetworkProvider.ResourceType, context.ProviderResource.EffectiveTypeId);
+        Assert.Equal(hostNetworkingResourceId, context.ProviderResource.Id);
+        Assert.Equal(LocalHostNetworkResourceTypeProvider.ResourceTypeId.ToString(), context.ProviderResource.EffectiveTypeId);
         Assert.Equal("api-public", context.SourceEndpoint.Name);
         Assert.Equal("http://localhost:5292", context.SourceEndpointNetworkMapping?.Address);
         Assert.Equal(apiResourceId, context.TargetResource.Id);

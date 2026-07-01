@@ -1,0 +1,184 @@
+@page "/"
+@inject HttpClient Http
+@implements IAsyncDisposable
+
+<PageTitle>SignalR Container App</PageTitle>
+
+<main class="app-shell">
+    <section class="status-panel">
+        <p class="eyebrow">CloudShell sample</p>
+        <h1>SignalR Container App</h1>
+        <p class="lede">
+            A Blazor WebAssembly client connected to a multi-replica container app backend.
+        </p>
+
+        <dl class="connection-grid">
+            <div>
+                <dt>Backend</dt>
+                <dd>@(_options?.BackendBaseUrl ?? "Loading")</dd>
+            </div>
+            <div>
+                <dt>Hub</dt>
+                <dd>@(_hubUrl ?? "Loading")</dd>
+            </div>
+            <div>
+                <dt>Connection</dt>
+                <dd>@_connectionState</dd>
+            </div>
+            <div>
+                <dt>Current replica</dt>
+                <dd>@(_currentReplica ?? "Unknown")</dd>
+            </div>
+        </dl>
+        @if (!string.IsNullOrWhiteSpace(_connectionError))
+        {
+            <p class="connection-error">@_connectionError</p>
+        }
+
+        <form class="message-form" @onsubmit="SendAsync">
+            <input @bind="_message" placeholder="Message" />
+            <button type="submit" disabled="@(_connection?.State != HubConnectionState.Connected)">Send</button>
+        </form>
+    </section>
+
+    <section class="message-list" aria-label="Replica messages">
+        @foreach (var message in _messages)
+        {
+            <article class="message-card">
+                <div>
+                    <strong>Replica @message.Replica</strong>
+                    <span>@message.Timestamp.ToLocalTime().ToString("T")</span>
+                </div>
+                <p>@message.Text</p>
+                <small>@message.Machine · @ShortConnectionId(message.ConnectionId)</small>
+            </article>
+        }
+    </section>
+</main>
+
+@code {
+    private readonly List<SignalRReplicaMessage> _messages = [];
+    private SignalRContainerAppClientOptions? _options;
+    private HubConnection? _connection;
+    private string _connectionState = "Loading";
+    private string? _connectionError;
+    private string? _hubUrl;
+    private string? _currentReplica;
+    private string _message = "Hello from Blazor WebAssembly";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _options = await Http.GetFromJsonAsync<SignalRContainerAppClientOptions>("sample-config.json");
+        }
+        catch (Exception exception)
+        {
+            _connectionState = "Configuration failed";
+            _connectionError = FormatException(exception);
+            return;
+        }
+
+        if (_options is null || string.IsNullOrWhiteSpace(_options.BackendBaseUrl))
+        {
+            _connectionState = "Missing backend configuration";
+            _connectionError = "The frontend did not receive a backend base URL.";
+            return;
+        }
+
+        _hubUrl = $"{_options.BackendBaseUrl.TrimEnd('/')}/hubs/replicas";
+        _connectionState = "Connecting";
+
+        _connection = new HubConnectionBuilder()
+            .WithUrl(
+                _hubUrl,
+                options =>
+                {
+                    options.Transports = HttpTransportType.WebSockets;
+                })
+            .WithAutomaticReconnect()
+            .Build();
+
+        _connection.On<SignalRReplicaMessage>("ReplicaConnected", AddMessage);
+        _connection.On<SignalRReplicaMessage>("ReplicaMessage", AddMessage);
+        _connection.Reconnecting += exception =>
+        {
+            _connectionState = "Reconnecting";
+            _connectionError = exception is null ? null : FormatException(exception);
+            InvokeAsync(StateHasChanged);
+            return Task.CompletedTask;
+        };
+        _connection.Reconnected += connectionId =>
+        {
+            _connectionState = $"Connected ({ShortConnectionId(connectionId ?? string.Empty)})";
+            _connectionError = null;
+            InvokeAsync(StateHasChanged);
+            return Task.CompletedTask;
+        };
+        _connection.Closed += exception =>
+        {
+            _connectionState = "Closed";
+            _connectionError = exception is null ? null : FormatException(exception);
+            InvokeAsync(StateHasChanged);
+            return Task.CompletedTask;
+        };
+
+        try
+        {
+            await _connection.StartAsync();
+            _connectionState = "Connected";
+            _connectionError = null;
+        }
+        catch (Exception exception)
+        {
+            _connectionState = "Connection failed";
+            _connectionError = FormatException(exception);
+        }
+    }
+
+    private async Task SendAsync()
+    {
+        if (_connection?.State != HubConnectionState.Connected)
+        {
+            return;
+        }
+
+        await _connection.InvokeAsync("SendMessage", _message);
+    }
+
+    private void AddMessage(SignalRReplicaMessage message)
+    {
+        _currentReplica = message.Replica;
+        _messages.Insert(0, message);
+        if (_messages.Count > 12)
+        {
+            _messages.RemoveRange(12, _messages.Count - 12);
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private static string ShortConnectionId(string connectionId) =>
+        connectionId.Length <= 8 ? connectionId : connectionId[..8];
+
+    private static string FormatException(Exception exception) =>
+        $"{exception.GetType().Name}: {exception.Message}";
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_connection is not null)
+        {
+            await _connection.DisposeAsync();
+        }
+    }
+
+    private sealed record SignalRContainerAppClientOptions(string BackendBaseUrl);
+
+    private sealed record SignalRReplicaMessage(
+        string Text,
+        string Replica,
+        string Resource,
+        string Machine,
+        string ConnectionId,
+        DateTimeOffset Timestamp);
+}

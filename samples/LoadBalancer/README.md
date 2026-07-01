@@ -76,8 +76,8 @@ frontend endpoint projection, declarative name-mapping shape, and operation
 shape. **Apply load balancer configuration** uses a sample-local Traefik
 adapter to translate declared routes into the existing Traefik provider
 context. The provider-owned Traefik writer then materializes dynamic
-configuration. **Reconcile name mappings** uses a sample-local DNS adapter to
-translate DNS/name-mapping resources into the existing
+configuration. **Reconcile name mappings** uses the provider-owned graph DNS
+reconciler to translate DNS/name-mapping resources into the existing
 `INamePublishingProvider` contract, allowing the local-hostnames publisher to
 write the host names to the configured hosts file.
 

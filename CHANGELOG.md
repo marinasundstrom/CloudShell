@@ -13,10 +13,253 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-07-01
+
+#### Changed
+
+- Built-in Control Plane providers now expose explicit `Use*ResourceProvider`
+  registration methods so hosts can compose individual provider capabilities
+  while still keeping `UseBuiltInResourceModelProviders()` as the broad preset;
+  provider registration ensures Resource Graph integration, and Resource Graph
+  integration registers the common graph-backed runtime adapters by default.
+- Added `AddCloudShellControlPlaneApplication(...)` as the opinionated
+  Control Plane application setup path for built-in Resource Model provider
+  defaults while keeping the CloudShell UI as an explicit host registration
+  ([ADR-20260701-001](ADR.md#adr-20260701-001-keep-control-plane-application-defaults-separate-from-ui-shell-registration)).
+- `AddCloudShellUi(...)` now accepts a UI registration callback so shell
+  extensions, Resource Manager extensions, and provider-owned Resource Manager
+  UI contributions can be registered on the UI surface instead of through the
+  Control Plane builder.
+- `AddCloudShellControlPlane(...)` and
+  `AddCloudShellControlPlaneApplication(...)` now accept Control Plane setup
+  callbacks so provider setup, identity context, and `DefineResources(...)`
+  declarations can be composed as one Control Plane configuration block.
+- Environment Map now has a separate Dependencies layer toggle, and dependency
+  relationships to container apps resolve to the service node when the
+  container app is rendered as an orchestration service boundary.
+- The hosting guidance and `CloudShell.ResourceHost` sample now distinguish
+  Control Plane registration from CloudShell UI registration: backend provider
+  extensions are installed on the Control Plane builder, while Resource Manager
+  UI contributions are installed through the `AddCloudShellUi(...)` callback.
+- Removed the ambiguous combined-host registration/mapping shortcuts
+  `AddCloudShell()`, `UseCloudShellAsync()`, and `MapCloudShell(...)`. Combined
+  local hosts now compose the Control Plane and CloudShell UI explicitly.
+- Resource groups are now declared inside `DefineResources(...)` through the
+  Control Plane resource graph builder instead of on the host-level Control
+  Plane builder. `AddResourceGroup(...)` returns a resource group definition
+  that can be passed directly to `WithResourceGroup(...)`.
+- Resource Manager graph, DNS, log, trace, metric, and observability views now
+  tolerate duplicate projected resource IDs, such as declared and projected
+  Host network resources, instead of throwing duplicate-key exceptions while
+  building UI lookups.
+- Environment Map now connects real Host network resources to local endpoint
+  bindings and uses that Host network as the Internet carrier when network
+  topology is enabled.
+- The Resources list now hides implicit default resources by default and uses
+  an Implicit resources toggle to show default Host network and default
+  container host rows when needed.
+- The legacy platform resource provider no longer creates a fallback Host
+  network resource from an empty platform store; default Host network resources
+  now come from the lazy Resource Model graph path when a resource needs one.
+- `ResourceGraphBuilder` now rejects duplicate resource IDs when resources are
+  added, preventing mixed explicit/default paths from defining the same
+  logical resource twice.
+- Control Plane `DefineResources(...)` and `DefineInitialTemplate(...)` now
+  build the Resource Model graph before registering declarations, so lazy
+  default resources such as the default container host are registered and can
+  be resolved during dependency auto-start.
+- The Environment map now renders a managed orchestration service using the
+  owning resource's type, icon, internet reachability, and endpoint text when a
+  service boundary is backed by a resource such as a container app.
+
 ### 2026-06-30
 
 #### Changed
 
+- Environment Map projection now nests service-routing bindings inside their
+  owning orchestration service boundary and links actual load-balancer
+  resources to the routing binding they materialize, keeping service grouping
+  as the primary runtime view.
+- Environment Map now includes a network topology overlay by default, with a
+  toggle for hiding network resources, configured endpoint mappings, provider
+  materialization links, and public internet reachability facts.
+- Environment Map relationship labels are now a separate visual layer, hidden
+  by default but shown for hovered or selected relationships to reduce graph
+  clutter.
+- Environment Map Internet topology anchors now appear only when a reachable
+  carrier boundary exists, and links target that boundary, such as the Host
+  network or a reachable network resource, instead of every resource that
+  inherits reachability.
+- Resource graph and Environment Map cards now use resource type display names
+  from the shell catalog, while keeping concrete endpoint host/IP/name text
+  visible on mapped resources and endpoint mapping topology nodes when the
+  network topology layer is shown.
+- Resource graph and Environment Map cards now use compact type/artifact icons
+  instead of initials, keeping resource display names as the dominant card
+  content.
+- Container app ResourceDefinition builders now support app-level
+  virtual-network endpoint intent, including private IP address, network
+  reference, and endpoint assignment metadata, and deployment descriptors
+  preserve that service endpoint metadata for orchestrator routing.
+- Container app graph DNS coverage now verifies that name mappings publish
+  the stable container app virtual-network endpoint as the app service name,
+  instead of mapping DNS to individual replica resources.
+- Container app declarations and the Scale and replicas UI now support
+  app-level routing session affinity, and deployment projection carries that
+  policy into orchestrator service-routing bindings; the Replicated Container
+  Health sample declares cookie affinity as the first visible proof.
+- The Replicated Container Health sample Traefik bridge now maps cookie
+  session-affinity routing bindings to Traefik sticky-cookie configuration
+  when reconciling replicated app ingress.
+- Added a SignalR Container App sample that declares a Blazor WebAssembly
+  frontend resource connected to a three-replica container app backend with
+  cookie session affinity, leaving runtime materialization to the shared
+  container app runtime/orchestrator path.
+- Container app providers now include an opt-in local process runtime adapter
+  that maps container app resource ids to local .NET projects, starts one
+  process per requested replica slot, and exposes the declared endpoint without
+  requiring each sample to implement its own runtime handler.
+- Container app providers now include a deferred runtime adapter for migration
+  samples that should accept graph image and replica state without materializing
+  a runtime yet.
+- Docker container providers now include an opt-in local Docker container
+  runtime adapter for mapped resources, moving the ContainerAppDeployment
+  registry runtime out of the sample-specific handler.
+- SQL Server providers now include an opt-in local Docker runtime adapter for
+  mapped SQL Server resources, moving the duplicated ApplicationTopology and
+  ContainerHost SQL Docker lifecycle bridges into the provider boundary.
+- Container app providers now include an opt-in delegating runtime handler
+  that routes lifecycle, image, replica, and orchestrator-service calls to
+  registered runtime targets; Replicated Container Health now uses this
+  provider-owned dispatch boundary instead of a sample-local container app
+  runtime handler.
+- SignalR Container App sample now uses the provider-owned local process
+  runtime mapping for its backend container app instead of shipping a
+  sample-local `IContainerApplicationRuntimeHandler`.
+- SignalR Container App ingress now keeps SignalR negotiate and WebSocket
+  requests bound to the same replica by tracking negotiated connection tokens,
+  proving sticky real-time routing through the local process runtime adapter.
+- SignalR Container App sample derives default API, replica, and frontend
+  ports from the supplied CloudShell host URL to avoid fixed-port collisions
+  when running the sample with `--urls`.
+- SignalR Container App sample now emits OpenTelemetry SignalR spans and
+  replica-attributed SignalR metrics through the CloudShell telemetry ingest
+  path, and local process container-app replicas receive the same
+  observability environment as Docker-backed replicas.
+- Container app resources now advertise logs, traces, and metrics through the
+  Resource Model observability projection, and local process container-app
+  replicas automatically expose provider-projected process log sources.
+- Container app console log sources now carry a declared format, allowing
+  ASP.NET Core JSON console output from local-process and Docker-backed
+  replicas to be parsed as structured log entries instead of raw JSON text.
+- Local-process container app runtime replicas now project `runtime.container`
+  resources, allowing the Environment Map to render replica nodes inside the
+  container app service and replica-group boundaries.
+- Local-process container app runtime replicas now expose process-level
+  monitoring snapshots, while Docker-backed replica monitoring remains scoped
+  to runtime containers with provider-projected Docker container names.
+- Built-in Resource Model provider registration now includes provider-owned
+  runtime adapters by default, and migrated several samples from manually
+  wiring individual built-in resource types to the capability-level provider
+  registration path.
+- Traces view no longer renders recent spans through the terminal-style log
+  entry component; the page now stays focused on trace summaries until a trace
+  is opened.
+- Container app fallback runtime now reports a runtime-unavailable diagnostic
+  instead of accepting lifecycle, image, and replica operations without
+  materializing anything.
+- Application Topology sample resource display names now omit the repeated
+  sample prefix so graph cards remain readable.
+- ResourceHost now declares every sample resource exposed by its provider so
+  permissive local-development runs show the full sample topology, while the
+  authenticated Alice scenario demonstrates scoped grants by allowing API read,
+  database management, and no worker visibility.
+- Resource graph now has an optional network topology overlay that adds
+  topology relationship links and shows internet reachability as a badge on
+  resource or network cards when reachability is explicitly projected, instead
+  of inferring it from local public endpoint exposure or adding internet as a
+  resource node.
+- Resource graph and Environment Map projections now keep Application
+  Topology relationships connected when logical intermediaries are hidden:
+  DNS name mappings link back to their DNS zone, SQL databases expose their
+  owning server, and application resources can show the effective SQL Server
+  relationship inferred through a database dependency.
+- Resource graph and Environment Map now show a possible-internet-connectivity
+  badge for projected reachability facts and resources attached to declared
+  reachable networks; the Environment Map also infers local host-network
+  bindings and projects a Host network node for the implicit default host
+  network.
+- Resource endpoint details and active networking/hosting guidance now
+  consistently call the implicit local-development topology the Host network,
+  and clarify that implicit Host network and container-host defaults are still
+  resources in the realized environment model.
+- Resource graph now hides implicit default resources such as the Host network
+  and default container host by default, while adding an explicit toggle to
+  show them when the user wants the complete realized resource set.
+- Resource Model builders now expose get-or-add default resource
+  accessors for the Host network and default docker-compatible container host,
+  matching the default-resource authoring model used by identity providers.
+- Control Plane resource authoring can now retrieve host-registered identity
+  provider context while keeping identity-provider registration on the host
+  itself through configuration, built-in identity setup, or host-level
+  `AddIdentityProvider(...)` calls.
+- `resources.GetIdentityProvider()` now returns a Control Plane identity-provider
+  context that exposes provider metadata and creates provider-scoped user
+  principal references with `GetUser(...)`.
+- Graph-backed generic container-host resources now project orchestration
+  descriptors for runtime host resolution, and the SQL container-host samples
+  author `DefaultContainerHost()` as a real default host resource.
+- Built-in Resource model provider presets now contribute fallback default Host
+  network and default docker-compatible container-host resources through the
+  lazy graph-builder accessors, while explicit resources with those IDs remain
+  authoritative.
+- Replicated Container Health sample replica containers now carry
+  replica-group and runtime-revision labels, and retired replica-group cleanup
+  skips slots that have already been replaced by a newer revision so image
+  rollouts do not delete the active replicas.
+- Resource model container-app apply reconciliation now uses the shared
+  Resource Manager deployment cleanup coordinator for post-apply replica-group
+  teardown, keeping cleanup events and warning handling on the orchestration
+  boundary instead of in the container-app graph reconciler.
+- ResourceDefinition apply reconciliation now has a provider-facing
+  `IResourceModelGraphMaterializedChangeApplier` contract for applying
+  accepted graph changes to materialized runtime resources, with graph-backed
+  container apps using it for image and replica-slot runtime reconciliation.
+- HostVirtualNetwork now demonstrates manual network-level naming in the
+  Resource model: ASP.NET Core resources can declare virtual-network-scoped
+  private IP endpoint mappings, reuse port 80 on different service IPs, and
+  publish DNS names through a sample-local CoreDNS zone-file provider.
+- Network providers now include an opt-in graph endpoint-mapping reconciler
+  that projects graph resources into the Resource Manager endpoint-mapping
+  provisioner contract; HostVirtualNetwork uses it instead of a sample-local
+  endpoint-mapping bridge.
+- DNS zone providers now include an opt-in graph name-mapping reconciler that
+  projects graph DNS zone/name-mapping resources into the Resource Manager
+  name-publishing provider contract; LoadBalancer and HostVirtualNetwork use
+  it instead of sample-local DNS reconciler registrations.
+- Built-in Resource model providers now expose
+  `AddBuiltInResourceModelRuntimeAdapters()` and
+  `UseBuiltInResourceModelRuntimeAdapters()` as explicit local-runtime
+  composition helpers for provider-owned Resource Model runtime adapters,
+  reducing sample setup without hiding runtime materialization inside resource
+  type registration.
+- Container app providers now own the local container-app process command
+  runner used by ReplicatedContainerHealth runtime materialization, removing
+  another sample-local runtime infrastructure piece while leaving the
+  sample-specific Docker/Traefik bridge as the next provider-runtime cleanup
+  target.
+- Container app providers now also register local runtime-container log and
+  monitoring providers for projected runtime replica resources, so samples no
+  longer need their own Docker log/stats providers once they project runtime
+  containers with standard runtime metadata.
+- Control Plane `DefineResources(...)` and `DefineInitialTemplate(...)` now use
+  a Control Plane resource-definition context that extends graph resource
+  authoring, keeps identity-provider metadata outside `ResourceDefinition` and
+  `ResourceTemplate` interchange, and keeps `.Declare(...)` as the manual
+  provider-backed resource declaration escape hatch. See ADR-20260630-001.
+- Terminology, domain, architecture, and resource-model docs now define a
+  network topology overlay that can be shown in both the Resource graph and
+  Environment Map, including future internet-reachability facts.
 - ResourceModel tests now include merge-readiness hygiene coverage that rejects
   active solution, project, and source references to deleted legacy provider
   projects and old resource-template wrapper contracts.
@@ -26,6 +269,18 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource template, resource definition, provider, and sample guidance now
   describe the current Resource model migration instead of presenting active
   guidance as POC-only work.
+- Container app, SQL Server, DNS, Traefik/load-balancer, and generic local
+  executable runtime adapters now own more of the local sample runtime
+  materialization path, moving the remaining reusable bridges and descriptor
+  providers out of sample projects while keeping sample-specific providers
+  isolated.
+- Sample smoke tests now serialize only the process/Docker-backed
+  `Sample smoke tests` xUnit collection; recording-runner adapter tests remain
+  parallel-safe and no longer inherit an assembly-wide parallelization lock.
+- Local Docker container and SQL Server Docker runtime registrations can now
+  configure their local executable orchestration descriptors in the same
+  provider-owned registration call, reducing sample-specific orchestration
+  wiring.
 
 ### 2026-06-29
 
@@ -283,19 +538,19 @@ on `git blame --follow`, and then by the broad type of change.
   fixture IDs.
 - ThirdPartyIdentity setup-handler coverage now uses the same stable identity,
   provisioning, and API resource identities as the switched sample instead of
-  graph-prefixed fixture IDs.
+  resource-model fixture IDs.
 - ThirdPartyIdentity's graph ASP.NET Core identity environment provider no
   longer depends on the old application provider options just to resolve the
   default resource identity scope.
 - ThirdPartyIdentity's sample-local identity provisioning and ASP.NET Core
   identity-environment seams now use Resource model naming instead of
   graph-specific class and test names.
-- Resource graph builders can now declare Resource Manager identity binding
+- Resource Model builders can now declare Resource Manager identity binding
   and provision-on-startup intent with old-builder-compatible
   `WithIdentity(...)` and `ProvisionIdentityOnStartup(...)` methods, and
   ThirdPartyIdentity now uses that surface for its API resource.
 - SettingsAndSecrets and ApplicationTopology now also declare API identity
-  binding and provision-on-startup intent directly on their Resource graph
+  binding and provision-on-startup intent directly on their Resource Model
   builders, leaving Resource Manager declarations focused on provider
   registration and permission grants.
 - SQL Server sample runtime bridges and smoke-test guards now use defaults
@@ -306,12 +561,12 @@ on `git blame --follow`, and then by the broad type of change.
   metrics helper.
 - CloudShell.ContainerHost no longer carries the unused old resource-builder
   sample helper after moving the sample declarations to `DefineResources(...)`.
-- Resource graph builders can now register Resource Manager permission grants
+- Resource Model builders can now register Resource Manager permission grants
   and host-level identity providers, allowing SettingsAndSecrets,
   ThirdPartyIdentity, and ApplicationTopology to remove old
   `cloudShell.Resources(...).Declare(...)` blocks in favor of
-  graph-builder metadata.
-- Resource graph builder overloads that accept another resource builder now
+  Resource Model builder metadata.
+- Resource Model builder overloads that accept another resource builder now
   infer typed `ResourceReference` metadata from the target builder for
   startup dependencies, project references, service/name-mapping targets, and
   load-balancer backend routes. Samples now prefer the builder-based overloads
@@ -325,18 +580,18 @@ on `git blame --follow`, and then by the broad type of change.
   Resource Manager bridge resolves referenced values when the project resource
   starts, while `configuration` remains a separate general resource
   configuration channel.
-- Added native ASP.NET Core project graph-builder environment variable
+- Added native ASP.NET Core project Resource Model builder environment variable
   authoring through `WithEnvironmentVariable(...)`, plus provider-owned convenience
   methods for service discovery, HTTP health checks, and HTTP liveness/probe
   declarations, and moved ProjectReference plus SettingsAndSecrets sample
   declarations onto those APIs.
-- Added concept-compatible graph builder endpoint convenience methods for
+- Added concept-compatible Resource Model builder endpoint convenience methods for
   ASP.NET Core projects, container applications, and SQL Server resources so
   common HTTP, HTTPS, TCP, and health-check declarations no longer need to
   hand-author raw endpoint request or health-check payloads.
-- Resource Manager graph host integration now automatically declares resources
+- Resource Manager host integration now automatically declares resources
   defined through `DefineResources(...)` and `DefineInitialTemplate(...)`,
-  with graph-builder metadata helpers for resource groups and autostart policy.
+  with Resource Model builder metadata helpers for resource groups and autostart policy.
   ProjectReference, ReplicatedContainerHealth, HostVirtualNetwork,
   CloudShell.ContainerHost, ContainerAppDeployment, LoadBalancer, and
   SplitHosting no longer need redundant `cloudShell.Resources(...).Declare(...)`
@@ -345,18 +600,18 @@ on `git blame --follow`, and then by the broad type of change.
   graph container-app replicas are projected through Resource Manager child
   resources and shown as occupied slots in the Scale and replicas view, both
   before and after graph-backed replica scaling.
-- Added native resource graph builder configuration authoring through
+- Added native Resource Model builder configuration authoring through
   `WithConfiguration(sectionName, value)`, writing to the ResourceDefinition
   `configuration` channel separately from resource environment variables.
-- Added bridge-owned resource graph identity convenience helpers for
+- Added bridge-owned Resource Model identity convenience helpers for
   `IResourceDefinitionBuilder`: `Identity(...)`, `Principal(...)`, and
   `IdentityClientId(...)`, and updated graph-backed samples to use the helper
   instead of hand-formatting resource identity client ids.
-- Documented the resource graph builder API layering direction: core builders
+- Documented the Resource Model builder API layering direction: core builders
   stay aligned with Resource model concepts, while Aspire-like and old-builder
   convenience shapes should start as extension methods until provider ports
   prove they belong in the shared builder surface.
-- Resource graph sample declarations now omit explicit resource ids by default
+- Resource Model sample declarations now omit explicit resource ids by default
   and use name-first builders plus the host `IResourceIdConvention`; the
   temporary Resource Manager bridge can declare a built graph resource from
   its builder while keeping the old `Resources(...)` seam isolated until the
@@ -364,7 +619,7 @@ on `git blame --follow`, and then by the broad type of change.
 - Documented resource-id and naming conventions as deferred cleanup after the
   provider switch, so the current `resourceTypeId:name` convention stays a POC
   bridge rather than a settled public naming design.
-- Resource graph builders now resolve omitted resource ids through an
+- Resource Model builders now resolve omitted resource ids through an
   `IResourceIdConvention`. The default host convention preserves the existing
   `resourceTypeId:name` ids, while built graphs/deployments carry the resolved
   ids so provider APIs and references can use Aspire-like name-first builder
@@ -727,7 +982,7 @@ on `git blame --follow`, and then by the broad type of change.
   Aspire-compatible in-memory resource declarations and
   `DefineInitialTemplate(...)` for seed-like resource template declarations with
   name, environment, and metadata, both backed by
-  `ResourceDefinitionGraphBuilder`; samples use `DefineResources(...)` for
+  `ResourceGraphBuilder`; samples use `DefineResources(...)` for
   programmatic in-memory graph declarations while template-ready hosts can
   switch the same builder block to `DefineInitialTemplate(...)`.
 - SplitHosting, ProjectReference, ContainerAppDeployment, ThirdPartyIdentity,
@@ -874,7 +1129,7 @@ on `git blame --follow`, and then by the broad type of change.
   graph-backed API, SQL Server, Configuration Store, and Secrets Vault pages
   render without leaking stored secret values.
 - ThirdPartyIdentity now declares its side-by-side graph identity provisioning
-  resource through the provider-owned `ResourceDefinitionGraphBuilder`
+  resource through the provider-owned `ResourceGraphBuilder`
   identity builder instead of raw graph state, keeping the sample on the same
   programmatic authoring path as provider tests.
 - Graph-backed Docker container lifecycle operations now delegate through an
@@ -1034,7 +1289,7 @@ on `git blame --follow`, and then by the broad type of change.
   operations such as ThirdPartyIdentity Keycloak setup expose their provider
   result through the existing action API.
 - Resource Graph programmatic authoring now starts with a manual
-  `ResourceDefinitionGraphBuilder` and a provider-owned Network builder that
+  `ResourceGraphBuilder` and a provider-owned Network builder that
   emits `ResourceDefinition` and `ResourceTemplate` values for the
   same apply pipeline used by interchange documents.
 - Resource Graph programmatic builders now share common resource id, display

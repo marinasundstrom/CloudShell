@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -5,6 +6,26 @@ namespace CloudShell.ControlPlane.Providers;
 
 public static class ConfigurationStoreResourceTypeServiceCollectionExtensions
 {
+    public static IControlPlaneBuilder UseConfigurationStoreResourceProvider(
+        this IControlPlaneBuilder builder,
+        Action<ConfigurationStoreRuntimeOptions>? configureRuntime = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        if (configureRuntime is null)
+        {
+            builder.Services.AddConfigurationStoreResourceType();
+        }
+        else
+        {
+            builder.Services.AddConfigurationStoreResourceType(configureRuntime);
+        }
+
+        builder.Services.AddResourceGraphIntegration();
+
+        return builder;
+    }
+
     public static IServiceCollection AddConfigurationStoreResourceType(
         this IServiceCollection services)
     {

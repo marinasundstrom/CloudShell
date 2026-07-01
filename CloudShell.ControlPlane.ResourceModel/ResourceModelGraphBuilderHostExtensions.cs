@@ -10,7 +10,7 @@ public static class ResourceModelGraphBuilderHostExtensions
 {
     public static IControlPlaneBuilder DefineResources(
         this IControlPlaneBuilder builder,
-        Action<ResourceDefinitionGraphBuilder> configure,
+        Action<ControlPlaneResourceGraphBuilder> configure,
         Func<ResourceState, ResourceState>? projectState = null,
         IResourceIdConvention? resourceIdConvention = null)
     {
@@ -20,12 +20,15 @@ public static class ResourceModelGraphBuilderHostExtensions
         var convention = resourceIdConvention ?? DefaultResourceIdConvention.Instance;
         builder.Services.TryAddSingleton<IResourceIdConvention>(convention);
 
-        var graph = new ResourceDefinitionGraphBuilder(convention);
-        graph.DefineResources(configure);
+        var declarations = ResourceModelResourceDefinitionBuilderExtensions.GetOrAddDeclarationStore(builder.Services);
+        var graph = new ControlPlaneResourceGraphBuilder(builder, declarations, convention);
+        graph.SeedIdentityProviderDeclarations(declarations);
+        configure(graph);
+        var builtGraph = graph.BuildGraph();
         RegisterDeclarations(builder, graph);
         builder.Services.AddInMemoryResourceModelGraph(
             ProjectStates(
-                graph.BuildGraph().Resources.Select(ResourceState.FromDefinition),
+                builtGraph.Resources.Select(ResourceState.FromDefinition),
                 projectState));
 
         return builder;
@@ -34,7 +37,7 @@ public static class ResourceModelGraphBuilderHostExtensions
     public static IControlPlaneBuilder DefineInitialTemplate(
         this IControlPlaneBuilder builder,
         string name,
-        Action<ResourceDefinitionGraphBuilder> configure,
+        Action<ControlPlaneResourceGraphBuilder> configure,
         string? environmentId = null,
         IReadOnlyDictionary<string, string>? metadata = null,
         Func<ResourceState, ResourceState>? projectState = null,
@@ -47,11 +50,15 @@ public static class ResourceModelGraphBuilderHostExtensions
         var convention = resourceIdConvention ?? DefaultResourceIdConvention.Instance;
         builder.Services.TryAddSingleton<IResourceIdConvention>(convention);
 
-        var graph = new ResourceDefinitionGraphBuilder(convention);
-        graph.DefineResources(configure);
+        var declarations = ResourceModelResourceDefinitionBuilderExtensions.GetOrAddDeclarationStore(builder.Services);
+        var graph = new ControlPlaneResourceGraphBuilder(builder, declarations, convention);
+        graph.SeedIdentityProviderDeclarations(declarations);
+        configure(graph);
+        var builtGraph = graph.BuildGraph();
         RegisterDeclarations(builder, graph);
-        var template = graph.BuildTemplate(
+        var template = new ResourceTemplate(
             name,
+            builtGraph.Resources,
             environmentId,
             metadata);
         builder.Services.AddInMemoryResourceModelGraph(
@@ -64,11 +71,10 @@ public static class ResourceModelGraphBuilderHostExtensions
 
     private static void RegisterDeclarations(
         IControlPlaneBuilder builder,
-        ResourceDefinitionGraphBuilder graph)
+        ControlPlaneResourceGraphBuilder graph)
     {
         var declarations = ResourceModelResourceDefinitionBuilderExtensions
             .GetOrAddDeclarationStore(builder.Services);
-
         foreach (var resource in graph.ResourceBuilders)
         {
             var metadata = ResourceModelResourceDefinitionBuilderExtensions.GetDeclarationMetadata(resource);

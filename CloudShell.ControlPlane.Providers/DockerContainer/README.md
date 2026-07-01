@@ -17,7 +17,7 @@
   status-aware action availability.
 - Resource Manager bridge state projection through the runtime handler seam.
 - Typed wrapper plus apply planning and Resource Manager bridge projection/execution.
-- Manual `ResourceDefinitionGraphBuilder.AddDockerContainer(...)` builder for
+- Manual `ResourceGraphBuilder.AddDockerContainer(...)` builder for
   code-first Docker container definition authoring with typed Docker host
   dependencies.
 

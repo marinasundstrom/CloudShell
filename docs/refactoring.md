@@ -85,6 +85,11 @@ Resource model provider migration.
   workload-builder scenario deliberately exposes them. The Environment Map can
   visualize them as a read model, but it must not become a second source of
   truth.
+- Container app DNS and virtual-network endpoint intent belongs to the stable
+  container app service boundary by default. Replica-specific DNS names are a
+  future diagnostic concern. Sticky/session-affinity routing is app-level
+  resource intent projected into service-routing binding metadata, while
+  provider-specific runtime enforcement remains a routing-provider task.
 
 ## Active Slice
 
@@ -331,14 +336,21 @@ Resource model provider migration.
   scattered provider list.
 - [x] Split hosting registration names so UI-only hosts use
   `AddCloudShellUi()`, `UseCloudShellUiAsync()`, and `MapCloudShellUi(...)`,
-  Control Plane hosts use the Control Plane methods, and the plain
-  `AddCloudShell()`, `UseCloudShellAsync()`, and `MapCloudShell(...)` methods
-  live in the combined host surface that composes both sides.
+  Control Plane hosts use the Control Plane methods, and combined local hosts
+  compose both sides explicitly instead of using ambiguous plain
+  `AddCloudShell()`, `UseCloudShellAsync()`, or `MapCloudShell(...)` methods.
+- [x] Clarify the preferred local-development registration story: install the
+  Control Plane application first, add CloudShell UI explicitly, and register
+  backend provider extensions separately from Resource Manager UI extensions.
 - [x] Remove legacy provider project references from remaining samples where
   built-in Resource model providers already cover the scenario.
-- [ ] Move any remaining sample-local gaps behind Resource model
+- [x] Move reusable sample-local gaps behind Resource model
   provider-owned runtime seams instead of keeping the old provider projects
-  installed for general host behavior.
+  installed for general host behavior. The current pass moved container app
+  local Docker runtime projection, Traefik load-balancer configuration,
+  CoreDNS zone-file publishing, fixed local executable orchestration
+  descriptors, and SQL Server/database runtime helpers into provider-owned
+  adapters while leaving scenario-specific sample providers in place.
 - [x] Delete the old provider implementation folders once no active host,
   sample, or test requires `CloudShell.Providers.Applications`,
   `CloudShell.Providers.Configuration`, or `CloudShell.Providers.Docker`.
@@ -370,9 +382,9 @@ the graph-backed tests that cover the same resource path.
   project references/usings after the Resource model sample migration,
   remove them, and run ApplicationTopology graph smoke coverage.
 - [x] `samples/CloudShell.ContainerHost` referenced the old Docker
-  provider project. Verify whether the sample-local Docker bridge already
-  covers the runtime behavior, remove the stale dependency, and run
-  ContainerHost graph smoke coverage.
+  provider project. The provider-owned local SQL Server Docker runtime now
+  covers the runtime behavior, the stale dependency has been removed, and
+  ContainerHost graph smoke coverage verifies the path.
 - [x] `CloudShell.Abstractions.Tests` contained broad tests for the old
   provider model. Move behavior that must survive to
   `CloudShell.ResourceModel.Tests` or sample tests, then delete tests
@@ -425,9 +437,19 @@ preserving old provider seams:
 - [x] Forward service-routing binding definitions through the Resource Model
   graph procedure bridge and container-app orchestrator runtime handler
   contract so runtime adapters can react to explicit binding ids.
+- [x] Project container app session-affinity resource intent into
+  service-routing binding definitions, and expose the setting on the
+  app-centric Scale and replicas UI.
 - [ ] Make the default orchestrator controller and load-balancer providers
   react to service-routing binding definitions instead of inferring replica
   membership from container-app-specific runtime names.
+- [x] Project the initial network topology overlay into graph views from
+  resource-owned endpoint mappings, network resources, load-balancer routes,
+  name mappings, and explicit or observed internet reachability facts. The
+  Environment Map shows the overlay by default with a toggle; the Resource
+  graph has an optional overlay, and both views render internet reachability as
+  a resource or network badge. When the Environment Map shows an Internet
+  anchor, it links to the carrier boundary instead of every reachable resource.
 - [ ] Continue splitting `ApplicationResourceRuntimeOperations` by separating
   remaining resource-type concerns: lifecycle procedure execution, container
   app orchestration hooks, and endpoint/probe materialization. The shared
@@ -472,12 +494,20 @@ preserving old provider seams:
   the shared runtime/procedure coordinator.
 - [x] Extract the container app orchestrator deployment factory from the shared
   service so deployment description is independently testable.
-- [ ] Revisit post-apply teardown ownership. Prefer Resource Manager
+- [x] Revisit post-apply teardown ownership. Prefer Resource Manager
   deployment/orchestration outcome data over provider-specific predecessor
   inference.
-- [ ] Define a provider-facing change-application contract for applying
+- [x] Define a provider-facing change-application contract for applying
   attribute/configuration changes to materialized resources without requiring
   every provider to invent one-off update methods.
+- [ ] Define service-discovery semantics for virtual networks, DNS zones, name
+  mappings, and endpoint mappings so graph and runtime views can distinguish
+  declared topology, DNS/discovery names, and internet-reachable carrier
+  networks without provider-specific inference.
+  - [x] Add a manual Resource model proof for virtual-network-private service
+    IPs and DNS name mappings through the HostVirtualNetwork sample.
+  - [ ] Define automatic virtual IP allocation and default service-discovery
+    naming policy for services inside a virtual network.
 
 ## Future Resource Provider Refactoring
 
@@ -496,6 +526,10 @@ preserving old provider seams:
   or host-shaped implementations behind default runtime integration
   registrations, leaving provider packages dependent only on adapter contracts
   and fakeable abstractions.
+  - [x] Collapse repeated local Docker/SQL runtime plus local-executable
+    descriptor registration into provider-owned runtime registration overloads
+    so samples do not wire descriptor providers separately for the same
+    resource id.
 - [ ] Feed the schema/validation/apply model into orchestrator deployment
   planning so accepted ResourceDefinition state can be translated consistently
   across resource types while leaving type-specific reconciliation to the

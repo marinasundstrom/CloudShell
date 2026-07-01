@@ -12,7 +12,7 @@
 - Medium validation.
 - Provision operation with an injected provider-owned provisioner seam.
 - Typed wrapper plus apply planning and Resource Manager bridge projection.
-- Manual `ResourceDefinitionGraphBuilder.AddLocalVolume(...)` builder for
+- Manual `ResourceGraphBuilder.AddLocalVolume(...)` builder for
   code-first local volume definition authoring.
 
 ## Switch-over status

@@ -22,7 +22,7 @@ public sealed class IdentityProvisioningResourceDefinitionBuilder(string name) :
 public static class IdentityProvisioningResourceDefinitionBuilderExtensions
 {
     public static IdentityProvisioningResourceDefinitionBuilder AddIdentityProvisioning(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);

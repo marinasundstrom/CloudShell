@@ -8,7 +8,7 @@ and attributes fit together.
 For broader product concepts, see [Domain model](domain-model.md).
 For canonical product and domain vocabulary, see
 [CloudShell Terminology](terminology.md).
-For the Resource Graph POC interchange shape, see
+For the Resource Model POC interchange shape, see
 [Resource Definition Structure](resource-definition-structure.md).
 
 ## Resource Projection
@@ -525,6 +525,61 @@ also include optional network and provider references. Runtime materialization
 status, observed conflicts, and concrete reachable addresses should be
 projected by provider capabilities, operations, or read-only/provider-managed
 graph attributes rather than authored as caller-managed mapping configuration.
+
+Network topology and internet reachability are graph projections over these
+resource-owned networking facts. A Resource graph view can choose to include a
+network topology overlay that shows network resources, endpoint mappings,
+published names, load-balancer routes, and internet reachability facts. The
+same facts can be projected into the Environment Map with runtime context such as
+orchestration service boundaries, replica groups, replicas, and routing
+bindings. The resource model should provide the relationships and attributes;
+the map projection decides whether to render the normal resource view, the
+runtime view, or the network-focused overlay.
+
+Implicit default resources, such as the Host network or default container host,
+are still resources in the realized model. They represent host-level defaults
+that resources may use when no explicit network or container host is selected.
+The host can override those defaults by declaring or configuring replacement
+default resources. CloudShell currently focuses on docker-compatible container
+hosts, but the model is the generic container-host concept. The normal Resource
+graph should hide projected implicit defaults to keep declared intent readable,
+but it can expose a toggle for showing implicit/default resources when the user
+needs the complete realized resource set. Authored default overrides remain
+visible as declared resources.
+
+ResourceDefinition authoring should expose resource defaults through named
+graph builder accessors rather than forcing every caller to know the default IDs.
+`GetDefaultNetwork()` returns the Host network and `GetContainerHost()` returns
+the configured default container-host resource. The resources are created
+lazily only when those accessors are called by user code or by a graph helper
+that actually needs a default network or container host. Built-in provider
+registration does not seed default resources by itself. If no resource or helper
+needs a default resource, it is not added to the graph. Explicit resources with
+the same default IDs override the default get-or-add result. Host-level defaults
+that are not resources, such as identity
+providers used to resolve user or resource principals, stay outside the
+ResourceDefinition graph. Control Plane host setup registers identity providers
+through host configuration, identity-specific host setup such as the built-in
+identity setup, or Control Plane setup calls such as
+`controlPlane.AddIdentityProvider(...)`.
+Control Plane programmatic resource authoring can read that host context with
+`resources.GetIdentityProvider(...)` and use it while declaring resources, but
+it does not declare identity providers as `ResourceDefinition` resources.
+`GetIdentityProvider()` returns a Control Plane identity-provider context. The
+context exposes provider metadata and principal helpers such as `GetUser(...)`;
+those helpers create provider-scoped principal references for grants without
+adding identity or user resources to the Resource graph.
+
+Internet reachability should be explicit or observed, not inferred from local
+endpoint exposure alone. Local development resources can expose `localhost`
+ports and still not have verified internet connectivity. Providers, runtime
+observers, or network resources can project `internet.reachability` or
+`network.internetReachability` with values such as `verified`, `reachable`, or
+`inferred`; graph views can then show a reachability badge on that resource or
+network. If the Environment Map shows Internet as a topology anchor, it should
+connect to the concrete network, gateway, load balancer, provider, or explicitly
+reachable resource that carries the reachability rather than drawing direct
+Internet links to every resource that merely inherits that reachability.
 
 ## Actions
 

@@ -79,10 +79,6 @@ public sealed class PlatformResourceProvider(
     public IReadOnlyList<Resource> GetResources()
     {
         var networks = store.GetNetworks();
-        if (networks.Count == 0)
-        {
-            networks = [CreateHostNetworkDefinition()];
-        }
 
         return
         [

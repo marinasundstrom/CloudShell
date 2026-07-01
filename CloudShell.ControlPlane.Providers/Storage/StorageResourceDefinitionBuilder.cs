@@ -2,7 +2,7 @@ namespace CloudShell.ControlPlane.Providers;
 
 public sealed class StorageResourceDefinitionBuilder(
     string name,
-    ResourceDefinitionGraphBuilder? graph = null) :
+    ResourceGraphBuilder? graph = null) :
     ResourceDefinitionBuilder<StorageResourceDefinitionBuilder>(name)
 {
     protected override ResourceTypeId TypeId =>
@@ -42,7 +42,7 @@ public sealed class StorageResourceDefinitionBuilder(
         if (graph is null)
         {
             throw new InvalidOperationException(
-                "The storage builder is not attached to a resource graph builder.");
+                "The storage builder is not attached to a ResourceGraphBuilder.");
         }
 
         return graph.AddVolume(
@@ -57,7 +57,7 @@ public sealed class StorageResourceDefinitionBuilder(
 public static class StorageResourceDefinitionBuilderExtensions
 {
     public static StorageResourceDefinitionBuilder AddStorage(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name)
     {
         ArgumentNullException.ThrowIfNull(graph);
@@ -68,7 +68,7 @@ public static class StorageResourceDefinitionBuilderExtensions
     }
 
     public static StorageResourceDefinitionBuilder AddLocalStorage(
-        this ResourceDefinitionGraphBuilder graph,
+        this ResourceGraphBuilder graph,
         string name,
         string? location = null)
     {

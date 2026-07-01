@@ -147,6 +147,37 @@ Endpoint mappings can appear in the Resource model when they help explain how
 resources connect. They can also appear as environment artifacts in the Runtime
 model when routing or publishing is managed by the runtime.
 
+### Network Topology Overlay
+
+A **network topology overlay** is a selectable graph projection that emphasizes
+networks, endpoint mappings, load-balancer routes, name mappings, and internet
+reachability facts.
+
+The overlay is not a separate model or source of truth. It is derived from the
+same Resource model and Runtime model artifacts as the Resource graph and the
+Environment Map. In the Resource graph, it explains how resources are connected
+through networks and published endpoints. In the Environment Map, it can add
+runtime routing, replica, service-boundary, and internet-reachability badges
+when those details matter.
+
+### Internet Connection
+
+An **internet connection** is a modeled or observed topology fact that explains
+whether a resource, endpoint, network, route, or service boundary is reachable
+from the public internet or can reach the public internet.
+
+CloudShell should prefer explicit network resources, endpoint mappings,
+load-balancer routes, DNS/name mappings, provider capabilities, and observed
+runtime facts over broad assumptions. When internet reachability is inferred,
+the projection should make that clear.
+
+Internet reachability is currently a fact on a resource, network, route, or
+service boundary. Visualizations can show it as a badge or, when useful, as an
+Internet topology anchor. The anchor should connect to the concrete network,
+gateway, load balancer, provider, or explicitly reachable resource that carries
+the reachability, not to every resource that only inherits reachability through
+that carrier.
+
 ## Runtime and Deployment Terms
 
 ### Orchestration Service
@@ -196,6 +227,10 @@ The **Environment Map** is the Resource Manager visualization of the Runtime
 model. It should emphasize service boundaries, replica groups, replicas,
 routing, and managed-resource ownership when those details matter for
 understanding the running environment.
+
+The Environment Map may include the network topology overlay so operators can
+see runtime services, replica groups, replicas, load balancer materialization,
+network boundaries, and internet reachability in one runtime-focused view.
 
 ## Deprecated Term Aliases
 

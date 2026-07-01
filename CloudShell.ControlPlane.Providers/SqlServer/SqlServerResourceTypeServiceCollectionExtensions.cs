@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -5,6 +6,17 @@ namespace CloudShell.ControlPlane.Providers;
 
 public static class SqlServerResourceTypeServiceCollectionExtensions
 {
+    public static IControlPlaneBuilder UseStorageBackedSqlServerResourceProvider(
+        this IControlPlaneBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Services.AddStorageBackedSqlServerResourceTypes();
+        builder.Services.AddResourceGraphIntegration();
+
+        return builder;
+    }
+
     public static IServiceCollection AddStorageBackedSqlServerResourceTypes(
         this IServiceCollection services)
     {
@@ -23,6 +35,7 @@ public static class SqlServerResourceTypeServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddNetworkingEndpointGraphShapes();
+        services.AddContainerHostResourceType();
 
         if (!services.Any(descriptor =>
                 descriptor.ServiceType == typeof(ResourceClassDefinition) &&
@@ -72,6 +85,35 @@ public static class SqlServerResourceTypeServiceCollectionExtensions
         services.TryAddSingleton<
             ISqlServerAccessReconciler,
             NoopSqlServerAccessReconciler>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddLocalSqlServerDockerRuntime(
+        this IServiceCollection services,
+        Action<LocalSqlServerDockerRuntimeOptions>? configure = null,
+        Action<LocalExecutableResourceOrchestrationDescriptorOptions>? configureOrchestrationDescriptors = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        if (configure is not null)
+        {
+            services.Configure(configure);
+        }
+
+        services.TryAddSingleton<
+            ILocalSqlServerDockerCommandRunner,
+            ProcessLocalSqlServerDockerCommandRunner>();
+        services.TryAddSingleton<
+            ILocalSqlServerReadinessProbe,
+            ResourceModelSqlServerReadinessProbe>();
+        services.Replace(ServiceDescriptor.Singleton<
+            ISqlServerRuntimeHandler,
+            LocalSqlServerDockerRuntimeHandler>());
+        if (configureOrchestrationDescriptors is not null)
+        {
+            services.AddLocalExecutableResourceOrchestrationDescriptors(configureOrchestrationDescriptors);
+        }
 
         return services;
     }

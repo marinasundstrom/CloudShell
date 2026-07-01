@@ -26,18 +26,17 @@ Control Plane hosts can also declare configuration services in checked-in
 startup code:
 
 ```csharp
-controlPlane.Resources(resources =>
+controlPlane.DefineResources(resources =>
 {
     resources
         .AddConfigurationStore("example")
         .WithDisplayName("Example Configuration")
-        .WithEntries(
-        [
-            new("SampleMessage", "Hello from CloudShell configuration"),
-            new("SampleSecret", "local-development-secret", IsSecret: true)
-        ]);
+        .WithEndpoint("http://localhost:5138");
 });
 ```
+
+Configuration entries and secret values are provider/runtime data. They are not
+stored as `ResourceDefinition` graph attributes.
 
 Each store stores key-value entries:
 

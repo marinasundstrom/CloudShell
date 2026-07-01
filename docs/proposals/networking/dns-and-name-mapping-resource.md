@@ -9,11 +9,12 @@ In progress.
 The first MVP slice projects logical `cloudshell.dnsZone` resources and child
 `cloudshell.nameMapping` resources from programmatic declarations. This gives
 Resource Manager an inspectable model for host names, target resources,
-endpoint names, exposure scope, and provider intent without requiring
-CloudShell to publish DNS records yet. DNS zones with provider intent now
-advertise a provider-backed `reconcileNameMappings` action through the initial
-`INamePublishingProvider` contract, but no built-in DNS publisher has been
-selected as the default implementation.
+endpoint names, exposure scope, and provider intent. DNS zones with provider
+intent now advertise a provider-backed `reconcileNameMappings` action through
+the initial `INamePublishingProvider` contract. Local host-file publishing
+exists as a development provider, and the HostVirtualNetwork sample now proves
+manual virtual-network-private DNS by writing CoreDNS zone files from explicit
+per-service IP endpoint mappings.
 
 ## Problem
 

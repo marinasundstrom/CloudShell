@@ -15,6 +15,8 @@ using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
+using Microsoft.AspNetCore.Http.Connections;
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
@@ -132,6 +134,9 @@ public sealed class SampleSmokeRuntimeCleanupFixture : IAsyncLifetime
 [Trait("Category", "Integration")]
 public sealed class SampleSmokeTests
 {
+    // Sample host smoke tests are serialized because they launch processes,
+    // reserve local ports, write sample data paths, and may create fixed-name
+    // Docker resources. Recording-runner adapter tests can stay parallel.
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(90);
     private static readonly TimeSpan SampleHostLaunchTimeout = TimeSpan.FromMinutes(3);
 
@@ -171,6 +176,11 @@ public sealed class SampleSmokeTests
         yield return new object[]
         {
             "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/SignalRContainerApp/CloudShell.SignalRContainerApp.csproj",
             resourceHostPaths
         };
         yield return new object[]
@@ -340,7 +350,7 @@ public sealed class SampleSmokeTests
     public async Task ContainerHostSample_SqlRuntimeStartsWithStorageBackedVolume()
     {
         const string sqlServerResourceId = "application.sql-server:sql-server";
-        var sqlContainerName = ContainerHostSqlServerDockerBridge.SqlServerContainerName;
+        const string sqlContainerName = "cloudshell-container-host-sql-server";
         if (!await DockerComposeStack.IsAvailableAsync() ||
             !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.ContainerImage) ||
             await DockerComposeStack.ContainerExistsAsync(sqlContainerName))
@@ -439,7 +449,7 @@ public sealed class SampleSmokeTests
     public async Task ContainerHostSample_SqlRuntimeStopsOnGracefulHostShutdown()
     {
         const string sqlServerResourceId = "application.sql-server:sql-server";
-        var sqlContainerName = ContainerHostSqlServerDockerBridge.SqlServerContainerName;
+        const string sqlContainerName = "cloudshell-container-host-sql-server";
         if (!await DockerComposeStack.IsAvailableAsync() ||
             !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.ContainerImage))
         {
@@ -894,7 +904,7 @@ public sealed class SampleSmokeTests
 
         var graphApiDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:application-topology-api")}/details");
-        Assert.Contains("Application Topology API", graphApiDetailsHtml);
+        Assert.Contains("API", graphApiDetailsHtml);
         Assert.Contains("ASP.NET Core project", graphApiDetailsHtml);
         Assert.Contains("application.aspnet-core-project", graphApiDetailsHtml);
 
@@ -918,7 +928,6 @@ public sealed class SampleSmokeTests
 
         var graphSqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details");
-        Assert.Contains("Application Topology SQL Server", graphSqlDetailsHtml);
         Assert.Contains("SQL Server", graphSqlDetailsHtml);
         Assert.Contains("application.sql-server", graphSqlDetailsHtml);
 
@@ -938,7 +947,7 @@ public sealed class SampleSmokeTests
         var graphSqlStorageHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Storage.Value)}");
         Assert.Contains("Storage", graphSqlStorageHtml);
-        Assert.Contains("Application Topology SQL Data", graphSqlStorageHtml);
+        Assert.Contains("SQL Data", graphSqlStorageHtml);
         Assert.Contains("not projected", graphSqlStorageHtml);
 
         var graphApplicationAddHtml = await host.GetStringAsync(
@@ -981,7 +990,7 @@ public sealed class SampleSmokeTests
     [Trait("Category", "DockerIntegration")]
     public async Task ApplicationTopologyHost_RunsSqlBackedWorkload()
     {
-        var sqlContainerName = ApplicationTopologyResourceModelSqlServerDockerBridge.ResourceModelSqlServerContainerName;
+        const string sqlContainerName = "cloudshell-application-topology-sql-server";
         if (!await DockerComposeStack.IsAvailableAsync() ||
             !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.ContainerImage) ||
             await DockerComposeStack.ContainerExistsAsync(sqlContainerName))
@@ -1148,7 +1157,7 @@ public sealed class SampleSmokeTests
     public async Task ApplicationTopologyHost_SqlRuntimeStopsOnGracefulHostShutdown()
     {
         const string graphSqlServerResourceId = "application.sql-server:application-topology-sql-server";
-        var sqlContainerName = ApplicationTopologyResourceModelSqlServerDockerBridge.ResourceModelSqlServerContainerName;
+        const string sqlContainerName = "cloudshell-application-topology-sql-server";
         if (!await DockerComposeStack.IsAvailableAsync() ||
             !await DockerComposeStack.IsImageAvailableAsync(SqlServerResources.ContainerImage))
         {
@@ -1582,7 +1591,15 @@ public sealed class SampleSmokeTests
 
         var apiJson = await host.GetStringAsync("/api/control-plane/v1/resources");
         using var document = JsonDocument.Parse(apiJson);
-        var apiResource = document.RootElement.EnumerateArray().Single(resource =>
+        var resources = document.RootElement.EnumerateArray().ToArray();
+        var resourceIds = resources
+            .Select(resource => resource.GetProperty("id").GetString())
+            .OfType<string>()
+            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        Assert.Equal(["sample:api", "sample:database", "sample:worker"], resourceIds);
+
+        var apiResource = resources.Single(resource =>
             resource.GetProperty("id").GetString() == "sample:api");
         Assert.Equal((int)ResourceState.Running, apiResource.GetProperty("state").GetInt32());
 
@@ -1702,12 +1719,17 @@ public sealed class SampleSmokeTests
             .EnumerateArray()
             .Select(resource => resource.GetProperty("id").GetString())
             .OfType<string>()
+            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        Assert.Equal(["sample:database"], resourceIds);
+        Assert.Equal(["sample:api", "sample:database"], resourceIds);
 
         using var apiResponse = await client.GetAsync(
             "/api/control-plane/v1/resources/sample%3Aapi");
-        Assert.Equal(HttpStatusCode.NotFound, apiResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, apiResponse.StatusCode);
+
+        using var workerResponse = await client.GetAsync(
+            "/api/control-plane/v1/resources/sample%3Aworker");
+        Assert.Equal(HttpStatusCode.NotFound, workerResponse.StatusCode);
 
         var databaseJson = await client.GetStringAsync(
             "/api/control-plane/v1/resources/sample%3Adatabase");
@@ -1718,7 +1740,7 @@ public sealed class SampleSmokeTests
             .GetProperty("stop")
             .GetProperty("href")
             .GetString() ?? throw new InvalidOperationException("The database stop action did not include an href.");
-        using var stopResponse = await client.PostAsync(stopHref, null);
+        using var stopResponse = await client.PostAsync($"{stopHref}?ignoreDependentWarning=true", null);
         Assert.Equal(HttpStatusCode.OK, stopResponse.StatusCode);
 
         var eventsJson = await client.GetStringAsync(
@@ -1907,8 +1929,7 @@ public sealed class SampleSmokeTests
     [Trait("Category", "DockerIntegration")]
     public async Task ContainerAppDeploymentSample_StartsRegistryRuntime()
     {
-        var registryContainerName =
-            ContainerAppDeploymentDockerContainerRuntimeHandler.RegistryContainerName;
+        const string registryContainerName = "cloudshell-container-app-deployment-registry";
         if (!await DockerComposeStack.IsAvailableAsync() ||
             await DockerComposeStack.ContainerExistsAsync(registryContainerName))
         {
@@ -1974,8 +1995,7 @@ public sealed class SampleSmokeTests
     public async Task ContainerAppDeploymentSample_RegistryRuntimeStopsOnGracefulHostShutdown()
     {
         const string registryResourceId = "docker.container:sample-registry";
-        var registryContainerName =
-            ContainerAppDeploymentDockerContainerRuntimeHandler.RegistryContainerName;
+        const string registryContainerName = "cloudshell-container-app-deployment-registry";
         if (!await DockerComposeStack.IsAvailableAsync())
         {
             return;
@@ -2029,6 +2049,367 @@ public sealed class SampleSmokeTests
 
 
     [Fact]
+    public async Task SignalRContainerAppSample_DeclaresFrontendAndContainerAppIntent()
+    {
+        var ports = await GetFreePortRangeAsync(6);
+        var hostPort = ports[0];
+        var apiPort = ports[1];
+        var replicaPortStart = ports[2];
+        var frontendPort = ports[5];
+        using var host = await SampleProcess.StartAsync(
+            "samples/SignalRContainerApp/CloudShell.SignalRContainerApp.csproj",
+            hostPort,
+            [
+                ("SignalRContainerApp__ApiPort", apiPort.ToString(CultureInfo.InvariantCulture)),
+                ("SignalRContainerApp__ReplicaPortStart", replicaPortStart.ToString(CultureInfo.InvariantCulture)),
+                ("SignalRContainerApp__FrontendEndpoint", $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}")
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var frontend = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.aspnet-core-project:signalr-frontend");
+        var api = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.container-app:signalr-api");
+        var apiAttributes = api.GetProperty("attributes");
+        var frontendAttributes = frontend.GetProperty("attributes");
+
+        Assert.Equal("application.aspnet-core-project", frontend.GetProperty("typeId").GetString());
+        Assert.Equal("application.container-app", api.GetProperty("typeId").GetString());
+        Assert.Equal("SignalR Frontend", frontend.GetProperty("displayName").GetString());
+        Assert.Equal("SignalR API", api.GetProperty("displayName").GetString());
+        Assert.Equal(
+            $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}",
+            GetPrimaryEndpointAddress(frontend));
+        Assert.Equal(
+            $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}",
+            GetPrimaryEndpointAddress(api));
+        Assert.Equal(
+            "cloudshell-signalr-api:20260630.1",
+            apiAttributes.GetProperty("container.image").GetString());
+        Assert.Equal("3", apiAttributes.GetProperty("container.replicas").GetString());
+        Assert.Equal("Cookie", apiAttributes.GetProperty("container.routing.sessionAffinity.mode").GetString());
+        Assert.Equal("CloudShellSignalRReplica", apiAttributes.GetProperty("container.routing.sessionAffinity.cookieName").GetString());
+        Assert.Equal("3600", apiAttributes.GetProperty("container.routing.sessionAffinity.durationSeconds").GetString());
+        var apiObservability = api.GetProperty("observability");
+        Assert.True(apiObservability.GetProperty("logs").GetBoolean());
+        Assert.True(apiObservability.GetProperty("traces").GetBoolean());
+        Assert.True(apiObservability.GetProperty("metrics").GetBoolean());
+        Assert.Contains(
+            $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}",
+            frontendAttributes.GetRawText());
+
+        try
+        {
+            await StartGraphResourceIfAvailableAsync(host, api, "SignalR API");
+            await WaitForHttpSuccessAsync(
+                $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/health",
+                StartupTimeout);
+            await AssertSignalRRuntimeReplicaResourcesAsync(host);
+            await AssertSignalRRuntimeReplicaMonitoringSnapshotsAsync(host);
+            await AssertSignalRReplicaLogSourcesAsync(host);
+            await StartGraphResourceIfAvailableAsync(host, frontend, "SignalR Frontend");
+            await WaitForHttpSuccessAsync(
+                $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}/",
+                StartupTimeout);
+            using var frontendClient = new HttpClient();
+            var frontendIndex = await frontendClient.GetStringAsync(
+                $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}/");
+            var scriptPrefix = "src=\"_framework/";
+            var scriptStart = frontendIndex.IndexOf(scriptPrefix, StringComparison.Ordinal);
+            Assert.True(scriptStart >= 0, frontendIndex);
+            scriptStart += scriptPrefix.Length;
+            var scriptEnd = frontendIndex.IndexOf('"', scriptStart);
+            Assert.True(scriptEnd > scriptStart, frontendIndex);
+            var frameworkScript = frontendIndex[scriptStart..scriptEnd];
+            Assert.StartsWith("blazor.webassembly", frameworkScript);
+            Assert.EndsWith(".js", frameworkScript);
+            await WaitForHttpSuccessAsync(
+                $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}/_framework/{frameworkScript}",
+                StartupTimeout);
+            var frontendConfig = await frontendClient.GetStringAsync(
+                $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}/sample-config.json");
+            Assert.Contains(
+                $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}",
+                frontendConfig);
+
+            var connected = new TaskCompletionSource<SignalRReplicaTestMessage>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var echoed = new TaskCompletionSource<SignalRReplicaTestMessage>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            await using var connection = new HubConnectionBuilder()
+                .WithUrl(
+                    $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/hubs/replicas",
+                    options =>
+                    {
+                        options.Transports = HttpTransportType.WebSockets;
+                    })
+                .Build();
+            connection.On<SignalRReplicaTestMessage>(
+                "ReplicaConnected",
+                message => connected.TrySetResult(message));
+            connection.On<SignalRReplicaTestMessage>(
+                "ReplicaMessage",
+                message => echoed.TrySetResult(message));
+
+            await connection.StartAsync();
+            var connectedMessage = await connected.Task.WaitAsync(StartupTimeout);
+            await connection.InvokeAsync("SendMessage", "Smoke test message");
+            var echoedMessage = await echoed.Task.WaitAsync(StartupTimeout);
+
+            Assert.Equal("Connected to SignalR backend.", connectedMessage.Text);
+            Assert.Equal("Smoke test message", echoedMessage.Text);
+            Assert.Equal(connectedMessage.Replica, echoedMessage.Replica);
+            Assert.Equal(connectedMessage.ConnectionId, echoedMessage.ConnectionId);
+
+            const string telemetryResourceId = "application.container-app:signalr-api";
+            Assert.NotEmpty(await WaitForTraceSpansByResourceAsync(
+                host,
+                telemetryResourceId,
+                StartupTimeout,
+                spans => spans.Any(span => IsSignalRSpan(
+                    span,
+                    telemetryResourceId,
+                    connectedMessage.Replica,
+                    "SignalR message broadcast"))));
+            Assert.NotEmpty(await WaitForMetricPointsAsync(
+                host,
+                telemetryResourceId,
+                StartupTimeout,
+                points => points.Any(point => IsSignalRMetric(
+                    point,
+                    telemetryResourceId,
+                    connectedMessage.Replica,
+                    "signalr.server.messages"))));
+        }
+        finally
+        {
+            await StopGraphResourceIfAvailableAsync(host, frontend, "SignalR Frontend");
+            await StopGraphResourceIfAvailableAsync(host, api, "SignalR API");
+        }
+    }
+
+    private sealed record SignalRReplicaTestMessage(
+        string Text,
+        string Replica,
+        string Resource,
+        string Machine,
+        string ConnectionId,
+        DateTimeOffset Timestamp);
+
+    private static bool IsSignalRSpan(
+        JsonElement span,
+        string resourceId,
+        string replica,
+        string name) =>
+        span.GetProperty("name").GetString() == name &&
+        span.GetProperty("resourceId").GetString() == resourceId &&
+        span.TryGetProperty("spanAttributes", out var attributes) &&
+        attributes.TryGetProperty("signalr.hub", out var hub) &&
+        hub.GetString() == "ReplicaHub" &&
+        attributes.TryGetProperty("runtime.replica.ordinal", out var replicaOrdinal) &&
+        replicaOrdinal.GetString() == replica;
+
+    private static bool IsSignalRMetric(
+        JsonElement point,
+        string resourceId,
+        string replica,
+        string name) =>
+        point.GetProperty("name").GetString() == name &&
+        point.GetProperty("resourceId").GetString() == resourceId &&
+        point.TryGetProperty("attributes", out var attributes) &&
+        attributes.TryGetProperty("signalr.hub", out var hub) &&
+        hub.GetString() == "ReplicaHub" &&
+        attributes.TryGetProperty("runtime.replica.ordinal", out var replicaOrdinal) &&
+        replicaOrdinal.GetString() == replica;
+
+    private static async Task AssertSignalRRuntimeReplicaResourcesAsync(SampleProcess host)
+    {
+        const string apiResourceId = "application.container-app:signalr-api";
+        var deadline = DateTimeOffset.UtcNow.Add(StartupTimeout);
+        string? lastBody = null;
+        do
+        {
+            lastBody = await host.GetStringAsync("/api/control-plane/v1/resources");
+            using var resourcesDocument = JsonDocument.Parse(lastBody);
+            var replicas = resourcesDocument.RootElement
+                .EnumerateArray()
+                .Where(resource =>
+                    string.Equals(resource.GetProperty("typeId").GetString(), "runtime.container", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(resource.GetProperty("ownerResourceId").GetString(), apiResourceId, StringComparison.OrdinalIgnoreCase) &&
+                    resource.TryGetProperty("attributes", out var attributes) &&
+                    attributes.TryGetProperty(ResourceAttributeNames.RuntimeKind, out var runtimeKind) &&
+                    string.Equals(runtimeKind.GetString(), "containerReplica", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(resource => resource.GetProperty("id").GetString(), StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (replicas.Length == 3)
+            {
+                for (var replica = 1; replica <= 3; replica++)
+                {
+                    var replicaText = replica.ToString(CultureInfo.InvariantCulture);
+                    var resource = replicas[replica - 1];
+                    var attributes = resource.GetProperty("attributes");
+                    Assert.Equal($"{apiResourceId}:replica-{replicaText}", resource.GetProperty("id").GetString());
+                    Assert.Equal(apiResourceId, resource.GetProperty("parentResourceId").GetString());
+                    Assert.Equal((int)ResourceState.Running, resource.GetProperty("state").GetInt32());
+                    Assert.Equal("localProcess", attributes.GetProperty(ResourceAttributeNames.RuntimeMaterialization).GetString());
+                    Assert.Equal(replicaText, attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString());
+                    Assert.Equal("3", attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaCount).GetString());
+                }
+
+                return;
+            }
+
+            await Task.Delay(250);
+        }
+        while (DateTimeOffset.UtcNow < deadline);
+
+        throw new TimeoutException(
+            $"Timed out waiting for SignalR local-process runtime replica resources. Last response: {lastBody}");
+    }
+
+    private static async Task AssertSignalRRuntimeReplicaMonitoringSnapshotsAsync(SampleProcess host)
+    {
+        const string apiResourceId = "application.container-app:signalr-api";
+        var deadline = DateTimeOffset.UtcNow.Add(StartupTimeout);
+        var observed = new HashSet<int>();
+        string? lastSnapshotJson = null;
+        Exception? lastException = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            observed.Clear();
+            lastException = null;
+
+            foreach (var replica in Enumerable.Range(1, 3))
+            {
+                var replicaResourceId = $"{apiResourceId}:replica-{replica.ToString(CultureInfo.InvariantCulture)}";
+                try
+                {
+                    lastSnapshotJson = await host.GetStringAsync(
+                        $"/api/control-plane/v1/resources/{Uri.EscapeDataString(replicaResourceId)}/monitoring");
+                    using var snapshotDocument = JsonDocument.Parse(lastSnapshotJson);
+                    var snapshot = snapshotDocument.RootElement;
+                    if (string.Equals(
+                            snapshot.GetProperty("resourceId").GetString(),
+                            replicaResourceId,
+                            StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(snapshot.GetProperty("status").GetString(), "Available", StringComparison.OrdinalIgnoreCase) &&
+                        snapshot.GetProperty("metrics").GetArrayLength() > 0)
+                    {
+                        observed.Add(replica);
+                    }
+                }
+                catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException)
+                {
+                    lastException = exception;
+                    break;
+                }
+            }
+
+            if (observed.Count == 3)
+            {
+                return;
+            }
+
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException(
+            $"SignalR local-process runtime replica monitoring did not return metric snapshots for all replicas within {StartupTimeout}." +
+            $"{Environment.NewLine}{lastSnapshotJson}{Environment.NewLine}{lastException?.Message}");
+    }
+
+    private static async Task AssertSignalRReplicaLogSourcesAsync(SampleProcess host)
+    {
+        const string apiResourceId = "application.container-app:signalr-api";
+        var logSourcesJson = await host.GetStringAsync(
+            $"/api/control-plane/v1/log-sources?resourceId={Uri.EscapeDataString(apiResourceId)}");
+        using var logSourcesDocument = JsonDocument.Parse(logSourcesJson);
+        var replicaSources = logSourcesDocument.RootElement
+            .EnumerateArray()
+            .Where(source =>
+                source.TryGetProperty("producerResourceId", out var producer) &&
+                producer.GetString()?.StartsWith(
+                    $"{apiResourceId}:replica-",
+                    StringComparison.OrdinalIgnoreCase) == true)
+            .OrderBy(source => source.GetProperty("id").GetString(), StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Assert.Equal(3, replicaSources.Length);
+        for (var replica = 1; replica <= 3; replica++)
+        {
+            var source = replicaSources[replica - 1];
+            Assert.Equal(
+                $"{apiResourceId}:replica-{replica.ToString(CultureInfo.InvariantCulture)}:logs",
+                source.GetProperty("id").GetString());
+            Assert.Equal(
+                $"Replica {replica.ToString(CultureInfo.InvariantCulture)} logs",
+                source.GetProperty("name").GetString());
+            Assert.Equal(apiResourceId, source.GetProperty("resourceId").GetString());
+            Assert.Equal((int)ResourceLogSourceKind.ProcessOutput, source.GetProperty("kind").GetInt32());
+            Assert.Equal((int)LogFormat.JsonConsole, source.GetProperty("format").GetInt32());
+            Assert.Equal((int)ResourceLogSourceOrigin.ProviderProjected, source.GetProperty("origin").GetInt32());
+            Assert.Equal((int)LogSourceAvailability.ProducerRunning, source.GetProperty("availability").GetInt32());
+        }
+
+        await WaitForAnyStructuredSignalRReplicaLogEntriesAsync(host, replicaSources);
+    }
+
+    private static async Task WaitForAnyStructuredSignalRReplicaLogEntriesAsync(
+        SampleProcess host,
+        IReadOnlyList<JsonElement> replicaSources)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(StartupTimeout);
+        var lastResponses = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        do
+        {
+            foreach (var source in replicaSources)
+            {
+                var logSourceId = source.GetProperty("id").GetString() ??
+                    throw new InvalidOperationException("The log source did not include an id.");
+                var body = await host.GetStringAsync(
+                    $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(logSourceId)}/entries?maxEntries=50");
+                lastResponses[logSourceId] = body;
+                using var document = JsonDocument.Parse(body);
+                if (document.RootElement
+                    .EnumerateArray()
+                    .Any(IsStructuredJsonConsoleLogEntry))
+                {
+                    return;
+                }
+            }
+
+            await Task.Delay(250);
+        }
+        while (DateTimeOffset.UtcNow < deadline);
+
+        var lastResponseText = string.Join(
+            Environment.NewLine,
+            lastResponses.Select(response => $"{response.Key}: {response.Value}"));
+        throw new TimeoutException(
+            $"Timed out waiting for structured SignalR replica log entries. Last responses: {lastResponseText}");
+    }
+
+    private static bool IsStructuredJsonConsoleLogEntry(JsonElement entry)
+    {
+        if (!entry.TryGetProperty("message", out var messageProperty))
+        {
+            return false;
+        }
+
+        var message = messageProperty.GetString();
+        return !string.IsNullOrWhiteSpace(message) &&
+            !message.TrimStart().StartsWith('{') &&
+            entry.TryGetProperty("category", out var category) &&
+            !string.IsNullOrWhiteSpace(category.GetString());
+    }
+
+    [Fact]
     public async Task ReplicatedContainerHealthSample_DeclaresResourcesWithoutOldProviderRecords()
     {
         var apiPort = await GetFreePortAsync();
@@ -2058,6 +2439,9 @@ public sealed class SampleSmokeTests
             "cloudshell-application-api:20260622.2",
             graphAppAttributes.GetProperty("container.image").GetString());
         Assert.Equal("3", graphAppAttributes.GetProperty("container.replicas").GetString());
+        Assert.Equal("Cookie", graphAppAttributes.GetProperty("container.routing.sessionAffinity.mode").GetString());
+        Assert.Equal("CloudShellReplica", graphAppAttributes.GetProperty("container.routing.sessionAffinity.cookieName").GetString());
+        Assert.Equal("3600", graphAppAttributes.GetProperty("container.routing.sessionAffinity.durationSeconds").GetString());
         Assert.Equal("true", graphAppAttributes.GetProperty(ResourceAttributeNames.ContainerReplicasEnabled).GetString());
         Assert.Equal("3", graphAppAttributes.GetProperty(ResourceAttributeNames.DeploymentRequestedReplicaSlots).GetString());
         Assert.Equal(
@@ -2079,6 +2463,8 @@ public sealed class SampleSmokeTests
         Assert.Contains("Requested replica slots", graphScalingHtml);
         Assert.Contains("Replica slots", graphScalingHtml);
         Assert.Contains("Update replicas", graphScalingHtml);
+        Assert.Contains("Session affinity", graphScalingHtml);
+        Assert.Contains("Cookie", graphScalingHtml);
         Assert.Contains("Slot 1", graphScalingHtml);
         Assert.Contains("Slot 2", graphScalingHtml);
         Assert.Contains("Slot 3", graphScalingHtml);
@@ -2349,15 +2735,23 @@ public sealed class SampleSmokeTests
     public async Task HostVirtualNetworkSample_ReconcilesEndpointMappingThroughRuntimeBridge()
     {
         const string apiResourceId = "application.aspnet-core-project:vnet-api";
+        const string workerResourceId = "application.aspnet-core-project:vnet-worker";
         const string networkResourceId = "cloudshell.virtualNetwork:sample-vnet";
+        const string dnsZoneResourceId = "cloudshell.dnsZone:sample-vnet-internal";
         var targetPort = await GetFreePortAsync();
+        var workerTargetPort = await GetFreePortAsync();
         var virtualNetworkPort = await GetFreePortAsync();
+        var coreDnsDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"cloudshell-coredns-{Guid.NewGuid():N}");
         using var host = await SampleProcess.StartAsync(
             "samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj",
             await GetFreePortAsync(),
             [
                 ("HostVirtualNetwork__TargetPort", targetPort.ToString(CultureInfo.InvariantCulture)),
-                ("HostVirtualNetwork__VirtualNetworkPort", virtualNetworkPort.ToString(CultureInfo.InvariantCulture))
+                ("HostVirtualNetwork__WorkerTargetPort", workerTargetPort.ToString(CultureInfo.InvariantCulture)),
+                ("HostVirtualNetwork__VirtualNetworkPort", virtualNetworkPort.ToString(CultureInfo.InvariantCulture)),
+                ("HostVirtualNetwork__CoreDnsDirectory", coreDnsDirectory)
             ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
@@ -2368,8 +2762,35 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "application:vnet-api");
         var api = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == apiResourceId);
+        var worker = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == workerResourceId);
         var network = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == networkResourceId);
+        var dnsZone = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == dnsZoneResourceId);
+        Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "cloudshell.nameMapping:api-internal");
+        Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "cloudshell.nameMapping:worker-internal");
+        Assert.Equal("http://10.42.0.10:80", GetEndpointAddress(api, "vnet-http"));
+        Assert.Equal("http://10.42.0.11:80", GetEndpointAddress(worker, "vnet-http"));
+
+        var dnsReconcile = dnsZone
+            .GetProperty("resourceActions")
+            .GetProperty("reconcileNameMappings");
+        var dnsHref = dnsReconcile.GetProperty("href").GetString() ??
+            throw new InvalidOperationException("The DNS zone reconcile action did not include an href.");
+        var dnsJson = await host.SendAsync(HttpMethod.Post, dnsHref);
+        using var dnsDocument = JsonDocument.Parse(dnsJson);
+        Assert.Contains(
+            "Published 2 CoreDNS host mapping(s)",
+            dnsDocument.RootElement.GetProperty("message").GetString());
+        var coreDnsHosts = await File.ReadAllTextAsync(Path.Combine(coreDnsDirectory, "cloudshell.hosts"));
+        Assert.Contains("10.42.0.10 api.internal.cloudshell.test", coreDnsHosts);
+        Assert.Contains("10.42.0.11 worker.internal.cloudshell.test", coreDnsHosts);
+        var coreFile = await File.ReadAllTextAsync(Path.Combine(coreDnsDirectory, "Corefile"));
+        Assert.Contains("hosts ", coreFile);
+        Assert.Contains("cloudshell.hosts", coreFile);
 
         try
         {
@@ -2547,6 +2968,11 @@ public sealed class SampleSmokeTests
             environment.Add(("ReplicatedContainerHealth__ApiPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
             environment.Add(("ReplicatedContainerHealth__RuntimeStatusCacheMilliseconds", "25"));
         }
+        else if (sampleName == "SignalRContainerApp")
+        {
+            environment.Add(("SignalRContainerApp__ApiPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+            environment.Add(("SignalRContainerApp__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+        }
         else if (sampleName == "SettingsAndSecrets")
         {
             environment.Add(("Samples__SettingsAndSecrets__ConfigurationServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
@@ -2604,6 +3030,11 @@ public sealed class SampleSmokeTests
         if (projectPath.Contains("/ReplicatedContainerHealth/", StringComparison.OrdinalIgnoreCase))
         {
             return "ReplicatedContainerHealth";
+        }
+
+        if (projectPath.Contains("/SignalRContainerApp/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "SignalRContainerApp";
         }
 
         if (projectPath.Contains("/SettingsAndSecrets/", StringComparison.OrdinalIgnoreCase))
@@ -2677,6 +3108,11 @@ public sealed class SampleSmokeTests
             [
                 "application:api"
             ],
+            "SignalRContainerApp" =>
+            [
+                "application:signalr-api",
+                "application:signalr-frontend"
+            ],
             "SettingsAndSecrets" =>
             [
                 "configuration:sample-app",
@@ -2700,17 +3136,17 @@ public sealed class SampleSmokeTests
         if (sampleName == "CloudShell.ContainerHost")
         {
             await DockerComposeStack.RemoveContainerIfExistsAsync(
-                ContainerHostSqlServerDockerBridge.SqlServerContainerName);
+                "cloudshell-container-host-sql-server");
         }
         else if (sampleName == "ContainerAppDeployment")
         {
             await DockerComposeStack.RemoveContainerIfExistsAsync(
-                ContainerAppDeploymentDockerContainerRuntimeHandler.RegistryContainerName);
+                "cloudshell-container-app-deployment-registry");
         }
         else if (sampleName == "ApplicationTopology")
         {
             await DockerComposeStack.RemoveContainerIfExistsAsync(
-                ApplicationTopologyResourceModelSqlServerDockerBridge.ResourceModelSqlServerContainerName);
+                "cloudshell-application-topology-sql-server");
         }
         else if (sampleName == "LoadBalancer")
         {
@@ -2758,6 +3194,46 @@ public sealed class SampleSmokeTests
             listener.Stop();
             await Task.Yield();
         }
+    }
+
+    private static async Task<IReadOnlyList<int>> GetFreePortRangeAsync(int count)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
+
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            var start = await GetFreePortAsync();
+            if (start + count >= IPEndPoint.MaxPort)
+            {
+                continue;
+            }
+
+            var listeners = new List<TcpListener>(count);
+            try
+            {
+                for (var offset = 0; offset < count; offset++)
+                {
+                    var listener = new TcpListener(IPAddress.Loopback, start + offset);
+                    listener.Start();
+                    listeners.Add(listener);
+                }
+
+                return Enumerable.Range(start, count).ToArray();
+            }
+            catch (SocketException)
+            {
+            }
+            finally
+            {
+                foreach (var listener in listeners)
+                {
+                    listener.Stop();
+                }
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"Could not find {count.ToString(CultureInfo.InvariantCulture)} contiguous free TCP ports.");
     }
 
     private static string ExtractRequestVerificationToken(string html)
@@ -3548,7 +4024,7 @@ public sealed class SampleSmokeTests
                 Enumerable.Range(1, expectedReplicas).All(replica =>
                     lastHtml.Contains($"api replica {replica.ToString(CultureInfo.InvariantCulture)}", StringComparison.OrdinalIgnoreCase) &&
                     lastHtml.Contains(
-                        ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica),
+                        LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(replica),
                         StringComparison.OrdinalIgnoreCase)))
             {
                 return;
@@ -3579,7 +4055,7 @@ public sealed class SampleSmokeTests
 
             foreach (var replica in Enumerable.Range(1, expectedReplicas))
             {
-                var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
+                var replicaResourceId = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica);
                 try
                 {
                     lastSnapshotJson = await host.GetStringAsync(
@@ -3665,11 +4141,11 @@ public sealed class SampleSmokeTests
 
         return string.Equals(
                 resource.GetProperty("id").GetString(),
-                ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica),
+                LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica),
                 StringComparison.OrdinalIgnoreCase) &&
             string.Equals(
                 attributes.GetProperty(ResourceAttributeNames.RuntimeContainerName).GetString(),
-                ReplicatedContainerHealthRuntimeConventions.CreateReplicaContainerName(replica),
+                LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(replica),
                 StringComparison.OrdinalIgnoreCase) &&
             attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString() == replicaText &&
             attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaCount).GetString() == replicaCountText;
@@ -3701,7 +4177,7 @@ public sealed class SampleSmokeTests
                     string.Equals(observation.GetProperty("scopeKind").GetString(), "runtime", StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(
                         observation.GetProperty("resourceId").GetString(),
-                        ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica),
+                        LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica),
                         StringComparison.OrdinalIgnoreCase) &&
                     observation.GetProperty("attributes").GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString() == replicaOrdinal))
             {
@@ -3752,7 +4228,7 @@ public sealed class SampleSmokeTests
         int replica,
         int replicaCount = 3)
     {
-        var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
+        var replicaResourceId = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica);
         var environment = await DockerComposeStack.GetContainerEnvironmentAsync(containerName);
         Assert.Contains($"CLOUDSHELL_RESOURCE_ID={replicaResourceId}", environment);
         Assert.Contains($"CLOUDSHELL_REPLICA_ORDINAL={replica.ToString(CultureInfo.InvariantCulture)}", environment);
@@ -3769,7 +4245,7 @@ public sealed class SampleSmokeTests
             environment,
             variable => variable.StartsWith("OTEL_RESOURCE_ATTRIBUTES=", StringComparison.Ordinal));
         Assert.Contains($"cloudshell.resource.id={replicaResourceId}", resourceAttributes);
-        Assert.Contains($"telemetry.scope.resourceId={ReplicatedContainerHealthRuntimeConventions.ApiResourceId}", resourceAttributes);
+        Assert.Contains($"telemetry.scope.resourceId={LocalDockerContainerApplicationRuntimeConventions.ApiResourceId}", resourceAttributes);
         Assert.Contains($"telemetry.scope.name=Replica {replica.ToString(CultureInfo.InvariantCulture)}", resourceAttributes);
         Assert.Contains("telemetry.scope.kind=runtime", resourceAttributes);
         Assert.Contains($"runtime.replica.ordinal={replica.ToString(CultureInfo.InvariantCulture)}", resourceAttributes);
@@ -3781,7 +4257,7 @@ public sealed class SampleSmokeTests
         int replica,
         TimeSpan timeout)
     {
-        var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
+        var replicaResourceId = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica);
         var metrics = await WaitForMetricPointsAsync(
             host,
             replicaResourceId,
@@ -3791,7 +4267,7 @@ public sealed class SampleSmokeTests
                 point.GetProperty("resourceId").GetString() == replicaResourceId &&
                 point.TryGetProperty("attributes", out var attributes) &&
                 attributes.TryGetProperty("telemetry.scope.resourceId", out var scopeResourceId) &&
-                scopeResourceId.GetString() == ReplicatedContainerHealthRuntimeConventions.ApiResourceId));
+                scopeResourceId.GetString() == LocalDockerContainerApplicationRuntimeConventions.ApiResourceId));
         Assert.NotEmpty(metrics);
     }
 
@@ -3807,7 +4283,7 @@ public sealed class SampleSmokeTests
             lastErrors.Clear();
             for (var replica = 1; replica <= expectedReplicas; replica++)
             {
-                var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
+                var replicaResourceId = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica);
                 try
                 {
                     var spans = await WaitForTraceSpansByResourceAsync(
@@ -3845,7 +4321,7 @@ public sealed class SampleSmokeTests
             return false;
         }
 
-        return scopeResourceId.GetString() == ReplicatedContainerHealthRuntimeConventions.ApiResourceId &&
+        return scopeResourceId.GetString() == LocalDockerContainerApplicationRuntimeConventions.ApiResourceId &&
             replicaOrdinal.GetString() == replica.ToString(CultureInfo.InvariantCulture);
     }
 
@@ -3853,7 +4329,7 @@ public sealed class SampleSmokeTests
         SampleProcess host,
         int replica)
     {
-        var replicaResourceId = ReplicatedContainerHealthRuntimeConventions.CreateReplicaResourceId(replica);
+        var replicaResourceId = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica);
         var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var runtimeReplica = Assert.Single(
@@ -3874,7 +4350,7 @@ public sealed class SampleSmokeTests
 
         var attributes = observability.GetProperty("attributes");
         Assert.Equal(
-            ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
+            LocalDockerContainerApplicationRuntimeConventions.ApiResourceId,
             attributes.GetProperty("telemetry.scope.resourceId").GetString());
         Assert.Equal(
             replica.ToString(CultureInfo.InvariantCulture),
@@ -3882,7 +4358,7 @@ public sealed class SampleSmokeTests
 
         var scope = Assert.Single(observability.GetProperty("scopes").EnumerateArray());
         Assert.Equal(
-            ReplicatedContainerHealthRuntimeConventions.ApiResourceId,
+            LocalDockerContainerApplicationRuntimeConventions.ApiResourceId,
             scope.GetProperty("scopeResourceId").GetString());
         Assert.Equal($"Replica {replica.ToString(CultureInfo.InvariantCulture)}", scope.GetProperty("name").GetString());
         Assert.Equal("runtime", scope.GetProperty("kind").GetString());
