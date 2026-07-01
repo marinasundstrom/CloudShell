@@ -2,7 +2,7 @@
 @inject IResourceEventManager ResourceEvents
 @inject IStringLocalizer<SharedResource> L
 @inject ILogger<ResourceFailureSummary> Logger
-@inject CloudShell.UI.Composition.CompositionRegistry Composition
+@inject CoreShell.Composition.CompositionRegistry Composition
 
 @if (Resource is not null && Failure is not null)
 {

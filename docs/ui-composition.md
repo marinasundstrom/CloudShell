@@ -1,12 +1,13 @@
 # UI Composition
 
-CloudShell UI composition is an experimental layout/content engine for Blazor
-applications. It started outside CloudShell Hosting and Resource Manager so the
-basic graph, routing bridge, and rendering components could be proven in a
-normal Blazor app before adding CloudShell-specific adapters. CloudShell
-Hosting now consumes the same libraries for selected shell surfaces while the
-standalone sample remains the place to prove layout patterns without coupling
-them to the shell.
+CoreShell composition is an experimental layout/content substrate for shell
+structure. It stores low-level structure and relationships between content.
+It started outside CloudShell Hosting and Resource Manager so the basic graph,
+routing bridge, and rendering components could be proven in a normal Blazor
+app before adding CoreShell and CloudShell-specific adapters.
+CloudShell Hosting now consumes the same libraries for selected shell surfaces
+while the standalone sample remains the place to prove layout patterns without
+coupling them to the shell.
 
 For future direction, see the
 [UI composition library proposal](proposals/core/ui-composition.md). For the
@@ -19,8 +20,8 @@ The current implementation is split into two libraries:
 
 | Library | Current role |
 | --- | --- |
-| `CloudShell.UI.Composition` | Core facilities: typed IDs, page/menu/section registrations, module building, registry builder, route lookup, section ordering, and target-to-link resolution. |
-| `CloudShell.UI.Composition.Blazor` | Plain Blazor components and DI registration for rendering the core graph. It does not depend on Fluent UI, Bootstrap component packages, CloudShell Hosting, Resource Manager, or CloudShell extension contracts. |
+| `CoreShell.Composition` | Core facilities: typed IDs, page/menu/section registrations, module building, registry builder, route lookup, section ordering, and target-to-link resolution. |
+| `CoreShell.Composition.Blazor` | Plain Blazor components and DI registration for rendering the core graph. It does not depend on Fluent UI, Bootstrap component packages, CloudShell Hosting, Resource Manager, or CloudShell extension contracts. |
 
 The Blazor components render ordinary HTML elements and can be styled by the
 host app with normal CSS. The `samples/CompositionSandbox` app demonstrates
@@ -31,6 +32,11 @@ package should keep standard, render-mode-neutral components that emit normal
 HTML and expose class parameters. CloudShell Hosting can add Fluent UI
 presenters for the same composition projections, and another host can add
 Bootstrap or custom presenters without changing the core graph.
+Shell integrations should target CoreShell services and contracts rather than
+these composition primitives directly. Direct use of
+`CoreShell.Composition` is reserved for CoreShell infrastructure, presenter
+packages, compatibility adapters, and sandbox hosts. Domain shells such as
+CloudShell can build their own extension points on top of CoreShell.
 Because CloudShell Hosting is a Fluent UI shell, shell-specific presenters
 should use Fluent UI components for navigation, commands, inputs, and other
 interactive elements whenever those components provide the needed semantics and

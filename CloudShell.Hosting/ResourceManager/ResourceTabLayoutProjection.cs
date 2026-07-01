@@ -1,6 +1,6 @@
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Hosting.Components.Layout;
-using CloudShell.UI.Composition;
+using CoreShell.Composition;
 
 namespace CloudShell.Hosting.ResourceManager;
 

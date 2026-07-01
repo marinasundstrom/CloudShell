@@ -1,14 +1,14 @@
 # Composition Sandbox
 
-This is a clean Blazor application that uses the composition engine without
-hosting CloudShell UI, Resource Manager, Control Plane services, or CloudShell
-extension APIs.
+This is a clean Blazor application that uses the lower-level composition
+engine without hosting CloudShell UI, Resource Manager, Control Plane
+services, or CloudShell extension APIs.
 
 The sample proves the first boundary:
 
-- `CloudShell.UI.Composition` owns core facilities: typed IDs, registration,
+- `CoreShell.Composition` owns core facilities: typed IDs, registration,
   graph lookup, section ordering, and target-to-link resolution.
-- `CloudShell.UI.Composition.Blazor` owns plain Blazor components that render
+- `CoreShell.Composition.Blazor` owns plain Blazor components that render
   registered menus, links, page titles, section containers, and section
   outlets.
 - The app owns visual styling. This sample uses plain Bootstrap CSS plus a
@@ -29,14 +29,16 @@ The sample proves the first boundary:
 - Layout patterns are explored in the sample app itself. The `/dashboard`
   route uses a sample-owned Bootstrap grid outlet over the same composition
   registry, while the other pages use the plain stacked section outlet from
-  `CloudShell.UI.Composition.Blazor`.
+  `CoreShell.Composition.Blazor`.
 - The `/settings/{section?}` route uses the reusable composition tab outlet
-  from `CloudShell.UI.Composition.Blazor`, styles it with Bootstrap classes,
+  from `CoreShell.Composition.Blazor`, styles it with Bootstrap classes,
   and opts into child addresses so selected named sections resolve as
   `/settings/general` or `/settings/advanced`.
 
-Future CloudShell extension integration should adapt extension contributions
-into the core composition model after this standalone API shape is proven.
+Future shell extension integration should target CoreShell services, which can
+then adapt extension contributions into the core composition model. CloudShell
+can build its own domain-focused extension points on top of that CoreShell
+model.
 There is no current plan to build a composition editor UI for this sandbox;
 CloudShell or another host can build a CMS or editor experience on top of the
 composition infrastructure later. The sample is for programmatic graph and

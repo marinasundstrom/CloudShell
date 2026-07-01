@@ -1,13 +1,16 @@
 # UI composition library
 
-`CloudShell.UI.Composition` is a reusable layout and content composition
-library for Blazor applications. It is its own subject, separate from the
-CoreShell product experience and extension model.
+`CoreShell.Composition` is the reusable layout and content composition
+substrate under CoreShell. It stores low-level structure and relationships
+between content. It is its own subject, separate from the higher-level
+CoreShell toolkit and extension model.
 
-CloudShell uses the library as an implementation foundation for shell-owned
-areas, but the library should remain useful outside CloudShell Hosting. A host
-application should be able to use it for dynamic pages, menus, sections,
-route-aware links, layout outlets, and future CMS-like graph persistence
+CoreShell uses the library as an implementation foundation for shell-owned
+areas, but product integrations should target CoreShell services for menus,
+pages, sections, settings, notifications, and other shell-owned areas. The
+lower-level composition library remains available to CoreShell implementers,
+presenters, and sandbox hosts that need to prove dynamic pages, menus,
+sections, route-aware links, layout outlets, and future graph persistence
 without adopting CloudShell navigation, Settings, Resource Manager, extension
 activation, Fluent UI, or Control Plane concepts.
 
@@ -19,9 +22,9 @@ that consumes this library through CoreShell, see
 ## Status
 
 Current implementation working document. The library exists experimentally as
-`CloudShell.UI.Composition` and `CloudShell.UI.Composition.Blazor`; this
+`CoreShell.Composition` and `CoreShell.Composition.Blazor`; this
 proposal owns the reusable library direction while the shell composition
-proposal owns the CloudShell-specific layer above it.
+proposal owns the CoreShell toolkit layer above it.
 
 ## Goals
 
@@ -45,9 +48,8 @@ proposal owns the CloudShell-specific layer above it.
 
 ## Non-goals
 
-- Do not make the library the CoreShell extension API. Shell integrations can
-  use CoreShell-owned abstractions that project into this
-  graph.
+- Do not make the library the CoreShell UI extension API. Shell integrations
+  should use CoreShell abstractions and services that project into this graph.
 - Do not encode CloudShell product areas such as main navigation, Settings,
   Resource Manager, notifications, or provider workspaces as generic library
   concepts.
@@ -89,10 +91,10 @@ library.
 
 The current implementation is intentionally small:
 
-- `CloudShell.UI.Composition` contains typed IDs, module registration,
+- `CoreShell.Composition` contains typed IDs, module registration,
   registry assembly, descriptors, validation, target-to-link resolution, page,
   menu, section-outlet, and section projections.
-- `CloudShell.UI.Composition.Blazor` contains plain Blazor components for
+- `CoreShell.Composition.Blazor` contains plain Blazor components for
   composition hosts, menus, links, title outlets, page layouts, section
   outlets, section navigation, and tabbed section layouts.
 - `samples/CompositionSandbox` proves the same graph outside CloudShell
@@ -102,8 +104,8 @@ The current implementation is intentionally small:
 
 ## Relationship to CoreShell
 
-CoreShell should be a consumer and adapter layer over this library, not part of
-the library itself. Shell-owned abstractions can define durable product areas
+CoreShell should be a toolkit and adapter layer over this library, not part of
+the library itself. Shell-owned abstractions can define durable shell areas
 such as:
 
 - main navigation
@@ -115,10 +117,10 @@ such as:
 - documented extension areas
 
 Those abstractions should project into UI composition artifacts when the graph
-is assembled. That lets normal CloudShell extensions use focused product APIs
-without separately registering brittle navigation and content structures, while
-still letting the shell reuse the generic graph, route resolution, renderer
-hints, and future persistence path.
+is assembled. That lets shell and CloudShell extensions use focused CoreShell
+services without directly registering composition pages, menus, and sections,
+while still letting the shell reuse the generic graph, route resolution,
+renderer hints, and future persistence path.
 
 ## Open questions
 

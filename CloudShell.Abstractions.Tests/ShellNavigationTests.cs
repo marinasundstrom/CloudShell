@@ -5,7 +5,7 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Shell;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
-using CloudShell.UI.Composition;
+using CoreShell.Composition;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;

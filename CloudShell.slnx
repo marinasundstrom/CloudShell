@@ -102,12 +102,14 @@
   <Project Path="CloudShell.ControlPlane.Client/CloudShell.ControlPlane.Client.csproj" />
   <Project Path="CloudShell.ControlPlane.Tests/CloudShell.ControlPlane.Tests.csproj" />
   <Project Path="CloudShell.ControlPlane/CloudShell.ControlPlane.csproj" />
+  <Project Path="CoreShell.Tests/CoreShell.Tests.csproj" />
+  <Project Path="CoreShell/CoreShell.csproj" />
   <Project Path="CloudShell.Host/CloudShell.Host.csproj" />
   <Project Path="CloudShell.Hosting/CloudShell.Hosting.csproj" />
   <Project Path="CloudShell.Persistence/CloudShell.Persistence.csproj" />
-  <Project Path="CloudShell.UI.Composition.Blazor/CloudShell.UI.Composition.Blazor.csproj" />
-  <Project Path="CloudShell.UI.Composition.Tests/CloudShell.UI.Composition.Tests.csproj" />
-  <Project Path="CloudShell.UI.Composition/CloudShell.UI.Composition.csproj" />
+  <Project Path="CoreShell.Composition.Blazor/CoreShell.Composition.Blazor.csproj" />
+  <Project Path="CoreShell.Composition.Tests/CoreShell.Composition.Tests.csproj" />
+  <Project Path="CoreShell.Composition/CoreShell.Composition.csproj" />
   <Project Path="CloudShell.Providers.DockerCompose/CloudShell.Providers.DockerCompose.csproj" />
   <Project Path="CloudShell.Providers.Traefik/CloudShell.Providers.Traefik.csproj" />
   <Project Path="CloudShell.ControlPlane.Providers.UI/CloudShell.ControlPlane.Providers.UI.csproj" />

@@ -1,5 +1,5 @@
 using CloudShell.Abstractions.Shell;
-using CloudShell.UI.Composition;
+using CoreShell.Composition;
 
 namespace CloudShell.Hosting.Shell;
 

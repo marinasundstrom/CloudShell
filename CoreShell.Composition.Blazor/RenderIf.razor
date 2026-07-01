@@ -1,0 +1,81 @@
+@inject CompositionRegistry Composition
+@inject NavigationManager Navigation
+
+@if (CanRender)
+{
+    @ChildContent
+}
+else if (FailureTemplate is not null)
+{
+    @FailureTemplate
+}
+
+@code {
+    [CascadingParameter]
+    public CompositionContext? Context { get; set; }
+
+    [CascadingParameter]
+    public SectionOutletId? ContainerId { get; set; }
+
+    [Parameter]
+    public CoreShell.Composition.PageId? PageId { get; set; }
+
+    [Parameter]
+    public SectionOutletId? AreaId { get; set; }
+
+    [Parameter]
+    public SectionOutletId? OutletId { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? FailureTemplate { get; set; }
+
+    private bool CanRender
+    {
+        get
+        {
+            var pageId = ResolvePageId();
+            var areaId = ResolveAreaId();
+
+            if (pageId.HasValue && Composition.GetPage(pageId.Value) is null)
+            {
+                return false;
+            }
+
+            if (!areaId.HasValue)
+            {
+                return pageId.HasValue ||
+                    CompositionPageContextResolver.Resolve(Composition, Navigation, Context, pageId) is not null;
+            }
+
+            var context = CompositionPageContextResolver.Resolve(Composition, Navigation, Context, pageId);
+            if (context is null)
+            {
+                return false;
+            }
+
+            return Composition.GetSectionOutlet(areaId.Value) is { } outlet &&
+                outlet.PageId == context.PageId;
+        }
+    }
+
+    private CoreShell.Composition.PageId? ResolvePageId()
+        => PageId;
+
+    private SectionOutletId? ResolveAreaId()
+    {
+        if (AreaId.HasValue)
+        {
+            return AreaId.Value;
+        }
+
+        if (OutletId.HasValue)
+        {
+            return OutletId.Value;
+        }
+
+        return ContainerId;
+    }
+}

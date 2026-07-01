@@ -1,7 +1,7 @@
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Hosting.Components.Pages;
 using CloudShell.Hosting.Components.Pages.Settings;
-using CloudShell.UI.Composition;
+using CoreShell.Composition;
 
 namespace CloudShell.Hosting.Shell;
 

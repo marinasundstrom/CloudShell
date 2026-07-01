@@ -18,17 +18,18 @@ For canonical product and domain vocabulary, see
 ### CoreShell and CloudShell UI
 
 The common shell infrastructure should be treated as **CoreShell** until a
-better name is chosen. CoreShell is the product-neutral extensible shell layer:
-the common layout, navigation, composition services, settings surface,
-notification abstractions, extension points, and presenter contracts. It is
-the CMS-like infrastructure for addressable shell content, layout structure,
-and extensibility. The long-term target is a shell that can host any
-CloudShell product area or custom platform workspace, not only Resource
-Manager. Resource Manager proves the extension model, but CoreShell should
-remain useful for teams that need their own dashboards, operations consoles,
-settings experiences, developer portals, or internal platform tools.
-CloudShell UI is the product host that assembles CoreShell with the default
-presenters and predefined integrations.
+better name is chosen. CoreShell is the product-neutral toolkit for building
+extensible shells from CMS-like fundamentals: addressable content,
+relationships between content, navigation, settings surfaces, notifications,
+extension points, shell services, and presenter contracts. It sits above the
+low-level Composition UI structure and below domain shells such as CloudShell.
+The long-term target is a toolkit that can build any shell for CloudShell
+product areas or custom platform workspaces, not only Resource Manager.
+Resource Manager proves the extension model, but CoreShell should remain
+useful for teams that need their own dashboards, operations consoles, settings
+experiences, developer portals, or internal platform tools. CloudShell UI is
+the domain shell that assembles CoreShell with the default presenters and
+predefined CloudShell integrations.
 
 CloudShell UI may run inside a host application by itself, or it may run in the
 same host process as the Control Plane for local development.
@@ -46,19 +47,21 @@ request pipeline follows the same rule: map `UseCloudShellControlPlaneAsync()`
 and `MapCloudShellControlPlane()` for the backend, and
 `UseCloudShellUiAsync()` plus `MapCloudShellUi<TRootComponent>()` for the UI.
 
-CoreShell acts as a shell for integrations. It owns common visual structure and
-shell services:
+CoreShell provides the generic UI extension model and shell services that a
+shell uses to accept integrations. It owns reusable shell concepts:
 
 - main layout and navigation
 - top bar and user/session affordances
 - common Settings
 - notification surfaces
-- shell composition adapters and presenters
+- shell composition adapters
+- presenter contracts
 - shell-level extension areas
 
-CoreShell should not be defined by Resource Manager. Resource Manager is the
-first major built-in integration in CloudShell, but the shell must stay useful
-for other product areas and extension-owned experiences.
+CoreShell should not be defined by Resource Manager or CloudShell. Resource
+Manager is the first major built-in integration in CloudShell, but the
+CoreShell toolkit must stay useful for other shells, product areas, and
+extension-owned experiences.
 Architecturally, Resource Manager is still an integration into CloudShell. It
 is larger and more central than most extensions, but it is on the same side of
 the shell boundary as another CloudShell extension. Resource Manager has a
@@ -73,12 +76,12 @@ extension" for the CloudShell UI integration and "Resource Manager backend" or
 can refer to the whole product area or capability package that includes both
 halves.
 
-CoreShell should also stay isolated from extensions at the implementation
-level. Extensions integrate through declared extension points, shared
-abstractions, and shell-provided services. They should not depend on the
-concrete CloudShell UI host implementation or reach into shell internals to
-participate in navigation, settings, notifications, Resource Manager views, or
-other shell-owned surfaces.
+CoreShell should also stay isolated from shell implementations at the
+implementation level. Extensions integrate through declared CoreShell
+extension points, shared abstractions, and shell-provided services. They
+should not depend on a concrete CloudShell UI host implementation or reach
+into shell internals to participate in navigation, settings, notifications,
+Resource Manager views, or other shell-owned surfaces.
 
 The structure should not prevent another CloudShell UI implementation from
 using a different UI component stack. Extension-facing contracts should be

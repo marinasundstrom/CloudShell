@@ -17,6 +17,12 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added the initial `CoreShell` UI extension model with framework-neutral
+  extension manifests, modules, pages, menus, sections, content references,
+  authorization, module providers, and menu/page/section service contracts.
+  `CoreShell.Composition` now owns the lower-level composition graph, and
+  CoreShell projects into it without depending on Blazor, Fluent UI,
+  CloudShell Hosting, or CloudShell-specific extension points.
 - Documented the broader platform vision for CoreShell, ecosystem-neutral host
   bootstrapping and resource-graph authoring, and future clustered or
   multi-Control Plane hosting topologies.
@@ -3636,8 +3642,8 @@ on `git blame --follow`, and then by the broad type of change.
   isolated UI Extension Host sandbox proves the model, the composition root
   should move into the core CloudShell main layout so integrating services can
   target shell-provided IDs.
-- Added initial `CloudShell.UI.Composition` and
-  `CloudShell.UI.Composition.Blazor` libraries plus a clean Blazor
+- Added initial `CoreShell.Composition` and
+  `CoreShell.Composition.Blazor` libraries plus a clean Blazor
   Composition Sandbox sample that demonstrates the engine outside CloudShell
   Hosting with plain Bootstrap styling and no CloudShell extension adapter.
 - The Blazor composition library now includes a plain `TitleOutlet` component

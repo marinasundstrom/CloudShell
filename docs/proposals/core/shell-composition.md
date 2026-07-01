@@ -1,31 +1,33 @@
 # Shell composition
 
-CoreShell should become an independently useful extensible shell
-infrastructure, not only the host for Resource Manager. Resource Manager
-remains the most important first consumer, but the CoreShell experience and
-extension model should be general enough for provider workspaces, settings,
-notifications, dashboards, and future product areas.
+CoreShell should become an independently useful toolkit for building
+extensible shells from CMS-like fundamentals, not only the host for Resource
+Manager. Resource Manager remains the most important first consumer, but the
+CoreShell extension model should be general enough for provider workspaces,
+settings, notifications, dashboards, developer portals, operations consoles,
+and future product areas.
 
 This proposal is about the CoreShell layer. The reusable UI composition
 library is its own subject, tracked by the
-[UI composition library proposal](ui-composition.md). CoreShell consumes that
-lower-level library, defines stricter product areas on top, and projects
-shell-owned contributions into the generic composition graph.
+[UI composition library proposal](ui-composition.md). Composition UI stores
+low-level structure and relationships between content. CoreShell consumes that
+lower-level library, defines the generic shell UI extension model on top, and
+projects shell-owned contributions into the generic composition graph.
 
-Eventually CloudShell should build the composition root into the core shell
-layout. The main layout is where common shell chrome such as navigation,
-topbar services, notifications, and page body rendering already meet, so it is
-the natural place to load the composition engine, resolve the current route to
-registered content, and cascade composition context to pages and nested
-outlets. That is how integrating services will target shell-provided IDs
-without each page wiring the engine independently.
+Eventually CloudShell should consume CoreShell UI extension services from the
+core shell layout instead of wiring the composition engine directly. The main
+layout is where common shell chrome such as navigation, topbar services,
+notifications, and page body rendering already meet, so it is the natural
+place for the Blazor/Fluent presenter layer to read CoreShell page, menu, and
+section services, then render the projected composition graph. That is how
+CloudShell-specific extension points can build on CoreShell without each page
+wiring the engine independently.
 
-The CoreShell surface should be a product-level layout/content model with
+The CoreShell surface should be a toolkit-level layout/content model with
 CMS-like composition, not a tab engine or a raw navigation-menu API. It is
-built for shell experience and extensibility: the shell, built-in
-capabilities, and installed extensions contribute through shell-owned
-contracts that adapt to stable layout and content nodes in the lower-level
-graph.
+built for shell experience and extensibility: a shell, built-in capabilities,
+and installed extensions contribute through CoreShell contracts that adapt to
+stable layout and content nodes in the lower-level graph.
 Navigation hierarchy remains separate from content hierarchy. Menu nodes
 describe how users navigate; content nodes describe pages, sub-pages, slots,
 section containers, and sections. A menu item can target a content node by ID,
@@ -82,34 +84,36 @@ library, CloudShell Hosting integration slices, and sample behavior, see
 
 ## Layering Decision
 
-CloudShell should split UI composition from the CoreShell experience and
-extensibility model. UI composition is an independent library subject;
-CoreShell is the product integration layer that consumes it.
+CloudShell should split UI composition from the CoreShell toolkit and
+extension model. UI composition is an independent library subject; CoreShell
+is the generic CMS-like shell toolkit and UI extension model that consumes it.
 
-`CloudShell.UI.Composition` is the lower-level structural engine. It owns the
+`CoreShell.Composition` is the lower-level structural engine. It owns the
 permissive graph primitives: typed IDs, modules, pages, menus, section
 containers, sections, target resolution, route metadata, renderer hints, and
 future graph persistence. It is allowed to be broad because other Blazor host
 applications can use it for their own dynamic layout and CMS-like composition.
 Its direction belongs in the separate UI composition library proposal.
 
-CoreShell should own stricter product abstractions on top of those
-primitives. Normal CloudShell integrations should not be expected to compose
-raw pages, navigation nodes, and settings content independently unless they are
-building a custom shell surface. They should target shell-owned contracts for
-standard areas such as main navigation, the common Settings page,
+CoreShell should own stricter shell abstractions on top of those primitives.
+Shell integrations should not be expected to compose raw pages, navigation
+nodes, and settings content independently unless they are building a custom
+shell surface or presenter. They should target CoreShell services and
+contracts for standard shell areas such as main navigation, common Settings,
 notifications, provider workspaces, dashboards, and documented extension
-areas. Those contracts project into the composition graph through CloudShell
-adapters.
+areas. Those contracts project into the composition graph through CoreShell
+adapters. A domain shell such as CloudShell can then define its own
+domain-focused extension points on top of CoreShell.
 
-This gives CloudShell room to become more CMS-like without making the generic
-composition library responsible for CloudShell product policy. The composition
-library handles structure, relationships, routing metadata, renderer hints,
-and eventual persistence. CoreShell handles the ownership boundaries,
-allowed targets, validation rules, extension activation, Fluent UI rendering,
-accessibility, localization, user experience, and whether a page/sub-page
-hierarchy is shown as tabs, side navigation, accordions, section stacks, or a
-custom layout.
+This gives CloudShell room to become more domain-focused without making the
+generic composition library responsible for CloudShell product policy. The
+composition library handles low-level structure, relationships, routing
+metadata, renderer hints, and eventual persistence. CoreShell handles the
+generic CMS-like shell model: extension-owned shell content, allowed targets,
+validation rules, and shell services. Blazor and Fluent UI presenter layers
+handle rendering, accessibility, localization, user experience, and whether a
+page/sub-page hierarchy is shown as tabs, side navigation, accordions, section
+stacks, or a custom layout.
 
 The main navigation should become a formal shell area with known IDs,
 groups, ordering rules, permission behavior, and link resolution. The common
@@ -703,8 +707,8 @@ look and feel, and predefined integrations such as Resource Manager.
 
 | Layer | Owns | Examples |
 | --- | --- | --- |
-| UI composition core | Generic hierarchical IDs, node kinds, relationships, navigation nodes, pages, sub-pages, slots, section containers, sections, ordering, generic authorization metadata, routing metadata, selection state, target resolution, descriptor projection, and component host metadata. | `CloudShell.UI.Composition`, typed IDs, `CompositionRegistry`, graph validation |
-| UI composition Blazor integration | Plain Blazor components and context integration with no dependency on a visual component framework or CloudShell product model. | `CloudShell.UI.Composition.Blazor`, `CompositionHost`, `CompositionMenu`, `CompositeAnchor`, `CompositionSectionOutlet` |
+| UI composition core | Generic hierarchical IDs, node kinds, relationships, navigation nodes, pages, sub-pages, slots, section containers, sections, ordering, generic authorization metadata, routing metadata, selection state, target resolution, descriptor projection, and component host metadata. | `CoreShell.Composition`, typed IDs, `CompositionRegistry`, graph validation |
+| UI composition Blazor integration | Plain Blazor components and context integration with no dependency on a visual component framework or CloudShell product model. | `CoreShell.Composition.Blazor`, `CompositionHost`, `CompositionMenu`, `CompositeAnchor`, `CompositionSectionOutlet` |
 | CoreShell extensibility | Product-neutral CMS-like shell areas, allowed extension targets, stable IDs, permission policy, localization boundaries, settings hierarchy, main navigation rules, notification surfaces, and shell extension validation. | `CoreShell.Extensibility`, shell main nav contracts, Settings contribution contracts, notification contracts, provider workspace contracts, documented extension areas |
 | CoreShell adapters | Projection from shell-owned product abstractions into UI composition artifacts while preserving ownership and diagnostics. | Shell navigation projector, settings projector, Resource Manager composition adapter, notification center adapter |
 | CoreShell Fluent UI presenters | Default Fluent UI rendering and host-usable components for CoreShell contracts: navigation menus, grouped local navigation, URL selection, dynamic component rendering, empty/not-found states, permission-aware visibility, accessibility, and slot/section presentation. | `CoreShell.FluentUI`, nav menu integration, hosted workspace layout, settings layout, Resource Manager detail layout, dashboard layout |

@@ -236,9 +236,9 @@ The exact names can still change, but the desired split is:
 
 | Project | Responsibility |
 | --- | --- |
-| `CloudShell.CoreShell` | Common shell infrastructure: shell services, composition integration, shell-owned standard areas, extension point registration, and product-neutral shell logic. |
-| `CloudShell.CoreShell.Extensibility` | Public shell extension contracts and service abstractions for menus, pages, sections, settings, notifications, and other shell-owned areas. |
-| `CloudShell.CoreShell.FluentUI` | Default Fluent UI presenters and host-usable components for CoreShell contracts, including navigation menu integrations, settings presenters, notification surfaces, shell layouts, section/tab presenters, and common shell visual language. |
+| `CoreShell` | Generic shell UI extension model: shell services, composition integration, shell-owned standard areas, extension registration, and product-neutral shell logic. |
+| `CoreShell.Extensibility` | Public shell extension contracts and service abstractions for menus, pages, sections, settings, notifications, and other shell-owned areas if those contracts split from the core package later. |
+| `CoreShell.FluentUI` | Default Fluent UI presenters and host-usable components for CoreShell contracts, including navigation menu integrations, settings presenters, notification surfaces, shell layouts, section/tab presenters, and common shell visual language. |
 | `CloudShell.Hosting` | CloudShell product host that assembles CoreShell, the default Fluent UI presenters, predefined integrations, authentication, localization, and host-specific wiring. |
 | `CloudShell.Components` | Stable shared UI components that extension UI packages can consume without referencing the concrete CloudShell UI host. Components here should avoid Hosting-only services and Resource Manager implementation dependencies. |
 | `CloudShell.ResourceManager.Abstractions` | Shared Resource Manager concepts used across UI and Control Plane integrations: stable IDs, names, contribution descriptors, capability descriptors, route/link target concepts, installation concepts, and extension registration primitives that are not tied to Blazor or Control Plane stores. |

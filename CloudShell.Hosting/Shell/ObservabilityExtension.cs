@@ -1,7 +1,7 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Hosting.Components.Pages.Logs;
-using CloudShell.UI.Composition;
+using CoreShell.Composition;
 
 namespace CloudShell.Hosting.Shell;
 

@@ -1,5 +1,5 @@
 using CloudShell.Hosting.Shell;
-using CloudShell.UI.Composition;
+using CoreShell.Composition;
 
 namespace CloudShell.Hosting.ResourceManager;
 

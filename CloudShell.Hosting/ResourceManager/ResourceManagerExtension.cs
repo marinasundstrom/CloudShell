@@ -2,7 +2,7 @@ using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Hosting.Components.Pages.Resources;
 using CloudShell.Hosting.Shell;
-using CloudShell.UI.Composition;
+using CoreShell.Composition;
 
 namespace CloudShell.Hosting.ResourceManager;
 

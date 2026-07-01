@@ -301,16 +301,20 @@ important built-in shell extension and the primary MVP proof, but the shell
 should own generic composition primitives that Resource Manager and other
 extensions can share.
 
-The composition engine is a reusable Blazor composition model, not a mechanism
-that can only run inside CloudShell UI. CloudShell UI uses it as the built-in
-shell composition layer, and host applications should be able to use the same
-model for their own pages and layouts when they need CMS-like dynamic
-composition.
+The composition engine is a reusable shell-structure substrate, not a
+mechanism that can only run inside CloudShell UI. It stores low-level
+structure and relationships between content. CoreShell uses it below its
+framework-neutral UI extension services as a CMS-like toolkit for building
+shells, and presenter or sandbox hosts can use the same model for pages and
+layouts when they need dynamic composition. Shell integrations should target
+CoreShell services rather than the lower-level composition graph directly.
+Domain shells such as CloudShell can build their own domain-focused extension
+points on top of CoreShell.
 
 The first implementation proof should split the composition surface into two
-libraries: `CloudShell.UI.Composition` for framework-neutral core facilities
+libraries: `CoreShell.Composition` for framework-neutral core facilities
 such as typed IDs, graph registration, validation, and target resolution, and
-`CloudShell.UI.Composition.Blazor` for plain Blazor components and routing
+`CoreShell.Composition.Blazor` for plain Blazor components and routing
 context integration. The Blazor components should not depend on Fluent UI,
 Bootstrap component packages, CloudShell Hosting, Resource Manager, or the
 CloudShell extension model. Host applications can style the plain markup with

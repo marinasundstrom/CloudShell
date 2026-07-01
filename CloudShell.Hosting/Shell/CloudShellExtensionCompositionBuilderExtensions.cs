@@ -1,5 +1,5 @@
-using CloudShell.UI.Composition;
-using CloudShell.UI.Composition.Blazor;
+using CoreShell.Composition;
+using CoreShell.Composition.Blazor;
 
 namespace CloudShell.Abstractions.Extensions;
 

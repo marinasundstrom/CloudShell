@@ -1,5 +1,5 @@
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.UI.Composition;
+using CoreShell.Composition;
 using Microsoft.AspNetCore.WebUtilities;
 
 namespace CloudShell.Hosting.ResourceManager;

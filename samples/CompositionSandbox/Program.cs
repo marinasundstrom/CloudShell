@@ -4,8 +4,8 @@ using CloudShell.CompositionSandbox.Components.Pages.Sections.Dashboard;
 using CloudShell.CompositionSandbox.Components.Pages.Sections;
 using CloudShell.CompositionSandbox.Components.Pages.Sections.Reports;
 using CloudShell.CompositionSandbox.Components.Pages.Sections.Settings;
-using CloudShell.UI.Composition;
-using CloudShell.UI.Composition.Blazor;
+using CoreShell.Composition;
+using CoreShell.Composition.Blazor;
 
 var builder = WebApplication.CreateBuilder(args);
 

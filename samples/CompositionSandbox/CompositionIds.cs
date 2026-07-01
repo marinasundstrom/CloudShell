@@ -1,4 +1,4 @@
-using CloudShell.UI.Composition;
+using CoreShell.Composition;
 
 namespace CloudShell.CompositionSandbox;
 
