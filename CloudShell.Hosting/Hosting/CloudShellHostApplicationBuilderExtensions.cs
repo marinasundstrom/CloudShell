@@ -107,10 +107,6 @@ public static class CloudShellHostApplicationBuilderExtensions
         ConfigureLocalization(builder);
 
         builder.Services.AddSingleton<ShellCatalog>();
-        builder.Services.AddSingleton<CompositionModule>(serviceProvider =>
-            new ShellNavigationCompositionProjector(
-                serviceProvider.GetRequiredService<ShellCatalog>())
-                .CreateModule());
         builder.Services.AddScoped<ICloudShellNavigator, CloudShellNavigator>();
         builder.Services.AddScoped<ResourceManagerDisplaySettings>();
     }

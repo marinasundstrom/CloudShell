@@ -45,6 +45,9 @@ on `git blame --follow`, and then by the broad type of change.
   composition anchors and composition-backed tabbed sections now that shell
   navigation, shell links, Resource Manager links, and Settings section
   rendering use CoreShell services.
+- Removed the legacy ShellCatalog-to-Composition navigation projector and the
+  obsolete CloudShell Hosting Composition ID compatibility classes. CloudShell
+  navigation now flows through CoreShell menu and route services.
 - CloudShell's primary navigation menu now renders from CoreShell navigation
   and route services instead of reading the Composition UI registry directly.
 - Shell chrome and dashboard page links can now use a CoreShell-backed anchor

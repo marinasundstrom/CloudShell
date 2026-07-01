@@ -318,28 +318,23 @@ builder.AddCompositionModule<ShellCompositionHostContext>(
     });
 ```
 
-CloudShell Hosting now registers the composition services during
-`AddCloudShellUi()`. CloudShell extensions that reference Hosting and the
-composition package can register modules through
-`builder.AddCompositionModule(...)`; the UI-extension-host sample does this
-for its sample workspace page and sidebar item. Plain Blazor hosts can still
-use `builder.Services.AddCloudShellUiCompositionModule(...)` directly when
-they are not inside the CloudShell extension builder. The legacy shell catalog
-navigation bridge remains available for compatibility while extensions migrate
-to composition-native menu contributions.
+CloudShell Hosting now treats Composition UI as CoreShell infrastructure.
+CloudShell extensions should contribute through CoreShell shell services and
+domain-specific extension points rather than registering composition modules
+directly. Plain Blazor composition hosts can still use
+`builder.Services.AddCloudShellUiCompositionModule(...)` outside CloudShell
+when they intentionally consume the lower-level composition library.
 
 CloudShell Hosting now also has a shell-owned tabbed layout component that
 matches the resource details information architecture: local navigation in a
 left panel and selected content in a right panel. The common `/settings` page
-uses this component and renders composition-backed settings sections. Its
-public `ShellCompositionIds.SettingsPage` and
-`ShellCompositionIds.SettingsMainOutlet` IDs are the initial CloudShell-owned
-targets for future settings contributors. This is the first shell-owned
-composition consumer. Resource Details and legacy custom shell views now use
-the same layout through adapter code while keeping Resource Manager and
-custom-view contribution models separate from the generic shell layout. The
-standalone CompositionSandbox sample remains the place to explore layout
-patterns before the shell adopts them.
+uses this component and renders CoreShell-backed settings sections. Its
+public `ShellIds.SettingsPage` and `ShellIds.SettingsMainOutlet` IDs are the
+CloudShell-owned targets for future settings contributors. Resource Details
+and legacy custom shell views now use related adapter code while keeping
+Resource Manager and custom-view contribution models separate from the generic
+shell layout. The standalone CompositionSandbox sample remains the place to
+explore lower-level composition layout patterns.
 
 The composition menu model represents named menu groups, menu items that can
 live inside or outside a group, one level of menu sub-items through parent
@@ -361,18 +356,11 @@ a future CloudShell-hosted Fluent presenter should consume the same
 composition projections while applying CloudShell navigation styling and
 behavior.
 
-CloudShell Hosting now includes a bridge that projects the legacy
-`ShellCatalog.NavigationItems` into the `ShellCompositionIds.MainMenu`
-composition menu. This bridge uses composition artifact targets for shell-owned
-core pages that are already registered in the composition graph, and direct
-href targets for legacy routes or external links that do not yet have
-composition page IDs. The visible shell sidebar consumes that composition menu
-through a CloudShell-owned Fluent presenter, preserving authorization
-filtering, localization, active-route matching, collapsed submenus, and icon
-interpretation through `CompositionAttributeNames.Icon`. New
-composition-native menus should prefer artifact-ID targets when they point at
-registered pages or sections, and href targets when they point outside the
-composition graph.
+CloudShell navigation now consumes CoreShell menu and route services directly.
+The previous `ShellCatalog.NavigationItems` to Composition menu bridge has
+been removed. New shell navigation contributions should target CoreShell menu
+items, CoreShell page or section targets, and CoreShell attributes such as
+`CoreShellAttributeNames.Icon`.
 
 Authorization is encoded in the composition graph as artifact metadata, not as
 presentation logic. Pages, menus, menu groups, menu items, section outlets, and
@@ -643,7 +631,7 @@ value is derived from the local identifier by convention.
 
 Programmatic URL resolution follows the registered page route template. For
 example, the Settings page is registered as `/settings/{section?}`. Resolving
-`ShellCompositionIds.SettingsPage` with no route values yields `/settings`;
+`ShellIds.SettingsPage` with no route values yields `/settings`;
 resolving the same page ID with `{ section = "platform" }` yields
 `/settings/platform`. A renderer that projects sections as nested sub-pages
 should resolve the owning page with route values rather than hand-building the

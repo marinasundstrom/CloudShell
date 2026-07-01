@@ -29,8 +29,6 @@
     <ProjectReference Include="..\CloudShell.Hosting\CloudShell.Hosting.csproj" />
     <ProjectReference Include="..\CloudShell.Host\CloudShell.Host.csproj" />
     <ProjectReference Include="..\CoreShell\CoreShell.csproj" />
-    <ProjectReference Include="..\CoreShell.Blazor\CoreShell.Blazor.csproj" />
-    <ProjectReference Include="..\CoreShell.Composition\CoreShell.Composition.csproj" />
   </ItemGroup>
 
   <ItemGroup>
