@@ -5,7 +5,7 @@
 @inject IResourceHealthManager HealthChecks
 @inject IResourceOrchestrationSettings OrchestrationSettings
 @inject IStringLocalizer<SharedResource> L
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 
 <PageTitle>@L["Health"]</PageTitle>
 
@@ -385,9 +385,8 @@
     }
 
     private string? GetSettingsRoute() =>
-        ResourceManagerCompositionLinks.ResourceManagerPage(
-            Composition,
-            ResourceManagerCompositionIds.ResourceSettingsPage,
+        ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
+            ResourceManagerShellIds.ResourceSettingsPage,
             ResourceManagerRoutes.ResourceSettings);
 
     private ResourceHealthSummary? GetHealthSummary(Resource resource) =>
@@ -494,8 +493,7 @@
     }
 
     private string BuildResourceRoute(string resourceId) =>
-        ResourceManagerCompositionLinks.ResourceDetails(
-            Composition,
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes,
             resourceId,
             ResourcePredefinedViewIds.Health);
 

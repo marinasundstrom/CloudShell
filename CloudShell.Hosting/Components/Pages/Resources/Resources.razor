@@ -14,7 +14,7 @@
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 @inject ILogger<Resources> Logger
 
@@ -1271,33 +1271,28 @@ resourceGroups) =>
     private void OpenSettings() => Navigation.NavigateTo(GetResourceSettingsRoute());
 
     private string GetResourceGraphRoute() =>
-        ResourceManagerCompositionLinks.ResourceManagerPage(
-            Composition,
-            ResourceManagerCompositionIds.ResourceGraphPage,
+        ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
+            ResourceManagerShellIds.ResourceGraphPage,
             ResourceManagerRoutes.ResourceGraph);
 
     private string GetCreateResourceGroupRoute() =>
-        ResourceManagerCompositionLinks.ResourceManagerPage(
-            Composition,
-            ResourceManagerCompositionIds.CreateResourceGroupPage,
+        ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
+            ResourceManagerShellIds.CreateResourceGroupPage,
             ResourceManagerRoutes.CreateResourceGroup);
 
     private string GetAddResourceRoute() =>
-        ResourceManagerCompositionLinks.ResourceManagerPage(
-            Composition,
-            ResourceManagerCompositionIds.AddResourcePage,
+        ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
+            ResourceManagerShellIds.AddResourcePage,
             ResourceManagerRoutes.AddResource);
 
     private string GetResourceTemplatesRoute() =>
-        ResourceManagerCompositionLinks.ResourceManagerPage(
-            Composition,
-            ResourceManagerCompositionIds.ResourceTemplatesPage,
+        ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
+            ResourceManagerShellIds.ResourceTemplatesPage,
             ResourceManagerRoutes.ResourceTemplates);
 
     private string GetResourceSettingsRoute() =>
-        ResourceManagerCompositionLinks.ResourceManagerPage(
-            Composition,
-            ResourceManagerCompositionIds.ResourceSettingsPage,
+        ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
+            ResourceManagerShellIds.ResourceSettingsPage,
             ResourceManagerRoutes.ResourceSettings);
 
     private async Task RefreshResourcesAsync()

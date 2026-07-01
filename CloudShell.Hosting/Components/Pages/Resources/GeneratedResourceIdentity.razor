@@ -2,7 +2,7 @@
 @using CloudShell.Abstractions.ResourceManager
 @inject IResourceManager ResourceManager
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 
     <div class="generated-resource-view">
@@ -438,5 +438,5 @@
     }
 
     private string BuildResourceRoute(string resourceId) =>
-        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, ResourcePredefinedViewIds.Identity);
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceId, ResourcePredefinedViewIds.Identity);
 }

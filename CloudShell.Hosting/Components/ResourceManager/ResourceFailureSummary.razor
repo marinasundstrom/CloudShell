@@ -2,7 +2,7 @@
 @inject IResourceEventManager ResourceEvents
 @inject IStringLocalizer<SharedResource> L
 @inject ILogger<ResourceFailureSummary> Logger
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 
 @if (Resource is not null && Failure is not null)
 {
@@ -60,5 +60,5 @@
     }
 
     private string BuildActivityRoute(string resourceId) =>
-        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, ResourcePredefinedViewIds.Activity);
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceId, ResourcePredefinedViewIds.Activity);
 }

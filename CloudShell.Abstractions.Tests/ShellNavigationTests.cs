@@ -477,6 +477,44 @@ public sealed class ShellNavigationTests
             });
     }
 
+    [Fact]
+    public void ResourceManagerShellLinks_ResolveDetailsThroughCoreShellRoutes()
+    {
+        var routes = CreateCoreShellCatalog(
+            new ResourceManagerExtension(includeSettings: false));
+
+        Assert.Equal(
+            "/resources/application%3Aorders",
+            ResourceManagerShellLinks.ResourceDetails(routes, "application:orders"));
+        Assert.Equal(
+            "/resources/application%3Aorders/logs",
+            ResourceManagerShellLinks.ResourceDetails(
+                routes,
+                "application:orders",
+                ResourcePredefinedViewIds.Logs));
+    }
+
+    [Fact]
+    public void ResourceManagerShellLinks_FallBackWhenCoreShellRouteCannotResolve()
+    {
+        var routes = new CoreShellModuleCatalog([]);
+
+        Assert.Equal(
+            ResourceManagerRoutes.ResourceDetails(
+                "application:orders",
+                ResourcePredefinedViewIds.Logs),
+            ResourceManagerShellLinks.ResourceDetails(
+                routes,
+                "application:orders",
+                ResourcePredefinedViewIds.Logs));
+        Assert.Equal(
+            ResourceManagerRoutes.Resources,
+            ResourceManagerShellLinks.ResourceManagerPage(
+                routes,
+                ResourceManagerShellIds.ResourcesPage,
+                ResourceManagerRoutes.Resources));
+    }
+
     private static ICloudShellNavigator CreateNavigator<TExtension>(
         TestNavigationManager? navigationManager = null)
         where TExtension : class, ICloudShellExtension, new()

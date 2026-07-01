@@ -6,7 +6,7 @@
 @inject NavigationManager Navigation
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ResourceManagerDisplaySettings DisplaySettings
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 
 <div class="generated-resource-view">
@@ -731,10 +731,10 @@
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
     private string BuildResourceRoute(string resourceId) =>
-        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId);
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceId);
 
     private string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
-        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, tabId);
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceId, tabId);
 
     private async Task CopyEndpoint(string address)
     {

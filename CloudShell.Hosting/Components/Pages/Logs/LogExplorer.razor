@@ -3,7 +3,7 @@
 @inject IResourceManager ResourceManager
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject NavigationManager Navigation
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 
 @{
@@ -732,7 +732,7 @@ else if (ShowHeading)
             !logs.Any(log => string.Equals(log.Id, LogSourceId, StringComparison.OrdinalIgnoreCase)))
         {
             var recoveryHref = Inline && !string.IsNullOrWhiteSpace(ResourceId)
-                ? ResourceManagerCompositionLinks.ResourceDetails(Composition, ResourceId, ResourcePredefinedViewIds.Logs)
+                ? ResourceManagerShellLinks.ResourceDetails(ShellRoutes, ResourceId, ResourcePredefinedViewIds.Logs)
                 : BuildAllLogsRoute();
             return new LogSelectionIssue(
                 L["Log source not found"].Value,
@@ -911,7 +911,7 @@ else if (ShowHeading)
         {
             if (Inline && !string.IsNullOrWhiteSpace(ResourceId))
             {
-                Navigation.NavigateTo(ResourceManagerCompositionLinks.ResourceDetails(Composition, ResourceId, ResourcePredefinedViewIds.Logs));
+                Navigation.NavigateTo(ResourceManagerShellLinks.ResourceDetails(ShellRoutes, ResourceId, ResourcePredefinedViewIds.Logs));
             }
             else
             {
@@ -1271,7 +1271,7 @@ else if (ShowHeading)
             }
 
             return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-                ResourceManagerCompositionLinks.ResourceDetails(Composition, ResourceId, ResourcePredefinedViewIds.Logs),
+                ResourceManagerShellLinks.ResourceDetails(ShellRoutes, ResourceId, ResourcePredefinedViewIds.Logs),
                 query);
         }
 
@@ -1331,7 +1331,7 @@ else if (ShowHeading)
         if (Inline && !string.IsNullOrWhiteSpace(ResourceId))
         {
             return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-                ResourceManagerCompositionLinks.ResourceDetails(Composition, ResourceId, ResourcePredefinedViewIds.Logs),
+                ResourceManagerShellLinks.ResourceDetails(ShellRoutes, ResourceId, ResourcePredefinedViewIds.Logs),
                 query);
         }
 
@@ -1382,8 +1382,7 @@ else if (ShowHeading)
 
     private string? BuildActivityRoute(LogSource log) =>
         IsActivityLog(log) && !string.IsNullOrWhiteSpace(log.ResourceId)
-            ? ResourceManagerCompositionLinks.ResourceDetails(
-                Composition,
+            ? ResourceManagerShellLinks.ResourceDetails(ShellRoutes,
                 log.ResourceId,
                 ResourcePredefinedViewIds.Activity)
             : null;
@@ -1413,7 +1412,7 @@ else if (ShowHeading)
         if (Inline && !string.IsNullOrWhiteSpace(resourceId))
         {
             return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-                ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, ResourcePredefinedViewIds.Traces),
+                ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceId, ResourcePredefinedViewIds.Traces),
                 query);
         }
 

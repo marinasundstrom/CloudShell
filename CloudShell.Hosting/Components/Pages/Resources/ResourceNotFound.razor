@@ -1,6 +1,6 @@
 @page "/resources/not-found"
 @rendermode InteractiveServer
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Resource not found"]</PageTitle>
@@ -35,8 +35,7 @@
             : L["Resource '{0}' may have been removed, renamed, or is no longer visible.", ResourceId].Value;
 
     private string GetResourcesRoute() =>
-        ResourceManagerCompositionLinks.ResourceManagerPage(
-            Composition,
-            ResourceManagerCompositionIds.ResourcesPage,
+        ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
+            ResourceManagerShellIds.ResourcesPage,
             ResourceManagerRoutes.Resources);
 }

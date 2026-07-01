@@ -5,7 +5,7 @@
 @inject ICloudShellAuthorizationService Authorization
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ResourceManagerDisplaySettings DisplaySettings
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Add resource"]</PageTitle>
@@ -242,17 +242,15 @@ else
             query["returnUrl"] = ReturnUrl;
         }
 
-        return ResourceManagerCompositionLinks.ResourceManagerPage(
-            Composition,
-            ResourceManagerCompositionIds.AddResourcePage,
+        return ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
+            ResourceManagerShellIds.AddResourcePage,
             ResourceManagerRoutes.AddResource,
             query);
     }
 
     private string GetCreateResourceGroupRoute() =>
-        ResourceManagerCompositionLinks.ResourceManagerPage(
-            Composition,
-            ResourceManagerCompositionIds.CreateResourceGroupPage,
+        ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
+            ResourceManagerShellIds.CreateResourceGroupPage,
             ResourceManagerRoutes.CreateResourceGroup);
 
     private ResourceRegistrationProbeContext GetProbeContext(ResourceTypeContribution type)

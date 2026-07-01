@@ -1,5 +1,5 @@
 @inject IResourceManager ResourceManager
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 
 @if (DnsZone is null)
@@ -175,7 +175,7 @@ else
             : fallback;
 
     private string BuildResourceRoute(string resourceId, ResourceViewId tabId) =>
-        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, tabId);
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceId, tabId);
 
     private string Localize(string value) => L[value].Value;
 }

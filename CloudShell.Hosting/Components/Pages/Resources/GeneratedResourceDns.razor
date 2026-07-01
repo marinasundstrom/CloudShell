@@ -4,7 +4,7 @@
 @inject NavigationManager Navigation
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ResourceManagerDisplaySettings DisplaySettings
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 
 <div class="generated-resource-view">
@@ -309,7 +309,7 @@
             : fallback;
 
     private string BuildResourceRoute(string resourceId) =>
-        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId);
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceId);
 
     private string BuildAddNameMappingRoute(Resource resource)
     {
@@ -322,9 +322,8 @@
             ["returnUrl"] = BuildResourceTabRoute(resource.Id, ResourcePredefinedViewIds.Dns)
         };
 
-        return ResourceManagerCompositionLinks.ResourceManagerPage(
-            Composition,
-            ResourceManagerCompositionIds.AddResourcePage,
+        return ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
+            ResourceManagerShellIds.AddResourcePage,
             ResourceManagerRoutes.AddResource,
             query);
     }
@@ -338,7 +337,7 @@
     }
 
     private string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
-        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, tabId);
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceId, tabId);
 
     private string Localize(string value) => L[value].Value;
 

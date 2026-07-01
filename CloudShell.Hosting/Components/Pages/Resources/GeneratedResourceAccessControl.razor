@@ -4,7 +4,7 @@
 @using System.Diagnostics.CodeAnalysis
 @inject IResourceManager ResourceManager
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 
     <div class="generated-resource-view">
@@ -454,7 +454,7 @@
             : ResourceDisplayLabels.GetQualifiedLabel(resource);
         var href = resource is null
             ? null
-            : ResourceManagerCompositionLinks.ResourceDetails(Composition, resource.Id, ResourcePredefinedViewIds.Identity);
+            : ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resource.Id, ResourcePredefinedViewIds.Identity);
         return @<ResourcePillLink Label="@label"
                                   Href="@href"
                                   Resource="@resource"

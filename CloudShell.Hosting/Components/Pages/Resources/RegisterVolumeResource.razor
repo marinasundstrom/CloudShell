@@ -2,7 +2,7 @@
 @inject IResourceManager ResourceManager
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 
 <div class="type-registration">
@@ -212,7 +212,7 @@
     }
 
     private string BuildStorageVolumesRoute(string resourceId) =>
-        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, ResourcePredefinedViewIds.Volumes);
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceId, ResourcePredefinedViewIds.Volumes);
 
     private string GetLocationPlaceholder() =>
         HasSelectedStorage ? "postgres-data" : "./data/postgres or /mnt/share/postgres";

@@ -6,7 +6,7 @@
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> L
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject ShellCatalog ShellCatalog
 
 <PageTitle>@L["Resource graph"]</PageTitle>
@@ -132,7 +132,7 @@
             return;
         }
 
-        Navigation.NavigateTo(ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId));
+        Navigation.NavigateTo(ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceId));
     }
 
     private async Task RefreshAsync()
@@ -161,7 +161,7 @@
                 GetResourceName = displaySelection.GetResourceName,
                 GetResourceTypeLabel = GetResourceTypeDisplayName,
                 GetResourceIconName = GetResourceTypeIconName,
-                CreateResourceDetailUrl = resource => ResourceManagerCompositionLinks.ResourceDetails(Composition, resource.Id),
+                CreateResourceDetailUrl = resource => ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resource.Id),
                 GetStateClass = ResourceStateDisplay.GetStateClass
             });
     }
@@ -199,9 +199,8 @@
     }
 
     private string GetResourcesRoute() =>
-        ResourceManagerCompositionLinks.ResourceManagerPage(
-            Composition,
-            ResourceManagerCompositionIds.ResourcesPage,
+        ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
+            ResourceManagerShellIds.ResourcesPage,
             ResourceManagerRoutes.Resources);
 
     private string GetResourceTypeDisplayName(Resource resource) =>

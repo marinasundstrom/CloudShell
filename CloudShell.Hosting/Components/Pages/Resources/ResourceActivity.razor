@@ -1,7 +1,7 @@
 @using System.Globalization
 @inject IResourceEventManager ResourceEvents
 @inject NavigationManager Navigation
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 
 <div class="generated-resource-view">
@@ -261,7 +261,7 @@
     }
 
     private string BuildActivityRoute(string resourceId) =>
-        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, ResourcePredefinedViewIds.Activity);
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceId, ResourcePredefinedViewIds.Activity);
 
     private static string FormatTraceId(string traceId) =>
         traceId.Length <= 12

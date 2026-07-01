@@ -4,7 +4,7 @@
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Create resource group"]</PageTitle>
@@ -79,14 +79,12 @@ else
     }
 
     private string GetResourcesRoute() =>
-        ResourceManagerCompositionLinks.ResourceManagerPage(
-            Composition,
-            ResourceManagerCompositionIds.ResourcesPage,
+        ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
+            ResourceManagerShellIds.ResourcesPage,
             ResourceManagerRoutes.Resources);
 
     private string GetAddResourceRoute() =>
-        ResourceManagerCompositionLinks.ResourceManagerPage(
-            Composition,
-            ResourceManagerCompositionIds.AddResourcePage,
+        ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
+            ResourceManagerShellIds.AddResourcePage,
             ResourceManagerRoutes.AddResource);
 }

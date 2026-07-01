@@ -1,7 +1,7 @@
 @inject IResourceManager ResourceManager
 @inject IResourceOrchestrationCatalog OrchestrationCatalog
 @inject NavigationManager Navigation
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 
 @if (Storage is null)
@@ -189,18 +189,17 @@ else
         count == 1 ? string.Empty : "s";
 
     private string BuildResourceRoute(string resourceId) =>
-        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId);
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceId);
 
     private string BuildManageResourceRoute(string resourceId) =>
         BuildResourceTabRoute(resourceId, ResourcePredefinedViewIds.Configuration);
 
     private string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
-        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, tabId);
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceId, tabId);
 
     private string BuildCreateVolumeRoute(string storageResourceId) =>
-        ResourceManagerCompositionLinks.ResourceManagerPage(
-            Composition,
-            ResourceManagerCompositionIds.AddResourcePage,
+        ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
+            ResourceManagerShellIds.AddResourcePage,
             ResourceManagerRoutes.AddResource,
             new Dictionary<string, string?>
             {

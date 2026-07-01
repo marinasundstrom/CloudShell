@@ -48,6 +48,10 @@ while page and section presenters move up to CoreShell.
 Shell links that target CoreShell pages or targets should use the CoreShell
 anchor adapter. Composition anchors remain for compatibility with presenters
 that still consume composition page and section IDs directly.
+Resource Manager page and detail links should use the CoreShell-backed
+Resource Manager shell link helper. The remaining composition link helper is
+kept for presenters that still build tab and section state from composition
+projections.
 Because CloudShell Hosting is a Fluent UI shell, shell-specific presenters
 should use Fluent UI components for navigation, commands, inputs, and other
 interactive elements whenever those components provide the needed semantics and

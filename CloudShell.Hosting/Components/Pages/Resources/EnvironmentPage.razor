@@ -9,7 +9,7 @@
 @inject IStringLocalizer<SharedResource> L
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject ShellCatalog ShellCatalog
 
 <PageTitle>@L["Environment"]</PageTitle>
@@ -236,7 +236,7 @@
                                                        IconTitle="@GetResourceIconTitle(sourceResource)"
                                                        Summary="@record.ServiceId">
                                     <TitleContent>
-                                        <FluentAnchor Href="@ResourceManagerCompositionLinks.ResourceDetails(Composition, record.SourceResourceId)">
+                                        <FluentAnchor Href="@ResourceManagerShellLinks.ResourceDetails(ShellRoutes, record.SourceResourceId)">
                                             @(sourceResource?.EffectiveDisplayName ?? record.SourceResourceId)
                                         </FluentAnchor>
                                     </TitleContent>
@@ -299,7 +299,7 @@
                                                        IconTitle="@GetResourceIconTitle(sourceResource)"
                                                        Summary="@row.DeploymentId">
                                     <TitleContent>
-                                        <FluentAnchor Href="@ResourceManagerCompositionLinks.ResourceDetails(Composition, row.SourceResourceId)">
+                                        <FluentAnchor Href="@ResourceManagerShellLinks.ResourceDetails(ShellRoutes, row.SourceResourceId)">
                                             @(sourceResource?.EffectiveDisplayName ?? row.SourceResourceId)
                                         </FluentAnchor>
                                     </TitleContent>
@@ -362,7 +362,7 @@
                                                        IconTitle="@GetResourceIconTitle(row.Resource)"
                                                        Summary="@row.Resource.Id">
                                     <TitleContent>
-                                        <FluentAnchor Href="@ResourceManagerCompositionLinks.ResourceDetails(Composition, row.Resource.Id)">
+                                        <FluentAnchor Href="@ResourceManagerShellLinks.ResourceDetails(ShellRoutes, row.Resource.Id)">
                                             @row.Resource.EffectiveDisplayName
                                         </FluentAnchor>
                                     </TitleContent>
@@ -420,7 +420,7 @@
                                                        IconTitle="@GetResourceIconTitle(resource)"
                                                        Summary="@state.ResourceId">
                                     <TitleContent>
-                                        <FluentAnchor Href="@ResourceManagerCompositionLinks.ResourceDetails(Composition, state.ResourceId)">
+                                        <FluentAnchor Href="@ResourceManagerShellLinks.ResourceDetails(ShellRoutes, state.ResourceId)">
                                             @(resource?.EffectiveDisplayName ?? state.ResourceId)
                                         </FluentAnchor>
                                     </TitleContent>
@@ -464,7 +464,7 @@
                     <ShellActivityLink Title="@GetEventTitle(resourceEvent.EventType)"
                                        Summary="@resourceEvent.Message"
                                        TrailingText="@resourceEvent.Timestamp.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)"
-                                       Href="@ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceEvent.ResourceId)" />
+                                       Href="@ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceEvent.ResourceId)" />
                 }
             </ShellActivityList>
         }
@@ -746,7 +746,7 @@
             {
                 Localize = value => L[value].Value,
                 Format = static (format, args) => string.Format(CultureInfo.CurrentCulture, format, args),
-                CreateResourceDetailUrl = resource => ResourceManagerCompositionLinks.ResourceDetails(Composition, resource.Id),
+                CreateResourceDetailUrl = resource => ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resource.Id),
                 GetStateClass = ResourceStateDisplay.GetStateClass,
                 GetResourceTypeLabel = GetResourceTypeDisplayName,
                 GetResourceIconName = GetResourceTypeIconName,

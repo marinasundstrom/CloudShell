@@ -3,7 +3,7 @@
 @inject IResourceManager ResourceManager
 @inject IResourceRecoveryManager RecoveryManager
 @inject IResourceOrchestrationSettings OrchestrationSettings
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 
 <div class="generated-resource-view">
@@ -274,14 +274,12 @@
         };
 
     private string BuildHealthRoute() =>
-        ResourceManagerCompositionLinks.ResourceDetails(
-            Composition,
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes,
             ResourceId ?? string.Empty,
             ResourcePredefinedViewIds.Health);
 
     private string BuildActivityRoute() =>
-        ResourceManagerCompositionLinks.ResourceDetails(
-            Composition,
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes,
             ResourceId ?? string.Empty,
             ResourcePredefinedViewIds.Activity);
 }

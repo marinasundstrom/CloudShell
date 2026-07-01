@@ -2,7 +2,7 @@
 @inject IResourceManager ResourceManager
 @inject ITraceManager TraceManager
 @inject ResourceManagerDisplaySettings DisplaySettings
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 
 @{
@@ -373,7 +373,7 @@ else
         $"0 0 {FormatNumber(layout.Width)} {FormatNumber(layout.Height)}";
 
     private string BuildResourceRoute(string resourceId) =>
-        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId);
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceId);
 
     private static string? BuildTraceRoute(DependencyEdge edge)
     {

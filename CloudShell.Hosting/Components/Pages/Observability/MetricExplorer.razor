@@ -4,7 +4,7 @@
 @inject IResourceManager ResourceManager
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject NavigationManager Navigation
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 @inject IOptionsMonitor<MetricVisualizationOptions> MetricVisualizations
 
@@ -452,9 +452,8 @@ else if (ShowHeading)
     private void ShowAllResources() => Navigation.NavigateTo("/observability/metrics");
 
     private string GetResourcesRoute() =>
-        ResourceManagerCompositionLinks.ResourceManagerPage(
-            Composition,
-            ResourceManagerCompositionIds.ResourcesPage,
+        ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
+            ResourceManagerShellIds.ResourcesPage,
             ResourceManagerRoutes.Resources);
 
     private string BuildMetricRoute(
@@ -477,7 +476,7 @@ else if (ShowHeading)
         if (Inline)
         {
             return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-                ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, ResourcePredefinedViewIds.Metrics),
+                ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceId, ResourcePredefinedViewIds.Metrics),
                 query);
         }
 
@@ -546,7 +545,7 @@ else if (ShowHeading)
     }
 
     private string BuildResourceRoute(string resourceId) =>
-        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId);
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceId);
 
     private static string GetStateSuffix(Resource resource) =>
         resource.State is { } state ? $" / {state}" : string.Empty;

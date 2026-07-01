@@ -14,7 +14,7 @@
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject ShellCatalog ShellCatalog
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 
     <div class="generated-resource-view">
@@ -1129,10 +1129,10 @@
     }
 
     private string BuildResourceRoute(string resourceId) =>
-        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId);
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceId);
 
     private string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
-        ResourceManagerCompositionLinks.ResourceDetails(Composition, resourceId, tabId);
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes, resourceId, tabId);
 
     private ResourceTypeContribution? FindResourceType(Resource resource) =>
         this.ShellCatalog.ResourceTypes.FirstOrDefault(type =>

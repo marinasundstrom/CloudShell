@@ -3,7 +3,7 @@
 @inject IResourceManager ResourceManager
 @inject IResourceHealthManager HealthChecks
 @inject IResourceOrchestrationSettings OrchestrationSettings
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
 
 <div class="generated-resource-view">
@@ -334,14 +334,12 @@
             : check.EndpointName;
 
     private string BuildRecoveryRoute() =>
-        ResourceManagerCompositionLinks.ResourceDetails(
-            Composition,
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes,
             ResourceId ?? string.Empty,
             ResourcePredefinedViewIds.Recovery);
 
     private string BuildRuntimeScopeDetailsRoute() =>
-        ResourceManagerCompositionLinks.ResourceDetails(
-            Composition,
+        ResourceManagerShellLinks.ResourceDetails(ShellRoutes,
             ResourceId ?? string.Empty,
             RuntimeScopeDetailsViewId);
 
