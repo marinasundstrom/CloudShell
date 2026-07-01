@@ -22,7 +22,11 @@ better name is chosen. CoreShell is the product-neutral extensible shell layer:
 the common layout, navigation, composition services, settings surface,
 notification abstractions, extension points, and presenter contracts. It is
 the CMS-like infrastructure for addressable shell content, layout structure,
-and extensibility.
+and extensibility. The long-term target is a shell that can host any
+CloudShell product area or custom platform workspace, not only Resource
+Manager. Resource Manager proves the extension model, but CoreShell should
+remain useful for teams that need their own dashboards, operations consoles,
+settings experiences, developer portals, or internal platform tools.
 CloudShell UI is the product host that assembles CoreShell with the default
 presenters and predefined integrations.
 
@@ -97,6 +101,12 @@ host-usable components and integrations such as navigation menu presenters,
 settings presenters, section/tab layouts, notification surfaces, and other
 Fluent UI renderers over CoreShell contracts.
 
+CoreShell should also avoid presenting CloudShell as a .NET-only platform.
+The shell implementation can remain .NET and Blazor, but language-specific
+packages, generated clients, process launchers, and API-driven tools should be
+able to start or configure a CloudShell host and operate through stable
+contracts over time.
+
 ### Control Plane
 
 The Control Plane is the backend application. It may be hosted with
@@ -132,6 +142,14 @@ deployment coordination, orchestration, health, events, and API projection.
 Orchestrators are execution adapters inside Resource Manager: they materialize
 runtime state for resources and services, but they do not own the resource
 graph or replace Resource Manager as the authority.
+
+The architecture should allow more than one Control Plane deployment shape. A
+small environment can run one in-process Control Plane. A shared environment
+can run a standalone Control Plane. Future clustered environments can split
+API replicas, controller duties, background workers, and provider execution
+across several processes. Future federated or multi-Control Plane scenarios
+should let a shell target several Control Plane authorities while preserving a
+clear resource identity, authorization, and operational boundary for each.
 
 ### Runtime and orchestration boundary
 
@@ -250,6 +268,57 @@ An on-premise CloudShell environment is a standalone CloudShell cloud
 environment, potentially for shared hosting. It owns Control Plane state,
 installed capabilities, provider integrations, and runtime placement policy
 instead of acting only as a developer workstation process.
+
+### Language-neutral bootstrapping and graph authoring
+
+The current host APIs are .NET registration APIs, and the CloudShell core can
+remain C#/.NET-based. That is an implementation choice, not the product
+boundary. The platform direction is that the code which bootstraps the host,
+defines the resource graph, and drives the Control Plane does not have to be
+C#. JavaScript, TypeScript, Java, C#, and other ecosystems should be able to
+provide an app-host style authoring experience over the same CloudShell model,
+similar in spirit to cross-language resource authoring in modern developer
+app-host platforms.
+
+In that model, a language-specific host authoring layer may produce
+declarations, configuration, launch instructions, or API calls, while a
+CloudShell-provided C# host process runs the shell, Control Plane, providers,
+and runtime adapters. CloudShell should still feel like one platform for
+heterogeneous application stacks, not a .NET portal with incidental external
+clients. The user experience should stay consistent across languages: the same
+resource model, names, diagnostics, lifecycle operations, Control Plane APIs,
+and Resource Manager views should apply whether the graph was defined from
+C#, TypeScript, JavaScript, Java, or another supported language.
+
+Language support should preserve the same ownership boundaries:
+
+- language-specific launchers or SDKs can author declarations, call APIs,
+  configure capabilities, or start a CloudShell host process
+- the CloudShell core remains the implementation authority for the shell,
+  Control Plane, providers, and resource-management behavior
+- CloudShell remains applicable to non-.NET applications, services, providers,
+  and operational workflows
+- the Control Plane remains the authority for accepted resource state and
+  operations
+- provider-owned runtime behavior remains behind provider contracts
+- the shell consumes product managers and client adapters rather than
+  language-specific implementation details
+
+### Multiple Control Planes and clusters
+
+CloudShell should support a progression from a single local Control Plane to
+standing, clustered, and federated topologies.
+
+A clustered Control Plane deployment still represents one environment
+authority. It can split request-serving API replicas, primary-controller or
+lease-owned reconciliation duties, background workers, and provider adapters
+without changing the resource model exposed to users.
+
+A multi-Control Plane or federated deployment represents several environment
+authorities. CoreShell and Resource Manager should be able to present those
+authorities coherently, but each Control Plane keeps its own authorization,
+state ownership, provider registrations, and operational history unless a
+future federation layer explicitly models shared ownership.
 
 ### CloudShell host application
 
@@ -425,6 +494,10 @@ CloudShell supports several host shapes:
   shell.
 - Combined host: runs CloudShell UI and Control Plane together, primarily for
   local development and small self-hosted deployments.
+- Clustered Control Plane host: runs API replicas, controller roles, workers,
+  or provider adapters as one environment authority.
+- Federated UI host: runs one CoreShell surface over multiple remote Control
+  Plane authorities through explicit client configuration.
 
 Host registration APIs should make these choices explicit. A combined host can
 install both UI and Control Plane integrations, while split hosts install only

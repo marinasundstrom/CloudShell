@@ -5,7 +5,13 @@ CloudShell hosting describes how the conceptual application surfaces from
 Core host applications. The architecture document owns the definitions of
 CloudShell UI, Control Plane, CloudShell environment, capability package, and
 extension surface. This document focuses on the supported host shapes and
-registration patterns.
+registration patterns. The current implementation is .NET-based, and the
+CloudShell core can remain C#/.NET-based, but CloudShell should not be framed
+as a .NET-only platform. The platform direction is that the host
+bootstrapping and resource-graph authoring experience is ecosystem-neutral:
+other languages should be able to define the graph, configure startup, launch
+or control the C# host process, and operate CloudShell through supported
+launchers, SDKs, generated clients, and the Control Plane API.
 
 CloudShell is intended to be the same platform in both roles. In local
 development it can run as a combined host that gives developers a resource
@@ -30,6 +36,9 @@ CloudShell supports three registration shapes:
 
 The explicit UI and Control Plane registrations are useful for split
 deployments. Combined hosts compose those same registrations in one process.
+Clustered Control Plane deployments, multi-Control Plane UI/federation, and
+cross-language host bootstrapping are future hosting shapes; current host
+registration should avoid assumptions that would make those shapes impossible.
 
 The reusable shell UI and hosting helpers live in `CloudShell.Hosting`, a Razor
 class library that references ASP.NET Core. Web SDK projects reference

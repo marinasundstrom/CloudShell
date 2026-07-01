@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Documented the broader platform vision for CoreShell, ecosystem-neutral host
+  bootstrapping and resource-graph authoring, and future clustered or
+  multi-Control Plane hosting topologies.
 - Built-in Control Plane providers now expose explicit `Use*ResourceProvider`
   registration methods so hosts can compose individual provider capabilities
   while still keeping `UseBuiltInResourceModelProviders()` as the broad preset;

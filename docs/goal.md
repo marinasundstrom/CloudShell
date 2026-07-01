@@ -1,7 +1,11 @@
 # CloudShell Goal
 
 CloudShell is an extensible, self-hosted cloud-portal platform for local
-development, team-owned platform tooling, and on-premise environments.
+development, team-owned platform tooling, and on-premise environments. The
+long-term vision is one platform for development and hosting: a developer can
+start close to their code, a team can run the same model as a standing
+environment, and operators can grow that environment into clustered or
+multi-Control Plane deployments without switching products.
 
 The primary goal is to let teams manage resources through the CloudShell UI or
 the Control Plane API, while preserving an excellent developer experience
@@ -32,8 +36,21 @@ Resource Manager workflows, provider integrations, and API-driven automation.
   platform. Resource Manager is the first major shell extension, but the shell
   should support other installed product areas through common menu, page,
   settings, notification, and content-area contribution models.
+- CoreShell should be useful as a general extensible shell, not only as the
+  Resource Manager container. Product teams should be able to assemble
+  workspaces, operational views, settings, dashboards, and custom tools on top
+  of the shell contracts for their own needs.
 - The WebUI and Control Plane remain separate application surfaces even when
   hosted together for local development.
+- CloudShell should be ecosystem-neutral for users, applications, providers,
+  and host bootstrapping even though the core implementation is C#/.NET.
+  JavaScript, TypeScript, Java, C#, and other languages should be able to
+  define resource graphs, configure startup, launch the host, and drive the
+  Control Plane through supported SDKs, launchers, templates, and API clients.
+- CloudShell should be designed for multiple Control Plane topologies. A
+  single UI should be able to target remote Control Planes, and future
+  environments should be able to federate, cluster, or partition Control Plane
+  responsibility while presenting a coherent shell and resource model.
 - CloudShell should use established packages, protocols, and container images
   for common infrastructure concerns when they fit the product boundary. The
   platform should not leak provider-native implementation details as stable
@@ -58,11 +75,12 @@ Resource Manager workflows, provider integrations, and API-driven automation.
 
 CloudShell should provide cloud-like management primitives without requiring a
 public cloud account. The platform should support local development first, then
-scale toward team-owned and on-premise environments with the same model.
-CloudShell is a hosting platform that also works as a development tool: the
-same Control Plane, Resource Manager, resource model, and provider extension
-patterns can run in a developer's local combined host or in a standalone
-on-premise CloudShell environment.
+scale toward team-owned, on-premise, clustered, and multi-Control Plane
+environments with the same model. CloudShell is a hosting platform that also
+works as a development tool: the same Control Plane, Resource Manager,
+CoreShell, resource model, and provider extension patterns can run in a
+developer's local combined host, in a standalone on-premise CloudShell
+environment, or through split/federated hosts.
 
 The important platform path is:
 
@@ -70,13 +88,19 @@ The important platform path is:
 2. Add configuration, secrets, identity, storage, and observability.
 3. Add container applications, virtual networks, endpoint exposure, ingress,
    DNS/name mapping, and service discovery.
-4. Operate the environment through Resource Manager, the Control Plane API,
-   and provider or extension integration points.
+4. Operate the environment through Resource Manager, CoreShell extensions, the
+   Control Plane API, and provider or extension integration points.
+5. Expand from one local Control Plane to remote, clustered, or federated
+   Control Plane topologies as the environment becomes shared infrastructure.
 
 CloudShell is not trying to replace public cloud platforms. It should make
 cloud-inspired architecture understandable, manageable, and testable in local
 or self-hosted environments, while keeping a path to provider-backed
-implementations.
+implementations. It should also avoid giving the impression that CloudShell is
+only for .NET teams or .NET workloads. The CloudShell core can remain
+C#-based while other languages provide the app-host style entry point that
+defines the graph, configures capabilities, starts the host, and operates the
+same Control Plane through consistent cross-platform tooling.
 
 The platform can learn from existing cloud portals without inheriting their
 legacy boundaries. Familiar placement and affordances are useful, but
