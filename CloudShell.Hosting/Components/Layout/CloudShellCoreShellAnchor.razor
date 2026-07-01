@@ -1,0 +1,121 @@
+@inject ICoreShellPageService Pages
+@inject ICoreShellRouteService Routes
+@using CoreShell
+
+@if (!Resolved)
+{
+    if (Unresolved is not null)
+    {
+        @Unresolved
+    }
+    else if (RenderUnresolved)
+    {
+        <span class="coreshell-anchor-unresolved cloudshell-composite-anchor-unresolved"
+              data-coreshell-target="@ResolvedTarget.Value">
+            Failed to resolve link
+        </span>
+    }
+}
+else
+{
+    <FluentAnchor @attributes="AdditionalAttributes"
+                  Appearance="@Appearance"
+                  Href="@ResolvedHref"
+                  IconStart="@IconStart"
+                  IconEnd="@IconEnd"
+                  Class="@Class">
+        @if (ChildContent is null)
+        {
+            @ResolvedTitle
+        }
+        else
+        {
+            @ChildContent
+        }
+    </FluentAnchor>
+}
+
+@code {
+    [Parameter]
+    public CoreShellPageId? Page { get; set; }
+
+    [Parameter]
+    public CoreShellTarget? Target { get; set; }
+
+    [Parameter]
+    public IReadOnlyDictionary<string, object?>? RouteParams { get; set; }
+
+    [Parameter]
+    public Appearance Appearance { get; set; } = Microsoft.FluentUI.AspNetCore.Components.Appearance.Neutral;
+
+    [Parameter]
+    public Icon? IconStart { get; set; }
+
+    [Parameter]
+    public Icon? IconEnd { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? Unresolved { get; set; }
+
+    [Parameter]
+    public bool RenderUnresolved { get; set; } = true;
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string ResolvedHref { get; set; } = "#";
+
+    private string ResolvedTitle { get; set; } = string.Empty;
+
+    private CoreShellTarget ResolvedTarget =>
+        Target ?? (Page.HasValue
+            ? CoreShellTarget.ForPage(Page.Value)
+            : throw new InvalidOperationException("CloudShellCoreShellAnchor requires Page or Target."));
+
+    private bool Resolved =>
+        ResolvedHref != "#" ||
+        (ResolvedTarget.Kind == CoreShellTargetKind.Href &&
+            string.Equals(ResolvedTarget.Value, "#", StringComparison.Ordinal));
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var target = ResolvedTarget;
+        var resolved = await Routes.ResolveTargetAsync(target, RouteParams);
+        ResolvedHref = resolved.Href;
+        ResolvedTitle = await ResolveTitleAsync(resolved, target);
+    }
+
+    private async Task<string> ResolveTitleAsync(
+        CoreShellResolvedTarget resolved,
+        CoreShellTarget target)
+    {
+        if (target.Kind == CoreShellTargetKind.Href)
+        {
+            return target.Value;
+        }
+
+        if (resolved.Page is not null)
+        {
+            return resolved.Page.Title;
+        }
+
+        if (resolved.Section is not null)
+        {
+            return resolved.Section.Title;
+        }
+
+        if (target.Kind == CoreShellTargetKind.Page &&
+            await Pages.GetPageAsync(new CoreShellPageId(target.Value)) is { } page)
+        {
+            return page.Title;
+        }
+
+        return target.Value;
+    }
+}

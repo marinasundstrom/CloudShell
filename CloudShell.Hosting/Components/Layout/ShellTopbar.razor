@@ -11,15 +11,15 @@
     <div class="command-surface">
         <LanguageSelector />
         <ThemeSelector />
-        <CloudShellCompositeAnchor Appearance="Appearance.Stealth"
-                                   Page="@ShellCompositionIds.SettingsPage"
+        <CloudShellCoreShellAnchor Appearance="Appearance.Stealth"
+                                   Page="@ShellIds.SettingsPage"
                                    Class="shell-settings-link"
                                    RenderUnresolved="false"
                                    aria-label="@L["Settings"]"
                                    title="@L["Settings"]">
             <FluentIcon Value="@(new Icons.Regular.Size20.Settings())"
                         Color="Color.Neutral" />
-        </CloudShellCompositeAnchor>
+        </CloudShellCoreShellAnchor>
         <AuthorizeView>
             <Authorized Context="authentication">
                 <span class="signed-in-user">

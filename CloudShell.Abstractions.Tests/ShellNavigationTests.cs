@@ -425,6 +425,58 @@ public sealed class ShellNavigationTests
             });
     }
 
+    [Fact]
+    public async Task ResourceManagerExtension_RegistersStaticShellPagesAsCoreShellPages()
+    {
+        var catalog = CreateCoreShellCatalog(
+            new ResourceManagerExtension(includeSettings: false));
+        ICoreShellRouteService routes = catalog;
+
+        Assert.Equal(
+            ResourceManagerRoutes.Resources,
+            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(ResourceManagerShellIds.ResourcesPage))).Href);
+        Assert.Equal(
+            ResourceManagerRoutes.ResourceGraph,
+            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(ResourceManagerShellIds.ResourceGraphPage))).Href);
+        Assert.Equal(
+            "/health",
+            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(ResourceManagerShellIds.HealthPage))).Href);
+        Assert.Equal(
+            ResourceManagerRoutes.AddResource,
+            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(ResourceManagerShellIds.AddResourcePage))).Href);
+        Assert.Equal(
+            ResourceManagerRoutes.CreateResourceGroup,
+            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(ResourceManagerShellIds.CreateResourceGroupPage))).Href);
+        Assert.Equal(
+            ResourceManagerRoutes.ResourceTemplates,
+            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(ResourceManagerShellIds.ResourceTemplatesPage))).Href);
+        Assert.Equal(
+            ResourceManagerRoutes.ResourceSettings,
+            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(ResourceManagerShellIds.ResourceSettingsPage))).Href);
+
+        var menu = await catalog.GetMenuAsync(ShellIds.MainMenu);
+        Assert.NotNull(menu);
+        var workspaceGroup = Assert.Single(menu.Groups);
+        Assert.Equal(ShellIds.WorkspaceMenuGroup, workspaceGroup.Id);
+        Assert.Collection(
+            workspaceGroup.Items,
+            item =>
+            {
+                Assert.Equal(ResourceManagerShellIds.ResourcesMenuItem, item.Id);
+                Assert.Equal(ResourceManagerShellIds.ResourcesPage.Value, item.Target.Value);
+            },
+            item =>
+            {
+                Assert.Equal(ResourceManagerShellIds.EnvironmentMenuItem, item.Id);
+                Assert.Equal(ResourceManagerShellIds.EnvironmentPage.Value, item.Target.Value);
+            },
+            item =>
+            {
+                Assert.Equal(ResourceManagerShellIds.HealthMenuItem, item.Id);
+                Assert.Equal(ResourceManagerShellIds.HealthPage.Value, item.Target.Value);
+            });
+    }
+
     private static ICloudShellNavigator CreateNavigator<TExtension>(
         TestNavigationManager? navigationManager = null)
         where TExtension : class, ICloudShellExtension, new()

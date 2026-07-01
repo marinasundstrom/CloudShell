@@ -33,6 +33,9 @@ on `git blame --follow`, and then by the broad type of change.
   providers without exposing Composition UI primitives.
 - CloudShell's primary navigation menu now renders from CoreShell navigation
   and route services instead of reading the Composition UI registry directly.
+- Shell chrome and dashboard page links can now use a CoreShell-backed anchor
+  component for page and target resolution without depending on the
+  Composition UI registry.
 - Documented the broader platform vision for CoreShell, ecosystem-neutral host
   bootstrapping and resource-graph authoring, and future clustered or
   multi-Control Plane hosting topologies.

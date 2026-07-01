@@ -45,6 +45,9 @@ the foundational CoreShell contracts.
 CloudShell's primary navigation renders from CoreShell services; direct
 composition registry access remains an infrastructure and compatibility path
 while page and section presenters move up to CoreShell.
+Shell links that target CoreShell pages or targets should use the CoreShell
+anchor adapter. Composition anchors remain for compatibility with presenters
+that still consume composition page and section IDs directly.
 Because CloudShell Hosting is a Fluent UI shell, shell-specific presenters
 should use Fluent UI components for navigation, commands, inputs, and other
 interactive elements whenever those components provide the needed semantics and
