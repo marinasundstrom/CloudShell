@@ -48,6 +48,10 @@ public sealed class SqlServerResourceTypeProvider :
                 itemType: ResourceAttributeValueType.ComplexType,
                 itemShapeId: NetworkingEndpointShapeIds.EndpointRequest)
         },
+        Capabilities:
+        [
+            new(VolumeConsumerCapabilityProvider.CapabilityIdValue)
+        ],
         Operations:
         [
             new(Operations.Start),

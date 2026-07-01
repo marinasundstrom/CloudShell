@@ -12,15 +12,14 @@
 - Executable path validation and command configuration.
 - Shared volume-consumer capability.
 - Provider-declared default console log source.
-- Programmatic builder activation for runtime monitoring.
+- Type-level runtime monitoring support.
 - Start operation with an injected provider-owned process runtime controller
   that honors configured arguments and working directory.
 - Typed wrapper plus Resource Manager bridge projection, execution, and
   process monitoring snapshots.
 - Manual `ResourceGraphBuilder.AddExecutableApplication(...)`
   builder for code-first executable definition authoring with command
-  configuration, volume mount capability setup, and runtime monitoring
-  capability activation.
+  configuration and volume mount attributes.
 
 ## Switch-over status
 

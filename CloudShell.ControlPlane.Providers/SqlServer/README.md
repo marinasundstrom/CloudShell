@@ -73,7 +73,16 @@ runtime integration for the provider.
         "port": 1433,
         "exposure": "Local"
       }
-    ]
+    ],
+    "storage.volumeConsumer": {
+      "mounts": [
+        {
+          "volume": "cloudshell.volume:sql-data",
+          "targetPath": "/var/opt/mssql",
+          "readOnly": false
+        }
+      ]
+    }
   },
   "configuration": {
     "sqlServer": {
@@ -82,17 +91,6 @@ runtime integration for the provider.
           "name": "application",
           "displayName": "Application database",
           "ensureCreated": true
-        }
-      ]
-    }
-  },
-  "capabilities": {
-    "storage.volumeConsumer": {
-      "mounts": [
-        {
-          "volume": "cloudshell.volume:sql-data",
-          "targetPath": "/var/opt/mssql",
-          "readOnly": false
         }
       ]
     }

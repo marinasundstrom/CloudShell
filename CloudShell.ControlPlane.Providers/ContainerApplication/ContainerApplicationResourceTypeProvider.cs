@@ -64,7 +64,9 @@ public sealed class ContainerApplicationResourceTypeProvider :
         },
         Capabilities:
         [
-            new(ResourceCommonCapabilityIds.EndpointSource)
+            new(ResourceCommonCapabilityIds.EndpointSource),
+            new(ResourceCommonCapabilityIds.Monitoring),
+            new(VolumeConsumerCapabilityProvider.CapabilityIdValue)
         ],
         Operations:
         [

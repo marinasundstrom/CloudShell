@@ -30,6 +30,7 @@ public sealed class ResourceModelContainerApplicationDeploymentApplyTests
         services.AddInMemoryResourceModelGraph();
         services.AddResourceModelGraphServices();
         services.AddContainerHostResourceType();
+        services.AddNetworkResourceType();
         services.AddSingleton<IContainerApplicationRuntimeHandler>(runtimeHandler);
         services.AddSingleton<IContainerApplicationOrchestratorRuntimeHandler>(runtimeHandler);
         services.AddContainerApplicationResourceType();

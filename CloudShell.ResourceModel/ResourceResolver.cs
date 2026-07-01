@@ -407,8 +407,28 @@ public sealed class ResourceResolver
                 ResourceDefinitionValueSource.ResourceState);
         }
 
+        foreach (var (name, value) in state.ResourceAttributeValues)
+        {
+            if (!IsAttributeBackedCapability(name) &&
+                !capabilities.ContainsKey(ResourceCapabilityId.Create(name.ToString())))
+            {
+                continue;
+            }
+
+            var capabilityId = ResourceCapabilityId.Create(name.ToString());
+            capabilities[capabilityId] = new(
+                capabilityId,
+                ResourceDefinitionJson.FromValue(value),
+                ResourceDefinitionValueSource.ResourceState);
+        }
+
         return new(capabilities.Values);
     }
+
+    private static bool IsAttributeBackedCapability(ResourceAttributeId attributeId) =>
+        attributeId == ResourceLogSourceAttributeIds.LogSources ||
+        attributeId == ResourceHealthCheckAttributeIds.HealthChecks ||
+        string.Equals(attributeId.ToString(), "storage.volumeConsumer", StringComparison.OrdinalIgnoreCase);
 
     private static void MergeCapabilities(
         Dictionary<ResourceCapabilityId, ResourceCapabilityResolution> target,
@@ -887,6 +907,11 @@ public sealed class ResourceResolver
                 diagnosticCode,
                 $"{diagnosticSubject} '{path}' has value kind '{value.Kind}' but declares type '{ResourceAttributeValueType.ResourceReference}'.",
                 target));
+            return;
+        }
+
+        if (value.TryGetResourceReference(out _))
+        {
             return;
         }
 

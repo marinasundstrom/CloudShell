@@ -66,7 +66,7 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
         WithSessionAffinity(ResourceOrchestratorSessionAffinityMode.None);
 
     public ContainerApplicationResourceDefinitionBuilder WithRuntimeMonitoring() =>
-        DeclareCapability(ResourceCommonCapabilityIds.Monitoring);
+        this;
 
     public ContainerApplicationResourceDefinitionBuilder WithRuntimeLogSources() =>
         WithRuntimeLogSources(ResourceLogSourceDefinitionValues.PlainText);
@@ -78,8 +78,8 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(format);
 
-        return SetCapability(
-            ResourceLogSourceCapabilityIds.LogSources,
+        return SetObjectAttribute(
+            ResourceLogSourceAttributeIds.LogSources,
             ResourceLogSourceDefinitionSet.DefaultConsole(format.Trim()));
     }
 
@@ -135,8 +135,8 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
             volumeResourceId.Trim(),
             targetPath.Trim(),
             readOnly));
-        return SetCapability(
-            VolumeConsumerCapabilityProvider.CapabilityIdValue,
+        return SetObjectAttribute(
+            ResourceAttributeId.Create(VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString()),
             new VolumeConsumerDefinition(_volumeMounts.ToArray()));
     }
 
@@ -263,8 +263,8 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
         ArgumentNullException.ThrowIfNull(check);
 
         _healthChecks.Add(check);
-        return SetCapability(
-            ResourceHealthCheckCapabilityIds.HealthChecks,
+        return SetObjectAttribute(
+            ResourceHealthCheckAttributeIds.HealthChecks,
             new ResourceHealthCheckDefinitionSet(_healthChecks.ToArray()));
     }
 

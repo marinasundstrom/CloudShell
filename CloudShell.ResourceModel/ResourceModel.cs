@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace CloudShell.ResourceModel;
 
@@ -29,11 +30,14 @@ public sealed record ResourceState(
     private static readonly IReadOnlyDictionary<ResourceOperationId, JsonElement> EmptyOperationPayloads =
         new Dictionary<ResourceOperationId, JsonElement>();
 
+    [JsonIgnore]
     public string EffectiveResourceId =>
         string.IsNullOrWhiteSpace(ResourceId) ? $"{TypeId}:{Name}" : ResourceId;
 
+    [JsonIgnore]
     public IReadOnlyList<ResourceReference> StartupDependencies => DependsOn ?? EmptyReferences;
 
+    [JsonIgnore]
     public IReadOnlyList<string> StartupDependencyIds => StartupDependencies
         .Where(dependency => dependency.TryGetDependsOnResourceId(out _))
         .Select(dependency =>
@@ -43,23 +47,31 @@ public sealed record ResourceState(
         })
         .ToArray();
 
+    [JsonIgnore]
     public IReadOnlyList<ResourceReference> ResourceDependencies => StartupDependencies;
 
+    [JsonIgnore]
     public IReadOnlyList<string> ResourceDependencyIds => StartupDependencyIds;
 
+    [JsonIgnore]
     public ResourceAttributeValueMap ResourceAttributeValues => Attributes ?? EmptyAttributeValues;
 
+    [JsonIgnore]
     public IReadOnlyDictionary<ResourceAttributeId, string> ResourceAttributes =>
         ResourceAttributeValueMaps.ToScalars(Attributes);
 
+    [JsonIgnore]
     public IReadOnlyDictionary<string, JsonElement> ConfigurationPayloads => Configuration ?? EmptyConfigurationPayloads;
 
+    [JsonIgnore]
     public IReadOnlyDictionary<ResourceCapabilityId, JsonElement> CapabilityPayloads =>
         Capabilities ?? EmptyCapabilityPayloads;
 
+    [JsonIgnore]
     public IReadOnlyDictionary<ResourceOperationId, JsonElement> OperationPayloads =>
         Operations ?? EmptyOperationPayloads;
 
+    [JsonIgnore]
     public ResourceRevision Revision => ResourceRevision.Parse(Version);
 
     public ResourceState WithRevision(ResourceRevision revision) =>
@@ -115,32 +127,34 @@ public sealed record ResourceState(
             ProviderId,
             DisplayName,
             Version,
-            StartupDependencies,
-            ResourceAttributeValues,
-            ConfigurationPayloads,
-            CapabilityPayloads,
-            OperationPayloads,
-            Metadata);
+            NullIfEmpty(StartupDependencies),
+            NullIfEmpty(ResourceAttributeValues),
+            NullIfEmpty(ConfigurationPayloads),
+            NullIfEmpty(CapabilityPayloads),
+            NullIfEmpty(OperationPayloads),
+            NullIfEmpty(Metadata));
 
     public TConfiguration? GetConfiguration<TConfiguration>(
         string sectionName,
         JsonSerializerOptions? options = null) =>
         ConfigurationPayloads.TryGetValue(sectionName, out var payload)
-            ? payload.Deserialize<TConfiguration>(options)
+            ? payload.Deserialize<TConfiguration>(options ?? ResourceDefinitionJson.Options)
             : default;
 
     public TCapability? GetCapability<TCapability>(
         ResourceCapabilityId capabilityId,
         JsonSerializerOptions? options = null) =>
-        CapabilityPayloads.TryGetValue(capabilityId, out var payload)
-            ? payload.Deserialize<TCapability>(options)
-            : default;
+        ResourceAttributeValues.TryGetValue(ResourceAttributeId.Create(capabilityId.ToString()), out var attribute)
+            ? attribute.ToObject<TCapability>(options ?? ResourceDefinitionJson.Options)
+            : CapabilityPayloads.TryGetValue(capabilityId, out var payload)
+                ? payload.Deserialize<TCapability>(options ?? ResourceDefinitionJson.Options)
+                : default;
 
     public TOperation? GetOperation<TOperation>(
         ResourceOperationId operationId,
         JsonSerializerOptions? options = null) =>
         OperationPayloads.TryGetValue(operationId, out var payload)
-            ? payload.Deserialize<TOperation>(options)
+            ? payload.Deserialize<TOperation>(options ?? ResourceDefinitionJson.Options)
             : default;
 
     private static IReadOnlyDictionary<TKey, TValue>? Merge<TKey, TValue>(
@@ -194,6 +208,19 @@ public sealed record ResourceState(
 
         return merged;
     }
+
+    private static IReadOnlyList<TValue>? NullIfEmpty<TValue>(
+        IReadOnlyList<TValue> values) =>
+        values.Count == 0 ? null : values;
+
+    private static ResourceAttributeValueMap? NullIfEmpty(
+        ResourceAttributeValueMap values) =>
+        values.Count == 0 ? null : values;
+
+    private static IReadOnlyDictionary<TKey, TValue>? NullIfEmpty<TKey, TValue>(
+        IReadOnlyDictionary<TKey, TValue>? values)
+        where TKey : notnull =>
+        values is null || values.Count == 0 ? null : values;
 }
 
 public readonly record struct ResourceRevision(long Value)

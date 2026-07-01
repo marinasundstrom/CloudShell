@@ -83,7 +83,7 @@ public sealed class ResourceCapabilitySet : IReadOnlyCollection<ResourceCapabili
         ResourceCapabilityId capabilityId,
         JsonSerializerOptions? options = null) =>
         Resolve(capabilityId) is { } capability
-            ? capability.Payload.Deserialize<TCapability>(options)
+            ? capability.Payload.Deserialize<TCapability>(options ?? ResourceDefinitionJson.Options)
             : default;
 
     internal void SetProjections(IEnumerable<IResourceCapabilityProjection> projections) =>

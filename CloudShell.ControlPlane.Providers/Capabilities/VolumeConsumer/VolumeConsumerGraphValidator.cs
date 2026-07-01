@@ -21,7 +21,8 @@ public sealed class VolumeConsumerGraphValidator : IResourceDefinitionGraphValid
                 continue;
             }
 
-            var definition = capability.Payload.Deserialize<VolumeConsumerDefinition>();
+            var definition = capability.Payload.Deserialize<VolumeConsumerDefinition>(
+                ResourceDefinitionJson.Options);
             foreach (var mount in definition?.Mounts ?? [])
             {
                 var mountedResource = context.FindResource(mount.Volume);

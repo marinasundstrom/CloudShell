@@ -89,6 +89,9 @@ public static class ResourceAttributeValueMaps
 internal sealed class ResourceAttributeValueMapJsonConverter :
     JsonConverter<ResourceAttributeValueMap>
 {
+    private static readonly ResourceAttributeId HealthChecksAttributeId = ResourceAttributeId.Create("health.checks");
+    private static readonly ResourceAttributeId LogSourcesAttributeId = ResourceAttributeId.Create("logs.sources");
+
     public override ResourceAttributeValueMap Read(
         ref Utf8JsonReader reader,
         Type typeToConvert,
@@ -99,28 +102,21 @@ internal sealed class ResourceAttributeValueMapJsonConverter :
             throw new JsonException($"Expected resource attribute map object but found '{reader.TokenType}'.");
         }
 
-        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>();
-
-        while (reader.Read())
+        using var document = JsonDocument.ParseValue(ref reader);
+        if (document.RootElement.ValueKind != JsonValueKind.Object)
         {
-            if (reader.TokenType == JsonTokenType.EndObject)
-            {
-                return new ResourceAttributeValueMap(attributes);
-            }
-
-            if (reader.TokenType != JsonTokenType.PropertyName)
-            {
-                throw new JsonException($"Expected resource attribute property but found '{reader.TokenType}'.");
-            }
-
-            var name = reader.GetString() ?? string.Empty;
-            reader.Read();
-            var value = JsonSerializer.Deserialize<ResourceAttributeValue>(ref reader, options) ??
-                throw new JsonException($"Could not deserialize resource attribute '{name}'.");
-            attributes[ResourceAttributeId.Create(name)] = value;
+            throw new JsonException("Expected resource attribute map object.");
         }
 
-        throw new JsonException("Resource attribute map JSON ended before the object was closed.");
+        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>();
+        foreach (var property in document.RootElement.EnumerateObject())
+        {
+            var value = property.Value.Deserialize<ResourceAttributeValue>(options) ??
+                throw new JsonException($"Could not deserialize resource attribute '{property.Name}'.");
+            FlattenAttributeValue([property.Name], value, attributes);
+        }
+
+        return new ResourceAttributeValueMap(attributes);
     }
 
     public override void Write(
@@ -129,7 +125,6 @@ internal sealed class ResourceAttributeValueMapJsonConverter :
         JsonSerializerOptions options)
     {
         writer.WriteStartObject();
-
         foreach (var (name, attributeValue) in value)
         {
             writer.WritePropertyName(name.ToString());
@@ -137,5 +132,90 @@ internal sealed class ResourceAttributeValueMapJsonConverter :
         }
 
         writer.WriteEndObject();
+    }
+
+    private static void FlattenAttributeValue(
+        IReadOnlyList<string> path,
+        ResourceAttributeValue value,
+        Dictionary<ResourceAttributeId, ResourceAttributeValue> attributes)
+    {
+        if (value.Kind != ResourceAttributeValueKind.Object ||
+            value.ObjectValue is null ||
+            ShouldTreatAsAttributeValue(path, value.ObjectValue))
+        {
+            var attributeId = ResourceAttributeId.Create(string.Join('.', path));
+            attributes[attributeId] = NormalizeAttributeValue(attributeId, value);
+            return;
+        }
+
+        foreach (var (name, childValue) in value.ObjectValue)
+        {
+            FlattenAttributeValue([.. path, name], childValue, attributes);
+        }
+    }
+
+    private static bool ShouldTreatAsAttributeValue(
+        IReadOnlyList<string> path,
+        IReadOnlyDictionary<string, ResourceAttributeValue> objectValue)
+    {
+        if (path.Count < 2)
+        {
+            return false;
+        }
+
+        if (IsDirectCollectionAttribute(path))
+        {
+            return true;
+        }
+
+        foreach (var (name, childValue) in objectValue)
+        {
+            if (childValue.Kind == ResourceAttributeValueKind.Array ||
+                !IsNamespaceSegment(name))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsNamespaceSegment(string value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        char.IsLower(value[0]) &&
+        value.All(character => char.IsLetterOrDigit(character));
+
+    private static ResourceAttributeValue NormalizeAttributeValue(
+        ResourceAttributeId attributeId,
+        ResourceAttributeValue value)
+    {
+        if (value.Kind != ResourceAttributeValueKind.Array)
+        {
+            return value;
+        }
+
+        if (attributeId == LogSourcesAttributeId)
+        {
+            return ResourceAttributeValue.Object(new Dictionary<string, ResourceAttributeValue>
+            {
+                ["sources"] = value
+            });
+        }
+
+        if (attributeId == HealthChecksAttributeId)
+        {
+            return ResourceAttributeValue.Object(new Dictionary<string, ResourceAttributeValue>
+            {
+                ["checks"] = value
+            });
+        }
+
+        return value;
+    }
+
+    private static bool IsDirectCollectionAttribute(IReadOnlyList<string> path)
+    {
+        var attributeId = ResourceAttributeId.Create(string.Join('.', path));
+        return attributeId == LogSourcesAttributeId || attributeId == HealthChecksAttributeId;
     }
 }

@@ -11,9 +11,8 @@
 - Secrets Vault class/type defaults, endpoint attribute, and read-only secret-count summary attribute.
 - Health and liveness declarations for the `/healthz` endpoint.
 - Start, stop, and restart operations backed by a provider-local process controller that runs the existing service web app.
-- Runtime monitoring capability activation through the programmatic builder,
-  with Resource Manager process metric snapshots provided by the runtime
-  bridge when the backing service is running.
+- Type-level runtime monitoring support, with Resource Manager process metric
+  snapshots provided by the runtime bridge when the backing service is running.
 - Provider-owned runtime secret seed options.
 - Inspect operation with a runtime-backed inspector that reports configured counts without exposing values.
 - Typed wrapper plus Resource Manager bridge projection and execution.
@@ -38,9 +37,6 @@ provider/runtime data and must not be stored as ordinary graph attributes.
   "attributes": {
     "secrets.kind": "local",
     "secrets.endpoint": "http://localhost:5102"
-  },
-  "capabilities": {
-    "monitoring": {}
   }
 }
 ```

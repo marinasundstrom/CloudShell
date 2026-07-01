@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Net;
+using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
@@ -2102,6 +2103,8 @@ public sealed class SampleSmokeTests
             $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}",
             frontendAttributes.GetRawText());
 
+        await AssertExportedSignalRTemplateCanRoundTripAndApplyAsync(host);
+
         try
         {
             await StartGraphResourceIfAvailableAsync(host, api, "SignalR API");
@@ -2191,6 +2194,82 @@ public sealed class SampleSmokeTests
             await StopGraphResourceIfAvailableAsync(host, api, "SignalR API");
         }
     }
+
+    private static async Task AssertExportedSignalRTemplateCanRoundTripAndApplyAsync(
+        SampleProcess host)
+    {
+        using var client = new HttpClient
+        {
+            BaseAddress = host.BaseAddress,
+            Timeout = StartupTimeout
+        };
+
+        var exportResponse = await client.PostAsJsonAsync(
+            "/api/control-plane/v1/resource-templates/export",
+            new ResourceTemplateExportRequest(
+                "SignalR Container App",
+                [
+                    "application.container-app:signalr-api",
+                    "application.aspnet-core-project:signalr-frontend"
+                ],
+                Metadata: new Dictionary<string, string>
+                {
+                    ["resourceGroup.id"] = "signalr-container-app"
+                }));
+        var exported = await ReadJsonAsync<ResourceTemplateExportResult>(exportResponse);
+
+        Assert.False(exported.HasErrors, FormatDiagnostics(exported.Diagnostics));
+
+        var yaml = CloudShell.ResourceModel.ResourceTemplateSerializer.SerializeTemplate(
+            exported.Template);
+
+        Assert.Contains("dependsOn:", yaml);
+        Assert.Contains("resourceId: cloudshell.container-host:default", yaml);
+        Assert.Contains("attributes:", yaml);
+        Assert.Contains("container:", yaml);
+        Assert.Contains("image: cloudshell-signalr-api:20260630.1", yaml);
+        Assert.Contains("logs:", yaml);
+        Assert.Contains("sources:", yaml);
+        Assert.Contains("health:", yaml);
+        Assert.Contains("checks:", yaml);
+        Assert.Contains("network:", yaml);
+        Assert.Contains("resourceId: network:host", yaml);
+        Assert.DoesNotContain("container.image:", yaml);
+        Assert.DoesNotContain("logs.sources:", yaml);
+        Assert.DoesNotContain("health.checks:", yaml);
+        Assert.DoesNotContain("value: cloudshell.container-host:default", yaml);
+        Assert.DoesNotContain("addressingMode: resourceId", yaml);
+
+        var roundTripped = CloudShell.ResourceModel.ResourceTemplateSerializer.DeserializeTemplate(yaml);
+        var applyResponse = await client.PostAsJsonAsync(
+            "/api/control-plane/v1/resource-templates/apply",
+            new ResourceTemplateApplyRequest(roundTripped));
+        var applied = await ReadJsonAsync<ResourceTemplateApplyResult>(applyResponse);
+
+        Assert.False(applied.HasErrors, FormatDiagnostics(applied.Diagnostics));
+        Assert.True(applied.IsCommitted);
+    }
+
+    private static async Task<TValue> ReadJsonAsync<TValue>(HttpResponseMessage response)
+    {
+        using (response)
+        {
+            var content = await response.Content.ReadAsStringAsync();
+            Assert.True(
+                response.IsSuccessStatusCode,
+                $"Expected HTTP success but got {(int)response.StatusCode} ({response.ReasonPhrase}). {content}");
+            var value = JsonSerializer.Deserialize<TValue>(
+                content,
+                CloudShell.ResourceModel.ResourceDefinitionJson.Options);
+            Assert.NotNull(value);
+            return value;
+        }
+    }
+
+    private static string FormatDiagnostics(
+        IReadOnlyList<CloudShell.ResourceModel.ResourceDefinitionDiagnostic> diagnostics) =>
+        string.Join(Environment.NewLine, diagnostics.Select(diagnostic =>
+            $"{diagnostic.Severity}: {diagnostic.Code}: {diagnostic.Message} ({diagnostic.Target})"));
 
     private sealed record SignalRReplicaTestMessage(
         string Text,

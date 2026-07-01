@@ -3,8 +3,8 @@
 This document describes the common `ResourceDefinition` structure used by the
 Resource model. It focuses on the interchange shape: the serializer-neutral
 model used by deployments, templates, imports, exports, debug views, and apply
-operations. The current API path is JSON, while YAML is a likely future
-authoring format because it is common for declarative DSLs.
+operations. YAML is the preferred authoring format. JSON remains the
+Control Plane API-compatible projection.
 
 The Resource Graph still owns the durable graph/configuration state. The
 Control Plane and Resource Manager own runtime state, operational records,
@@ -83,11 +83,11 @@ It can be:
 
 This distinction matters for capabilities and operations. They are often
 declared on `ResourceClassDefinition` or `ResourceTypeDefinition`, while the
-resource definition may only provide resource-specific payloads for those
-capabilities or operations. For example, a container-like class or type may
-declare the `storage.volumeConsumer` capability, and a specific
-`ResourceDefinition` supplies the mount payload for the resolved resource to
-consume.
+resource definition provides resource-specific attributes whose contracts are
+defined by those capabilities or operations. For example, a container-like
+class or type may declare the `storage.volumeConsumer` capability, and a
+specific `ResourceDefinition` supplies the mount attributes for the resolved
+resource to consume.
 
 Resolution combines the implicit root/common contract, class definition, type
 definition, and resource-owned state into a resolved `Resource`. That resolved
@@ -219,8 +219,6 @@ change that can be validated and applied to the graph.
   "dependsOn": [],
   "attributes": {},
   "configuration": {},
-  "capabilities": {},
-  "operations": {},
   "metadata": {}
 }
 ```
@@ -236,11 +234,68 @@ Common fields:
 | `displayName` | Optional presentation label. It does not affect addressing. |
 | `version` | Optional resource revision/version string for graph state. |
 | `dependsOn` | Optional startup dependency references. This is not general service discovery. |
-| `attributes` | Resource-owned graph/configuration state, keyed by attribute ID. |
+| `attributes` | Resource-owned graph/configuration state. Dotted attribute IDs are projected as nested document groups. |
 | `configuration` | Provider-owned structured configuration payloads when attributes are not the right shape. |
-| `capabilities` | Capability declarations and capability-owned graph state. |
-| `operations` | Operation declarations and operation-owned graph state. |
 | `metadata` | Non-runtime metadata about the definition. |
+
+The serialized authoring format should not include computed CLR convenience
+properties such as `effectiveResourceId`, `startupDependencies`,
+`resourceAttributes`, `resourceAttributeValues`, `configurationPayloads`,
+`capabilityPayloads`, or `operationPayloads`. Those names are local accessors
+over the canonical fields, not document fields.
+
+`attributes` is the resource-owned desired-state surface. If a capability
+defines the contract for some resource-owned value, the accepted value still
+lives under `attributes`. Resource-level `capabilities` and `operations`
+payload bags still exist in the current CLR model for legacy graph and
+provider paths, but they are not the preferred authoring location for
+resource-owned state.
+
+Attribute IDs use periods to express hierarchy. The in-memory model still
+resolves canonical IDs such as `container.image`, `logs.sources`, and
+`health.checks`, but YAML/JSON templates should project those IDs into nested
+objects so the document is easier to scan:
+
+```yaml
+attributes:
+  container:
+    image: cloudshell-signalr-api:20260630.1
+    replicas: 3
+    endpointRequests:
+    - name: http
+      protocol: http
+      targetPort: 8080
+  logs:
+    sources:
+    - id: console
+      name: Console logs
+      kind: processOutput
+      format: jsonConsole
+      capabilities:
+      - read
+      - stream
+```
+
+When the document is deserialized, these grouped attributes flatten back to
+canonical attribute IDs before validation and provider code sees them.
+
+Resource references also use a compact document projection for the common
+resource-id case. `value`, `relationship`, `addressingMode`, `typeId`, and
+`providerId` are the full model fields, but a startup dependency usually only
+needs the target resource ID:
+
+```yaml
+dependsOn:
+- resourceId: cloudshell.container-host:default
+```
+
+This deserializes to a `dependsOn` relationship with `resourceId` addressing.
+The full form remains available when a reference needs a non-default
+relationship, addressing mode, type hint, or provider hint.
+
+Empty optional sections such as `dependsOn`, `attributes`, `configuration`,
+`capabilities`, `operations`, and `metadata` should be omitted from serialized
+ResourceDefinition documents instead of emitted as empty arrays or objects.
 
 ## Applying to Existing Resources
 
@@ -326,21 +381,14 @@ authoring, and provider integration.
 Capabilities may also contribute attribute definitions and validators. For
 example, a volume-consumer capability can define the mount-related attributes
 or payload shape it needs, and validate those values when the capability is
-declared on a class, type, or resource. The graph still stores the accepted
-attribute values as resource state; the capability supplies part of the
-contract that explains and validates those values.
+declared on a class or type. The graph should still store accepted
+resource-owned values as attributes; the capability supplies part of the
+contract that explains and validates those attributes.
 
-It is valid for a `ResourceDefinition` to carry a capability payload directly
-under `capabilities`, for example when a resource explicitly declares or
-overrides capability-owned state. In practice this is expected to be more
-common on `ResourceClassDefinition` or `ResourceTypeDefinition`, where the
-capability is declared once and can provide default attribute values or
-validation rules for all resources of that class or type.
-
-When a resource inherits a capability from its class or type, the authored
-resource will usually set capability-defined attributes instead of repeating
-the capability declaration. Those attributes should use stable IDs, normally
-qualified by the capability or provider boundary:
+When a resource inherits a capability from its class or type, authored
+resources set capability-defined attributes instead of repeating the capability
+declaration. Those attributes should use stable IDs, normally qualified by the
+capability or provider boundary:
 
 ```json
 {
@@ -353,8 +401,7 @@ qualified by the capability or provider boundary:
 ```
 
 The compact top-level form is still a possible future authoring convenience,
-but the current interchange envelope keeps resource state under
-`attributes`:
+but the current interchange envelope keeps resource state under `attributes`:
 
 ```json
 {
@@ -452,44 +499,31 @@ attribute for it.
 
 ## Health Checks And Liveness
 
-Health checks and liveness are declared as capability-owned graph payloads
-under `health.checks`. The graph declares which checks exist. The Control
-Plane evaluates probes, stores observations, and decides health/liveness
-state.
+Health checks and liveness are resource attributes under `health.checks`. The
+health capability defines the attribute contract and validation behavior. The
+Control Plane evaluates probes, stores observations, and decides
+health/liveness state.
 
-```json
-{
-  "capabilities": {
-    "health.checks": {
-      "checks": [
-        {
-          "name": "health",
-          "type": "health",
-          "source": {
-            "kind": "http",
-            "http": {
-              "path": "/health",
-              "endpointName": "http",
-              "timeoutMilliseconds": 1000
-            }
-          },
-          "intervalSeconds": 10
-        },
-        {
-          "name": "alive",
-          "type": "liveness",
-          "source": {
-            "kind": "http",
-            "http": {
-              "path": "/alive",
-              "endpointName": "http"
-            }
-          }
-        }
-      ]
-    }
-  }
-}
+```yaml
+attributes:
+  health:
+    checks:
+    - name: health
+      type: health
+      source:
+        kind: http
+        http:
+          path: /health
+          endpointName: http
+          timeoutMilliseconds: 1000
+      intervalSeconds: 10
+    - name: alive
+      type: liveness
+      source:
+        kind: http
+        http:
+          path: /alive
+          endpointName: http
 ```
 
 The derived `liveness` capability may appear on resolved or Resource Manager
@@ -499,58 +533,46 @@ something else.
 
 ## Volumes
 
-Volume attachments are capability-owned graph payloads under
-`storage.volumeConsumer`. The capability declares mount intent on the resource
-that consumes volumes. Provider/runtime code decides how mounts are
-materialized.
+Volume attachments are resource attributes under `storage.volumeConsumer`.
+The volume-consumer capability defines the attribute contract and validation
+behavior. Provider/runtime code decides how mounts are materialized.
 
-```json
-{
-  "capabilities": {
-    "storage.volumeConsumer": {
-      "mounts": [
-        {
-          "volume": "storage.volume:data",
-          "targetPath": "/data",
-          "readOnly": false
-        }
-      ]
-    }
-  }
-}
+```yaml
+attributes:
+  storage:
+    volumeConsumer:
+      mounts:
+      - volume: storage.volume:data
+        targetPath: /data
+        readOnly: false
 ```
 
 The volume reference is currently stored as a string in the volume-consumer
-payload and projected into graph dependencies by the capability dependency
+attribute and projected into graph dependencies by the capability dependency
 provider. A future cleanup may move this to `ResourceReference` if provider
 ports show that the current shape is too weak for interchange authoring.
 
 ## Log Sources
 
-Log sources are declared as capability-owned graph payloads under
-`logs.sources` when a provider can describe stable log sources. The graph
-declares source metadata; read and stream sessions remain Control Plane
-runtime concerns.
+Log sources are resource attributes under `logs.sources` when a provider can
+describe stable log sources. The log-source capability defines the attribute
+contract and validation behavior. Read and stream sessions remain Control
+Plane runtime concerns.
 
-```json
-{
-  "capabilities": {
-    "logs.sources": {
-      "sources": [
-        {
-          "id": "console",
-          "name": "Console logs",
-          "kind": "processOutput",
-          "format": "plainText",
-          "capabilities": ["read", "stream"],
-          "origin": "providerDefault",
-          "purpose": "default",
-          "availability": "resourceRunning"
-        }
-      ]
-    }
-  }
-}
+```yaml
+attributes:
+  logs:
+    sources:
+    - id: console
+      name: Console logs
+      kind: processOutput
+      format: plainText
+      capabilities:
+      - read
+      - stream
+      origin: providerDefault
+      purpose: default
+      availability: resourceRunning
 ```
 
 ## Operations

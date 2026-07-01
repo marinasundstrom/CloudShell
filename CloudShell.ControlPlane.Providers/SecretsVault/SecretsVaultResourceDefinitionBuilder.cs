@@ -10,7 +10,7 @@ public sealed class SecretsVaultResourceDefinitionBuilder(string name) :
         SecretsVaultResourceTypeProvider.ProviderId;
 
     public SecretsVaultResourceDefinitionBuilder WithRuntimeMonitoring() =>
-        DeclareCapability(ResourceCommonCapabilityIds.Monitoring);
+        this;
 
     public SecretsVaultResourceDefinitionBuilder WithEndpoint(string endpoint) =>
         SetScalarAttribute(SecretsVaultResourceTypeProvider.Attributes.Endpoint, endpoint);

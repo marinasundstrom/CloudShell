@@ -56,6 +56,10 @@ public sealed class DockerContainerResourceTypeProvider :
                 ReadOnly: true,
                 Mutability: ResourceAttributeMutability.ProviderManaged)
         },
+        Capabilities:
+        [
+            new(ResourceCommonCapabilityIds.Monitoring)
+        ],
         Operations:
         [
             new(Operations.Start),

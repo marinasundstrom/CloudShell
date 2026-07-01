@@ -10,7 +10,7 @@ public sealed class ConfigurationStoreResourceDefinitionBuilder(string name) :
         ConfigurationStoreResourceTypeProvider.ProviderId;
 
     public ConfigurationStoreResourceDefinitionBuilder WithRuntimeMonitoring() =>
-        DeclareCapability(ResourceCommonCapabilityIds.Monitoring);
+        this;
 
     public ConfigurationStoreResourceDefinitionBuilder WithEndpoint(string endpoint) =>
         SetScalarAttribute(ConfigurationStoreResourceTypeProvider.Attributes.Endpoint, endpoint);

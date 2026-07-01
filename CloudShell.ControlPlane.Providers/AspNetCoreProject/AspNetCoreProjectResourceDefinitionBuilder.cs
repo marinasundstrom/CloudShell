@@ -32,11 +32,11 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
         SetScalarAttribute(AspNetCoreProjectResourceTypeProvider.Attributes.ServiceDiscoveryName, name);
 
     public AspNetCoreProjectResourceDefinitionBuilder WithRuntimeMonitoring() =>
-        DeclareCapability(ResourceCommonCapabilityIds.Monitoring);
+        this;
 
     public AspNetCoreProjectResourceDefinitionBuilder WithDefaultConsoleLogSource() =>
-        SetCapability(
-            ResourceLogSourceCapabilityIds.LogSources,
+        SetObjectAttribute(
+            ResourceLogSourceAttributeIds.LogSources,
             ResourceLogSourceDefinitionSet.DefaultConsole());
 
     public AspNetCoreProjectResourceDefinitionBuilder AddEndpointRequest(
@@ -222,8 +222,8 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
             volumeResourceId.Trim(),
             targetPath.Trim(),
             readOnly));
-        return SetCapability(
-            VolumeConsumerCapabilityProvider.CapabilityIdValue,
+        return SetObjectAttribute(
+            ResourceAttributeId.Create(VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString()),
             new VolumeConsumerDefinition(_volumeMounts.ToArray()));
     }
 
@@ -233,8 +233,8 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
         ArgumentNullException.ThrowIfNull(check);
 
         _healthChecks.Add(check);
-        return SetCapability(
-            ResourceHealthCheckCapabilityIds.HealthChecks,
+        return SetObjectAttribute(
+            ResourceHealthCheckAttributeIds.HealthChecks,
             new ResourceHealthCheckDefinitionSet(_healthChecks.ToArray()));
     }
 }

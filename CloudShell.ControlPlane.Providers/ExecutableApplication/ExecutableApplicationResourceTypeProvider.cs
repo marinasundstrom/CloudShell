@@ -37,6 +37,8 @@ public sealed class ExecutableApplicationResourceTypeProvider :
         },
         Capabilities:
         [
+            new(ResourceCommonCapabilityIds.Monitoring),
+            new(VolumeConsumerCapabilityProvider.CapabilityIdValue),
             new(
                 ResourceLogSourceCapabilityIds.LogSources,
                 ResourceDefinitionJson.FromValue(ResourceLogSourceDefinitionSet.DefaultConsole()))

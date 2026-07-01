@@ -119,8 +119,8 @@ public sealed class SqlServerResourceDefinitionBuilder(string name) :
             volumeResourceId.Trim(),
             targetPath.Trim(),
             readOnly));
-        return SetCapability(
-            VolumeConsumerCapabilityProvider.CapabilityIdValue,
+        return SetObjectAttribute(
+            ResourceAttributeId.Create(VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString()),
             new VolumeConsumerDefinition(_volumeMounts.ToArray()));
     }
 

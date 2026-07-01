@@ -8,6 +8,11 @@ public static class ResourceHealthCheckCapabilityIds
     public static readonly ResourceCapabilityId Liveness = "liveness";
 }
 
+public static class ResourceHealthCheckAttributeIds
+{
+    public static readonly ResourceAttributeId HealthChecks = "health.checks";
+}
+
 public static class ResourceHealthCheckDefinitionValues
 {
     public const string Health = "health";

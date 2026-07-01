@@ -12,7 +12,7 @@ public sealed class VolumeConsumerGraphDependencyProvider : IResourceGraphDepend
         var definition = resource.Capabilities.Get<VolumeConsumerDefinition>(
             VolumeConsumerCapabilityProvider.CapabilityIdValue);
 
-        return definition?.Mounts
+        return definition?.Mounts?
             .Select(mount => mount.Volume)
             .Where(volume => !string.IsNullOrWhiteSpace(volume))
             .Distinct(StringComparer.OrdinalIgnoreCase)

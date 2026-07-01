@@ -142,8 +142,8 @@ public sealed class ResourceModelResolverTests
         Assert.Equal("./worker", attributeChange.NewValue);
         Assert.Equal("./worker", changes.ProposedState.ResourceAttributes[
             ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
-        Assert.True(changes.ProposedState.CapabilityPayloads.ContainsKey(
-            VolumeConsumerCapabilityProvider.CapabilityIdValue));
+        Assert.True(changes.ProposedState.ResourceAttributeValues.ContainsKey(
+            ResourceAttributeId.Create(VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString())));
         Assert.False(resource.HasPendingChanges);
     }
 
@@ -228,6 +228,9 @@ public sealed class ResourceModelResolverTests
         Assert.Equal("2", incrementalDefinition.ResourceAttributes["container.replicas"]);
         Assert.Equal(resource.Name, incrementalDefinition.Name);
         Assert.Equal(resource.Type.TypeId, incrementalDefinition.TypeId);
+        Assert.DoesNotContain(
+            ResourceAttributeId.Create(VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString()),
+            incrementalDefinition.ResourceAttributeValues.Keys);
     }
 
     [Fact]
@@ -244,8 +247,8 @@ public sealed class ResourceModelResolverTests
         Assert.Equal("./api", incrementalDefinition.ResourceAttributes[
             ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
         Assert.Contains(
-            VolumeConsumerCapabilityProvider.CapabilityIdValue,
-            incrementalDefinition.CapabilityPayloads.Keys);
+            ResourceAttributeId.Create(VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString()),
+            incrementalDefinition.ResourceAttributeValues.Keys);
     }
 
     [Fact]
@@ -259,7 +262,7 @@ public sealed class ResourceModelResolverTests
         Assert.Equal(state.EffectiveResourceId, record.ResourceId);
         Assert.Equal(state.EffectiveResourceId, roundTrip.EffectiveResourceId);
         Assert.Equal("./api", roundTrip.ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
-        Assert.Contains("storage.volumeConsumer", record.Capabilities!.Keys);
+        Assert.Contains("storage.volumeConsumer", record.Attributes!.Keys);
     }
 
     private static ResourceResolver CreateResolver() =>
@@ -292,7 +295,8 @@ public sealed class ResourceModelResolverTests
                     },
                     Capabilities:
                     [
-                        new("monitoring")
+                        new("monitoring"),
+                        new(VolumeConsumerCapabilityProvider.CapabilityIdValue)
                     ],
                     Operations:
                     [
@@ -304,13 +308,11 @@ public sealed class ResourceModelResolverTests
         new(
             "api",
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
-                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = executablePath
-            },
-            Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
-            {
-                [VolumeConsumerCapabilityProvider.CapabilityIdValue] = ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = executablePath,
+                [ResourceAttributeId.Create(VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString())] =
+                    ResourceAttributeValue.FromObject(new VolumeConsumerDefinition(
                 [
                     new("volume:data", "App_Data")
                 ]))

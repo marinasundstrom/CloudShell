@@ -15,9 +15,7 @@ working structure is maintained in
   "providerId": "applications.executable",
   "attributes": {
     "executable.path": "whatsup.exe",
-    "executable.arguments": "doc"
-  },
-  "capabilities": {
+    "executable.arguments": "doc",
     "storage.volumeConsumer": {
       "mounts": [
         {
@@ -39,6 +37,7 @@ working structure is maintained in
   "typeId": "application.executable",
   "classId": "application",
   "capabilities": {
+    "monitoring": {},
     "storage.volumeConsumer": {}
   },
   "attributes": {

@@ -767,6 +767,9 @@ public sealed class ResourceGraphBuilderTests
         Assert.True(databaseConfiguration.EnsureCreated);
         var volumeConsumer = sqlServer.GetCapability<VolumeConsumerDefinition>(
             VolumeConsumerCapabilityProvider.CapabilityIdValue);
+        Assert.True(sqlServer.ResourceAttributeValues.ContainsKey(
+            ResourceAttributeId.Create(VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString())));
+        Assert.Null(sqlServer.Capabilities);
         var mount = Assert.Single(volumeConsumer!.Mounts);
         Assert.Equal(volume.EffectiveResourceId, mount.Volume);
         Assert.Equal("/var/opt/mssql", mount.TargetPath);
@@ -874,14 +877,22 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal(hostNetwork.EffectiveResourceId, endpointNetworkId);
         var healthChecks = appDefinition.GetCapability<ResourceHealthCheckDefinitionSet>(
             ResourceHealthCheckCapabilityIds.HealthChecks);
+        Assert.True(appDefinition.ResourceAttributeValues.ContainsKey(
+            ResourceHealthCheckAttributeIds.HealthChecks));
         var healthCheck = Assert.Single(healthChecks?.Checks ?? []);
         Assert.Equal("/health", healthCheck.Source.Http?.Path);
+        Assert.True(appDefinition.ResourceAttributeValues.ContainsKey(
+            ResourceLogSourceAttributeIds.LogSources));
+        Assert.NotNull(appDefinition.GetCapability<ResourceLogSourceDefinitionSet>(
+            ResourceLogSourceCapabilityIds.LogSources));
         var dependency = Assert.Single(appDefinition.StartupDependencies);
         Assert.True(dependency.TryGetDependsOnResourceId(out var dependencyId));
         Assert.Equal(host.EffectiveResourceId, dependencyId);
         Assert.Equal(DockerHostResourceTypeProvider.ResourceTypeId, dependency.TypeId);
         var volumeConsumer = appDefinition.GetCapability<VolumeConsumerDefinition>(
             VolumeConsumerCapabilityProvider.CapabilityIdValue);
+        Assert.True(appDefinition.ResourceAttributeValues.ContainsKey(
+            ResourceAttributeId.Create(VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString())));
         var mount = Assert.Single(volumeConsumer!.Mounts);
         Assert.Equal(volume.EffectiveResourceId, mount.Volume);
         Assert.Equal("/data", mount.TargetPath);
@@ -1005,8 +1016,7 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal("dotnet", executableConfiguration!.Path);
         Assert.Equal("run --project src/Worker/Worker.csproj", executableConfiguration.Arguments);
         Assert.Equal("src/Worker", executableConfiguration.WorkingDirectory);
-        Assert.NotNull(executable.Capabilities);
-        Assert.Contains(ResourceCommonCapabilityIds.Monitoring, executable.Capabilities.Keys);
+        Assert.Null(executable.Capabilities);
 
         Assert.Equal("application.aspnet-core-project:api", project.EffectiveResourceId);
         Assert.Equal("src/Api/Api.csproj", project.ResourceAttributeValues[
@@ -1033,10 +1043,19 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal(ConfigurationStoreResourceTypeProvider.ResourceTypeId, reference.TypeId);
         var healthChecks = project.GetCapability<ResourceHealthCheckDefinitionSet>(
             ResourceHealthCheckCapabilityIds.HealthChecks);
+        Assert.True(project.ResourceAttributeValues.ContainsKey(
+            ResourceHealthCheckAttributeIds.HealthChecks));
         var healthCheck = Assert.Single(healthChecks!.Checks ?? []);
         Assert.Equal("alive", healthCheck.Name);
+        Assert.True(project.ResourceAttributeValues.ContainsKey(
+            ResourceLogSourceAttributeIds.LogSources));
+        Assert.NotNull(project.GetCapability<ResourceLogSourceDefinitionSet>(
+            ResourceLogSourceCapabilityIds.LogSources));
         var projectVolumeConsumer = project.GetCapability<VolumeConsumerDefinition>(
             VolumeConsumerCapabilityProvider.CapabilityIdValue);
+        Assert.True(project.ResourceAttributeValues.ContainsKey(
+            ResourceAttributeId.Create(VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString())));
+        Assert.Null(project.Capabilities);
         var projectMount = Assert.Single(projectVolumeConsumer!.Mounts);
         Assert.Equal(volume.EffectiveResourceId, projectMount.Volume);
         Assert.Equal("App_Data", projectMount.TargetPath);

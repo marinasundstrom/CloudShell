@@ -13,14 +13,10 @@ public sealed class ResourceDefinitionValidationPipelineTests
             operationProviders: [new ExecutableStartOperationProvider()]);
         var definition = CreateExecutableDefinition(
             path: "dotnet",
-            capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
-            {
-                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
-                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
-                    [
-                        new("volume:data", "App_Data")
-                    ]))
-            });
+            volumeConsumer: new VolumeConsumerDefinition(
+            [
+                new("volume:data", "App_Data")
+            ]));
 
         var result = await pipeline.ValidateAsync(
             definition,
@@ -72,14 +68,10 @@ public sealed class ResourceDefinitionValidationPipelineTests
             operationProviders: [new ExecutableStartOperationProvider()]);
         var definition = CreateExecutableDefinition(
             path: "dotnet",
-            capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
-            {
-                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
-                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
-                    [
-                        new("volume:data", "App_Data")
-                    ]))
-            });
+            volumeConsumer: new VolumeConsumerDefinition(
+            [
+                new("volume:data", "App_Data")
+            ]));
 
         var result = await pipeline.ValidateAsync(
             definition,
@@ -100,7 +92,10 @@ public sealed class ResourceDefinitionValidationPipelineTests
 
         Assert.True(changes.HasChanges);
         Assert.Same(result.Resource, changes.Resource);
-        Assert.Single(changes.CapabilityChanges);
+        Assert.Empty(changes.CapabilityChanges);
+        Assert.Contains(changes.AttributeChanges, change =>
+            change.AttributeId == ResourceAttributeId.Create(
+                VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString()));
         Assert.Single(volumeConsumer.Mounts);
         Assert.NotNull(updatedPayload);
         Assert.NotNull(incrementalPayload);
@@ -117,14 +112,10 @@ public sealed class ResourceDefinitionValidationPipelineTests
     {
         var definition = CreateExecutableDefinition(
             path: "dotnet",
-            capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
-            {
-                [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
-                    ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(
-                    [
-                        new("volume:data", "App_Data")
-                    ]))
-            });
+            volumeConsumer: new VolumeConsumerDefinition(
+            [
+                new("volume:data", "App_Data")
+            ]));
         var stateProvider = new InMemoryResourceStateProvider(
             [ResourceState.FromDefinition(definition)]);
         var graphModel = new ResourceGraphModel(stateProvider);
@@ -162,7 +153,8 @@ public sealed class ResourceDefinitionValidationPipelineTests
 
         Assert.True(commit.IsCommitted);
         Assert.Equal(new ResourceGraphVersion(1), commit.Version);
-        Assert.Equal(1, commit.Summary.CapabilityChangeCount);
+        Assert.Equal(1, commit.Summary.AttributeChangeCount);
+        Assert.Equal(0, commit.Summary.CapabilityChangeCount);
     }
 
     [Fact]
@@ -173,10 +165,7 @@ public sealed class ResourceDefinitionValidationPipelineTests
             operationProviders: []);
         var definition = CreateExecutableDefinition(
             path: "",
-            capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
-            {
-                [VolumeConsumerCapabilityProvider.CapabilityIdValue] = ResourceDefinitionJson.EmptyObject
-            });
+            volumeConsumer: new VolumeConsumerDefinition([]));
 
         var result = await pipeline.ValidateAsync(
             definition,
@@ -232,21 +221,34 @@ public sealed class ResourceDefinitionValidationPipelineTests
 
     private static ResourceDefinition CreateExecutableDefinition(
         string path,
-        IReadOnlyDictionary<ResourceCapabilityId, JsonElement>? capabilities = null) =>
+        VolumeConsumerDefinition? volumeConsumer = null)
+    {
+        Dictionary<ResourceAttributeId, ResourceAttributeValue>? attributes = null;
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = path
+            };
+        }
+
+        if (volumeConsumer is not null)
+        {
+            attributes ??= [];
+            attributes[ResourceAttributeId.Create(VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString())] =
+                ResourceAttributeValue.FromObject(volumeConsumer);
+        }
+
+        return
         new(
             "api",
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
-            Attributes: string.IsNullOrWhiteSpace(path)
-                ? null
-                : new Dictionary<ResourceAttributeId, string>
-                {
-                    [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = path
-                },
+            Attributes: attributes,
             Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
             {
                 [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
                     ResourceDefinitionJson.FromValue(new ExecutableApplicationConfiguration(path, "run"))
-            },
-            Capabilities: capabilities);
+            });
+    }
 
 }

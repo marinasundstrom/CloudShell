@@ -49,6 +49,22 @@ based on `ResourceDefinition` so add-resource flows, edit-resource flows,
 exports, imports, and file-based apply all use the same resource-state model.
 YAML and JSON are both supported through the shared Resource model serializer;
 YAML is the default when a file extension does not explicitly select JSON.
+Serialized templates should contain only canonical document fields. Computed
+CLR convenience properties such as `resourceAttributes`,
+`resourceAttributeValues`, `effectiveResourceId`, and `capabilityPayloads`
+must not appear in authored or exported templates.
+
+Attribute IDs use periods to describe logical hierarchy. Templates should
+project those IDs as nested attribute groups for readability, for example
+`container.image` as `attributes.container.image` and `logs.sources` as
+`attributes.logs.sources`. The serializer flattens the grouped document shape
+back to canonical IDs before validation and provider execution.
+
+Resource-id references can use the compact `resourceId` form in templates. For
+example, `dependsOn: [{ resourceId: cloudshell.container-host:default }]`
+projects back to the full Resource model reference with `relationship:
+dependsOn` and `addressingMode: resourceId`. Use the full shape only when a
+reference needs extra relationship, type, provider, or addressing details.
 
 ## Apply Semantics
 
@@ -115,11 +131,13 @@ state that can be reviewed, moved, edited, and applied again. It should not
 dump provider runtime caches, live container IDs, logs, health snapshots,
 secret values, or internal orchestrator deployment records.
 
-Provider-owned configuration that is part of the resource contract can appear
-as resource attributes, typed capability payloads, or provider-owned
-configuration fields when the resource type defines them. Secret material must
-not be exported. References to configuration entries or secrets can be
-exported when they are non-secret intent.
+Provider-owned configuration that is part of the resource contract should
+appear as resource attributes, or as provider-owned configuration fields when
+attributes are not the right shape. A capability may define and validate the
+attribute contract, but resource-owned values should still live under
+`attributes`. Secret material must not be exported. References to
+configuration entries or secrets can be exported when they are non-secret
+intent.
 
 ## Relationship To Orchestration
 

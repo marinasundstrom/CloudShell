@@ -77,6 +77,21 @@ on `git blame --follow`, and then by the broad type of change.
   preferred template authoring format, JSON remains available as the
   Control Plane API-compatible alternative, and Resource Manager's template UI
   exposes the format choice for export and import.
+- ResourceDefinition and ResourceState computed convenience properties such as
+  `ResourceAttributes`, `ResourceAttributeValues`, and capability payload
+  accessors are now excluded from JSON/YAML output so authored templates only
+  contain canonical document fields.
+- ResourceDefinition builder output now places resource-owned `logs.sources`,
+  `health.checks`, and `storage.volumeConsumer` payloads under `attributes`
+  instead of nesting them under resource-level `capabilities`, while resolved
+  capabilities continue to read the attribute-backed payloads for compatibility.
+- Resource template serialization now projects dotted attribute IDs as nested
+  document groups, such as `attributes.container.image` and
+  `attributes.logs.sources`, while deserialization flattens them back to the
+  canonical Resource model attribute IDs.
+- Resource references in templates now support a compact `resourceId` document
+  shape for common dependency references while preserving the full reference
+  model for advanced relationship and addressing cases.
 - Built-in Control Plane providers now expose explicit `Use*ResourceProvider`
   registration methods so hosts can compose individual provider capabilities
   while still keeping `UseBuiltInResourceModelProviders()` as the broad preset;

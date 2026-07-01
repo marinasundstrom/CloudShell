@@ -165,7 +165,9 @@ public sealed class ResourceProviderDispatcherTests
                 new ResourceDefinitionGraph([volume, definition]),
                 new ResourceDefinitionValidationContext("local", "developer"));
 
-        Assert.False(validation.HasErrors);
+        Assert.False(
+            validation.HasErrors,
+            string.Join(Environment.NewLine, validation.Diagnostics.Select(diagnostic => diagnostic.Message)));
 
         var projectedGraph = await serviceProvider
             .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
@@ -746,7 +748,7 @@ public sealed class ResourceProviderDispatcherTests
             DockerContainerResourceTypeProvider.Attributes.ContainerReplicas));
         Assert.Equal("0", validation.Resource.Attributes.GetString(
             DockerContainerResourceTypeProvider.Attributes.EndpointCount));
-        Assert.False(validation.Resource.Capabilities.Has(
+        Assert.True(validation.Resource.Capabilities.Has(
             ResourceCommonCapabilityIds.Monitoring));
         Assert.False(validation.Resource.Capabilities.Has(
             ResourceLogSourceCapabilityIds.LogSources));
@@ -771,7 +773,7 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal("registry.local", projection.Registry);
         Assert.Equal(1, projection.Replicas);
         Assert.Equal(0, projection.EndpointCount);
-        Assert.False(projection.SupportsMonitoring);
+        Assert.True(projection.SupportsMonitoring);
         Assert.False(projection.SupportsLogSources);
         var start = await projection.GetStartOperationAsync();
         var unpause = await projection.GetUnpauseOperationAsync();

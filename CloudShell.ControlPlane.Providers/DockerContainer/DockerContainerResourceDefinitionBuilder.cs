@@ -22,10 +22,12 @@ public sealed class DockerContainerResourceDefinitionBuilder(string name) :
         SetScalarAttribute(DockerContainerResourceTypeProvider.Attributes.WorkloadKind, workloadKind);
 
     public DockerContainerResourceDefinitionBuilder WithRuntimeMonitoring() =>
-        DeclareCapability(ResourceCommonCapabilityIds.Monitoring);
+        this;
 
     public DockerContainerResourceDefinitionBuilder WithRuntimeLogSources() =>
-        DeclareCapability(ResourceLogSourceCapabilityIds.LogSources);
+        SetObjectAttribute(
+            ResourceLogSourceAttributeIds.LogSources,
+            ResourceLogSourceDefinitionSet.DefaultConsole());
 
     public DockerContainerResourceDefinitionBuilder UseDockerHost(
         IResourceDefinitionBuilder host)

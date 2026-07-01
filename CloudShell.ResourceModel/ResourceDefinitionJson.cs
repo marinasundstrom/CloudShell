@@ -4,6 +4,8 @@ namespace CloudShell.ResourceModel;
 
 public static class ResourceDefinitionJson
 {
+    public static JsonSerializerOptions Options { get; } = new(JsonSerializerOptions.Web);
+
     public static JsonElement EmptyObject { get; } =
         JsonDocument.Parse("{}").RootElement.Clone();
 

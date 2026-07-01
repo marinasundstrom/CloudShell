@@ -10,8 +10,8 @@
 
 - Image, registry, and replica attributes.
 - Endpoint request attributes using the shared networking endpoint request shape.
-- Type-level endpoint-source expectation, with programmatic builder activation
-  for runtime monitoring and log-source capabilities on graph container-app
+- Type-level endpoint-source and monitoring expectations, with log-source
+  declarations authored as `logs.sources` attributes on graph container-app
   resources.
 - Optional typed generic/Docker container-host reference validation and projection.
 - Shared volume-consumer capability.
@@ -27,7 +27,7 @@
   adapters and stop verifies Docker runtime container cleanup.
 - Manual `ResourceGraphBuilder.AddContainerApplication(...)`
   builder for code-first container app definition authoring with typed host
-  dependencies, endpoint requests, replicas, and volume mount capability setup.
+  dependencies, endpoint requests, replicas, and volume mount attributes.
 - Provider-owned Resource Manager UI registration for Resource model samples.
   The UI uses `application.container-app` as the type id trigger for container-app
   deployment, revision, scale, monitoring, and endpoint-action UI instead of
@@ -189,9 +189,7 @@ model cleanup work after switch-over.
         "port": 5092,
         "exposure": "Local"
       }
-    ]
-  },
-  "capabilities": {
+    ],
     "health.checks": {
       "checks": [
         {

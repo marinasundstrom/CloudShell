@@ -168,6 +168,23 @@ public sealed class ResourceGraphResolverTests
     }
 
     [Fact]
+    public void ResolveResourceAndDependencies_IgnoresPassiveVolumeConsumerCapabilityWithoutMounts()
+    {
+        var resolver = new ResourceGraphResolver(
+            CreateResourceResolver(),
+            [new VolumeConsumerGraphDependencyProvider()]);
+        var api = CreateExecutableState("api");
+        var snapshot = new ResourceGraphSnapshot(ResourceGraphVersion.Initial, [api]);
+
+        var result = resolver.ResolveResourceAndDependencies(snapshot, api.EffectiveResourceId);
+
+        Assert.False(result.HasErrors);
+        Assert.Empty(result.Diagnostics);
+        Assert.Equal([api.EffectiveResourceId], result.Resources.Select(resource => resource.EffectiveResourceId));
+        Assert.Empty(result.ResolvedReferences);
+    }
+
+    [Fact]
     public void ResolveResourceAndDependencies_ReportsExplicitDependencyTypeMismatch()
     {
         var resolver = new ResourceGraphResolver(
@@ -315,17 +332,25 @@ public sealed class ResourceGraphResolverTests
             name,
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             DependsOn: ToReferences(dependsOn),
-            Attributes: new Dictionary<ResourceAttributeId, string>
+            Attributes: ToExecutableAttributes(mounts),
+            Capabilities: null);
+
+    private static ResourceAttributeValueMap ToExecutableAttributes(
+        IReadOnlyList<VolumeMountDefinition>? mounts)
+    {
+        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
-            },
-            Capabilities: mounts is null
-                ? null
-                : new Dictionary<ResourceCapabilityId, JsonElement>
-                {
-                    [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
-                        ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(mounts))
-                });
+            };
+
+        if (mounts is not null)
+        {
+            attributes[ResourceAttributeId.Create(VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString())] =
+                ResourceAttributeValue.FromObject(new VolumeConsumerDefinition(mounts));
+        }
+
+        return new(attributes);
+    }
 
     private static IReadOnlyList<ResourceReference>? ToReferences(
         IReadOnlyList<string>? resourceIds) =>

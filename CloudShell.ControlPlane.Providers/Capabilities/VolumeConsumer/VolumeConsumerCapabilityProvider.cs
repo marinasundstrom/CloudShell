@@ -13,7 +13,8 @@ public sealed class VolumeConsumerCapabilityProvider :
     public bool CanValidate(
         Resource resource,
         ResourceCapabilityResolution capability) =>
-        capability.Id == CapabilityId;
+        capability.Id == CapabilityId &&
+        capability.Source == ResourceDefinitionValueSource.ResourceState;
 
     public ValueTask<ResourceDefinitionValidationResult> ValidateAsync(
         Resource resource,
@@ -21,7 +22,8 @@ public sealed class VolumeConsumerCapabilityProvider :
         ResourceProviderContext context,
         CancellationToken cancellationToken = default)
     {
-        var definition = capability.Payload.Deserialize<VolumeConsumerDefinition>();
+        var definition = capability.Payload.Deserialize<VolumeConsumerDefinition>(
+            ResourceDefinitionJson.Options);
         var diagnostics = new List<ResourceDefinitionDiagnostic>();
 
         if (definition?.Mounts is not { Count: > 0 })
@@ -47,7 +49,8 @@ public sealed class VolumeConsumerCapabilityProvider :
         ResourceCapabilityProjectionContext context,
         CancellationToken cancellationToken = default)
     {
-        var definition = capability.Payload.Deserialize<VolumeConsumerDefinition>();
+        var definition = capability.Payload.Deserialize<VolumeConsumerDefinition>(
+            ResourceDefinitionJson.Options);
 
         return ValueTask.FromResult<IResourceCapabilityProjection>(
             new VolumeConsumerCapability(
@@ -76,9 +79,9 @@ public sealed class VolumeConsumerCapability(
             .ToArray();
 
         using var changes = Context.CreateChangeContext();
-        changes.SetCapability(
-            CapabilityId,
-            ResourceDefinitionJson.FromValue(new VolumeConsumerDefinition(updatedMounts)));
+        changes.SetAttribute(
+            ResourceAttributeId.Create(CapabilityId.ToString()),
+            ResourceAttributeValue.FromObject(new VolumeConsumerDefinition(updatedMounts)));
         return changes.ApplyChanges();
     }
 }

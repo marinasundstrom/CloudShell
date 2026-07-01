@@ -9,10 +9,11 @@
 ## Ported
 
 - Project path, arguments, hot reload, launch-settings, endpoint request, environment variable, service-discovery name, and graph reference attributes.
-- Type-level endpoint-source expectation, with programmatic builder activation
-  for runtime monitoring and default console log-source capabilities on graph
-  ASP.NET Core project resources.
-- Shared volume-consumer capability for resources that declare volume mounts.
+- Type-level endpoint-source and monitoring expectations, with default console
+  log sources authored as `logs.sources` attributes on graph ASP.NET Core
+  project resources.
+- Shared volume-consumer capability for resources that declare volume mount
+  attributes.
 - Start, stop, and restart operations backed by the provider-local process runtime controller.
 - Process startup parity with the old ASP.NET Core application provider for
   non-interactive `dotnet watch`, `DOTNET_WATCH_RESTART_ON_RUDE_EDIT`,
@@ -34,8 +35,8 @@
   the graph API, graph settings, and graph SQL credential flow.
 - Manual `ResourceGraphBuilder.AddAspNetCoreProject(...)` builder
   for code-first project definition authoring with endpoint requests,
-  environment variables, service-discovery references, volume mounts, and
-  health-check capability payloads. Environment variables are authored as a
+  environment variables, service-discovery references, volume mounts, log
+  sources, and health-check attributes. Environment variables are authored as a
   keyed map and may use literal values, configuration-entry references, or
   secret references; the Resource Manager bridge resolves references when the
   project resource starts.
@@ -100,10 +101,45 @@ explicit startup-order hint and should not be used as the discovery mechanism.
         "typeId": "secrets.vault",
         "providerId": "secrets-vault"
       }
-    ]
-  },
-  "capabilities": {
-    "monitoring": {}
+    ],
+    "logs.sources": {
+      "sources": [
+        {
+          "id": "console",
+          "name": "Console logs",
+          "kind": "processOutput",
+          "format": "plainText",
+          "capabilities": ["read", "stream"],
+          "origin": "providerDefault",
+          "purpose": "default",
+          "availability": "resourceRunning"
+        }
+      ]
+    },
+    "health.checks": {
+      "checks": [
+        {
+          "name": "alive",
+          "type": "liveness",
+          "source": {
+            "kind": "http",
+            "http": {
+              "path": "/alive",
+              "endpointName": "http"
+            }
+          }
+        }
+      ]
+    },
+    "storage.volumeConsumer": {
+      "mounts": [
+        {
+          "volume": "cloudshell.volume:data",
+          "targetPath": "App_Data",
+          "readOnly": false
+        }
+      ]
+    }
   }
 }
 ```

@@ -7,6 +7,11 @@ public static class ResourceLogSourceCapabilityIds
     public static readonly ResourceCapabilityId LogSources = "logs.sources";
 }
 
+public static class ResourceLogSourceAttributeIds
+{
+    public static readonly ResourceAttributeId LogSources = "logs.sources";
+}
+
 public static class ResourceLogSourceDefinitionValues
 {
     public const string ProcessOutput = "processOutput";

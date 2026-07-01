@@ -47,6 +47,7 @@ public sealed class SecretsVaultResourceTypeProvider :
         },
         Capabilities:
         [
+            new(ResourceCommonCapabilityIds.Monitoring),
             new(ResourceCommonCapabilityIds.EndpointSource),
             new(
                 ResourceHealthCheckCapabilityIds.HealthChecks,

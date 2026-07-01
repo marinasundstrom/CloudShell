@@ -15,7 +15,7 @@ public sealed class ExecutableApplicationResourceDefinitionBuilder(string name) 
         ExecutableApplicationResourceTypeProvider.ProviderId;
 
     public ExecutableApplicationResourceDefinitionBuilder WithRuntimeMonitoring() =>
-        DeclareCapability(ResourceCommonCapabilityIds.Monitoring);
+        this;
 
     public ExecutableApplicationResourceDefinitionBuilder WithExecutablePath(string path)
     {
@@ -74,8 +74,8 @@ public sealed class ExecutableApplicationResourceDefinitionBuilder(string name) 
             volumeResourceId.Trim(),
             targetPath.Trim(),
             readOnly));
-        return SetCapability(
-            VolumeConsumerCapabilityProvider.CapabilityIdValue,
+        return SetObjectAttribute(
+            ResourceAttributeId.Create(VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString()),
             new VolumeConsumerDefinition(_volumeMounts.ToArray()));
     }
 

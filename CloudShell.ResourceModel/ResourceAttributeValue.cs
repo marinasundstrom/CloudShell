@@ -108,17 +108,40 @@ public sealed record ResourceAttributeValue
         [NotNullWhen(true)] out ResourceReference? reference)
     {
         if (Kind != ResourceAttributeValueKind.Object ||
-            ObjectValue is null ||
-            !TryGetObjectString(ObjectValue, "value", out var value) ||
-            !TryGetObjectString(ObjectValue, "relationship", out var relationship) ||
-            !TryGetObjectString(ObjectValue, "addressingMode", out var addressingMode))
+            ObjectValue is null)
+        {
+            reference = null;
+            return false;
+        }
+
+        var hasValue = TryGetObjectString(ObjectValue, "value", out var value);
+        var hasResourceId = TryGetObjectString(ObjectValue, "resourceId", out var resourceId);
+        if (!hasValue && !hasResourceId)
+        {
+            reference = null;
+            return false;
+        }
+
+        if (!TryGetObjectString(ObjectValue, "relationship", out var relationship))
+        {
+            relationship = ResourceReferenceRelationships.Reference.ToString();
+        }
+
+        if (!TryGetObjectString(ObjectValue, "addressingMode", out var addressingMode))
+        {
+            addressingMode = hasResourceId
+                ? ResourceReferenceAddressingModes.ResourceId.ToString()
+                : null;
+        }
+
+        if (string.IsNullOrWhiteSpace(addressingMode))
         {
             reference = null;
             return false;
         }
 
         reference = new(
-            value,
+            hasResourceId ? resourceId! : value!,
             ResourceReferenceRelationship.Create(relationship),
             ResourceReferenceAddressingMode.Create(addressingMode),
             TryGetObjectString(ObjectValue, "typeId", out var typeId)
