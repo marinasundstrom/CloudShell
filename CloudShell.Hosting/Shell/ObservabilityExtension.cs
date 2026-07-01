@@ -1,7 +1,7 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Hosting.Components.Pages.Logs;
-using CoreShell.Composition;
+using CoreShell;
 
 namespace CloudShell.Hosting.Shell;
 
@@ -17,80 +17,80 @@ public sealed class ObservabilityExtension : ICloudShellExtension
 
     public void Configure(ICloudShellExtensionBuilder builder)
     {
-        builder.AddCompositionModule(
-            ObservabilityCompositionIds.Module,
-            composition =>
+        builder.AddCoreShellModule(
+            ObservabilityShellIds.Module,
+            module =>
             {
-                composition.AddPage(
-                    ObservabilityCompositionIds.OverviewPage,
+                module.AddPage(
+                    ObservabilityShellIds.OverviewPage,
                     "Observability",
                     "/observability",
-                    authorization: CompositionAuthorizationRequirements.FromAnyPermissions(ObservabilityAuthorization.AnyReadPermissions));
-                composition.AddPage(
-                    ObservabilityCompositionIds.LogsPage,
+                    authorization: CoreShellAuthorizationRequirements.FromAnyPermissions(ObservabilityAuthorization.AnyReadPermissions));
+                module.AddPage(
+                    ObservabilityShellIds.LogsPage,
                     "Logs",
                     "/logs",
-                    authorization: CompositionAuthorizationRequirements.FromAnyPermissions(ObservabilityAuthorization.LogsReadPermissions));
-                composition.AddPage(
-                    ObservabilityCompositionIds.DependenciesPage,
+                    authorization: CoreShellAuthorizationRequirements.FromAnyPermissions(ObservabilityAuthorization.LogsReadPermissions));
+                module.AddPage(
+                    ObservabilityShellIds.DependenciesPage,
                     "Dependencies",
                     "/observability/dependencies",
-                    authorization: CompositionAuthorizationRequirements.FromAnyPermissions(ObservabilityAuthorization.TracesReadPermissions));
-                composition.AddPage(
-                    ObservabilityCompositionIds.ServiceMapPage,
+                    authorization: CoreShellAuthorizationRequirements.FromAnyPermissions(ObservabilityAuthorization.TracesReadPermissions));
+                module.AddPage(
+                    ObservabilityShellIds.ServiceMapPage,
                     "Service map",
                     "/observability/service-map",
-                    authorization: CompositionAuthorizationRequirements.FromAnyPermissions(ObservabilityAuthorization.TracesReadPermissions));
-                composition.AddPage(
-                    ObservabilityCompositionIds.TracesPage,
+                    authorization: CoreShellAuthorizationRequirements.FromAnyPermissions(ObservabilityAuthorization.TracesReadPermissions));
+                module.AddPage(
+                    ObservabilityShellIds.TracesPage,
                     "Traces",
                     "/observability/traces",
-                    authorization: CompositionAuthorizationRequirements.FromAnyPermissions(ObservabilityAuthorization.TracesReadPermissions));
-                composition.AddPage(
-                    ObservabilityCompositionIds.MetricsPage,
+                    authorization: CoreShellAuthorizationRequirements.FromAnyPermissions(ObservabilityAuthorization.TracesReadPermissions));
+                module.AddPage(
+                    ObservabilityShellIds.MetricsPage,
                     "Metrics",
                     "/observability/metrics",
-                    authorization: CompositionAuthorizationRequirements.FromAnyPermissions(ObservabilityAuthorization.MetricsReadPermissions));
+                    authorization: CoreShellAuthorizationRequirements.FromAnyPermissions(ObservabilityAuthorization.MetricsReadPermissions));
 
-                var workspaceMenu = composition
-                    .GetMenu(ShellCompositionIds.MainMenu)
-                    .AddGroup(ShellCompositionIds.WorkspaceMenuGroup, "Workspace", 10);
+                var workspaceMenu = module
+                    .AddMenu(ShellIds.MainMenu, "Main")
+                    .AddGroup(ShellIds.WorkspaceMenuGroup, "Workspace", 10);
 
                 workspaceMenu
-                    .AddItem(ObservabilityCompositionIds.OverviewMenuItem, "Observability", 20)
-                    .WithAttribute(CompositionAttributeNames.Icon, "pulse")
+                    .AddItem(ObservabilityShellIds.OverviewMenuItem, "Observability", 20)
+                    .WithAttribute(CoreShellAttributeNames.Icon, "pulse")
                     .RequiresPermissions(ObservabilityAuthorization.AnyReadPermissions)
-                    .Target(ObservabilityCompositionIds.OverviewPage);
+                    .Target(ObservabilityShellIds.OverviewPage);
                 workspaceMenu
-                    .AddItem(ObservabilityCompositionIds.LogsMenuItem, "Logs", 21)
-                    .WithAttribute(CompositionAttributeNames.Icon, "document")
-                    .WithParent(ObservabilityCompositionIds.OverviewMenuItem)
+                    .AddItem(ObservabilityShellIds.LogsMenuItem, "Logs", 21)
+                    .WithAttribute(CoreShellAttributeNames.Icon, "document")
+                    .WithParent(ObservabilityShellIds.OverviewMenuItem)
                     .RequiresPermissions(ObservabilityAuthorization.LogsReadPermissions)
-                    .Target(ObservabilityCompositionIds.LogsPage);
+                    .Target(ObservabilityShellIds.LogsPage);
                 workspaceMenu
-                    .AddItem(ObservabilityCompositionIds.DependenciesMenuItem, "Dependencies", 22)
-                    .WithAttribute(CompositionAttributeNames.Icon, "dependencies")
-                    .WithParent(ObservabilityCompositionIds.OverviewMenuItem)
+                    .AddItem(ObservabilityShellIds.DependenciesMenuItem, "Dependencies", 22)
+                    .WithAttribute(CoreShellAttributeNames.Icon, "dependencies")
+                    .WithParent(ObservabilityShellIds.OverviewMenuItem)
                     .RequiresPermissions(ObservabilityAuthorization.TracesReadPermissions)
-                    .Target(ObservabilityCompositionIds.DependenciesPage);
+                    .Target(ObservabilityShellIds.DependenciesPage);
                 workspaceMenu
-                    .AddItem(ObservabilityCompositionIds.ServiceMapMenuItem, "Service map", 23)
-                    .WithAttribute(CompositionAttributeNames.Icon, "service-map")
-                    .WithParent(ObservabilityCompositionIds.OverviewMenuItem)
+                    .AddItem(ObservabilityShellIds.ServiceMapMenuItem, "Service map", 23)
+                    .WithAttribute(CoreShellAttributeNames.Icon, "service-map")
+                    .WithParent(ObservabilityShellIds.OverviewMenuItem)
                     .RequiresPermissions(ObservabilityAuthorization.TracesReadPermissions)
-                    .Target(ObservabilityCompositionIds.ServiceMapPage);
+                    .Target(ObservabilityShellIds.ServiceMapPage);
                 workspaceMenu
-                    .AddItem(ObservabilityCompositionIds.TracesMenuItem, "Traces", 24)
-                    .WithAttribute(CompositionAttributeNames.Icon, "traces")
-                    .WithParent(ObservabilityCompositionIds.OverviewMenuItem)
+                    .AddItem(ObservabilityShellIds.TracesMenuItem, "Traces", 24)
+                    .WithAttribute(CoreShellAttributeNames.Icon, "traces")
+                    .WithParent(ObservabilityShellIds.OverviewMenuItem)
                     .RequiresPermissions(ObservabilityAuthorization.TracesReadPermissions)
-                    .Target(ObservabilityCompositionIds.TracesPage);
+                    .Target(ObservabilityShellIds.TracesPage);
                 workspaceMenu
-                    .AddItem(ObservabilityCompositionIds.MetricsMenuItem, "Metrics", 25)
-                    .WithAttribute(CompositionAttributeNames.Icon, "metrics")
-                    .WithParent(ObservabilityCompositionIds.OverviewMenuItem)
+                    .AddItem(ObservabilityShellIds.MetricsMenuItem, "Metrics", 25)
+                    .WithAttribute(CoreShellAttributeNames.Icon, "metrics")
+                    .WithParent(ObservabilityShellIds.OverviewMenuItem)
                     .RequiresPermissions(ObservabilityAuthorization.MetricsReadPermissions)
-                    .Target(ObservabilityCompositionIds.MetricsPage);
+                    .Target(ObservabilityShellIds.MetricsPage);
             });
 
         builder

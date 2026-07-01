@@ -57,6 +57,10 @@ public readonly record struct CoreShellSectionOutletId(string Value)
     public override string ToString() => Value;
 }
 
+public readonly record struct CoreShellSectionOutletExtensionPoint(
+    CoreShellPageId PageId,
+    CoreShellSectionOutletId OutletId);
+
 public readonly record struct CoreShellSectionId(string Value)
 {
     public static CoreShellSectionId Create(CoreShellPageId parent, string identifier) =>

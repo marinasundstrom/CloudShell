@@ -8,6 +8,7 @@ using CloudShell.Hosting.Localization;
 using CloudShell.Hosting.Observability;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
+using CoreShell;
 using CoreShell.Composition;
 using CoreShell.Composition.Blazor;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -82,7 +83,13 @@ public static class CloudShellHostApplicationBuilderExtensions
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
         builder.Services.AddCloudShellUiComposition();
-        builder.Services.TryAddSingleton<ShellCompositionHostContext>();
+        builder.Services.TryAddSingleton<ShellHostContext>();
+        builder.Services.TryAddSingleton<ICoreShellContentResolver, BlazorCoreShellContentResolver>();
+        builder.Services.TryAddSingleton<CoreShellCompositionModuleFactory>();
+        builder.Services.AddSingleton<CompositionModule>(serviceProvider =>
+            serviceProvider
+                .GetRequiredService<CoreShellCompositionModuleFactory>()
+                .CreateModule(serviceProvider.GetServices<CoreShellModule>()));
 
         ConfigureLocalization(builder);
 

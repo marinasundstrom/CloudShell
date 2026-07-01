@@ -23,6 +23,10 @@ on `git blame --follow`, and then by the broad type of change.
   `CoreShell.Composition` now owns the lower-level composition graph, and
   CoreShell projects into it without depending on Blazor, Fluent UI,
   CloudShell Hosting, or CloudShell-specific extension points.
+- CloudShell shell extensions now register CoreShell modules for shell pages,
+  menus, and settings sections. Hosting projects those modules into the
+  Composition UI graph internally, keeping shell-facing extension APIs on the
+  CoreShell abstraction instead of exposing Composition builders.
 - Documented the broader platform vision for CoreShell, ecosystem-neutral host
   bootstrapping and resource-graph authoring, and future clustered or
   multi-Control Plane hosting topologies.

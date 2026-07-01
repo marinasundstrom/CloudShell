@@ -43,6 +43,15 @@ public sealed class CoreShellModuleBuilder
         return menu;
     }
 
+    public CoreShellSectionOutletBuilder Extend(
+        CoreShellSectionOutletExtensionPoint outlet) =>
+        ExtendSections(outlet.PageId, outlet.OutletId);
+
+    public CoreShellSectionOutletBuilder ExtendSections(
+        CoreShellPageId pageId,
+        CoreShellSectionOutletId outletId) =>
+        new(this, pageId, outletId);
+
     internal void AddSectionOutlet(CoreShellSectionOutletContribution outlet) =>
         _sectionOutlets.Add(outlet);
 
@@ -206,6 +215,12 @@ public sealed class CoreShellMenuItemBuilder(
     }
 
     public CoreShellMenuItemBuilder RequiresPermissions(params string[] permissions)
+    {
+        _authorization = CoreShellAuthorizationRequirements.FromAnyPermissions(permissions);
+        return this;
+    }
+
+    public CoreShellMenuItemBuilder RequiresPermissions(IReadOnlyList<string>? permissions)
     {
         _authorization = CoreShellAuthorizationRequirements.FromAnyPermissions(permissions);
         return this;

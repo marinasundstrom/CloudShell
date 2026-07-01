@@ -2,7 +2,7 @@ using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Hosting.Components.Pages.Resources;
 using CloudShell.Hosting.Shell;
-using CoreShell.Composition;
+using CoreShell;
 
 namespace CloudShell.Hosting.ResourceManager;
 
@@ -11,7 +11,7 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
     private static readonly IReadOnlyDictionary<string, string> ResourceManagementSettingsGroup =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            [CompositionAttributeNames.Group] = "Resource Management"
+            [CoreShellAttributeNames.Group] = "Resource Management"
         };
 
     public ResourceManagerExtension()
@@ -29,63 +29,63 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
 
     public void Configure(ICloudShellExtensionBuilder builder)
     {
-        builder.AddCompositionModule(
-            ResourceManagerCompositionIds.Module,
-            composition =>
+        builder.AddCoreShellModule(
+            ResourceManagerShellIds.Module,
+            module =>
             {
-                composition.AddPage(
-                    ResourceManagerCompositionIds.ResourcesPage,
+                module.AddPage(
+                    ResourceManagerShellIds.ResourcesPage,
                     "Resources",
                     ResourceManagerRoutes.Resources);
-                composition.AddPage(
-                    ResourceManagerCompositionIds.ResourceGraphPage,
+                module.AddPage(
+                    ResourceManagerShellIds.ResourceGraphPage,
                     "Resource graph",
                     ResourceManagerRoutes.ResourceGraph);
-                composition.AddPage(
-                    ResourceManagerCompositionIds.EnvironmentPage,
+                module.AddPage(
+                    ResourceManagerShellIds.EnvironmentPage,
                     "Environment",
                     ResourceManagerRoutes.Environment);
-                composition.AddPage(
-                    ResourceManagerCompositionIds.ResourceDetailsPage,
+                module.AddPage(
+                    ResourceManagerShellIds.ResourceDetailsPage,
                     "Resource details",
                     "/resources/{resourceId}/{view?}");
-                composition.AddPage(
-                    ResourceManagerCompositionIds.HealthPage,
+                module.AddPage(
+                    ResourceManagerShellIds.HealthPage,
                     "Health",
                     "/health");
-                composition.AddPage(
-                    ResourceManagerCompositionIds.AddResourcePage,
+                module.AddPage(
+                    ResourceManagerShellIds.AddResourcePage,
                     "Add resource",
                     ResourceManagerRoutes.AddResource);
-                composition.AddPage(
-                    ResourceManagerCompositionIds.CreateResourceGroupPage,
+                module.AddPage(
+                    ResourceManagerShellIds.CreateResourceGroupPage,
                     "Create resource group",
                     ResourceManagerRoutes.CreateResourceGroup);
-                composition.AddPage(
-                    ResourceManagerCompositionIds.ResourceTemplatesPage,
+                module.AddPage(
+                    ResourceManagerShellIds.ResourceTemplatesPage,
                     "Resource templates",
                     ResourceManagerRoutes.ResourceTemplates);
-                composition.AddPage(
-                    ResourceManagerCompositionIds.ResourceSettingsPage,
+                module.AddPage(
+                    ResourceManagerShellIds.ResourceSettingsPage,
                     "Resource Manager settings",
                     ResourceManagerRoutes.ResourceSettings);
 
-                var workspaceMenu = composition
-                    .GetMenu(ShellCompositionIds.MainMenu)
-                    .AddGroup(ShellCompositionIds.WorkspaceMenuGroup, "Workspace", 10);
+                var workspaceMenu = module
+                    .AddMenu(ShellIds.MainMenu, "Main")
+                    .AddGroup(ShellIds.WorkspaceMenuGroup, "Workspace", 10);
 
                 workspaceMenu
-                    .AddItem(ResourceManagerCompositionIds.ResourcesMenuItem, "Resources", 10)
-                    .WithAttribute(CompositionAttributeNames.Icon, "server")
-                    .Target(ResourceManagerCompositionIds.ResourcesPage);
+                    .AddItem(ResourceManagerShellIds.ResourcesMenuItem, "Resources", 10)
+                    .WithAttribute(CoreShellAttributeNames.Icon, "server")
+                    .Target(ResourceManagerShellIds.ResourcesPage);
                 workspaceMenu
-                    .AddItem(ResourceManagerCompositionIds.EnvironmentMenuItem, "Environment", 15)
-                    .WithAttribute(CompositionAttributeNames.Icon, "environment")
-                    .Target(ResourceManagerCompositionIds.EnvironmentPage);
+                    .AddItem(ResourceManagerShellIds.EnvironmentMenuItem, "Environment", 15)
+                    .WithAttribute(CoreShellAttributeNames.Icon, "environment")
+                    .Target(ResourceManagerShellIds.EnvironmentPage);
                 workspaceMenu
-                    .AddItem(ResourceManagerCompositionIds.HealthMenuItem, "Health", 20)
-                    .WithAttribute(CompositionAttributeNames.Icon, "health")
-                    .Target(ResourceManagerCompositionIds.HealthPage);
+                    .AddItem(ResourceManagerShellIds.HealthMenuItem, "Health", 20)
+                    .WithAttribute(CoreShellAttributeNames.Icon, "health")
+                    .Target(ResourceManagerShellIds.HealthPage);
             });
 
         builder
@@ -187,19 +187,19 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
 
         if (includeSettings)
         {
-            builder.AddCompositionModule<ShellCompositionHostContext>(
-                ResourceManagerCompositionIds.SettingsModule,
-                (context, composition) =>
+            builder.AddCoreShellModule<ShellHostContext>(
+                ResourceManagerShellIds.SettingsModule,
+                (context, module) =>
                 {
-                    composition
+                    module
                         .Extend(context.Settings.MainSections)
                         .AddSection<ResourceManagerSettingsGeneralSection>(
-                            ResourceManagerCompositionIds.SettingsGeneralSection,
+                            ResourceManagerShellIds.SettingsGeneralSection,
                             "General",
                             30,
                             ResourceManagementSettingsGroup)
                         .AddSection<ResourceManagerSettingsOrchestrationSection>(
-                            ResourceManagerCompositionIds.SettingsOrchestrationSection,
+                            ResourceManagerShellIds.SettingsOrchestrationSection,
                             "Orchestration",
                             40,
                             ResourceManagementSettingsGroup);

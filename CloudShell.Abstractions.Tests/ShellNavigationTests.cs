@@ -5,6 +5,7 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Shell;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
+using CoreShell;
 using CoreShell.Composition;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
@@ -122,16 +123,7 @@ public sealed class ShellNavigationTests
     [Fact]
     public void CoreShellExtension_RegistersMainMenuItemsAsCompositionMenu()
     {
-        var services = new ServiceCollection();
-        services
-            .AddCloudShellUi()
-            .AddExtension<CoreShellExtension>();
-        var module = services
-            .Where(descriptor => descriptor.ServiceType == typeof(CompositionModule))
-            .Select(descriptor => descriptor.ImplementationInstance)
-            .OfType<CompositionModule>()
-            .Single(module => module.Id == ShellCompositionIds.CoreModule);
-        var registry = CompositionRegistry.FromModules(module);
+        var registry = CreateProjectedCompositionRegistry(new CoreShellExtension());
 
         var menu = registry.GetMenu(ShellCompositionIds.MainMenu);
         Assert.NotNull(menu);
@@ -149,15 +141,9 @@ public sealed class ShellNavigationTests
     [Fact]
     public void CoreShellExtension_ResolvesSettingsPageAndNestedSectionRoutes()
     {
-        var services = new ServiceCollection();
-        services.TryAddSingleton<ShellCompositionHostContext>();
-        services
-            .AddCloudShellUi()
-            .AddExtension<CoreShellExtension>()
-            .AddExtension(new ResourceManagerExtension());
-
-        using var serviceProvider = services.BuildServiceProvider();
-        var registry = CompositionRegistry.FromModules(serviceProvider.GetServices<CompositionModule>());
+        var registry = CreateProjectedCompositionRegistry(
+            new CoreShellExtension(),
+            new ResourceManagerExtension());
 
         Assert.Equal("/settings", registry.ResolveHref(ShellCompositionIds.SettingsPage));
         Assert.Equal(
@@ -209,6 +195,7 @@ public sealed class ShellNavigationTests
     public void MainMenu_CanCombineProjectedLegacyItemsAndNativeCompositionItems()
     {
         var services = new ServiceCollection();
+        ConfigureCoreShellProjection(services);
         services
             .AddCloudShellUi()
             .AddExtension<CoreShellExtension>()
@@ -219,10 +206,9 @@ public sealed class ShellNavigationTests
         registry.Validate();
         var shellCatalog = new ShellCatalog(registry, new InMemoryCloudShellExtensionActivationStore());
         var navigationModule = new ShellNavigationCompositionProjector(shellCatalog).CreateModule();
-        var compositionModules = services
-            .Where(descriptor => descriptor.ServiceType == typeof(CompositionModule))
-            .Select(descriptor => descriptor.ImplementationInstance)
-            .OfType<CompositionModule>()
+        using var serviceProvider = services.BuildServiceProvider();
+        var compositionModules = serviceProvider
+            .GetServices<CompositionModule>()
             .Append(navigationModule)
             .ToArray();
         var composition = CompositionRegistry.FromModules(compositionModules);
@@ -240,16 +226,7 @@ public sealed class ShellNavigationTests
     [Fact]
     public void ObservabilityExtension_RegistersMainMenuItemsAsCompositionMenu()
     {
-        var services = new ServiceCollection();
-        services
-            .AddCloudShellUi()
-            .AddExtension<ObservabilityExtension>();
-        var module = services
-            .Where(descriptor => descriptor.ServiceType == typeof(CompositionModule))
-            .Select(descriptor => descriptor.ImplementationInstance)
-            .OfType<CompositionModule>()
-            .Single(module => module.Id == ObservabilityCompositionIds.Module);
-        var registry = CompositionRegistry.FromModules(module);
+        var registry = CreateProjectedCompositionRegistry(new ObservabilityExtension());
 
         Assert.Equal("/observability", registry.ResolveHref(ObservabilityCompositionIds.OverviewPage));
         Assert.Equal("/logs", registry.ResolveHref(ObservabilityCompositionIds.LogsPage));
@@ -328,17 +305,8 @@ public sealed class ShellNavigationTests
     [Fact]
     public void ResourceManagerExtension_RegistersStaticShellPagesAsCompositionPages()
     {
-        var services = new ServiceCollection();
-        services
-            .AddCloudShellUi()
-            .AddExtension(new ResourceManagerExtension(includeSettings: false));
-
-        var module = services
-            .Where(descriptor => descriptor.ServiceType == typeof(CompositionModule))
-            .Select(descriptor => descriptor.ImplementationInstance)
-            .OfType<CompositionModule>()
-            .Single(module => module.Id == ResourceManagerCompositionIds.Module);
-        var registry = CompositionRegistry.FromModules(module);
+        var registry = CreateProjectedCompositionRegistry(
+            new ResourceManagerExtension(includeSettings: false));
 
         Assert.Equal(
             ResourceManagerRoutes.Resources,
@@ -408,6 +376,33 @@ public sealed class ShellNavigationTests
         registry.Validate();
 
         return new ShellCatalog(registry, new InMemoryCloudShellExtensionActivationStore());
+    }
+
+    private static CompositionRegistry CreateProjectedCompositionRegistry(
+        params ICloudShellExtension[] extensions)
+    {
+        var services = new ServiceCollection();
+        ConfigureCoreShellProjection(services);
+
+        var builder = services.AddCloudShellUi();
+        foreach (var extension in extensions)
+        {
+            builder.AddExtension(extension);
+        }
+
+        using var serviceProvider = services.BuildServiceProvider();
+        return CompositionRegistry.FromModules(serviceProvider.GetServices<CompositionModule>());
+    }
+
+    private static void ConfigureCoreShellProjection(IServiceCollection services)
+    {
+        services.TryAddSingleton<ShellHostContext>();
+        services.TryAddSingleton<ICoreShellContentResolver, BlazorCoreShellContentResolver>();
+        services.TryAddSingleton<CoreShellCompositionModuleFactory>();
+        services.AddSingleton<CompositionModule>(serviceProvider =>
+            serviceProvider
+                .GetRequiredService<CoreShellCompositionModuleFactory>()
+                .CreateModule(serviceProvider.GetServices<CoreShellModule>()));
     }
 
     private sealed class ParameterizedViewExtension : ICloudShellExtension

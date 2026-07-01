@@ -21,6 +21,7 @@ public sealed class HostVirtualNetworkEndpointMappingReconcilerTests
             IVirtualNetworkEndpointMappingReconciler,
             ResourceModelGraphEndpointMappingReconciler>();
         services.AddInMemoryResourceModelGraph();
+        services.AddNetworkResourceType();
         services.AddLocalHostNetworkResourceType();
         services.AddVirtualNetworkResourceType();
         services.AddAspNetCoreProjectResourceType();

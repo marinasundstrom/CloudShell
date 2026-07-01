@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\CloudShell.Hosting\CloudShell.Hosting.csproj" />
+    <ProjectReference Include="..\..\CoreShell\CoreShell.csproj" />
     <ProjectReference Include="..\..\CoreShell.Composition.Blazor\CoreShell.Composition.Blazor.csproj" />
     <ProjectReference Include="..\..\CoreShell.Composition\CoreShell.Composition.csproj" />
   </ItemGroup>
