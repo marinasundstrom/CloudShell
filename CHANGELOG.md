@@ -52,6 +52,12 @@ on `git blame --follow`, and then by the broad type of change.
   tolerate duplicate projected resource IDs, such as declared and projected
   Host network resources, instead of throwing duplicate-key exceptions while
   building UI lookups.
+- Environment Map now connects real Host network resources to local endpoint
+  bindings and uses that Host network as the Internet carrier when network
+  topology is enabled.
+- The Resources list now hides implicit default resources by default and uses
+  an Implicit resources toggle to show default Host network and default
+  container host rows when needed.
 
 ### 2026-06-30
 

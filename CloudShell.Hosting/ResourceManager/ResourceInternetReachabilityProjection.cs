@@ -40,6 +40,15 @@ internal static class ResourceInternetReachabilityProjection
             }
         }
 
+        if (includeImplicitHostNetwork &&
+            !result.ContainsKey(HostNetworkResourceId) &&
+            distinctResources.Any(resource =>
+                !string.Equals(resource.Id, HostNetworkResourceId, StringComparison.OrdinalIgnoreCase) &&
+                HasHostNetworkBinding(resource)))
+        {
+            result[HostNetworkResourceId] = Inferred;
+        }
+
         foreach (var network in distinctResources.Where(resource => result.ContainsKey(resource.Id)))
         {
             foreach (var mapping in network.ResourceEndpointMappings)

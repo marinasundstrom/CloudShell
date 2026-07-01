@@ -425,6 +425,13 @@ h3 {
     white-space: nowrap;
 }
 
+.inventory-options {
+    display: flex;
+    align-items: center;
+    gap: .9rem;
+    flex: 0 0 auto;
+}
+
 .resource-list-header,
 .resource-tree-row {
     display: grid;

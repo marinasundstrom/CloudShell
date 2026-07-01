@@ -302,6 +302,43 @@ public sealed class EnvironmentRuntimeMapProjectionTests
     }
 
     [Fact]
+    public void Create_ConnectsExistingHostNetworkResourceToLocalHostEndpointBindings()
+    {
+        var api = CreateLocalHostHttpResource();
+        var hostNetwork = CreateHostNetworkResource();
+
+        var map = EnvironmentRuntimeMapProjection.Create(
+            [api, hostNetwork],
+            [],
+            [],
+            new EnvironmentRuntimeMapProjectionOptions
+            {
+                IncludeNetworkTopologyOverlay = true,
+                CreateResourceDetailUrl = resource => $"/resources/{resource.Id}",
+                GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown"
+            });
+
+        var apiNode = Assert.Single(map.Nodes, node => node.ResourceId == api.Id);
+        var hostNetworkNode = Assert.Single(map.Nodes, node =>
+            node.ResourceId == "network:host" &&
+            node.Label == "Host Network");
+        var internetNode = Assert.Single(map.Nodes, node =>
+            node.ArtifactKind == EnvironmentRuntimeArtifactKinds.InternetConnection);
+
+        Assert.Equal("inferred", hostNetworkNode.InternetReachability);
+        Assert.Contains(map.Links, link =>
+            link.Source == hostNetworkNode.Id &&
+            link.Target == apiNode.Id &&
+            link.Label == "connects" &&
+            link.Kind == "topology");
+        Assert.Contains(map.Links, link =>
+            link.Source == internetNode.Id &&
+            link.Target == hostNetworkNode.Id &&
+            link.Label == "reaches" &&
+            link.Kind == "topology");
+    }
+
+    [Fact]
     public void Create_HidesEndpointTextWhenNetworkTopologyOverlayIsDisabled()
     {
         var api = CreateLocalHostHttpResource();
@@ -513,6 +550,22 @@ public sealed class EnvironmentRuntimeMapProjectionTests
                     networkResourceId: "network:host")
             ],
             DisplayName: "API");
+
+    private static Resource CreateHostNetworkResource() =>
+        new(
+            "network:host",
+            "host-network",
+            "cloudshell.network",
+            "test",
+            "local",
+            ResourceState.Running,
+            [],
+            "host default",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: "cloudshell.network",
+            ResourceClass: ResourceClass.Network,
+            DisplayName: "Host Network");
 
     private static Resource CreatePrivateNetworkHttpResource() =>
         new(

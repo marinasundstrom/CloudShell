@@ -968,11 +968,6 @@ public static class EnvironmentRuntimeMapProjection
             IReadOnlyDictionary<string, string> resourceNodeIds,
             ref int networkTopologyNodeCount)
         {
-            if (resourceNodeIds.ContainsKey(ResourceInternetReachabilityProjection.HostNetworkResourceId))
-            {
-                return;
-            }
-
             var connectedResourceIds = ResourceInternetReachabilityProjection.GetHostNetworkConnectedResourceIds(resources)
                 .Where(resourceNodeIds.ContainsKey)
                 .ToArray();
@@ -982,24 +977,37 @@ public static class EnvironmentRuntimeMapProjection
             }
 
             var hostNetworkNodeId = CreateNodeId("resource", ResourceInternetReachabilityProjection.HostNetworkResourceId);
-            nodes[hostNetworkNodeId] = new EnvironmentRuntimeMapNode(
-                hostNetworkNodeId,
-                Text("Host network"),
-                "cloudshell.network",
-                "network",
-                ResourceClass.Network.ToString(),
-                "topology",
-                Text("Implicit host network for local development"),
-                Text("Inferred"),
-                "state-running",
-                null,
-                EnvironmentRuntimeArtifactKinds.Resource,
-                ResourceInternetReachabilityProjection.HostNetworkResourceId,
-                null,
-                null,
-                null,
-                ResourceInternetReachabilityProjection.Inferred);
-            networkTopologyNodeCount++;
+            if (nodes.TryGetValue(hostNetworkNodeId, out var hostNetworkNode))
+            {
+                if (string.IsNullOrWhiteSpace(hostNetworkNode.InternetReachability))
+                {
+                    nodes[hostNetworkNodeId] = hostNetworkNode with
+                    {
+                        InternetReachability = ResourceInternetReachabilityProjection.Inferred
+                    };
+                }
+            }
+            else
+            {
+                nodes[hostNetworkNodeId] = new EnvironmentRuntimeMapNode(
+                    hostNetworkNodeId,
+                    Text("Host network"),
+                    "cloudshell.network",
+                    "network",
+                    ResourceClass.Network.ToString(),
+                    "topology",
+                    Text("Implicit host network for local development"),
+                    Text("Inferred"),
+                    "state-running",
+                    null,
+                    EnvironmentRuntimeArtifactKinds.Resource,
+                    ResourceInternetReachabilityProjection.HostNetworkResourceId,
+                    null,
+                    null,
+                    null,
+                    ResourceInternetReachabilityProjection.Inferred);
+                networkTopologyNodeCount++;
+            }
 
             foreach (var resourceId in connectedResourceIds)
             {
