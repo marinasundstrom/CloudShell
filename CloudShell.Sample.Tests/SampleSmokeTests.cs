@@ -2225,7 +2225,6 @@ public sealed class SampleSmokeTests
 
         Assert.Contains("dependsOn:", yaml);
         Assert.Contains("resourceId: cloudshell.container-host:default", yaml);
-        Assert.Contains("attributes:", yaml);
         Assert.Contains("container:", yaml);
         Assert.Contains("image: cloudshell-signalr-api:20260630.1", yaml);
         Assert.Contains("logs:", yaml);
@@ -2234,6 +2233,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("checks:", yaml);
         Assert.Contains("network:", yaml);
         Assert.Contains("resourceId: network:host", yaml);
+        Assert.DoesNotContain("attributes:", yaml);
         Assert.DoesNotContain("container.image:", yaml);
         Assert.DoesNotContain("logs.sources:", yaml);
         Assert.DoesNotContain("health.checks:", yaml);

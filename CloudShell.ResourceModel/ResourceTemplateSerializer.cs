@@ -14,6 +14,24 @@ public static class ResourceTemplateSerializer
 {
     private const string DefaultTemplateName = "local";
 
+    private static readonly HashSet<string> ResourceDefinitionProperties = new(
+        [
+            "name",
+            "type",
+            "typeId",
+            "resourceId",
+            "providerId",
+            "displayName",
+            "version",
+            "dependsOn",
+            "attributes",
+            "configuration",
+            "capabilities",
+            "operations",
+            "metadata"
+        ],
+        StringComparer.OrdinalIgnoreCase);
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -78,7 +96,9 @@ public static class ResourceTemplateSerializer
 
         return format switch
         {
-            ResourceTemplateFormat.Json => JsonSerializer.Serialize(template, JsonOptions),
+            ResourceTemplateFormat.Json => SerializeJson(
+                template,
+                new ResourceTemplateSerializationContext(IsTemplateRoot: true)),
             ResourceTemplateFormat.Yaml => SerializeYaml(
                 template,
                 new ResourceTemplateSerializationContext(IsTemplateRoot: true)),
@@ -94,7 +114,9 @@ public static class ResourceTemplateSerializer
 
         return format switch
         {
-            ResourceTemplateFormat.Json => JsonSerializer.Serialize(definition, JsonOptions),
+            ResourceTemplateFormat.Json => SerializeJson(
+                definition,
+                new ResourceTemplateSerializationContext(IsResourceDefinition: true)),
             ResourceTemplateFormat.Yaml => SerializeYaml(
                 definition,
                 new ResourceTemplateSerializationContext(IsResourceDefinition: true)),
@@ -138,6 +160,15 @@ public static class ResourceTemplateSerializer
         return YamlSerializer.Serialize(yamlObject);
     }
 
+    private static string SerializeJson<TValue>(
+        TValue value,
+        ResourceTemplateSerializationContext context)
+    {
+        var json = JsonSerializer.SerializeToElement(value, JsonOptions);
+        var documentObject = ConvertJsonElement(json, context);
+        return JsonSerializer.Serialize(documentObject, JsonOptions);
+    }
+
     private static object? NormalizeYamlObject(
         object? value,
         ResourceTemplateSerializationContext context) =>
@@ -161,6 +192,7 @@ public static class ResourceTemplateSerializer
         ResourceTemplateSerializationContext context)
     {
         var normalized = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        var hoistedAttributes = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
         var hasTypeId = map.Keys.Any(key => IsKey(key, "typeId"));
 
         foreach (var (rawKey, rawValue) in map)
@@ -170,6 +202,13 @@ public static class ResourceTemplateSerializer
                 string.Equals(key, "type", StringComparison.OrdinalIgnoreCase) &&
                 hasTypeId)
             {
+                continue;
+            }
+
+            if (context.IsResourceDefinition &&
+                !IsResourceDefinitionProperty(key))
+            {
+                hoistedAttributes[key] = NormalizeYamlObject(rawValue, default);
                 continue;
             }
 
@@ -186,6 +225,8 @@ public static class ResourceTemplateSerializer
                     : default;
             normalized[normalizedKey] = NormalizeYamlObject(rawValue, childContext);
         }
+
+        MergeHoistedAttributes(normalized, hoistedAttributes);
 
         if (context.IsTemplateRoot &&
             normalized.ContainsKey("resources") &&
@@ -229,6 +270,7 @@ public static class ResourceTemplateSerializer
         ResourceTemplateSerializationContext context)
     {
         var normalized = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        var hoistedAttributes = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
         var hasTypeId = value.EnumerateObject().Any(property =>
             string.Equals(property.Name, "typeId", StringComparison.OrdinalIgnoreCase));
 
@@ -238,6 +280,13 @@ public static class ResourceTemplateSerializer
                 string.Equals(property.Name, "type", StringComparison.OrdinalIgnoreCase) &&
                 hasTypeId)
             {
+                continue;
+            }
+
+            if (context.IsResourceDefinition &&
+                !IsResourceDefinitionProperty(property.Name))
+            {
+                hoistedAttributes[property.Name] = NormalizeJsonElement(property.Value, default);
                 continue;
             }
 
@@ -254,6 +303,8 @@ public static class ResourceTemplateSerializer
                         : default;
             normalized[normalizedKey] = NormalizeJsonElement(property.Value, childContext);
         }
+
+        MergeHoistedAttributes(normalized, hoistedAttributes);
 
         if (context.IsTemplateRoot &&
             normalized.ContainsKey("resources") &&
@@ -338,6 +389,21 @@ public static class ResourceTemplateSerializer
                 string.Equals(property.Name, "typeId", StringComparison.OrdinalIgnoreCase)
                     ? "type"
                     : property.Name;
+
+            if (context.IsResourceDefinition &&
+                string.Equals(property.Name, "attributes", StringComparison.OrdinalIgnoreCase))
+            {
+                var convertedAttributes = ConvertJsonElement(
+                    property.Value,
+                    new ResourceTemplateSerializationContext(IsAttributeMap: true));
+                if (convertedAttributes is Dictionary<string, object?> attributes)
+                {
+                    HoistAttributeProperties(normalized, attributes);
+                }
+
+                continue;
+            }
+
             var childContext = context.IsTemplateRoot &&
                 string.Equals(property.Name, "resources", StringComparison.OrdinalIgnoreCase)
                     ? new ResourceTemplateSerializationContext(ItemsAreResourceDefinitions: true)
@@ -352,6 +418,55 @@ public static class ResourceTemplateSerializer
         }
 
         return normalized;
+    }
+
+    private static bool IsResourceDefinitionProperty(string key) =>
+        ResourceDefinitionProperties.Contains(key);
+
+    private static void MergeHoistedAttributes(
+        Dictionary<string, object?> normalized,
+        Dictionary<string, object?> hoistedAttributes)
+    {
+        if (hoistedAttributes.Count == 0)
+        {
+            return;
+        }
+
+        if (!normalized.TryGetValue("attributes", out var existingAttributes) ||
+            existingAttributes is not Dictionary<string, object?> attributes)
+        {
+            attributes = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+            normalized["attributes"] = attributes;
+        }
+
+        foreach (var (key, value) in hoistedAttributes)
+        {
+            attributes[key] = value;
+        }
+    }
+
+    private static void HoistAttributeProperties(
+        Dictionary<string, object?> normalized,
+        Dictionary<string, object?> attributes)
+    {
+        Dictionary<string, object?>? wrappedAttributes = null;
+
+        foreach (var (key, value) in attributes)
+        {
+            if (IsResourceDefinitionProperty(key))
+            {
+                wrappedAttributes ??= new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+                wrappedAttributes[key] = value;
+                continue;
+            }
+
+            normalized[key] = value;
+        }
+
+        if (wrappedAttributes is { Count: > 0 })
+        {
+            normalized["attributes"] = wrappedAttributes;
+        }
     }
 
     private static bool TryConvertResourceReferenceObject(

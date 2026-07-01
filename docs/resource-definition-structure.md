@@ -110,9 +110,9 @@ The file-level shape should remain a desired-state envelope:
 resources:
   - type: application.container-app
     name: api
-    attributes:
-      container.image: api:latest
-      container.replicas: 3
+    container:
+      image: api:latest
+      replicas: 3
 ```
 
 This shape is called a **ResourceTemplate** because it contains resource
@@ -244,35 +244,39 @@ properties such as `effectiveResourceId`, `startupDependencies`,
 `capabilityPayloads`, or `operationPayloads`. Those names are local accessors
 over the canonical fields, not document fields.
 
-`attributes` is the resource-owned desired-state surface. If a capability
-defines the contract for some resource-owned value, the accepted value still
-lives under `attributes`. Resource-level `capabilities` and `operations`
-payload bags still exist in the current CLR model for legacy graph and
-provider paths, but they are not the preferred authoring location for
+Attributes are the resource-owned desired-state surface. In the canonical CLR
+model they live under `ResourceDefinition.Attributes`. In authored templates
+they are hoisted beside fixed resource fields by default so provider/resource
+configuration reads like the rest of the resource declaration. If a capability
+defines the contract for some resource-owned value, the accepted value is still
+an attribute in the Resource model. Resource-level `capabilities` and
+`operations` payload bags still exist in the current CLR model for legacy
+graph and provider paths, but they are not the preferred authoring location for
 resource-owned state.
 
 Attribute IDs use periods to express hierarchy. The in-memory model still
 resolves canonical IDs such as `container.image`, `logs.sources`, and
-`health.checks`, but YAML/JSON templates should project those IDs into nested
-objects so the document is easier to scan:
+`health.checks`, but YAML/JSON templates should project those IDs into hoisted
+nested objects so the document is easier to scan. The `attributes` wrapper and
+full dotted names remain valid input forms for compatibility and for rare
+fixed-field name collisions:
 
 ```yaml
-attributes:
-  container:
-    image: cloudshell-signalr-api:20260630.1
-    replicas: 3
-    endpointRequests:
-    - name: http
-      protocol: http
-      targetPort: 8080
-  logs:
-    sources:
-    - id: console
-      name: Console logs
-      kind: processOutput
-      format: jsonConsole
-      capabilities:
-      - read
+container:
+  image: cloudshell-signalr-api:20260630.1
+  replicas: 3
+  endpointRequests:
+  - name: http
+    protocol: http
+    targetPort: 8080
+logs:
+  sources:
+  - id: console
+    name: Console logs
+    kind: processOutput
+    format: jsonConsole
+    capabilities:
+    - read
       - stream
 ```
 
@@ -400,8 +404,10 @@ capability or provider boundary:
 }
 ```
 
-The compact top-level form is still a possible future authoring convenience,
-but the current interchange envelope keeps resource state under `attributes`:
+The canonical CLR/API envelope keeps resource state under `attributes`.
+Resource template files project those attributes into hoisted document groups
+for authoring, then flatten them back into this canonical shape before
+validation and apply:
 
 ```json
 {
@@ -505,25 +511,24 @@ Control Plane evaluates probes, stores observations, and decides
 health/liveness state.
 
 ```yaml
-attributes:
-  health:
-    checks:
-    - name: health
-      type: health
-      source:
-        kind: http
-        http:
-          path: /health
-          endpointName: http
-          timeoutMilliseconds: 1000
-      intervalSeconds: 10
-    - name: alive
-      type: liveness
-      source:
-        kind: http
-        http:
-          path: /alive
-          endpointName: http
+health:
+  checks:
+  - name: health
+    type: health
+    source:
+      kind: http
+      http:
+        path: /health
+        endpointName: http
+        timeoutMilliseconds: 1000
+    intervalSeconds: 10
+  - name: alive
+    type: liveness
+    source:
+      kind: http
+      http:
+        path: /alive
+        endpointName: http
 ```
 
 The derived `liveness` capability may appear on resolved or Resource Manager
@@ -538,13 +543,12 @@ The volume-consumer capability defines the attribute contract and validation
 behavior. Provider/runtime code decides how mounts are materialized.
 
 ```yaml
-attributes:
-  storage:
-    volumeConsumer:
-      mounts:
-      - volume: storage.volume:data
-        targetPath: /data
-        readOnly: false
+storage:
+  volumeConsumer:
+    mounts:
+    - volume: storage.volume:data
+      targetPath: /data
+      readOnly: false
 ```
 
 The volume reference is currently stored as a string in the volume-consumer
@@ -560,19 +564,18 @@ contract and validation behavior. Read and stream sessions remain Control
 Plane runtime concerns.
 
 ```yaml
-attributes:
-  logs:
-    sources:
-    - id: console
-      name: Console logs
-      kind: processOutput
-      format: plainText
-      capabilities:
-      - read
-      - stream
-      origin: providerDefault
-      purpose: default
-      availability: resourceRunning
+logs:
+  sources:
+  - id: console
+    name: Console logs
+    kind: processOutput
+    format: plainText
+    capabilities:
+    - read
+    - stream
+    origin: providerDefault
+    purpose: default
+    availability: resourceRunning
 ```
 
 ## Operations

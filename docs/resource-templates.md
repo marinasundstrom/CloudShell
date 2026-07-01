@@ -18,14 +18,14 @@ The preferred authoring format is YAML:
 resources:
   - type: application.container-app
     name: api
-    attributes:
-      container.image: api:latest
-      container.replicas: 3
+    container:
+      image: api:latest
+      replicas: 3
 ```
 
 YAML resource entries use the author-friendly `type` alias for
-`ResourceDefinition.TypeId`. The equivalent JSON projection keeps the
-contract property name:
+`ResourceDefinition.TypeId`. The equivalent JSON projection uses the same
+document shape:
 
 ```json
 {
@@ -33,10 +33,10 @@ contract property name:
   "resources": [
     {
       "name": "api",
-      "typeId": "application.container-app",
-      "attributes": {
-        "container.image": "api:latest",
-        "container.replicas": 3
+      "type": "application.container-app",
+      "container": {
+        "image": "api:latest",
+        "replicas": 3
       }
     }
   ]
@@ -56,9 +56,14 @@ must not appear in authored or exported templates.
 
 Attribute IDs use periods to describe logical hierarchy. Templates should
 project those IDs as nested attribute groups for readability, for example
-`container.image` as `attributes.container.image` and `logs.sources` as
-`attributes.logs.sources`. The serializer flattens the grouped document shape
-back to canonical IDs before validation and provider execution.
+`container.image` as `container.image` and `logs.sources` as
+`logs.sources` in the document tree. The serializer flattens the grouped
+document shape back to canonical IDs before validation and provider execution.
+The older `attributes` wrapper and full dotted names such as
+`container.replicas` remain valid input forms, but exported templates hoist
+attributes beside fixed resource fields by default. If an attribute group name
+collides with a fixed resource field such as `metadata` or `operations`, keep
+that attribute under the `attributes` wrapper.
 
 Resource-id references can use the compact `resourceId` form in templates. For
 example, `dependsOn: [{ resourceId: cloudshell.container-host:default }]`
@@ -91,8 +96,8 @@ definition:
 resources:
   - type: application.container-app
     name: api
-    attributes:
-      container.image: ghcr.io/example/api:20260629.1
+    container:
+      image: ghcr.io/example/api:20260629.1
 ```
 
 Changing the requested replica slots is the same resource-state operation:
@@ -101,8 +106,8 @@ Changing the requested replica slots is the same resource-state operation:
 resources:
   - type: application.container-app
     name: api
-    attributes:
-      container.replicas: 4
+    container:
+      replicas: 4
 ```
 
 The container app provider and Resource Manager deployment controller decide

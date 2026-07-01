@@ -12,10 +12,9 @@ resources:
   - type: application.container-app
     name: api
     displayName: API
-    attributes:
-      container:
-        image: api:latest
-        replicas: 3
+    container:
+      image: api:latest
+      replicas: 3
 metadata:
   source: test
 """;
@@ -46,26 +45,25 @@ metadata:
 resources:
   - type: application.container-app
     name: api
-    attributes:
-      logs:
-        sources:
-        - id: console
-          name: Console logs
-          kind: processOutput
-          format: jsonConsole
-          capabilities:
-          - read
-          - stream
-          description: Provider-captured process console output.
-          origin: providerDefault
-          purpose: default
-          availability: resourceRunning
-      container:
-        image: cloudshell-signalr-api:20260630.1
-        replicas: 3
-        routing:
-          sessionAffinity:
-            mode: Cookie
+    logs:
+      sources:
+      - id: console
+        name: Console logs
+        kind: processOutput
+        format: jsonConsole
+        capabilities:
+        - read
+        - stream
+        description: Provider-captured process console output.
+        origin: providerDefault
+        purpose: default
+        availability: resourceRunning
+    container:
+      image: cloudshell-signalr-api:20260630.1
+      replicas: 3
+      routing:
+        sessionAffinity:
+          mode: Cookie
 """;
 
         var template = ResourceTemplateSerializer.DeserializeTemplate(yaml);
@@ -80,6 +78,26 @@ resources:
         var logSource = Assert.Single(logSources!.Sources ?? []);
         Assert.Equal("console", logSource.Id);
         Assert.Equal(ResourceLogSourceDefinitionValues.JsonConsole, logSource.Format);
+    }
+
+    [Fact]
+    public void DeserializeTemplate_YamlStillSupportsAttributesWrapper()
+    {
+        const string yaml = """
+resources:
+  - type: application.container-app
+    name: api
+    attributes:
+      container:
+        image: api:latest
+      container.replicas: 3
+""";
+
+        var template = ResourceTemplateSerializer.DeserializeTemplate(yaml);
+
+        var resource = Assert.Single(template.Resources);
+        Assert.Equal("api:latest", resource.ResourceAttributes["container.image"]);
+        Assert.Equal("3", resource.ResourceAttributes["container.replicas"]);
     }
 
     [Fact]
@@ -106,6 +124,7 @@ resources:
         Assert.Contains("container:", yaml);
         Assert.Contains("image: api:latest", yaml);
         Assert.Contains("resourceId: application.database:db", yaml);
+        Assert.DoesNotContain("attributes:", yaml);
         Assert.DoesNotContain("container.image:", yaml);
         Assert.DoesNotContain("typeId: application.container-app", yaml);
         Assert.DoesNotContain("typeId: application.database", yaml);
@@ -179,6 +198,7 @@ resources:
         Assert.Contains("logs:", yaml);
         Assert.Contains("sources:", yaml);
         Assert.Contains("format: jsonConsole", yaml);
+        Assert.DoesNotContain("attributes:", yaml);
         Assert.DoesNotContain("container.image:", yaml);
         Assert.DoesNotContain("logs.sources:", yaml);
         Assert.Equal(
@@ -236,7 +256,7 @@ resources:
     }
 
     [Fact]
-    public void DeserializeTemplate_JsonKeepsContractTypeId()
+    public void DeserializeTemplate_JsonAcceptsTypeIdAndSerializesDocumentShape()
     {
         const string json = """
 {
@@ -244,7 +264,10 @@ resources:
   "resources": [
     {
       "name": "api",
-      "typeId": "application.container-app"
+      "typeId": "application.container-app",
+      "attributes": {
+        "container.image": "api:latest"
+      }
     }
   ]
 }
@@ -260,7 +283,13 @@ resources:
         var resource = Assert.Single(template.Resources);
         Assert.Equal("local-app", template.Name);
         Assert.Equal(ResourceTypeId.Create("application.container-app"), resource.TypeId);
-        Assert.Contains("\"typeId\": \"application.container-app\"", serialized);
+        Assert.Equal("api:latest", resource.ResourceAttributes["container.image"]);
+        Assert.Contains("\"type\": \"application.container-app\"", serialized);
+        Assert.Contains("\"container\": {", serialized);
+        Assert.Contains("\"image\": \"api:latest\"", serialized);
+        Assert.DoesNotContain("\"typeId\": \"application.container-app\"", serialized);
+        Assert.DoesNotContain("\"attributes\"", serialized);
+        Assert.DoesNotContain("\"container.image\"", serialized);
         Assert.DoesNotContain("effectiveResourceId", serialized);
         Assert.DoesNotContain("startupDependencies", serialized);
         Assert.DoesNotContain("resourceAttributes", serialized);

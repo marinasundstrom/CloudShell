@@ -86,9 +86,13 @@ on `git blame --follow`, and then by the broad type of change.
   instead of nesting them under resource-level `capabilities`, while resolved
   capabilities continue to read the attribute-backed payloads for compatibility.
 - Resource template serialization now projects dotted attribute IDs as nested
-  document groups, such as `attributes.container.image` and
-  `attributes.logs.sources`, while deserialization flattens them back to the
-  canonical Resource model attribute IDs.
+  document groups, such as `container.image` and `logs.sources`, while
+  deserialization flattens them back to the canonical Resource model attribute
+  IDs.
+- Resource template documents now hoist attribute groups beside fixed resource
+  fields by default, such as `container.image`, `logs.sources`, and
+  `health.checks`, while still accepting the `attributes` wrapper and full
+  dotted attribute names as input forms.
 - Resource references in templates now support a compact `resourceId` document
   shape for common dependency references while preserving the full reference
   model for advanced relationship and addressing cases.
