@@ -107,6 +107,22 @@ public sealed class ResourceGraphBuilderTests
     }
 
     [Fact]
+    public void ResourceGraphBuilder_AddRejectsDuplicateResourceIds()
+    {
+        var graph = new ResourceGraphBuilder();
+        graph.GetDefaultNetwork();
+
+        var duplicate = new NetworkResourceDefinitionBuilder("host-copy")
+            .WithResourceId(NetworkResourceDefinitionBuilderExtensions.DefaultNetworkResourceId);
+
+        var exception = Assert.Throws<InvalidOperationException>(() => graph.Add(duplicate));
+        Assert.Contains(
+            NetworkResourceDefinitionBuilderExtensions.DefaultNetworkResourceId,
+            exception.Message,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void ResourceGraphBuilder_BuildsConfigurationPayloadFromNativeBuilderApi()
     {
         var graph = new ResourceGraphBuilder()

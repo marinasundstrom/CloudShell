@@ -58,6 +58,12 @@ on `git blame --follow`, and then by the broad type of change.
 - The Resources list now hides implicit default resources by default and uses
   an Implicit resources toggle to show default Host network and default
   container host rows when needed.
+- The legacy platform resource provider no longer creates a fallback Host
+  network resource from an empty platform store; default Host network resources
+  now come from the lazy Resource Model graph path when a resource needs one.
+- `ResourceGraphBuilder` now rejects duplicate resource IDs when resources are
+  added, preventing mixed explicit/default paths from defining the same
+  logical resource twice.
 
 ### 2026-06-30
 

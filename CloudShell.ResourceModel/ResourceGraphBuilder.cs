@@ -307,6 +307,16 @@ public class ResourceGraphBuilder(
             conventionAware.UseResourceIdConvention(_resourceIdConvention);
         }
 
+        var resourceId = resource.EffectiveResourceId;
+        if (_resources.Any(existing => string.Equals(
+                existing.EffectiveResourceId,
+                resourceId,
+                StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException(
+                $"Resource '{resourceId}' is already defined in the graph.");
+        }
+
         if (resource is IResourceGraphContextAwareBuilder contextAware)
         {
             contextAware.UseResourceGraph(this);
