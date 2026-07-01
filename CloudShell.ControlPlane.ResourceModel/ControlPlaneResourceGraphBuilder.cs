@@ -40,6 +40,19 @@ public sealed class ControlPlaneResourceGraphBuilder :
         ?? throw new InvalidOperationException(
             "Control Plane services are only available from Control Plane host authoring callbacks.");
 
+    public ResourceGroupDefinition AddResourceGroup(
+        string id,
+        string name,
+        string description = "")
+    {
+        var declarations = _declarations ?? throw new InvalidOperationException(
+            "Resource group declarations are only available from Control Plane host authoring callbacks.");
+
+        var group = new ResourceGroupDefinition(id, name, description);
+        declarations.AddResourceGroup(group.Id, group.Name, group.Description);
+        return group;
+    }
+
     public IResourceBuilder Declare(
         string providerId,
         string resourceId,

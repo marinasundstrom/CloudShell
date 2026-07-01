@@ -21,7 +21,17 @@ var secretsVaultServiceProjectPath = Path.GetFullPath(
     builder.Environment.ContentRootPath);
 var repositoryRootPath = Path.GetFullPath("..", builder.Environment.ContentRootPath);
 
-var cloudShell = builder.AddCloudShellControlPlaneApplication();
+var cloudShell = builder.AddCloudShellControlPlaneApplication(
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
+    {
+        controlPlane.DefineResources(resources =>
+        {
+            resources
+                .AddConfigurationStore("example")
+                .WithDisplayName("Example Configuration");
+        });
+    });
 builder.AddCloudShellUi(ui =>
 {
     ui
@@ -45,16 +55,11 @@ cloudShell
         runtime.ServiceWorkingDirectory = repositoryRootPath;
     });
 
-cloudShell.DefineResources(resources =>
-{
-    resources
-        .AddConfigurationStore("example")
-        .WithDisplayName("Example Configuration");
-});
-
 var app = builder.Build();
 
-await app.UseCloudShellAsync();
-app.MapCloudShell<App>();
+await app.UseCloudShellControlPlaneAsync();
+await app.UseCloudShellUiAsync();
+app.MapCloudShellControlPlane();
+app.MapCloudShellUi<App>();
 
 app.Run();

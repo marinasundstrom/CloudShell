@@ -187,14 +187,15 @@ public sealed class ResourceGraphBuilderTests
         var services = new ServiceCollection();
         services
             .AddCloudShellControlPlane()
-            .AddResourceGroup("group:sample", "Sample")
             .AddIdentityProvider(identityProvider, useAsDefault: true)
             .DefineResources(resources =>
             {
+                var group = resources.AddResourceGroup("group:sample", "Sample");
+
                 IResourceDefinitionBuilder app = null!;
                 resources
                     .AddNetwork("app")
-                    .WithResourceGroup("group:sample")
+                    .WithResourceGroup(group)
                     .WithAutoStart(false)
                     .WithDependencyAutoStart(false)
                     .WithIdentity(identityProvider, identity =>

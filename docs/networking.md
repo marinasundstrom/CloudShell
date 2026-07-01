@@ -394,7 +394,7 @@ are intentionally validating a macOS-specific provider path.
 The authoring shape is:
 
 ```csharp
-cloudShell.DefineResources(resources =>
+controlPlane.DefineResources(resources =>
 {
     var hostNetworking = resources.AddLocalHostNetwork("host-local");
     var api = resources.Declare("applications.aspnet-core-project", "application:api");

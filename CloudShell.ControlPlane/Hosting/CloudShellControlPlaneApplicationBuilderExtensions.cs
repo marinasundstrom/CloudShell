@@ -223,6 +223,17 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         return controlPlane;
     }
 
+    public static IControlPlaneBuilder AddCloudShellControlPlane(
+        this WebApplicationBuilder builder,
+        Action<IControlPlaneBuilder> configureControlPlane)
+    {
+        ArgumentNullException.ThrowIfNull(configureControlPlane);
+
+        var controlPlane = builder.AddCloudShellControlPlane();
+        configureControlPlane(controlPlane);
+        return controlPlane;
+    }
+
     private static void ConfigurePersistence(WebApplicationBuilder builder)
     {
         var persistenceOptions = builder.Configuration

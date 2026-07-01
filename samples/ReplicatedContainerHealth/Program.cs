@@ -25,42 +25,49 @@ var traceIngestEndpoint = builder.Configuration["Observability:TraceIngestEndpoi
 var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndpoint"]
     ?? $"{runtimeControlPlaneEndpoint}/api/control-plane/v1/metrics/ingest";
 
-var cloudShell = builder.AddCloudShell();
-cloudShell.AddResourceGroup(
-    resourceGroupId,
-    "Replicated Container Health",
-    "Resource model resources used by the ReplicatedContainerHealth sample.");
-IResourceDefinitionBuilder dockerResource = null!;
 IResourceDefinitionBuilder apiResource = null!;
-cloudShell.DefineResources(resources =>
-{
-    dockerResource = resources
-        .AddDockerHost("sample")
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false);
+builder.AddCloudShellControlPlaneApplication(
+    options =>
+    {
+        options.IncludeDefaultEnvironmentResources = false;
+    },
+    controlPlane =>
+    {
+        controlPlane.DefineResources(resources =>
+        {
+            var resourceGroup = resources.AddResourceGroup(
+                resourceGroupId,
+                "Replicated Container Health",
+                "Resource model resources used by the ReplicatedContainerHealth sample.");
 
-    apiResource = resources
-        .AddContainerApplication("api")
-        .WithDisplayName("Replicated API")
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false)
-        .UseDockerHost(dockerResource)
-        .WithImage($"cloudshell-application-api:{sampleImageTag}")
-        .WithRuntimeLogSources(LogFormat.JsonConsole)
-        .WithReplicas(3)
-        .WithCookieSessionAffinity("CloudShellReplica", durationSeconds: 3600)
-        .WithHttpEndpoint(
-            targetPort: 8080,
-            host: "localhost",
-            port: apiEndpointPort)
-        .WithHttpHealthCheck(
-            "/health",
-            endpointName: "http")
-        .WithHttpLivenessCheck(
-            "/alive",
-            endpointName: "http",
-            name: "alive");
-});
+            var dockerResource = resources
+                .AddDockerHost("sample")
+                .WithResourceGroup(resourceGroup)
+                .WithAutoStart(false);
+
+            apiResource = resources
+                .AddContainerApplication("api")
+                .WithDisplayName("Replicated API")
+                .WithResourceGroup(resourceGroup)
+                .WithAutoStart(false)
+                .UseDockerHost(dockerResource)
+                .WithImage($"cloudshell-application-api:{sampleImageTag}")
+                .WithRuntimeLogSources(LogFormat.JsonConsole)
+                .WithReplicas(3)
+                .WithCookieSessionAffinity("CloudShellReplica", durationSeconds: 3600)
+                .WithHttpEndpoint(
+                    targetPort: 8080,
+                    host: "localhost",
+                    port: apiEndpointPort)
+                .WithHttpHealthCheck(
+                    "/health",
+                    endpointName: "http")
+                .WithHttpLivenessCheck(
+                    "/alive",
+                    endpointName: "http",
+                    name: "alive");
+        });
+    });
 builder.Services
     .AddLocalDockerContainerApplicationRuntime(options =>
         options.AddApplication(
@@ -90,22 +97,20 @@ builder.Services
                     builder.Configuration.GetValue<int?>(
                         "ReplicatedContainerHealth:RuntimeStatusCacheMilliseconds") ?? 2_000);
             }));
-cloudShell
-    .UseBuiltInResourceModelProviders(options =>
-    {
-        options.IncludeDefaultEnvironmentResources = false;
-    });
-
-cloudShell
-    .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>();
-
-cloudShell.AddBuiltInProviderResourceManagerUi();
+builder.AddCloudShellUi(ui =>
+{
+    ui
+        .AddExtension<ResourceManagerExtension>()
+        .AddExtension<ObservabilityExtension>();
+    ui.AddBuiltInProviderResourceManagerUi();
+});
 
 var app = builder.Build();
 
-await app.UseCloudShellAsync();
-app.MapCloudShell<App>();
+await app.UseCloudShellControlPlaneAsync();
+await app.UseCloudShellUiAsync();
+app.MapCloudShellControlPlane();
+app.MapCloudShellUi<App>();
 app.MapPost(
     "/replicated-container-health/resource-graph/resources/{resourceId}/container-image",
     async (

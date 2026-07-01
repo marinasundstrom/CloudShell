@@ -76,9 +76,13 @@ Use this sample for both cases:
 
 - The project references `CloudShell.Hosting`, the reusable Razor class library
   that carries CloudShell shell components and static assets.
-- `Program.cs` uses the convenience `builder.AddCloudShell()` registration for
-  UI and Control Plane together.
-- `SampleResourceExtension` contributes a resource provider and resource type.
+- `Program.cs` registers the Control Plane with
+  `builder.AddCloudShellControlPlane()` and adds CloudShell UI separately with
+  `builder.AddCloudShellUi(...)`.
+- `SampleResourceControlPlaneExtension` contributes the sample resource
+  provider to the Control Plane.
+- `SampleResourceManagerUiExtension` contributes the Resource Manager
+  registration UI metadata for the sample resource type.
 - `Pages/RegisterSampleResource.razor` is a normal Razor component used by the
   sample resource type registration flow.
 - `SampleResourceProvider` exposes sample API, database, and worker resources.

@@ -20,47 +20,57 @@ using CloudShell.Hosting;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
 
-var cloudShell = builder.AddCloudShell();
+builder.AddCloudShellControlPlaneApplication(
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
+    {
+        controlPlane.DefineResources(resources =>
+        {
+            var group = resources.AddResourceGroup(
+                "sample",
+                "Sample",
+                "Sample resources.");
 
-cloudShell.UseBuiltInResourceModelProviders();
-
-cloudShell.DefineResources(resources =>
-{
-    resources
-        .AddConfigurationStore("example")
-        .WithDisplayName("Example Configuration")
-        .WithEntries(
-        [
-            new("SampleMessage", "Hello from CloudShell configuration"),
-            new("SampleSecret", "local-development-secret", IsSecret: true)
-        ]);
-});
+            resources
+                .AddConfigurationStore("example")
+                .WithDisplayName("Example Configuration")
+                .WithResourceGroup(group)
+                .WithEntries(
+                [
+                    new("SampleMessage", "Hello from CloudShell configuration"),
+                    new("SampleSecret", "local-development-secret", IsSecret: true)
+                ]);
+        });
+    });
 ```
 
-`UseBuiltInResourceModelProviders(...)` is a Control Plane registration seam.
-Use it from a Control Plane host or from the Control Plane builder returned by
-the combined `AddCloudShell()` host method. A split UI host installs UI
+`AddCloudShellControlPlaneApplication(...)` is the preferred local-development
+Control Plane setup path. It installs the built-in Resource Model provider
+preset and graph-backed Resource Manager integration. A host that also wants
+CloudShell UI should add it separately with `AddCloudShellUi(...)` and register
+Resource Manager UI extensions in that UI callback. A split UI host installs UI
 integrations and remote client adapters instead of provider runtime packages.
-The built-in provider preset contributes fallback default environment
-resources for the Host network and the default docker-compatible container
-host. Those defaults are authored through the same lazy graph builder accessors
-as explicit code (`DefaultNetwork()` and `DefaultContainerHost()`), and they do
-not replace explicit resources with the same default IDs.
+The built-in provider preset contributes fallback default environment resources
+for the Host network and the default docker-compatible container host. Those
+defaults are authored through the same lazy graph builder accessors as explicit
+code (`DefaultNetwork()` and `DefaultContainerHost()`), and they do not replace
+explicit resources with the same default IDs.
 
-Runtime adapters remain explicit host choices. For local-development Resource
-Model operations that should materialize endpoint mappings or DNS/name mappings
-through the Control Plane runtime contracts, add the built-in runtime adapter
-preset:
+Runtime adapters remain host choices, but the built-in provider preset installs
+the common graph-backed Resource Model runtime adapters by default. This covers
+local-development endpoint-mapping and DNS/name-mapping reconciliation through
+the Control Plane runtime contracts. Specialized hosts can still compose
+individual provider registration methods or call
+`UseBuiltInResourceModelRuntimeAdapters()` explicitly when they do not use the
+broad provider preset.
 
 ```csharp
 cloudShell
-    .UseBuiltInResourceModelProviders()
     .UseBuiltInResourceModelRuntimeAdapters();
 ```
 
-The preset currently composes provider-owned Resource Model endpoint-mapping
-and DNS name-mapping runtime adapters. Individual provider registration methods
-remain available for specialized hosts and future split provider packages.
+Individual provider registration methods remain available for specialized
+hosts and future split provider packages.
 
 Built-in Resource model providers expose specialized extension methods
 for their own resource types. Current provider methods include:
@@ -300,7 +310,7 @@ resource-definition context: it behaves like the ResourceDefinition graph
 builder for resource declarations, while also exposing host-level services that
 can contribute to graph construction. Identity providers are registered on the
 host itself, for example by built-in identity host setup, `ResourceIdentity`
-configuration, or host-level `cloudShell.AddIdentityProvider(...)` calls.
+configuration, or host-level `controlPlane.AddIdentityProvider(...)` calls.
 `resources.GetIdentityProvider()` reads that host context and returns an
 identity-provider context that can create provider-scoped principal references,
 for example `resources.GetIdentityProvider().GetUser("alice")`. Identity
@@ -435,7 +445,7 @@ example, the built-in SQL Server builder exposes a top-level SQL Server
 resource without making the caller declare a generic container app:
 
 ```csharp
-cloudShell.DefineResources(resources =>
+controlPlane.DefineResources(resources =>
 {
     var sqlData = resources
         .AddVolume("sql-data")
@@ -464,7 +474,7 @@ provider-specific credentials. Top-level container applications are the place
 where image selection is part of the logical declaration:
 
 ```csharp
-cloudShell.DefineResources(resources =>
+controlPlane.DefineResources(resources =>
 {
     resources
         .AddContainerApplication("redis")
@@ -659,10 +669,12 @@ chooses to declare more of them in code.
 Programmatic declarations are registered when CloudShell starts. They appear in
 Resource Manager, participate in authorization, can be assigned to a resource
 group with `WithResourceGroup(...)`, and can declare dependencies with
-`DependsOn(...)` or provider-specific dependency methods. Use
-`resources.Declare(...)` inside `DefineResources(...)` for manual
-provider-backed resource declarations that do not yet have a typed
-ResourceDefinition builder.
+`DependsOn(...)` or provider-specific dependency methods.
+`resources.AddResourceGroup(...)` returns a group definition object that can be
+passed to `WithResourceGroup(group)`; the string id overload remains available
+for cases where only an id is known. Use `resources.Declare(...)` inside
+`DefineResources(...)` for manual provider-backed resource declarations that do
+not yet have a typed ResourceDefinition builder.
 
 Startup auto-start is the declaration intent for local-dev scenarios where
 programmatically declared resources should start when the Control Plane starts.

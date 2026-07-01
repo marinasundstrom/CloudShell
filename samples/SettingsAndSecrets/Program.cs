@@ -57,83 +57,86 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
     ["Authentication:BuiltInAuthority:SigningKeyPem"] = identitySigningKeyPem
 });
 
-var cloudShell = builder.AddCloudShell();
-cloudShell.AddIdentityProvider(
-    identityProviderId,
-    "Development identity",
-    ResourceIdentityProviderKind.BuiltIn,
-    new Dictionary<string, string>
-    {
-        [BuiltInResourceIdentityRegistry.ClientSecretSettingName] =
-            resourceIdentityClientSecret
-    },
-    useAsDefault: true);
-ConfigurationStoreResourceDefinitionBuilder settingsResource = null!;
-SecretsVaultResourceDefinitionBuilder secretsResource = null!;
-IResourceDefinitionBuilder apiResource = null!;
-cloudShell.DefineResources(resources =>
-{
-    settingsResource = resources
-        .AddConfigurationStore("sample-app")
-        .WithDisplayName("Sample App Settings")
-        .WithEndpoint(configurationServiceEndpoint);
-    secretsResource = resources
-        .AddSecretsVault("sample-app")
-        .WithDisplayName("Sample App Secrets")
-        .WithEndpoint(secretsServiceEndpoint);
-    var api = resources
-        .AddAspNetCoreProject("settings-secrets-api", apiProjectPath);
-    apiResource = api;
-    var apiIdentityClientId = apiResource.IdentityClientId(apiIdentityName);
-
-    api
-        .WithDisplayName("Settings and Secrets API")
-        .DependsOn(settingsResource)
-        .DependsOn(secretsResource)
-        .WithHotReload(false)
-        .UseLaunchSettings(false)
-        .WithHttpEndpoint(
-            host: apiEndpointUri.Host,
-            port: apiEndpointUri.Port)
-        .WithIdentity(identityProviderId, name: apiIdentityName)
-        .ProvisionIdentityOnStartup()
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_APPLICATION",
-            "Settings and Secrets API")
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT",
-            identityTokenEndpoint)
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_IDENTITY_CLIENT_ID",
-            apiIdentityClientId)
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_IDENTITY_CLIENT_SECRET",
-            resourceIdentityClientSecret)
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_IDENTITY_SCOPE",
-            "ControlPlane.Access")
-        .WithEnvironmentVariable(
-            "SAMPLE_MESSAGE",
-            settingsResource.Entry("Sample:Message"))
-        .WithEnvironmentVariable(
-            "SAMPLE_MODE",
-            settingsResource.Entry("Sample:Mode"))
-        .WithEnvironmentVariable(
-            "SAMPLE_API_KEY",
-            secretsResource.Secret("sample-api-key"))
-        .WithReference(settingsResource)
-        .WithReference(secretsResource)
-        .WithHttpHealthCheck(
-            "/health",
-            endpointName: "http");
-    settingsResource.Allow(apiResource, ConfigurationStoreResourceOperationPermissions.ReadEntries);
-    secretsResource.Allow(apiResource, SecretsVaultResourceOperationPermissions.ReadSecrets);
-}, AddProjectionState);
-cloudShell
-    .UseBuiltInResourceModelProviders(options =>
+string settingsResourceId = string.Empty;
+string secretsResourceId = string.Empty;
+var cloudShell = builder.AddCloudShellControlPlaneApplication(
+    options =>
     {
         options.IncludeDefaultEnvironmentResources = false;
-    })
+    },
+    controlPlane =>
+    {
+        controlPlane.AddIdentityProvider(
+            identityProviderId,
+            "Development identity",
+            ResourceIdentityProviderKind.BuiltIn,
+            new Dictionary<string, string>
+            {
+                [BuiltInResourceIdentityRegistry.ClientSecretSettingName] =
+                    resourceIdentityClientSecret
+            },
+            useAsDefault: true);
+        controlPlane.DefineResources(resources =>
+        {
+            var settingsResource = resources
+                .AddConfigurationStore("sample-app")
+                .WithDisplayName("Sample App Settings")
+                .WithEndpoint(configurationServiceEndpoint);
+            settingsResourceId = settingsResource.EffectiveResourceId;
+            var secretsResource = resources
+                .AddSecretsVault("sample-app")
+                .WithDisplayName("Sample App Secrets")
+                .WithEndpoint(secretsServiceEndpoint);
+            secretsResourceId = secretsResource.EffectiveResourceId;
+            var api = resources
+                .AddAspNetCoreProject("settings-secrets-api", apiProjectPath);
+            var apiIdentityClientId = api.IdentityClientId(apiIdentityName);
+
+            api
+                .WithDisplayName("Settings and Secrets API")
+                .DependsOn(settingsResource)
+                .DependsOn(secretsResource)
+                .WithHotReload(false)
+                .UseLaunchSettings(false)
+                .WithHttpEndpoint(
+                    host: apiEndpointUri.Host,
+                    port: apiEndpointUri.Port)
+                .WithIdentity(identityProviderId, name: apiIdentityName)
+                .ProvisionIdentityOnStartup()
+                .WithEnvironmentVariable(
+                    "CLOUDSHELL_APPLICATION",
+                    "Settings and Secrets API")
+                .WithEnvironmentVariable(
+                    "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT",
+                    identityTokenEndpoint)
+                .WithEnvironmentVariable(
+                    "CLOUDSHELL_IDENTITY_CLIENT_ID",
+                    apiIdentityClientId)
+                .WithEnvironmentVariable(
+                    "CLOUDSHELL_IDENTITY_CLIENT_SECRET",
+                    resourceIdentityClientSecret)
+                .WithEnvironmentVariable(
+                    "CLOUDSHELL_IDENTITY_SCOPE",
+                    "ControlPlane.Access")
+                .WithEnvironmentVariable(
+                    "SAMPLE_MESSAGE",
+                    settingsResource.Entry("Sample:Message"))
+                .WithEnvironmentVariable(
+                    "SAMPLE_MODE",
+                    settingsResource.Entry("Sample:Mode"))
+                .WithEnvironmentVariable(
+                    "SAMPLE_API_KEY",
+                    secretsResource.Secret("sample-api-key"))
+                .WithReference(settingsResource)
+                .WithReference(secretsResource)
+                .WithHttpHealthCheck(
+                    "/health",
+                    endpointName: "http");
+            settingsResource.Allow(api, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+            secretsResource.Allow(api, SecretsVaultResourceOperationPermissions.ReadSecrets);
+        }, AddProjectionState);
+    });
+cloudShell
     .UseConfigurationStoreResourceProvider(runtime =>
     {
         runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
@@ -154,30 +157,34 @@ cloudShell
         runtime.Secrets.Add(new("sample-api-key", "local-development-api-key"));
     });
 
-cloudShell
-    .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>();
-
-cloudShell.AddBuiltInProviderResourceManagerUi();
+builder.AddCloudShellUi(ui =>
+{
+    ui
+        .AddExtension<ResourceManagerExtension>()
+        .AddExtension<ObservabilityExtension>();
+    ui.AddBuiltInProviderResourceManagerUi();
+});
 
 var app = builder.Build();
 
-await app.UseCloudShellAsync();
-app.MapCloudShell<App>();
+await app.UseCloudShellControlPlaneAsync();
+await app.UseCloudShellUiAsync();
+app.MapCloudShellControlPlane();
+app.MapCloudShellUi<App>();
 
 app.Run();
 
 CloudShell.ResourceModel.ResourceState AddProjectionState(
     CloudShell.ResourceModel.ResourceState state)
 {
-    if (state.EffectiveResourceId != settingsResource.EffectiveResourceId &&
-        state.EffectiveResourceId != secretsResource.EffectiveResourceId)
+    if (state.EffectiveResourceId != settingsResourceId &&
+        state.EffectiveResourceId != secretsResourceId)
     {
         return state;
     }
 
     var attributes = state.ResourceAttributeValues.ToDictionary();
-    if (state.EffectiveResourceId == settingsResource.EffectiveResourceId)
+    if (state.EffectiveResourceId == settingsResourceId)
     {
         attributes[ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] = 2;
     }

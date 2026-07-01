@@ -96,19 +96,19 @@ host setup, or host-level provider registration.
 
 When multiple providers are available, set a default explicitly for `Required`
 identity bindings. Hosts can use `ResourceIdentity:DefaultProviderId`, built-in
-identity host setup, or `cloudShell.AddIdentityProvider(..., useAsDefault: true)`.
+identity host setup, or `controlPlane.AddIdentityProvider(..., useAsDefault: true)`.
 If a binding cannot resolve to a configured or host-registered provider,
 Resource Manager reports a `resourceIdentityProviderUnresolved` resource model
 diagnostic.
 
 ```csharp
-cloudShell.AddIdentityProvider(
+controlPlane.AddIdentityProvider(
     "identity:dev",
     "Development Identity",
     ResourceIdentityProviderKind.BuiltIn,
     useAsDefault: true);
 
-cloudShell.DefineResources(resources =>
+controlPlane.DefineResources(resources =>
 {
     var api = resources
         .Declare("applications.aspnet-core-project", "application:api")
@@ -120,13 +120,13 @@ Control Plane resource-definition authoring can read host-registered
 identity-provider metadata while declaring graph resources:
 
 ```csharp
-cloudShell.AddIdentityProvider(
+controlPlane.AddIdentityProvider(
     "identity:dev",
     "Development Identity",
     ResourceIdentityProviderKind.BuiltIn,
     useAsDefault: true);
 
-cloudShell.DefineResources(resources =>
+controlPlane.DefineResources(resources =>
 {
     var identityProvider = resources.GetIdentityProvider("identity:dev");
 
@@ -136,7 +136,7 @@ cloudShell.DefineResources(resources =>
 });
 ```
 
-`cloudShell.AddIdentityProvider(...)` registers provider metadata with the
+`controlPlane.AddIdentityProvider(...)` registers provider metadata with the
 Control Plane declaration model. `resources.GetIdentityProvider(...)` only
 reads that host context while building graph resources; it does not declare an
 identity provider resource and it is not part of the `ResourceDefinition`
@@ -236,7 +236,7 @@ directory lookups. Built-in Identity sign-in remains email-only unless the host
 explicitly enables `Authentication:BuiltInIdentity:AllowUserNameSignIn`.
 
 ```csharp
-cloudShell.ConfigureInMemoryIdentity(identity =>
+controlPlane.ConfigureInMemoryIdentity(identity =>
 {
     identity.Users.Add(
         "alice",
@@ -246,7 +246,7 @@ cloudShell.ConfigureInMemoryIdentity(identity =>
         role: "CloudShell.Reader");
 });
 
-cloudShell.DefineResources(resources =>
+controlPlane.DefineResources(resources =>
 {
     var identity = resources.GetIdentityProvider();
     var alice = identity.GetUser("alice");

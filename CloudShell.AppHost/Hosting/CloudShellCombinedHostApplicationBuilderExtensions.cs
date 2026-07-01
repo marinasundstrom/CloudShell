@@ -19,13 +19,16 @@ public static class CloudShellCombinedHostApplicationBuilderExtensions
         return controlPlane;
     }
 
-    public static IControlPlaneBuilder AddCloudShell(
-        this WebApplicationBuilder builder)
+    public static IControlPlaneBuilder AddCloudShellControlPlaneApplication(
+        this WebApplicationBuilder builder,
+        Action<BuiltInResourceModelProviderOptions>? configureBuiltInResourceModelProviders,
+        Action<IControlPlaneBuilder> configureControlPlane)
     {
-        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(configureControlPlane);
 
-        var controlPlane = builder.AddCloudShellControlPlane();
-        builder.AddCloudShellUi();
+        var controlPlane = builder.AddCloudShellControlPlaneApplication(
+            configureBuiltInResourceModelProviders);
+        configureControlPlane(controlPlane);
 
         return controlPlane;
     }

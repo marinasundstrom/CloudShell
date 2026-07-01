@@ -53,8 +53,10 @@ using CloudShell.Hosting.Components;
 var builder = WebApplication.CreateBuilder(args);
 
 builder
-    .AddCloudShellUi()
-    .AddExtension<SampleWorkspaceExtension>();
+    .AddCloudShellUi(ui =>
+    {
+        ui.AddExtension<SampleWorkspaceExtension>();
+    });
 
 var app = builder.Build();
 
@@ -96,40 +98,49 @@ using CloudShell.Hosting.Shell;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var cloudShell = builder.AddCloudShell();
+builder.AddCloudShellControlPlaneApplication(
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
+    {
+        controlPlane.DefineResources(resources =>
+        {
+            resources
+                .AddConfigurationStore("example")
+                .WithDisplayName("Example Configuration")
+                .WithEndpoint("http://localhost:5138");
+        });
+    });
 
-cloudShell
-    .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>()
-    .AddConfigurationProvider()
-    .AddSecretsProvider()
-    .AddApplicationProvider()
-    .UseLocalDevelopmentDefaults();
-
-cloudShell.DefineResources(resources =>
+builder.AddCloudShellUi(ui =>
 {
-    resources
-        .AddConfigurationStore("example")
-        .WithDisplayName("Example Configuration")
-        .WithEndpoint("http://localhost:5138");
+    ui
+        .AddExtension<ResourceManagerExtension>()
+        .AddExtension<ObservabilityExtension>();
 });
 
 var app = builder.Build();
 
-await app.UseCloudShellAsync();
-app.MapCloudShell<App>();
+await app.UseCloudShellControlPlaneAsync();
+await app.UseCloudShellUiAsync();
+app.MapCloudShellControlPlane();
+app.MapCloudShellUi<App>();
 
 app.Run();
 ```
 
-`AddCloudShell()` is the combined-host convenience. It composes
-`AddCloudShellControlPlane()` and `AddCloudShellUi()` from a package that
-references both the Control Plane and UI packages. `UseCloudShellAsync()` and
-`MapCloudShell<TRootComponent>()` follow the same convention: the plain method
-name is for the combined host, while `UseCloudShellControlPlaneAsync()`,
-`MapCloudShellControlPlane()`, `UseCloudShellUiAsync()`, and
-`MapCloudShellUi<TRootComponent>()` are for split hosts that install only one
-side.
+The preferred local-development shape starts with
+`AddCloudShellControlPlaneApplication(...)`. That method installs the Control
+Plane plus the built-in Resource Model provider defaults for the normal
+resource-management experience. The UI remains explicit: call
+`AddCloudShellUi(...)` separately and register shell extensions, Resource
+Manager extensions, and provider-owned Resource Manager UI integrations in the
+UI callback.
+
+The request pipeline is explicit as well. `UseCloudShellControlPlaneAsync()`
+and `MapCloudShellControlPlane()` install backend middleware and API endpoints.
+`UseCloudShellUiAsync()` and `MapCloudShellUi<TRootComponent>()` install the
+shell middleware and UI routes. A combined local-development process calls
+both sets; split hosts call only the side they run.
 
 In this mode, the Resource Manager UI integration consumes the same
 Control Plane-facing abstractions as a split host, but the registered
@@ -187,18 +198,18 @@ persisted state should run separately from the UI.
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
-var controlPlane = builder
-    .AddCloudShellControlPlane()
-    .AddConfigurationProvider()
-    .AddSecretsProvider();
-
-controlPlane.DefineResources(resources =>
-{
-    resources
-        .AddConfigurationStore("shared")
-        .WithDisplayName("Shared Configuration")
-        .WithEndpoint("http://localhost:5138");
-});
+builder.AddCloudShellControlPlaneApplication(
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
+    {
+        controlPlane.DefineResources(resources =>
+        {
+            resources
+                .AddConfigurationStore("shared")
+                .WithDisplayName("Shared Configuration")
+                .WithEndpoint("http://localhost:5138");
+        });
+    });
 
 var app = builder.Build();
 
@@ -285,18 +296,20 @@ builder.Services.AddRemoteControlPlane(options =>
 Declarative resources must be configured in the Control Plane host:
 
 ```csharp
-var controlPlane = builder
-    .AddCloudShellControlPlane()
+var controlPlane = builder.AddCloudShellControlPlane(controlPlane =>
+{
+    controlPlane.DefineResources(resources =>
+    {
+        resources
+            .AddConfigurationStore("shared")
+            .WithDisplayName("Shared Configuration")
+            .WithEndpoint("http://localhost:5138");
+    });
+});
+
+controlPlane
     .AddConfigurationProvider()
     .AddSecretsProvider();
-
-controlPlane.DefineResources(resources =>
-{
-    resources
-        .AddConfigurationStore("shared")
-        .WithDisplayName("Shared Configuration")
-        .WithEndpoint("http://localhost:5138");
-});
 ```
 
 The UI host should not declare resources. Resource Manager UI should discover

@@ -88,195 +88,197 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
     [SqlServerResourceDefaults.AdministratorPasswordConfigurationKey] = sqlPassword
 });
 
-var cloudShell = builder.AddCloudShell();
-cloudShell.AddResourceGroup(
-    resourceGroupId,
-    "Application Topology",
-    "Resources for the Application Topology sample.");
-cloudShell.AddIdentityProvider(
-    identityProviderId,
-    "Development identity",
-    ResourceIdentityProviderKind.BuiltIn,
-    new Dictionary<string, string>
+string settingsResourceId = string.Empty;
+string secretsResourceId = string.Empty;
+var cloudShell = builder.AddCloudShellControlPlaneApplication(
+    options =>
     {
-        [BuiltInResourceIdentityRegistry.ClientSecretSettingName] =
-            "local-development-application-topology-api-secret"
+        options.IncludeDefaultEnvironmentResources = false;
     },
-    useAsDefault: true);
-IResourceDefinitionBuilder sqlVolumeResource = null!;
-IResourceDefinitionBuilder sqlServerResource = null!;
-IResourceDefinitionBuilder databaseResource = null!;
-IResourceDefinitionBuilder settingsResource = null!;
-IResourceDefinitionBuilder secretsResource = null!;
-IResourceDefinitionBuilder hostConfigurationResource = null!;
-IResourceDefinitionBuilder containerHostResource = null!;
-IResourceDefinitionBuilder apiResource = null!;
-IResourceDefinitionBuilder frontendResource = null!;
-cloudShell.DefineResources(resources =>
-{
-    sqlVolumeResource = resources
-        .AddVolume(
-            "application-topology-sql-data",
-            path: "./Data/storage/sql-server")
-        .WithDisplayName("SQL Data")
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false);
-    containerHostResource = resources
-        .DefaultContainerHost()
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false);
-    sqlServerResource = resources
-        .AddSqlServer("application-topology-sql-server")
-        .WithDisplayName("SQL Server")
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false)
-        .UseContainerHost(containerHostResource)
-        .WithTcpEndpoint(
-            host: "localhost",
-            port: sqlPort)
-        .MountVolume(sqlVolumeResource, "/var/opt/mssql");
-    databaseResource = resources
-        .AddSqlDatabase("application-topology-db")
-        .WithDisplayName("SQL Database")
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false)
-        .BelongsToServer(sqlServerResource)
-        .WithDatabaseName("application_topology")
-        .EnsureCreated();
-    settingsResource = resources
-        .AddConfigurationStore("application-topology-settings")
-        .WithDisplayName("Settings")
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false)
-        .WithEndpoint(graphConfigurationEndpoint);
-    secretsResource = resources
-        .AddSecretsVault("application-topology-secrets")
-        .WithDisplayName("Secrets")
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false)
-        .WithEndpoint(graphSecretsEndpoint);
-    hostConfigurationResource = resources
-        .AddHostConfigurationSource("application-topology-host-settings")
-        .WithDisplayName("Host Settings")
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false)
-        .WithSource("application-topology");
-    var api = resources
-        .AddAspNetCoreProject("application-topology-api", apiProjectPath);
-    apiResource = api;
-    var apiIdentityClientId = apiResource.IdentityClientId(apiIdentityName);
-    api
-        .WithDisplayName("API")
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false)
-        .DependsOn(databaseResource)
-        .DependsOn(settingsResource)
-        .DependsOn(secretsResource)
-        .WithHotReload(false)
-        .UseLaunchSettings(false)
-        .WithServiceDiscoveryName("application-topology-api")
-        .WithHttpEndpoint(
-            host: apiResourceEndpointUri.Host,
-            port: apiResourceEndpointUri.Port)
-        .WithIdentity(identityProviderId, name: apiIdentityName)
-        .ProvisionIdentityOnStartup()
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
-            traceIngestEndpoint ?? string.Empty)
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
-            metricIngestEndpoint ?? string.Empty)
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT",
-            $"{cloudShellEndpoint}/api/application-topology/sql-server/v1/credentials")
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT",
-            identityTokenEndpoint)
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_IDENTITY_CLIENT_ID",
-            apiIdentityClientId)
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_IDENTITY_CLIENT_SECRET",
-            "local-development-application-topology-api-secret")
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_IDENTITY_SCOPE",
-            "ControlPlane.Access")
-        .WithEnvironmentVariable(
-            "ApplicationTopology__SqlServer__Authentication",
-            "CloudShell")
-        .WithEnvironmentVariable(
-            "ApplicationTopology__SqlServer__ResourceName",
-            "application-topology-sql-server")
-        .WithEnvironmentVariable(
-            "ApplicationTopology__SqlServer__User",
-            "sa")
-        .WithEnvironmentVariable(
-            "ApplicationTopology__SqlServer__Password",
-            sqlPassword)
-        .WithEnvironmentVariable(
-            "ApplicationTopology__SqlServer__Database",
-            "application_topology")
-        .WithEnvironmentVariable(
-            "OTEL_SERVICE_NAME",
-            "application-topology-api")
-        .WithReference(sqlServerResource)
-        .WithReference(settingsResource)
-        .WithReference(secretsResource)
-        .WithHttpHealthCheck(
-            "/health",
-            endpointName: "http")
-        .WithHttpLivenessCheck(
-            "/alive",
-            endpointName: "http",
-            name: "alive");
+    controlPlane =>
+    {
+        controlPlane.AddIdentityProvider(
+            identityProviderId,
+            "Development identity",
+            ResourceIdentityProviderKind.BuiltIn,
+            new Dictionary<string, string>
+            {
+                [BuiltInResourceIdentityRegistry.ClientSecretSettingName] =
+                    "local-development-application-topology-api-secret"
+            },
+            useAsDefault: true);
+        controlPlane.DefineResources(resources =>
+        {
+            var resourceGroup = resources.AddResourceGroup(
+                resourceGroupId,
+                "Application Topology",
+                "Resources for the Application Topology sample.");
 
-    frontendResource = resources
-        .AddAspNetCoreProject("application-topology-frontend", frontendProjectPath)
-        .WithDisplayName("Frontend")
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false)
-        .DependsOn(apiResource)
-        .WithHotReload(false)
-        .UseLaunchSettings(false)
-        .WithHttpEndpoint(
-            host: frontendResourceEndpointUri.Host,
-            port: frontendResourceEndpointUri.Port)
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
-            traceIngestEndpoint ?? string.Empty)
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
-            metricIngestEndpoint ?? string.Empty)
-        .WithEnvironmentVariable(
-            "OTEL_SERVICE_NAME",
-            "application-topology-frontend")
-        .WithReference(apiResource)
-        .WithHttpHealthCheck(
-            "/healthz",
-            endpointName: "http")
-        .WithHttpLivenessCheck(
-            "/alive",
-            endpointName: "http",
-            name: "alive");
+            var sqlVolumeResource = resources
+                .AddVolume(
+                    "application-topology-sql-data",
+                    path: "./Data/storage/sql-server")
+                .WithDisplayName("SQL Data")
+                .WithResourceGroup(resourceGroup)
+                .WithAutoStart(false);
+            var containerHostResource = resources
+                .DefaultContainerHost()
+                .WithResourceGroup(resourceGroup)
+                .WithAutoStart(false);
+            var sqlServerResource = resources
+                .AddSqlServer("application-topology-sql-server")
+                .WithDisplayName("SQL Server")
+                .WithResourceGroup(resourceGroup)
+                .WithAutoStart(false)
+                .UseContainerHost(containerHostResource)
+                .WithTcpEndpoint(
+                    host: "localhost",
+                    port: sqlPort)
+                .MountVolume(sqlVolumeResource, "/var/opt/mssql");
+            var databaseResource = resources
+                .AddSqlDatabase("application-topology-db")
+                .WithDisplayName("SQL Database")
+                .WithResourceGroup(resourceGroup)
+                .WithAutoStart(false)
+                .BelongsToServer(sqlServerResource)
+                .WithDatabaseName("application_topology")
+                .EnsureCreated();
+            var settingsResource = resources
+                .AddConfigurationStore("application-topology-settings")
+                .WithDisplayName("Settings")
+                .WithResourceGroup(resourceGroup)
+                .WithAutoStart(false)
+                .WithEndpoint(graphConfigurationEndpoint);
+            settingsResourceId = settingsResource.EffectiveResourceId;
+            var secretsResource = resources
+                .AddSecretsVault("application-topology-secrets")
+                .WithDisplayName("Secrets")
+                .WithResourceGroup(resourceGroup)
+                .WithAutoStart(false)
+                .WithEndpoint(graphSecretsEndpoint);
+            secretsResourceId = secretsResource.EffectiveResourceId;
+            resources
+                .AddHostConfigurationSource("application-topology-host-settings")
+                .WithDisplayName("Host Settings")
+                .WithResourceGroup(resourceGroup)
+                .WithAutoStart(false)
+                .WithSource("application-topology");
+            var apiResource = resources
+                .AddAspNetCoreProject("application-topology-api", apiProjectPath);
+            var apiIdentityClientId = apiResource.IdentityClientId(apiIdentityName);
+            apiResource
+                .WithDisplayName("API")
+                .WithResourceGroup(resourceGroup)
+                .WithAutoStart(false)
+                .DependsOn(databaseResource)
+                .DependsOn(settingsResource)
+                .DependsOn(secretsResource)
+                .WithHotReload(false)
+                .UseLaunchSettings(false)
+                .WithServiceDiscoveryName("application-topology-api")
+                .WithHttpEndpoint(
+                    host: apiResourceEndpointUri.Host,
+                    port: apiResourceEndpointUri.Port)
+                .WithIdentity(identityProviderId, name: apiIdentityName)
+                .ProvisionIdentityOnStartup()
+                .WithEnvironmentVariable(
+                    "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
+                    traceIngestEndpoint ?? string.Empty)
+                .WithEnvironmentVariable(
+                    "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
+                    metricIngestEndpoint ?? string.Empty)
+                .WithEnvironmentVariable(
+                    "CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT",
+                    $"{cloudShellEndpoint}/api/application-topology/sql-server/v1/credentials")
+                .WithEnvironmentVariable(
+                    "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT",
+                    identityTokenEndpoint)
+                .WithEnvironmentVariable(
+                    "CLOUDSHELL_IDENTITY_CLIENT_ID",
+                    apiIdentityClientId)
+                .WithEnvironmentVariable(
+                    "CLOUDSHELL_IDENTITY_CLIENT_SECRET",
+                    "local-development-application-topology-api-secret")
+                .WithEnvironmentVariable(
+                    "CLOUDSHELL_IDENTITY_SCOPE",
+                    "ControlPlane.Access")
+                .WithEnvironmentVariable(
+                    "ApplicationTopology__SqlServer__Authentication",
+                    "CloudShell")
+                .WithEnvironmentVariable(
+                    "ApplicationTopology__SqlServer__ResourceName",
+                    "application-topology-sql-server")
+                .WithEnvironmentVariable(
+                    "ApplicationTopology__SqlServer__User",
+                    "sa")
+                .WithEnvironmentVariable(
+                    "ApplicationTopology__SqlServer__Password",
+                    sqlPassword)
+                .WithEnvironmentVariable(
+                    "ApplicationTopology__SqlServer__Database",
+                    "application_topology")
+                .WithEnvironmentVariable(
+                    "OTEL_SERVICE_NAME",
+                    "application-topology-api")
+                .WithReference(sqlServerResource)
+                .WithReference(settingsResource)
+                .WithReference(secretsResource)
+                .WithHttpHealthCheck(
+                    "/health",
+                    endpointName: "http")
+                .WithHttpLivenessCheck(
+                    "/alive",
+                    endpointName: "http",
+                    name: "alive");
 
-    sqlServerResource.Allow(apiResource, DatabaseResourceOperationPermissions.ReadWrite);
-    settingsResource.Allow(apiResource, ConfigurationStoreResourceOperationPermissions.ReadEntries);
-    secretsResource.Allow(apiResource, SecretsVaultResourceOperationPermissions.ReadSecrets);
+            var frontendResource = resources
+                .AddAspNetCoreProject("application-topology-frontend", frontendProjectPath)
+                .WithDisplayName("Frontend")
+                .WithResourceGroup(resourceGroup)
+                .WithAutoStart(false)
+                .DependsOn(apiResource)
+                .WithHotReload(false)
+                .UseLaunchSettings(false)
+                .WithHttpEndpoint(
+                    host: frontendResourceEndpointUri.Host,
+                    port: frontendResourceEndpointUri.Port)
+                .WithEnvironmentVariable(
+                    "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
+                    traceIngestEndpoint ?? string.Empty)
+                .WithEnvironmentVariable(
+                    "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
+                    metricIngestEndpoint ?? string.Empty)
+                .WithEnvironmentVariable(
+                    "OTEL_SERVICE_NAME",
+                    "application-topology-frontend")
+                .WithReference(apiResource)
+                .WithHttpHealthCheck(
+                    "/healthz",
+                    endpointName: "http")
+                .WithHttpLivenessCheck(
+                    "/alive",
+                    endpointName: "http",
+                    name: "alive");
 
-    var dnsZoneResource = resources
-        .AddDnsZone(
-            "application-topology-local",
-            zoneName: "application-topology.cloudshell.local")
-        .WithDisplayName("Local DNS")
-        .WithResourceGroup(resourceGroupId)
-        .UseLocalHostNames()
-        .MapHost(
-            "app.application-topology.cloudshell.local",
-            frontendResource,
-            endpointName: "http",
-            name: "application-topology-app-local",
-            configure: mapping => mapping.WithResourceGroup(resourceGroupId));
-}, AddGraphProjectionState);
+            sqlServerResource.Allow(apiResource, DatabaseResourceOperationPermissions.ReadWrite);
+            settingsResource.Allow(apiResource, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+            secretsResource.Allow(apiResource, SecretsVaultResourceOperationPermissions.ReadSecrets);
+
+            resources
+                .AddDnsZone(
+                    "application-topology-local",
+                    zoneName: "application-topology.cloudshell.local")
+                .WithDisplayName("Local DNS")
+                .WithResourceGroup(resourceGroup)
+                .UseLocalHostNames()
+                .MapHost(
+                    "app.application-topology.cloudshell.local",
+                    frontendResource,
+                    endpointName: "http",
+                    name: "application-topology-app-local",
+                    configure: mapping => mapping.WithResourceGroup(resourceGroup));
+        }, AddGraphProjectionState);
+    });
 builder.Services
     .AddLocalSqlServerDockerRuntime(options =>
         options.AddServer(
@@ -291,10 +293,6 @@ builder.Services
             sqlServerResourceId,
             "application-topology.resource-model-sql-runtime.v1"));
 cloudShell
-    .UseBuiltInResourceModelProviders(options =>
-    {
-        options.IncludeDefaultEnvironmentResources = false;
-    })
     .UseSqlDatabaseResourceProvider(useResourceModelCreationHandler: true)
     .UseConfigurationStoreResourceProvider(runtime =>
     {
@@ -316,31 +314,35 @@ cloudShell
         runtime.Secrets.Add(new("ApplicationTopology--ExternalApiKey", "local-development-application-topology-api-key"));
     });
 
-cloudShell
-    .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>();
-
-cloudShell.AddBuiltInProviderResourceManagerUi();
+builder.AddCloudShellUi(ui =>
+{
+    ui
+        .AddExtension<ResourceManagerExtension>()
+        .AddExtension<ObservabilityExtension>();
+    ui.AddBuiltInProviderResourceManagerUi();
+});
 
 var app = builder.Build();
 
-await app.UseCloudShellAsync();
+await app.UseCloudShellControlPlaneAsync();
+await app.UseCloudShellUiAsync();
 app.MapApplicationTopologyResourceModelSqlCredentialApi();
-app.MapCloudShell<App>();
+app.MapCloudShellControlPlane();
+app.MapCloudShellUi<App>();
 
 app.Run();
 
 CloudShell.ResourceModel.ResourceState AddGraphProjectionState(
     CloudShell.ResourceModel.ResourceState state)
 {
-    if (state.EffectiveResourceId != settingsResource.EffectiveResourceId &&
-        state.EffectiveResourceId != secretsResource.EffectiveResourceId)
+    if (state.EffectiveResourceId != settingsResourceId &&
+        state.EffectiveResourceId != secretsResourceId)
     {
         return state;
     }
 
     var attributes = state.ResourceAttributeValues.ToDictionary();
-    if (state.EffectiveResourceId == settingsResource.EffectiveResourceId)
+    if (state.EffectiveResourceId == settingsResourceId)
     {
         attributes[ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] = 2;
     }

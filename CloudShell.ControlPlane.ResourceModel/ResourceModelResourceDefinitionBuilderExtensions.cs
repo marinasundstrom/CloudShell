@@ -22,6 +22,17 @@ public static class ResourceModelResourceDefinitionBuilderExtensions
         return builder;
     }
 
+    public static TBuilder WithResourceGroup<TBuilder>(
+        this TBuilder builder,
+        ResourceGroupDefinition? resourceGroup)
+        where TBuilder : IResourceDefinitionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        GetMetadata(builder).ResourceGroupId = resourceGroup?.Id;
+        return builder;
+    }
+
     public static TBuilder WithAutoStart<TBuilder>(
         this TBuilder builder,
         bool autoStart = true)
@@ -241,19 +252,6 @@ public static class ResourceModelResourceDefinitionBuilderExtensions
         ArgumentNullException.ThrowIfNull(resource);
 
         return builder.Allow(resource.Principal(), access);
-    }
-
-    public static IControlPlaneBuilder AddResourceGroup(
-        this IControlPlaneBuilder builder,
-        string id,
-        string name,
-        string description = "")
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        GetOrAddDeclarationStore(builder.Services)
-            .AddResourceGroup(id, name, description);
-        return builder;
     }
 
     public static IControlPlaneBuilder AddIdentityProvider(

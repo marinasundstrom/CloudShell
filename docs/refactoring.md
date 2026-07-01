@@ -336,9 +336,12 @@ Resource model provider migration.
   scattered provider list.
 - [x] Split hosting registration names so UI-only hosts use
   `AddCloudShellUi()`, `UseCloudShellUiAsync()`, and `MapCloudShellUi(...)`,
-  Control Plane hosts use the Control Plane methods, and the plain
-  `AddCloudShell()`, `UseCloudShellAsync()`, and `MapCloudShell(...)` methods
-  live in the combined host surface that composes both sides.
+  Control Plane hosts use the Control Plane methods, and combined local hosts
+  compose both sides explicitly instead of using ambiguous plain
+  `AddCloudShell()`, `UseCloudShellAsync()`, or `MapCloudShell(...)` methods.
+- [x] Clarify the preferred local-development registration story: install the
+  Control Plane application first, add CloudShell UI explicitly, and register
+  backend provider extensions separately from Resource Manager UI extensions.
 - [x] Remove legacy provider project references from remaining samples where
   built-in Resource model providers already cover the scenario.
 - [x] Move reusable sample-local gaps behind Resource model

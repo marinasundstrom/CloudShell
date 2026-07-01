@@ -40,56 +40,60 @@ var apiEndpointUri = new Uri(apiEndpoint);
 const string identityProviderId = "identity:keycloak";
 const string apiIdentityName = "keycloak-provisioned-api";
 
-var cloudShell = builder.AddCloudShell();
-IResourceDefinitionBuilder identityProvisioningResource = null!;
-IResourceDefinitionBuilder configurationResource = null!;
-IResourceDefinitionBuilder apiResource = null!;
-cloudShell.DefineResources(
-    resources =>
-    {
-        identityProvisioningResource = resources
-            .AddIdentityProvisioning("keycloak")
-            .WithDisplayName("Keycloak Identity Provisioning")
-            .WithIdentityProvider("Keycloak")
-            .WithIdentityProviderId(identityProviderId)
-            .WithProviderKind("oidc");
-        configurationResource = resources
-            .AddConfigurationStore("third-party-identity")
-            .WithDisplayName("Third-party Identity Settings")
-            .WithEndpoint(configurationServiceEndpoint);
-        apiResource = resources
-            .AddAspNetCoreProject("keycloak-provisioned-api", apiProjectPath)
-            .WithDisplayName("Keycloak Provisioned API")
-            .DependsOn(configurationResource)
-            .WithReference(configurationResource)
-            .UseLaunchSettings(false)
-            .WithHotReload(false)
-            .WithHttpEndpoint(
-                host: apiEndpointUri.Host,
-                port: apiEndpointUri.Port)
-            .WithIdentity(
-                identityProviderId,
-                scopes: [builder.Configuration["Keycloak:ResourceIdentityScope"] ?? "openid"],
-                name: apiIdentityName)
-            .ProvisionIdentityOnStartup()
-            .WithEnvironmentVariable(
-                "CLOUDSHELL_APPLICATION",
-                "Keycloak Provisioned API")
-            .WithEnvironmentVariable(
-                "CLOUDSHELL_CONFIGURATION_SERVICE_NAME",
-                "third-party-identity");
-        configurationResource.Allow(apiResource, ConfigurationStoreResourceOperationPermissions.ReadEntries);
-    },
-    projectState: AddProjectionState);
-cloudShell.AddIdentityProvider(CreateKeycloakIdentityProviderDefinition(
-    identityProviderId,
-    "Keycloak",
-    identityProvisioningResource.EffectiveResourceId));
-cloudShell
-    .UseBuiltInResourceModelProviders(options =>
+string configurationResourceId = string.Empty;
+string identityProvisioningResourceId = string.Empty;
+var cloudShell = builder.AddCloudShellControlPlaneApplication(
+    options =>
     {
         options.IncludeDefaultEnvironmentResources = false;
-    })
+    },
+    controlPlane =>
+    {
+        controlPlane.DefineResources(
+            resources =>
+            {
+                var identityProvisioningResource = resources
+                    .AddIdentityProvisioning("keycloak")
+                    .WithDisplayName("Keycloak Identity Provisioning")
+                    .WithIdentityProvider("Keycloak")
+                    .WithIdentityProviderId(identityProviderId)
+                    .WithProviderKind("oidc");
+                identityProvisioningResourceId = identityProvisioningResource.EffectiveResourceId;
+                var configurationResource = resources
+                    .AddConfigurationStore("third-party-identity")
+                    .WithDisplayName("Third-party Identity Settings")
+                    .WithEndpoint(configurationServiceEndpoint);
+                configurationResourceId = configurationResource.EffectiveResourceId;
+                var apiResource = resources
+                    .AddAspNetCoreProject("keycloak-provisioned-api", apiProjectPath)
+                    .WithDisplayName("Keycloak Provisioned API")
+                    .DependsOn(configurationResource)
+                    .WithReference(configurationResource)
+                    .UseLaunchSettings(false)
+                    .WithHotReload(false)
+                    .WithHttpEndpoint(
+                        host: apiEndpointUri.Host,
+                        port: apiEndpointUri.Port)
+                    .WithIdentity(
+                        identityProviderId,
+                        scopes: [builder.Configuration["Keycloak:ResourceIdentityScope"] ?? "openid"],
+                        name: apiIdentityName)
+                    .ProvisionIdentityOnStartup()
+                    .WithEnvironmentVariable(
+                        "CLOUDSHELL_APPLICATION",
+                        "Keycloak Provisioned API")
+                    .WithEnvironmentVariable(
+                        "CLOUDSHELL_CONFIGURATION_SERVICE_NAME",
+                        "third-party-identity");
+                configurationResource.Allow(apiResource, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+            },
+            projectState: AddProjectionState);
+        controlPlane.AddIdentityProvider(CreateKeycloakIdentityProviderDefinition(
+            identityProviderId,
+            "Keycloak",
+            identityProvisioningResourceId));
+    });
+cloudShell
     .UseConfigurationStoreResourceProvider(runtime =>
     {
         runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
@@ -103,10 +107,13 @@ cloudShell
             "Hello from a Keycloak-provisioned resource identity"));
     });
 
-cloudShell
-    .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>();
-cloudShell.AddBuiltInProviderResourceManagerUi();
+builder.AddCloudShellUi(ui =>
+{
+    ui
+        .AddExtension<ResourceManagerExtension>()
+        .AddExtension<ObservabilityExtension>();
+    ui.AddBuiltInProviderResourceManagerUi();
+});
 builder.Services.TryAddEnumerable(
     ServiceDescriptor.Singleton<IResourceIdentityProvisioner, KeycloakResourceIdentityProvisioner>());
 builder.Services.TryAddEnumerable(
@@ -126,8 +133,10 @@ builder.Services.TryAddEnumerable(
 
 var app = builder.Build();
 
-await app.UseCloudShellAsync();
-app.MapCloudShell<App>();
+await app.UseCloudShellControlPlaneAsync();
+await app.UseCloudShellUiAsync();
+app.MapCloudShellControlPlane();
+app.MapCloudShellUi<App>();
 
 app.Run();
 
@@ -174,7 +183,7 @@ Dictionary<string, string> CreateKeycloakIdentityProviderSettings() =>
 
 GraphResourceState AddProjectionState(GraphResourceState state)
 {
-    if (state.EffectiveResourceId != configurationResource.EffectiveResourceId)
+    if (state.EffectiveResourceId != configurationResourceId)
     {
         return state;
     }

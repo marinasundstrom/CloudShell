@@ -21,105 +21,105 @@ var virtualNetworkPort = builder.Configuration.GetValue<int?>("HostVirtualNetwor
 var coreDnsDirectory = builder.Configuration.GetValue<string?>("HostVirtualNetwork:CoreDnsDirectory");
 const string resourceGroupId = "host-virtual-network";
 
-var cloudShell = builder.AddCloudShell();
-cloudShell.AddResourceGroup(
-    resourceGroupId,
-    "Host Virtual Network",
-    "Resources used by the HostVirtualNetwork sample.");
-IResourceDefinitionBuilder hostNetworkingResource = null!;
-IResourceDefinitionBuilder apiResource = null!;
-IResourceDefinitionBuilder workerResource = null!;
-cloudShell.DefineResources(resources =>
-{
-    hostNetworkingResource = resources
-        .AddLocalHostNetwork("host-local")
-        .WithResourceGroup(resourceGroupId);
-    var virtualNetwork = resources
-        .AddVirtualNetwork("sample-vnet", isDefault: true)
-        .WithResourceGroup(resourceGroupId)
-        .DependsOn(hostNetworkingResource)
-        .WithHostReadiness("providerRequired")
-        .WithMappingProviders(hostNetworkingResource);
-    apiResource = resources
-        .AddAspNetCoreProject(
-            "vnet-api",
-            "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
-        .WithDisplayName("VNet API")
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false)
-        .WithArguments($"--urls http://localhost:{targetPort}")
-        .UseLaunchSettings(false)
-        .WithHttpEndpoint(
-            host: "localhost",
-            port: targetPort)
-        .WithHttpEndpoint(
-            name: "vnet-http",
-            port: 80,
-            targetPort: 80,
-            exposure: "Network",
-            ipAddress: "10.42.0.10",
-            network: virtualNetwork,
-            assignment: "Manual");
-    workerResource = resources
-        .AddAspNetCoreProject(
-            "vnet-worker",
-            "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
-        .WithDisplayName("VNet Worker")
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false)
-        .WithArguments($"--urls http://localhost:{workerTargetPort}")
-        .UseLaunchSettings(false)
-        .WithHttpEndpoint(
-            host: "localhost",
-            port: workerTargetPort)
-        .WithHttpEndpoint(
-            name: "vnet-http",
-            port: 80,
-            targetPort: 80,
-            exposure: "Network",
-            ipAddress: "10.42.0.11",
-            network: virtualNetwork,
-            assignment: "Manual");
-    virtualNetwork
-        .DependsOn(apiResource)
-        .DependsOn(workerResource);
-    var publicEndpoint = virtualNetwork
-        .AddHttpEndpoint(
-            "localhost",
-            virtualNetworkPort,
-            name: "api-public",
-            exposure: "Public");
-    virtualNetwork.MapEndpoint(
-        publicEndpoint,
-        apiResource,
-        "http",
-        hostNetworkingResource,
-        "mapping:api-public",
-        "API public ingress");
-    resources
-        .AddDnsZone("sample-vnet-internal", zoneName: "internal.cloudshell.test")
-        .WithDisplayName("Sample VNet Internal DNS")
-        .WithResourceGroup(resourceGroupId)
-        .WithProvider(CoreDnsZoneFilePublishingProvider.ProviderNameValue)
-        .MapHost(
-            "api.internal.cloudshell.test",
-            apiResource,
-            endpointName: "vnet-http",
-            name: "api-internal",
-            exposure: "Private",
-            configure: mapping => mapping.WithResourceGroup(resourceGroupId))
-        .MapHost(
-            "worker.internal.cloudshell.test",
-            workerResource,
-            endpointName: "vnet-http",
-            name: "worker-internal",
-            exposure: "Private",
-            configure: mapping => mapping.WithResourceGroup(resourceGroupId));
-});
-cloudShell
-    .UseBuiltInResourceModelProviders(options =>
+builder.AddCloudShellControlPlaneApplication(
+    options =>
     {
         options.IncludeDefaultEnvironmentResources = false;
+    },
+    controlPlane =>
+    {
+        controlPlane.DefineResources(resources =>
+        {
+            var resourceGroup = resources.AddResourceGroup(
+                resourceGroupId,
+                "Host Virtual Network",
+                "Resources used by the HostVirtualNetwork sample.");
+
+            var hostNetworkingResource = resources
+                .AddLocalHostNetwork("host-local")
+                .WithResourceGroup(resourceGroup);
+            var virtualNetwork = resources
+                .AddVirtualNetwork("sample-vnet", isDefault: true)
+                .WithResourceGroup(resourceGroup)
+                .DependsOn(hostNetworkingResource)
+                .WithHostReadiness("providerRequired")
+                .WithMappingProviders(hostNetworkingResource);
+            var apiResource = resources
+                .AddAspNetCoreProject(
+                    "vnet-api",
+                    "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
+                .WithDisplayName("VNet API")
+                .WithResourceGroup(resourceGroup)
+                .WithAutoStart(false)
+                .WithArguments($"--urls http://localhost:{targetPort}")
+                .UseLaunchSettings(false)
+                .WithHttpEndpoint(
+                    host: "localhost",
+                    port: targetPort)
+                .WithHttpEndpoint(
+                    name: "vnet-http",
+                    port: 80,
+                    targetPort: 80,
+                    exposure: "Network",
+                    ipAddress: "10.42.0.10",
+                    network: virtualNetwork,
+                    assignment: "Manual");
+            var workerResource = resources
+                .AddAspNetCoreProject(
+                    "vnet-worker",
+                    "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
+                .WithDisplayName("VNet Worker")
+                .WithResourceGroup(resourceGroup)
+                .WithAutoStart(false)
+                .WithArguments($"--urls http://localhost:{workerTargetPort}")
+                .UseLaunchSettings(false)
+                .WithHttpEndpoint(
+                    host: "localhost",
+                    port: workerTargetPort)
+                .WithHttpEndpoint(
+                    name: "vnet-http",
+                    port: 80,
+                    targetPort: 80,
+                    exposure: "Network",
+                    ipAddress: "10.42.0.11",
+                    network: virtualNetwork,
+                    assignment: "Manual");
+            virtualNetwork
+                .DependsOn(apiResource)
+                .DependsOn(workerResource);
+            var publicEndpoint = virtualNetwork
+                .AddHttpEndpoint(
+                    "localhost",
+                    virtualNetworkPort,
+                    name: "api-public",
+                    exposure: "Public");
+            virtualNetwork.MapEndpoint(
+                publicEndpoint,
+                apiResource,
+                "http",
+                hostNetworkingResource,
+                "mapping:api-public",
+                "API public ingress");
+            resources
+                .AddDnsZone("sample-vnet-internal", zoneName: "internal.cloudshell.test")
+                .WithDisplayName("Sample VNet Internal DNS")
+                .WithResourceGroup(resourceGroup)
+                .WithProvider(CoreDnsZoneFilePublishingProvider.ProviderNameValue)
+                .MapHost(
+                    "api.internal.cloudshell.test",
+                    apiResource,
+                    endpointName: "vnet-http",
+                    name: "api-internal",
+                    exposure: "Private",
+                    configure: mapping => mapping.WithResourceGroup(resourceGroup))
+                .MapHost(
+                    "worker.internal.cloudshell.test",
+                    workerResource,
+                    endpointName: "vnet-http",
+                    name: "worker-internal",
+                    exposure: "Private",
+                    configure: mapping => mapping.WithResourceGroup(resourceGroup));
+        });
     });
 builder.Services.AddCoreDnsZoneFilePublishingProvider(options =>
 {
@@ -128,14 +128,19 @@ builder.Services.AddCoreDnsZoneFilePublishingProvider(options =>
         : coreDnsDirectory;
 });
 
-cloudShell
-    .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>();
-cloudShell.AddBuiltInProviderResourceManagerUi();
+builder.AddCloudShellUi(ui =>
+{
+    ui
+        .AddExtension<ResourceManagerExtension>()
+        .AddExtension<ObservabilityExtension>();
+    ui.AddBuiltInProviderResourceManagerUi();
+});
 
 var app = builder.Build();
 
-await app.UseCloudShellAsync();
-app.MapCloudShell<App>();
+await app.UseCloudShellControlPlaneAsync();
+await app.UseCloudShellUiAsync();
+app.MapCloudShellControlPlane();
+app.MapCloudShellUi<App>();
 
 app.Run();

@@ -322,7 +322,7 @@ controlPlane.DefineResources(resources =>
     var docker = resources.Declarations.AddDocker("docker:dev")
         .WithDisplayName("Development Docker");
 
-    var redis = docker
+    docker
         .AddContainer("redis", "redis", "7.2")
         .DependsOn("configuration:settings");
 });
@@ -347,11 +347,20 @@ The Docker endpoint is discovered from:
 5. `/var/run/docker.sock`.
 
 ```csharp
-builder
-    .AddCloudShell()
-    .AddDockerProvider(options =>
+var controlPlane = builder.AddCloudShellControlPlaneApplication(
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
     {
-        options.Endpoint = new Uri("unix:///var/run/docker.sock");
-        options.RefreshInterval = TimeSpan.FromSeconds(15);
+        controlPlane.DefineResources(resources =>
+        {
+            resources.Declarations.AddDocker("docker:dev")
+                .WithDisplayName("Development Docker");
+        });
     });
+
+controlPlane.AddDockerProvider(options =>
+{
+    options.Endpoint = new Uri("unix:///var/run/docker.sock");
+    options.RefreshInterval = TimeSpan.FromSeconds(15);
+});
 ```

@@ -30,9 +30,24 @@ on `git blame --follow`, and then by the broad type of change.
   extensions, Resource Manager extensions, and provider-owned Resource Manager
   UI contributions can be registered on the UI surface instead of through the
   Control Plane builder.
+- `AddCloudShellControlPlane(...)` and
+  `AddCloudShellControlPlaneApplication(...)` now accept Control Plane setup
+  callbacks so provider setup, identity context, and `DefineResources(...)`
+  declarations can be composed as one Control Plane configuration block.
 - Environment Map now has a separate Dependencies layer toggle, and dependency
   relationships to container apps resolve to the service node when the
   container app is rendered as an orchestration service boundary.
+- The hosting guidance and `CloudShell.ResourceHost` sample now distinguish
+  Control Plane registration from CloudShell UI registration: backend provider
+  extensions are installed on the Control Plane builder, while Resource Manager
+  UI contributions are installed through the `AddCloudShellUi(...)` callback.
+- Removed the ambiguous combined-host registration/mapping shortcuts
+  `AddCloudShell()`, `UseCloudShellAsync()`, and `MapCloudShell(...)`. Combined
+  local hosts now compose the Control Plane and CloudShell UI explicitly.
+- Resource groups are now declared inside `DefineResources(...)` through the
+  Control Plane resource graph builder instead of on the host-level Control
+  Plane builder. `AddResourceGroup(...)` returns a resource group definition
+  that can be passed directly to `WithResourceGroup(...)`.
 
 ### 2026-06-30
 

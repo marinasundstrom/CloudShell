@@ -37,24 +37,6 @@ public sealed class CloudShellHostCompositionTests
     }
 
     [Fact]
-    public void AddCloudShell_ComposesControlPlaneAndUiServices()
-    {
-        var builder = CreateBuilder();
-
-        builder.AddCloudShell();
-
-        Assert.Contains(
-            builder.Services,
-            descriptor => descriptor.ServiceType == typeof(IControlPlane));
-        Assert.Contains(
-            builder.Services,
-            descriptor => descriptor.ServiceType == typeof(IResourceManagerStore));
-
-        var registry = GetExtensionRegistry(builder.Services);
-        Assert.Contains(registry.Extensions, extension => extension.Id == "cloudshell.core");
-    }
-
-    [Fact]
     public void AddCloudShellControlPlaneApplication_RegistersControlPlaneDefaultsWithoutUi()
     {
         var builder = CreateBuilder();
@@ -97,7 +79,7 @@ public sealed class CloudShellHostCompositionTests
     }
 
     [Fact]
-    public void CombinedHostMethodNames_AreOwnedByAppHost()
+    public void HostRegistrationMethods_KeepControlPlaneAndUiBoundariesExplicit()
     {
         Assert.DoesNotContain(
             GetPublicStaticMethodNames(typeof(CloudShellHostApplicationBuilderExtensions)),
@@ -109,15 +91,9 @@ public sealed class CloudShellHostCompositionTests
         Assert.Contains(
             GetPublicStaticMethodNames(typeof(CloudShellCombinedHostApplicationBuilderExtensions)),
             name => name == "AddCloudShellControlPlaneApplication");
-        Assert.Contains(
+        Assert.DoesNotContain(
             GetPublicStaticMethodNames(typeof(CloudShellCombinedHostApplicationBuilderExtensions)),
             name => name == "AddCloudShell");
-        Assert.Contains(
-            GetPublicStaticMethodNames(typeof(CloudShellCombinedHostApplicationExtensions)),
-            name => name == "UseCloudShellAsync");
-        Assert.Contains(
-            GetPublicStaticMethodNames(typeof(CloudShellCombinedHostApplicationExtensions)),
-            name => name == "MapCloudShell");
     }
 
     private static WebApplicationBuilder CreateBuilder() =>

@@ -40,59 +40,61 @@ var traceIngestEndpoint = builder.Configuration["Observability:TraceIngestEndpoi
 var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndpoint"]
     ?? $"{runtimeControlPlaneEndpoint}/api/control-plane/v1/metrics/ingest";
 
-var cloudShell = builder.AddCloudShell();
-cloudShell.AddResourceGroup(
-    resourceGroupId,
-    "SignalR Container App",
-    "Blazor WebAssembly frontend connected to a replicated SignalR container app backend.");
-IResourceDefinitionBuilder apiResource = null!;
-cloudShell.DefineResources(resources =>
+var cloudShell = builder.AddCloudShellControlPlane(controlPlane =>
 {
-    apiResource = resources
-        .AddContainerApplication("signalr-api")
-        .WithDisplayName("SignalR API")
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false)
-        .WithImage($"cloudshell-signalr-api:{sampleImageTag}")
-        .WithRuntimeLogSources(LogFormat.JsonConsole)
-        .WithReplicas(3)
-        .WithCookieSessionAffinity("CloudShellSignalRReplica", durationSeconds: 3600)
-        .WithHttpEndpoint(
-            targetPort: 8080,
-            host: "localhost",
-            port: apiEndpointPort)
-        .WithHttpHealthCheck(
-            "/health",
-            endpointName: "http")
-        .WithHttpLivenessCheck(
-            "/alive",
-            endpointName: "http",
-            name: "alive");
+    controlPlane.DefineResources(resources =>
+    {
+        var resourceGroup = resources.AddResourceGroup(
+            resourceGroupId,
+            "SignalR Container App",
+            "Blazor WebAssembly frontend connected to a replicated SignalR container app backend.");
 
-    resources
-        .AddAspNetCoreProject("signalr-frontend", frontendProjectPath)
-        .WithDisplayName("SignalR Frontend")
-        .WithResourceGroup(resourceGroupId)
-        .WithAutoStart(false)
-        .WithHotReload(false)
-        .UseLaunchSettings(false)
-        .WithReference(apiResource)
-        .DependsOn(apiResource)
-        .WithHttpEndpoint(
-            host: frontendEndpointUri.Host,
-            port: frontendEndpointUri.Port)
-        .WithEnvironmentVariable(
-            "SignalRBackend__BaseUrl",
-            apiIngressEndpoint)
-        .WithEnvironmentVariable(
-            "ASPNETCORE_ENVIRONMENT",
-            "Development")
-        .WithHttpHealthCheck(
-            "/health",
-            endpointName: "http")
-        .WithHttpLivenessCheck(
-            "/alive",
-            endpointName: "http");
+        var apiResource = resources
+            .AddContainerApplication("signalr-api")
+            .WithDisplayName("SignalR API")
+            .WithResourceGroup(resourceGroup)
+            .WithAutoStart(false)
+            .WithImage($"cloudshell-signalr-api:{sampleImageTag}")
+            .WithRuntimeLogSources(LogFormat.JsonConsole)
+            .WithReplicas(3)
+            .WithCookieSessionAffinity("CloudShellSignalRReplica", durationSeconds: 3600)
+            .WithHttpEndpoint(
+                targetPort: 8080,
+                host: "localhost",
+                port: apiEndpointPort)
+            .WithHttpHealthCheck(
+                "/health",
+                endpointName: "http")
+            .WithHttpLivenessCheck(
+                "/alive",
+                endpointName: "http",
+                name: "alive");
+
+        resources
+            .AddAspNetCoreProject("signalr-frontend", frontendProjectPath)
+            .WithDisplayName("SignalR Frontend")
+            .WithResourceGroup(resourceGroup)
+            .WithAutoStart(false)
+            .WithHotReload(false)
+            .UseLaunchSettings(false)
+            .WithReference(apiResource)
+            .DependsOn(apiResource)
+            .WithHttpEndpoint(
+                host: frontendEndpointUri.Host,
+                port: frontendEndpointUri.Port)
+            .WithEnvironmentVariable(
+                "SignalRBackend__BaseUrl",
+                apiIngressEndpoint)
+            .WithEnvironmentVariable(
+                "ASPNETCORE_ENVIRONMENT",
+                "Development")
+            .WithHttpHealthCheck(
+                "/health",
+                endpointName: "http")
+            .WithHttpLivenessCheck(
+                "/alive",
+                endpointName: "http");
+    });
 });
 
 builder.Services
@@ -115,16 +117,20 @@ builder.Services
     .AddAspNetCoreProjectResourceType();
 cloudShell.UseResourceGraphIntegration();
 
-cloudShell
-    .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>();
-
-cloudShell.AddBuiltInProviderResourceManagerUi();
+builder.AddCloudShellUi(ui =>
+{
+    ui
+        .AddExtension<ResourceManagerExtension>()
+        .AddExtension<ObservabilityExtension>();
+    ui.AddBuiltInProviderResourceManagerUi();
+});
 
 var app = builder.Build();
 
-await app.UseCloudShellAsync();
-app.MapCloudShell<App>();
+await app.UseCloudShellControlPlaneAsync();
+await app.UseCloudShellUiAsync();
+app.MapCloudShellControlPlane();
+app.MapCloudShellUi<App>();
 
 app.Run();
 

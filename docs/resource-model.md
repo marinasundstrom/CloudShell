@@ -559,7 +559,8 @@ resources. Host-level defaults that are not resources, such as identity
 providers used to resolve user or resource principals, stay outside the
 ResourceDefinition graph. Control Plane host setup registers identity providers
 through host configuration, identity-specific host setup such as the built-in
-identity setup, or host-level `cloudShell.AddIdentityProvider(...)` calls.
+identity setup, or Control Plane setup calls such as
+`controlPlane.AddIdentityProvider(...)`.
 Control Plane programmatic resource authoring can read that host context with
 `resources.GetIdentityProvider(...)` and use it while declaring resources, but
 it does not declare identity providers as `ResourceDefinition` resources.

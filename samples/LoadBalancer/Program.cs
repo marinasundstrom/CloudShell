@@ -26,84 +26,82 @@ if (!string.IsNullOrWhiteSpace(localHostsFilePath))
         .LocalHostNameHostsFilePath = localHostsFilePath;
 }
 
-var cloudShell = builder.AddCloudShell();
-cloudShell.AddResourceGroup(
-    resourceGroupId,
-    "Load Balancer",
-    "Resource model resources used by the LoadBalancer sample.");
-IResourceDefinitionBuilder dockerHostResource = null!;
-IResourceDefinitionBuilder webResource = null!;
-IResourceDefinitionBuilder apiResource = null!;
-IResourceDefinitionBuilder postgresResource = null!;
-IResourceDefinitionBuilder loadBalancerResource = null!;
-IResourceDefinitionBuilder dnsZoneResource = null!;
-cloudShell.DefineResources(resources =>
-{
-    dockerHostResource = resources
-        .AddDockerHost("sample-host")
-        .WithResourceGroup(resourceGroupId);
-    webResource = resources
-        .AddContainerApplication("web")
-        .WithDisplayName("Web App")
-        .WithResourceGroup(resourceGroupId)
-        .UseDockerHost(dockerHostResource)
-        .WithImage("nginx:1.27-alpine");
-    apiResource = resources
-        .AddContainerApplication("api")
-        .WithDisplayName("API Service")
-        .WithResourceGroup(resourceGroupId)
-        .UseDockerHost(dockerHostResource)
-        .WithImage("traefik/whoami:v1.10")
-        .WithReplicas(3);
-    postgresResource = resources
-        .AddContainerApplication("postgres")
-        .WithDisplayName("Postgres Replica Set")
-        .WithResourceGroup(resourceGroupId)
-        .UseDockerHost(dockerHostResource)
-        .WithImage("postgres:16-alpine");
-
-    loadBalancerResource = resources
-        .AddLoadBalancer("public")
-        .WithDisplayName("Public Load Balancer")
-        .WithResourceGroup(resourceGroupId)
-        .WithProvider("traefik")
-        .UseHost(dockerHostResource)
-        .ExposeHttp()
-        .ExposeHttps()
-        .ExposeTcp(5432)
-        .MapHost("app.cloudshell.local", webResource, port: 80)
-        .MapPath("api.cloudshell.local", "/v1", apiResource, port: 80)
-        .MapTcp(5432, postgresResource, targetPort: 5432);
-
-    dnsZoneResource = resources
-        .AddDnsZone("cloudshell-local", zoneName: "cloudshell.local")
-        .WithDisplayName("CloudShell Local DNS")
-        .WithResourceGroup(resourceGroupId)
-        .UseLocalHostNames()
-        .MapHost(
-            "app.cloudshell.local",
-            loadBalancerResource,
-            endpointName: "http",
-            name: "app-cloudshell-local",
-            configure: mapping => mapping.WithResourceGroup(resourceGroupId))
-        .MapHost(
-            "api.cloudshell.local",
-            loadBalancerResource,
-            endpointName: "http",
-            name: "api-cloudshell-local",
-            configure: mapping => mapping.WithResourceGroup(resourceGroupId));
-});
-cloudShell
-    .UseBuiltInResourceModelProviders(options =>
+var cloudShell = builder.AddCloudShellControlPlaneApplication(
+    options =>
     {
         options.IncludeDefaultEnvironmentResources = false;
+    },
+    controlPlane =>
+    {
+        controlPlane.DefineResources(resources =>
+        {
+            var resourceGroup = resources.AddResourceGroup(
+                resourceGroupId,
+                "Load Balancer",
+                "Resource model resources used by the LoadBalancer sample.");
+
+            var dockerHostResource = resources
+                .AddDockerHost("sample-host")
+                .WithResourceGroup(resourceGroup);
+            var webResource = resources
+                .AddContainerApplication("web")
+                .WithDisplayName("Web App")
+                .WithResourceGroup(resourceGroup)
+                .UseDockerHost(dockerHostResource)
+                .WithImage("nginx:1.27-alpine");
+            var apiResource = resources
+                .AddContainerApplication("api")
+                .WithDisplayName("API Service")
+                .WithResourceGroup(resourceGroup)
+                .UseDockerHost(dockerHostResource)
+                .WithImage("traefik/whoami:v1.10")
+                .WithReplicas(3);
+            var postgresResource = resources
+                .AddContainerApplication("postgres")
+                .WithDisplayName("Postgres Replica Set")
+                .WithResourceGroup(resourceGroup)
+                .UseDockerHost(dockerHostResource)
+                .WithImage("postgres:16-alpine");
+
+            var loadBalancerResource = resources
+                .AddLoadBalancer("public")
+                .WithDisplayName("Public Load Balancer")
+                .WithResourceGroup(resourceGroup)
+                .WithProvider("traefik")
+                .UseHost(dockerHostResource)
+                .ExposeHttp()
+                .ExposeHttps()
+                .ExposeTcp(5432)
+                .MapHost("app.cloudshell.local", webResource, port: 80)
+                .MapPath("api.cloudshell.local", "/v1", apiResource, port: 80)
+                .MapTcp(5432, postgresResource, targetPort: 5432);
+
+            resources
+                .AddDnsZone("cloudshell-local", zoneName: "cloudshell.local")
+                .WithDisplayName("CloudShell Local DNS")
+                .WithResourceGroup(resourceGroup)
+                .UseLocalHostNames()
+                .MapHost(
+                    "app.cloudshell.local",
+                    loadBalancerResource,
+                    endpointName: "http",
+                    name: "app-cloudshell-local",
+                    configure: mapping => mapping.WithResourceGroup(resourceGroup))
+                .MapHost(
+                    "api.cloudshell.local",
+                    loadBalancerResource,
+                    endpointName: "http",
+                    name: "api-cloudshell-local",
+                    configure: mapping => mapping.WithResourceGroup(resourceGroup));
+        });
     });
-
-cloudShell
-    .AddExtension<ResourceManagerExtension>()
-    .AddExtension<ObservabilityExtension>();
-
-cloudShell.AddBuiltInProviderResourceManagerUi();
+builder.AddCloudShellUi(ui =>
+{
+    ui
+        .AddExtension<ResourceManagerExtension>()
+        .AddExtension<ObservabilityExtension>();
+    ui.AddBuiltInProviderResourceManagerUi();
+});
 
 cloudShell
     .AddTraefikProvider(options =>
@@ -117,7 +115,9 @@ cloudShell
 
 var app = builder.Build();
 
-await app.UseCloudShellAsync();
-app.MapCloudShell<App>();
+await app.UseCloudShellControlPlaneAsync();
+await app.UseCloudShellUiAsync();
+app.MapCloudShellControlPlane();
+app.MapCloudShellUi<App>();
 
 app.Run();
