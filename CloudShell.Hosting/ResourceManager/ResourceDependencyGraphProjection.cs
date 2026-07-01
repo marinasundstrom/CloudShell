@@ -84,6 +84,11 @@ public static class ResourceDependencyGraphProjection
                 nodes,
                 links)
             : 0;
+        if (projectionOptions.IncludeNetworkTopologyOverlay &&
+            visibleResourceIds.Contains(ResourceInternetReachabilityProjection.HostNetworkResourceId))
+        {
+            AddHostNetworkConnectivityLinks(distinctResources, visibleResourceIds, links);
+        }
         var dependencyCount = links.Values.Count(link => string.Equals(
             link.Kind,
             ResourceDependencyGraphLinkKinds.Dependency,
@@ -277,6 +282,24 @@ public static class ResourceDependencyGraphProjection
         }
 
         return 1;
+    }
+
+    private static void AddHostNetworkConnectivityLinks(
+        IReadOnlyList<Resource> resources,
+        ISet<string> visibleResourceIds,
+        IDictionary<string, ResourceDependencyGraphLink> links)
+    {
+        foreach (var resourceId in ResourceInternetReachabilityProjection.GetHostNetworkConnectedResourceIds(resources)
+            .Where(visibleResourceIds.Contains))
+        {
+            AddLink(
+                links,
+                ResourceInternetReachabilityProjection.HostNetworkResourceId,
+                resourceId,
+                "connects",
+                ResourceDependencyGraphLinkKinds.Topology,
+                ResourceInternetReachabilityProjection.HostNetworkResourceId);
+        }
     }
 
     private static void AddDerivedResourceRelationshipLinks(

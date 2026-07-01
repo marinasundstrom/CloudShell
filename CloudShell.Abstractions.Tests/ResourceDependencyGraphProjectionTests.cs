@@ -273,6 +273,28 @@ public sealed class ResourceDependencyGraphProjectionTests
     }
 
     [Fact]
+    public void Create_ConnectsMaterializedHostNetworkWhenTopologyOverlayIsEnabled()
+    {
+        var hostNetwork = CreateHostNetworkResource(declared: true);
+        var localApi = CreateLocalHostHttpResource();
+
+        var graph = ResourceDependencyGraphProjection.Create(
+            [localApi, hostNetwork],
+            CreateOptions(
+                includeNetworkTopologyOverlay: true,
+                includeImplicitResources: true));
+
+        Assert.Equal(2, graph.ResourceCount);
+        Assert.Equal(1, graph.TopologyCount);
+        Assert.Single(graph.Nodes, node => node.Id == hostNetwork.Id);
+        Assert.Contains(graph.Links, link =>
+            link.Source == hostNetwork.Id &&
+            link.Target == localApi.Id &&
+            link.Label == "connects" &&
+            link.Kind == ResourceDependencyGraphLinkKinds.Topology);
+    }
+
+    [Fact]
     public void Create_InfersInternetConnectivityThroughReachableNetwork()
     {
         var api = CreatePublicHttpResource();
@@ -353,9 +375,9 @@ public sealed class ResourceDependencyGraphProjectionTests
         Assert.True(ResourceGraphVisibility.IsImplicitDefaultResource(defaultContainerHost));
         Assert.True(ResourceGraphVisibility.IsImplicitDefaultResource(defaultDockerCompatibleHost));
         Assert.False(ResourceGraphVisibility.IsImplicitDefaultResource(explicitContainerHost));
-        Assert.False(ResourceGraphVisibility.IsImplicitDefaultResource(declaredHostNetwork));
-        Assert.False(ResourceGraphVisibility.IsImplicitDefaultResource(declaredDefaultContainerHost));
-        Assert.False(ResourceGraphVisibility.IsImplicitDefaultResource(declaredDefaultDockerCompatibleHost));
+        Assert.True(ResourceGraphVisibility.IsImplicitDefaultResource(declaredHostNetwork));
+        Assert.True(ResourceGraphVisibility.IsImplicitDefaultResource(declaredDefaultContainerHost));
+        Assert.True(ResourceGraphVisibility.IsImplicitDefaultResource(declaredDefaultDockerCompatibleHost));
     }
 
     private static ResourceDependencyGraphProjectionOptions CreateOptions(

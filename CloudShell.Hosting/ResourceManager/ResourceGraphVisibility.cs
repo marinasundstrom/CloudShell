@@ -14,9 +14,8 @@ public static class ResourceGraphVisibility
     {
         ArgumentNullException.ThrowIfNull(resource);
 
-        return resource.IsProjectedResource &&
-            (string.Equals(resource.Id, HostNetworkResourceId, StringComparison.OrdinalIgnoreCase) ||
-                IsDefaultContainerHostResource(resource));
+        return string.Equals(resource.Id, HostNetworkResourceId, StringComparison.OrdinalIgnoreCase) ||
+            IsDefaultContainerHostResource(resource);
     }
 
     private static bool IsDefaultContainerHostResource(Resource resource) =>
