@@ -50,6 +50,12 @@ presenters are host adapters over the same graph. CloudShell Hosting should
 add Fluent UI presenters for shell navigation, settings, and Resource Manager
 surfaces, while the standalone sample can continue proving generic behavior
 with plain Bootstrap or custom CSS.
+CoreShell now also has a Blazor adapter package that is intentionally not a
+presenter framework: it resolves CoreShell content references, layout
+references, pages, section outlets, and sections into Blazor component types.
+That adapter is the first mapping layer between the CMS-like CoreShell model
+and Blazor routing/components, while Fluent UI presentation remains in
+CloudShell Hosting for now.
 
 Extensions can still use their own UI or component stack for extension-owned
 surfaces. Shell composition does not require every extension component to be a

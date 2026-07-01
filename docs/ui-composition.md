@@ -16,12 +16,14 @@ CloudShell product layer built on top of the library, see the
 
 ## Packages
 
-The current implementation is split into two libraries:
+The current low-level implementation is split into two libraries, with a
+separate CoreShell adapter above them:
 
 | Library | Current role |
 | --- | --- |
 | `CoreShell.Composition` | Core facilities: typed IDs, page/menu/section registrations, module building, registry builder, route lookup, section ordering, and target-to-link resolution. |
 | `CoreShell.Composition.Blazor` | Plain Blazor components and DI registration for rendering the core graph. It does not depend on Fluent UI, Bootstrap component packages, CloudShell Hosting, Resource Manager, or CloudShell extension contracts. |
+| `CoreShell.Blazor` | Blazor adapter for CoreShell content and layout references. It maps CoreShell pages, section outlets, and sections to Blazor component types without taking a dependency on Fluent UI or CloudShell Hosting presenters. |
 
 The Blazor components render ordinary HTML elements and can be styled by the
 host app with normal CSS. The `samples/CompositionSandbox` app demonstrates
@@ -42,6 +44,11 @@ sections, content references, layout references, target resolution, and page
 materialization services. The Blazor-specific mapping from CoreShell content
 or layout references to component types belongs in the host adapter, not in
 the foundational CoreShell contracts.
+`CoreShell.Blazor` provides that first adapter boundary. A Blazor shell can
+resolve a CoreShell page route into a renderable page descriptor, including
+the optional page component, page layout, section outlet layouts, and section
+component types. Fluent UI, Bootstrap, static SSR, interactive Blazor, or a
+custom host still decide how those descriptors are presented.
 CloudShell's primary navigation renders from CoreShell services; direct
 composition registry access remains an infrastructure and compatibility path
 while page and section presenters move up to CoreShell.
@@ -60,15 +67,24 @@ behavior, render-mode shape, or layout flexibility. The reusable Blazor
 composition package remains the exception: it intentionally stays plain and
 framework-neutral so non-Fluent hosts can consume the same graph.
 
-Render-mode neutrality is a design objective for the Blazor integration. The
-base components should work when a host uses static SSR, interactive server,
-WebAssembly, or mixed render modes. They should render normal links and
-markup, avoid JavaScript and event-handler requirements for core navigation,
-and keep selected state in routable state such as query strings or fragments
-when possible. Components can consume cascaded composition context, but routed
-outlets and metadata components should also be able to resolve the current
-page from an explicit `Page` parameter or the current route so they still work
-when an app places an interactive island across a cascade boundary.
+Render-mode neutrality is a design objective for the Blazor integrations. The
+base components and CoreShell page projection should work when a host uses
+static SSR, interactive server, WebAssembly, or mixed render modes. They
+should render normal links and markup, avoid JavaScript and event-handler
+requirements for core navigation, and keep selected state in routable state
+such as query strings or fragments when possible. Components can consume
+cascaded composition context, but routed outlets and metadata components
+should also be able to resolve the current page from an explicit `Page`
+parameter or the current route so they still work when an app places an
+interactive island across a cascade boundary.
+
+For CoreShell routes, pages are the routable Blazor segments. Sections are
+addressable fragments by default: a section target resolves to its owning page
+plus a fragment. When a section outlet declares `Child` address mode, sections
+can instead be projected into a route value such as the optional `{section?}`
+segment in `/settings/{section?}`. The Blazor route or presenter must still
+honor that URL shape; CoreShell supplies the common resolution and component
+projection services, not a custom router yet.
 
 ## Core Model
 

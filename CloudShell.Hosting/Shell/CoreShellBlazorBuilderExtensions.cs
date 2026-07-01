@@ -1,4 +1,6 @@
 using CoreShell;
+using CoreShell.Blazor;
+using Microsoft.AspNetCore.Components;
 
 namespace CloudShell.Hosting.Shell;
 
@@ -10,6 +12,7 @@ public static class CoreShellBlazorBuilderExtensions
         string title,
         int order,
         IReadOnlyDictionary<string, string>? attributes = null)
+        where TComponent : IComponent
     {
         ArgumentNullException.ThrowIfNull(builder);
 

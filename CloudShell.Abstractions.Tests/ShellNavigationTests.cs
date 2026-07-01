@@ -6,6 +6,7 @@ using CloudShell.Abstractions.Shell;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CoreShell;
+using CoreShell.Blazor;
 using CoreShell.Composition;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
@@ -607,7 +608,7 @@ public sealed class ShellNavigationTests
     private static void ConfigureCoreShellProjection(IServiceCollection services)
     {
         services.TryAddSingleton<ShellHostContext>();
-        services.TryAddSingleton<ICoreShellContentResolver, BlazorCoreShellContentResolver>();
+        services.AddCoreShellBlazor();
         services.TryAddSingleton<CoreShellCompositionModuleFactory>();
         services.AddSingleton<CompositionModule>(serviceProvider =>
             serviceProvider

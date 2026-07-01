@@ -104,6 +104,7 @@
   <Project Path="CloudShell.ControlPlane/CloudShell.ControlPlane.csproj" />
   <Project Path="CoreShell.Tests/CoreShell.Tests.csproj" />
   <Project Path="CoreShell/CoreShell.csproj" />
+  <Project Path="CoreShell.Blazor/CoreShell.Blazor.csproj" />
   <Project Path="CloudShell.Host/CloudShell.Host.csproj" />
   <Project Path="CloudShell.Hosting/CloudShell.Hosting.csproj" />
   <Project Path="CloudShell.Persistence/CloudShell.Persistence.csproj" />

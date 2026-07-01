@@ -31,6 +31,11 @@ on `git blame --follow`, and then by the broad type of change.
   resolver contracts so shells can resolve pages, sections, navigation
   targets, and Blazor-backed content from static modules or focused dynamic
   providers without exposing Composition UI primitives.
+- Added `CoreShell.Blazor` as the Blazor adapter above CoreShell. It provides
+  content/layout reference helpers, default Blazor component resolvers, DI
+  registration, and a page projection service that materializes CoreShell
+  pages, section outlets, and sections into Blazor component descriptors
+  without depending on Fluent UI or CloudShell Hosting presenters.
 - CloudShell's primary navigation menu now renders from CoreShell navigation
   and route services instead of reading the Composition UI registry directly.
 - Shell chrome and dashboard page links can now use a CoreShell-backed anchor
