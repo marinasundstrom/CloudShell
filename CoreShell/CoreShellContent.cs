@@ -8,9 +8,22 @@ public readonly record struct CoreShellContentReference(string Value)
     public override string ToString() => Value;
 }
 
+public readonly record struct CoreShellLayoutReference(string Value)
+{
+    public static CoreShellLayoutReference Create(string value) =>
+        new(CoreShellIdFormatting.Normalize(value));
+
+    public override string ToString() => Value;
+}
+
 public interface ICoreShellContentResolver
 {
     Type ResolveContentType(CoreShellContentReference content);
+}
+
+public interface ICoreShellLayoutResolver
+{
+    Type ResolveLayoutType(CoreShellLayoutReference layout);
 }
 
 public interface ICoreShellModuleProvider

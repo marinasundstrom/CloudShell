@@ -20,6 +20,8 @@ public interface ICoreShellMenuService
         CancellationToken cancellationToken = default);
 }
 
+public interface ICoreShellNavigationService : ICoreShellMenuService;
+
 public interface ICoreShellSectionService
 {
     Task<IReadOnlyList<CoreShellSectionOutletContribution>> GetSectionOutletsAsync(
@@ -31,10 +33,75 @@ public interface ICoreShellSectionService
         CancellationToken cancellationToken = default);
 }
 
+public interface ICoreShellRouteService
+{
+    Task<CoreShellPageContribution?> GetPageByRouteAsync(
+        string route,
+        CancellationToken cancellationToken = default);
+
+    Task<CoreShellResolvedTarget> ResolveTargetAsync(
+        CoreShellTarget target,
+        IReadOnlyDictionary<string, object?>? routeValues = null,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed record CoreShellResolvedTarget(
+    CoreShellTarget Target,
+    string Href,
+    CoreShellPageContribution? Page = null,
+    CoreShellSectionContribution? Section = null);
+
+public interface ICoreShellPageResolver
+{
+    Task<CoreShellResolvedPage?> ResolvePageAsync(
+        CoreShellPageResolutionContext context,
+        CancellationToken cancellationToken = default);
+}
+
+public interface ICoreShellPageResolutionService
+{
+    Task<CoreShellResolvedPage?> ResolvePageAsync(
+        CoreShellPageResolutionContext context,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed record CoreShellPageResolutionContext(
+    string Route,
+    IReadOnlyDictionary<string, object?>? RouteValues = null);
+
+public sealed record CoreShellResolvedPage(
+    CoreShellPageContribution Page,
+    IReadOnlyList<CoreShellSectionOutletContribution> SectionOutlets,
+    IReadOnlyList<CoreShellSectionContribution> Sections);
+
+public sealed class CoreShellPageResolutionService(
+    IEnumerable<ICoreShellPageResolver> resolvers) : ICoreShellPageResolutionService
+{
+    public async Task<CoreShellResolvedPage?> ResolvePageAsync(
+        CoreShellPageResolutionContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        foreach (var resolver in resolvers)
+        {
+            var page = await resolver.ResolvePageAsync(context, cancellationToken);
+            if (page is not null)
+            {
+                return page;
+            }
+        }
+
+        return null;
+    }
+}
+
 public sealed class CoreShellModuleCatalog :
     ICoreShellPageService,
-    ICoreShellMenuService,
-    ICoreShellSectionService
+    ICoreShellNavigationService,
+    ICoreShellSectionService,
+    ICoreShellRouteService,
+    ICoreShellPageResolver
 {
     private readonly IReadOnlyList<CoreShellPageContribution> _pages;
     private readonly IReadOnlyList<CoreShellMenuContribution> _menus;
@@ -73,6 +140,21 @@ public sealed class CoreShellModuleCatalog :
         CancellationToken cancellationToken = default) =>
         Task.FromResult(_pages.FirstOrDefault(page => page.Id == pageId));
 
+    public Task<CoreShellPageContribution?> GetPageByRouteAsync(
+        string route,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedRoute = CoreShellRouteProjection.NormalizeRoute(route);
+        var page = _pages.FirstOrDefault(page =>
+            string.Equals(page.Route, normalizedRoute, StringComparison.OrdinalIgnoreCase))
+            ?? _pages
+                .Where(page => CoreShellRouteProjection.RouteTemplateMatches(page.Route, normalizedRoute))
+                .OrderByDescending(page => CoreShellRouteProjection.GetRouteTemplateSpecificity(page.Route))
+                .FirstOrDefault();
+
+        return Task.FromResult(page);
+    }
+
     public Task<IReadOnlyList<CoreShellMenuContribution>> GetMenusAsync(
         CancellationToken cancellationToken = default) =>
         Task.FromResult(_menus);
@@ -100,6 +182,77 @@ public sealed class CoreShellModuleCatalog :
             .Where(section => section.OutletId == outletId)
             .ToArray();
         return Task.FromResult(result);
+    }
+
+    public Task<CoreShellResolvedTarget> ResolveTargetAsync(
+        CoreShellTarget target,
+        IReadOnlyDictionary<string, object?>? routeValues = null,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(ResolveTarget(target, routeValues));
+
+    public async Task<CoreShellResolvedPage?> ResolvePageAsync(
+        CoreShellPageResolutionContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var page = await GetPageByRouteAsync(context.Route, cancellationToken);
+        if (page is null)
+        {
+            return null;
+        }
+
+        var outlets = _sectionOutlets
+            .Where(outlet => outlet.PageId == page.Id)
+            .ToArray();
+        var sections = _sections
+            .Where(section => section.PageId == page.Id)
+            .ToArray();
+
+        return new(page, outlets, sections);
+    }
+
+    private CoreShellResolvedTarget ResolveTarget(
+        CoreShellTarget target,
+        IReadOnlyDictionary<string, object?>? routeValues)
+    {
+        if (target.Kind == CoreShellTargetKind.Href)
+        {
+            return new(target, CoreShellRouteProjection.AppendRouteValues(target.Value, routeValues));
+        }
+
+        if (target.Kind == CoreShellTargetKind.Page &&
+            _pages.FirstOrDefault(page => string.Equals(
+                page.Id.Value,
+                target.Value,
+                StringComparison.OrdinalIgnoreCase)) is { } page)
+        {
+            return new(
+                target,
+                CoreShellRouteProjection.AppendRouteValues(page.Route, routeValues),
+                Page: page);
+        }
+
+        if (target.Kind == CoreShellTargetKind.Section &&
+            _sections.FirstOrDefault(section => string.Equals(
+                section.Id.Value,
+                target.Value,
+                StringComparison.OrdinalIgnoreCase)) is { } section &&
+            _pages.FirstOrDefault(page => page.Id == section.PageId) is { } sectionPage &&
+            _sectionOutlets.FirstOrDefault(outlet => outlet.Id == section.OutletId) is { } sectionOutlet)
+        {
+            return new(
+                target,
+                CoreShellRouteProjection.ResolveSectionHref(sectionPage, sectionOutlet, section, routeValues),
+                Page: sectionPage,
+                Section: section);
+        }
+
+        return new(
+            target,
+            CoreShellRouteProjection.IsDirectHref(target.Value)
+                ? target.Value
+                : "#");
     }
 
     private static IReadOnlyList<T> UniqueBy<T>(

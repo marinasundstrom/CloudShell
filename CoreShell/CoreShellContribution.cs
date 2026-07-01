@@ -24,10 +24,19 @@ public sealed record CoreShellPageContribution(
     string Title,
     string Route,
     bool IsExtendable = false,
-    CoreShellAuthorizationRequirements? Authorization = null)
+    CoreShellAuthorizationRequirements? Authorization = null,
+    CoreShellContentReference? Content = null,
+    CoreShellLayoutReference? Layout = null,
+    CoreShellPageRoutingMode RoutingMode = CoreShellPageRoutingMode.ExternallyRouted)
 {
     public CoreShellAuthorizationRequirements Authorization { get; init; } =
         Authorization ?? CoreShellAuthorizationRequirements.None;
+}
+
+public enum CoreShellPageRoutingMode
+{
+    ExternallyRouted = 0,
+    CoreShellRouted = 1
 }
 
 public sealed record CoreShellMenuContribution(
@@ -74,7 +83,8 @@ public sealed record CoreShellSectionOutletContribution(
     bool IsExtendable,
     CoreShellAuthorizationRequirements? Authorization = null,
     CoreShellSectionAddressMode AddressMode = CoreShellSectionAddressMode.Parent,
-    string? SelectionKey = null)
+    string? SelectionKey = null,
+    CoreShellLayoutReference? Layout = null)
 {
     public const string DefaultSelectionKey = "section";
 
@@ -101,7 +111,8 @@ public sealed record CoreShellSectionContribution(
     CoreShellContentReference Content,
     int Order,
     CoreShellAuthorizationRequirements? Authorization = null,
-    IReadOnlyDictionary<string, string>? Attributes = null)
+    IReadOnlyDictionary<string, string>? Attributes = null,
+    CoreShellLayoutReference? Layout = null)
 {
     public CoreShellAuthorizationRequirements Authorization { get; init; } =
         Authorization ?? CoreShellAuthorizationRequirements.None;

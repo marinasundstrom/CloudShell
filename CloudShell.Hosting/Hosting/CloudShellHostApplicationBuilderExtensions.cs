@@ -85,6 +85,18 @@ public static class CloudShellHostApplicationBuilderExtensions
         builder.Services.AddCloudShellUiComposition();
         builder.Services.TryAddSingleton<ShellHostContext>();
         builder.Services.TryAddSingleton<ICoreShellContentResolver, BlazorCoreShellContentResolver>();
+        builder.Services.TryAddSingleton<ICoreShellLayoutResolver, BlazorCoreShellLayoutResolver>();
+        builder.Services.TryAddSingleton<CoreShellModuleCatalog>();
+        builder.Services.TryAddSingleton<ICoreShellPageService>(
+            serviceProvider => serviceProvider.GetRequiredService<CoreShellModuleCatalog>());
+        builder.Services.TryAddSingleton<ICoreShellNavigationService>(
+            serviceProvider => serviceProvider.GetRequiredService<CoreShellModuleCatalog>());
+        builder.Services.TryAddSingleton<ICoreShellSectionService>(
+            serviceProvider => serviceProvider.GetRequiredService<CoreShellModuleCatalog>());
+        builder.Services.TryAddSingleton<ICoreShellRouteService>(
+            serviceProvider => serviceProvider.GetRequiredService<CoreShellModuleCatalog>());
+        builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<ICoreShellPageResolver, CoreShellModuleCatalog>());
+        builder.Services.TryAddSingleton<ICoreShellPageResolutionService, CoreShellPageResolutionService>();
         builder.Services.TryAddSingleton<CoreShellCompositionModuleFactory>();
         builder.Services.AddSingleton<CompositionModule>(serviceProvider =>
             serviceProvider

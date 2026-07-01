@@ -37,6 +37,11 @@ these composition primitives directly. Direct use of
 `CoreShell.Composition` is reserved for CoreShell infrastructure, presenter
 packages, compatibility adapters, and sandbox hosts. Domain shells such as
 CloudShell can build their own extension points on top of CoreShell.
+CoreShell adds the shell-facing layer above this graph: pages, navigation,
+sections, content references, layout references, target resolution, and page
+materialization services. The Blazor-specific mapping from CoreShell content
+or layout references to component types belongs in the host adapter, not in
+the foundational CoreShell contracts.
 Because CloudShell Hosting is a Fluent UI shell, shell-specific presenters
 should use Fluent UI components for navigation, commands, inputs, and other
 interactive elements whenever those components provide the needed semantics and

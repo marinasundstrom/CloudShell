@@ -13,8 +13,14 @@ public sealed class CoreShellModuleTests
     private static readonly CoreShellPageId SettingsPage = CoreShellPageId.Create("cloudshell.settings");
     private static readonly CoreShellSectionOutletId SettingsMain = CoreShellSectionOutletId.Create(SettingsPage, "main");
     private static readonly CoreShellSectionId SettingsOverview = CoreShellSectionId.Create(SettingsMain, "overview");
+    private static readonly CoreShellContentReference SettingsPageContent =
+        CoreShellContentReference.Create("cloudshell.settings.page");
     private static readonly CoreShellContentReference SettingsOverviewContent =
         CoreShellContentReference.Create("cloudshell.settings.overview");
+    private static readonly CoreShellLayoutReference SettingsLayout =
+        CoreShellLayoutReference.Create("cloudshell.layout.settings");
+    private static readonly CoreShellLayoutReference SettingsSectionLayout =
+        CoreShellLayoutReference.Create("cloudshell.layout.settings.section");
 
     [Fact]
     public void Create_BuildsFrameworkNeutralShellModule()
@@ -24,14 +30,20 @@ public sealed class CoreShellModuleTests
         Assert.Equal(Module, module.Id);
         Assert.Equal(2, module.Pages.Count);
         Assert.Contains(module.Pages, page => page.Id == OverviewPage && page.Route == "/");
-        Assert.Contains(module.Pages, page => page.Id == SettingsPage && page.IsExtendable);
+        var settingsPage = Assert.Single(module.Pages, page => page.Id == SettingsPage);
+        Assert.True(settingsPage.IsExtendable);
+        Assert.Equal(SettingsPageContent, settingsPage.Content);
+        Assert.Equal(SettingsLayout, settingsPage.Layout);
+        Assert.Equal(CoreShellPageRoutingMode.CoreShellRouted, settingsPage.RoutingMode);
 
         var outlet = Assert.Single(module.SectionOutlets);
         Assert.Equal(SettingsMain, outlet.Id);
         Assert.Equal(CoreShellSectionAddressMode.Child, outlet.AddressMode);
+        Assert.Equal(SettingsSectionLayout, outlet.Layout);
 
         var section = Assert.Single(module.Sections);
         Assert.Equal(SettingsOverviewContent, section.Content);
+        Assert.Equal(SettingsSectionLayout, section.Layout);
         Assert.Equal(["shell.configure"], section.Authorization.AnyPermissions);
 
         var menu = Assert.Single(module.Menus);
@@ -75,17 +87,26 @@ public sealed class CoreShellModuleTests
             module.AddPage(OverviewPage, "Overview", "/");
 
             module
-                .AddPage(SettingsPage, "Settings", "/settings/{section?}", isExtendable: true)
+                .AddPage(
+                    SettingsPage,
+                    "Settings",
+                    "/settings/{section?}",
+                    isExtendable: true,
+                    content: SettingsPageContent,
+                    layout: SettingsLayout,
+                    routingMode: CoreShellPageRoutingMode.CoreShellRouted)
                 .AddSections(
                     SettingsMain,
                     isExtendable: true,
-                    addressMode: CoreShellSectionAddressMode.Child)
+                    addressMode: CoreShellSectionAddressMode.Child,
+                    layout: SettingsSectionLayout)
                 .AddSection(
                     SettingsOverview,
                     "Overview",
                     SettingsOverviewContent,
                     10,
-                    CoreShellAuthorizationRequirements.FromAnyPermissions(["shell.configure"]));
+                    CoreShellAuthorizationRequirements.FromAnyPermissions(["shell.configure"]),
+                    layout: SettingsSectionLayout);
 
             var menu = module.AddMenu(MainMenu, "Main");
             menu

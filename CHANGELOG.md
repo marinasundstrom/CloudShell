@@ -27,6 +27,10 @@ on `git blame --follow`, and then by the broad type of change.
   menus, and settings sections. Hosting projects those modules into the
   Composition UI graph internally, keeping shell-facing extension APIs on the
   CoreShell abstraction instead of exposing Composition builders.
+- CoreShell now exposes route, navigation, page materialization, and layout
+  resolver contracts so shells can resolve pages, sections, navigation
+  targets, and Blazor-backed content from static modules or focused dynamic
+  providers without exposing Composition UI primitives.
 - Documented the broader platform vision for CoreShell, ecosystem-neutral host
   bootstrapping and resource-graph authoring, and future clustered or
   multi-Control Plane hosting topologies.

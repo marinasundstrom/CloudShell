@@ -21,14 +21,20 @@ public sealed class CoreShellModuleBuilder
         string title,
         string route,
         bool isExtendable = false,
-        CoreShellAuthorizationRequirements? authorization = null)
+        CoreShellAuthorizationRequirements? authorization = null,
+        CoreShellContentReference? content = null,
+        CoreShellLayoutReference? layout = null,
+        CoreShellPageRoutingMode routingMode = CoreShellPageRoutingMode.ExternallyRouted)
     {
         _pages.Add(new CoreShellPageContribution(
             id,
             title,
             NormalizeRoute(route),
             isExtendable,
-            authorization));
+            authorization,
+            content,
+            layout,
+            routingMode));
 
         return new CoreShellPageBuilder(this, id);
     }
@@ -89,7 +95,8 @@ public sealed class CoreShellPageBuilder(
         bool isExtendable = false,
         CoreShellAuthorizationRequirements? authorization = null,
         CoreShellSectionAddressMode addressMode = CoreShellSectionAddressMode.Parent,
-        string? selectionKey = null)
+        string? selectionKey = null,
+        CoreShellLayoutReference? layout = null)
     {
         builder.AddSectionOutlet(new CoreShellSectionOutletContribution(
             outletId,
@@ -97,7 +104,8 @@ public sealed class CoreShellPageBuilder(
             isExtendable,
             authorization,
             addressMode,
-            selectionKey));
+            selectionKey,
+            layout));
 
         return new CoreShellSectionOutletBuilder(builder, pageId, outletId);
     }
@@ -114,7 +122,8 @@ public sealed class CoreShellSectionOutletBuilder(
         CoreShellContentReference content,
         int order,
         CoreShellAuthorizationRequirements? authorization = null,
-        IReadOnlyDictionary<string, string>? attributes = null)
+        IReadOnlyDictionary<string, string>? attributes = null,
+        CoreShellLayoutReference? layout = null)
     {
         builder.AddSection(new CoreShellSectionContribution(
             id,
@@ -124,7 +133,8 @@ public sealed class CoreShellSectionOutletBuilder(
             content,
             order,
             authorization,
-            attributes));
+            attributes,
+            layout));
 
         return this;
     }
