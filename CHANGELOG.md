@@ -68,6 +68,9 @@ on `git blame --follow`, and then by the broad type of change.
   build the Resource Model graph before registering declarations, so lazy
   default resources such as the default container host are registered and can
   be resolved during dependency auto-start.
+- The Environment map now renders a managed orchestration service using the
+  owning resource's type, icon, internet reachability, and endpoint text when a
+  service boundary is backed by a resource such as a container app.
 
 ### 2026-06-30
 

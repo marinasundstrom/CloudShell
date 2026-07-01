@@ -23,8 +23,15 @@ public sealed class EnvironmentRuntimeMapProjectionTests
             [],
             new EnvironmentRuntimeMapProjectionOptions
             {
+                IncludeNetworkTopologyOverlay = true,
                 CreateResourceDetailUrl = resource => $"/resources/{resource.Id}",
-                GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown"
+                GetStateClass = state => state == ResourceState.Running ? "state-running" : "state-unknown",
+                GetResourceTypeLabel = resource => resource.Id == app.Id
+                    ? "Container app"
+                    : resource.EffectiveTypeId,
+                GetResourceIconName = resource => resource.Id == app.Id
+                    ? "container-app"
+                    : resource.EffectiveTypeId
             });
 
         Assert.DoesNotContain(map.Nodes, node =>
@@ -35,7 +42,15 @@ public sealed class EnvironmentRuntimeMapProjectionTests
             node.ArtifactKind == EnvironmentRuntimeArtifactKinds.OrchestrationService);
         Assert.Equal(app.Id, serviceNode.ResourceId);
         Assert.Equal(serviceId, serviceNode.ServiceId);
+        Assert.Equal("Container app", serviceNode.Type);
+        Assert.Equal("container-app", serviceNode.IconName);
+        Assert.Equal("http://localhost:5012", serviceNode.EndpointText);
         Assert.Equal("/resources/application.container-app:api", serviceNode.DetailUrl);
+        Assert.Contains(map.Links, link =>
+            link.Source == "resource:network:host" &&
+            link.Target == serviceNode.Id &&
+            link.Label == "connects" &&
+            link.Kind == "topology");
 
         var serviceGroup = Assert.Single(map.Groups, group =>
             group.ArtifactKind == EnvironmentRuntimeArtifactKinds.OrchestrationService);
@@ -471,7 +486,7 @@ public sealed class EnvironmentRuntimeMapProjectionTests
             "test",
             "local",
             ResourceState.Running,
-            [],
+            [ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Public, 5012)],
             "1",
             DateTimeOffset.UtcNow,
             [],
@@ -482,6 +497,15 @@ public sealed class EnvironmentRuntimeMapProjectionTests
                 [ResourceAttributeNames.ContainerImage] = "api:latest",
                 [ResourceAttributeNames.ContainerReplicas] = "3"
             },
+            EndpointNetworkMappings:
+            [
+                ResourceEndpointNetworkMapping.ForEndpoint(
+                    "application.container-app:api",
+                    "http",
+                    "http://localhost:5012",
+                    ResourceExposureScope.Public,
+                    networkResourceId: "network:host")
+            ],
             DisplayName: "Replicated API");
 
     private static Resource CreateLoadBalancer() =>
