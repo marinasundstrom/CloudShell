@@ -94,10 +94,13 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
 
     public ContainerApplicationResourceDefinitionBuilder UseContainerHost(
         string hostResourceId,
-        ResourceTypeId? typeId = null) =>
-        AddDependency(ResourceReference.DependsOnResourceId(
+        ResourceTypeId? typeId = null)
+    {
+        RemoveContainerHostDependencies();
+        return AddDependency(ResourceReference.DependsOnResourceId(
             hostResourceId,
             typeId ?? ContainerHostResourceTypeProvider.ResourceTypeId));
+    }
 
     public ContainerApplicationResourceDefinitionBuilder UseDockerHost(
         IResourceDefinitionBuilder host)
@@ -151,6 +154,8 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(protocol);
 
+        var effectiveNetwork = network ?? ResourceGraph?.GetDefaultNetwork();
+
         _endpointRequests.Add(new NetworkingEndpointRequestValue(
             name.Trim(),
             protocol.Trim(),
@@ -160,12 +165,12 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
             IpAddress: string.IsNullOrWhiteSpace(ipAddress) ? null : ipAddress.Trim(),
             Exposure: string.IsNullOrWhiteSpace(exposure) ? null : exposure.Trim(),
             Assignment: string.IsNullOrWhiteSpace(assignment) ? null : assignment.Trim(),
-            Network: network is null
+            Network: effectiveNetwork is null
                 ? null
                 : ResourceReference.ReferenceResourceId(
-                    network.EffectiveResourceId,
-                    network.ResourceTypeId,
-                    network.ResourceProviderId)));
+                    effectiveNetwork.EffectiveResourceId,
+                    effectiveNetwork.ResourceTypeId,
+                    effectiveNetwork.ResourceProviderId)));
         return SetObjectAttribute(
             ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests,
             _endpointRequests.ToArray());
@@ -270,6 +275,27 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
             LogFormat.JsonConsole => ResourceLogSourceDefinitionValues.JsonConsole,
             _ => format.ToString()
         };
+
+    protected override void OnBeforeBuild()
+    {
+        if (HasContainerHostDependency() ||
+            ResourceGraph is not { } graph)
+        {
+            return;
+        }
+
+        UseContainerHost(graph.GetContainerHost());
+    }
+
+    private bool HasContainerHostDependency() =>
+        Dependencies.Any(IsContainerHostDependency);
+
+    private ContainerApplicationResourceDefinitionBuilder RemoveContainerHostDependencies() =>
+        RemoveDependencies(IsContainerHostDependency);
+
+    private static bool IsContainerHostDependency(ResourceReference reference) =>
+        reference.TypeId is { } typeId &&
+        ContainerApplicationResourceTypeProvider.IsContainerHostResourceType(typeId);
 }
 
 public static class ContainerApplicationResourceDefinitionBuilderExtensions

@@ -53,6 +53,8 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(protocol);
 
+        var effectiveNetwork = network ?? ResourceGraph?.GetDefaultNetwork();
+
         _endpointRequests.Add(new NetworkingEndpointRequestValue(
             name.Trim(),
             protocol.Trim(),
@@ -62,12 +64,12 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
             IpAddress: string.IsNullOrWhiteSpace(ipAddress) ? null : ipAddress.Trim(),
             Exposure: string.IsNullOrWhiteSpace(exposure) ? null : exposure.Trim(),
             Assignment: string.IsNullOrWhiteSpace(assignment) ? null : assignment.Trim(),
-            Network: network is null
+            Network: effectiveNetwork is null
                 ? null
                 : ResourceReference.ReferenceResourceId(
-                    network.EffectiveResourceId,
-                    network.ResourceTypeId,
-                    network.ResourceProviderId)));
+                    effectiveNetwork.EffectiveResourceId,
+                    effectiveNetwork.ResourceTypeId,
+                    effectiveNetwork.ResourceProviderId)));
         return SetObjectAttribute(
             AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests,
             _endpointRequests.ToArray());

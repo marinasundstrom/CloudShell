@@ -25,10 +25,15 @@ public sealed class SqlServerResourceDefinitionBuilder(string name) :
         int? targetPort = null,
         string? host = null,
         int? port = null,
-        string? exposure = null)
+        string? exposure = null,
+        string? ipAddress = null,
+        IResourceDefinitionBuilder? network = null,
+        string? assignment = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(protocol);
+
+        var effectiveNetwork = network ?? ResourceGraph?.GetDefaultNetwork();
 
         _endpointRequests.Add(new NetworkingEndpointRequestValue(
             name.Trim(),
@@ -36,7 +41,15 @@ public sealed class SqlServerResourceDefinitionBuilder(string name) :
             TargetPort: targetPort,
             Host: string.IsNullOrWhiteSpace(host) ? null : host.Trim(),
             Port: port,
-            Exposure: string.IsNullOrWhiteSpace(exposure) ? null : exposure.Trim()));
+            IpAddress: string.IsNullOrWhiteSpace(ipAddress) ? null : ipAddress.Trim(),
+            Exposure: string.IsNullOrWhiteSpace(exposure) ? null : exposure.Trim(),
+            Assignment: string.IsNullOrWhiteSpace(assignment) ? null : assignment.Trim(),
+            Network: effectiveNetwork is null
+                ? null
+                : ResourceReference.ReferenceResourceId(
+                    effectiveNetwork.EffectiveResourceId,
+                    effectiveNetwork.ResourceTypeId,
+                    effectiveNetwork.ResourceProviderId)));
         return SetObjectAttribute(
             SqlServerResourceTypeProvider.Attributes.EndpointRequests,
             _endpointRequests.ToArray());
@@ -48,16 +61,22 @@ public sealed class SqlServerResourceDefinitionBuilder(string name) :
         int? port = null,
         string protocol = "tcp",
         string? host = null,
-        string exposure = "Local") =>
-        AddEndpointRequest(name, protocol, targetPort, host, port, exposure);
+        string exposure = "Local",
+        string? ipAddress = null,
+        IResourceDefinitionBuilder? network = null,
+        string? assignment = null) =>
+        AddEndpointRequest(name, protocol, targetPort, host, port, exposure, ipAddress, network, assignment);
 
     public SqlServerResourceDefinitionBuilder WithTcpEndpoint(
         string name = "tds",
         int targetPort = 1433,
         int? port = null,
         string? host = null,
-        string exposure = "Local") =>
-        AddEndpointRequest(name, "tcp", targetPort, host, port, exposure);
+        string exposure = "Local",
+        string? ipAddress = null,
+        IResourceDefinitionBuilder? network = null,
+        string? assignment = null) =>
+        AddEndpointRequest(name, "tcp", targetPort, host, port, exposure, ipAddress, network, assignment);
 
     public SqlServerResourceDefinitionBuilder UseContainerHost(
         IResourceDefinitionBuilder containerHost,
@@ -70,10 +89,13 @@ public sealed class SqlServerResourceDefinitionBuilder(string name) :
 
     public SqlServerResourceDefinitionBuilder UseContainerHost(
         string containerHostResourceId,
-        ResourceTypeId? typeId = null) =>
-        AddDependency(ResourceReference.DependsOnResourceId(
+        ResourceTypeId? typeId = null)
+    {
+        RemoveContainerHostDependencies();
+        return AddDependency(ResourceReference.DependsOnResourceId(
             containerHostResourceId,
             typeId ?? ContainerHostResourceTypeProvider.ResourceTypeId));
+    }
 
     public SqlServerResourceDefinitionBuilder MountVolume(
         IResourceDefinitionBuilder volume,
@@ -117,6 +139,27 @@ public sealed class SqlServerResourceDefinitionBuilder(string name) :
             SqlServerResourceTypeProvider.ConfigurationSection,
             new SqlServerConfiguration(_databases.ToArray()));
     }
+
+    protected override void OnBeforeBuild()
+    {
+        if (HasContainerHostDependency() ||
+            ResourceGraph is not { } graph)
+        {
+            return;
+        }
+
+        UseContainerHost(graph.GetContainerHost());
+    }
+
+    private bool HasContainerHostDependency() =>
+        Dependencies.Any(IsContainerHostDependency);
+
+    private SqlServerResourceDefinitionBuilder RemoveContainerHostDependencies() =>
+        RemoveDependencies(IsContainerHostDependency);
+
+    private static bool IsContainerHostDependency(ResourceReference reference) =>
+        reference.TypeId is { } typeId &&
+        SqlServerResourceTypeProvider.IsContainerHostResourceType(typeId);
 }
 
 public static class SqlServerResourceDefinitionBuilderExtensions

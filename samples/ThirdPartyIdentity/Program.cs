@@ -43,11 +43,8 @@ const string apiIdentityName = "keycloak-provisioned-api";
 string configurationResourceId = string.Empty;
 string identityProvisioningResourceId = string.Empty;
 var cloudShell = builder.AddCloudShellControlPlaneApplication(
-    options =>
-    {
-        options.IncludeDefaultEnvironmentResources = false;
-    },
-    controlPlane =>
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
     {
         controlPlane.DefineResources(
             resources =>

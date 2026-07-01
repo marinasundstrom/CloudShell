@@ -22,11 +22,8 @@ const string registryContainerName = "cloudshell-container-app-deployment-regist
 const string sampleApiResourceId = "application.container-app:sample-api";
 
 builder.AddCloudShellControlPlaneApplication(
-    options =>
-    {
-        options.IncludeDefaultEnvironmentResources = false;
-    },
-    controlPlane =>
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
     {
         controlPlane.DefineResources(resources =>
         {

@@ -654,6 +654,8 @@ public sealed class ResourceGraphBuilderTests
         services.AddInMemoryResourceModelGraph();
         services.AddStorageResourceType();
         services.AddCloudShellVolumeResourceType();
+        services.AddNetworkResourceType();
+        services.AddContainerHostResourceType();
         services.AddSqlServerResourceType();
         services.AddSqlDatabaseResourceType();
         services.AddResourceModelGraphServices();
@@ -683,9 +685,13 @@ public sealed class ResourceGraphBuilderTests
 
         var template = graph.BuildTemplate("sql-app", environmentId: "local");
 
-        Assert.Equal(3, template.Resources.Count);
+        Assert.Equal(5, template.Resources.Count);
         var volumeDefinition = Assert.Single(template.Resources, resource =>
             resource.TypeId == CloudShellVolumeResourceTypeProvider.ResourceTypeId);
+        var hostNetwork = Assert.Single(template.Resources, resource =>
+            resource.EffectiveResourceId == NetworkResourceDefinitionBuilderExtensions.DefaultNetworkResourceId);
+        var containerHost = Assert.Single(template.Resources, resource =>
+            resource.EffectiveResourceId == ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId);
         var sqlServer = Assert.Single(template.Resources, resource =>
             resource.TypeId == SqlServerResourceTypeProvider.ResourceTypeId);
         var sqlDatabase = Assert.Single(template.Resources, resource =>
@@ -695,11 +701,18 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal("application.sql-server:sql", sqlServer.EffectiveResourceId);
         Assert.Equal("2022", sqlServer.ResourceAttributeValues[
             SqlServerResourceTypeProvider.Attributes.Version].StringValue);
+        Assert.Equal("Host", hostNetwork.ResourceAttributeValues[
+            NetworkResourceTypeProvider.Attributes.NetworkKind].StringValue);
+        Assert.Equal("Docker", containerHost.ResourceAttributeValues[
+            ContainerHostResourceTypeProvider.Attributes.HostKind].StringValue);
         var endpoint = Assert.Single(sqlServer.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
             SqlServerResourceTypeProvider.Attributes.EndpointRequests) ?? []);
         Assert.Equal("tds", endpoint.Name);
         Assert.Equal(1433, endpoint.TargetPort);
         Assert.Equal(14334, endpoint.Port);
+        Assert.NotNull(endpoint.Network);
+        Assert.True(endpoint.Network!.TryGetResourceId(out var endpointNetworkId));
+        Assert.Equal(hostNetwork.EffectiveResourceId, endpointNetworkId);
         var sqlConfiguration = sqlServer.GetConfiguration<SqlServerConfiguration>(
             SqlServerResourceTypeProvider.ConfigurationSection);
         var databaseConfiguration = Assert.Single(sqlConfiguration!.Databases);
@@ -741,6 +754,7 @@ public sealed class ResourceGraphBuilderTests
         services.AddInMemoryResourceModelGraph();
         services.AddStorageResourceType();
         services.AddCloudShellVolumeResourceType();
+        services.AddNetworkResourceType();
         services.AddDockerHostResourceType();
         services.AddContainerApplicationResourceType();
         services.AddResourceModelGraphServices();
@@ -774,11 +788,15 @@ public sealed class ResourceGraphBuilderTests
 
         var template = graph.BuildTemplate("container-app", environmentId: "local");
 
-        Assert.Equal(3, template.Resources.Count);
+        Assert.Equal(4, template.Resources.Count);
         var hostDefinition = Assert.Single(template.Resources, resource =>
             resource.TypeId == DockerHostResourceTypeProvider.ResourceTypeId);
+        var hostNetwork = Assert.Single(template.Resources, resource =>
+            resource.EffectiveResourceId == NetworkResourceDefinitionBuilderExtensions.DefaultNetworkResourceId);
         var appDefinition = Assert.Single(template.Resources, resource =>
             resource.TypeId == ContainerApplicationResourceTypeProvider.ResourceTypeId);
+        Assert.DoesNotContain(template.Resources, resource =>
+            resource.EffectiveResourceId == ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId);
         Assert.Equal("docker.host:engine", hostDefinition.EffectiveResourceId);
         Assert.Equal("local", hostDefinition.ResourceAttributeValues[
             DockerHostResourceTypeProvider.Attributes.HostKind].StringValue);
@@ -805,6 +823,9 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal("http", endpoint.Name);
         Assert.Equal(8080, endpoint.TargetPort);
         Assert.Equal(5092, endpoint.Port);
+        Assert.NotNull(endpoint.Network);
+        Assert.True(endpoint.Network!.TryGetResourceId(out var endpointNetworkId));
+        Assert.Equal(hostNetwork.EffectiveResourceId, endpointNetworkId);
         var healthChecks = appDefinition.GetCapability<ResourceHealthCheckDefinitionSet>(
             ResourceHealthCheckCapabilityIds.HealthChecks);
         var healthCheck = Assert.Single(healthChecks?.Checks ?? []);
@@ -882,6 +903,7 @@ public sealed class ResourceGraphBuilderTests
         services.AddInMemoryResourceModelGraph();
         services.AddStorageResourceType();
         services.AddCloudShellVolumeResourceType();
+        services.AddNetworkResourceType();
         services.AddConfigurationStoreResourceType();
         services.AddExecutableApplicationResourceType();
         services.AddAspNetCoreProjectResourceType();
@@ -922,9 +944,11 @@ public sealed class ResourceGraphBuilderTests
 
         var template = graph.BuildTemplate("project-app", environmentId: "local");
 
-        Assert.Equal(4, template.Resources.Count);
+        Assert.Equal(5, template.Resources.Count);
         var executable = Assert.Single(template.Resources, resource =>
             resource.TypeId == ExecutableApplicationResourceTypeProvider.ResourceTypeId);
+        var hostNetwork = Assert.Single(template.Resources, resource =>
+            resource.EffectiveResourceId == NetworkResourceDefinitionBuilderExtensions.DefaultNetworkResourceId);
         var project = Assert.Single(template.Resources, resource =>
             resource.TypeId == AspNetCoreProjectResourceTypeProvider.ResourceTypeId);
         Assert.Equal("application.executable:worker", executable.EffectiveResourceId);
@@ -948,6 +972,9 @@ public sealed class ResourceGraphBuilderTests
         var endpoint = Assert.Single(project.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
             AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests) ?? []);
         Assert.Equal("http", endpoint.Name);
+        Assert.NotNull(endpoint.Network);
+        Assert.True(endpoint.Network!.TryGetResourceId(out var endpointNetworkId));
+        Assert.Equal(hostNetwork.EffectiveResourceId, endpointNetworkId);
         Assert.Equal(5010, endpoint.Port);
         var environmentVariables = project.ResourceAttributeValues
             .GetObject<Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>>(
@@ -1064,6 +1091,7 @@ public sealed class ResourceGraphBuilderTests
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
         services.AddContainerApplicationResourceType();
+        services.AddContainerHostResourceType();
         services.AddNetworkResourceType();
         services.AddServiceResourceType();
         services.AddDnsZoneResourceType();
@@ -1094,7 +1122,9 @@ public sealed class ResourceGraphBuilderTests
 
         var template = graph.BuildTemplate("application-exposure", environmentId: "local");
 
-        Assert.Equal(5, template.Resources.Count);
+        Assert.Equal(6, template.Resources.Count);
+        Assert.Contains(template.Resources, resource =>
+            resource.EffectiveResourceId == ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId);
         var service = Assert.Single(template.Resources, resource =>
             resource.TypeId == ServiceResourceTypeProvider.ResourceTypeId);
         var nameMapping = Assert.Single(template.Resources, resource =>
@@ -1189,6 +1219,7 @@ public sealed class ResourceGraphBuilderTests
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
         services.AddDockerHostResourceType();
+        services.AddContainerHostResourceType();
         services.AddContainerApplicationResourceType();
         services.AddLoadBalancerResourceType();
         services.AddHostConfigurationSourceResourceType();
@@ -1211,7 +1242,9 @@ public sealed class ResourceGraphBuilderTests
 
         var template = graph.BuildTemplate("infrastructure", environmentId: "local");
 
-        Assert.Equal(4, template.Resources.Count);
+        Assert.Equal(5, template.Resources.Count);
+        Assert.Contains(template.Resources, resource =>
+            resource.EffectiveResourceId == ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId);
         var loadBalancer = Assert.Single(template.Resources, resource =>
             resource.TypeId == LoadBalancerResourceTypeProvider.ResourceTypeId);
         var hostConfiguration = Assert.Single(template.Resources, resource =>

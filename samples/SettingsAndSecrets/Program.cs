@@ -60,11 +60,8 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 string settingsResourceId = string.Empty;
 string secretsResourceId = string.Empty;
 var cloudShell = builder.AddCloudShellControlPlaneApplication(
-    options =>
-    {
-        options.IncludeDefaultEnvironmentResources = false;
-    },
-    controlPlane =>
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
     {
         controlPlane.AddIdentityProvider(
             identityProviderId,

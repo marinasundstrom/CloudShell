@@ -18,8 +18,8 @@
   runtime host resolution.
 - Manual `ResourceGraphBuilder.AddContainerHost(...)` builder for
   code-first generic container-host definition authoring. The built-in
-  `ResourceGraphBuilder.DefaultContainerHost()` helper authors the
-  default local docker-compatible host resource.
+  `ResourceGraphBuilder.GetContainerHost()` helper lazily authors the
+  default local docker-compatible host resource when a graph actually needs it.
 
 ## Switch-over status
 

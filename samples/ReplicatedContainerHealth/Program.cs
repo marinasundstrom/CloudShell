@@ -27,11 +27,8 @@ var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndp
 
 IResourceDefinitionBuilder apiResource = null!;
 builder.AddCloudShellControlPlaneApplication(
-    options =>
-    {
-        options.IncludeDefaultEnvironmentResources = false;
-    },
-    controlPlane =>
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
     {
         controlPlane.DefineResources(resources =>
         {

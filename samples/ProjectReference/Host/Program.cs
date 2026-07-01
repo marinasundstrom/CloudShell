@@ -31,11 +31,8 @@ var frontendProjectPath = Path.GetFullPath(
 
 IResourceDefinitionBuilder apiResource = null!;
 builder.AddCloudShellControlPlaneApplication(
-    options =>
-    {
-        options.IncludeDefaultEnvironmentResources = false;
-    },
-    controlPlane =>
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
     {
         controlPlane.DefineResources(resources =>
         {

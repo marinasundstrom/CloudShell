@@ -6,8 +6,6 @@ namespace CloudShell.ControlPlane.Providers;
 
 public sealed class BuiltInResourceModelProviderOptions
 {
-    public bool IncludeDefaultEnvironmentResources { get; set; } = true;
-
     public string ResourceGraphProviderId { get; set; } =
         ResourceModelResourceProvider.DefaultProviderId;
 
@@ -50,11 +48,6 @@ public static class BuiltInResourceModelProviderServiceCollectionExtensions
 
         var options = CreateOptions(configure);
         builder.Services.AddBuiltInResourceModelProviderTypes(options);
-        if (options.IncludeDefaultEnvironmentResources)
-        {
-            builder.Services.AddDefaultInMemoryResourceModelGraphResources(
-                CreateDefaultEnvironmentResourceStates());
-        }
 
         builder.UseResourceGraphIntegration(
             options.ResourceGraphProviderId,
@@ -117,18 +110,5 @@ public static class BuiltInResourceModelProviderServiceCollectionExtensions
         configure?.Invoke(options);
 
         return options;
-    }
-
-    private static IReadOnlyList<ResourceState> CreateDefaultEnvironmentResourceStates()
-    {
-        var graph = new ResourceGraphBuilder();
-        graph.GetDefaultNetwork();
-        graph.GetContainerHost();
-
-        return graph
-            .BuildGraph()
-            .Resources
-            .Select(ResourceState.FromDefinition)
-            .ToArray();
     }
 }

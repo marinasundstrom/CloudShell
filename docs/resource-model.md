@@ -549,13 +549,14 @@ visible as declared resources.
 
 ResourceDefinition authoring should expose resource defaults through named
 graph builder accessors rather than forcing every caller to know the default IDs.
-`DefaultNetwork()` returns the Host network and `DefaultContainerHost()` returns
+`GetDefaultNetwork()` returns the Host network and `GetContainerHost()` returns
 the configured default container-host resource. The resources are created
-lazily only when those accessors are called or when a host preset calls them.
-If a host does not declare a default resource and does not install a preset that
-contributes it, there is no default network or default container host to
-resolve. Explicit resources with the same default IDs override preset fallback
-resources. Host-level defaults that are not resources, such as identity
+lazily only when those accessors are called by user code or by a graph helper
+that actually needs a default network or container host. Built-in provider
+registration does not seed default resources by itself. If no resource or helper
+needs a default resource, it is not added to the graph. Explicit resources with
+the same default IDs override the default get-or-add result. Host-level defaults
+that are not resources, such as identity
 providers used to resolve user or resource principals, stay outside the
 ResourceDefinition graph. Control Plane host setup registers identity providers
 through host configuration, identity-specific host setup such as the built-in

@@ -19,11 +19,8 @@ const string sqlServerContainerName = "cloudshell-container-host-sql-server";
 var sqlServerPort = builder.Configuration.GetValue<int?>("ContainerHost:SqlServer:Port") ?? 14334;
 
 builder.AddCloudShellControlPlaneApplication(
-    options =>
-    {
-        options.IncludeDefaultEnvironmentResources = false;
-    },
-    controlPlane =>
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
     {
         controlPlane.DefineResources(resources =>
         {
@@ -39,7 +36,7 @@ builder.AddCloudShellControlPlaneApplication(
                 .WithDisplayName("SQL Server Data")
                 .WithResourceGroup(resourceGroup);
             var containerHost = resources
-                .DefaultContainerHost()
+                .GetContainerHost()
                 .WithResourceGroup(resourceGroup);
 
             resources

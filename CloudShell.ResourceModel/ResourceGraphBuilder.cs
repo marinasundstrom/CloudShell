@@ -20,10 +20,16 @@ internal interface IResourceIdConventionAwareBuilder
     void UseResourceIdConvention(IResourceIdConvention resourceIdConvention);
 }
 
+public interface IResourceGraphContextAwareBuilder
+{
+    void UseResourceGraph(ResourceGraphBuilder graph);
+}
+
 public abstract class ResourceDefinitionBuilder<TBuilder>(
     string name) :
     IResourceDefinitionBuilder,
-    IResourceIdConventionAwareBuilder
+    IResourceIdConventionAwareBuilder,
+    IResourceGraphContextAwareBuilder
     where TBuilder : ResourceDefinitionBuilder<TBuilder>
 {
     private readonly Dictionary<ResourceAttributeId, ResourceAttributeValue> _attributes = [];
@@ -33,6 +39,7 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
     private readonly Dictionary<ResourceOperationId, JsonElement> _operations = [];
     private string? _resourceId;
     private string? _displayName;
+    private ResourceGraphBuilder? _resourceGraph;
     private IResourceIdConvention _resourceIdConvention = DefaultResourceIdConvention.Instance;
 
     public string Name { get; } = NormalizeName(name);
@@ -55,6 +62,8 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
     protected IReadOnlyDictionary<ResourceCapabilityId, JsonElement> Capabilities => _capabilities;
 
     protected IReadOnlyDictionary<ResourceOperationId, JsonElement> Operations => _operations;
+
+    protected ResourceGraphBuilder? ResourceGraph => _resourceGraph;
 
     public string EffectiveResourceId =>
         string.IsNullOrWhiteSpace(_resourceId)
@@ -132,8 +141,11 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
         return DependsOn(definition.EffectiveResourceId);
     }
 
-    public ResourceDefinition Build() =>
-        new(
+    public ResourceDefinition Build()
+    {
+        OnBeforeBuild();
+
+        return new(
             Name,
             TypeId,
             ResourceId: EffectiveResourceId,
@@ -154,6 +166,7 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
             Operations: _operations.Count == 0
                 ? null
                 : new Dictionary<ResourceOperationId, JsonElement>(_operations));
+    }
 
     void IResourceIdConventionAwareBuilder.UseResourceIdConvention(
         IResourceIdConvention resourceIdConvention)
@@ -161,6 +174,18 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
         ArgumentNullException.ThrowIfNull(resourceIdConvention);
 
         _resourceIdConvention = resourceIdConvention;
+    }
+
+    void IResourceGraphContextAwareBuilder.UseResourceGraph(
+        ResourceGraphBuilder graph)
+    {
+        ArgumentNullException.ThrowIfNull(graph);
+
+        _resourceGraph = graph;
+    }
+
+    protected virtual void OnBeforeBuild()
+    {
     }
 
     protected TBuilder SetScalarAttribute(
@@ -204,6 +229,14 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
         ArgumentNullException.ThrowIfNull(reference);
 
         _dependencies.Add(reference);
+        return Self;
+    }
+
+    protected TBuilder RemoveDependencies(Func<ResourceReference, bool> predicate)
+    {
+        ArgumentNullException.ThrowIfNull(predicate);
+
+        _dependencies.RemoveAll(reference => predicate(reference));
         return Self;
     }
 
@@ -274,6 +307,11 @@ public class ResourceGraphBuilder(
             conventionAware.UseResourceIdConvention(_resourceIdConvention);
         }
 
+        if (resource is IResourceGraphContextAwareBuilder contextAware)
+        {
+            contextAware.UseResourceGraph(this);
+        }
+
         _resources.Add(resource);
         return this;
     }
@@ -316,8 +354,16 @@ public class ResourceGraphBuilder(
         return created;
     }
 
-    public ResourceDefinitionGraph BuildGraph() =>
-        new(_resources.Select(resource => resource.Build()).ToArray());
+    public ResourceDefinitionGraph BuildGraph()
+    {
+        var definitions = new List<ResourceDefinition>();
+        for (var index = 0; index < _resources.Count; index++)
+        {
+            definitions.Add(_resources[index].Build());
+        }
+
+        return new ResourceDefinitionGraph(definitions);
+    }
 
     public ResourceTemplate BuildTemplate(
         string name,

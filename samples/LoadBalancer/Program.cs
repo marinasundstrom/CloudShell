@@ -27,11 +27,8 @@ if (!string.IsNullOrWhiteSpace(localHostsFilePath))
 }
 
 var cloudShell = builder.AddCloudShellControlPlaneApplication(
-    options =>
-    {
-        options.IncludeDefaultEnvironmentResources = false;
-    },
-    controlPlane =>
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
     {
         controlPlane.DefineResources(resources =>
         {

@@ -22,11 +22,8 @@ var coreDnsDirectory = builder.Configuration.GetValue<string?>("HostVirtualNetwo
 const string resourceGroupId = "host-virtual-network";
 
 builder.AddCloudShellControlPlaneApplication(
-    options =>
-    {
-        options.IncludeDefaultEnvironmentResources = false;
-    },
-    controlPlane =>
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
     {
         controlPlane.DefineResources(resources =>
         {

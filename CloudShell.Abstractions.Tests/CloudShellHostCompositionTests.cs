@@ -41,10 +41,7 @@ public sealed class CloudShellHostCompositionTests
     {
         var builder = CreateBuilder();
 
-        builder.AddCloudShellControlPlaneApplication(options =>
-        {
-            options.IncludeDefaultEnvironmentResources = false;
-        });
+        builder.AddCloudShellControlPlaneApplication();
 
         Assert.Contains(
             builder.Services,

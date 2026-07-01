@@ -50,11 +50,12 @@ preset and graph-backed Resource Manager integration. A host that also wants
 CloudShell UI should add it separately with `AddCloudShellUi(...)` and register
 Resource Manager UI extensions in that UI callback. A split UI host installs UI
 integrations and remote client adapters instead of provider runtime packages.
-The built-in provider preset contributes fallback default environment resources
-for the Host network and the default docker-compatible container host. Those
-defaults are authored through the same lazy graph builder accessors as explicit
-code (`DefaultNetwork()` and `DefaultContainerHost()`), and they do not replace
-explicit resources with the same default IDs.
+Built-in provider registration does not seed default environment resources.
+Defaults are authored through lazy graph builder accessors or through graph
+helpers that need them. When a helper needs a network and none was supplied, it
+uses `GetDefaultNetwork()`. When a container-backed helper needs a host and none
+was supplied, it uses `GetContainerHost()`. If no resource needs a default, the
+default Host network or container host is not added to the graph.
 
 Runtime adapters remain host choices, but the built-in provider preset installs
 the common graph-backed Resource Model runtime adapters by default. This covers
@@ -301,10 +302,10 @@ helper behavior is not the canonical networking model.
 
 Default environment resources should be accessed through named builder entry
 points when the template wants to make them explicit. In the ResourceDefinition
-builder, `resources.DefaultNetwork()` returns the Host network resource and
-`resources.DefaultContainerHost()` returns the default docker-compatible
-container host resource. The accessors are get-or-add helpers, so repeated calls
-refer to the same resource builder. Control Plane `DefineResources(...)` and
+builder, `resources.GetDefaultNetwork()` returns the Host network resource and
+`resources.GetContainerHost()` returns the default docker-compatible container
+host resource. The accessors are get-or-add helpers, so repeated calls refer to
+the same resource builder. Control Plane `DefineResources(...)` and
 `DefineInitialTemplate(...)` callbacks receive a Control Plane
 resource-definition context: it behaves like the ResourceDefinition graph
 builder for resource declarations, while also exposing host-level services that
@@ -317,10 +318,11 @@ for example `resources.GetIdentityProvider().GetUser("alice")`. Identity
 providers are not emitted as `ResourceDefinition` entries.
 
 Graph-backed generic container-host resources project orchestration descriptors
-for the runtime host resolver. This means a resource such as SQL Server can call
-`UseContainerHost(resources.DefaultContainerHost())` and the runtime resolver
-can select that authored default host without a separate `UseDocker()` host
-registration path.
+for the runtime host resolver. This means a resource such as SQL Server can omit
+an explicit host and let the SQL Server builder call `GetContainerHost()` while
+building the graph. The runtime resolver can then select that authored default
+host without a separate `UseDocker()` host registration path. Explicit
+`UseContainerHost(...)` calls still win.
 
 A resource endpoint describes the named protocol/port exposed by the resource.
 Endpoint-network mappings connect that resource endpoint to a network or

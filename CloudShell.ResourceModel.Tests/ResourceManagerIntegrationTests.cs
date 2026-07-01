@@ -536,7 +536,7 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
-    public async Task UseBuiltInResourceModelProviders_RegistersProviderCatalogGraphBridgeAndPresetDefaults()
+    public async Task UseBuiltInResourceModelProviders_RegistersProviderCatalogAndGraphBridgeWithoutMaterializingDefaults()
     {
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph([CreateExecutableState()]);
@@ -589,9 +589,9 @@ public sealed class ResourceManagerIntegrationTests
             .GetRequiredService<ResourceGraphModel>()
             .GetSnapshotAsync();
 
-        Assert.Contains(snapshot.Resources, resource =>
+        Assert.DoesNotContain(snapshot.Resources, resource =>
             resource.EffectiveResourceId == NetworkResourceDefinitionBuilderExtensions.DefaultNetworkResourceId);
-        Assert.Contains(snapshot.Resources, resource =>
+        Assert.DoesNotContain(snapshot.Resources, resource =>
             resource.EffectiveResourceId == ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId);
         Assert.Contains(snapshot.Resources, resource =>
             resource.EffectiveResourceId == CreateExecutableState().EffectiveResourceId);
@@ -607,7 +607,7 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: ContainerHostResourceTypeProvider.ProviderId,
             DisplayName: "Explicit container host");
         var presetGraph = new ResourceGraphBuilder();
-        presetGraph.DefaultContainerHost();
+        presetGraph.GetContainerHost();
         var presetResources = presetGraph
             .BuildGraph()
             .Resources
