@@ -12,7 +12,7 @@ accepted resource-state change requires runtime materialization.
 
 ## Template Shape
 
-The canonical model is:
+The preferred authoring format is YAML:
 
 ```yaml
 resources:
@@ -23,14 +23,17 @@ resources:
       container.replicas: 3
 ```
 
-The equivalent JSON projection is:
+YAML resource entries use the author-friendly `type` alias for
+`ResourceDefinition.TypeId`. The equivalent JSON projection keeps the
+contract property name:
 
 ```json
 {
+  "name": "local",
   "resources": [
     {
-      "type": "application.container-app",
       "name": "api",
+      "typeId": "application.container-app",
       "attributes": {
         "container.image": "api:latest",
         "container.replicas": 3
@@ -44,6 +47,8 @@ The file-level envelope may later grow apply metadata such as environment,
 mode, validation options, or parameters. The inner resource entries should stay
 based on `ResourceDefinition` so add-resource flows, edit-resource flows,
 exports, imports, and file-based apply all use the same resource-state model.
+YAML and JSON are both supported through the shared Resource model serializer;
+YAML is the default when a file extension does not explicitly select JSON.
 
 ## Apply Semantics
 
@@ -66,34 +71,22 @@ runtime replicas for normal workflows.
 For example, changing a container app image should be an incremental resource
 definition:
 
-```json
-{
-  "resources": [
-    {
-      "type": "application.container-app",
-      "name": "api",
-      "attributes": {
-        "container.image": "ghcr.io/example/api:20260629.1"
-      }
-    }
-  ]
-}
+```yaml
+resources:
+  - type: application.container-app
+    name: api
+    attributes:
+      container.image: ghcr.io/example/api:20260629.1
 ```
 
 Changing the requested replica slots is the same resource-state operation:
 
-```json
-{
-  "resources": [
-    {
-      "type": "application.container-app",
-      "name": "api",
-      "attributes": {
-        "container.replicas": 4
-      }
-    }
-  ]
-}
+```yaml
+resources:
+  - type: application.container-app
+    name: api
+    attributes:
+      container.replicas: 4
 ```
 
 The container app provider and Resource Manager deployment controller decide

@@ -23,9 +23,9 @@ public sealed class CommandLineParserTests
     public void Parse_TemplateApply_UsesRecordedDaemonByDefault()
     {
         var command = Assert.IsType<TemplateApplyCommand>(
-            CommandLineParser.Parse(["template", "apply", "template.json"]));
+            CommandLineParser.Parse(["template", "apply", "template.yaml"]));
 
-        Assert.Equal("template.json", command.TemplatePath);
+        Assert.Equal("template.yaml", command.TemplatePath);
         Assert.Equal(".cloudshell", command.StateDirectory);
         Assert.Null(command.ControlPlaneUrl);
         Assert.Null(command.BearerToken);
@@ -41,7 +41,7 @@ public sealed class CommandLineParserTests
             [
                 "template",
                 "apply",
-                "template.json",
+                "template.yaml",
                 "--control-plane",
                 "https://control-plane.example.com",
                 "--bearer-token",

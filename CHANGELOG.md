@@ -72,6 +72,11 @@ on `git blame --follow`, and then by the broad type of change.
   action execution over the Control Plane API, ResourceTemplate apply,
   transient bearer-token support, local hosts-file name mapping commands,
   parser and hosts-file tests, and CLI documentation.
+- ResourceDefinition and ResourceTemplate documents now serialize and
+  deserialize through a shared ResourceModel YAML/JSON serializer. YAML is the
+  preferred template authoring format, JSON remains available as the
+  Control Plane API-compatible alternative, and Resource Manager's template UI
+  exposes the format choice for export and import.
 - Built-in Control Plane providers now expose explicit `Use*ResourceProvider`
   registration methods so hosts can compose individual provider capabilities
   while still keeping `UseBuiltInResourceModelProviders()` as the broad preset;

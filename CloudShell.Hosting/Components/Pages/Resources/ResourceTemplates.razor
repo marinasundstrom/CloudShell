@@ -1,6 +1,5 @@
 @page "/resources/templates"
 @rendermode InteractiveServer
-@using System.Text.Json
 @using CloudShell.ResourceModel
 @inject IResourceManager ResourceManager
 @inject IResourceTemplateManager Templates
@@ -42,6 +41,15 @@
         <ShellPanelHeader Title="@L["Export group"].Value"
                           Description="@L["CloudShell exports the selected group's resources as ResourceDefinition entries."].Value" />
 
+        <label for="template-format">@L["Template format"]</label>
+        <FluentSelect TOption="string"
+                      Id="template-format"
+                      @bind-Value="SelectedTemplateFormatValue"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="@ResourceTemplateFormat.Yaml.ToString()">YAML</FluentOption>
+            <FluentOption TOption="string" Value="@ResourceTemplateFormat.Json.ToString()">JSON</FluentOption>
+        </FluentSelect>
+
         <label for="export-group">@L["Resource group"]</label>
         <FluentSelect TOption="string"
                       Id="export-group"
@@ -61,25 +69,25 @@
             </div>
         }
 
-        <FormPrimaryAction Text="@L["Export JSON"].Value"
+        <FormPrimaryAction Text="@L["Export template"].Value"
                            IconStart="@(new Icons.Regular.Size20.DocumentSave())"
                            Disabled="@(selectedGroup is null || IsBusy)"
                            OnClick="ExportSelectedGroup" />
 
-        @if (!string.IsNullOrWhiteSpace(ExportJson))
+        @if (!string.IsNullOrWhiteSpace(ExportDocument))
         {
-            <label for="export-json">@L["Template JSON"]</label>
-            <FluentTextArea Id="export-json"
+            <label for="export-document">@L["Template {0}", TemplateFormatName]</label>
+            <FluentTextArea Id="export-document"
                             Class="template-json"
                             ReadOnly="true"
                             Rows="24"
-                            Value="@ExportJson" />
+                            Value="@ExportDocument" />
         }
     </div>
 
     <div class="panel template-panel">
         <ShellPanelHeader Title="@L["Import group"].Value"
-                          Description="@L["Paste a ResourceTemplate JSON document and apply it through Resource Manager."].Value" />
+                          Description="@L["Paste a ResourceTemplate YAML or JSON document and apply it through Resource Manager."].Value" />
 
         @if (isReadOnly)
         {
@@ -88,21 +96,21 @@
             </ProcedureMessage>
         }
 
-        <label for="import-json">@L["Template JSON"]</label>
-        <FluentTextArea Id="import-json"
+        <label for="import-document">@L["Template {0}", TemplateFormatName]</label>
+        <FluentTextArea Id="import-document"
                         Class="template-json"
                         Rows="24"
-                        Placeholder="@L["Paste a resource group template JSON document"]"
+                        Placeholder="@L["Paste a ResourceTemplate {0} document", TemplateFormatName]"
                         ReadOnly="@isReadOnly"
-                        @bind-Value="ImportJson" />
+                        @bind-Value="ImportDocument" />
 
         <FormActions>
             <FluentButton Appearance="Appearance.Neutral" OnClick="ClearImport">
                 @L["Clear"]
             </FluentButton>
-        <FluentButton Appearance="Appearance.Accent"
+            <FluentButton Appearance="Appearance.Accent"
                           IconStart="@(new Icons.Regular.Size20.ArrowUpload())"
-                          Disabled="@(!canImport || string.IsNullOrWhiteSpace(ImportJson) || IsBusy)"
+                          Disabled="@(!canImport || string.IsNullOrWhiteSpace(ImportDocument) || IsBusy)"
                           OnClick="ImportTemplate">
                 @L["Apply template"]
             </FluentButton>
@@ -135,19 +143,24 @@
 }
 
 @code {
-    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
-    {
-        WriteIndented = true
-    };
-
     private string? SelectedGroupId { get; set; }
-    private string? ExportJson { get; set; }
-    private string? ImportJson { get; set; }
+    private string SelectedTemplateFormatValue { get; set; } = ResourceTemplateFormat.Yaml.ToString();
+    private string? ExportDocument { get; set; }
+    private string? ImportDocument { get; set; }
     private string? StatusMessage { get; set; }
     private bool IsBusy { get; set; }
     private IReadOnlyList<ResourceGroup> Groups { get; set; } = [];
     private List<ResourceDefinitionDiagnostic> Diagnostics { get; } = [];
     private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
+    private ResourceTemplateFormat SelectedTemplateFormat =>
+        Enum.TryParse<ResourceTemplateFormat>(
+            SelectedTemplateFormatValue,
+            ignoreCase: true,
+            out var format)
+            ? format
+            : ResourceTemplateFormat.Yaml;
+    private string TemplateFormatName =>
+        SelectedTemplateFormat == ResourceTemplateFormat.Json ? "JSON" : "YAML";
 
     protected override async Task OnInitializedAsync()
     {
@@ -181,8 +194,10 @@
                     {
                         ["resourceGroup.id"] = group.Id
                     }));
-            ExportJson = JsonSerializer.Serialize(result.Template, SerializerOptions);
-            ImportJson = ExportJson;
+            ExportDocument = ResourceTemplateSerializer.SerializeTemplate(
+                result.Template,
+                SelectedTemplateFormat);
+            ImportDocument = ExportDocument;
             Diagnostics.AddRange(result.Diagnostics);
             StatusMessage = L["Exported {0} resources.", result.Template.Resources.Count].Value;
         }
@@ -204,7 +219,7 @@
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(ImportJson))
+        if (string.IsNullOrWhiteSpace(ImportDocument))
         {
             return;
         }
@@ -215,8 +230,9 @@
 
         try
         {
-            var template = JsonSerializer.Deserialize<ResourceTemplate>(ImportJson, SerializerOptions)
-                ?? throw new InvalidOperationException("Template JSON is empty or invalid.");
+            var template = ResourceTemplateSerializer.DeserializeTemplate(
+                ImportDocument,
+                SelectedTemplateFormat);
             var result = await Templates.ApplyResourceTemplateAsync(template);
             Diagnostics.AddRange(result.Diagnostics);
             if (!result.IsCommitted)
@@ -243,7 +259,7 @@
 
     private void ClearImport()
     {
-        ImportJson = null;
+        ImportDocument = null;
         Diagnostics.Clear();
         StatusMessage = null;
     }

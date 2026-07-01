@@ -9,7 +9,8 @@ The first supported responsibilities are:
 
 - start, stop, and inspect a local Control Plane host process
 - list resources and execute resource actions through the Control Plane API
-- apply ResourceTemplate JSON documents through the Control Plane API
+- apply ResourceTemplate YAML documents through the Control Plane API, with
+  JSON available as the alternative format
 - configure local hosts-file name mappings for development names
 - use identity when calling the Control Plane API
 
@@ -89,15 +90,18 @@ dotnet run --project CloudShell.Cli -- resource action execute application:api s
 Apply a ResourceTemplate document to the recorded local Control Plane:
 
 ```bash
-dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.json
+dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.yaml
 ```
 
 Apply to a specific remote or split Control Plane:
 
 ```bash
-dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.json \
+dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.yaml \
   --control-plane https://control-plane.example.com
 ```
+
+YAML is the preferred authoring format. Use `.json` when a workflow needs the
+JSON `ResourceTemplate` projection used by the Control Plane API.
 
 `--control-plane` is the first explicit target selector. Later, the CLI should
 support profile-backed target selection so commands can default to a named
@@ -113,7 +117,7 @@ The apply mode defaults to `create-or-update`. Supported modes are:
 For example:
 
 ```bash
-dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.json \
+dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.yaml \
   --mode update-existing
 ```
 
@@ -122,7 +126,7 @@ dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.json
 CLI commands that call the Control Plane API can pass a bearer token:
 
 ```bash
-dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.json \
+dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.yaml \
   --bearer-token "$TOKEN"
 ```
 

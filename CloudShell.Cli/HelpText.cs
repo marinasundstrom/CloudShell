@@ -11,7 +11,7 @@ Usage:
   cloudshell control-plane status [--state-dir <path>] [--bearer-token <token>]
   cloudshell resource list [--control-plane <url>] [--type <type>] [--class <class>] [--registered <true|false>]
   cloudshell resource action execute <resource-id> <action-id> [--control-plane <url>]
-  cloudshell template apply <template.json> [--control-plane <url>] [--mode <mode>] [--start] [--bearer-token <token>]
+  cloudshell template apply <template.yaml|template.json> [--control-plane <url>] [--mode <mode>] [--start] [--bearer-token <token>]
   cloudshell host names add <host-name> <ip-address> [--hosts-file <path>] [--dry-run]
   cloudshell host names remove <host-name> [--hosts-file <path>] [--dry-run]
 
@@ -21,7 +21,7 @@ Commands:
   control-plane status   Show recorded process and API readiness.
   resource list          List resources from the selected Control Plane.
   resource action        Execute a resource action through the Control Plane API.
-  template apply         Apply a ResourceTemplate JSON document through the Control Plane API.
+  template apply         Apply a ResourceTemplate YAML or JSON document through the Control Plane API.
   host names             Add or remove local hosts-file mappings.
 
 Options:

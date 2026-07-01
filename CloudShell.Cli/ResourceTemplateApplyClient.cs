@@ -1,14 +1,11 @@
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Client;
 using CloudShell.ResourceModel;
-using System.Text.Json;
 
 namespace CloudShell.Cli;
 
 internal static class ResourceTemplateApplyClient
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
-
     public static async Task<ResourceTemplateApplyResult> ApplyAsync(
         Uri controlPlaneUrl,
         string templatePath,
@@ -33,12 +30,9 @@ internal static class ResourceTemplateApplyClient
             throw new FileNotFoundException($"The resource template '{fullPath}' does not exist.", fullPath);
         }
 
-        await using var stream = File.OpenRead(fullPath);
-        var template = await JsonSerializer.DeserializeAsync<ResourceTemplate>(
-            stream,
-            SerializerOptions,
-            cancellationToken);
-        return template ?? throw new InvalidOperationException(
-            $"The resource template '{fullPath}' could not be read.");
+        var document = await File.ReadAllTextAsync(fullPath, cancellationToken);
+        return ResourceTemplateSerializer.DeserializeTemplate(
+            document,
+            ResourceTemplateSerializer.GetFormatFromFilePath(fullPath));
     }
 }
