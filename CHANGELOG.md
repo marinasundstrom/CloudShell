@@ -93,6 +93,9 @@ on `git blame --follow`, and then by the broad type of change.
   fields by default, such as `container.image`, `logs.sources`, and
   `health.checks`, while still accepting the `attributes` wrapper and full
   dotted attribute names as input forms.
+- The CloudShell CLI now supports `resource show <resource-id>` to inspect a
+  single resource's identity, endpoints, actions, attributes, capabilities,
+  and dependencies before executing operations.
 - Resource references in templates now support a compact `resourceId` document
   shape for common dependency references while preserving the full reference
   model for advanced relationship and addressing cases.

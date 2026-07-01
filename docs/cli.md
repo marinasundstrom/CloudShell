@@ -8,7 +8,8 @@ operate the Control Plane through the same API used by remote clients.
 The first supported responsibilities are:
 
 - start, stop, and inspect a local Control Plane host process
-- list resources and execute resource actions through the Control Plane API
+- list resources, inspect resource details, and execute resource actions
+  through the Control Plane API
 - apply ResourceTemplate YAML documents through the Control Plane API, with
   JSON available as the alternative format
 - configure local hosts-file name mappings for development names
@@ -67,6 +68,17 @@ dotnet run --project CloudShell.Cli -- resource list \
   --class Service \
   --registered true
 ```
+
+Show a single resource before executing operations on it:
+
+```bash
+dotnet run --project CloudShell.Cli -- resource show application:api
+```
+
+The detail view includes resource identity, type, lifecycle state, endpoint
+contracts, resolved endpoint addresses, dependencies, actions, attributes, and
+capabilities. Use the action IDs from this output with
+`resource action execute`.
 
 Execute a resource action through the Control Plane API:
 

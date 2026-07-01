@@ -120,6 +120,31 @@ internal static class CloudShellCli
                 RenderResources(console, resources);
                 return 0;
             }
+            case ResourceShowCommand show:
+            {
+                var showControlPlaneUrl = await ResolveControlPlaneUrlAsync(
+                    daemon,
+                    show.StateDirectory,
+                    show.ControlPlaneUrl);
+                var resource = await console
+                    .Status()
+                    .Spinner(Spinner.Known.Dots)
+                    .StartAsync("Loading resource", async _ =>
+                        await ResourceOperationsClient.GetAsync(
+                            showControlPlaneUrl,
+                            show.BearerToken,
+                            show.ResourceId,
+                            cancellationToken));
+
+                if (resource is null)
+                {
+                    console.MarkupLine($"[red]Resource '{Markup.Escape(show.ResourceId)}' was not found.[/]");
+                    return 1;
+                }
+
+                RenderResource(console, resource);
+                return 0;
+            }
             case ResourceActionExecuteCommand execute:
             {
                 var actionControlPlaneUrl = await ResolveControlPlaneUrlAsync(
@@ -269,6 +294,189 @@ internal static class CloudShellCli
 
         console.Write(table);
         console.MarkupLine($"[grey]{resources.Count} resource(s).[/]");
+    }
+
+    private static void RenderResource(
+        IAnsiConsole console,
+        CloudShell.Abstractions.ResourceManager.Resource resource)
+    {
+        var table = new Table()
+            .Title("Resource")
+            .AddColumn("Field")
+            .AddColumn("Value");
+        table.AddRow("Id", Markup.Escape(resource.Id));
+        table.AddRow("Name", Markup.Escape(resource.Name));
+        AddOptionalRow(table, "Display name", resource.DisplayName);
+        table.AddRow("Type", Markup.Escape(resource.EffectiveTypeId));
+        table.AddRow("Class", Markup.Escape(resource.ResourceClass.ToString()));
+        table.AddRow("State", Markup.Escape(resource.State?.ToString() ?? "none"));
+        table.AddRow("Provider", Markup.Escape(resource.Provider));
+        table.AddRow("Source", Markup.Escape(resource.Source.ToString()));
+        table.AddRow("Management", Markup.Escape(resource.ManagementMode.ToString()));
+        table.AddRow("Visibility", Markup.Escape(resource.Visibility.ToString()));
+        AddOptionalRow(table, "Parent", resource.ParentResourceId);
+        AddOptionalRow(table, "Owner", resource.OwnerResourceId);
+        AddOptionalRow(table, "Primary endpoint", resource.PrimaryEndpoint == "none" ? null : resource.PrimaryEndpoint);
+        table.AddRow("Updated", Markup.Escape(resource.LastUpdated.ToString("O")));
+        console.Write(table);
+
+        RenderDependencies(console, resource);
+        RenderEndpoints(console, resource);
+        RenderActions(console, resource);
+        RenderAttributes(console, resource);
+        RenderCapabilities(console, resource);
+    }
+
+    private static void RenderDependencies(
+        IAnsiConsole console,
+        CloudShell.Abstractions.ResourceManager.Resource resource)
+    {
+        if (resource.DependsOn.Count == 0)
+        {
+            return;
+        }
+
+        var table = new Table()
+            .Title("Dependencies")
+            .AddColumn("Resource Id");
+        foreach (var dependency in resource.DependsOn)
+        {
+            table.AddRow(Markup.Escape(dependency));
+        }
+
+        console.Write(table);
+    }
+
+    private static void RenderEndpoints(
+        IAnsiConsole console,
+        CloudShell.Abstractions.ResourceManager.Resource resource)
+    {
+        if (resource.Endpoints.Count > 0)
+        {
+            var endpoints = new Table()
+                .Title("Endpoints")
+                .AddColumn("Name")
+                .AddColumn("Protocol")
+                .AddColumn("Exposure")
+                .AddColumn("Target port");
+            foreach (var endpoint in resource.Endpoints)
+            {
+                endpoints.AddRow(
+                    Markup.Escape(endpoint.Name),
+                    Markup.Escape(endpoint.Protocol),
+                    Markup.Escape(endpoint.Exposure.ToString()),
+                    Markup.Escape(endpoint.TargetPort?.ToString() ?? string.Empty));
+            }
+
+            console.Write(endpoints);
+        }
+
+        if (resource.ResourceEndpointNetworkMappings.Count == 0)
+        {
+            return;
+        }
+
+        var mappings = new Table()
+            .Title("Endpoint Addresses")
+            .AddColumn("Name")
+            .AddColumn("Endpoint")
+            .AddColumn("Address")
+            .AddColumn("Exposure")
+            .AddColumn("Network");
+        foreach (var mapping in resource.ResourceEndpointNetworkMappings)
+        {
+            mappings.AddRow(
+                Markup.Escape(mapping.Name),
+                Markup.Escape(mapping.Target.EndpointName),
+                Markup.Escape(mapping.Address),
+                Markup.Escape(mapping.Exposure.ToString()),
+                Markup.Escape(mapping.NetworkResourceId ?? string.Empty));
+        }
+
+        console.Write(mappings);
+    }
+
+    private static void RenderActions(
+        IAnsiConsole console,
+        CloudShell.Abstractions.ResourceManager.Resource resource)
+    {
+        if (resource.ResourceActions.Count == 0)
+        {
+            return;
+        }
+
+        var table = new Table()
+            .Title("Actions")
+            .AddColumn("Id")
+            .AddColumn("Name")
+            .AddColumn("Kind")
+            .AddColumn("Confirmation")
+            .AddColumn("Permission");
+        foreach (var action in resource.ResourceActions)
+        {
+            table.AddRow(
+                Markup.Escape(action.Id),
+                Markup.Escape(action.DisplayName),
+                Markup.Escape(action.Kind.ToString()),
+                action.RequiresConfirmation ? "yes" : "no",
+                Markup.Escape(action.RequiredPermission ?? string.Empty));
+        }
+
+        console.Write(table);
+    }
+
+    private static void RenderAttributes(
+        IAnsiConsole console,
+        CloudShell.Abstractions.ResourceManager.Resource resource)
+    {
+        if (resource.ResourceAttributes.Count == 0)
+        {
+            return;
+        }
+
+        var table = new Table()
+            .Title("Attributes")
+            .AddColumn("Name")
+            .AddColumn("Value");
+        foreach (var attribute in resource.ResourceAttributes.OrderBy(attribute => attribute.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            table.AddRow(
+                Markup.Escape(attribute.Key),
+                Markup.Escape(attribute.Value));
+        }
+
+        console.Write(table);
+    }
+
+    private static void RenderCapabilities(
+        IAnsiConsole console,
+        CloudShell.Abstractions.ResourceManager.Resource resource)
+    {
+        if (resource.ResourceCapabilities.Count == 0)
+        {
+            return;
+        }
+
+        var table = new Table()
+            .Title("Capabilities")
+            .AddColumn("Id");
+        foreach (var capability in resource.ResourceCapabilities.OrderBy(capability => capability.Id, StringComparer.OrdinalIgnoreCase))
+        {
+            table.AddRow(Markup.Escape(capability.Id));
+        }
+
+        console.Write(table);
+    }
+
+    private static void AddOptionalRow(
+        Table table,
+        string name,
+        string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            table.AddRow(name, Markup.Escape(value));
+        }
     }
 
     private static void RenderProcedure(

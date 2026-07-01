@@ -22,6 +22,16 @@ internal static class ResourceOperationsClient
             cancellationToken);
     }
 
+    public static async Task<Resource?> GetAsync(
+        Uri controlPlaneUrl,
+        string? bearerToken,
+        string resourceId,
+        CancellationToken cancellationToken)
+    {
+        using var client = ControlPlaneClientFactory.Create(controlPlaneUrl, bearerToken);
+        return await client.ControlPlane.GetResourceAsync(resourceId, cancellationToken);
+    }
+
     public static async Task<ResourceProcedureResult> ExecuteActionAsync(
         Uri controlPlaneUrl,
         string? bearerToken,

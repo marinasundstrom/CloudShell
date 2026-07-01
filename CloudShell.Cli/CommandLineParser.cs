@@ -66,6 +66,7 @@ internal static class CommandLineParser
         return args[0] switch
         {
             "list" => ParseResourceList(args.Skip(1).ToArray()),
+            "show" => ParseResourceShow(args.Skip(1).ToArray()),
             "action" => ParseResourceAction(args.Skip(1).ToArray()),
             _ => throw new CliUsageException($"Unknown resource command '{args[0]}'.")
         };
@@ -188,6 +189,24 @@ internal static class CommandLineParser
             options.ReadOptionalString("--type"),
             options.ReadOptionalEnum<ResourceClass>("--class"),
             options.ReadOptionalBool("--registered"));
+        options.ThrowIfUnreadOptions();
+        return command;
+    }
+
+    private static ResourceShowCommand ParseResourceShow(IReadOnlyList<string> args)
+    {
+        var options = OptionReader.Read(args);
+        if (options.Positionals.Count != 1)
+        {
+            throw new CliUsageException("resource show requires exactly one resource id.");
+        }
+
+        var command = new ResourceShowCommand(
+            options.Positionals[0],
+            options.ReadString("--state-dir", DefaultStateDirectory),
+            options.ReadOptionalUri("--control-plane"),
+            options.ReadOptionalString("--bearer-token") ??
+                Environment.GetEnvironmentVariable("CLOUDSHELL_CONTROL_PLANE_TOKEN"));
         options.ThrowIfUnreadOptions();
         return command;
     }

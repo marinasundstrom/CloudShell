@@ -10,6 +10,7 @@ Usage:
   cloudshell control-plane stop [--state-dir <path>]
   cloudshell control-plane status [--state-dir <path>] [--bearer-token <token>]
   cloudshell resource list [--control-plane <url>] [--type <type>] [--class <class>] [--registered <true|false>]
+  cloudshell resource show <resource-id> [--control-plane <url>]
   cloudshell resource action execute <resource-id> <action-id> [--control-plane <url>]
   cloudshell template apply <template.yaml|template.json> [--control-plane <url>] [--mode <mode>] [--start] [--bearer-token <token>]
   cloudshell host names add <host-name> <ip-address> [--hosts-file <path>] [--dry-run]
@@ -20,6 +21,7 @@ Commands:
   control-plane stop     Stop the recorded local Control Plane process.
   control-plane status   Show recorded process and API readiness.
   resource list          List resources from the selected Control Plane.
+  resource show          Show resource details, endpoints, actions, attributes, and capabilities.
   resource action        Execute a resource action through the Control Plane API.
   template apply         Apply a ResourceTemplate YAML or JSON document through the Control Plane API.
   host names             Add or remove local hosts-file mappings.

@@ -42,6 +42,12 @@ internal sealed record ResourceListCommand(
     ResourceClass? ResourceClass,
     bool? IsRegistered) : CliCommand;
 
+internal sealed record ResourceShowCommand(
+    string ResourceId,
+    string StateDirectory,
+    Uri? ControlPlaneUrl,
+    string? BearerToken) : CliCommand;
+
 internal sealed record ResourceActionExecuteCommand(
     string ResourceId,
     string ActionId,

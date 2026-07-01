@@ -82,6 +82,26 @@ public sealed class CommandLineParserTests
     }
 
     [Fact]
+    public void Parse_ResourceShow_ReadsTargetOptions()
+    {
+        var command = Assert.IsType<ResourceShowCommand>(
+            CommandLineParser.Parse(
+            [
+                "resource",
+                "show",
+                "application:api",
+                "--control-plane",
+                "https://control-plane.example.com",
+                "--bearer-token",
+                "token-value"
+            ]));
+
+        Assert.Equal("application:api", command.ResourceId);
+        Assert.Equal(new Uri("https://control-plane.example.com"), command.ControlPlaneUrl);
+        Assert.Equal("token-value", command.BearerToken);
+    }
+
+    [Fact]
     public void Parse_HostNamesAdd_ReadsHostsFileAndDryRun()
     {
         var command = Assert.IsType<HostNameAddCommand>(
