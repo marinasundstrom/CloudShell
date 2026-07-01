@@ -139,7 +139,7 @@ internal static class CoreShellRouteProjection
         return merged;
     }
 
-    private static string GetSectionSelectionValue(
+    public static string GetSectionSelectionValue(
         CoreShellSectionContribution section,
         CoreShellSectionOutletContribution outlet)
     {

@@ -2,7 +2,7 @@
 @page "/settings/{Section}"
 @rendermode InteractiveServer
 @inject IStringLocalizer<SharedResource> L
-@using CoreShell.Composition
+@using CoreShell.Blazor
 
 <PageTitle>@L["Settings"]</PageTitle>
 
@@ -10,12 +10,12 @@
              Title="@L["Settings"].Value"
              Description="@L["Configure CloudShell shell behavior and platform extension surfaces from one place."].Value" />
 
-<CloudShellCompositionSectionTabbedLayout Page="@ShellCompositionIds.SettingsPage"
-                                          Outlet="@ShellCompositionIds.SettingsMainOutlet"
-                                          AriaLabel="@L["Settings sections"].Value"
-                                          Group="Settings"
-                                          RouteSegment="@Section"
-                                          IconSelector="GetIcon">
+<CloudShellCoreShellSectionTabbedLayout Page="@ShellIds.SettingsPage"
+                                        Outlet="@ShellIds.SettingsMainOutlet"
+                                        AriaLabel="@L["Settings sections"].Value"
+                                        Group="Settings"
+                                        RouteSegment="@Section"
+                                        IconSelector="GetIcon">
     <SummaryContent Context="sections">
         <ShellSummaryTile Title="@L["CloudShell"].Value"
                           Description="@L["Common settings"].Value">
@@ -24,7 +24,7 @@
             </Icon>
         </ShellSummaryTile>
         <ShellSummaryTile Title="@L["{0} section(s)", sections.Count].Value"
-                          Description="@L["Composition-backed"].Value">
+                          Description="@L["CoreShell-backed"].Value">
             <Icon>
                 <FluentIcon Value="@(new Icons.Regular.Size20.AppsListDetail())" />
             </Icon>
@@ -35,23 +35,23 @@
                     Message="@L["No settings sections are registered for this CloudShell host."].Value" />
     </EmptyContent>
     <HeaderContent Context="section">
-        <ShellPanelHeader Title="@L[section.Section.Title].Value"
+        <ShellPanelHeader Title="@L[section.Title].Value"
                           Description="@L["Settings section"].Value" />
     </HeaderContent>
-</CloudShellCompositionSectionTabbedLayout>
+</CloudShellCoreShellSectionTabbedLayout>
 
 @code {
     [Parameter]
     public string? Section { get; set; }
 
-    private static string GetIcon(CompositionSectionProjection section) =>
-        section.Section.Id == ShellCompositionIds.SettingsUsersSection
+    private static string GetIcon(CoreShellBlazorSection section) =>
+        section.Section.Id == ShellIds.SettingsUsersSection
             ? "users"
-            : section.Section.Id == ShellCompositionIds.SettingsExtensionsSection
+            : section.Section.Id == ShellIds.SettingsExtensionsSection
                 ? "extensions"
-            : section.Section.Id == ResourceManagerCompositionIds.SettingsGeneralSection
+            : section.Section.Id == ResourceManagerShellIds.SettingsGeneralSection
                 ? "resources"
-            : section.Section.Id == ResourceManagerCompositionIds.SettingsOrchestrationSection
+            : section.Section.Id == ResourceManagerShellIds.SettingsOrchestrationSection
                 ? "dependencies"
                 : "settings";
 }

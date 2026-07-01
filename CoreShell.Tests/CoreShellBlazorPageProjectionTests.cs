@@ -54,6 +54,29 @@ public sealed class CoreShellBlazorPageProjectionTests
         Assert.Null(resolved);
     }
 
+    [Fact]
+    public async Task ResolveSectionOutletAsync_ProjectsOutletByCoreShellIds()
+    {
+        var catalog = new CoreShellModuleCatalog([CreateModule()]);
+        var projection = new CoreShellBlazorSectionOutletProjectionService(
+            catalog,
+            catalog,
+            new BlazorCoreShellContentResolver(),
+            new BlazorCoreShellLayoutResolver());
+
+        var resolved = await projection.ResolveSectionOutletAsync(SettingsPage, SettingsMain);
+
+        Assert.NotNull(resolved);
+        Assert.Equal(SettingsPage, resolved.Page.Id);
+        Assert.Equal(SettingsMain, resolved.Outlet.Outlet.Id);
+        Assert.Equal(CoreShellSectionAddressMode.Child, resolved.Outlet.Outlet.AddressMode);
+
+        var section = Assert.Single(resolved.Sections);
+        Assert.Equal(UsersSection, section.Section.Id);
+        Assert.Equal(typeof(UsersSectionComponent), section.ContentType);
+        Assert.Equal(typeof(SettingsSectionLayoutComponent), section.LayoutType);
+    }
+
     private static CoreShellModule CreateModule() =>
         CoreShellModule.Create(Module, module =>
         {

@@ -95,6 +95,7 @@ public static class CloudShellHostApplicationBuilderExtensions
             serviceProvider => serviceProvider.GetRequiredService<CoreShellModuleCatalog>());
         builder.Services.TryAddSingleton<ICoreShellRouteService>(
             serviceProvider => serviceProvider.GetRequiredService<CoreShellModuleCatalog>());
+        builder.Services.TryAddSingleton<ICoreShellSectionAddressService, CoreShellSectionAddressService>();
         builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<ICoreShellPageResolver, CoreShellModuleCatalog>());
         builder.Services.TryAddSingleton<ICoreShellPageResolutionService, CoreShellPageResolutionService>();
         builder.Services.TryAddSingleton<CoreShellCompositionModuleFactory>();

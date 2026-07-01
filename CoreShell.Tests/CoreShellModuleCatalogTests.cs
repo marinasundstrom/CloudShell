@@ -127,6 +127,34 @@ public sealed class CoreShellModuleCatalogTests
     }
 
     [Fact]
+    public void SectionAddressService_ResolvesSectionIdsAndChildAddressValues()
+    {
+        var module = CreateExtensionModule();
+        var outlet = Assert.Single(module.SectionOutlets, outlet => outlet.Id == SettingsMain);
+        var sections = module.Sections
+            .Where(section => section.OutletId == SettingsMain)
+            .ToArray();
+        var service = new CoreShellSectionAddressService();
+
+        var resolvedById = service.TryResolveSectionRequest(
+            outlet,
+            sections,
+            SettingsUsers.Value,
+            out var sectionById);
+        var resolvedByAddress = service.TryResolveSectionRequest(
+            outlet,
+            sections,
+            "users",
+            out var sectionByAddress);
+
+        Assert.True(resolvedById);
+        Assert.Equal(SettingsUsers, sectionById.Id);
+        Assert.True(resolvedByAddress);
+        Assert.Equal(SettingsUsers, sectionByAddress.Id);
+        Assert.Equal("users", service.GetSectionAddressValue(outlet, sectionByAddress));
+    }
+
+    [Fact]
     public void Constructor_RejectsDuplicatePages()
     {
         var exception = Assert.Throws<InvalidOperationException>(() =>

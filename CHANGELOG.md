@@ -36,6 +36,11 @@ on `git blame --follow`, and then by the broad type of change.
   registration, and a page projection service that materializes CoreShell
   pages, section outlets, and sections into Blazor component descriptors
   without depending on Fluent UI or CloudShell Hosting presenters.
+- CoreShell now owns section address-value resolution for full section IDs and
+  child route values, and `CoreShell.Blazor` can project a section outlet by
+  CoreShell page/outlet IDs. CloudShell Settings now renders through a
+  CoreShell-backed tabbed layout instead of reading Composition UI section
+  projections directly.
 - CloudShell's primary navigation menu now renders from CoreShell navigation
   and route services instead of reading the Composition UI registry directly.
 - Shell chrome and dashboard page links can now use a CoreShell-backed anchor

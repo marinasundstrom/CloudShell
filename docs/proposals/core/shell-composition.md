@@ -56,6 +56,10 @@ references, pages, section outlets, and sections into Blazor component types.
 That adapter is the first mapping layer between the CMS-like CoreShell model
 and Blazor routing/components, while Fluent UI presentation remains in
 CloudShell Hosting for now.
+CloudShell Settings is the first shell surface to consume that mapping for
+section presentation: it uses CoreShell page/outlet IDs, CoreShell section
+address resolution, and Blazor component descriptors, while the tabbed Fluent
+UI presentation stays in Hosting.
 
 Extensions can still use their own UI or component stack for extension-owned
 surfaces. Shell composition does not require every extension component to be a

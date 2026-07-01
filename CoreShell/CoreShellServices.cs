@@ -33,6 +33,19 @@ public interface ICoreShellSectionService
         CancellationToken cancellationToken = default);
 }
 
+public interface ICoreShellSectionAddressService
+{
+    string GetSectionAddressValue(
+        CoreShellSectionOutletContribution outlet,
+        CoreShellSectionContribution section);
+
+    bool TryResolveSectionRequest(
+        CoreShellSectionOutletContribution outlet,
+        IReadOnlyList<CoreShellSectionContribution> sections,
+        string requested,
+        out CoreShellSectionContribution section);
+}
+
 public interface ICoreShellRouteService
 {
     Task<CoreShellPageContribution?> GetPageByRouteAsync(
@@ -93,6 +106,58 @@ public sealed class CoreShellPageResolutionService(
         }
 
         return null;
+    }
+}
+
+public sealed class CoreShellSectionAddressService : ICoreShellSectionAddressService
+{
+    public string GetSectionAddressValue(
+        CoreShellSectionOutletContribution outlet,
+        CoreShellSectionContribution section)
+    {
+        ArgumentNullException.ThrowIfNull(outlet);
+        ArgumentNullException.ThrowIfNull(section);
+
+        return CoreShellRouteProjection.GetSectionSelectionValue(section, outlet);
+    }
+
+    public bool TryResolveSectionRequest(
+        CoreShellSectionOutletContribution outlet,
+        IReadOnlyList<CoreShellSectionContribution> sections,
+        string requested,
+        out CoreShellSectionContribution section)
+    {
+        ArgumentNullException.ThrowIfNull(outlet);
+        ArgumentNullException.ThrowIfNull(sections);
+
+        section = null!;
+        if (string.IsNullOrWhiteSpace(requested))
+        {
+            return false;
+        }
+
+        var normalizedRequest = requested.Trim();
+        var requestedSection = sections.FirstOrDefault(section =>
+            string.Equals(section.Id.Value, normalizedRequest, StringComparison.OrdinalIgnoreCase));
+        if (requestedSection is not null)
+        {
+            section = requestedSection;
+            return true;
+        }
+
+        var matchingSections = sections
+            .Where(item => string.Equals(
+                GetSectionAddressValue(outlet, item),
+                normalizedRequest,
+                StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (matchingSections.Length != 1)
+        {
+            return false;
+        }
+
+        section = matchingSections[0];
+        return true;
     }
 }
 

@@ -12,6 +12,9 @@ public static class CoreShellBlazorServiceCollectionExtensions
         services.TryAddSingleton<ICoreShellContentResolver, BlazorCoreShellContentResolver>();
         services.TryAddSingleton<ICoreShellLayoutResolver, BlazorCoreShellLayoutResolver>();
         services.TryAddSingleton<ICoreShellBlazorPageProjectionService, CoreShellBlazorPageProjectionService>();
+        services.TryAddSingleton<
+            ICoreShellBlazorSectionOutletProjectionService,
+            CoreShellBlazorSectionOutletProjectionService>();
 
         return services;
     }

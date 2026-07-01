@@ -49,6 +49,9 @@ resolve a CoreShell page route into a renderable page descriptor, including
 the optional page component, page layout, section outlet layouts, and section
 component types. Fluent UI, Bootstrap, static SSR, interactive Blazor, or a
 custom host still decide how those descriptors are presented.
+It can also resolve a specific CoreShell page/outlet pair into Blazor section
+descriptors, which lets host presenters render a tabset, sidebar, accordion,
+or section stack without reading `CoreShell.Composition` projections.
 CloudShell's primary navigation renders from CoreShell services; direct
 composition registry access remains an infrastructure and compatibility path
 while page and section presenters move up to CoreShell.
@@ -59,6 +62,10 @@ Resource Manager page and detail links should use the CoreShell-backed
 Resource Manager shell link helper. Composition registry access remains for
 presenters that still build tab and section state from composition
 projections, not for Resource Manager href generation.
+CloudShell Settings now renders from CoreShell page, section address, route,
+and Blazor projection services; the Composition-backed tabbed section layout
+remains a compatibility presenter for surfaces that have not moved to
+CoreShell yet.
 Because CloudShell Hosting is a Fluent UI shell, shell-specific presenters
 should use Fluent UI components for navigation, commands, inputs, and other
 interactive elements whenever those components provide the needed semantics and
