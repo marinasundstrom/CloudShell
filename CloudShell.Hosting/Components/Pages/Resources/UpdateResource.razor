@@ -17,7 +17,7 @@
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject IStringLocalizer<SharedResource> L
 @inject IServiceProvider Services
-@inject CoreShell.Composition.CompositionRegistry Composition
+@inject ICoreShellRouteService ShellRoutes
 @inject ILogger<UpdateResource> Logger
 @implements IDisposable
 @using CloudShell.Abstractions.Authorization
@@ -146,7 +146,7 @@
         </div>
     }
 
-    <CloudShellTabbedLayout Items="@ResourceTabLayoutProjection.CreateItems(tabs, Composition, ResourceId)"
+    <CloudShellTabbedLayout Items="@ResourceTabLayoutProjection.CreateItems(tabs, ShellRoutes, ResourceId)"
                             SelectedItemId="@selectedTab?.Id.Value"
                             SelectedItemChanged="SelectLayoutTab"
                             SelectFirstItemWhenSelectedMissing="@(selectedTabIssue is null)"
@@ -400,7 +400,7 @@
         if (!string.IsNullOrWhiteSpace(ResourceId))
         {
             Navigation.NavigateTo(
-                ResourceManagerCompositionLinks.ResourceDetails(Composition, ResourceId, tabId),
+                ResourceManagerShellLinks.ResourceDetails(ShellRoutes, ResourceId, tabId),
                 replace: true);
         }
 
@@ -522,11 +522,11 @@
             message,
             L["Open overview"].Value,
             string.IsNullOrWhiteSpace(ResourceId)
-                ? ResourceManagerCompositionLinks.ResourceManagerPage(
-                    Composition,
-                    ResourceManagerCompositionIds.ResourcesPage,
+                ? ResourceManagerShellLinks.ResourceManagerPage(
+                    ShellRoutes,
+                    ResourceManagerShellIds.ResourcesPage,
                     ResourceManagerRoutes.Resources)
-                : ResourceManagerCompositionLinks.ResourceDetails(Composition, ResourceId));
+                : ResourceManagerShellLinks.ResourceDetails(ShellRoutes, ResourceId));
 
     private async Task ApplyChanges()
     {
@@ -1297,7 +1297,7 @@
         }
 
         Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-            ResourceManagerCompositionLinks.ResourceDetails(Composition, Resource.Id, ResourcePredefinedViewIds.Logs),
+            ResourceManagerShellLinks.ResourceDetails(ShellRoutes, Resource.Id, ResourcePredefinedViewIds.Logs),
             query));
     }
 

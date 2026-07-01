@@ -515,6 +515,38 @@ public sealed class ShellNavigationTests
                 ResourceManagerRoutes.Resources));
     }
 
+    [Fact]
+    public void ResourceTabLayoutProjection_UsesCoreShellRoutesForTabHrefs()
+    {
+        var routes = CreateCoreShellCatalog(
+            new ResourceManagerExtension(includeSettings: false));
+        var tabs = new[]
+        {
+            new ResourceTabContribution(
+                ResourcePredefinedViewIds.Overview,
+                "Overview",
+                10,
+                typeof(ParameterizedPage)),
+            new ResourceTabContribution(
+                ResourcePredefinedViewIds.Logs,
+                "Logs",
+                20,
+                typeof(ParameterizedPage))
+        };
+
+        var items = ResourceTabLayoutProjection.CreateItems(
+            tabs,
+            routes,
+            "application:orders");
+
+        Assert.Equal(
+            "/resources/application%3Aorders",
+            items.Single(item => item.Id == ResourcePredefinedViewIds.Overview.Value).Href);
+        Assert.Equal(
+            "/resources/application%3Aorders/logs",
+            items.Single(item => item.Id == ResourcePredefinedViewIds.Logs.Value).Href);
+    }
+
     private static ICloudShellNavigator CreateNavigator<TExtension>(
         TestNavigationManager? navigationManager = null)
         where TExtension : class, ICloudShellExtension, new()
