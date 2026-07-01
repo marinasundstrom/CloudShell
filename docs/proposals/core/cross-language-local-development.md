@@ -1,0 +1,231 @@
+# Cross-language local development
+
+## Status
+
+Proposed.
+
+This proposal tracks the local-development authoring and launch experience for
+CloudShell hosts that are controlled from languages other than C#. The first
+target is TypeScript/JavaScript because it is the closest comparison point to
+Aspire's TypeScript app-host work, but the model should apply to Java, Python,
+Go, and other ecosystems through the same contracts.
+
+## Problem
+
+CloudShell should not require a developer to write C# just to compose and run a
+local distributed application. The core host, Control Plane, and Blazor shell
+can stay .NET-based, but the app-host style entry point should be available to
+teams whose application code and tooling live in another ecosystem.
+
+The current programmatic resource API proves the code-first development model
+from C#. That is useful, but it is not enough for CloudShell's ecosystem-neutral
+goal. A TypeScript application should be able to declare its web services,
+containers, databases, configuration, secrets, networking, and references from
+TypeScript, start the CloudShell host from the same development command, and
+then operate the environment through Resource Manager and the Control Plane API.
+
+## Goals
+
+- Let non-C# projects define the same CloudShell resource graph as C# hosts.
+- Keep one Control Plane resource model across C#, TypeScript, JavaScript, and
+  future SDKs.
+- Let a language SDK start or attach to a CloudShell host without becoming the
+  Control Plane implementation.
+- Preserve split hosting: the same SDK should be able to target an existing
+  remote Control Plane instead of always launching a local combined host.
+- Keep provider-owned runtime behavior behind Control Plane providers and
+  runtime adapters.
+- Make local development feel like one command from the user's ecosystem, such
+  as `npm run dev`, while still exposing the normal Resource Manager UI and API.
+
+## Non-goals
+
+- Reimplement the CloudShell Control Plane in each language.
+- Make a language SDK a parallel resource manager or lifecycle orchestrator.
+- Add language-specific resource concepts that do not round-trip through the
+  Resource model.
+- Require a browser UI for headless local-development runs.
+- Replace C# programmatic declarations; C# remains the native host authoring
+  surface.
+
+## Proposed model
+
+Cross-language local development uses three layers:
+
+| Layer | Owner | Responsibility |
+| --- | --- | --- |
+| Language SDK | TypeScript/JavaScript, Java, or another ecosystem package | Provides fluent graph builders, local command integration, generated API clients, and ergonomic references for that ecosystem. |
+| Host launcher | CloudShell CLI or launch package | Starts a known .NET CloudShell host profile, passes graph input and settings, watches readiness, and returns endpoint metadata to the SDK. |
+| Control Plane | CloudShell .NET host | Owns resource validation, provider setup, lifecycle actions, persistence, logs, traces, authorization, API projection, and Resource Manager UI. |
+
+The SDK authors resource intent as a `ResourceTemplate` or equivalent
+ResourceDefinition-based interchange document. The launcher gives that document
+to a local Control Plane host or applies it to an existing Control Plane through
+the API. Once the host is running, the SDK talks to the Control Plane API for
+status, action execution, logs, and generated endpoint metadata.
+
+The SDK may offer ecosystem-native helpers:
+
+```ts
+const app = cloudshell.app("orders");
+
+const db = app.sqlServer("main").database("orders");
+
+const api = app.node("api", {
+  command: "npm run dev --workspace api",
+  port: 3000,
+}).withReference(db);
+
+const web = app.node("web", {
+  command: "npm run dev --workspace web",
+  port: 5173,
+}).withReference(api);
+
+await app.run();
+```
+
+Those helpers compile to the same provider-owned resource definitions a C# host
+would produce. The Node SDK does not start resources directly unless a provider
+explicitly models a Node process resource and the Control Plane has the
+matching runtime adapter.
+
+## Launch modes
+
+### Local combined host
+
+The common local-development mode starts a combined Control Plane and
+CloudShell UI process. The language SDK:
+
+1. Builds a ResourceDefinition graph.
+2. Starts the configured CloudShell host profile through the launcher.
+3. Waits for the Control Plane readiness endpoint.
+4. Applies the graph as transient code-first declarations.
+5. Opens or reports the Resource Manager URL.
+6. Streams host status back to the invoking process.
+
+The user experiences this as a normal ecosystem command. The implementation is
+still the same CloudShell combined host described in the hosting model.
+
+### Control Plane only
+
+Headless local runs can start only the Control Plane. This is useful for CLI
+tests, CI smoke flows, editor integrations, or teams that want the UI in a
+separate process.
+
+### Attach to existing Control Plane
+
+The SDK can target a running Control Plane by base URL and credential. In this
+mode it does not launch a host; it applies or previews the graph through the
+API and can query resources and endpoints afterward.
+
+### Export only
+
+The SDK can emit the ResourceTemplate without applying it. This supports
+review, CI validation, generated declarations, and future import/export flows.
+
+## Interchange contract
+
+The stable interchange is the Resource model, not a TypeScript-specific app
+host schema. The initial implementation should prefer ResourceDefinition-based
+templates because that is already the direction for C# programmatic resources,
+Resource Manager apply, and graph import.
+
+The interchange should include:
+
+- resource names, types, display names, attributes, capabilities, and
+  relationships
+- endpoint intent and endpoint-network mapping intent
+- references and dependencies
+- provider-owned non-secret configuration payloads
+- startup policy such as programmatic autostart and dependency autostart
+- source metadata that identifies the declaring SDK, project path, and file
+  where useful for diagnostics
+
+The interchange must not include secret values. SDKs should pass secrets by
+reference to environment variables, local secret stores, CloudShell Secrets
+Vault entries, or provider-owned protected channels.
+
+## SDK expectations
+
+The first TypeScript/JavaScript SDK should provide:
+
+- resource graph builders that mirror the C# builder vocabulary where practical
+- typed references between declared resources
+- generated Control Plane API client bindings
+- launch helpers for local combined-host and Control Plane-only modes
+- attach helpers for remote Control Planes
+- clear diagnostics when the local .NET host, provider package, or runtime
+  adapter is missing
+- package scripts that make `npm run dev` or equivalent workflows natural
+
+The SDK should avoid hiding CloudShell concepts behind Node-only terms. Use
+CloudShell nouns such as resources, endpoints, dependencies, references,
+Control Plane, and Resource Manager.
+
+## Host launcher expectations
+
+The launcher is responsible for process concerns:
+
+- finding or installing the selected CloudShell host profile
+- passing appsettings, environment variables, graph files, and port settings
+- detecting readiness and failure
+- reporting the Control Plane and Resource Manager URLs
+- forwarding shutdown signals
+- preserving logs needed to diagnose host startup failures
+
+The launcher should not validate provider-specific resource semantics itself.
+It may validate launcher arguments and template envelope shape, then leave
+resource validation to the Control Plane and providers.
+
+## Resource Manager behavior
+
+Resources declared from TypeScript or JavaScript should look like ordinary
+programmatic declarations in Resource Manager. The UI may show source metadata
+such as "Declared by TypeScript app host" when useful, but source language must
+not change the resource model, lifecycle behavior, authorization, endpoint
+mapping, logs, traces, or persistence semantics.
+
+Persisting a graph follows the same rule as C# declarations: `Persist()` or its
+SDK equivalent records accepted resource state into the Control Plane. It is
+not deployment to another environment.
+
+## Open questions
+
+- Should the first launcher be a standalone `cloudshell` CLI, an npm package
+  that wraps `dotnet`, or both?
+- Which host profiles should be shipped as supported defaults for local
+  combined-host and Control Plane-only runs?
+- How should the launcher discover provider packages required by a graph?
+- Should SDKs apply graphs only through the Control Plane API, or may a local
+  launcher pass an initial graph to the host before the API is ready?
+- How much of the C# builder API should be generated from provider metadata
+  versus hand-authored in each language package?
+- How should editor tooling surface source spans from generated
+  ResourceDefinition diagnostics?
+
+## Implementation plan
+
+1. Define the launcher contract and ResourceTemplate envelope expected by
+   external language SDKs.
+2. Add a minimal local launcher that can start a known combined host profile
+   and apply a graph file.
+3. Add a TypeScript SDK POC with graph builders for ASP.NET Core or generic
+   process apps, container apps, configuration, secrets, SQL Server, and basic
+   endpoint references.
+4. Add Control Plane diagnostics for source metadata and missing provider or
+   runtime adapter capabilities.
+5. Add sample coverage for a TypeScript-authored local distributed app.
+6. Add remote attach support using generated Control Plane client bindings.
+7. Decide which SDK APIs are stable enough to document as public preview.
+
+## Verification
+
+The first implementation should include:
+
+- unit tests for TypeScript graph emission
+- launcher tests for host process startup, readiness failure, and shutdown
+- Control Plane contract tests for applying externally authored templates
+- a sample smoke test that runs a TypeScript-authored app graph through the
+  supported local-development host
+- docs that show local combined-host, headless Control Plane, attach, and
+  export-only workflows

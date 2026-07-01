@@ -15,6 +15,16 @@ managed by the same local Control Plane. The declarations and lifecycle policy
 belong to the Control Plane; the host process composes the environment and
 registers runtime adapter implementations for the installed providers.
 
+Programmatic declarations are not intended to stay C#-only. C# is the native
+host surface today, but external language SDKs should compile their fluent
+builders to the same ResourceDefinition-based graph shape and then start or
+attach to a CloudShell host through a launcher or the Control Plane API. The
+language SDK may provide TypeScript, JavaScript, Java, Python, or other
+ecosystem-specific helpers, but the accepted resource graph, provider
+validation, lifecycle behavior, persistence, and Resource Manager projection
+remain Control Plane-owned. See the
+[cross-language local development proposal](proposals/core/cross-language-local-development.md).
+
 ```csharp
 using CloudShell.Hosting;
 using CloudShell.ControlPlane.Providers;

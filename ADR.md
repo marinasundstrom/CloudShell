@@ -11,6 +11,31 @@ link to the decision so the dependency is visible.
 
 ## 2026-07-01
 
+### ADR-20260701-002: Keep local-development host authoring ecosystem-neutral
+
+CloudShell should not require C# as the only app-host authoring language for
+local distributed development. The core host, Control Plane, and default UI can
+remain .NET-based, but TypeScript, JavaScript, Java, Python, and other
+ecosystems should be able to define the resource graph, launch or attach to a
+CloudShell host, and operate the environment through the same Control Plane API.
+
+The stable boundary is the Resource model, not a language-specific app-host
+schema. External language SDKs should emit ResourceDefinition-based templates
+or use equivalent Control Plane API requests, then rely on the .NET Control
+Plane for validation, provider setup, lifecycle actions, persistence,
+diagnostics, telemetry, and Resource Manager projection. A launcher or CLI may
+own process startup, readiness, settings, and shutdown forwarding, but it does
+not become a parallel resource manager.
+
+Source language can be recorded as non-secret source metadata for diagnostics
+and UI explanation, but it must not change resource identity, lifecycle
+semantics, provider behavior, authorization, or persistence. Persisting an
+externally authored graph follows the same rule as C# programmatic resources:
+it records accepted resource state into the Control Plane and is separate from
+deployment to another environment.
+
+Related proposal: [Cross-language local development](docs/proposals/core/cross-language-local-development.md).
+
 ### ADR-20260701-001: Keep Control Plane application defaults separate from UI shell registration
 
 CloudShell's Aspire-like application setup should produce an opinionated

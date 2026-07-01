@@ -50,6 +50,13 @@ CloudShell adds value when the team needs more than app composition:
 CloudShell is therefore not just an app launcher. It is a resource shell and
 Control Plane that can use Aspire-like declarations as one entry point.
 
+CloudShell should also preserve Aspire's ecosystem direction without copying
+its implementation boundary. A developer should be able to use TypeScript or
+JavaScript as the app-host authoring language, start or attach to a .NET
+CloudShell host from that workflow, and then use the same Resource Manager and
+Control Plane API as a C# host. The language SDK owns local ergonomics; the
+Resource model and Control Plane remain the shared product boundary.
+
 ## Terminology alignment
 
 Aspire separates the AppHost that composes the application from workloads that

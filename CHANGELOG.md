@@ -63,6 +63,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Documented the broader platform vision for CoreShell, ecosystem-neutral host
   bootstrapping and resource-graph authoring, and future clustered or
   multi-Control Plane hosting topologies.
+- Added the cross-language local-development proposal and ADR, defining
+  TypeScript/JavaScript and future non-C# app-host authoring around
+  ResourceDefinition interchange, host launchers, generated clients, and the
+  existing Control Plane authority.
 - Built-in Control Plane providers now expose explicit `Use*ResourceProvider`
   registration methods so hosts can compose individual provider capabilities
   while still keeping `UseBuiltInResourceModelProviders()` as the broad preset;
