@@ -228,13 +228,7 @@
         }
 
         var resources = await ResourceManager.ListResourcesAsync();
-        ResourcesById = resources
-            .Append(Resource)
-            .GroupBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                group => group.Key,
-                group => group.First(),
-                StringComparer.OrdinalIgnoreCase);
+        ResourcesById = ResourceCollectionProjection.ToDictionaryById(resources.Append(Resource));
         var principals = await ResourceManager.QueryResourcePrincipalsAsync();
         PrincipalOptions = principals
             .Where(principal => !IsCurrentResourceIdentity(principal.Reference))

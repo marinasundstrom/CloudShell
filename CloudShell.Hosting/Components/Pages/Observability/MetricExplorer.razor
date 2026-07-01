@@ -337,8 +337,8 @@ else if (ShowHeading)
     protected override async Task OnParametersSetAsync()
     {
         DisplaySelection = await DisplaySettings.GetAsync();
-        var resources = await ResourceManager.ListResourcesAsync();
-        ResourcesById = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        var resources = ResourceCollectionProjection.DistinctById(await ResourceManager.ListResourcesAsync());
+        ResourcesById = ResourceCollectionProjection.ToDictionaryById(resources);
         MetricResources = resources
             .Where(resource => resource.EffectiveObservability.Metrics)
             .OrderBy(DisplaySelection.GetResourceSortLabel, StringComparer.OrdinalIgnoreCase)

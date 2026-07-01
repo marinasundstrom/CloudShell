@@ -13,13 +13,14 @@ public static class ResourceDependencyGraphProjection
         ArgumentNullException.ThrowIfNull(resources);
 
         var projectionOptions = options ?? new ResourceDependencyGraphProjectionOptions();
-        var distinctResources = DistinctResources(resources);
+        var distinctResources = ResourceCollectionProjection.DistinctById(resources);
         var nodes = new Dictionary<string, ResourceDependencyGraphNode>(StringComparer.OrdinalIgnoreCase);
         var links = new Dictionary<string, ResourceDependencyGraphLink>(StringComparer.OrdinalIgnoreCase);
         var visibleResourceIds = distinctResources
             .Select(resource => resource.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var relationshipResources = DistinctResources(projectionOptions.RelationshipResources ?? distinctResources);
+        var relationshipResources = ResourceCollectionProjection.DistinctById(
+            projectionOptions.RelationshipResources ?? distinctResources);
         var relationshipResourcesById = relationshipResources
             .ToDictionary(
                 resource => resource.Id,
@@ -113,12 +114,6 @@ public static class ResourceDependencyGraphProjection
             dependencyCount,
             topologyCount);
     }
-
-    private static IReadOnlyList<Resource> DistinctResources(IReadOnlyList<Resource> resources) =>
-        resources
-            .GroupBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .ToArray();
 
     private static void AddNetworkTopologyOverlay(
         IReadOnlyList<Resource> resources,

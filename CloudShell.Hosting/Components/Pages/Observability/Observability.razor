@@ -148,11 +148,11 @@ else
 
         await Task.WhenAll(resourcesTask, logsTask, spansTask, metricsTask);
 
-        Resources = resourcesTask.Result;
+        Resources = ResourceCollectionProjection.DistinctById(resourcesTask.Result);
         Logs = logsTask.Result;
         TraceSpans = spansTask.Result;
         MetricPoints = metricsTask.Result;
-        ResourcesById = Resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        ResourcesById = ResourceCollectionProjection.ToDictionaryById(Resources);
         ObservedTelemetryResourceIds = BuildObservedTelemetryResourceIds();
         RequestEdgeCount = CountRequestEdges(TraceSpans);
         ObservedServices = BuildObservedServices();

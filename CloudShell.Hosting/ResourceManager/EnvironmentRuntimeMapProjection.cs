@@ -28,15 +28,12 @@ public static class EnvironmentRuntimeMapProjection
             IReadOnlyList<ResourceDeploymentRecord> deployments,
             IReadOnlyList<EnvironmentRuntimeMapReplicaGroup> replicaGroups)
         {
-            resources = DistinctResources(resources);
+            resources = ResourceCollectionProjection.DistinctById(resources);
             var nodes = new Dictionary<string, EnvironmentRuntimeMapNode>(StringComparer.OrdinalIgnoreCase);
             var links = new Dictionary<string, EnvironmentRuntimeMapLink>(StringComparer.OrdinalIgnoreCase);
             var groups = new Dictionary<string, EnvironmentRuntimeMapGroupBuilder>(StringComparer.OrdinalIgnoreCase);
             var resourceNodeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var resourcesById = resources.ToDictionary(
-                resource => resource.Id,
-                resource => resource,
-                StringComparer.OrdinalIgnoreCase);
+            var resourcesById = ResourceCollectionProjection.ToDictionaryById(resources);
             var serviceNodeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var replicaGroupNodeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var activeReplicaGroupRows = replicaGroups.ToDictionary(replicaGroup => replicaGroup.ReplicaGroupId, StringComparer.OrdinalIgnoreCase);
@@ -1178,11 +1175,8 @@ public static class EnvironmentRuntimeMapProjection
         IReadOnlyDictionary<string, string> serviceNodeIds,
         bool includeDependencyRelationships)
     {
-        resources = DistinctResources(resources);
-        var resourcesById = resources.ToDictionary(
-            resource => resource.Id,
-            resource => resource,
-            StringComparer.OrdinalIgnoreCase);
+        resources = ResourceCollectionProjection.DistinctById(resources);
+        var resourcesById = ResourceCollectionProjection.ToDictionaryById(resources);
         var resourceRelationshipNodeIds = CreateResourceRelationshipNodeIds(
             resources,
             resourceNodeIds,
@@ -1277,12 +1271,6 @@ public static class EnvironmentRuntimeMapProjection
 
         return relationshipNodeIds;
     }
-
-    private static IReadOnlyList<Resource> DistinctResources(IReadOnlyList<Resource> resources) =>
-        resources
-            .GroupBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .ToArray();
 
     private static void AddLink(
         IDictionary<string, EnvironmentRuntimeMapLink> links,

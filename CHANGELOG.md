@@ -48,6 +48,10 @@ on `git blame --follow`, and then by the broad type of change.
   Control Plane resource graph builder instead of on the host-level Control
   Plane builder. `AddResourceGroup(...)` returns a resource group definition
   that can be passed directly to `WithResourceGroup(...)`.
+- Resource Manager graph, DNS, log, trace, metric, and observability views now
+  tolerate duplicate projected resource IDs, such as declared and projected
+  Host network resources, instead of throwing duplicate-key exceptions while
+  building UI lookups.
 
 ### 2026-06-30
 

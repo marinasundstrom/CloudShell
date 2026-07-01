@@ -91,8 +91,8 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
-        var resources = await ResourceManager.ListResourcesAsync();
-        ResourcesById = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        var resources = ResourceCollectionProjection.DistinctById(await ResourceManager.ListResourcesAsync());
+        ResourcesById = ResourceCollectionProjection.ToDictionaryById(resources);
         DnsZone = string.IsNullOrWhiteSpace(ResourceId)
             ? null
             : ResourcesById.GetValueOrDefault(ResourceId);

@@ -15,11 +15,8 @@ internal static class ResourceInternetReachabilityProjection
         ArgumentNullException.ThrowIfNull(resources);
 
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var distinctResources = DistinctResources(resources);
-        var resourcesById = distinctResources.ToDictionary(
-            resource => resource.Id,
-            resource => resource,
-            StringComparer.OrdinalIgnoreCase);
+        var distinctResources = ResourceCollectionProjection.DistinctById(resources);
+        var resourcesById = ResourceCollectionProjection.ToDictionaryById(distinctResources);
 
         foreach (var resource in distinctResources)
         {
@@ -67,12 +64,6 @@ internal static class ResourceInternetReachabilityProjection
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
-
-    private static IReadOnlyList<Resource> DistinctResources(IReadOnlyList<Resource> resources) =>
-        resources
-            .GroupBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .ToArray();
 
     private static void AddInferredIfVisible(
         IDictionary<string, string> reachability,
