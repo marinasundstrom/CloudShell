@@ -6,7 +6,17 @@ CloudShell is an extensible, self-hosted cloud-portal shell for local developmen
 
 The goal is to make it possible to build your own cloud-platform shell: a place where teams can register resources, group them by project, inspect endpoints and state, and let extensions add focused operational tools. The CloudShell UI and Control Plane are separate application surfaces; shell integrations connect the UI to those services through domain-shaped APIs.
 
-<a href="images/resources.png"><img src="images/resources.png" style="max-height: 300px" /></a>
+**Resources view:**
+
+<a href="images/resources.png"><img src="images/resources.png" style="max-height: 300px" alt="Resources view" /></a>
+
+**Graphs (from UI):**
+
+<p align="center">
+  <a href="images/resource-graph.png"><img src="images/resource-graph.png" width="45%" alt="Resource graph" /></a>
+  &nbsp;
+  <a href="images/runtime-graph.png"><img src="images/runtime-graph.png" width="45%" alt="Runtime graph" /></a>
+</p>
 
 ## Why CloudShell?
 
