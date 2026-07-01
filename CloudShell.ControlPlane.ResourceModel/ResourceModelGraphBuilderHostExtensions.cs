@@ -24,10 +24,11 @@ public static class ResourceModelGraphBuilderHostExtensions
         var graph = new ControlPlaneResourceGraphBuilder(builder, declarations, convention);
         graph.SeedIdentityProviderDeclarations(declarations);
         configure(graph);
+        var builtGraph = graph.BuildGraph();
         RegisterDeclarations(builder, graph);
         builder.Services.AddInMemoryResourceModelGraph(
             ProjectStates(
-                graph.BuildGraph().Resources.Select(ResourceState.FromDefinition),
+                builtGraph.Resources.Select(ResourceState.FromDefinition),
                 projectState));
 
         return builder;
@@ -53,9 +54,11 @@ public static class ResourceModelGraphBuilderHostExtensions
         var graph = new ControlPlaneResourceGraphBuilder(builder, declarations, convention);
         graph.SeedIdentityProviderDeclarations(declarations);
         configure(graph);
+        var builtGraph = graph.BuildGraph();
         RegisterDeclarations(builder, graph);
-        var template = graph.BuildTemplate(
+        var template = new ResourceTemplate(
             name,
+            builtGraph.Resources,
             environmentId,
             metadata);
         builder.Services.AddInMemoryResourceModelGraph(

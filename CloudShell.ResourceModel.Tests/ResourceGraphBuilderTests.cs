@@ -254,6 +254,36 @@ public sealed class ResourceGraphBuilderTests
     }
 
     [Fact]
+    public async Task Host_DefineResourcesRegistersLazyDefaultResourceDeclarations()
+    {
+        var services = new ServiceCollection();
+        services
+            .AddCloudShellControlPlane()
+            .DefineResources(resources =>
+            {
+                resources
+                    .AddContainerApplication("api")
+                    .WithImage("api:latest");
+            });
+        using var serviceProvider = services.BuildServiceProvider();
+        var declarations = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+
+        var defaultHostDeclaration = Assert.Single(
+            declarations.GetDeclarations(),
+            declaration => string.Equals(
+                declaration.ResourceId,
+                ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId,
+                StringComparison.OrdinalIgnoreCase));
+        var snapshot = await serviceProvider
+            .GetRequiredService<ResourceGraphModel>()
+            .GetSnapshotAsync();
+
+        Assert.Equal(ResourceModelResourceProvider.DefaultProviderId, defaultHostDeclaration.ProviderId);
+        Assert.Contains(snapshot.Resources, resource =>
+            resource.EffectiveResourceId == ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId);
+    }
+
+    [Fact]
     public void ControlPlaneResourceGraphBuilder_RequiresHostIdentityProviderContext()
     {
         var graph = new ControlPlaneResourceGraphBuilder();

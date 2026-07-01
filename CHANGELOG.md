@@ -64,6 +64,10 @@ on `git blame --follow`, and then by the broad type of change.
 - `ResourceGraphBuilder` now rejects duplicate resource IDs when resources are
   added, preventing mixed explicit/default paths from defining the same
   logical resource twice.
+- Control Plane `DefineResources(...)` and `DefineInitialTemplate(...)` now
+  build the Resource Model graph before registering declarations, so lazy
+  default resources such as the default container host are registered and can
+  be resolved during dependency auto-start.
 
 ### 2026-06-30
 
