@@ -8,6 +8,7 @@ operate the Control Plane through the same API used by remote clients.
 The first supported responsibilities are:
 
 - start, stop, and inspect a local Control Plane host process
+- open an already-hosted CloudShell UI on a best-effort basis
 - list resources, inspect resource details, and execute resource actions
   through the Control Plane API
 - apply ResourceTemplate YAML documents through the Control Plane API, with
@@ -43,6 +44,22 @@ Inspect or stop the recorded process:
 ```bash
 dotnet run --project CloudShell.Cli -- control-plane status
 dotnet run --project CloudShell.Cli -- control-plane stop
+```
+
+## CloudShell UI
+
+Open CloudShell UI in the default browser:
+
+```bash
+dotnet run --project CloudShell.Cli -- ui open
+```
+
+`ui open` is best effort. If `--url` is omitted, the CLI opens the recorded
+local Control Plane host URL, which works when that host also serves the UI.
+Use an explicit URL when the UI is hosted elsewhere:
+
+```bash
+dotnet run --project CloudShell.Cli -- ui open --url http://127.0.0.1:5096
 ```
 
 ## Resource Operations

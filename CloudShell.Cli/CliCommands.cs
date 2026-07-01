@@ -22,6 +22,10 @@ internal sealed record ControlPlaneStatusCommand(
     string StateDirectory,
     string? BearerToken) : CliCommand;
 
+internal sealed record UiOpenCommand(
+    string StateDirectory,
+    Uri? Url) : CliCommand;
+
 internal sealed record TemplateApplyCommand(
     string TemplatePath,
     string StateDirectory,

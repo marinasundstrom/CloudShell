@@ -9,6 +9,7 @@ Usage:
   cloudshell control-plane start [--host-project <path>] [--url <url>] [--state-dir <path>] [--no-build] [--bearer-token <token>]
   cloudshell control-plane stop [--state-dir <path>]
   cloudshell control-plane status [--state-dir <path>] [--bearer-token <token>]
+  cloudshell ui open [--url <url>] [--state-dir <path>]
   cloudshell resource list [--control-plane <url>] [--type <type>] [--class <class>] [--registered <true|false>]
   cloudshell resource show <resource-id> [--control-plane <url>]
   cloudshell resource action execute <resource-id> <action-id> [--control-plane <url>]
@@ -20,6 +21,7 @@ Commands:
   control-plane start    Start a local CloudShell Control Plane process and record daemon state.
   control-plane stop     Stop the recorded local Control Plane process.
   control-plane status   Show recorded process and API readiness.
+  ui open                Open an already-hosted CloudShell UI in the browser.
   resource list          List resources from the selected Control Plane.
   resource show          Show resource details, endpoints, actions, attributes, and capabilities.
   resource action        Execute a resource action through the Control Plane API.

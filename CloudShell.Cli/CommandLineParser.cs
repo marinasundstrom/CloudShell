@@ -22,6 +22,7 @@ internal static class CommandLineParser
             "host" => ParseHost(args.Skip(1).ToArray()),
             "resource" => ParseResource(args.Skip(1).ToArray()),
             "template" => ParseTemplate(args.Skip(1).ToArray()),
+            "ui" => ParseUi(args.Skip(1).ToArray()),
             _ => throw new CliUsageException($"Unknown command group '{args[0]}'.")
         };
     }
@@ -53,6 +54,20 @@ internal static class CommandLineParser
         {
             "apply" => ParseTemplateApply(args.Skip(1).ToArray()),
             _ => throw new CliUsageException($"Unknown template command '{args[0]}'.")
+        };
+    }
+
+    private static CliCommand ParseUi(IReadOnlyList<string> args)
+    {
+        if (args.Count == 0 || IsHelp(args[0]))
+        {
+            return new HelpCommand();
+        }
+
+        return args[0] switch
+        {
+            "open" => ParseUiOpen(args.Skip(1).ToArray()),
+            _ => throw new CliUsageException($"Unknown UI command '{args[0]}'.")
         };
     }
 
@@ -149,6 +164,17 @@ internal static class CommandLineParser
             options.ReadString("--state-dir", DefaultStateDirectory),
             options.ReadOptionalString("--bearer-token") ??
                 Environment.GetEnvironmentVariable("CLOUDSHELL_CONTROL_PLANE_TOKEN"));
+        options.ThrowIfUnreadOptions();
+        return command;
+    }
+
+    private static UiOpenCommand ParseUiOpen(IReadOnlyList<string> args)
+    {
+        var options = OptionReader.Read(args);
+        options.ThrowIfPositionals();
+        var command = new UiOpenCommand(
+            options.ReadString("--state-dir", DefaultStateDirectory),
+            options.ReadOptionalUri("--url"));
         options.ThrowIfUnreadOptions();
         return command;
     }

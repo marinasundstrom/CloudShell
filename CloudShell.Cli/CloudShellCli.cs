@@ -1,5 +1,6 @@
 namespace CloudShell.Cli;
 
+using System.Diagnostics;
 using Spectre.Console;
 
 internal static class CloudShellCli
@@ -98,6 +99,20 @@ internal static class CloudShellCli
                     RenderControlPlaneStatus(console, statusResult);
                 }
 
+                return 0;
+            }
+            case UiOpenCommand openUi:
+            {
+                var url = openUi.Url ??
+                    (await daemon.ReadStateAsync(openUi.StateDirectory))?.BaseUrl;
+                if (url is null)
+                {
+                    throw new CliUsageException(
+                        "No CloudShell UI URL was supplied and no local Control Plane daemon state was found. Use --url or control-plane start.");
+                }
+
+                OpenBrowser(url);
+                console.MarkupLine($"[green]Opened {Markup.Escape(url.ToString())}.[/]");
                 return 0;
             }
             case ResourceListCommand list:
@@ -573,5 +588,20 @@ internal static class CloudShellCli
         table.AddRow("Process", status.ProcessRunning ? "[green]running[/]" : "[red]stopped[/]");
         table.AddRow("Control Plane API", status.ApiReady ? "[green]ready[/]" : "[yellow]not ready[/]");
         console.Write(table);
+    }
+
+    private static void OpenBrowser(Uri url)
+    {
+        var startInfo = OperatingSystem.IsWindows()
+            ? new ProcessStartInfo("cmd", $"/c start \"\" \"{url}\"")
+            {
+                CreateNoWindow = true
+            }
+            : OperatingSystem.IsMacOS()
+                ? new ProcessStartInfo("open", url.ToString())
+                : new ProcessStartInfo("xdg-open", url.ToString());
+
+        startInfo.UseShellExecute = false;
+        Process.Start(startInfo);
     }
 }

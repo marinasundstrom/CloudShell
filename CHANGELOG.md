@@ -96,6 +96,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The CloudShell CLI now supports `resource show <resource-id>` to inspect a
   single resource's identity, endpoints, actions, attributes, capabilities,
   and dependencies before executing operations.
+- The CloudShell CLI now supports `ui open` to open an explicit UI URL, or
+  best-effort open the recorded local host URL when the Control Plane host also
+  serves the UI.
 - Resource references in templates now support a compact `resourceId` document
   shape for common dependency references while preserving the full reference
   model for advanced relationship and addressing cases.

@@ -122,4 +122,19 @@ public sealed class CommandLineParserTests
         Assert.Equal("hosts", command.HostsFile);
         Assert.True(command.DryRun);
     }
+
+    [Fact]
+    public void Parse_UiOpen_ReadsExplicitUrl()
+    {
+        var command = Assert.IsType<UiOpenCommand>(
+            CommandLineParser.Parse(
+            [
+                "ui",
+                "open",
+                "--url",
+                "http://127.0.0.1:5096"
+            ]));
+
+        Assert.Equal(new Uri("http://127.0.0.1:5096"), command.Url);
+    }
 }
