@@ -56,3 +56,9 @@ Authentication__Enabled=false npm run apply -- --start --no-build
 ```
 
 On a fresh checkout, omit `--no-build` or build the .NET host first.
+
+When `--start` finds an already-running daemon in the configured state
+directory, the CLI reuses it. Environment variables such as
+`Authentication__Enabled=false` do not reconfigure that existing process. Stop
+the recorded daemon first, or supply a bearer token that matches the
+already-running host.

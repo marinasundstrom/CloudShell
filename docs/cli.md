@@ -146,6 +146,12 @@ dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.yaml
   --no-build
 ```
 
+If the selected state directory already records a running Control Plane
+process, `--start` reuses that process. Host process environment variables and
+authentication settings are only applied when the CLI starts a new process; use
+`control-plane stop --state-dir <dir>` before relaunching with different host
+configuration, or pass credentials that match the running host.
+
 `--control-plane` is the first explicit target selector. Later, the CLI should
 support profile-backed target selection so commands can default to a named
 local, split, team-owned, or on-premise Control Plane without repeating the URL
