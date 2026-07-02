@@ -85,6 +85,9 @@ on `git blame --follow`, and then by the broad type of change.
   deployment service, replica group, and runtime revision attributes directly.
 - Updated local-process container app runtime replica resources to project the
   same deployment service, replica group, and runtime revision attributes.
+- Updated local Docker and local-process container app replica telemetry to tag
+  runtime observability scopes and OTEL resource attributes with the active
+  deployment revision.
 - Centralized container app image revision ID generation so deployment records
   and local runtime replica projections use the same hash convention.
 - Updated container app Revisions to infer the active revision from live

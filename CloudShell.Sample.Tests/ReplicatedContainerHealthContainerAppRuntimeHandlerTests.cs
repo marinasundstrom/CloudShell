@@ -1240,6 +1240,9 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     {
         var resourceId = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica);
         var containerName = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(replica);
+        var expectedRevisionId = ContainerApplicationRuntimeRevisions.CreateImageRevisionId(
+            ContainerRegistryDefaults.Default,
+            "cloudshell-application-api:20260622.2");
         return string.Join(
             ',',
             $"OTEL_RESOURCE_ATTRIBUTES=service.instance.id={resourceId}",
@@ -1250,7 +1253,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             "telemetry.scope.kind=runtime",
             $"runtime.replica.ordinal={replica.ToString(CultureInfo.InvariantCulture)}",
             $"runtime.replica.count={replicaCount.ToString(CultureInfo.InvariantCulture)}",
-            $"runtime.container.name={containerName}");
+            $"runtime.container.name={containerName}",
+            $"deployment.revision={expectedRevisionId}");
     }
 
     private static void AssertGraphReplicaResource(
@@ -1294,10 +1298,14 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         Assert.Equal(
             ordinal.ToString(CultureInfo.InvariantCulture),
             replica.EffectiveObservability.Attributes["runtime.replica.ordinal"]);
+        Assert.Equal(
+            expectedRevisionId,
+            replica.EffectiveObservability.Attributes[TelemetryAttributeNames.DeploymentRevision]);
         var scope = Assert.Single(replica.EffectiveObservability.TelemetryScopes);
         Assert.Equal(LocalDockerContainerApplicationRuntimeConventions.ApiResourceId, scope.ScopeResourceId);
         Assert.Equal($"Replica {ordinal.ToString(CultureInfo.InvariantCulture)}", scope.Name);
         Assert.Equal("runtime", scope.Kind);
+        Assert.Equal(expectedRevisionId, scope.DeploymentRevision);
         var mapping = Assert.Single(replica.ResourceEndpointNetworkMappings);
         Assert.Equal($"http://localhost:{port.ToString(CultureInfo.InvariantCulture)}", mapping.Address);
     }

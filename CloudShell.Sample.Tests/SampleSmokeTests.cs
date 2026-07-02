@@ -8,6 +8,7 @@ using System.Text.Json;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ApplicationTopologyHost;
 using CloudShell.ApplicationTopology.ServiceDefaults;
@@ -2348,6 +2349,11 @@ public sealed class SampleSmokeTests
                     Assert.Equal(replicaText, attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString());
                     Assert.Equal("3", attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaCount).GetString());
                     Assert.Equal(expectedRevisionId, attributes.GetProperty(ResourceAttributeNames.RuntimeRevision).GetString());
+
+                    var observabilityAttributes = resource
+                        .GetProperty("observability")
+                        .GetProperty("attributes");
+                    Assert.Equal(expectedRevisionId, observabilityAttributes.GetProperty(TelemetryAttributeNames.DeploymentRevision).GetString());
                 }
 
                 return;
@@ -4438,12 +4444,18 @@ public sealed class SampleSmokeTests
             observability.GetProperty("serviceName").GetString());
 
         var attributes = observability.GetProperty("attributes");
+        var expectedRevisionId = ContainerApplicationRuntimeRevisions.CreateImageRevisionId(
+            ContainerRegistryDefaults.Default,
+            "cloudshell-application-api:20260622.2");
         Assert.Equal(
             LocalDockerContainerApplicationRuntimeConventions.ApiResourceId,
             attributes.GetProperty("telemetry.scope.resourceId").GetString());
         Assert.Equal(
             replica.ToString(CultureInfo.InvariantCulture),
             attributes.GetProperty("runtime.replica.ordinal").GetString());
+        Assert.Equal(
+            expectedRevisionId,
+            attributes.GetProperty("deployment.revision").GetString());
 
         var scope = Assert.Single(observability.GetProperty("scopes").EnumerateArray());
         Assert.Equal(
@@ -4451,6 +4463,7 @@ public sealed class SampleSmokeTests
             scope.GetProperty("scopeResourceId").GetString());
         Assert.Equal($"Replica {replica.ToString(CultureInfo.InvariantCulture)}", scope.GetProperty("name").GetString());
         Assert.Equal("runtime", scope.GetProperty("kind").GetString());
+        Assert.Equal(expectedRevisionId, scope.GetProperty("deploymentRevision").GetString());
     }
 
     private static void AssertResourceTabsInOrder(string html, params string[] expected)

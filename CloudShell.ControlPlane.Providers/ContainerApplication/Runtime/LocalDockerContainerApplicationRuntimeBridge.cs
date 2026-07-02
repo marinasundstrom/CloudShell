@@ -649,7 +649,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         arguments.Add("-e");
         arguments.Add($"OTEL_SERVICE_NAME={definition.ReplicaServiceNamePrefix}{replica.ToString(CultureInfo.InvariantCulture)}");
         arguments.Add("-e");
-        arguments.Add($"OTEL_RESOURCE_ATTRIBUTES={CreateOtelResourceAttributes(definition, replicaResourceId, replicaContainerName, replicaName, replica, replicaCount)}");
+        arguments.Add($"OTEL_RESOURCE_ATTRIBUTES={CreateOtelResourceAttributes(definition, replicaResourceId, replicaContainerName, replicaName, replica, replicaCount, runtimeRevisionId)}");
         AddEnvironment(arguments, "CLOUDSHELL_TRACE_INGEST_ENDPOINT", FirstNonEmpty(definition.TraceIngestEndpoint, configuration["Observability:TraceIngestEndpoint"]));
         AddEnvironment(arguments, "CLOUDSHELL_METRIC_INGEST_ENDPOINT", FirstNonEmpty(definition.MetricIngestEndpoint, configuration["Observability:MetricIngestEndpoint"]));
         foreach (var variable in ContainerizedProjectEnvironmentVariables.Read(resource))
@@ -1064,7 +1064,8 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         string replicaContainerName,
         string replicaName,
         int replica,
-        int replicaCount)
+        int replicaCount,
+        string runtimeRevisionId)
     {
         var replicaOrdinal = replica.ToString(CultureInfo.InvariantCulture);
         var totalReplicas = replicaCount.ToString(CultureInfo.InvariantCulture);
@@ -1078,7 +1079,8 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             CreateOtelAttribute(TelemetryAttributeNames.ScopeKind, "runtime"),
             CreateOtelAttribute(TelemetryAttributeNames.RuntimeReplicaOrdinal, replicaOrdinal),
             CreateOtelAttribute(TelemetryAttributeNames.RuntimeReplicaCount, totalReplicas),
-            CreateOtelAttribute(TelemetryAttributeNames.RuntimeContainerName, replicaContainerName));
+            CreateOtelAttribute(TelemetryAttributeNames.RuntimeContainerName, replicaContainerName),
+            CreateOtelAttribute(TelemetryAttributeNames.DeploymentRevision, runtimeRevisionId));
     }
 
     private static string CreateOtelAttribute(

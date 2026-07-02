@@ -1028,7 +1028,8 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
                 resourceId,
                 replicaName,
                 replicaOrdinal,
-                totalReplicas));
+                totalReplicas,
+                runtimeRevisionId));
     }
 
     private static string ResolveRuntimeRevisionId(ResourceManagerResource resource)
@@ -1044,6 +1045,19 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
             image);
     }
 
+    private static string ResolveRuntimeRevisionId(Resource resource)
+    {
+        var image = resource.Attributes.GetString(ContainerApplicationResourceTypeProvider.Attributes.ContainerImage);
+        if (string.IsNullOrWhiteSpace(image))
+        {
+            return string.IsNullOrWhiteSpace(resource.Version) ? "revision" : resource.Version;
+        }
+
+        return ContainerApplicationRuntimeRevisions.CreateImageRevisionId(
+            resource.Attributes.GetString(ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry),
+            image);
+    }
+
     private static ResourceEndpoint? ResolveReplicaEndpoint(ResourceManagerResource parent) =>
         parent.Endpoints.FirstOrDefault(endpoint =>
             string.Equals(endpoint.Name, "http", StringComparison.OrdinalIgnoreCase) ||
@@ -1055,7 +1069,8 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
         string replicaResourceId,
         string replicaName,
         string replicaOrdinal,
-        string replicaCount) =>
+        string replicaCount,
+        string runtimeRevisionId) =>
         new(
             Logs: true,
             Traces: true,
@@ -1068,7 +1083,8 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
                 [TelemetryAttributeNames.ScopeName] = replicaName,
                 [TelemetryAttributeNames.ScopeKind] = "runtime",
                 [TelemetryAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
-                [TelemetryAttributeNames.RuntimeReplicaCount] = replicaCount
+                [TelemetryAttributeNames.RuntimeReplicaCount] = replicaCount,
+                [TelemetryAttributeNames.DeploymentRevision] = runtimeRevisionId
             },
             Scopes:
             [
@@ -1077,10 +1093,12 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
                     replicaName,
                     "runtime",
                     $"Runtime replica {replicaOrdinal}",
+                    DeploymentRevision: runtimeRevisionId,
                     Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
                         [TelemetryAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
-                        [TelemetryAttributeNames.RuntimeReplicaCount] = replicaCount
+                        [TelemetryAttributeNames.RuntimeReplicaCount] = replicaCount,
+                        [TelemetryAttributeNames.DeploymentRevision] = runtimeRevisionId
                     })
             ]);
 
@@ -1132,6 +1150,7 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
     {
         var replicaOrdinal = replica.ToString(CultureInfo.InvariantCulture);
         var totalReplicas = replicaCount.ToString(CultureInfo.InvariantCulture);
+        var runtimeRevisionId = ResolveRuntimeRevisionId(resource);
         return string.Join(
             ',',
             CreateOtelAttribute("service.instance.id", replicaResourceId),
@@ -1141,7 +1160,8 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
             CreateOtelAttribute(TelemetryAttributeNames.ScopeName, $"Replica {replicaOrdinal}"),
             CreateOtelAttribute(TelemetryAttributeNames.ScopeKind, "runtime"),
             CreateOtelAttribute(TelemetryAttributeNames.RuntimeReplicaOrdinal, replicaOrdinal),
-            CreateOtelAttribute(TelemetryAttributeNames.RuntimeReplicaCount, totalReplicas));
+            CreateOtelAttribute(TelemetryAttributeNames.RuntimeReplicaCount, totalReplicas),
+            CreateOtelAttribute(TelemetryAttributeNames.DeploymentRevision, runtimeRevisionId));
     }
 
     private static string CreateOtelAttribute(

@@ -146,7 +146,8 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
                 replicaName,
                 containerName,
                 replicaOrdinal,
-                totalReplicas));
+                totalReplicas,
+                runtimeRevisionId));
     }
 
     private static ResourceObservability CreateRuntimeReplicaObservability(
@@ -156,7 +157,8 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
         string replicaName,
         string containerName,
         string replicaOrdinal,
-        string replicaCount) =>
+        string replicaCount,
+        string runtimeRevisionId) =>
         new(
             Logs: true,
             Traces: true,
@@ -171,7 +173,8 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
                 [TelemetryAttributeNames.ScopeKind] = "runtime",
                 [TelemetryAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
                 [TelemetryAttributeNames.RuntimeReplicaCount] = replicaCount,
-                [TelemetryAttributeNames.RuntimeContainerName] = containerName
+                [TelemetryAttributeNames.RuntimeContainerName] = containerName,
+                [TelemetryAttributeNames.DeploymentRevision] = runtimeRevisionId
             },
             Scopes:
             [
@@ -180,11 +183,13 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
                     replicaName,
                     "runtime",
                     $"Runtime replica {replicaOrdinal}",
+                    DeploymentRevision: runtimeRevisionId,
                     Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
                         [TelemetryAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
                         [TelemetryAttributeNames.RuntimeReplicaCount] = replicaCount,
-                        [TelemetryAttributeNames.RuntimeContainerName] = containerName
+                        [TelemetryAttributeNames.RuntimeContainerName] = containerName,
+                        [TelemetryAttributeNames.DeploymentRevision] = runtimeRevisionId
                     })
             ]);
 
