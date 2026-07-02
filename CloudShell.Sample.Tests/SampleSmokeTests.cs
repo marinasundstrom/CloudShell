@@ -949,7 +949,7 @@ public sealed class SampleSmokeTests
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Storage.Value)}");
         Assert.Contains("Storage", graphSqlStorageHtml);
         Assert.Contains("SQL Data", graphSqlStorageHtml);
-        Assert.Contains("not projected", graphSqlStorageHtml);
+        Assert.Contains("mount target unavailable", graphSqlStorageHtml);
 
         var graphApplicationAddHtml = await host.GetStringAsync(
             "/resources/add?type=application.aspnet-core-project");

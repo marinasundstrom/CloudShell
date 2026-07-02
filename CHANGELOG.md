@@ -78,6 +78,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Fixed container app Deployment materialized/projected replica count parsing
   so a projected value of zero remains zero instead of being clamped like a
   requested replica count.
+- Updated application Storage views to show declared volume attachments as
+  storage rows when runtime workload mount details are not projected yet,
+  while still surfacing application-level mount materialization status.
 - Updated single-instance container app Deployment summaries to show zero
   materialized runtime instances when the resource is not running or starting.
 - Updated the container app Deploy image form to initialize from the requested
