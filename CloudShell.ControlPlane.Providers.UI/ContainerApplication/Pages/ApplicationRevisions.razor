@@ -7,7 +7,7 @@
     <EmptyState Title="Container app revisions are unavailable"
                 Message="The resource may have been removed or is no longer visible." />
 }
-else if (Revisions.Count == 0)
+else if (Revisions.Count == 0 && MaterializedReplicas.Count == 0)
 {
     <EmptyState Title="No revisions recorded"
                 Message="Revisions will appear after the app is deployed or materialized." />
@@ -20,12 +20,12 @@ else
                 <h3>Current revision</h3>
                 <p>The active materialized state produced by the latest successful deployment.</p>
             </div>
-            <span class="@GetRevisionStatusCssClass(CurrentRevision)">
-                @GetRevisionStatus(CurrentRevision)
+            <span class="@GetCurrentRevisionStatusCssClass()">
+                @GetCurrentRevisionStatus()
             </span>
         </div>
 
-        @if (CurrentRevision is null)
+        @if (CurrentRevision is null && MaterializedReplicas.Count == 0)
         {
             <ProcedureMessage Message="No active revision is currently recorded for this app."
                               Compact="true" />
@@ -35,25 +35,25 @@ else
             <div class="container-app-deployment-summary">
                 <div class="container-app-deployment-primary">
                     <small>Image</small>
-                    <strong>@GetRevisionImage(CurrentRevision)</strong>
-                    <span>@FormatRevisionCreated(CurrentRevision)</span>
+                    <strong>@GetCurrentRevisionImage()</strong>
+                    <span>@FormatCurrentRevisionCreated()</span>
                 </div>
                 <dl class="container-app-deployment-metrics">
                     <div>
                         <dt>Requested replicas</dt>
-                        <dd>@GetRequestedReplicas(CurrentRevision).ToString(CultureInfo.InvariantCulture)</dd>
+                        <dd>@GetCurrentRequestedReplicas().ToString(CultureInfo.InvariantCulture)</dd>
                     </div>
                     <div>
                         <dt>Change</dt>
-                        <dd>@FormatChangeKind(CurrentRevision)</dd>
+                        <dd>@FormatCurrentChangeKind()</dd>
                     </div>
                     <div>
                         <dt>Revision</dt>
-                        <dd>@FormatRevisionNumber(CurrentRevision)</dd>
+                        <dd>@FormatCurrentRevisionNumber()</dd>
                     </div>
                     <div>
                         <dt>Provisioned by</dt>
-                        <dd>@FormatProvisionedBy(CurrentRevision)</dd>
+                        <dd>@FormatCurrentProvisionedBy()</dd>
                     </div>
                 </dl>
             </div>
@@ -68,16 +68,30 @@ else
             </div>
         </div>
         <div class="generated-list">
-            @foreach (var revision in Revisions)
+            @if (Revisions.Count == 0)
             {
-                <div class="@GetRevisionCssClass(revision)">
-                    <FluentIcon Value="@GetSeverityIcon(GetRevisionSeverity(revision))" />
+                <div class="generated-diagnostic success">
+                    <FluentIcon Value="@GetSeverityIcon(ResourceSignalSeverity.Success)" />
                     <div class="generated-diagnostic-content">
-                        <strong>@FormatRevisionNumber(revision)</strong>
-                        <span>@FormatRevisionHeadline(revision)</span>
-                        <small>@FormatRevisionMetadata(revision)</small>
+                        <strong>@FormatCurrentRevisionNumber()</strong>
+                        <span>@FormatInferredRevisionHeadline()</span>
+                        <small>@FormatInferredRevisionMetadata()</small>
                     </div>
                 </div>
+            }
+            else
+            {
+                @foreach (var revision in Revisions)
+                {
+                    <div class="@GetRevisionCssClass(revision)">
+                        <FluentIcon Value="@GetSeverityIcon(GetRevisionSeverity(revision))" />
+                        <div class="generated-diagnostic-content">
+                            <strong>@FormatRevisionNumber(revision)</strong>
+                            <span>@FormatRevisionHeadline(revision)</span>
+                            <small>@FormatRevisionMetadata(revision)</small>
+                        </div>
+                    </div>
+                }
             }
         </div>
     </section>
@@ -89,6 +103,7 @@ else
 
     private Resource? Resource { get; set; }
     private IReadOnlyList<ResourceDeploymentRecord> Revisions { get; set; } = [];
+    private IReadOnlyList<Resource> MaterializedReplicas { get; set; } = [];
 
     private ResourceDeploymentRecord? CurrentRevision =>
         Revisions.FirstOrDefault(revision =>
@@ -106,6 +121,9 @@ else
         Revisions = string.IsNullOrWhiteSpace(ResourceId)
             ? []
             : await LoadRevisionsAsync(ResourceId);
+        MaterializedReplicas = Resource is null
+            ? []
+            : await LoadMaterializedReplicasAsync(Resource.Id);
     }
 
     private async Task<IReadOnlyList<ResourceDeploymentRecord>> LoadRevisionsAsync(string resourceId)
@@ -116,6 +134,73 @@ else
         return records
             .OrderByDescending(record => record.EnvironmentRevisionCreatedAt ?? record.CompletedAt ?? record.StartedAt)
             .ToArray();
+    }
+
+    private async Task<IReadOnlyList<Resource>> LoadMaterializedReplicasAsync(string resourceId) =>
+        (await ResourceManager.ListResourceChildrenAsync(resourceId))
+            .Where(IsReplicaResource)
+            .OrderBy(GetReplicaOrdinal)
+            .ThenBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private string GetCurrentRevisionStatus() =>
+        CurrentRevision is not null
+            ? GetRevisionStatus(CurrentRevision)
+            : "Active";
+
+    private string GetCurrentRevisionStatusCssClass() =>
+        CurrentRevision is not null
+            ? GetRevisionStatusCssClass(CurrentRevision)
+            : "container-app-status-pill success";
+
+    private string GetCurrentRevisionImage() =>
+        CurrentRevision is not null
+            ? GetRevisionImage(CurrentRevision)
+            : Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerImage) ?? string.Empty;
+
+    private string FormatCurrentRevisionCreated() =>
+        CurrentRevision is not null
+            ? FormatRevisionCreated(CurrentRevision)
+            : string.Create(
+                CultureInfo.CurrentCulture,
+                $"Materialized {MaterializedReplicas.Count.ToString(CultureInfo.InvariantCulture)} replica resource{Pluralize(MaterializedReplicas.Count)} from live runtime state.");
+
+    private int GetCurrentRequestedReplicas() =>
+        CurrentRevision is not null
+            ? GetRequestedReplicas(CurrentRevision)
+            : GetReplicaCount(Resource);
+
+    private string FormatCurrentChangeKind() =>
+        CurrentRevision is not null
+            ? FormatChangeKind(CurrentRevision)
+            : "Runtime materialization";
+
+    private string FormatCurrentRevisionNumber() =>
+        CurrentRevision is not null
+            ? FormatRevisionNumber(CurrentRevision)
+            : GetDeploymentRevision(Resource) is { Length: > 0 } revision
+                ? revision
+                : Resource?.Version ?? "Runtime revision";
+
+    private string FormatCurrentProvisionedBy() =>
+        CurrentRevision is not null
+            ? FormatProvisionedBy(CurrentRevision)
+            : "runtime projection";
+
+    private string FormatInferredRevisionHeadline() =>
+        string.Create(
+            CultureInfo.CurrentCulture,
+            $"Active revision inferred from {MaterializedReplicas.Count.ToString(CultureInfo.InvariantCulture)} materialized replica resource{Pluralize(MaterializedReplicas.Count)}.");
+
+    private string FormatInferredRevisionMetadata()
+    {
+        var parts = new List<string>
+        {
+            $"Requested replicas: {GetCurrentRequestedReplicas().ToString(CultureInfo.InvariantCulture)}",
+            $"Change: {FormatCurrentChangeKind()}",
+            $"Revision id: {FormatCurrentRevisionNumber()}"
+        };
+        return string.Join(" | ", parts);
     }
 
     private static string GetDeploymentRevision(Resource? resource) =>
@@ -260,6 +345,47 @@ else
         return service?.ServiceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerImage) ??
             string.Empty;
     }
+
+    private static int GetReplicaCount(Resource? resource)
+    {
+        if (resource is null)
+        {
+            return 1;
+        }
+
+        return TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentRequestedReplicaSlots) ??
+            TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentRequestedReplicas) ??
+            TryGetReplicaCount(resource, ResourceAttributeNames.ContainerReplicas) ??
+            1;
+    }
+
+    private static int? TryGetReplicaCount(Resource resource, string attributeName) =>
+        resource.ResourceAttributes.TryGetValue(attributeName, out var value) &&
+        int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var count)
+            ? Math.Max(1, count)
+            : null;
+
+    private static bool IsReplicaResource(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, "runtime.container", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(
+            GetAttribute(resource, ResourceAttributeNames.RuntimeKind, string.Empty),
+            "containerReplica",
+            StringComparison.OrdinalIgnoreCase);
+
+    private static int GetReplicaOrdinal(Resource resource) =>
+        int.TryParse(
+            GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaOrdinal, string.Empty),
+            out var ordinal)
+            ? ordinal
+            : int.MaxValue;
+
+    private static string GetAttribute(Resource resource, string key, string fallback) =>
+        resource.ResourceAttributes.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
+
+    private static string Pluralize(int count) =>
+        count == 1 ? string.Empty : "s";
 
     private static Icon GetSeverityIcon(ResourceSignalSeverity severity) =>
         severity switch

@@ -70,6 +70,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated container app Deployment details to prefer the active deployment
   record for the running image, service, and replica group while preserving the
   latest deployment attempt status.
+- Updated container app Revisions to infer the active revision from live
+  materialized replica resources when deployment history is not available.
 
 ### 2026-07-01
 
