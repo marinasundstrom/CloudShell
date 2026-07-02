@@ -49,6 +49,13 @@ slice makes JavaScript apps first-class resources and template entries; the
 Node.js runtime operation provider can be added as a later provider adapter
 without changing the resource type identity.
 
+Future JavaScript client packages can build on this resource type by giving
+Node.js applications typed access to CloudShell services such as Configuration
+Store, logs, traces, or service discovery. Those clients should stay separate
+from the resource type: the resource type describes how the app participates in
+the graph, while client packages make it easier for the running app to consume
+CloudShell-managed services.
+
 ## Sample
 
 The `samples/JavaScriptApp` sample declares:
