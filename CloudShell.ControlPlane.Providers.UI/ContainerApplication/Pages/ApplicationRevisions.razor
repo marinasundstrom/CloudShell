@@ -110,8 +110,8 @@ else
             revision.EnvironmentRevisionStatus == ResourceOrchestratorRevisionStatus.Active ||
             revision.Status == ResourceOrchestratorDeploymentStatus.Active) ??
         Revisions.FirstOrDefault(revision =>
-            string.Equals(revision.RuntimeRevisionId, GetDeploymentRevision(Resource), StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(revision.EnvironmentRevisionId, GetDeploymentRevision(Resource), StringComparison.OrdinalIgnoreCase));
+            string.Equals(revision.RuntimeRevisionId, GetCurrentDeploymentRevision(), StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(revision.EnvironmentRevisionId, GetCurrentDeploymentRevision(), StringComparison.OrdinalIgnoreCase));
 
     protected override async Task OnParametersSetAsync()
     {
@@ -153,10 +153,13 @@ else
             ? GetRevisionStatusCssClass(CurrentRevision)
             : "container-app-status-pill success";
 
-    private string GetCurrentRevisionImage() =>
-        CurrentRevision is not null
-            ? GetRevisionImage(CurrentRevision)
+    private string GetCurrentRevisionImage()
+    {
+        var revisionImage = GetRevisionImage(CurrentRevision);
+        return !string.IsNullOrWhiteSpace(revisionImage)
+            ? revisionImage
             : Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerImage) ?? string.Empty;
+    }
 
     private string FormatCurrentRevisionCreated() =>
         CurrentRevision is not null
@@ -178,7 +181,7 @@ else
     private string FormatCurrentRevisionNumber() =>
         CurrentRevision is not null
             ? FormatRevisionNumber(CurrentRevision)
-            : GetDeploymentRevision(Resource) is { Length: > 0 } revision
+            : GetCurrentDeploymentRevision() is { Length: > 0 } revision
                 ? revision
                 : Resource?.Version ?? "Runtime revision";
 
@@ -207,6 +210,16 @@ else
         resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentRevision) ??
         resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerRevision) ??
         string.Empty;
+
+    private string GetCurrentDeploymentRevision() =>
+        GetDeploymentRevision(Resource) is { Length: > 0 } revision
+            ? revision
+            : GetMaterializedReplicaAttribute(ResourceAttributeNames.RuntimeRevision) ?? string.Empty;
+
+    private string? GetMaterializedReplicaAttribute(string attributeName) =>
+        MaterializedReplicas
+            .Select(replica => replica.ResourceAttributes.GetValueOrDefault(attributeName))
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
     private static string FormatRevisionHeadline(ResourceDeploymentRecord revision) =>
         string.Create(
