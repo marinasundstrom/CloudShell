@@ -116,11 +116,53 @@ resources
 Applications, infrastructure, networking, and operational capabilities are all
 represented through the same resource model.
 
+For normal local development, the simplest host-launcher shape is a small app
+that declares the resources, then asks the CLI to start
+`CloudShell.LocalDevelopmentHost` and apply the generated template:
+
+```csharp
+using CloudShell.AppHost.Launcher;
+using CloudShell.ControlPlane.Providers;
+
+var app = CloudShellDistributedApplication.CreateBuilder("frontend-dev", args);
+
+app.DefineResources(resources =>
+{
+    var settings = resources
+        .AddConfigurationStore("settings")
+        .WithEndpoint("http://localhost:5101");
+
+    resources
+        .AddJavaScriptApp("frontend", "../App")
+        .WithPackageManager("npm")
+        .WithScript("dev")
+        .WithReference(settings)
+        .WithEnvironmentVariable(
+            "CLOUDSHELL_SETTINGS_ENDPOINT",
+            "http://localhost:5101/api/configuration/stores/configuration.store%3Asettings/entries")
+        .WithHttpEndpoint(host: "localhost", port: 5173, targetPort: 5173);
+});
+
+return (await app.RunAsync(new()
+{
+    CliProjectPath = "../../CloudShell.Cli/CloudShell.Cli.csproj",
+    HostProjectPath = "../../CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj",
+    HostUrl = new Uri("http://127.0.0.1:5097"),
+    ControlPlaneUrl = new Uri("http://127.0.0.1:5097")
+})).ExitCode;
+```
+
+Use `CLOUDSHELL_HOST_PROJECT` or `HostProjectPath` to target a custom
+CloudShell host profile only when the Control Plane/UI process itself needs
+additional extensions, authentication, persistence, or host-specific services.
+
 ## Projects
 
 - `CloudShell.Hosting`: Razor class library for the Blazor shell, layout, static assets, built-in Resource Manager, Extensions, and Observability views.
 - `CloudShell.AppHost`: combined-host composition helpers that wire the CloudShell UI and Control Plane into one ASP.NET Core process.
+- `CloudShell.AppHost.Launcher`: lightweight app-host launcher helpers that emit ResourceTemplates and ask the CLI to apply them.
 - `CloudShell.Host`: development sample host that wires CloudShell UI, Control Plane, and local provider extensions together.
+- `CloudShell.LocalDevelopmentHost`: stable local Control Plane and UI host profile with the built-in provider presets for launcher-based samples.
 - `CloudShell.ControlPlane`: control-plane services, authorization adapters, resource/log stores, and the versioned OpenAPI endpoint module.
 - `CloudShell.Abstractions`: extension SDK, shell contributions, and resource contracts.
 - `CloudShell.Client`: shared SDK client credential primitives.
@@ -180,8 +222,13 @@ Useful routes:
 - `<configuration-service-endpoint>/api/configuration/entries?resourceId=...`: token-authenticated configuration service API.
 - `/openapi/control-plane-v1.json`: OpenAPI document for generated clients.
 
-Minimal host samples are also available:
+Local-development host and launcher samples are also available:
 
+- `CloudShell.LocalDevelopmentHost`: reusable Control Plane/UI host profile used by launcher-based samples.
+- `samples/CSharpAppHost`: declares a JavaScript app and Configuration Store resource from a C# launcher app, then applies the template through the CLI.
+- `samples/TypeScriptAppHost`: declares the same style of graph from TypeScript using the experimental `@cloudshell/local-development` package.
+- `samples/JavaScriptApp`: runs a Node.js app resource as a local process managed by CloudShell.
+- `samples/JavaScriptContainerApp`: wraps a JavaScript app as a Dockerfile-backed container app with replica scaling.
 - `samples/CloudShell.UiExtensionHost`: hosts only the CloudShell UI and a custom UI extension.
 - `samples/CloudShell.ResourceHost`: hosts CloudShell UI and Control Plane together with a sample resource provider.
 - `samples/ProjectReference/Host`: declares two ASP.NET Core project resources where one references the other in an Aspire-style dev loop.

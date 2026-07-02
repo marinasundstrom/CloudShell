@@ -24,7 +24,9 @@ resource types they declare.
 
 A CloudShell host profile remains the .NET process that composes the Control
 Plane, Web UI, provider packages, runtime adapters, authentication, and
-persistence. Existing combined-host APIs remain supported for compatibility,
+persistence. `CloudShell.LocalDevelopmentHost` is the stable built-in local
+development host profile for launchers that do not need to customize
+CloudShell. Existing combined-host APIs remain supported for compatibility,
 host-profile customization, and specialized cases, but new local-development
 samples should prefer a launcher/profile split unless they are specifically
 proving combined-host behavior.

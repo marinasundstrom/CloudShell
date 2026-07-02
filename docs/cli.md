@@ -31,7 +31,7 @@ Use an explicit host project or URL when the defaults do not fit:
 
 ```bash
 dotnet run --project CloudShell.Cli -- control-plane start \
-  --host-project samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj \
+  --host-project CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj \
   --url http://127.0.0.1:5200
 ```
 
@@ -137,6 +137,9 @@ the distributed application, starts or selects a CloudShell host profile, and
 then applies the generated template. `template apply` is the CLI operation
 that backs that flow and is also useful when a script, SDK, or automation flow
 needs to apply changes to an already-running Control Plane instance.
+Launcher apps should target `CloudShell.LocalDevelopmentHost` by default. Use a
+custom host project only when the Control Plane/UI process needs additional
+host-specific extensions or services.
 
 Use `--start` when the CLI should launch the local Control Plane host before
 applying the template. The same daemon options used by `control-plane start`
@@ -146,7 +149,7 @@ behavior does not fit:
 ```bash
 dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.yaml \
   --start \
-  --host-project samples/JavaScriptApp/Host/CloudShell.JavaScriptAppHost.csproj \
+  --host-project CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj \
   --url http://127.0.0.1:5097 \
   --state-dir samples/TypeScriptAppHost/.cloudshell \
   --no-build

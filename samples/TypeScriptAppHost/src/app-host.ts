@@ -6,7 +6,8 @@ const sampleHostRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = resolve(sampleHostRoot, "..", "..");
 const appRoot = resolve(repoRoot, "samples", "JavaScriptApp", "App");
 const cliProject = resolve(repoRoot, "CloudShell.Cli", "CloudShell.Cli.csproj");
-const hostProject = resolve(repoRoot, "samples", "JavaScriptApp", "Host", "CloudShell.JavaScriptAppHost.csproj");
+const hostProject = process.env.CLOUDSHELL_HOST_PROJECT ??
+  resolve(repoRoot, "CloudShell.LocalDevelopmentHost", "CloudShell.LocalDevelopmentHost.csproj");
 const settingsServiceEndpoint = "http://localhost:5101";
 const settingsResourceId = "configuration.store:typescript-app-settings";
 const settingsEntriesEndpoint =

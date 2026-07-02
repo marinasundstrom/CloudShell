@@ -9,7 +9,7 @@ var javascriptAppPath = Path.Combine(repositoryRoot, "samples", "JavaScriptApp",
 var cliProject = Environment.GetEnvironmentVariable("CLOUDSHELL_CLI_PROJECT")
     ?? Path.Combine(repositoryRoot, "CloudShell.Cli", "CloudShell.Cli.csproj");
 var hostProject = Environment.GetEnvironmentVariable("CLOUDSHELL_HOST_PROJECT")
-    ?? Path.Combine(sampleRoot, "Host", "CloudShell.CSharpAppHost.ControlPlane.csproj");
+    ?? Path.Combine(repositoryRoot, "CloudShell.LocalDevelopmentHost", "CloudShell.LocalDevelopmentHost.csproj");
 var controlPlaneUrl = new Uri(Environment.GetEnvironmentVariable("CLOUDSHELL_CONTROL_PLANE_URL")
     ?? "http://127.0.0.1:5099");
 var stateDirectory = Environment.GetEnvironmentVariable("CLOUDSHELL_STATE_DIR")

@@ -7,8 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\CloudShell.AppHost\CloudShell.AppHost.csproj" />
-    <ProjectReference Include="..\..\..\CloudShell.ControlPlane.Providers.UI\CloudShell.ControlPlane.Providers.UI.csproj" />
+    <ProjectReference Include="..\CloudShell.AppHost\CloudShell.AppHost.csproj" />
+    <ProjectReference Include="..\CloudShell.ControlPlane.Providers.UI\CloudShell.ControlPlane.Providers.UI.csproj" />
   </ItemGroup>
 
 </Project>

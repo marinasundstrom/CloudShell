@@ -5,10 +5,12 @@ declares the distributed application with the same Resource Model builders used
 by in-process C# hosts, but it does not reference or compose the Control Plane
 directly.
 
-The `Host` project is the CloudShell host profile. It starts the Control Plane,
+The launcher defaults to `CloudShell.LocalDevelopmentHost`, the stable
+CloudShell local-development host profile. That host starts the Control Plane,
 Web UI, built-in providers, and provider runtime adapters. The launcher app can
 start that host through the CLI, or apply the generated template to an already
-running Control Plane.
+running Control Plane. Set `CLOUDSHELL_HOST_PROJECT` when a sample needs a
+custom host profile, but keep the launcher separate from CloudShell services.
 
 Generate the template:
 
@@ -23,7 +25,7 @@ CLOUDSHELL_CONTROL_PLANE_URL=http://127.0.0.1:5099 \
 dotnet run --project AppHost/CloudShell.CSharpAppHost.csproj -- --apply
 ```
 
-Start or reuse the sample host profile, then apply the declarations:
+Start or reuse the local-development host profile, then apply the declarations:
 
 ```bash
 Authentication__Enabled=false \

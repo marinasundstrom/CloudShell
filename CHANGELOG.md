@@ -19,8 +19,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 - Added `CloudShell.AppHost.Launcher`, a lightweight C# launcher/app-host
   authoring package that reuses Resource Model builders without referencing
-  Control Plane or UI hosting, plus a `samples/CSharpAppHost` launcher/profile
-  sample that applies declarations through the CLI.
+  Control Plane or UI hosting, plus `CloudShell.LocalDevelopmentHost` as the
+  stable built-in Control Plane/UI/provider host profile used by launcher
+  samples.
 - Added a reusable Resource Model containerization decorator path, enabled
   JavaScript app resources to project as Dockerfile-backed container apps with
   replica scaling, and split that flow into a dedicated JavaScript container

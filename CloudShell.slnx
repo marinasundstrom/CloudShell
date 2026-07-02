@@ -45,9 +45,6 @@
   <Folder Name="/samples/CSharpAppHost/AppHost/">
     <Project Path="samples/CSharpAppHost/AppHost/CloudShell.CSharpAppHost.csproj" />
   </Folder>
-  <Folder Name="/samples/CSharpAppHost/Host/">
-    <Project Path="samples/CSharpAppHost/Host/CloudShell.CSharpAppHost.ControlPlane.csproj" />
-  </Folder>
   <Folder Name="/samples/JavaScriptApp/" />
   <Folder Name="/samples/JavaScriptApp/Host/">
     <Project Path="samples/JavaScriptApp/Host/CloudShell.JavaScriptAppHost.csproj" />
@@ -126,6 +123,7 @@
   <Project Path="CoreShell.Blazor/CoreShell.Blazor.csproj" />
   <Project Path="CloudShell.Host/CloudShell.Host.csproj" />
   <Project Path="CloudShell.Hosting/CloudShell.Hosting.csproj" />
+  <Project Path="CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj" />
   <Project Path="CloudShell.Persistence/CloudShell.Persistence.csproj" />
   <Project Path="CoreShell.Composition.Blazor/CoreShell.Composition.Blazor.csproj" />
   <Project Path="CoreShell.Composition.Tests/CoreShell.Composition.Tests.csproj" />

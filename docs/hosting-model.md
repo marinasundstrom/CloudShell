@@ -107,8 +107,13 @@ declaration from the CloudShell host process:
 
 This keeps C# aligned with TypeScript/JavaScript and future language
 integrations. The C# launcher is the go-to builder when the application does
-not need to customize CloudShell itself. `CloudShell.AppHost.Launcher` only
-knows how to author and apply templates; the app project references whichever
+not need to customize CloudShell itself. Launcher apps should target
+`CloudShell.LocalDevelopmentHost` by default. That project is the stable
+local-development CloudShell host profile with the built-in Control Plane, UI,
+Resource Manager, provider presets, and local runtime adapters. Custom host
+profiles remain appropriate when a scenario needs additional CloudShell host
+extensions or host-specific services. `CloudShell.AppHost.Launcher` only knows
+how to author and apply templates; the app project references whichever
 provider builder packages it needs, but the launcher package does not reference
 `CloudShell.ControlPlane`, `CloudShell.Hosting`, or provider runtime services:
 
@@ -133,13 +138,14 @@ app.DefineResources(resources =>
 return (await app.RunAsync(new()
 {
     CliProjectPath = "../../CloudShell.Cli/CloudShell.Cli.csproj",
-    HostProjectPath = "Host/CloudShell.CSharpAppHost.ControlPlane.csproj",
+    HostProjectPath = "../../CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj",
     HostUrl = new Uri("http://127.0.0.1:5099"),
     ControlPlaneUrl = new Uri("http://127.0.0.1:5099")
 })).ExitCode;
 ```
 
-The host profile remains ordinary CloudShell hosting code:
+`CloudShell.LocalDevelopmentHost` is ordinary CloudShell hosting code with the
+built-in presets installed:
 
 ```csharp
 var builder = CloudShellApplication.CreateBuilder(args);

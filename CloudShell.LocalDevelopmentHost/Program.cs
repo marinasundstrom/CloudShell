@@ -7,24 +7,32 @@ using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 
-var builder = CloudShellApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 
-var sampleRootPath = Path.GetFullPath("..", builder.Environment.ContentRootPath);
-var repositoryRootPath = Path.GetFullPath("../..", sampleRootPath);
+var repositoryRootPath = Path.GetFullPath("..", builder.Environment.ContentRootPath);
 var configurationStoreServiceProjectPath = Path.Combine(
     repositoryRootPath,
     "CloudShell.ConfigurationStoreService",
     "CloudShell.ConfigurationStoreService.csproj");
+var secretsVaultServiceProjectPath = Path.Combine(
+    repositoryRootPath,
+    "CloudShell.SecretsVaultService",
+    "CloudShell.SecretsVaultService.csproj");
 
 var cloudShell = builder.AddCloudShellControlPlaneApplication(
     configureBuiltInResourceModelProviders: null);
 
-cloudShell.UseConfigurationStoreResourceProvider(runtime =>
-{
-    runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
-    runtime.ServiceWorkingDirectory = repositoryRootPath;
-    runtime.Entries.Add(new("Sample--Message", "Hello from the C# launcher host"));
-});
+cloudShell
+    .UseConfigurationStoreResourceProvider(runtime =>
+    {
+        runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
+        runtime.ServiceWorkingDirectory = repositoryRootPath;
+    })
+    .UseSecretsVaultResourceProvider(runtime =>
+    {
+        runtime.ServiceProjectPath = secretsVaultServiceProjectPath;
+        runtime.ServiceWorkingDirectory = repositoryRootPath;
+    });
 
 builder.AddCloudShellUi(ui =>
 {

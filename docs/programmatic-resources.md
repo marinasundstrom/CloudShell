@@ -43,7 +43,7 @@ app.DefineResources(resources =>
 return (await app.RunAsync(new()
 {
     CliProjectPath = "../../CloudShell.Cli/CloudShell.Cli.csproj",
-    HostProjectPath = "Host/CloudShell.SampleHost.csproj",
+    HostProjectPath = "../../CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj",
     HostUrl = new Uri("http://127.0.0.1:5099"),
     ControlPlaneUrl = new Uri("http://127.0.0.1:5099")
 })).ExitCode;
@@ -55,7 +55,11 @@ CloudShell itself. It reuses `ResourceGraphBuilder`, writes YAML or JSON
 templates, and delegates local host startup or template apply to the CLI. The
 app project references provider builder packages for the resources it declares;
 the launcher package itself does not reference Control Plane services, UI
-hosting, or provider runtime services. Host profiles still use
+hosting, or provider runtime services. Launcher apps should use
+`CloudShell.LocalDevelopmentHost` by default. It is the stable local host
+profile that includes the built-in Control Plane, UI, Resource Manager,
+provider presets, and local runtime adapters. Specialized scenarios can still
+provide a custom `HostProjectPath`; those host profiles use
 `AddCloudShellControlPlaneApplication(...)` to install the built-in Resource
 Model provider preset and graph-backed Resource Manager integration. A host
 that also wants CloudShell UI should add it separately with
