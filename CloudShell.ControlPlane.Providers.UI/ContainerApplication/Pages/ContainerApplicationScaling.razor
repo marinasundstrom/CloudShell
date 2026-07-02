@@ -432,7 +432,22 @@ else
     private string GetMaterializedSlotsLabel() =>
         MaterializedReplicas.Count > 0
             ? MaterializedReplicas.Count.ToString(CultureInfo.InvariantCulture)
-            : GetAttribute(ResourceAttributeNames.DeploymentMaterializedReplicas, "not projected");
+            : GetMaterializedSlotsFallback();
+
+    private string GetMaterializedSlotsFallback()
+    {
+        var projectedCount = GetAttribute(ResourceAttributeNames.DeploymentMaterializedReplicas, string.Empty);
+        if (!string.IsNullOrWhiteSpace(projectedCount))
+        {
+            return projectedCount;
+        }
+
+        return Resource?.State switch
+        {
+            ResourceState.Starting or ResourceState.Stopped or ResourceState.Stopping => "0",
+            _ => "not observed"
+        };
+    }
 
     private string GetReplicaSlotStateSummary()
     {

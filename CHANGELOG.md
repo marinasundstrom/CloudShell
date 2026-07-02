@@ -64,6 +64,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added per-container-app replica slot reconciliation status to the Scale and
   replicas view so materialized slots show repair, unhealthy, and last-result
   state without requiring the global environment page.
+- Updated container app Scale and Monitoring empty-runtime states to report
+  stopped or not-yet-materialized replicas as zero or not observed instead of
+  old projection placeholders.
 - Updated container app Monitoring network fields to show when per-replica
   network counters are not collected by the active runtime instead of
   presenting them as missing values.
