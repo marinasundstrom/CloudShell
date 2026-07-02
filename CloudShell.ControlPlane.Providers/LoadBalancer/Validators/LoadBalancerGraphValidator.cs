@@ -17,7 +17,7 @@ public sealed class LoadBalancerGraphValidator : IResourceDefinitionGraphValidat
             resource.Type.TypeId == LoadBalancerResourceTypeProvider.ResourceTypeId))
         {
             ValidateReferences(resource, context, diagnostics);
-            ValidateRoutes(resource, diagnostics);
+            ValidateRoutes(resource, context, diagnostics);
         }
 
         return ValueTask.FromResult(
@@ -55,8 +55,7 @@ public sealed class LoadBalancerGraphValidator : IResourceDefinitionGraphValidat
                 continue;
             }
 
-            if (IsNetworkProviderType(target.Type.TypeId) ||
-                target.Class.ClassId == ContainerHostResourceTypeProvider.ClassId)
+            if (IsInvalidBackendTarget(target))
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                     ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid,
@@ -68,6 +67,7 @@ public sealed class LoadBalancerGraphValidator : IResourceDefinitionGraphValidat
 
     private static void ValidateRoutes(
         Resource resource,
+        ResourceDefinitionGraphValidationContext context,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
         var entrypoints = resource.Attributes
@@ -93,6 +93,8 @@ public sealed class LoadBalancerGraphValidator : IResourceDefinitionGraphValidat
 
         foreach (var route in routes)
         {
+            ValidateRouteTarget(resource, context, route, diagnostics);
+
             var entrypointName = route.EntrypointName.Trim();
             if (string.IsNullOrWhiteSpace(entrypointName))
             {
@@ -119,6 +121,60 @@ public sealed class LoadBalancerGraphValidator : IResourceDefinitionGraphValidat
         }
 
         ValidateRouteConflicts(resource, routes, diagnostics);
+    }
+
+    private static void ValidateRouteTarget(
+        Resource resource,
+        ResourceDefinitionGraphValidationContext context,
+        LoadBalancerRouteValue route,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        var reference = route.Target.Resource;
+
+        if (reference.Relationship != ResourceReferenceRelationships.Reference)
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid,
+                $"Load balancer '{resource.EffectiveResourceId}' route '{route.Id}' target '{reference.Value}' uses relationship '{reference.Relationship}', expected '{ResourceReferenceRelationships.Reference}'.",
+                resource.EffectiveResourceId));
+            return;
+        }
+
+        if (!reference.TryGetResourceId(out var resourceId))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid,
+                $"Load balancer '{resource.EffectiveResourceId}' route '{route.Id}' target '{reference.Value}' uses addressing mode '{reference.AddressingMode}', expected '{ResourceReferenceAddressingModes.ResourceId}'.",
+                resource.EffectiveResourceId));
+            return;
+        }
+
+        var target = context.FindResource(resourceId);
+        if (target is null)
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.ResourceReferenceMissing,
+                $"Load balancer '{resource.EffectiveResourceId}' route '{route.Id}' references missing target resource '{resourceId}'.",
+                resource.EffectiveResourceId));
+            return;
+        }
+
+        if (reference.TypeId.HasValue &&
+            target.Type.TypeId != reference.TypeId.Value)
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.ResourceReferenceTypeMismatch,
+                $"Load balancer '{resource.EffectiveResourceId}' route '{route.Id}' references resource '{target.EffectiveResourceId}' with type '{target.Type.TypeId}', expected '{reference.TypeId.Value}'.",
+                resource.EffectiveResourceId));
+        }
+
+        if (IsInvalidBackendTarget(target))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid,
+                $"Load balancer '{resource.EffectiveResourceId}' cannot use resource type '{target.Type.TypeId}' as a backend target.",
+                resource.EffectiveResourceId));
+        }
     }
 
     private static void ValidateDuplicateEntrypointNames(
@@ -214,6 +270,10 @@ public sealed class LoadBalancerGraphValidator : IResourceDefinitionGraphValidat
     private static bool IsHostType(ResourceTypeId? typeId) =>
         typeId == ContainerHostResourceTypeProvider.ResourceTypeId ||
         typeId == DockerHostResourceTypeProvider.ResourceTypeId;
+
+    private static bool IsInvalidBackendTarget(Resource target) =>
+        IsNetworkProviderType(target.Type.TypeId) ||
+        target.Class.ClassId == ContainerHostResourceTypeProvider.ClassId;
 
     private static bool IsNetworkProviderType(ResourceTypeId typeId) =>
         typeId == LoadBalancerResourceTypeProvider.ResourceTypeId ||

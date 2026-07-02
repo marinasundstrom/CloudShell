@@ -52,6 +52,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Extended Resource Model graph validation for load-balancer duplicate
   entrypoints, duplicate route IDs, incompatible route protocols, and
   conflicting route matches.
+- Added Resource Model graph validation for load-balancer route target
+  references, including missing targets, invalid addressing or relationship
+  metadata, declared type mismatches, and invalid backend resource types.
 
 ### 2026-07-01
 
