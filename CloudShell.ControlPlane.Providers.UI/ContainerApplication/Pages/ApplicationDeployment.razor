@@ -217,7 +217,7 @@ else
         }
 
         CurrentDeploymentResourceId = Resource.Id;
-        DeploymentImage = GetCurrentContainerImage();
+        DeploymentImage = GetRequestedContainerImage(Resource);
         DeploymentRequestedReplicas = GetDeploymentRequestedReplicasValue(Resource);
         ImageDeploymentMessage = null;
     }
@@ -260,7 +260,7 @@ else
                 DeploymentRecords = await LoadDeploymentRecordsAsync(updatedResource.Id);
                 DeploymentEvents = await LoadDeploymentEventsAsync(updatedResource.Id);
                 MaterializedReplicas = await LoadMaterializedReplicasAsync(updatedResource.Id);
-                DeploymentImage = GetCurrentContainerImage();
+                DeploymentImage = GetRequestedContainerImage(Resource);
                 DeploymentRequestedReplicas = GetDeploymentRequestedReplicasValue(Resource);
                 CurrentDeploymentResourceId = Resource.Id;
             }
@@ -306,9 +306,12 @@ else
 
     private string GetCurrentContainerImage() =>
         GetDeploymentImage(ActiveDeployment) ??
-        Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerImage) ??
+        (Resource is null ? null : GetRequestedContainerImage(Resource)) ??
         GetDeploymentImage(LatestDeployment) ??
         string.Empty;
+
+    private static string GetRequestedContainerImage(Resource resource) =>
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerImage) ?? string.Empty;
 
     private string GetDeploymentService() =>
         ActiveDeployment?.ServiceId ??

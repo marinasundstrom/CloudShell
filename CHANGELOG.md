@@ -80,6 +80,9 @@ on `git blame --follow`, and then by the broad type of change.
   requested replica count.
 - Updated single-instance container app Deployment summaries to show zero
   materialized runtime instances when the resource is not running or starting.
+- Updated the container app Deploy image form to initialize from the requested
+  resource image while the Current image summary continues to prefer the active
+  running deployment image.
 
 ### 2026-07-01
 
