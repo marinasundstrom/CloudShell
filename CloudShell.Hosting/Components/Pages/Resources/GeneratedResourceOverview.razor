@@ -119,9 +119,9 @@
             sections.Add(new("relationships", L["Relationships"], 300, RenderRelationships()));
         }
 
-        if (HasVisibleObservability)
+        if (HasVisibleTelemetry)
         {
-            sections.Add(new("observability", L["Observability"], 400, RenderObservability()));
+            sections.Add(new("observability", L["Telemetry"], 400, RenderTelemetry()));
         }
 
         return sections;
@@ -136,7 +136,7 @@
         IsNetworkResource ||
         IsLoadBalancerResource;
 
-    private bool HasVisibleObservability =>
+    private bool HasVisibleTelemetry =>
         LogSources.Count > 0 ||
         ResourcePredefinedViewVisibility.HasHealthView(Resource, ResourceType) ||
         Authorization.CanReadLogs() && Resource.EffectiveObservability.Logs ||
@@ -314,7 +314,7 @@
         }
     </text>;
 
-    private RenderFragment RenderObservability() => @<text>
+    private RenderFragment RenderTelemetry() => @<text>
         <dl class="detail-list">
             @if (ResourcePredefinedViewVisibility.HasHealthView(Resource, ResourceType))
             {
@@ -335,7 +335,7 @@
                 </dd>
             }
             <dt>@L["Signals"]</dt>
-            <dd>@FormatObservabilitySummary()</dd>
+            <dd>@FormatTelemetrySummary()</dd>
         </dl>
         @if (Authorization.CanReadTraces() && Resource.EffectiveObservability.Traces)
         {
@@ -463,7 +463,7 @@
         return mappings;
     }
 
-    private string FormatObservabilitySummary()
+    private string FormatTelemetrySummary()
     {
         var signals = new List<string>();
         if (Resource.EffectiveObservability.Logs)

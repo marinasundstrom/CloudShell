@@ -81,6 +81,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a separate Usage workspace with in-memory usage sample recording,
   aggregate statistics queries, remote Control Plane API/client methods, and
   environment-wide usage graphs with short-horizon trend projections.
+- Renamed the shell observability workspace to Telemetry with canonical
+  `/telemetry` routes while keeping the old `/observability` routes as
+  compatibility aliases.
 - Updated container app Deployment details to prefer the active deployment
   record for the running image, service, and replica group while preserving the
   latest deployment attempt status.

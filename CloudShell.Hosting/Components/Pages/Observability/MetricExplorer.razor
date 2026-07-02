@@ -38,7 +38,7 @@
 }
 else if (ShowHeading)
 {
-    <PageHeading Eyebrow="@L["Observability"].Value"
+    <PageHeading Eyebrow="@L["Telemetry"].Value"
                  Title="@L["Metrics"].Value"
                  Description="@L["Inspect application/runtime metric points retained by CloudShell."].Value">
         <Actions>
@@ -400,7 +400,7 @@ else if (ShowHeading)
                 L["Metric resource not found"].Value,
                 L["Resource '{0}' does not expose metrics or is not available.", GetResourceLabel(resourceId)].Value,
                 Inline ? L["Open Resources"].Value : L["All metric resources"].Value,
-                Inline ? GetResourcesRoute() : "/observability/metrics");
+                Inline ? GetResourcesRoute() : "/telemetry/metrics");
         }
 
         var selected = GetSelectedResource(resources);
@@ -474,7 +474,7 @@ else if (ShowHeading)
         Navigation.NavigateTo(BuildMetricRoute(selected.Id, args.Value?.ToString(), GetRequestedMetricView()));
     }
 
-    private void ShowAllResources() => Navigation.NavigateTo("/observability/metrics");
+    private void ShowAllResources() => Navigation.NavigateTo("/telemetry/metrics");
 
     private string GetResourcesRoute() =>
         ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
@@ -507,7 +507,7 @@ else if (ShowHeading)
 
         query["resourceId"] = resourceId;
         return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-            "/observability/metrics",
+            "/telemetry/metrics",
             query);
     }
 

@@ -17,7 +17,7 @@ builder.Services.AddRemoteControlPlane(options =>
 builder
     .AddCloudShellUi()
     .AddExtension(new ResourceManagerExtension(includeSettings: false))
-    .AddExtension<ObservabilityExtension>();
+    .AddExtension<TelemetryExtension>();
 
 var app = builder.Build();
 

@@ -37,7 +37,7 @@
 }
 else if (ShowHeading)
 {
-    <PageHeading Eyebrow="@L["Observability"].Value"
+    <PageHeading Eyebrow="@L["Telemetry"].Value"
                  Title="@L["Traces"].Value"
                  Description="@L["Inspect resources that are configured to export distributed traces."].Value">
         <Actions>
@@ -525,7 +525,7 @@ else if (ShowHeading)
                 L["Trace resource not found"].Value,
                 L["Resource '{0}' does not expose traces or is not available.", GetResourceLabel(resourceId)].Value,
                 Inline ? L["Open Resources"].Value : L["All trace resources"].Value,
-                Inline ? GetResourcesRoute() : "/observability/traces");
+                Inline ? GetResourcesRoute() : "/telemetry/traces");
         }
 
         if (IsAllSourcesSelected())
@@ -630,7 +630,7 @@ else if (ShowHeading)
             : TraceSortModes.Newest;
     }
 
-    private void ShowAllResources() => Navigation.NavigateTo("/observability/traces");
+    private void ShowAllResources() => Navigation.NavigateTo("/telemetry/traces");
 
     private void ClearTraceFilter()
     {
@@ -639,7 +639,7 @@ else if (ShowHeading)
         {
             Navigation.NavigateTo(Inline && !string.IsNullOrWhiteSpace(ResourceId)
                 ? ResourceManagerShellLinks.ResourceDetails(ShellRoutes, ResourceId, ResourcePredefinedViewIds.Traces)
-                : "/observability/traces");
+                : "/telemetry/traces");
             return;
         }
 
@@ -1027,7 +1027,7 @@ StringComparison.OrdinalIgnoreCase))?.Span
         }
 
         return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-            "/observability/traces",
+            "/telemetry/traces",
             BuildTraceQuery(resourceId, traceId, scopeResourceId));
     }
 

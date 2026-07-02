@@ -62,10 +62,10 @@ http://localhost:5011/api/control-plane/v1/metrics/ingest
 
 To see traces, run the host, start the API and frontend resources from Resource
 Manager, open `http://localhost:5230/upstream`, then open
-`/observability/traces`. The trace page refreshes while it is open. CloudShell
+`/telemetry/traces`. The trace page refreshes while it is open. CloudShell
 keeps these spans in memory while the host is running. To see metrics, open
 the resource detail page for the API or frontend and select `Telemetry` /
-`Metrics`, or open `/observability/metrics`. CloudShell still writes stdout and
+`Metrics`, or open `/telemetry/metrics`. CloudShell still writes stdout and
 stderr to the resource Logs view independently of telemetry collection.
 
 The expected trace includes spans from both web services:
