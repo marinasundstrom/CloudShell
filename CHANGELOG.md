@@ -44,6 +44,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated local Docker container app ingress reconciliation to build Traefik
   backends from the orchestrator-selected replica group when deployment
   routing supplies one, keeping direct runtime behavior as the fallback.
+- Updated local Docker container app routing reconciliation to choose the
+  ingress endpoint from service-routing binding definitions when present,
+  while keeping the first HTTP endpoint as the direct-runtime fallback.
 
 ### 2026-07-01
 

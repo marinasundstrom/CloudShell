@@ -634,7 +634,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             arguments.Add($"{RuntimeRevisionLabel}={runtimeRevisionId}");
         }
 
-        if (TryResolveHttpEndpoint(resource, out var endpoint))
+        if (TryResolveHttpEndpoint(resource, [], out var endpoint))
         {
             arguments.Add("-p");
             arguments.Add(
@@ -699,7 +699,8 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         ResourceOrchestratorReplicaGroup? replicaGroup = null,
         IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition>? routingBindings = null)
     {
-        if (!TryResolveHttpEndpoint(resource, out var endpoint))
+        var serviceRoutingBindings = routingBindings ?? [];
+        if (!TryResolveHttpEndpoint(resource, serviceRoutingBindings, out var endpoint))
         {
             return;
         }
@@ -709,7 +710,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             resource,
             endpoint,
             replicaGroup,
-            routingBindings ?? [],
+            serviceRoutingBindings,
             cancellationToken);
         if (reuseExisting)
         {
@@ -982,17 +983,48 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
 
     private static bool TryResolveHttpEndpoint(
         GraphResource resource,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         out NetworkingEndpointRequestValue endpoint)
     {
-        endpoint = resource.Attributes
+        var endpoints = resource.Attributes
             .GetObject<NetworkingEndpointRequestValue[]>(
-                ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests)?
-            .FirstOrDefault(candidate =>
-                string.Equals(candidate.Name, "http", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(candidate.Protocol, "http", StringComparison.OrdinalIgnoreCase))!;
+                ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests) ?? [];
 
+        foreach (var routingBinding in routingBindings)
+        {
+            if (!string.Equals(
+                    routingBinding.SourceEndpoint.ResourceId,
+                    resource.EffectiveResourceId,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            endpoint = endpoints.FirstOrDefault(candidate =>
+                string.Equals(
+                    candidate.Name,
+                    routingBinding.SourceEndpoint.EndpointName,
+                    StringComparison.OrdinalIgnoreCase) &&
+                IsHttpEndpoint(candidate))!;
+            if (endpoint is { Port: > 0 })
+            {
+                return true;
+            }
+        }
+
+        if (routingBindings.Count > 0)
+        {
+            endpoint = null!;
+            return false;
+        }
+
+        endpoint = endpoints.FirstOrDefault(IsHttpEndpoint)!;
         return endpoint is { Port: > 0 };
     }
+
+    private static bool IsHttpEndpoint(NetworkingEndpointRequestValue endpoint) =>
+        string.Equals(endpoint.Name, "http", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(endpoint.Protocol, "http", StringComparison.OrdinalIgnoreCase);
 
     private LocalDockerContainerApplicationRuntimeDefinition ResolveDefinition(GraphResource resource) =>
         TryResolveDefinition(resource, out var definition)
