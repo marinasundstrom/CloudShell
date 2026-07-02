@@ -130,6 +130,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated the Metrics tab to surface current resource monitoring snapshots
   when no retained telemetry points exist, including replica monitoring
   snapshots for replicated container apps.
+- Linked materialized container app replicas from the Monitoring and Scale
+  tabs to their runtime replica resource details.
 
 ### 2026-07-01
 

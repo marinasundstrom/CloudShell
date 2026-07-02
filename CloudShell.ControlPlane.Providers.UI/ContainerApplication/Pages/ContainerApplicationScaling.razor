@@ -173,7 +173,11 @@ else
                                     }
                                     else
                                     {
-                                        <strong>@replica.Name</strong>
+                                        <strong>
+                                            <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(replica.Id)">
+                                                @replica.Name
+                                            </FluentAnchor>
+                                        </strong>
                                         <div class="table-subtext">@FormatReplicaOrdinal(replica)</div>
                                     }
                                 </td>

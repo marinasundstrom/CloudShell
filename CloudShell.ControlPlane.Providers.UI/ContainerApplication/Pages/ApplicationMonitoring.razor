@@ -146,8 +146,13 @@ else
                                     <td>
                                         <ResourceTableIdentity IconName="replica"
                                                                IconTitle="Replica"
-                                                               Title="@row.Resource.Name"
-                                                               Summary="@FormatReplicaOrdinal(row.Resource)" />
+                                                               Summary="@FormatReplicaOrdinal(row.Resource)">
+                                            <TitleContent>
+                                                <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(row.Resource.Id)">
+                                                    @row.Resource.Name
+                                                </FluentAnchor>
+                                            </TitleContent>
+                                        </ResourceTableIdentity>
                                     </td>
                                     <td>
                                         <ResourceStateIndicator State="row.Resource.State" Variant="pill" />

@@ -2114,6 +2114,7 @@ public sealed class SampleSmokeTests
                 StartupTimeout);
             await AssertSignalRRuntimeReplicaResourcesAsync(host);
             await AssertSignalRRuntimeReplicaMonitoringSnapshotsAsync(host);
+            await AssertSignalRReplicaResourceLinksAsync(host);
             await AssertSignalRReplicaMonitoringMetricsFallbackAsync(host);
             await AssertSignalRReplicaLogSourcesAsync(host);
             await StartGraphResourceIfAvailableAsync(host, frontend, "SignalR Frontend");
@@ -2429,6 +2430,19 @@ public sealed class SampleSmokeTests
         Assert.Contains("Current monitoring snapshot", metricsHtml);
         Assert.Contains("resource.cpu.usage", metricsHtml);
         Assert.Contains("resource.process.count", metricsHtml);
+    }
+
+    private static async Task AssertSignalRReplicaResourceLinksAsync(SampleProcess host)
+    {
+        const string apiResourceId = "application.container-app:signalr-api";
+        var replicaRoute = ResourceManagerRoutes.ResourceDetails($"{apiResourceId}:replica-1");
+        var scalingHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString(apiResourceId)}/details?tab={Uri.EscapeDataString("application:scale-replicas")}");
+        var monitoringHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString(apiResourceId)}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Monitoring.Value)}");
+
+        Assert.Contains(replicaRoute, scalingHtml);
+        Assert.Contains(replicaRoute, monitoringHtml);
     }
 
     private static async Task AssertSignalRReplicaLogSourcesAsync(SampleProcess host)
