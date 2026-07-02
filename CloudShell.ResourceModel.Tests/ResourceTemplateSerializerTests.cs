@@ -298,6 +298,151 @@ resources:
     }
 
     [Fact]
+    public void DeserializeTemplate_JsonAcceptsTypeScriptHostingPocShape()
+    {
+        const string json = """
+{
+  "name": "typescript-hosting-poc",
+  "resources": [
+    {
+      "name": "typescript-app-settings",
+      "type": "configuration.store",
+      "resourceId": "configuration.store:typescript-app-settings",
+      "providerId": "configuration",
+      "displayName": "TypeScript App Settings",
+      "attributes": {
+        "configuration": {
+          "endpoint": "http://localhost:5101/api/configuration/stores/typescript-app-settings/entries"
+        }
+      }
+    },
+    {
+      "name": "typescript-frontend",
+      "type": "application.javascript-app",
+      "resourceId": "application.javascript-app:typescript-frontend",
+      "providerId": "applications.javascript-app",
+      "displayName": "TypeScript-declared Frontend",
+      "project": {
+        "path": "samples/JavaScriptApp/App",
+        "serviceDiscoveryName": "typescript-frontend",
+        "references": [
+          {
+            "resourceId": "configuration.store:typescript-app-settings",
+            "relationship": "reference",
+            "addressingMode": "resourceId",
+            "typeId": "configuration.store",
+            "providerId": "configuration"
+          }
+        ],
+        "environmentVariables": {
+          "CLOUDSHELL_SETTINGS_ENDPOINT": {
+            "value": "http://localhost:5101/api/configuration/stores/typescript-app-settings/entries"
+          },
+          "Sample__Message": {
+            "configurationEntryRef": {
+              "storeResourceId": "configuration.store:typescript-app-settings",
+              "name": "Sample--Message"
+            }
+          }
+        },
+        "endpointRequests": [
+          {
+            "name": "http",
+            "protocol": "http",
+            "targetPort": 5173,
+            "host": "localhost",
+            "port": 5173,
+            "exposure": "Local",
+            "network": {
+              "resourceId": "network:host",
+              "relationship": "reference",
+              "addressingMode": "resourceId",
+              "typeId": "cloudshell.network",
+              "providerId": "cloudshell.network"
+            }
+          }
+        ]
+      },
+      "javascript": {
+        "engine": "node",
+        "packageManager": "npm",
+        "script": "dev"
+      },
+      "health": {
+        "checks": [
+          {
+            "name": "health",
+            "type": "health",
+            "source": {
+              "kind": "http",
+              "http": {
+                "path": "/healthz",
+                "endpointName": "http"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "host",
+      "type": "cloudshell.network",
+      "resourceId": "network:host",
+      "providerId": "cloudshell.network",
+      "displayName": "Host network",
+      "network": {
+        "kind": "Host",
+        "hostReadiness": "hostReady"
+      }
+    }
+  ],
+  "metadata": {
+    "cloudshell.source": "typescript",
+    "cloudshell.sample": "TypeScriptAppHost"
+  }
+}
+""";
+
+        var template = ResourceTemplateSerializer.DeserializeTemplate(
+            json,
+            ResourceTemplateFormat.Json);
+
+        Assert.Equal("typescript-hosting-poc", template.Name);
+        Assert.Equal("typescript", template.Metadata?["cloudshell.source"]);
+        Assert.Equal(3, template.Resources.Count);
+
+        var settings = Assert.Single(template.Resources, resource =>
+            resource.Name == "typescript-app-settings");
+        Assert.Equal(
+            "http://localhost:5101/api/configuration/stores/typescript-app-settings/entries",
+            settings.ResourceAttributes["configuration.endpoint"]);
+
+        var frontend = Assert.Single(template.Resources, resource =>
+            resource.Name == "typescript-frontend");
+        Assert.Equal(ResourceTypeId.Create("application.javascript-app"), frontend.TypeId);
+        Assert.Equal("samples/JavaScriptApp/App", frontend.ResourceAttributes["project.path"]);
+        Assert.Equal("node", frontend.ResourceAttributes["javascript.engine"]);
+
+        var references = frontend.ResourceAttributeValues[
+            ResourceAttributeId.Create("project.references")].ArrayValue ?? [];
+        var reference = Assert.Single(references);
+        Assert.True(reference.TryGetResourceReference(out var resourceReference));
+        Assert.True(resourceReference.TryGetResourceId(out var referencedResourceId));
+        Assert.Equal("configuration.store:typescript-app-settings", referencedResourceId);
+
+        var endpoint = Assert.Single(frontend.ResourceAttributeValues[
+            ResourceAttributeId.Create("project.endpointRequests")].ArrayValue ?? []);
+        Assert.Equal("http", endpoint.ObjectValue!["name"].StringValue);
+        Assert.True(endpoint.ObjectValue["network"].TryGetResourceReference(out var networkReference));
+        Assert.True(networkReference.TryGetResourceId(out var networkResourceId));
+        Assert.Equal("network:host", networkResourceId);
+
+        var healthChecks = frontend.GetCapability<ResourceHealthCheckDefinitionSet>(
+            ResourceHealthCheckCapabilityIds.HealthChecks);
+        Assert.Equal("health", Assert.Single(healthChecks!.Checks ?? []).Name);
+    }
+
+    [Fact]
     public void SerializeDefinition_OmitsEmptyStateSections()
     {
         var definition = new ResourceState(

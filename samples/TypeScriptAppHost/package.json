@@ -1,0 +1,18 @@
+{
+  "name": "cloudshell-typescript-app-host-sample",
+  "version": "0.0.0-poc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "template": "npm run build && node dist/app-host.js",
+    "apply": "npm run build && node dist/app-host.js --apply"
+  },
+  "dependencies": {
+    "@cloudshell/local-development": "file:../../sdk/typescript/cloudshell"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}

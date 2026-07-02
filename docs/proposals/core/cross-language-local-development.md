@@ -5,10 +5,14 @@
 Proposed.
 
 This proposal tracks the local-development authoring and launch experience for
-CloudShell hosts that are controlled from languages other than C#. The first
-target is TypeScript/JavaScript because it is the closest comparison point to
-Aspire's TypeScript app-host work, but the model should apply to Java, Python,
-Go, and other ecosystems through the same contracts.
+CloudShell hosts that are controlled through language-specific hosting
+integrations. C# is the native implementation today, but it should follow the
+same pattern as other integrations: author resource intent through builder
+APIs, exchange the graph through ResourceDefinition-based templates, and let
+the Control Plane own validation, lifecycle, projection, and operations. The
+first additional target is TypeScript/JavaScript because it is the closest
+comparison point to Aspire's TypeScript app-host work, but the model should
+apply to Java, Python, Go, and other ecosystems through the same contracts.
 
 ## Problem
 
@@ -18,15 +22,20 @@ can stay .NET-based, but the app-host style entry point should be available to
 teams whose application code and tooling live in another ecosystem.
 
 The current programmatic resource API proves the code-first development model
-from C#. That is useful, but it is not enough for CloudShell's ecosystem-neutral
-goal. A TypeScript application should be able to declare its web services,
-containers, databases, configuration, secrets, networking, and references from
-TypeScript, start the CloudShell host from the same development command, and
-then operate the environment through Resource Manager and the Control Plane API.
+from C#. That is useful, but it should not become a one-off hosting path that
+other languages must imitate by reimplementing CloudShell. A TypeScript
+application should be able to declare its web services, containers, databases,
+configuration, secrets, networking, and references from TypeScript, start the
+CloudShell host from the same development command, and then operate the
+environment through Resource Manager and the Control Plane API. The same
+integration pattern should also clarify the C# hosting libraries so C# remains
+one language binding over the shared resource model instead of the special
+case that defines it.
 
 ## Goals
 
-- Let non-C# projects define the same CloudShell resource graph as C# hosts.
+- Let C#, TypeScript/JavaScript, and future language integrations define the
+  same CloudShell resource graph.
 - Keep one Control Plane resource model across C#, TypeScript, JavaScript, and
   future SDKs.
 - Let a language SDK start or attach to a CloudShell host without becoming the
@@ -45,8 +54,9 @@ then operate the environment through Resource Manager and the Control Plane API.
 - Add language-specific resource concepts that do not round-trip through the
   Resource model.
 - Require a browser UI for headless local-development runs.
-- Replace C# programmatic declarations; C# remains the native host authoring
-  surface.
+- Remove the C# hosting surface. C# remains the native implementation today,
+  but should align with the same hosting-integration pattern used by other
+  languages.
 
 ## Proposed model
 
@@ -75,6 +85,15 @@ to a local Control Plane host or applies it to an existing Control Plane through
 the API. Once the host is running, the SDK talks to the Control Plane API for
 status, action execution, logs, and generated endpoint metadata.
 
+The first practical hosting-story test can be a TypeScript package published
+for the Node package manager. That package should expose an API shaped like the
+C# programmatic resource API: an app/graph root, resource builders, typed
+references, endpoint helpers, provider-specific extension helpers, and a
+`run`/`apply` path that launches or attaches to a CloudShell host. The package
+does not need to execute the Control Plane; it can build a ResourceTemplate,
+call the CloudShell CLI or Control Plane API, and then use generated clients
+for status, logs, endpoints, and operations.
+
 The SDK may offer ecosystem-native helpers:
 
 ```ts
@@ -99,6 +118,17 @@ Those helpers compile to the same provider-owned resource definitions a C# host
 would produce. The Node SDK does not start resources directly unless a provider
 explicitly models a Node process resource and the Control Plane has the
 matching runtime adapter.
+
+Builder parity is the main design cost. Every strongly typed resource helper
+that exists in C# has an equivalent question in TypeScript: whether it should
+be hand-authored, generated from provider metadata, or intentionally omitted in
+favor of a lower-level `ResourceDefinition` helper. Provider-specific builders
+and extension methods are useful because they hide raw attribute keys and
+relationship payloads, but duplicating them manually in every language will
+drift. The long-term shape should therefore make provider metadata rich enough
+to generate common builder wrappers where practical, while still allowing
+language packages to hand-author ergonomic helpers for resources whose
+developer experience needs special treatment.
 
 ## Launch modes
 
@@ -167,6 +197,9 @@ Vault entries, or provider-owned protected channels.
 The first TypeScript/JavaScript SDK should provide:
 
 - resource graph builders that mirror the C# builder vocabulary where practical
+- provider-specific builder wrappers for the first supported resource types,
+  initially hand-authored if needed, with generation from provider metadata as
+  the preferred long-term direction
 - typed references between declared resources
 - generated Control Plane API client bindings
 - launch helpers for local combined-host and Control Plane-only modes
@@ -271,6 +304,10 @@ not deployment to another environment.
   launcher pass an initial graph to the host before the API is ready?
 - How much of the C# builder API should be generated from provider metadata
   versus hand-authored in each language package?
+- Which provider metadata is needed to generate language SDK resource
+  builders, extension helpers, typed attributes, references, endpoint helpers,
+  and diagnostics without forcing each language package to manually mirror the
+  C# wrappers?
 - Which JavaScript frontend framework helpers should ship first, and how
   should framework-specific hot reload, TypeScript, bundling, and dev server
   behavior be described without leaking build-tool details into the core
@@ -287,9 +324,13 @@ not deployment to another environment.
    `template apply` over the Control Plane API.
 2. Define the launcher contract and ResourceTemplate envelope expected by
    external language SDKs.
-3. Add a TypeScript SDK POC with graph builders for ASP.NET Core or generic
-   process apps, container apps, configuration, secrets, SQL Server, and basic
-   endpoint references.
+3. Add a TypeScript SDK POC as a Node package manager package with an API
+   shaped like the C# programmatic resource API. The first package should prove
+   a hand-authored builder path for JavaScript apps, Configuration Store,
+   default networking, typed references, endpoint requests, health checks,
+   JSON ResourceTemplate emission, and CLI apply integration before expanding
+   to ASP.NET Core or generic process apps, container apps, secrets, SQL
+   Server, and richer endpoint references.
 4. Add Control Plane diagnostics for source metadata and missing provider or
    runtime adapter capabilities.
 5. Add sample coverage for a TypeScript-authored local distributed app.

@@ -15,11 +15,13 @@ managed by the same local Control Plane. The declarations and lifecycle policy
 belong to the Control Plane; the host process composes the environment and
 registers runtime adapter implementations for the installed providers.
 
-Programmatic declarations are not intended to stay C#-only. C# is the native
-host surface today, but external language SDKs should compile their fluent
-builders to the same ResourceDefinition-based graph shape and then start or
-attach to a CloudShell host through a launcher or the Control Plane API. The
-language SDK may provide TypeScript, JavaScript, Java, Python, or other
+Programmatic declarations are not intended to stay C#-only, and the C# hosting
+surface should not become a special integration path that other languages must
+copy outside the resource model. Treat C#, TypeScript/JavaScript, and future
+SDKs as language bindings over the same hosting-integration pattern: fluent
+builders produce ResourceDefinition-based graph shapes, a launcher or API call
+starts or targets a CloudShell host, and the Control Plane accepts the graph.
+The language SDK may provide TypeScript, JavaScript, Java, Python, or other
 ecosystem-specific helpers, but the accepted resource graph, provider
 validation, lifecycle behavior, persistence, and Resource Manager projection
 remain Control Plane-owned. See the
@@ -174,6 +176,17 @@ same authored resource graph can be serialized, imported, applied as a
 manual implementations next to the resource type provider they target. Source
 generation remains a future option once several manual builders show the
 stable conventions and the customization points providers need.
+The same issue applies to future language SDKs: provider-specific builder
+wrappers and extension methods will need to exist in TypeScript/JavaScript and
+other ecosystems if those SDKs are to feel as natural as C#. Hand-authored
+wrappers are acceptable for early POCs, but provider metadata should eventually
+be rich enough to generate the common builder shape and reduce drift between
+language packages.
+The experimental TypeScript hosting package under `sdk/typescript/cloudshell`
+is the first proof point for this shape. It emits ResourceTemplate JSON that
+the current CloudShell CLI can apply, while intentionally limiting its
+hand-authored builders to a small set until generation and provider metadata
+requirements are clearer.
 For Resource Model provider ports, creating the provider-owned manual builder
 is part of the porting work unless the provider README explicitly records why
 the builder is deferred. The builder is the first code-first authoring surface

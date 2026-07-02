@@ -72,6 +72,12 @@ on `git blame --follow`, and then by the broad type of change.
   action execution over the Control Plane API, ResourceTemplate apply,
   transient bearer-token support, local hosts-file name mapping commands,
   parser and hosts-file tests, and CLI documentation.
+- Added an experimental TypeScript hosting integration proof of concept under
+  `sdk/typescript/cloudshell`, with hand-authored builders for JavaScript apps,
+  Configuration Store, default networking, typed references, endpoint requests,
+  health checks, JSON ResourceTemplate emission, CLI apply integration, and a
+  `samples/TypeScriptAppHost` sample that declares a JavaScript app from
+  TypeScript.
 - ResourceDefinition and ResourceTemplate documents now serialize and
   deserialize through a shared ResourceModel YAML/JSON serializer. YAML is the
   preferred template authoring format, JSON remains available as the
