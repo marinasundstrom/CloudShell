@@ -12,7 +12,7 @@ test("builds a resource template with JavaScript app and configuration store", (
   const settings = app
     .addConfigurationStore("typescript-settings")
     .withDisplayName("TypeScript Settings")
-    .withEndpoint("http://localhost:5101/api/configuration/stores/typescript-settings/entries");
+    .withEndpoint("http://localhost:5101");
 
   app
     .addJavaScriptApp("typescript-frontend", "samples/TypeScriptAppHost/App")
@@ -22,7 +22,7 @@ test("builds a resource template with JavaScript app and configuration store", (
     .withServiceDiscovery()
     .withReference(settings)
     .withEnvironmentVariable("CLOUDSHELL_SETTINGS_ENDPOINT", {
-      value: "http://localhost:5101/api/configuration/stores/typescript-settings/entries"
+      value: "http://localhost:5101/api/configuration/stores/configuration.store%3Atypescript-settings/entries"
     })
     .withEnvironmentVariable("Sample__Message", {
       configurationEntryRef: settings.entry("Sample--Message")
@@ -43,7 +43,7 @@ test("builds a resource template with JavaScript app and configuration store", (
   const settingsResource = template.resources.find(resource => resource.name === "typescript-settings")!;
   assert.deepEqual(settingsResource.attributes, {
     configuration: {
-      endpoint: "http://localhost:5101/api/configuration/stores/typescript-settings/entries"
+      endpoint: "http://localhost:5101"
     }
   });
 
@@ -77,7 +77,7 @@ test("builds a resource template with JavaScript app and configuration store", (
     ],
     environmentVariables: {
       CLOUDSHELL_SETTINGS_ENDPOINT: {
-        value: "http://localhost:5101/api/configuration/stores/typescript-settings/entries"
+        value: "http://localhost:5101/api/configuration/stores/configuration.store%3Atypescript-settings/entries"
       },
       Sample__Message: {
         configurationEntryRef: {

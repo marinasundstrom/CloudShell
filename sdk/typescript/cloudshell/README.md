@@ -16,14 +16,14 @@ const app = cloudshell("orders");
 
 const settings = app
   .addConfigurationStore("orders-settings")
-  .withEndpoint("http://localhost:5101/api/configuration/stores/orders-settings/entries");
+  .withEndpoint("http://localhost:5101");
 
 app
   .addJavaScriptApp("orders-web", "src/web")
   .withHttpEndpoint({ port: 5173, targetPort: 5173, host: "localhost" })
   .withReference(settings)
   .withEnvironmentVariable("CLOUDSHELL_SETTINGS_ENDPOINT", {
-    value: "http://localhost:5101/api/configuration/stores/orders-settings/entries"
+    value: "http://localhost:5101/api/configuration/stores/configuration.store%3Aorders-settings/entries"
   });
 
 console.log(app.toJson());

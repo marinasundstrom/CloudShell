@@ -7,6 +7,10 @@ const repoRoot = resolve(sampleHostRoot, "..", "..");
 const appRoot = resolve(repoRoot, "samples", "JavaScriptApp", "App");
 const cliProject = resolve(repoRoot, "CloudShell.Cli", "CloudShell.Cli.csproj");
 const hostProject = resolve(repoRoot, "samples", "JavaScriptApp", "Host", "CloudShell.JavaScriptAppHost.csproj");
+const settingsServiceEndpoint = "http://localhost:5101";
+const settingsResourceId = "configuration.store:typescript-app-settings";
+const settingsEntriesEndpoint =
+  `${settingsServiceEndpoint}/api/configuration/stores/${encodeURIComponent(settingsResourceId)}/entries`;
 
 const app = cloudshell("typescript-hosting-poc", {
   metadata: {
@@ -18,7 +22,7 @@ const app = cloudshell("typescript-hosting-poc", {
 const settings = app
   .addConfigurationStore("typescript-app-settings")
   .withDisplayName("TypeScript App Settings")
-  .withEndpoint("http://localhost:5101/api/configuration/stores/typescript-app-settings/entries");
+  .withEndpoint(settingsServiceEndpoint);
 
 app
   .addJavaScriptApp("typescript-frontend", appRoot)
@@ -29,7 +33,7 @@ app
   .withReference(settings)
   .withEnvironmentVariable(
     "CLOUDSHELL_SETTINGS_ENDPOINT",
-    "http://localhost:5101/api/configuration/stores/typescript-app-settings/entries")
+    settingsEntriesEndpoint)
   .withEnvironmentVariable("Sample__Message", {
     configurationEntryRef: settings.entry("Sample--Message")
   })
