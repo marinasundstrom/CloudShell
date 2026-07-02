@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Providers;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -28,6 +29,9 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
 
     public void Configure(ICloudShellExtensionBuilder builder)
     {
+        builder.Services.TryAddScoped<IResourceDeploymentManager, EmptyResourceDeploymentManager>();
+        builder.Services.TryAddScoped<IResourceReplicaSlotStateManager, EmptyResourceReplicaSlotStateManager>();
+
         builder
             .AddResourceType<SharedPages.RegisterApplicationResource>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
@@ -362,6 +366,21 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 ["database"] = "master"
             });
 
+    private sealed class EmptyResourceDeploymentManager : IResourceDeploymentManager
+    {
+        public Task<IReadOnlyList<ResourceDeploymentRecord>> ListResourceDeploymentsAsync(
+            ResourceDeploymentQuery? query = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ResourceDeploymentRecord>>([]);
+    }
+
+    private sealed class EmptyResourceReplicaSlotStateManager : IResourceReplicaSlotStateManager
+    {
+        public Task<IReadOnlyList<ResourceReplicaSlotState>> ListReplicaSlotStatesAsync(
+            ResourceReplicaSlotStateQuery? query = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ResourceReplicaSlotState>>([]);
+    }
 }
 
 public static class BuiltInProviderResourceManagerUiHostExtensions

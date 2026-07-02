@@ -83,6 +83,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated the container app Deploy image form to initialize from the requested
   resource image while the Current image summary continues to prefer the active
   running deployment image.
+- Added empty deployment and replica-slot state manager fallbacks to the
+  built-in Resource Manager UI extension so container app tabs degrade cleanly
+  in custom hosts that do not register deployment services.
 
 ### 2026-07-01
 
