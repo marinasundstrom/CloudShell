@@ -53,8 +53,11 @@ resources
 This is intentionally different from `resources.AddDocker().AddContainer(...)`,
 which creates a Docker container sub-resource parented under a Docker resource.
 
-ASP.NET Core projects can be converted into container apps with
-`AsContainer(...)`:
+Project-like application resources can be converted into container apps with
+`AsContainer(...)`. The app provider owns how the application becomes a
+container image. ASP.NET Core can use the .NET SDK container publisher when no
+Dockerfile is supplied; JavaScript uses a project build context and normally a
+Dockerfile supplied by the app:
 
 ```csharp
 resources
@@ -72,6 +75,18 @@ shape to build the container image with the .NET SDK when no Dockerfile is
 supplied, or with the project's Dockerfile when one is specified. Use
 `AsContainer(tag: "...")` when the generated image reference should use a
 stable tag.
+
+```csharp
+resources
+    .AddJavaScriptApp("frontend", "src/frontend")
+    .AsContainer(tag: "dev", dockerfile: "Dockerfile")
+    .WithReplicas(3);
+```
+
+Docker is the initial local container runtime target for this flow. The
+resource contract remains a container app plus container host intent so Podman
+or other OCI-compatible hosts can be added without changing the authored app
+shape.
 
 ## Lifetime
 

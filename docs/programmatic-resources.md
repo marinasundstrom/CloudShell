@@ -763,16 +763,16 @@ that configured default as an implicit container-host resource in the realized
 environment model. `UseContainerHost(...)` can register an explicit configured
 host when the app should target a non-default host.
 
-`AsContainer(...)` is the project-to-container hook for ASP.NET Core project
-resources. It converts the projected resource to an `application.container-app`
-while preserving project metadata in the workload descriptor. If no Dockerfile
-is supplied, the default local runner uses the .NET SDK container publish path
-(`dotnet publish /t:PublishContainer`) for the project before running the
-resulting image. If the project owns a Dockerfile, pass it through
-`AsContainer(dockerfile: "Dockerfile")` and the selected container host builds
-that Dockerfile before running the image. Pass `tag: "..."` when the project
-container image should use a predictable tag instead of the generated
-container-app revision value.
+`AsContainer(...)` is the project-to-container hook for app resources. It
+converts the projected resource to an `application.container-app` while
+preserving project metadata in the workload descriptor. The provider for the
+authored app owns the packaging strategy. ASP.NET Core can use the .NET SDK
+container publish path (`dotnet publish /t:PublishContainer`) when no
+Dockerfile is supplied, or a project Dockerfile when one is specified.
+JavaScript apps use their project directory as the build context and should
+provide a Dockerfile until framework-specific packaging support exists. Pass
+`tag: "..."` when the project container image should use a predictable tag
+instead of the generated container-app revision value.
 
 Low-level project builders still expose `AsContainerImage(...)` and
 `WithContainerBuild(...)` for advanced provider code that wants to set image or

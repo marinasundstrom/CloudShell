@@ -2994,6 +2994,81 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_ProjectsJavaScriptAppAsContainerBuild()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddNetworkResourceType();
+        services.AddContainerApplicationResourceType();
+        services.AddJavaScriptAppResourceType();
+        services.AddSingleton<IContainerApplicationRuntimeHandler>(
+            new StaticContainerApplicationRuntimeHandler(ContainerApplicationRuntimeStatus.Stopped));
+        services.AddResourceModelGraphServices();
+        services.AddBuiltInProviderResourceManagerProjections();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceGraphBuilder();
+
+        var app = graph
+            .AddJavaScriptApp("frontend", "samples/JavaScriptApp/App")
+            .AsContainer(tag: "dev", dockerfile: "Dockerfile")
+            .WithReplicas(3)
+            .WithHttpEndpoint(
+                host: "localhost",
+                port: 5173,
+                targetPort: 8080);
+
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("javascript-container-app", environmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedApp = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == app.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Container, projectedApp.ResourceClass);
+        Assert.Equal(ResourceManagerResourceState.Stopped, projectedApp.State);
+        Assert.Equal(ContainerApplicationResourceTypeProvider.ProviderId, projectedApp.Provider);
+        Assert.Equal("cloudshell-javascript-frontend:dev", projectedApp.ResourceAttributes["container.image"]);
+        Assert.Equal("samples/JavaScriptApp/App", projectedApp.ResourceAttributes["container.buildContext"]);
+        Assert.Equal("Dockerfile", projectedApp.ResourceAttributes["container.dockerfile"]);
+        Assert.Equal("3", projectedApp.ResourceAttributes["container.replicas"]);
+        Assert.Equal("http://localhost:5173", projectedApp.PrimaryEndpoint);
+        Assert.Contains(projectedApp.ResourceCapabilities, capability =>
+            capability.Id == ResourceCommonCapabilityIds.EndpointSource.ToString());
+        Assert.Contains(projectedApp.ResourceCapabilities, capability =>
+            capability.Id == ResourceCommonCapabilityIds.Monitoring.ToString());
+        Assert.Contains(projectedApp.ResourceActions, action =>
+            action.Id == ContainerApplicationResourceTypeProvider.Operations.UpdateReplicas.ToString());
+
+        var deploymentProvider = Assert.IsAssignableFrom<IResourceOrchestratorDeploymentProvider>(provider);
+        var deployment = await deploymentProvider.DescribeDeploymentAsync(
+            new ResourceProcedureContext(
+                projectedApp,
+                null,
+                null,
+                new EmptyResourceRegistrationStore()));
+
+        Assert.NotNull(deployment);
+        Assert.Equal(ResourceWorkloadKind.ContainerBuild, deployment.Spec.Service.Workload.Kind);
+        Assert.Equal("cloudshell-javascript-frontend:dev", deployment.Spec.Service.Workload.Image);
+        Assert.Equal("samples/JavaScriptApp/App", deployment.Spec.Service.Workload.BuildContext);
+        Assert.Equal("Dockerfile", deployment.Spec.Service.Workload.Dockerfile);
+        Assert.Equal("samples/JavaScriptApp/App", deployment.Spec.Service.Workload.ProjectPath);
+        Assert.Equal(3, deployment.Spec.Service.Workload.Replicas);
+        Assert.True(deployment.Spec.Service.Workload.ReplicasEnabled);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesAspNetCoreProjectAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();

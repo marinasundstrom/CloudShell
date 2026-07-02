@@ -185,7 +185,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             }
 
             var image = ResolveImage(resource);
-            await PublishImageAsync(definition, image, cancellationToken);
+            await PublishImageAsync(definition, resource, image, cancellationToken);
             await EnsureContainerNetworkAsync(definition, cancellationToken);
 
             for (var replica = 1; replica <= desiredReplicas; replica++)
@@ -298,7 +298,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         var definition = ResolveDefinition(resource);
         try
         {
-            await PublishImageAsync(definition, ResolveImage(resource), cancellationToken);
+            await PublishImageAsync(definition, resource, ResolveImage(resource), cancellationToken);
             await EnsureContainerNetworkAsync(definition, cancellationToken);
             return [];
         }
@@ -403,7 +403,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         bool cleanExistingReplicas = true)
     {
         var image = ResolveImage(resource);
-        await PublishImageAsync(definition, image, cancellationToken);
+        await PublishImageAsync(definition, resource, image, cancellationToken);
 
         try
         {
@@ -461,9 +461,36 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
 
     private async Task PublishImageAsync(
         LocalDockerContainerApplicationRuntimeDefinition definition,
+        GraphResource resource,
         string image,
         CancellationToken cancellationToken)
     {
+        var buildContext = resource.Attributes.GetString(
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerBuildContext);
+        if (!string.IsNullOrWhiteSpace(buildContext))
+        {
+            var arguments = new List<string>
+            {
+                "build",
+                "-t",
+                image
+            };
+            var dockerfile = resource.Attributes.GetString(
+                ContainerApplicationResourceTypeProvider.Attributes.ContainerDockerfile);
+            if (!string.IsNullOrWhiteSpace(dockerfile))
+            {
+                arguments.Add("-f");
+                arguments.Add(ResolveDockerfilePath(dockerfile, buildContext));
+            }
+
+            arguments.Add(ResolvePath(buildContext));
+            await commandRunner.RunAsync(
+                "docker",
+                arguments,
+                cancellationToken);
+            return;
+        }
+
         var (repository, tag) = SplitImage(image);
         await commandRunner.RunAsync(
             "dotnet",
@@ -479,6 +506,16 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
                 $"-p:ContainerImageTag={tag}"
             ],
             cancellationToken);
+
+        string ResolvePath(string path) =>
+            Path.IsPathRooted(path) || hostEnvironment is null
+                ? path
+                : Path.Combine(hostEnvironment.ContentRootPath, path);
+
+        string ResolveDockerfilePath(string dockerfile, string context) =>
+            Path.IsPathRooted(dockerfile)
+                ? dockerfile
+                : Path.Combine(ResolvePath(context), dockerfile);
     }
 
     private async Task RemoveAsync(
@@ -613,6 +650,11 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         arguments.Add($"OTEL_RESOURCE_ATTRIBUTES={CreateOtelResourceAttributes(definition, replicaResourceId, replicaContainerName, replicaName, replica, replicaCount)}");
         AddEnvironment(arguments, "CLOUDSHELL_TRACE_INGEST_ENDPOINT", FirstNonEmpty(definition.TraceIngestEndpoint, configuration["Observability:TraceIngestEndpoint"]));
         AddEnvironment(arguments, "CLOUDSHELL_METRIC_INGEST_ENDPOINT", FirstNonEmpty(definition.MetricIngestEndpoint, configuration["Observability:MetricIngestEndpoint"]));
+        foreach (var variable in ContainerizedProjectEnvironmentVariables.Read(resource))
+        {
+            AddEnvironment(arguments, variable.Name, variable.Value);
+        }
+
         arguments.Add(image);
 
         return arguments;

@@ -1,7 +1,8 @@
 # JavaScript App Sample
 
 This sample declares a CloudShell `application.javascript-app` resource for a
-Node.js app and a referenced Configuration Store resource.
+Node.js app and a referenced Configuration Store resource. It demonstrates the
+basic local Node.js process flow.
 
 Run the app host in a foreground terminal. The host declares the resources and
 starts the Control Plane and Web UI in the same process, which is the normal

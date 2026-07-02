@@ -31,20 +31,31 @@ public sealed class ContainerApplicationResourceModelGraphDeploymentDescriptor :
         }
 
         var revisionId = CreateRuntimeRevisionId(container);
+        var workloadKind = string.IsNullOrWhiteSpace(container.BuildContext)
+            ? ResourceWorkloadKind.ContainerImage
+            : ResourceWorkloadKind.ContainerBuild;
         var service = new ResourceOrchestratorService(
             context.GraphResource.EffectiveResourceId,
             ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(
                 context.GraphResource.EffectiveResourceId),
             new ResourceWorkloadConfiguration(
-                ResourceWorkloadKind.ContainerImage,
+                workloadKind,
                 context.GraphResource.Name,
+                ProjectPath: container.ProjectPath,
                 Image: image.Trim(),
                 Registry: string.IsNullOrWhiteSpace(container.Registry)
                     ? ContainerRegistryDefaults.Default
                     : container.Registry.Trim(),
+                BuildContext: string.IsNullOrWhiteSpace(container.BuildContext)
+                    ? null
+                    : container.BuildContext.Trim(),
+                Dockerfile: string.IsNullOrWhiteSpace(container.Dockerfile)
+                    ? null
+                    : container.Dockerfile.Trim(),
                 ContainerHostId: container.ContainerHostResourceId,
                 Replicas: container.Replicas,
                 ReplicasEnabled: container.Replicas > 1,
+                EnvironmentVariables: ContainerizedProjectEnvironmentVariables.Read(context.GraphResource),
                 Ports: ToServicePorts(container),
                 VolumeMounts: ToVolumeMounts(await container.GetVolumesAsync(cancellationToken))),
             DependsOn: context.GraphResource.State.ResourceDependencyIds,
@@ -93,6 +104,16 @@ public sealed class ContainerApplicationResourceModelGraphDeploymentDescriptor :
         if (!string.IsNullOrWhiteSpace(container.Image))
         {
             inputs[ResourceAttributeNames.ContainerImage] = container.Image.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(container.BuildContext))
+        {
+            inputs[ResourceAttributeNames.ContainerBuildContext] = container.BuildContext.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(container.Dockerfile))
+        {
+            inputs[ResourceAttributeNames.ContainerDockerfile] = container.Dockerfile.Trim();
         }
 
         return inputs;

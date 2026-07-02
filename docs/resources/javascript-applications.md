@@ -47,6 +47,27 @@ runtime starts the declared package-manager script from the project directory,
 tracks process state, and exposes process logs and metrics through Resource
 Manager.
 
+Use `AsContainer(...)` when a JavaScript app should be authored as a JavaScript
+project but run as a scalable container app:
+
+```csharp
+resources
+    .AddJavaScriptApp("frontend", "src/frontend")
+    .AsContainer(tag: "dev", dockerfile: "Dockerfile")
+    .WithReplicas(3)
+    .WithHttpEndpoint(port: 5173, targetPort: 8080);
+```
+
+The projection changes the Resource Manager resource to
+`application.container-app` while retaining JavaScript project metadata such as
+`project.path`, `javascript.engine`, `javascript.packageManager`, and
+`javascript.script`. That lets the same authored app participate in container
+app deployment, replica, monitoring, and runtime views. For JavaScript, the
+current packaging path expects a container build context and normally a
+project-owned Dockerfile. Docker is the first local runtime target; the
+resource model stores container intent so other OCI-compatible targets such as
+Podman can be added behind the container host boundary.
+
 Future JavaScript client packages can build on this resource type by giving
 Node.js applications typed access to CloudShell services such as Configuration
 Store, logs, traces, or service discovery. Those clients should stay separate
@@ -82,7 +103,7 @@ references, endpoints, logs, metrics, and operations.
 
 The `samples/JavaScriptApp` sample declares:
 
-- a `application.javascript-app` frontend rooted at `samples/JavaScriptApp/App`
+- an `application.javascript-app` frontend rooted at `samples/JavaScriptApp/App`
 - a Configuration Store resource referenced by the JavaScript app
 - environment variables that show how the app can receive another resource's
   endpoint during local development
@@ -115,7 +136,8 @@ cd samples/JavaScriptApp/App
 npm run dev
 ```
 
-Future provider work should support the same container-app wrapping path as
-other application resources, so a JavaScript application can either run as a
-local Node.js process for development or project into an
-`application.container-app` when the author chooses containerized execution.
+The `samples/JavaScriptContainerApp` sample covers the separate container
+wrapping use case. It declares a JavaScript app, projects it as an
+`application.container-app`, builds the image from `App/Dockerfile`, and
+declares three replicas so the container app deployment and scale views can be
+tested without changing the basic process sample.

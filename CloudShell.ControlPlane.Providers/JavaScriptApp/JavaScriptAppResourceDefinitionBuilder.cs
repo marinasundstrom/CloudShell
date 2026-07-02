@@ -1,7 +1,10 @@
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class JavaScriptAppResourceDefinitionBuilder(string name) :
-    ResourceDefinitionBuilder<JavaScriptAppResourceDefinitionBuilder>(name)
+    ContainerizableResourceDefinitionBuilder<JavaScriptAppResourceDefinitionBuilder>(
+        name,
+        JavaScriptAppResourceTypeProvider.ResourceTypeId,
+        JavaScriptAppResourceTypeProvider.ProviderId)
 {
     private readonly List<NetworkingEndpointRequestValue> _endpointRequests = [];
     private readonly Dictionary<string, JavaScriptAppEnvironmentVariableValue> _environmentVariables =
@@ -9,12 +12,6 @@ public sealed class JavaScriptAppResourceDefinitionBuilder(string name) :
     private readonly List<ResourceReference> _references = [];
     private readonly List<VolumeMountDefinition> _volumeMounts = [];
     private readonly List<ResourceHealthCheckDefinition> _healthChecks = [];
-
-    protected override ResourceTypeId TypeId =>
-        JavaScriptAppResourceTypeProvider.ResourceTypeId;
-
-    protected override string? ProviderId =>
-        JavaScriptAppResourceTypeProvider.ProviderId;
 
     public JavaScriptAppResourceDefinitionBuilder WithProjectPath(string projectPath) =>
         SetScalarAttribute(JavaScriptAppResourceTypeProvider.Attributes.ProjectPath, projectPath);
@@ -33,6 +30,32 @@ public sealed class JavaScriptAppResourceDefinitionBuilder(string name) :
 
     public JavaScriptAppResourceDefinitionBuilder WithServiceDiscoveryName(string name) =>
         SetScalarAttribute(JavaScriptAppResourceTypeProvider.Attributes.ServiceDiscoveryName, name);
+
+    public JavaScriptAppResourceDefinitionBuilder AsContainer(
+        string? image = null,
+        string? registry = null,
+        string? tag = null,
+        string? buildContext = null,
+        string? dockerfile = null)
+    {
+        var effectiveBuildContext = FirstNonEmpty(
+            buildContext,
+            Attributes.TryGetValue(
+                JavaScriptAppResourceTypeProvider.Attributes.ProjectPath,
+                out var projectPath)
+                    ? projectPath.StringValue
+                    : null);
+        return ProjectAsContainerApplication(
+            FirstNonEmpty(image, CreateDefaultContainerImage(Name, tag))!,
+            registry,
+            effectiveBuildContext,
+            dockerfile,
+            JavaScriptAppResourceTypeProvider.Attributes.EndpointRequests,
+            _endpointRequests);
+    }
+
+    public JavaScriptAppResourceDefinitionBuilder WithReplicas(long replicas) =>
+        SetContainerReplicas(replicas);
 
     public JavaScriptAppResourceDefinitionBuilder WithRuntimeMonitoring() =>
         this;
@@ -74,7 +97,9 @@ public sealed class JavaScriptAppResourceDefinitionBuilder(string name) :
                     effectiveNetwork.ResourceTypeId,
                     effectiveNetwork.ResourceProviderId)));
         return SetObjectAttribute(
-            JavaScriptAppResourceTypeProvider.Attributes.EndpointRequests,
+            TypeId == ContainerApplicationResourceTypeProvider.ResourceTypeId
+                ? ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests
+                : JavaScriptAppResourceTypeProvider.Attributes.EndpointRequests,
             _endpointRequests.ToArray());
     }
 
@@ -200,6 +225,24 @@ public sealed class JavaScriptAppResourceDefinitionBuilder(string name) :
             ResourceHealthCheckAttributeIds.HealthChecks,
             new ResourceHealthCheckDefinitionSet(_healthChecks.ToArray()));
     }
+
+    private static string CreateDefaultContainerImage(string name, string? tag)
+    {
+        var normalizedName = new string(name
+            .Trim()
+            .ToLowerInvariant()
+            .Select(character => char.IsLetterOrDigit(character) ? character : '-')
+            .ToArray()).Trim('-');
+        if (string.IsNullOrWhiteSpace(normalizedName))
+        {
+            normalizedName = "app";
+        }
+
+        return $"cloudshell-javascript-{normalizedName}:{FirstNonEmpty(tag, "dev")}";
+    }
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 }
 
 public static class JavaScriptAppResourceDefinitionBuilderExtensions

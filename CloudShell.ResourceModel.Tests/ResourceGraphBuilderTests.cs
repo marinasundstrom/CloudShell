@@ -123,6 +123,23 @@ public sealed class ResourceGraphBuilderTests
     }
 
     [Fact]
+    public void ResourceGraphBuilder_BuildGraphRejectsDuplicatesCreatedByDecorators()
+    {
+        var graph = new ResourceGraphBuilder();
+        graph.AddContainerApplication("frontend");
+        graph
+            .AddJavaScriptApp("frontend", "src/frontend")
+            .AsContainer(dockerfile: "Dockerfile");
+
+        var exception = Assert.Throws<InvalidOperationException>(() => graph.BuildGraph());
+
+        Assert.Contains(
+            "application.container-app:frontend",
+            exception.Message,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void ResourceGraphBuilder_BuildsConfigurationPayloadFromNativeBuilderApi()
     {
         var graph = new ResourceGraphBuilder()
@@ -1193,6 +1210,84 @@ public sealed class ResourceGraphBuilderTests
 
         Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
         Assert.True(result.IsCommitted);
+    }
+
+    [Fact]
+    public void ResourceGraphBuilder_BuildsJavaScriptAppAsContainerDefinition()
+    {
+        var graph = new ResourceGraphBuilder();
+
+        var app = graph
+            .AddJavaScriptApp("frontend", "src/frontend")
+            .WithHttpEndpoint(
+                port: 5173,
+                targetPort: 8080,
+                host: "localhost")
+            .AsContainer(tag: "dev", dockerfile: "Dockerfile")
+            .WithReplicas(3);
+
+        var template = graph.BuildTemplate("javascript-container-app", environmentId: "local");
+
+        var appDefinition = Assert.Single(template.Resources, resource =>
+            resource.EffectiveResourceId == app.EffectiveResourceId);
+        var hostDefinition = Assert.Single(template.Resources, resource =>
+            resource.TypeId == ContainerHostResourceTypeProvider.ResourceTypeId);
+        var hostNetwork = Assert.Single(template.Resources, resource =>
+            resource.EffectiveResourceId == NetworkResourceDefinitionBuilderExtensions.DefaultNetworkResourceId);
+
+        Assert.Equal(ContainerApplicationResourceTypeProvider.ResourceTypeId, appDefinition.TypeId);
+        Assert.Equal(ContainerApplicationResourceTypeProvider.ProviderId, appDefinition.ProviderId);
+        Assert.Equal("application.container-app:frontend", appDefinition.EffectiveResourceId);
+        Assert.Equal("src/frontend", appDefinition.ResourceAttributeValues[
+            JavaScriptAppResourceTypeProvider.Attributes.ProjectPath].StringValue);
+        Assert.Equal("node", appDefinition.ResourceAttributeValues[
+            JavaScriptAppResourceTypeProvider.Attributes.Engine].StringValue);
+        Assert.Equal("npm", appDefinition.ResourceAttributeValues[
+            JavaScriptAppResourceTypeProvider.Attributes.PackageManager].StringValue);
+        Assert.Equal("dev", appDefinition.ResourceAttributeValues[
+            JavaScriptAppResourceTypeProvider.Attributes.Script].StringValue);
+        Assert.Equal("cloudshell-javascript-frontend:dev", appDefinition.ResourceAttributeValues[
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerImage].StringValue);
+        Assert.Equal("src/frontend", appDefinition.ResourceAttributeValues[
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerBuildContext].StringValue);
+        Assert.Equal("Dockerfile", appDefinition.ResourceAttributeValues[
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerDockerfile].StringValue);
+        Assert.Equal(3, appDefinition.ResourceAttributeValues[
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas].IntegerValue);
+        Assert.False(appDefinition.ResourceAttributeValues.ContainsKey(
+            JavaScriptAppResourceTypeProvider.Attributes.EndpointRequests));
+
+        var endpoint = Assert.Single(appDefinition.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+            ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests) ?? []);
+        Assert.Equal("http", endpoint.Name);
+        Assert.Equal(5173, endpoint.Port);
+        Assert.Equal(8080, endpoint.TargetPort);
+        Assert.NotNull(endpoint.Network);
+        Assert.True(endpoint.Network!.TryGetResourceId(out var endpointNetworkId));
+        Assert.Equal(hostNetwork.EffectiveResourceId, endpointNetworkId);
+
+        var dependency = Assert.Single(appDefinition.StartupDependencies);
+        Assert.True(dependency.TryGetDependsOnResourceId(out var dependencyId));
+        Assert.Equal(hostDefinition.EffectiveResourceId, dependencyId);
+        Assert.Equal(ContainerHostResourceTypeProvider.ResourceTypeId, dependency.TypeId);
+    }
+
+    [Fact]
+    public void ResourceGraphBuilder_PreservesContainerReplicasConfiguredBeforeContainerProjection()
+    {
+        var graph = new ResourceGraphBuilder();
+
+        var app = graph
+            .AddJavaScriptApp("frontend", "src/frontend")
+            .WithReplicas(3)
+            .AsContainer(tag: "dev", dockerfile: "Dockerfile");
+
+        var template = graph.BuildTemplate("javascript-container-app", environmentId: "local");
+
+        var appDefinition = Assert.Single(template.Resources, resource =>
+            resource.EffectiveResourceId == app.EffectiveResourceId);
+        Assert.Equal(3, appDefinition.ResourceAttributeValues[
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas].IntegerValue);
     }
 
     [Fact]

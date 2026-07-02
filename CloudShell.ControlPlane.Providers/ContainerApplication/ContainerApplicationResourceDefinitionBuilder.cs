@@ -22,6 +22,20 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
     public ContainerApplicationResourceDefinitionBuilder WithRegistry(string registry) =>
         SetScalarAttribute(ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry, registry);
 
+    public ContainerApplicationResourceDefinitionBuilder WithContainerBuild(
+        string buildContext,
+        string? dockerfile = null)
+    {
+        SetScalarAttribute(ContainerApplicationResourceTypeProvider.Attributes.ContainerBuildContext, buildContext);
+
+        if (!string.IsNullOrWhiteSpace(dockerfile))
+        {
+            SetScalarAttribute(ContainerApplicationResourceTypeProvider.Attributes.ContainerDockerfile, dockerfile);
+        }
+
+        return this;
+    }
+
     public ContainerApplicationResourceDefinitionBuilder WithReplicas(long replicas) =>
         SetScalarAttribute(ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas, replicas);
 

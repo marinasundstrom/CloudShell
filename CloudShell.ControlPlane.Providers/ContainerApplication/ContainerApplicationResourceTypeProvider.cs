@@ -17,6 +17,8 @@ public sealed class ContainerApplicationResourceTypeProvider :
     {
         public static readonly ResourceAttributeId ContainerImage = "container.image";
         public static readonly ResourceAttributeId ContainerRegistry = "container.registry";
+        public static readonly ResourceAttributeId ContainerBuildContext = "container.buildContext";
+        public static readonly ResourceAttributeId ContainerDockerfile = "container.dockerfile";
         public static readonly ResourceAttributeId ContainerReplicas = "container.replicas";
         public static readonly ResourceAttributeId EndpointRequests = "container.endpointRequests";
         public static readonly ResourceAttributeId RoutingSessionAffinityMode = "container.routing.sessionAffinity.mode";
@@ -47,6 +49,10 @@ public sealed class ContainerApplicationResourceTypeProvider :
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.ContainerRegistry] = new(
                 DefaultValue: "docker.io",
+                ValueType: ResourceAttributeValueType.String),
+            [Attributes.ContainerBuildContext] = new(
+                ValueType: ResourceAttributeValueType.String),
+            [Attributes.ContainerDockerfile] = new(
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.ContainerReplicas] = new(
                 DefaultValue: 1,
