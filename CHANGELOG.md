@@ -104,6 +104,8 @@ on `git blame --follow`, and then by the broad type of change.
   fixed-size quota visualization for current monitoring snapshots.
 - Fixed Resource Manager freezes caused by the Resource Model bridge blocking
   synchronously on async graph snapshots while listing resources.
+- Added volume usage previews to application storage mount rows so resource
+  consumers can see mounted volume usage in context.
 - Renamed the shell observability workspace to Telemetry with canonical
   `/telemetry` routes while keeping the old `/observability` routes as
   compatibility aliases.

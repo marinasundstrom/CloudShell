@@ -41,6 +41,7 @@ else
                         <th>Volume</th>
                         <th>Mount</th>
                         <th>Access</th>
+                        <th>Usage</th>
                         <th>Status</th>
                     </tr>
                 </thead>
@@ -51,6 +52,16 @@ else
                             <td>@VolumeReference(mount)</td>
                             <td>@mount.Mount</td>
                             <td>@mount.Access</td>
+                            <td>
+                                @if (mount.Volume is { } volume)
+                                {
+                                    <VolumeUsagePreview ResourceId="@volume.Id" />
+                                }
+                                else
+                                {
+                                    <span>Usage unavailable</span>
+                                }
+                            </td>
                             <td>@mount.Status</td>
                         </tr>
                     }

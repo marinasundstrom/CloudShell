@@ -1,0 +1,271 @@
+@using System.Globalization
+@using CloudShell.Abstractions.ControlPlane
+@using CloudShell.Abstractions.Observability
+@using CloudShell.Abstractions.Usage
+@implements IDisposable
+@inject IResourceMonitoringManager MonitoringManager
+@inject IUsageManager UsageManager
+
+<div class="@CssClass" role="group" aria-label="@AriaLabel">
+    @if (IsLoading)
+    {
+        <span class="volume-usage-preview-muted">Loading usage</span>
+    }
+    else if (Snapshot is null && UsageSamples.Count == 0)
+    {
+        <span class="volume-usage-preview-muted">Usage unavailable</span>
+    }
+    else
+    {
+        <div class="volume-usage-preview-current">
+            @if (CurrentUsage is { } usage)
+            {
+                @if (usage.MaxSizeBytes is > 0)
+                {
+                    <div class="volume-usage-preview-ring" aria-hidden="true">
+                        <svg viewBox="0 0 44 44" focusable="false">
+                            <circle class="volume-usage-preview-ring-track" cx="22" cy="22" r="18"></circle>
+                            <circle class="volume-usage-preview-ring-used"
+                                    cx="22"
+                                    cy="22"
+                                    r="18"
+                                    pathLength="100"
+                                    stroke-dasharray="@FormatDashArray(usage)"
+                                    transform="rotate(-90 22 22)"></circle>
+                        </svg>
+                    </div>
+                }
+                <div>
+                    <strong>@FormatBytes(usage.UsedBytes)</strong>
+                    @if (usage.MaxSizeBytes is > 0)
+                    {
+                        <span>@FormatPercent(usage) of @FormatBytes(usage.MaxSizeBytes.Value)</span>
+                    }
+                    else
+                    {
+                        <span>current usage</span>
+                    }
+                </div>
+            }
+            else
+            {
+                <div>
+                    <strong>@FormatBytes(UsageSamples[^1].Value)</strong>
+                    <span>latest recorded</span>
+                </div>
+            }
+        </div>
+
+        @if (UsageSamples.Count > 1)
+        {
+            <svg class="volume-usage-preview-sparkline"
+                 viewBox="0 0 100 24"
+                 preserveAspectRatio="none"
+                 focusable="false"
+                 aria-hidden="true">
+                <polyline points="@SparklinePoints"></polyline>
+            </svg>
+        }
+    }
+</div>
+
+@code {
+    private const string UsedMetricName = "storage.volume.used";
+    private const string MaxSizeMetricName = "storage.volume.maxSize";
+
+    [Parameter, EditorRequired]
+    public string ResourceId { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool Compact { get; set; } = true;
+
+    private ResourceMonitoringSnapshot? Snapshot { get; set; }
+    private IReadOnlyList<UsageSample> UsageSamples { get; set; } = [];
+    private bool IsLoading { get; set; }
+    private bool IsDisposed { get; set; }
+    private CancellationTokenSource? LoadCancellation { get; set; }
+
+    private VolumeUsage? CurrentUsage => CreateCurrentUsage(Snapshot);
+
+    private string CssClass => Compact
+        ? "volume-usage-preview compact"
+        : "volume-usage-preview";
+
+    private string AriaLabel =>
+        CurrentUsage is { } usage
+            ? usage.MaxSizeBytes is > 0
+                ? $"Volume usage {FormatBytes(usage.UsedBytes)} of {FormatBytes(usage.MaxSizeBytes.Value)}."
+                : $"Volume usage {FormatBytes(usage.UsedBytes)}."
+            : UsageSamples.Count > 0
+                ? $"Volume usage latest recorded {FormatBytes(UsageSamples[^1].Value)}."
+                : "Volume usage unavailable.";
+
+    private string SparklinePoints => BuildLinePoints(UsageSamples.Select(sample => sample.Value).ToArray());
+
+    protected override async Task OnParametersSetAsync()
+    {
+        LoadCancellation?.Cancel();
+        LoadCancellation?.Dispose();
+        LoadCancellation = new CancellationTokenSource();
+        await LoadAsync(LoadCancellation.Token);
+    }
+
+    private async Task LoadAsync(CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(ResourceId))
+        {
+            Snapshot = null;
+            UsageSamples = [];
+            return;
+        }
+
+        IsLoading = true;
+        try
+        {
+            Snapshot = await LoadMonitoringAsync(cancellationToken);
+            UsageSamples = await LoadUsageSamplesAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            if (!cancellationToken.IsCancellationRequested && !IsDisposed)
+            {
+                IsLoading = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private async Task<ResourceMonitoringSnapshot?> LoadMonitoringAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await MonitoringManager.GetResourceMonitoringAsync(ResourceId, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task<IReadOnlyList<UsageSample>> LoadUsageSamplesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return (await UsageManager.ListUsageSamplesAsync(
+                    new UsageQuery(ResourceId, UsedMetricName, MaxSamples: 24),
+                    cancellationToken))
+                .OrderBy(sample => sample.Timestamp)
+                .ToArray();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    public void Dispose()
+    {
+        IsDisposed = true;
+        LoadCancellation?.Cancel();
+        LoadCancellation?.Dispose();
+    }
+
+    private static VolumeUsage? CreateCurrentUsage(ResourceMonitoringSnapshot? snapshot)
+    {
+        if (snapshot is null)
+        {
+            return null;
+        }
+
+        var used = FindMetric(snapshot, UsedMetricName);
+        if (used is null || !IsByteMetric(used))
+        {
+            return null;
+        }
+
+        var maxSize = FindMetric(snapshot, MaxSizeMetricName);
+        return new VolumeUsage(
+            used.Value,
+            maxSize is not null && IsByteMetric(maxSize) && maxSize.Value > 0
+                ? maxSize.Value
+                : null);
+    }
+
+    private static ResourceMetricSample? FindMetric(ResourceMonitoringSnapshot snapshot, string name) =>
+        snapshot.Metrics.FirstOrDefault(metric =>
+            string.Equals(metric.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsByteMetric(ResourceMetricSample metric) =>
+        string.Equals(metric.Unit, "bytes", StringComparison.OrdinalIgnoreCase);
+
+    private static string FormatDashArray(VolumeUsage usage)
+    {
+        var usedPercentage = Math.Clamp(usage.UsedPercentage, 0, 100);
+        return string.Create(CultureInfo.InvariantCulture, $"{usedPercentage:0.###} {100 - usedPercentage:0.###}");
+    }
+
+    private static string FormatPercent(VolumeUsage usage) =>
+        $"{usage.UsedPercentage.ToString("0.#", CultureInfo.InvariantCulture)}%";
+
+    private static string FormatBytes(double value)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        var scaled = Math.Abs(value);
+        var unitIndex = 0;
+        while (scaled >= 1024 && unitIndex < units.Length - 1)
+        {
+            scaled /= 1024;
+            unitIndex++;
+        }
+
+        var signed = value < 0 ? -scaled : scaled;
+        return string.Create(CultureInfo.InvariantCulture, $"{signed:0.##} {units[unitIndex]}");
+    }
+
+    private static string BuildLinePoints(IReadOnlyList<double> values)
+    {
+        if (values.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        if (values.Count == 1)
+        {
+            return "0,12 100,12";
+        }
+
+        var min = values.Min();
+        var max = values.Max();
+        var range = max - min;
+        return string.Join(
+            " ",
+            values.Select((value, index) =>
+            {
+                var x = index * 100d / (values.Count - 1);
+                var y = range <= 0
+                    ? 12d
+                    : 22d - ((value - min) / range * 20d);
+                return string.Create(CultureInfo.InvariantCulture, $"{x:0.###},{y:0.###}");
+            }));
+    }
+
+    private sealed record VolumeUsage(
+        double UsedBytes,
+        double? MaxSizeBytes)
+    {
+        public double UsedPercentage => MaxSizeBytes is > 0
+            ? UsedBytes * 100d / MaxSizeBytes.Value
+            : 0;
+    }
+}

@@ -1,0 +1,81 @@
+.volume-usage-preview {
+    display: grid;
+    gap: .32rem;
+    min-width: 10rem;
+}
+
+.volume-usage-preview-current {
+    display: flex;
+    align-items: center;
+    gap: .48rem;
+    min-width: 0;
+}
+
+.volume-usage-preview-current div:last-child {
+    display: grid;
+    gap: .08rem;
+    min-width: 0;
+}
+
+.volume-usage-preview-current strong,
+.volume-usage-preview-current span,
+.volume-usage-preview-muted {
+    overflow-wrap: anywhere;
+}
+
+.volume-usage-preview-current strong {
+    color: var(--cloudshell-text);
+    font-size: .86rem;
+    line-height: 1.15;
+}
+
+.volume-usage-preview-current span,
+.volume-usage-preview-muted {
+    color: var(--cloudshell-text-muted);
+    font-size: .72rem;
+    line-height: 1.2;
+}
+
+.volume-usage-preview-ring {
+    flex: 0 0 auto;
+    width: 2.3rem;
+    aspect-ratio: 1;
+}
+
+.volume-usage-preview-ring svg,
+.volume-usage-preview-sparkline {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.volume-usage-preview-ring-track,
+.volume-usage-preview-ring-used {
+    fill: none;
+    stroke-width: 5;
+}
+
+.volume-usage-preview-ring-track {
+    stroke: var(--cloudshell-divider);
+}
+
+.volume-usage-preview-ring-used {
+    stroke: var(--cloudshell-accent);
+    stroke-linecap: round;
+}
+
+.volume-usage-preview-sparkline {
+    height: 1.55rem;
+}
+
+.volume-usage-preview-sparkline polyline {
+    fill: none;
+    stroke: var(--cloudshell-accent);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+}
+
+.volume-usage-preview.compact {
+    min-width: 9rem;
+}
