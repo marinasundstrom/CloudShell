@@ -118,6 +118,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Reworded container app Deployment, Scale, Environment, and Storage empty
   states to describe unobserved or undeclared runtime facts instead of old
   projection placeholders.
+- Renamed the shared application Configuration version label from Revision to
+  Resource version so it is not confused with container app deployment or
+  runtime revisions.
 
 ### 2026-07-01
 
