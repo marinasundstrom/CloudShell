@@ -56,6 +56,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             builder.Configuration.GetSection(ResourceIdentityOptions.SectionName));
         builder.Services.Configure<TelemetryOptions>(
             builder.Configuration.GetSection(TelemetryOptions.SectionName));
+        builder.Services.Configure<UsageRecordingOptions>(
+            builder.Configuration.GetSection(UsageRecordingOptions.SectionName));
 
         ConfigurePersistence(builder);
         builder.Services.AddCloudShellAuthentication(builder.Configuration);
@@ -81,6 +83,7 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddSingleton<InMemoryTraceStore>();
         builder.Services.AddSingleton<InMemoryMetricStore>();
         builder.Services.AddSingleton<InMemoryUsageStore>();
+        builder.Services.AddSingleton<MonitoringUsageSampleMapper>();
         builder.Services.AddSingleton<ITraceStore>(serviceProvider =>
         {
             var options = serviceProvider.GetRequiredService<IOptions<TelemetryOptions>>().Value;
@@ -224,6 +227,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             ServiceDescriptor.Singleton<IHostedService, ResourceHealthPollingService>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, ResourceRecoveryPollingService>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, MonitoringUsageRecordingService>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, ResourceReplicaGroupReconciliationPollingService>());
 

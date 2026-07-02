@@ -81,6 +81,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a separate Usage workspace with in-memory usage sample recording,
   aggregate statistics queries, remote Control Plane API/client methods, and
   environment-wide usage graphs with short-horizon trend projections.
+- Added automatic usage recording from resource monitoring snapshots so
+  provider-exposed CPU, memory, network, process, and other monitoring metrics
+  are retained as per-resource usage samples.
 - Renamed the shell observability workspace to Telemetry with canonical
   `/telemetry` routes while keeping the old `/observability` routes as
   compatibility aliases.
