@@ -19,7 +19,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 - Clarified container app cookie session affinity documentation so it states
   that sticky cookies affect ordinary HTTP requests as well as SignalR and
-  WebSocket setup flows, and documented current provider enforcement limits.
+  WebSocket setup flows, documented current provider enforcement limits, and
+  recommends leaving affinity disabled for stateless replicated services.
 
 ### 2026-07-02
 

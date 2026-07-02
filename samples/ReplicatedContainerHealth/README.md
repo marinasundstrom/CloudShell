@@ -49,6 +49,9 @@ for that binding so repeated HTTP requests that carry the affinity cookie can
 stay pinned to the same replica. This is ordinary endpoint-wide sticky routing;
 it is useful for SignalR and WebSocket setup flows, but it also affects normal
 HTTP requests from the same client.
+This sample enables affinity to exercise the routing contract. Stateless HTTP
+container apps should normally leave affinity disabled unless request
+correctness depends on replica-local client continuity.
 
 Replica telemetry is posted back to the Control Plane from inside the
 containers. For local `localhost` sample URLs, the sample maps the runtime

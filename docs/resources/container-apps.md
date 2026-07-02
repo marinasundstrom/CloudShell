@@ -405,6 +405,15 @@ container app endpoint. An already-upgraded WebSocket remains on its selected
 replica because the connection is long-lived; affinity controls which replica
 is selected for the HTTP requests that establish or resume that connection.
 
+Session affinity is opt-in resource intent, not a default for replicated
+container apps. Leave affinity disabled for stateless HTTP services that can
+serve any request from any healthy replica. Enable cookie affinity only when
+the workload needs replica-local continuity, such as SignalR, WebSocket setup
+flows, in-memory session state, per-replica caches that are part of request
+correctness, or another stateful per-client interaction. This keeps ordinary
+stateless APIs balanced across replicas and avoids coupling clients to one
+replica unless the application design requires it.
+
 Runtime enforcement is provider-specific. The current local Docker
 container-app runtime projects cookie affinity into its Traefik ingress bridge
 by writing sticky-cookie configuration when routing is reconciled. The

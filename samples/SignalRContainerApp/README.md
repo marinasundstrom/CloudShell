@@ -25,6 +25,9 @@ projects that intent into Traefik sticky routing. Normal HTTP requests that
 carry the affinity cookie are routed back to the selected replica too; SignalR
 uses the same behavior so negotiate, reconnect, fallback transport, and
 WebSocket upgrade requests stay on the same replica.
+The sample enables affinity because the replicated backend demonstrates
+real-time, replica-local connection continuity. Stateless container apps should
+normally leave affinity disabled.
 
 ## Run
 
