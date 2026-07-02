@@ -41,6 +41,13 @@
   <Folder Name="/samples/HostVirtualNetwork/">
     <Project Path="samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj" />
   </Folder>
+  <Folder Name="/samples/CSharpAppHost/" />
+  <Folder Name="/samples/CSharpAppHost/AppHost/">
+    <Project Path="samples/CSharpAppHost/AppHost/CloudShell.CSharpAppHost.csproj" />
+  </Folder>
+  <Folder Name="/samples/CSharpAppHost/Host/">
+    <Project Path="samples/CSharpAppHost/Host/CloudShell.CSharpAppHost.ControlPlane.csproj" />
+  </Folder>
   <Folder Name="/samples/JavaScriptApp/" />
   <Folder Name="/samples/JavaScriptApp/Host/">
     <Project Path="samples/JavaScriptApp/Host/CloudShell.JavaScriptAppHost.csproj" />
@@ -99,6 +106,8 @@
   </Folder>
   <Project Path="CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj" />
   <Project Path="CloudShell.Abstractions/CloudShell.Abstractions.csproj" />
+  <Project Path="CloudShell.AppHost.Launcher.Tests/CloudShell.AppHost.Launcher.Tests.csproj" />
+  <Project Path="CloudShell.AppHost.Launcher/CloudShell.AppHost.Launcher.csproj" />
   <Project Path="CloudShell.AppHost/CloudShell.AppHost.csproj" />
   <Project Path="CloudShell.Client.Tests/CloudShell.Client.Tests.csproj" />
   <Project Path="CloudShell.Client/CloudShell.Client.csproj" />

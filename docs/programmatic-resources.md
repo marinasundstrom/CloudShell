@@ -7,13 +7,12 @@ then declare `ResourceDefinition` entries through the Resource model builder.
 This lets a host check in its baseline configuration instead of relying on
 every developer or operator to add the same resources by hand.
 
-For local development, those declarations commonly live in a combined host
-application that runs both the Control Plane and the CloudShell UI in one
-process. In that shape, declared executable, project, and container-backed
-resources can run from the same host process context, but they are still
-managed by the same local Control Plane. The declarations and lifecycle policy
-belong to the Control Plane; the host process composes the environment and
-registers runtime adapter implementations for the installed providers.
+For local development, the preferred authoring shape is now a launcher app that
+builds a `ResourceTemplate` and applies it to a CloudShell host profile. The
+launcher can start the local host profile or attach to an existing Control
+Plane by URL and credentials. The host profile composes the Control Plane,
+CloudShell UI, providers, and runtime adapters; the launcher remains a
+ResourceTemplate authoring and bootstrap client.
 
 Programmatic declarations are not intended to stay C#-only, and the C# hosting
 surface should not become a special integration path that other languages must
@@ -28,40 +27,41 @@ remain Control Plane-owned. See the
 [cross-language local development proposal](proposals/core/cross-language-local-development.md).
 
 ```csharp
-using CloudShell.Hosting;
+using CloudShell.AppHost.Launcher;
 using CloudShell.ControlPlane.Providers;
-using CloudShell.ControlPlane.ResourceModel;
 
-builder.AddCloudShellControlPlaneApplication(
-    configureBuiltInResourceModelProviders: null,
-    configureControlPlane: controlPlane =>
-    {
-        controlPlane.DefineResources(resources =>
-        {
-            var group = resources.AddResourceGroup(
-                "sample",
-                "Sample",
-                "Sample resources.");
+var app = CloudShellDistributedApplication.CreateBuilder("sample", args);
 
-            resources
-                .AddConfigurationStore("example")
-                .WithDisplayName("Example Configuration")
-                .WithResourceGroup(group)
-                .WithEntries(
-                [
-                    new("SampleMessage", "Hello from CloudShell configuration"),
-                    new("SampleSecret", "local-development-secret", IsSecret: true)
-                ]);
-        });
-    });
+app.DefineResources(resources =>
+{
+    resources
+        .AddConfigurationStore("example")
+        .WithDisplayName("Example Configuration")
+        .WithEndpoint("http://localhost:5138");
+});
+
+return (await app.RunAsync(new()
+{
+    CliProjectPath = "../../CloudShell.Cli/CloudShell.Cli.csproj",
+    HostProjectPath = "Host/CloudShell.SampleHost.csproj",
+    HostUrl = new Uri("http://127.0.0.1:5099"),
+    ControlPlaneUrl = new Uri("http://127.0.0.1:5099")
+})).ExitCode;
 ```
 
-`AddCloudShellControlPlaneApplication(...)` is the preferred local-development
-Control Plane setup path. It installs the built-in Resource Model provider
-preset and graph-backed Resource Manager integration. A host that also wants
-CloudShell UI should add it separately with `AddCloudShellUi(...)` and register
-Resource Manager UI extensions in that UI callback. A split UI host installs UI
-integrations and remote client adapters instead of provider runtime packages.
+`CloudShell.AppHost.Launcher` is the preferred C# app-host authoring path for
+new local-development samples when the application does not need to customize
+CloudShell itself. It reuses `ResourceGraphBuilder`, writes YAML or JSON
+templates, and delegates local host startup or template apply to the CLI. The
+app project references provider builder packages for the resources it declares;
+the launcher package itself does not reference Control Plane services, UI
+hosting, or provider runtime services. Host profiles still use
+`AddCloudShellControlPlaneApplication(...)` to install the built-in Resource
+Model provider preset and graph-backed Resource Manager integration. A host
+that also wants CloudShell UI should add it separately with
+`AddCloudShellUi(...)` and register Resource Manager UI extensions in that UI
+callback. A split UI host installs UI integrations and remote client adapters
+instead of provider runtime packages.
 Built-in provider registration does not seed default environment resources.
 Defaults are authored through lazy graph builder accessors or through graph
 helpers that need them. When a helper needs a network and none was supplied, it

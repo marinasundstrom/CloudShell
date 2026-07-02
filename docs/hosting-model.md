@@ -94,10 +94,92 @@ profile.
 
 See `samples/CloudShell.UiExtensionHost`.
 
+## Launcher App And Host Profile
+
+The preferred local-development authoring shape separates the application
+declaration from the CloudShell host process:
+
+- A launcher app defines the distributed application with Resource Model
+  builders, emits a `ResourceTemplate`, and either launches a CloudShell host
+  profile or applies the graph to an existing Control Plane.
+- A host profile composes the Control Plane, CloudShell UI, provider packages,
+  and runtime adapters. It does not need to contain the application graph.
+
+This keeps C# aligned with TypeScript/JavaScript and future language
+integrations. The C# launcher is the go-to builder when the application does
+not need to customize CloudShell itself. `CloudShell.AppHost.Launcher` only
+knows how to author and apply templates; the app project references whichever
+provider builder packages it needs, but the launcher package does not reference
+`CloudShell.ControlPlane`, `CloudShell.Hosting`, or provider runtime services:
+
+```csharp
+using CloudShell.AppHost.Launcher;
+using CloudShell.ControlPlane.Providers;
+
+var app = CloudShellDistributedApplication.CreateBuilder("sample", args);
+
+app.DefineResources(resources =>
+{
+    var settings = resources
+        .AddConfigurationStore("settings")
+        .WithEndpoint("http://localhost:5101");
+
+    resources
+        .AddJavaScriptApp("frontend", "../App")
+        .WithReference(settings)
+        .WithHttpEndpoint(host: "localhost", port: 5175, targetPort: 5175);
+});
+
+return (await app.RunAsync(new()
+{
+    CliProjectPath = "../../CloudShell.Cli/CloudShell.Cli.csproj",
+    HostProjectPath = "Host/CloudShell.CSharpAppHost.ControlPlane.csproj",
+    HostUrl = new Uri("http://127.0.0.1:5099"),
+    ControlPlaneUrl = new Uri("http://127.0.0.1:5099")
+})).ExitCode;
+```
+
+The host profile remains ordinary CloudShell hosting code:
+
+```csharp
+var builder = CloudShellApplication.CreateBuilder(args);
+
+var cloudShell = builder.AddCloudShellControlPlaneApplication(
+    configureBuiltInResourceModelProviders: null);
+
+builder.AddCloudShellUi(ui =>
+{
+    ui.AddExtension<ResourceManagerExtension>();
+    ui.AddBuiltInProviderResourceManagerUi();
+});
+
+var app = builder.Build();
+
+await app.UseCloudShellControlPlaneAsync();
+await app.UseCloudShellUiAsync();
+app.MapCloudShellControlPlane();
+app.MapCloudShellUi<App>();
+
+app.Run();
+```
+
+The launcher/profile split supports both local bootstrap and attach/update
+flows. A launcher can start the configured local host profile through the CLI,
+or it can target a running local, split, team-owned, or on-premise Control
+Plane by URL and credentials. In both modes the Control Plane owns provider
+validation, lifecycle, logs, telemetry, persistence, and Resource Manager
+projection. Samples that need custom CloudShell host wiring can still keep a
+host profile next to the launcher, but the launcher remains separate and does
+not reach into host services.
+
+See `samples/CSharpAppHost`.
+
 ## Combined Host
 
 For local development, the UI and Control Plane can run in the same ASP.NET Core
-process. This is the shape used by the `CloudShell.Host` development sample.
+process. This remains supported, and it is still useful for simple hosts,
+compatibility, and host-profile implementation. It should not be treated as the
+only C# app-host authoring model.
 
 ```csharp
 using CloudShell.Hosting;
@@ -137,9 +219,9 @@ app.MapCloudShellUi<App>();
 app.Run();
 ```
 
-The preferred local-development shape starts with
+The combined-host shape starts with
 `AddCloudShellControlPlaneApplication(...)`. That method installs the Control
-Plane plus the built-in Resource Model provider defaults for the normal
+Plane plus the built-in Resource Model provider defaults for the
 resource-management experience. The UI remains explicit: call
 `AddCloudShellUi(...)` separately and register shell extensions, Resource
 Manager extensions, and provider-owned Resource Manager UI integrations in the
@@ -157,30 +239,14 @@ implementation is in-process and backed by Control Plane services. The
 CloudShell UI shell still hosts Resource Manager as an integration rather than
 owning Control Plane behavior directly.
 
-Combined local-development hosts do not introduce a separate runner concept.
-When resources are declared programmatically in the combined host, the same
+When resources are still declared programmatically in a combined host, the same
 host process starts the local Control Plane, installs the providers, maps the
 UI, and gives provider implementations the local process context they need to
 start executable, project, or container-backed resources. The local Control
 Plane remains the owner of resource registration, lifecycle policy, dependency
-startup, provider dispatch, logs, and API projection.
-
-Programmatic and template-based APIs remain useful after a host is running.
-They can apply or update resource declarations against an existing local,
-split, team-owned, or on-premise Control Plane without taking ownership of the
-host process. That is an automation and update path, not the default local
-developer bootstrap path.
-
-That same boundary should support non-C# app-host authoring. A TypeScript,
-JavaScript, Java, Python, or other language SDK can build a resource graph,
-target a running CloudShell host, and apply the graph through
-ResourceDefinition-based interchange or the Control Plane API. A launcher can
-remain available for automation and daemon-specific workflows, but the
-developer-oriented local flow should feel like the C# host: run the host file,
-and the Control Plane and UI start with the declared resources. The SDK owns
-ecosystem ergonomics and command integration; the Control Plane remains the
-resource-management authority. See the
-[cross-language local development proposal](proposals/core/cross-language-local-development.md).
+startup, provider dispatch, logs, and API projection. New C# samples should
+prefer the launcher/profile split unless they are specifically proving
+combined-host behavior.
 
 Combined hosts can install both sides of a capability package in one process.
 For example, an application-resource package can register Control Plane

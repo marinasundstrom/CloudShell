@@ -76,7 +76,7 @@ The model uses three layers:
 | Layer | Owner | Responsibility |
 | --- | --- | --- |
 | Language SDK | TypeScript/JavaScript, Java, or another ecosystem package | Provides fluent graph builders, local command integration, generated API clients, and ergonomic references for that ecosystem. |
-| Host launcher | CloudShell CLI | Starts a known .NET CloudShell host profile, records daemon state, passes graph input and settings, watches readiness, and returns endpoint metadata to the SDK. |
+| Host launcher | CloudShell CLI and language-specific launcher package | Starts or selects a known .NET CloudShell host profile, passes graph input and settings, watches readiness, and returns endpoint metadata to the SDK. The current CLI can record daemon state; foreground host-runner behavior can be added without changing the graph boundary. |
 | Control Plane | CloudShell .NET host | Owns resource validation, provider setup, lifecycle actions, persistence, logs, traces, authorization, API projection, and Resource Manager UI. |
 
 The SDK authors resource intent as a `ResourceTemplate` or equivalent
@@ -85,14 +85,13 @@ to a local Control Plane host or applies it to an existing Control Plane through
 the API. Once the host is running, the SDK talks to the Control Plane API for
 status, action execution, logs, and generated endpoint metadata.
 
-The first practical hosting-story test can be a TypeScript package published
-for the Node package manager. That package should expose an API shaped like the
-C# programmatic resource API: an app/graph root, resource builders, typed
-references, endpoint helpers, provider-specific extension helpers, and a
-`run`/`apply` path that launches or attaches to a CloudShell host. The package
-does not need to execute the Control Plane; it can build a ResourceTemplate,
-call the CloudShell CLI or Control Plane API, and then use generated clients
-for status, logs, endpoints, and operations.
+The first practical hosting-story tests are a TypeScript package published for
+the Node package manager and a C# launcher package. Both expose an app/graph
+root, resource builders, typed references, endpoint helpers,
+provider-specific extension helpers, and a `run`/`apply` path that launches or
+attaches to a CloudShell host. Neither package executes the Control Plane; they
+build a ResourceTemplate, call the CloudShell CLI or Control Plane API, and can
+then use clients for status, logs, endpoints, and operations.
 
 The SDK may offer ecosystem-native helpers:
 
@@ -330,7 +329,7 @@ not deployment to another environment.
    common `resource` operations, local host-name mapping helpers, and
    `template apply` over the Control Plane API.
 2. Define the launcher contract and ResourceTemplate envelope expected by
-   external language SDKs.
+   external language SDKs and by the C# launcher app-host package.
 3. Add a TypeScript SDK POC as a Node package manager package with an API
    shaped like the C# programmatic resource API. The first package should prove
    a hand-authored builder path for JavaScript apps, Configuration Store,
