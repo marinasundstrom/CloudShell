@@ -56,6 +56,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             builder.Configuration.GetSection(ResourceIdentityOptions.SectionName));
         builder.Services.Configure<TelemetryOptions>(
             builder.Configuration.GetSection(TelemetryOptions.SectionName));
+        builder.Services.Configure<UsageOptions>(
+            builder.Configuration.GetSection(UsageOptions.SectionName));
         builder.Services.Configure<UsageRecordingOptions>(
             builder.Configuration.GetSection(UsageRecordingOptions.SectionName));
 
@@ -104,8 +106,16 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
                 ? serviceProvider.GetRequiredService<EfCoreTelemetryMetricStore>()
                 : serviceProvider.GetRequiredService<InMemoryMetricStore>();
         });
-        builder.Services.TryAddSingleton<IUsageStore>(
-            serviceProvider => serviceProvider.GetRequiredService<InMemoryUsageStore>());
+        builder.Services.TryAddSingleton<IUsageStore>(serviceProvider =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<UsageOptions>>().Value;
+            return string.Equals(
+                options.Store,
+                UsageStores.Database,
+                StringComparison.OrdinalIgnoreCase)
+                ? serviceProvider.GetRequiredService<EfCoreUsageStore>()
+                : serviceProvider.GetRequiredService<InMemoryUsageStore>();
+        });
         builder.Services.TryAddSingleton<ResourceHealthRefreshCoordinator>();
         builder.Services.TryAddSingleton<InMemoryResourceHealthStore>();
         builder.Services.TryAddSingleton<IResourceRecoveryStore, InMemoryResourceRecoveryStore>();

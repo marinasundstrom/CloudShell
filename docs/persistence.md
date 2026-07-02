@@ -107,6 +107,30 @@ host restarts. Retention limits are per resource and prevent persisted
 telemetry from growing without bound. Source logs are provider-owned streams
 and are not controlled by this telemetry store switch.
 
+## Usage
+
+Usage samples are retained in memory by default. Resource monitoring can record
+provider-observed CPU, memory, network, process, and custom monitoring metrics
+as usage samples, and hosts can opt into database-backed usage history through
+appsettings:
+
+```json
+{
+  "Usage": {
+    "Store": "Database",
+    "RetainedSamplesPerResource": 10000
+  }
+}
+```
+
+`Store` defaults to `InMemory`. Use `Database` when a local development or
+team-owned environment should preserve usage samples and usage statistics
+across CloudShell host restarts. Retention limits are per resource and prevent
+persisted usage history from growing without bound. Usage records keep
+non-secret metric metadata, such as the monitoring provider and display name,
+so dashboards can summarize resource usage without depending on a single
+provider-specific metric shape.
+
 ## Application Logs
 
 Application provider stdout/stderr logs are memory-only by default. Hosts can

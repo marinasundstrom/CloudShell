@@ -89,6 +89,8 @@ on `git blame --follow`, and then by the broad type of change.
   trend panels, and tables.
 - Added auto-refresh to the Usage dashboard and resource Usage tabs so newly
   recorded usage samples and statistics update without leaving the view.
+- Added opt-in database-backed usage sample persistence with per-resource
+  retention so usage statistics can survive CloudShell host restarts.
 - Renamed the shell observability workspace to Telemetry with canonical
   `/telemetry` routes while keeping the old `/observability` routes as
   compatibility aliases.

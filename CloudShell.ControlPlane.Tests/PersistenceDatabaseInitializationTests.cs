@@ -3,6 +3,7 @@ using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Abstractions.Usage;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Persistence;
 using Microsoft.Data.Sqlite;
@@ -130,6 +131,58 @@ public sealed class PersistenceDatabaseInitializationTests
     }
 
     [Fact]
+    public void EfCoreUsageStore_RetainsPersistedUsageSamplesAndStatistics()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "cloudshell-persistence-tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        var resourceStore = Path.Combine(directory, "cloudshell.db");
+        var identityStore = Path.Combine(directory, "identity.db");
+        try
+        {
+            using (var provider = BuildUsagePersistenceProvider(resourceStore, identityStore))
+            {
+                provider.InitializeCloudShellDatabase(initializeIdentityStore: false);
+                var usage = provider.GetRequiredService<EfCoreUsageStore>();
+
+                usage.AddSamples(
+                [
+                    CreateUsageSample("cpu.percent", 1, DateTimeOffset.UtcNow.AddSeconds(-30)),
+                    CreateUsageSample("cpu.percent", 2, DateTimeOffset.UtcNow.AddSeconds(-20)),
+                    CreateUsageSample("cpu.percent", 3, DateTimeOffset.UtcNow.AddSeconds(-10))
+                ]);
+            }
+
+            using (var provider = BuildUsagePersistenceProvider(resourceStore, identityStore))
+            {
+                provider.InitializeCloudShellDatabase(initializeIdentityStore: false);
+                var usage = provider.GetRequiredService<EfCoreUsageStore>();
+
+                var samples = usage.GetSamples("application:test-api", "cpu.percent", maxSamples: 10);
+                Assert.Equal([3, 2], samples.Select(sample => sample.Value));
+                Assert.Equal("monitoring", samples[0].UsageAttributes[UsageAttributeNames.Source]);
+
+                var statistic = Assert.Single(usage.GetStatistics(
+                    "application:test-api",
+                    "cpu.percent",
+                    maxStatistics: 10));
+                Assert.Equal(2, statistic.Count);
+                Assert.Equal(5, statistic.Sum);
+                Assert.Equal(2.5, statistic.Average);
+                Assert.Equal(2, statistic.Min);
+                Assert.Equal(3, statistic.Max);
+                Assert.Equal(3, statistic.LatestValue);
+            }
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task EfCoreResourceStore_RoundTripsRegistrationIdentityBinding()
     {
         var directory = Path.Combine(
@@ -209,6 +262,31 @@ public sealed class PersistenceDatabaseInitializationTests
         return services.BuildServiceProvider();
     }
 
+    private static ServiceProvider BuildUsagePersistenceProvider(
+        string resourceStore,
+        string identityStore)
+    {
+        var services = new ServiceCollection();
+        services.AddOptions();
+        services.Configure<UsageOptions>(options =>
+        {
+            options.Store = UsageStores.Database;
+            options.RetainedSamplesPerResource = 2;
+        });
+        services.AddCloudShellPersistence(new CloudShellPersistenceOptions
+        {
+            Provider = "Sqlite",
+            ConnectionString = $"Data Source={resourceStore}"
+        },
+        new BuiltInIdentityPersistenceOptions
+        {
+            Provider = "Sqlite",
+            ConnectionString = $"Data Source={identityStore}"
+        });
+
+        return services.BuildServiceProvider();
+    }
+
     private static TraceSpan CreateSpan(
         string traceId,
         string spanId,
@@ -243,6 +321,21 @@ public sealed class PersistenceDatabaseInitializationTests
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["http.route"] = "GET /alive"
+            });
+
+    private static UsageSample CreateUsageSample(
+        string name,
+        double value,
+        DateTimeOffset timestamp) =>
+        new(
+            name,
+            "application:test-api",
+            value,
+            timestamp,
+            "%",
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [UsageAttributeNames.Source] = UsageAttributeNames.SourceMonitoring
             });
 
     [Fact]

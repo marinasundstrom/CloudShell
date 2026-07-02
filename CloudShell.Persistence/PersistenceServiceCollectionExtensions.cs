@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Usage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -50,6 +51,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddSingleton<EfCoreResourceHealthStore>();
         services.AddSingleton<EfCoreTelemetryTraceStore>();
         services.AddSingleton<EfCoreTelemetryMetricStore>();
+        services.AddSingleton<EfCoreUsageStore>();
         services.TryAddSingleton<IResourceEventStore, EfCoreResourceEventStore>();
         services.TryAddSingleton<IResourceEventSink>(
             serviceProvider => serviceProvider.GetRequiredService<IResourceEventStore>());
