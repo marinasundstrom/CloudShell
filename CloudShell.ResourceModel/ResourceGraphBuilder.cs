@@ -224,6 +224,12 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
         return Self;
     }
 
+    protected TBuilder RemoveAttribute(ResourceAttributeId attributeId)
+    {
+        _attributes.Remove(attributeId);
+        return Self;
+    }
+
     protected TBuilder AddDependency(ResourceReference reference)
     {
         ArgumentNullException.ThrowIfNull(reference);
@@ -370,6 +376,15 @@ public class ResourceGraphBuilder(
         for (var index = 0; index < _resources.Count; index++)
         {
             definitions.Add(_resources[index].Build());
+        }
+
+        var duplicate = definitions
+            .GroupBy(resource => resource.EffectiveResourceId, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicate is not null)
+        {
+            throw new InvalidOperationException(
+                $"Resource '{duplicate.Key}' is already defined in the graph.");
         }
 
         return new ResourceDefinitionGraph(definitions);

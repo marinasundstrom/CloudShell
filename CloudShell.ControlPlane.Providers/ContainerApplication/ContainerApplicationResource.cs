@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.ResourceManager;
 using ResourceOrchestratorSessionAffinityMode = CloudShell.Abstractions.ResourceManager.ResourceOrchestratorSessionAffinityMode;
 using ResourceOrchestratorSessionAffinityPolicy = CloudShell.Abstractions.ResourceManager.ResourceOrchestratorSessionAffinityPolicy;
 
@@ -15,6 +16,17 @@ public sealed class ContainerApplicationResource(
     public string? Registry =>
         Resource.Attributes.GetString(
             ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry);
+
+    public string? BuildContext =>
+        Resource.Attributes.GetString(
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerBuildContext);
+
+    public string? Dockerfile =>
+        Resource.Attributes.GetString(
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerDockerfile);
+
+    public string? ProjectPath =>
+        Resource.Attributes.GetString(ResourceAttributeId.Create(ResourceAttributeNames.ProjectPath));
 
     public int Replicas =>
         int.TryParse(

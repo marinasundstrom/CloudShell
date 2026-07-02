@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added a reusable Resource Model containerization decorator path, enabled
+  JavaScript app resources to project as Dockerfile-backed container apps with
+  replica scaling, and split that flow into a dedicated JavaScript container
+  app sample.
 - Updated the JavaScript app and TypeScript app-host samples to keep
   Configuration Store resource endpoints as service base URLs while passing
   canonical `/api/configuration/stores/{resource-id}/entries` URLs to the
