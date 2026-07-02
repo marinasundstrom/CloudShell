@@ -75,6 +75,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated container app Deployment status to fall back to Resource Manager
   resource state when deployment records and deployment projection attributes
   are not available.
+- Fixed container app Deployment materialized/projected replica count parsing
+  so a projected value of zero remains zero instead of being clamped like a
+  requested replica count.
 
 ### 2026-07-01
 

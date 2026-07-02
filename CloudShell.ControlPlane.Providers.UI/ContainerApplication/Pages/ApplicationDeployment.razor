@@ -371,10 +371,17 @@ else
 
         return ActiveDeployment?.ReplicaGroup?.MaterializedReplicas ??
             LatestDeployment?.ReplicaGroup?.MaterializedReplicas ??
-            TryGetReplicaCount(Resource, ResourceAttributeNames.DeploymentMaterializedReplicas) ??
-            TryGetReplicaCount(Resource, ResourceAttributeNames.DeploymentProjectedReplicas) ??
+            TryGetReplicaCount(Resource, ResourceAttributeNames.DeploymentMaterializedReplicas, 0) ??
+            TryGetReplicaCount(Resource, ResourceAttributeNames.DeploymentProjectedReplicas, 0) ??
             0;
     }
+
+    private static int? TryGetReplicaCount(Resource? resource, string attributeName, int minimumCount) =>
+        resource is not null &&
+        resource.ResourceAttributes.TryGetValue(attributeName, out var value) &&
+        int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var replicas)
+            ? Math.Max(minimumCount, replicas)
+            : null;
 
     private static bool IsReplicaModeEnabled(Resource resource) =>
         string.Equals(
