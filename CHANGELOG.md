@@ -99,6 +99,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The CloudShell CLI now supports `ui open` to open an explicit UI URL, or
   best-effort open the recorded local host URL when the Control Plane host also
   serves the UI.
+- Added `application.javascript-app` as a first-class JavaScript/Node.js
+  application resource type with provider registration, builder support,
+  Resource Manager projection, UI contribution metadata, documentation, and a
+  sample showing a JavaScript app consuming a Configuration Store resource.
 - Resource references in templates now support a compact `resourceId` document
   shape for common dependency references while preserving the full reference
   model for advanced relationship and addressing cases.

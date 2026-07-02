@@ -77,6 +77,7 @@ public static class BuiltInResourceModelProviderServiceCollectionExtensions
         services
             .AddExecutableApplicationResourceType()
             .AddAspNetCoreProjectResourceType()
+            .AddJavaScriptAppResourceType()
             .AddContainerApplicationResourceType()
             .AddDockerHostResourceType()
             .AddDockerContainerResourceType()

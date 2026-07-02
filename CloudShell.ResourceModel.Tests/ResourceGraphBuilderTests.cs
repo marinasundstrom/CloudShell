@@ -1111,6 +1111,91 @@ public sealed class ResourceGraphBuilderTests
     }
 
     [Fact]
+    public async Task ResourceGraphBuilder_BuildsJavaScriptAppDefinitions()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddNetworkResourceType();
+        services.AddConfigurationStoreResourceType();
+        services.AddJavaScriptAppResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var graph = new ResourceGraphBuilder();
+        var settings = graph
+            .AddConfigurationStore("settings")
+            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/entries");
+
+        graph
+            .AddJavaScriptApp("frontend", "src/frontend")
+            .WithPackageManager("pnpm")
+            .WithScript("dev")
+            .WithArguments("-- --host 127.0.0.1")
+            .WithServiceDiscovery()
+            .WithHttpEndpoint(
+                port: 5173,
+                targetPort: 5173,
+                host: "localhost")
+            .WithEnvironmentVariable("NODE_ENV", "development")
+            .WithReference(settings)
+            .WithHttpLivenessCheck("/alive", endpointName: "http");
+
+        var template = graph.BuildTemplate("javascript-app", environmentId: "local");
+
+        var app = Assert.Single(template.Resources, resource =>
+            resource.TypeId == JavaScriptAppResourceTypeProvider.ResourceTypeId);
+        var hostNetwork = Assert.Single(template.Resources, resource =>
+            resource.EffectiveResourceId == NetworkResourceDefinitionBuilderExtensions.DefaultNetworkResourceId);
+        Assert.Equal("application.javascript-app:frontend", app.EffectiveResourceId);
+        Assert.Equal(JavaScriptAppResourceTypeProvider.ProviderId, app.ProviderId);
+        Assert.Equal("src/frontend", app.ResourceAttributeValues[
+            JavaScriptAppResourceTypeProvider.Attributes.ProjectPath].StringValue);
+        Assert.Equal("node", app.ResourceAttributeValues[
+            JavaScriptAppResourceTypeProvider.Attributes.Engine].StringValue);
+        Assert.Equal("pnpm", app.ResourceAttributeValues[
+            JavaScriptAppResourceTypeProvider.Attributes.PackageManager].StringValue);
+        Assert.Equal("dev", app.ResourceAttributeValues[
+            JavaScriptAppResourceTypeProvider.Attributes.Script].StringValue);
+        Assert.Equal("-- --host 127.0.0.1", app.ResourceAttributeValues[
+            JavaScriptAppResourceTypeProvider.Attributes.Arguments].StringValue);
+        Assert.Equal("frontend", app.ResourceAttributeValues[
+            JavaScriptAppResourceTypeProvider.Attributes.ServiceDiscoveryName].StringValue);
+
+        var endpoint = Assert.Single(app.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+            JavaScriptAppResourceTypeProvider.Attributes.EndpointRequests) ?? []);
+        Assert.Equal("http", endpoint.Name);
+        Assert.Equal(5173, endpoint.Port);
+        Assert.Equal(5173, endpoint.TargetPort);
+        Assert.NotNull(endpoint.Network);
+        Assert.True(endpoint.Network!.TryGetResourceId(out var endpointNetworkId));
+        Assert.Equal(hostNetwork.EffectiveResourceId, endpointNetworkId);
+
+        var environmentVariables = app.ResourceAttributeValues
+            .GetObject<Dictionary<string, JavaScriptAppEnvironmentVariableValue>>(
+                JavaScriptAppResourceTypeProvider.Attributes.EnvironmentVariables) ?? [];
+        Assert.Equal("development", environmentVariables["NODE_ENV"].Value);
+        var reference = Assert.Single(app.ResourceAttributeValues.GetObject<ResourceReference[]>(
+            JavaScriptAppResourceTypeProvider.Attributes.References) ?? []);
+        Assert.Equal(ResourceReferenceRelationships.Reference, reference.Relationship);
+        Assert.Equal(settings.EffectiveResourceId, reference.Value);
+        Assert.Equal(ConfigurationStoreResourceTypeProvider.ResourceTypeId, reference.TypeId);
+        Assert.NotNull(app.GetCapability<ResourceHealthCheckDefinitionSet>(
+            ResourceHealthCheckCapabilityIds.HealthChecks));
+        Assert.NotNull(app.GetCapability<ResourceLogSourceDefinitionSet>(
+            ResourceLogSourceCapabilityIds.LogSources));
+
+        var result = await serviceProvider
+            .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
+            .ApplyTemplateAsync(
+                template,
+                new ResourceGraphCommitContext(
+                    PrincipalId: "developer",
+                    Timestamp: new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(result.IsCommitted);
+    }
+
+    [Fact]
     public async Task ResourceGraphBuilder_BuildsIdentityProvisioningDefinitions()
     {
         var services = new ServiceCollection();

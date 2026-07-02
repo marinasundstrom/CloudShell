@@ -41,6 +41,10 @@
   <Folder Name="/samples/HostVirtualNetwork/">
     <Project Path="samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj" />
   </Folder>
+  <Folder Name="/samples/JavaScriptApp/" />
+  <Folder Name="/samples/JavaScriptApp/Host/">
+    <Project Path="samples/JavaScriptApp/Host/CloudShell.JavaScriptAppHost.csproj" />
+  </Folder>
   <Folder Name="/samples/LoadBalancer/">
     <Project Path="samples/LoadBalancer/CloudShell.LoadBalancer.csproj" />
   </Folder>

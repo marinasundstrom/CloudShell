@@ -20,6 +20,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
         [
             "resource-ui.application.executable",
             "resource-ui.application.aspnet-core-project",
+            "resource-ui.application.javascript-app",
             "resource-ui.application.sql-server",
             "resource-ui.application.container-app"
         ],
@@ -43,6 +44,27 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 "Inspect ASP.NET Core projects declared through Resource Manager.",
                 "web",
                 21,
+                probeOptions: new ResourceTypeProbeOptions(
+                    [
+                        new ResourceHealthCheck(
+                            "/healthz",
+                            EndpointName: "http",
+                            Name: "health",
+                            Source: ResourceProbeSource.ForHttp("/healthz", "http")),
+                        new ResourceHealthCheck(
+                            "/alive",
+                            ResourceProbeType.Liveness,
+                            "http",
+                            "liveness",
+                            Source: ResourceProbeSource.ForHttp("/alive", "http"))
+                    ]),
+                resourceClass: ResourceManagerResourceClass.Project)
+            .AddResourceType<SharedPages.RegisterApplicationResource>(
+                JavaScriptAppResourceTypeProvider.ResourceTypeId.ToString(),
+                "JavaScript app",
+                "Inspect JavaScript and Node.js applications declared through Resource Manager.",
+                "javascript",
+                22,
                 probeOptions: new ResourceTypeProbeOptions(
                     [
                         new ResourceHealthCheck(
@@ -168,6 +190,9 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourceEndpointDescriptor.Http())
             .AddResourceTypeEndpoint(
+                JavaScriptAppResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourceEndpointDescriptor.Http())
+            .AddResourceTypeEndpoint(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourceEndpointDescriptor.Http())
             .AddResourceTypeEndpoint(
@@ -185,6 +210,12 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 "Configuration",
                 20,
                 groupTitle: ResourceTabGroupTitles.General)
+            .AddResourceTab<SharedPages.ApplicationConfiguration>(
+                JavaScriptAppResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Configuration,
+                "Configuration",
+                20,
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<SharedPages.ApplicationEnvironment>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Environment,
@@ -193,6 +224,12 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 groupTitle: ResourceTabGroupTitles.Management)
             .AddResourceTab<SharedPages.ApplicationEnvironment>(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Environment,
+                "Environment",
+                25,
+                groupTitle: ResourceTabGroupTitles.Management)
+            .AddResourceTab<SharedPages.ApplicationEnvironment>(
+                JavaScriptAppResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Environment,
                 "Environment",
                 25,
@@ -205,6 +242,12 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 groupTitle: ResourceTabGroupTitles.Storage)
             .AddResourceTab<SharedPages.ApplicationStorage>(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Storage,
+                "Storage",
+                30,
+                groupTitle: ResourceTabGroupTitles.Storage)
+            .AddResourceTab<SharedPages.ApplicationStorage>(
+                JavaScriptAppResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
@@ -256,6 +299,12 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 10)
             .AddResourcePredefinedViewSection<SharedPages.ApplicationEndpointActions>(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Endpoints,
+                "application.exposure-actions",
+                "Application exposure",
+                10)
+            .AddResourcePredefinedViewSection<SharedPages.ApplicationEndpointActions>(
+                JavaScriptAppResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Endpoints,
                 "application.exposure-actions",
                 "Application exposure",

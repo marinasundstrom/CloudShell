@@ -11,6 +11,8 @@ Resource-type-specific guidance:
   `application.executable` command resources.
 - [ASP.NET Core applications](aspnet-core-applications.md) for
   `application.aspnet-core-project` project resources.
+- [JavaScript applications](javascript-applications.md) for
+  `application.javascript-app` Node.js-backed project resources.
 - [Container apps](container-apps.md) for `application.container-app` deployable
   container workloads.
 - [SQL Server resources](sql-server.md) for `application.sql-server`
@@ -39,9 +41,10 @@ like a managed service.
 
 Application resource authoring now flows through ResourceDefinition entries
 and the Resource graph. The current built-in providers expose builders such as
-`AddExecutableApplication(...)`, `AddAspNetCoreProject(...)`, and
-`AddContainerApplication(...)`, then map accepted resource intent to provider
-projection, actions, logs, health, endpoint, and runtime adapter contracts.
+`AddExecutableApplication(...)`, `AddAspNetCoreProject(...)`,
+`AddJavaScriptApp(...)`, and `AddContainerApplication(...)`, then map accepted
+resource intent to provider projection, actions, logs, health, endpoint, and
+runtime adapter contracts.
 The earlier application-definition provider package was part of the old
 provider model and has been removed from the active solution.
 
@@ -64,6 +67,7 @@ flowchart TB
     subgraph Providers["Application built-in providers"]
         Executable["application.executable"]
         AspNet["application.aspnet-core-project"]
+        JavaScript["application.javascript-app"]
         Container["application.container-app"]
         SqlServer["application.sql-server"]
     end
@@ -155,12 +159,12 @@ orchestrator controllers.
 Storage state is modeled separately from application resources. A volume
 resource owns the durable storage identity and provider-backed location, which
 can later be materialized, backed up, moved, or diagnosed by a storage
-provider. Executable, ASP.NET Core project, container app, and SQL Server
-resources only declare `ResourceVolumeMount` attachments to those volumes. For
-local process-backed resources, `FileSystem` volume mounts are materialized by
-linking the resolved volume source into the application target path before
-launch; relative target paths are resolved under the application working
-directory.
+provider. Executable, ASP.NET Core project, JavaScript app, container app, and
+SQL Server resources only declare `ResourceVolumeMount` attachments to those
+volumes. For local process-backed resources, `FileSystem` volume mounts are
+materialized by linking the resolved volume source into the application target
+path before launch; relative target paths are resolved under the application
+working directory.
 
 The goal is for any resource author to be able to implement a normal resource
 type when the runtime is backed by a local executable, an ad-hoc container, or
@@ -272,12 +276,14 @@ container-host CLI process as the workload identity.
 
 The application provider supports resource templates for
 `application.executable`, `application.aspnet-core-project`,
-`application.container-app`, and `application.sql-server` resources. Export
-writes a provider-owned configuration payload with the resource-type-specific
-configuration, such as:
+`application.javascript-app`, `application.container-app`, and
+`application.sql-server` resources. Export writes a provider-owned
+configuration payload with the resource-type-specific configuration, such as:
 
 - executable path, arguments, and working directory
 - project path, project application arguments, and ASP.NET Core hot reload mode
+- JavaScript app project path, Node.js engine selection, package manager,
+  development script, and application arguments
 - container image, registry, host binding, endpoints, and environment variables
 - SQL Server TDS endpoint, data-volume mount, and current provider image
   payload until the managed SQL Server model moves to version/edition settings
@@ -292,10 +298,11 @@ See [Resource templates](../resource-templates.md).
 ## Observability
 
 Application resources have Aspire-compatible observability metadata. By default,
-executable, ASP.NET Core project, and container app resources declare support
-for logs, traces, and metrics. When the resource starts, CloudShell adds
-OpenTelemetry environment variables before user-configured environment variables
-are applied, so explicit resource variables can override generated values.
+executable, ASP.NET Core project, JavaScript app, and container app resources
+declare support for logs, traces, and metrics. Process-backed runtime providers
+add OpenTelemetry environment variables before user-configured environment
+variables are applied, so explicit resource variables can override generated
+values.
 
 CloudShell emits:
 
