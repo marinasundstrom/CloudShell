@@ -1,4 +1,5 @@
 using System.Text.Json;
+using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.DependencyInjection;
@@ -996,6 +997,57 @@ public sealed class ResourceProviderDispatcherTests
         Assert.NotNull(apply);
         Assert.True(await apply.CanExecuteAsync());
         Assert.Equal(0, apply.PlanApply().RouteCount);
+    }
+
+    [Fact]
+    public async Task AddLoadBalancerResourceType_RejectsRoutesWithMissingEntrypoints()
+    {
+        var services = new ServiceCollection();
+        services.AddLoadBalancerResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "edge",
+            LoadBalancerResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [LoadBalancerResourceTypeProvider.Attributes.Provider] = "traefik",
+                [LoadBalancerResourceTypeProvider.Attributes.Entrypoints] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new LoadBalancerEntrypointValue(
+                            "web",
+                            ResourceEndpointProtocol.Http.ToString(),
+                            8080)
+                    }),
+                [LoadBalancerResourceTypeProvider.Attributes.Routes] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new LoadBalancerRouteValue(
+                            "api",
+                            "API",
+                            LoadBalancerRouteKind.Http.ToString(),
+                            "admin",
+                            new LoadBalancerRouteMatchValue("api.local", "/"),
+                            new LoadBalancerRouteTargetValue(
+                                ResourceReference.ReferenceResourceId("application:api"),
+                                "http"))
+                    })
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphValidationPipeline>()
+            .ValidateAsync(
+                new ResourceDefinitionGraph([definition]),
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.True(validation.HasErrors);
+        Assert.Contains(validation.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid &&
+            diagnostic.Target == definition.EffectiveResourceId &&
+            diagnostic.Message.Contains(
+                "route 'api' references missing entrypoint 'admin'",
+                StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

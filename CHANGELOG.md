@@ -47,6 +47,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated local Docker container app routing reconciliation to choose the
   ingress endpoint from service-routing binding definitions when present,
   while keeping the first HTTP endpoint as the direct-runtime fallback.
+- Added Resource Model graph validation for load-balancer routes that reference
+  undeclared entrypoints, surfacing the error before provider execution.
 
 ### 2026-07-01
 

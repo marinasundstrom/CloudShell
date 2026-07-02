@@ -14,6 +14,7 @@ public sealed class LoadBalancerGraphValidator : IResourceDefinitionGraphValidat
             resource.Type.TypeId == LoadBalancerResourceTypeProvider.ResourceTypeId))
         {
             ValidateReferences(resource, context, diagnostics);
+            ValidateRoutes(resource, diagnostics);
         }
 
         return ValueTask.FromResult(
@@ -59,6 +60,37 @@ public sealed class LoadBalancerGraphValidator : IResourceDefinitionGraphValidat
                     $"Load balancer '{resource.EffectiveResourceId}' cannot use resource type '{target.Type.TypeId}' as a backend target.",
                     resource.EffectiveResourceId));
             }
+        }
+    }
+
+    private static void ValidateRoutes(
+        Resource resource,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        var entrypoints = resource.Attributes
+            .GetObject<LoadBalancerEntrypointValue[]>(
+                LoadBalancerResourceTypeProvider.Attributes.Entrypoints) ?? [];
+        var routes = resource.Attributes
+            .GetObject<LoadBalancerRouteValue[]>(
+                LoadBalancerResourceTypeProvider.Attributes.Routes) ?? [];
+        var entrypointNames = entrypoints
+            .Select(entrypoint => entrypoint.Name.Trim())
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var route in routes)
+        {
+            var entrypointName = route.EntrypointName.Trim();
+            if (string.IsNullOrWhiteSpace(entrypointName) ||
+                entrypointNames.Contains(entrypointName))
+            {
+                continue;
+            }
+
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid,
+                $"Load balancer '{resource.EffectiveResourceId}' route '{route.Id}' references missing entrypoint '{entrypointName}'.",
+                resource.EffectiveResourceId));
         }
     }
 
