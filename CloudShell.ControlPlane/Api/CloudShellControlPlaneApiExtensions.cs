@@ -4,6 +4,7 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Shell;
+using CloudShell.Abstractions.Usage;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -211,6 +212,17 @@ public static class CloudShellControlPlaneApiExtensions
 
         api.MapPost("/metrics/ingest", IngestMetricPoints)
             .WithName("CloudShellControlPlane_IngestMetricPoints")
+            .AllowAnonymous()
+            .ExcludeFromDescription();
+
+        api.MapGet("/usage", ListUsageSamples)
+            .WithName("CloudShellControlPlane_ListUsageSamples");
+
+        api.MapGet("/usage/statistics", ListUsageStatistics)
+            .WithName("CloudShellControlPlane_ListUsageStatistics");
+
+        api.MapPost("/usage/record", RecordUsageSamples)
+            .WithName("CloudShellControlPlane_RecordUsageSamples")
             .AllowAnonymous()
             .ExcludeFromDescription();
 
@@ -1271,6 +1283,67 @@ public static class CloudShellControlPlaneApiExtensions
         return Results.Accepted();
     }
 
+    private static async Task<IResult> ListUsageSamples(
+        string? resourceId,
+        string? usageName,
+        int? maxSamples,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        IUsageManager usage,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Results.Ok(await usage.ListUsageSamplesAsync(
+                new UsageQuery(
+                    resourceId,
+                    usageName,
+                    Math.Clamp(maxSamples ?? 200, 1, 1000),
+                    from,
+                    to),
+                cancellationToken));
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> ListUsageStatistics(
+        string? resourceId,
+        string? usageName,
+        DateTimeOffset? from,
+        DateTimeOffset? to,
+        int? maxStatistics,
+        IUsageManager usage,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Results.Ok(await usage.ListUsageStatisticsAsync(
+                new UsageStatisticsQuery(
+                    resourceId,
+                    usageName,
+                    from,
+                    to,
+                    Math.Clamp(maxStatistics ?? 200, 1, 1000)),
+                cancellationToken));
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> RecordUsageSamples(
+        UsageRecordRequest request,
+        IUsageManager usage,
+        CancellationToken cancellationToken)
+    {
+        await usage.RecordUsageSamplesAsync(request.Samples, cancellationToken);
+        return Results.Accepted();
+    }
+
     private static async Task<IResult> ListResourceHealth(
         IResourceHealthManager health,
         CancellationToken cancellationToken) =>
@@ -1661,4 +1734,6 @@ public static class CloudShellControlPlaneApiExtensions
     private sealed record TraceIngestRequest(IReadOnlyList<TraceSpan> Spans);
 
     private sealed record MetricIngestRequest(IReadOnlyList<MetricPoint> Points);
+
+    private sealed record UsageRecordRequest(IReadOnlyList<UsageSample> Samples);
 }

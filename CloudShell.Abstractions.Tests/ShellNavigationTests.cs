@@ -255,6 +255,28 @@ public sealed class ShellNavigationTests
     }
 
     [Fact]
+    public async Task UsageExtension_RegistersMainMenuItemAsCoreShellNavigation()
+    {
+        var catalog = CreateCoreShellCatalog(new UsageExtension());
+        ICoreShellRouteService routes = catalog;
+
+        Assert.Equal(
+            "/usage",
+            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(UsageShellIds.UsagePage))).Href);
+        Assert.Equal(
+            UsageAuthorization.UsageReadPermissions,
+            (await catalog.GetPageAsync(UsageShellIds.UsagePage))?.Authorization.AnyPermissions);
+
+        var menu = await catalog.GetMenuAsync(ShellIds.MainMenu);
+        Assert.NotNull(menu);
+        var workspaceGroup = Assert.Single(menu.Groups);
+        var item = Assert.Single(workspaceGroup.Items);
+        Assert.Equal(UsageShellIds.UsageMenuItem, item.Id);
+        Assert.Equal(UsageShellIds.UsagePage.Value, item.Target.Value);
+        Assert.Equal(UsageAuthorization.UsageReadPermissions, item.Authorization.AnyPermissions);
+    }
+
+    [Fact]
     public async Task ResourceManagerExtension_RegistersStaticShellPagesAsCoreShellPages()
     {
         var catalog = CreateCoreShellCatalog(

@@ -4,8 +4,10 @@ using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Abstractions.Usage;
 using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Logs;
+using CloudShell.ControlPlane.Observability;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Deployment;
 using CloudShell.ControlPlane.ResourceManager.Health;
@@ -15,6 +17,7 @@ using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.ControlPlane.ResourceManager.Recovery;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
+using CloudShell.ControlPlane.Usage;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -3476,6 +3479,9 @@ public sealed class InProcessControlPlaneResourceStateTests
         var metricStore = new TestMetricStore(
             CreateMetricPoint("visible", "visible"),
             CreateMetricPoint("hidden", "hidden"));
+        var usageStore = new TestUsageStore(
+            CreateUsageSample("resource.cpu.seconds", "visible"),
+            CreateUsageSample("resource.cpu.seconds", "hidden"));
         var controlPlane = CreateControlPlane(
             [
                 CreateResource("visible", ResourceState.Running),
@@ -3485,20 +3491,65 @@ public sealed class InProcessControlPlaneResourceStateTests
                 [
                     CloudShellPermissions.Observability.Logs.Read,
                     CloudShellPermissions.Observability.Traces.Read,
-                    CloudShellPermissions.Observability.Metrics.Read
+                    CloudShellPermissions.Observability.Metrics.Read,
+                    CloudShellPermissions.Usage.Read
                 ],
                 ("visible", CloudShellPermissions.Resources.Read)),
             logStore: logStore,
             traceStore: traceStore,
-            metricStore: metricStore);
+            metricStore: metricStore,
+            usageStore: usageStore);
 
         var logSources = await controlPlane.ListLogSourcesAsync();
         var spans = await controlPlane.ListTraceSpansAsync();
         var points = await controlPlane.ListMetricPointsAsync();
+        var usageSamples = await controlPlane.ListUsageSamplesAsync();
+        var usageStatistics = await controlPlane.ListUsageStatisticsAsync();
 
         Assert.Equal("visible", Assert.Single(logSources).ResourceId);
         Assert.Equal("visible", Assert.Single(spans).ResourceId);
         Assert.Equal("visible", Assert.Single(points).ResourceId);
+        Assert.Equal("visible", Assert.Single(usageSamples).ResourceId);
+        Assert.Equal("visible", Assert.Single(usageStatistics).ResourceId);
+    }
+
+    [Fact]
+    public async Task UsageQueries_ReturnRecordedStatisticsForReadableResources()
+    {
+        var usageStore = new InMemoryUsageStore();
+        var now = DateTimeOffset.UtcNow;
+        usageStore.AddSamples(
+            [
+                new UsageSample("resource.cpu.seconds", "visible", 1, now.AddMinutes(-10), "seconds"),
+                new UsageSample("resource.cpu.seconds", "visible", 3, now, "seconds"),
+                new UsageSample("resource.cpu.seconds", "hidden", 100, now, "seconds")
+            ]);
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource("visible", ResourceState.Running),
+                CreateResource("hidden", ResourceState.Running)
+            ],
+            authorization: new PermissionAndResourceAuthorizationService(
+                [CloudShellPermissions.Usage.Read],
+                ("visible", CloudShellPermissions.Resources.Read)),
+            usageStore: usageStore);
+
+        var samples = await controlPlane.ListUsageSamplesAsync(
+            new UsageQuery(ResourceId: "visible", UsageName: "resource.cpu.seconds", MaxSamples: 10));
+        var statistics = await controlPlane.ListUsageStatisticsAsync(
+            new UsageStatisticsQuery(ResourceId: "visible", UsageName: "resource.cpu.seconds"));
+
+        Assert.Equal(2, samples.Count);
+        var statistic = Assert.Single(statistics);
+        Assert.Equal("visible", statistic.ResourceId);
+        Assert.Equal("resource.cpu.seconds", statistic.Name);
+        Assert.Equal("seconds", statistic.Unit);
+        Assert.Equal(2, statistic.Count);
+        Assert.Equal(4, statistic.Sum);
+        Assert.Equal(2, statistic.Average);
+        Assert.Equal(1, statistic.Min);
+        Assert.Equal(3, statistic.Max);
+        Assert.Equal(3, statistic.LatestValue);
     }
 
     [Fact]
@@ -3632,6 +3683,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         ILogStore? logStore = null,
         ITraceStore? traceStore = null,
         IMetricStore? metricStore = null,
+        IUsageStore? usageStore = null,
         IReadOnlyList<IResourceProbeEvaluator>? probeEvaluators = null,
         IResourceRecoveryStore? resourceRecoveryStore = null,
         IResourceOrchestratorDeploymentStore? deploymentStore = null)
@@ -3650,6 +3702,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             logStore,
             traceStore,
             metricStore,
+            usageStore,
             resourceRecoveryStore,
             authorization,
             httpContextAccessor,
@@ -3676,6 +3729,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         ILogStore? logStore = null,
         ITraceStore? traceStore = null,
         IMetricStore? metricStore = null,
+        IUsageStore? usageStore = null,
         IResourceRecoveryStore? resourceRecoveryStore = null,
         ICloudShellAuthorizationService? authorization = null,
         IHttpContextAccessor? httpContextAccessor = null,
@@ -3763,6 +3817,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             logStore ?? new EmptyLogStore(),
             traceStore ?? new EmptyTraceStore(),
             metricStore ?? new EmptyMetricStore(),
+            usageStore ?? new EmptyUsageStore(),
             new InMemoryResourceHealthStore(Options.Create(new ResourceHealthOptions())),
             resourceRecoveryStore ?? new InMemoryResourceRecoveryStore(),
             new ResourceHealthProbeService(
@@ -3880,6 +3935,13 @@ public sealed class InProcessControlPlaneResourceStateTests
             name,
             resourceId,
             $"{resourceId}-service",
+            1,
+            DateTimeOffset.UtcNow);
+
+    private static UsageSample CreateUsageSample(string name, string resourceId) =>
+        new(
+            name,
+            resourceId,
             1,
             DateTimeOffset.UtcNow);
 
@@ -4840,6 +4902,27 @@ public sealed class InProcessControlPlaneResourceStateTests
         }
     }
 
+    private sealed class EmptyUsageStore : IUsageStore
+    {
+        public IReadOnlyList<UsageSample> GetSamples(
+            string? resourceId = null,
+            string? usageName = null,
+            int maxSamples = 200,
+            DateTimeOffset? from = null,
+            DateTimeOffset? to = null) => [];
+
+        public IReadOnlyList<UsageStatistic> GetStatistics(
+            string? resourceId = null,
+            string? usageName = null,
+            DateTimeOffset? from = null,
+            DateTimeOffset? to = null,
+            int maxStatistics = 200) => [];
+
+        public void AddSamples(IEnumerable<UsageSample> samples)
+        {
+        }
+    }
+
     private sealed class TestLogStore(params LogSource[] sources) : ILogStore
     {
         public IReadOnlyList<ILogProvider> Providers => [];
@@ -4907,6 +4990,64 @@ public sealed class InProcessControlPlaneResourceStateTests
         public void AddPoints(IEnumerable<MetricPoint> points)
         {
         }
+    }
+
+    private sealed class TestUsageStore(params UsageSample[] samples) : IUsageStore
+    {
+        public IReadOnlyList<UsageSample> GetSamples(
+            string? resourceId = null,
+            string? usageName = null,
+            int maxSamples = 200,
+            DateTimeOffset? from = null,
+            DateTimeOffset? to = null) =>
+            Query(resourceId, usageName, from, to)
+                .Take(maxSamples)
+                .ToArray();
+
+        public IReadOnlyList<UsageStatistic> GetStatistics(
+            string? resourceId = null,
+            string? usageName = null,
+            DateTimeOffset? from = null,
+            DateTimeOffset? to = null,
+            int maxStatistics = 200) =>
+            Query(resourceId, usageName, from, to)
+                .GroupBy(sample => new { sample.ResourceId, sample.Name, sample.Unit })
+                .Select(group =>
+                {
+                    var ordered = group.OrderBy(sample => sample.Timestamp).ToArray();
+                    var values = ordered.Select(sample => sample.Value).ToArray();
+                    return new UsageStatistic(
+                        group.Key.ResourceId,
+                        group.Key.Name,
+                        group.Key.Unit,
+                        ordered.Length,
+                        values.Sum(),
+                        values.Average(),
+                        values.Min(),
+                        values.Max(),
+                        ordered[^1].Value,
+                        ordered[0].Timestamp,
+                        ordered[^1].Timestamp);
+                })
+                .Take(maxStatistics)
+                .ToArray();
+
+        public void AddSamples(IEnumerable<UsageSample> samples)
+        {
+        }
+
+        private IEnumerable<UsageSample> Query(
+            string? resourceId,
+            string? usageName,
+            DateTimeOffset? from,
+            DateTimeOffset? to) =>
+            samples
+                .Where(sample => string.IsNullOrWhiteSpace(resourceId) ||
+                    string.Equals(sample.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase))
+                .Where(sample => string.IsNullOrWhiteSpace(usageName) ||
+                    string.Equals(sample.Name, usageName, StringComparison.OrdinalIgnoreCase))
+                .Where(sample => from is null || sample.Timestamp >= from)
+                .Where(sample => to is null || sample.Timestamp <= to);
     }
 
     private sealed class TestHttpClientFactory : IHttpClientFactory

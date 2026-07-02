@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Abstractions.Usage;
 using System.Text.Json;
 using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
 
@@ -15,6 +16,7 @@ public interface IControlPlane :
     ILogManager,
     ITraceManager,
     IMetricManager,
+    IUsageManager,
     IResourceHealthManager,
     IResourceRecoveryManager,
     IResourceMonitoringManager;
@@ -218,6 +220,21 @@ public interface IMetricManager
 
     Task IngestMetricPointsAsync(
         IEnumerable<MetricPoint> points,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IUsageManager
+{
+    Task<IReadOnlyList<UsageSample>> ListUsageSamplesAsync(
+        UsageQuery? query = null,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<UsageStatistic>> ListUsageStatisticsAsync(
+        UsageStatisticsQuery? query = null,
+        CancellationToken cancellationToken = default);
+
+    Task RecordUsageSamplesAsync(
+        IEnumerable<UsageSample> samples,
         CancellationToken cancellationToken = default);
 }
 

@@ -5,6 +5,7 @@ using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Shell;
+using CloudShell.Abstractions.Usage;
 using CloudShell.ControlPlane;
 using CloudShell.ControlPlane.Api;
 using CloudShell.ControlPlane.Authentication;
@@ -19,6 +20,7 @@ using CloudShell.ControlPlane.ResourceManager.Orchestration;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.ControlPlane.ResourceManager.Recovery;
 using CloudShell.ControlPlane.Shell;
+using CloudShell.ControlPlane.Usage;
 using CloudShell.Persistence;
 using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.AspNetCore.Builder;
@@ -78,6 +80,7 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             ServiceDescriptor.Scoped<ILogProvider, ResourceEventLogProvider>());
         builder.Services.AddSingleton<InMemoryTraceStore>();
         builder.Services.AddSingleton<InMemoryMetricStore>();
+        builder.Services.AddSingleton<InMemoryUsageStore>();
         builder.Services.AddSingleton<ITraceStore>(serviceProvider =>
         {
             var options = serviceProvider.GetRequiredService<IOptions<TelemetryOptions>>().Value;
@@ -98,6 +101,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
                 ? serviceProvider.GetRequiredService<EfCoreTelemetryMetricStore>()
                 : serviceProvider.GetRequiredService<InMemoryMetricStore>();
         });
+        builder.Services.TryAddSingleton<IUsageStore>(
+            serviceProvider => serviceProvider.GetRequiredService<InMemoryUsageStore>());
         builder.Services.TryAddSingleton<ResourceHealthRefreshCoordinator>();
         builder.Services.TryAddSingleton<InMemoryResourceHealthStore>();
         builder.Services.TryAddSingleton<IResourceRecoveryStore, InMemoryResourceRecoveryStore>();
@@ -190,6 +195,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddScoped<ITraceManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         builder.Services.AddScoped<IMetricManager>(
+            serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
+        builder.Services.AddScoped<IUsageManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         builder.Services.AddScoped<IResourceHealthManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());

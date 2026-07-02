@@ -1,0 +1,445 @@
+@page "/usage"
+@rendermode InteractiveServer
+@using System.Globalization
+@inject ICloudShellAuthorizationService Authorization
+@inject IUsageManager UsageManager
+@inject IResourceManager ResourceManager
+@inject ResourceManagerDisplaySettings DisplaySettings
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> L
+
+@{
+    var panels = BuildUsagePanels();
+    var resourceOptions = GetResourceOptions();
+    var usageNameOptions = GetUsageNameOptions();
+}
+
+<PageTitle>@L["Usage"]</PageTitle>
+
+@if (!Authorization.CanReadUsage())
+{
+    <EmptyState Title="@L["Access denied"].Value"
+                Message="@L["Your identity does not have permission to view usage statistics."].Value" />
+}
+else
+{
+    <PageHeading Eyebrow="@L["Usage"].Value"
+                 Title="@L["Usage"].Value"
+                 Description="@L["Review recorded resource usage samples, aggregate statistics, and projected trends."].Value">
+        <Actions>
+            <FluentButton Appearance="Appearance.Neutral" OnClick="ShowAllUsage">
+                @L["All usage"]
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Neutral"
+                          IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          OnClick="RefreshUsageAsync">
+                @L["Refresh"]
+            </FluentButton>
+        </Actions>
+    </PageHeading>
+
+    <section class="trace-workspace">
+        <div class="log-viewer panel">
+            <TelemetryExplorerHeader ShowSummary="true"
+                                     Title="@L["Usage statistics"].Value"
+                                     Description="@L["Recorded samples are retained by the active Control Plane store."].Value">
+                <Actions>
+                    <label class="trace-source-filter" for="usage-resource-filter">
+                        <span>@L["Resource"]</span>
+                        <select id="usage-resource-filter"
+                                class="trace-source-select"
+                                value="@(SelectedResourceId ?? string.Empty)"
+                                @onchange="SelectResource">
+                            <option value="">@L["All resources"]</option>
+                            @foreach (var resource in resourceOptions)
+                            {
+                                <option value="@resource.ResourceId">@resource.Label</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="trace-source-filter" for="usage-name-filter">
+                        <span>@L["Usage metric"]</span>
+                        <select id="usage-name-filter"
+                                class="trace-source-select"
+                                value="@(SelectedUsageName ?? string.Empty)"
+                                @onchange="SelectUsageName">
+                            <option value="">@L["All usage metrics"]</option>
+                            @foreach (var usageName in usageNameOptions)
+                            {
+                                <option value="@usageName">@usageName</option>
+                            }
+                        </select>
+                    </label>
+                </Actions>
+            </TelemetryExplorerHeader>
+
+            @if (IsLoading)
+            {
+                <EmptyState Title="@L["Loading usage"].Value"
+                            Message="@L["Fetching recorded usage samples and statistics."].Value"
+                            Compact="true" />
+            }
+            else if (Statistics.Count == 0 && RecentSamples.Count == 0)
+            {
+                <EmptyState Title="@L["No usage recorded"].Value"
+                            Message="@L["Record usage samples through the Control Plane API to populate this view."].Value"
+                            Compact="true" />
+            }
+            else
+            {
+                <SummaryMetricGrid AriaLabel="@L["Usage summary"].Value">
+                    <SummaryMetricCard Title="@L["Usage samples"].Value"
+                                       Value="@RecentSamples.Count"
+                                       Summary="@L["retained in current filter"].Value"
+                                       Compact="true" />
+                    <SummaryMetricCard Title="@L["Usage metrics"].Value"
+                                       Value="@Statistics.Select(statistic => statistic.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count()"
+                                       Summary="@L["distinct names"].Value"
+                                       Compact="true" />
+                    <SummaryMetricCard Title="@L["Resources"].Value"
+                                       Value="@Statistics.Select(statistic => statistic.ResourceId).Distinct(StringComparer.OrdinalIgnoreCase).Count()"
+                                       Summary="@L["with usage statistics"].Value"
+                                       Compact="true" />
+                    <SummaryMetricCard Title="@L["Projected trends"].Value"
+                                       Value="@panels.Count(panel => panel.HasProjection)"
+                                       Summary="@L["series with enough samples"].Value"
+                                       Compact="true" />
+                </SummaryMetricGrid>
+
+                @if (panels.Count > 0)
+                {
+                    <div class="metric-panel-grid" aria-label="@L["Usage trend panels"].Value">
+                        @foreach (var panel in panels)
+                        {
+                            <section class="metric-panel line">
+                                <header>
+                                    <div>
+                                        <h3>@panel.ResourceLabel</h3>
+                                        <p>@panel.Name</p>
+                                    </div>
+                                    <span>@(panel.Unit ?? L["unitless"].Value)</span>
+                                </header>
+
+                                <CloudShellLineChart Values="@panel.ChartValues"
+                                                     AriaLabel="@L["{0} usage trend", panel.Name].Value" />
+                                <div class="metric-panel-stats">
+                                    <span>@L["actual latest {0}", FormatUsageValue(panel.LatestValue, panel.Unit)]</span>
+                                    <span>@L["sum {0}", FormatUsageValue(panel.Sum, panel.Unit)]</span>
+                                    <span>@L["avg {0}", FormatUsageValue(panel.Average, panel.Unit)]</span>
+                                    @if (panel.HasProjection)
+                                    {
+                                        <span>@L["projected +1h {0}", FormatUsageValue(panel.ProjectedOneHour!.Value, panel.Unit)]</span>
+                                        <span>@L["projected +24h {0}", FormatUsageValue(panel.ProjectedDay!.Value, panel.Unit)]</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@L["projection needs 2 samples"]</span>
+                                    }
+                                </div>
+                            </section>
+                        }
+                    </div>
+                }
+
+                <div class="metric-point-table-shell">
+                    <table class="metric-point-table" aria-label="@L["Usage statistics"]">
+                        <thead>
+                            <tr>
+                                <th scope="col">@L["Resource"]</th>
+                                <th scope="col">@L["Usage metric"]</th>
+                                <th scope="col">@L["Latest"]</th>
+                                <th scope="col">@L["Sum"]</th>
+                                <th scope="col">@L["Average"]</th>
+                                <th scope="col">@L["Samples"]</th>
+                                <th scope="col">@L["Window"]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var statistic in Statistics)
+                            {
+                                <tr>
+                                    <td>@GetResourceLabel(statistic.ResourceId)</td>
+                                    <td>@statistic.Name</td>
+                                    <td>@FormatUsageValue(statistic.LatestValue, statistic.Unit)</td>
+                                    <td>@FormatUsageValue(statistic.Sum, statistic.Unit)</td>
+                                    <td>@FormatUsageValue(statistic.Average, statistic.Unit)</td>
+                                    <td>@statistic.Count</td>
+                                    <td>@FormatWindow(statistic.FirstTimestamp, statistic.LastTimestamp)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (RecentSamples.Count > 0)
+                {
+                    <div class="metric-point-table-shell usage-sample-table">
+                        <table class="metric-point-table" aria-label="@L["Recent usage samples"]">
+                            <thead>
+                                <tr>
+                                    <th class="metric-point-time" scope="col">@L["Time"]</th>
+                                    <th scope="col">@L["Resource"]</th>
+                                    <th scope="col">@L["Usage metric"]</th>
+                                    <th class="metric-point-value" scope="col">@L["Value"]</th>
+                                    <th scope="col">@L["Attributes"]</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var sample in RecentSamples)
+                                {
+                                    <tr>
+                                        <td class="metric-point-time">
+                                            <time>@sample.Timestamp.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture)</time>
+                                        </td>
+                                        <td>@GetResourceLabel(sample.ResourceId)</td>
+                                        <td>@sample.Name</td>
+                                        <td class="metric-point-value">@FormatUsageValue(sample.Value, sample.Unit)</td>
+                                        <td>
+                                            @if (sample.UsageAttributes.Count == 0)
+                                            {
+                                                <span class="metric-point-empty">@L["None"]</span>
+                                            }
+                                            else
+                                            {
+                                                <div class="metric-point-attributes">
+                                                    @foreach (var usageAttribute in sample.UsageAttributes)
+                                                    {
+                                                        <span class="metric-point-attribute">
+                                                            <strong>@usageAttribute.Key</strong>=@usageAttribute.Value
+                                                        </span>
+                                                    }
+                                                </div>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            }
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? ResourceId { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? UsageName { get; set; }
+
+    private IReadOnlyList<UsageSample> RecentSamples { get; set; } = [];
+
+    private IReadOnlyList<UsageStatistic> Statistics { get; set; } = [];
+
+    private IReadOnlyList<UsageStatistic> AllStatistics { get; set; } = [];
+
+    private IReadOnlyDictionary<string, Resource> ResourcesById { get; set; } =
+        new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+
+    private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
+        ResourceManagerDisplaySelection.Default;
+
+    private bool IsLoading { get; set; }
+
+    private string? SelectedResourceId => NormalizeFilter(ResourceId);
+
+    private string? SelectedUsageName => NormalizeFilter(UsageName);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        DisplaySelection = await DisplaySettings.GetAsync();
+        ResourcesById = ResourceCollectionProjection.ToDictionaryById(
+            ResourceCollectionProjection.DistinctById(await ResourceManager.ListResourcesAsync()));
+
+        await RefreshUsageAsync();
+    }
+
+    private async Task RefreshUsageAsync()
+    {
+        IsLoading = true;
+        try
+        {
+            AllStatistics = await UsageManager.ListUsageStatisticsAsync(
+                new UsageStatisticsQuery(MaxStatistics: 500));
+            Statistics = await UsageManager.ListUsageStatisticsAsync(
+                new UsageStatisticsQuery(
+                    SelectedResourceId,
+                    SelectedUsageName,
+                    MaxStatistics: 200));
+            RecentSamples = await UsageManager.ListUsageSamplesAsync(
+                new UsageQuery(
+                    SelectedResourceId,
+                    SelectedUsageName,
+                    MaxSamples: 500));
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void SelectResource(ChangeEventArgs args) =>
+        NavigateToUsage(args.Value?.ToString(), SelectedUsageName);
+
+    private void SelectUsageName(ChangeEventArgs args) =>
+        NavigateToUsage(SelectedResourceId, args.Value?.ToString());
+
+    private void ShowAllUsage() => Navigation.NavigateTo("/usage");
+
+    private void NavigateToUsage(string? resourceId, string? usageName)
+    {
+        var query = new Dictionary<string, string?>();
+        if (!string.IsNullOrWhiteSpace(resourceId))
+        {
+            query["resourceId"] = resourceId.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(usageName))
+        {
+            query["usageName"] = usageName.Trim();
+        }
+
+        Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/usage", query));
+    }
+
+    private IReadOnlyList<UsageResourceOption> GetResourceOptions()
+    {
+        var resourceIds = AllStatistics
+            .Select(statistic => statistic.ResourceId)
+            .Concat(RecentSamples.Select(sample => sample.ResourceId))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        return resourceIds
+            .Select(resourceId => new UsageResourceOption(resourceId, GetResourceLabel(resourceId)))
+            .OrderBy(option => option.Label, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private IReadOnlyList<string> GetUsageNameOptions() =>
+        AllStatistics
+            .Where(statistic => SelectedResourceId is null ||
+                string.Equals(statistic.ResourceId, SelectedResourceId, StringComparison.OrdinalIgnoreCase))
+            .Select(statistic => statistic.Name)
+            .Concat(RecentSamples.Select(sample => sample.Name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private IReadOnlyList<UsageTrendPanel> BuildUsagePanels() =>
+        Statistics
+            .Select(BuildUsagePanel)
+            .OrderBy(panel => panel.ResourceLabel, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(panel => panel.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private UsageTrendPanel BuildUsagePanel(UsageStatistic statistic)
+    {
+        var orderedSamples = RecentSamples
+            .Where(sample => string.Equals(sample.ResourceId, statistic.ResourceId, StringComparison.OrdinalIgnoreCase))
+            .Where(sample => string.Equals(sample.Name, statistic.Name, StringComparison.OrdinalIgnoreCase))
+            .Where(sample => string.Equals(sample.Unit, statistic.Unit, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(sample => sample.Timestamp)
+            .ToArray();
+        var values = orderedSamples.Select(sample => sample.Value).ToList();
+        var projection = BuildProjection(orderedSamples);
+        if (projection is not null)
+        {
+            for (var hour = 1; hour <= 4; hour++)
+            {
+                values.Add(projection.ProjectedValue(hour));
+            }
+        }
+
+        if (values.Count == 0)
+        {
+            values.Add(statistic.LatestValue);
+        }
+
+        return new UsageTrendPanel(
+            statistic.ResourceId,
+            GetResourceLabel(statistic.ResourceId),
+            statistic.Name,
+            statistic.Unit,
+            statistic.Sum,
+            statistic.Average,
+            statistic.LatestValue,
+            projection?.ProjectedValue(1),
+            projection?.ProjectedValue(24),
+            values);
+    }
+
+    private static UsageProjection? BuildProjection(IReadOnlyList<UsageSample> samples)
+    {
+        if (samples.Count < 2)
+        {
+            return null;
+        }
+
+        var first = samples[0];
+        var last = samples[^1];
+        var hours = (last.Timestamp - first.Timestamp).TotalHours;
+        if (hours <= 0)
+        {
+            return null;
+        }
+
+        return new UsageProjection(
+            last.Value,
+            (last.Value - first.Value) / hours);
+    }
+
+    private string GetResourceLabel(string resourceId) =>
+        ResourcesById.TryGetValue(resourceId, out var resource)
+            ? DisplaySelection.GetResourceLabel(resource)
+            : ResourceDisplayLabels.GetName(resourceId);
+
+    private static string? NormalizeFilter(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string FormatUsageValue(double value, string? unit) =>
+        string.IsNullOrWhiteSpace(unit)
+            ? value.ToString("0.###", CultureInfo.InvariantCulture)
+            : $"{value.ToString("0.###", CultureInfo.InvariantCulture)} {unit}";
+
+    private static string FormatWindow(DateTimeOffset first, DateTimeOffset last)
+    {
+        if (first == last)
+        {
+            return first.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture);
+        }
+
+        return string.Create(
+            CultureInfo.CurrentCulture,
+            $"{first.ToLocalTime():HH:mm:ss} - {last.ToLocalTime():HH:mm:ss}");
+    }
+
+    private sealed record UsageResourceOption(
+        string ResourceId,
+        string Label);
+
+    private sealed record UsageTrendPanel(
+        string ResourceId,
+        string ResourceLabel,
+        string Name,
+        string? Unit,
+        double Sum,
+        double Average,
+        double LatestValue,
+        double? ProjectedOneHour,
+        double? ProjectedDay,
+        IReadOnlyList<double> ChartValues)
+    {
+        public bool HasProjection => ProjectedOneHour is not null && ProjectedDay is not null;
+    }
+
+    private sealed record UsageProjection(
+        double LatestValue,
+        double SlopePerHour)
+    {
+        public double ProjectedValue(int hours) => LatestValue + (SlopePerHour * hours);
+    }
+}

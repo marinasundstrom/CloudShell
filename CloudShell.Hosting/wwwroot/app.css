@@ -3962,6 +3962,10 @@ h3 {
     background: #111827;
 }
 
+.usage-sample-table {
+    margin-top: .75rem;
+}
+
 .metric-point-table {
     width: 100%;
     min-width: 62rem;

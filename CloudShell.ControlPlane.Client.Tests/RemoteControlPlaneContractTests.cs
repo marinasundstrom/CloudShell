@@ -5,6 +5,7 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Shell;
+using CloudShell.Abstractions.Usage;
 using CloudShell.ControlPlane.Api;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
@@ -1204,6 +1205,52 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(metric.Value, remotePoint.Value);
         Assert.Equal(metric.Unit, remotePoint.Unit);
         Assert.Equal("GET", remotePoint.MetricAttributes["http.method"]);
+
+        var usageSample = new UsageSample(
+            "resource.cpu.seconds",
+            "network:contract",
+            12.5,
+            DateTimeOffset.UtcNow,
+            "seconds",
+            new Dictionary<string, string>
+            {
+                ["usage.scope"] = "contract"
+            });
+        var otherUsageSample = usageSample with
+        {
+            ResourceId = "network:other",
+            Name = "resource.memory.bytes",
+            Value = 256,
+            Unit = "bytes",
+            Attributes = new Dictionary<string, string>
+            {
+                ["usage.scope"] = "other"
+            }
+        };
+        await controlPlane.RecordUsageSamplesAsync([usageSample, otherUsageSample]);
+
+        var usageSamples = await controlPlane.ListUsageSamplesAsync(
+            new UsageQuery(
+                ResourceId: "network:contract",
+                UsageName: "resource.cpu.seconds",
+                MaxSamples: 10));
+        var remoteUsageSample = Assert.Single(usageSamples);
+        Assert.Equal(usageSample.Name, remoteUsageSample.Name);
+        Assert.Equal(usageSample.ResourceId, remoteUsageSample.ResourceId);
+        Assert.Equal(usageSample.Value, remoteUsageSample.Value);
+        Assert.Equal(usageSample.Unit, remoteUsageSample.Unit);
+        Assert.Equal("contract", remoteUsageSample.UsageAttributes["usage.scope"]);
+
+        var usageStatistics = await controlPlane.ListUsageStatisticsAsync(
+            new UsageStatisticsQuery(
+                ResourceId: "network:contract",
+                UsageName: "resource.cpu.seconds"));
+        var usageStatistic = Assert.Single(usageStatistics);
+        Assert.Equal(usageSample.Name, usageStatistic.Name);
+        Assert.Equal(usageSample.ResourceId, usageStatistic.ResourceId);
+        Assert.Equal(1, usageStatistic.Count);
+        Assert.Equal(usageSample.Value, usageStatistic.Sum);
+        Assert.Equal(usageSample.Value, usageStatistic.LatestValue);
     }
 
     [Fact]

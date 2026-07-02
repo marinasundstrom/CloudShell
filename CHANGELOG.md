@@ -78,6 +78,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated container app Monitoring revision summaries to infer the active
   runtime revision from materialized replica resources when deployment
   projection attributes are unavailable.
+- Added a separate Usage workspace with in-memory usage sample recording,
+  aggregate statistics queries, remote Control Plane API/client methods, and
+  environment-wide usage graphs with short-horizon trend projections.
 - Updated container app Deployment details to prefer the active deployment
   record for the running image, service, and replica group while preserving the
   latest deployment attempt status.
