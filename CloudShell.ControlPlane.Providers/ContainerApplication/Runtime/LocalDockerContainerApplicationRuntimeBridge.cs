@@ -323,6 +323,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
                 resource,
                 cancellationToken,
                 createWhenMissing: ResolveReplicas(resource) > 1,
+                replicaGroup: replicaGroup,
                 routingBindings: routingBindings);
             ClearStatusCache();
             return [];
@@ -695,6 +696,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         CancellationToken cancellationToken,
         bool createWhenMissing = true,
         bool reuseExisting = true,
+        ResourceOrchestratorReplicaGroup? replicaGroup = null,
         IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition>? routingBindings = null)
     {
         if (!TryResolveHttpEndpoint(resource, out var endpoint))
@@ -706,6 +708,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             definition,
             resource,
             endpoint,
+            replicaGroup,
             routingBindings ?? [],
             cancellationToken);
         if (reuseExisting)
@@ -729,12 +732,13 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             }
         }
 
-        if (!createWhenMissing && ResolveReplicas(resource) <= 1)
+        var routedReplicaCount = ResolveRoutedReplicaOrdinals(resource, replicaGroup).Count;
+        if (!createWhenMissing && routedReplicaCount <= 1)
         {
             return;
         }
 
-        if (ResolveReplicas(resource) <= 1)
+        if (routedReplicaCount <= 1)
         {
             return;
         }
@@ -817,6 +821,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         LocalDockerContainerApplicationRuntimeDefinition definition,
         GraphResource resource,
         NetworkingEndpointRequestValue endpoint,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
         IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken)
     {
@@ -824,7 +829,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         Directory.CreateDirectory(ingressConfigurationDirectory);
         await File.WriteAllTextAsync(
             Path.Combine(ingressConfigurationDirectory, "dynamic.yml"),
-            CreateIngressConfiguration(definition, resource, endpoint, routingBindings),
+            CreateIngressConfiguration(definition, resource, endpoint, replicaGroup, routingBindings),
             cancellationToken);
     }
 
@@ -832,9 +837,11 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         LocalDockerContainerApplicationRuntimeDefinition definition,
         GraphResource resource,
         NetworkingEndpointRequestValue endpoint,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
         IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings)
     {
         var targetPort = endpoint.TargetPort ?? endpoint.Port!.Value;
+        var routedReplicas = ResolveRoutedReplicaOrdinals(resource, replicaGroup);
         var sessionAffinity = ResolveSessionAffinity(resource, endpoint, routingBindings);
         var builder = new StringBuilder();
         builder.AppendLine("http:");
@@ -847,7 +854,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         builder.AppendLine("    api-http:");
         builder.AppendLine("      loadBalancer:");
         builder.AppendLine("        servers:");
-        for (var replica = 1; replica <= ResolveReplicas(resource); replica++)
+        foreach (var replica in routedReplicas)
         {
             builder.AppendLine(
                 CultureInfo.InvariantCulture,
@@ -874,6 +881,25 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         }
 
         return builder.ToString();
+    }
+
+    private static IReadOnlyList<int> ResolveRoutedReplicaOrdinals(
+        GraphResource resource,
+        ResourceOrchestratorReplicaGroup? replicaGroup)
+    {
+        if (replicaGroup is not null)
+        {
+            return replicaGroup.Instances
+                .Select(instance => instance.ReplicaOrdinal)
+                .Where(ordinal => ordinal > 0)
+                .Distinct()
+                .Order()
+                .ToArray();
+        }
+
+        return Enumerable
+            .Range(1, ResolveReplicas(resource))
+            .ToArray();
     }
 
     private static ResourceOrchestratorSessionAffinityPolicy? ResolveSessionAffinity(

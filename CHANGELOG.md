@@ -41,6 +41,9 @@ on `git blame --follow`, and then by the broad type of change.
   runtime service project from the repository root, so starting the sample
   Configuration Store resource no longer resolves a missing project under the
   sample host directory.
+- Updated local Docker container app ingress reconciliation to build Traefik
+  backends from the orchestrator-selected replica group when deployment
+  routing supplies one, keeping direct runtime behavior as the fallback.
 
 ### 2026-07-01
 

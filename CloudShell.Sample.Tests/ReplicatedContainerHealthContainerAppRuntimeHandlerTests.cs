@@ -499,6 +499,65 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     }
 
     [Fact]
+    public async Task RuntimeBridge_RoutingReconciliationUsesReplicaGroupInstancesForBackends()
+    {
+        var contentRoot = Path.Combine(
+            Path.GetTempPath(),
+            $"cloudshell-replicated-health-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(contentRoot);
+        try
+        {
+            var commandRunner = new RecordingCommandRunner();
+            var bridge = CreateRuntimeBridge(
+                commandRunner,
+                CreateConfiguration(replicaCleanupLimit: 4),
+                new TestHostEnvironment(contentRoot));
+            var resource = await CreateGraphAppResourceAsync(
+                replicas: 4,
+                endpointPort: 5092);
+            var service = CreateOrchestratorService(resource, replicas: 4);
+            var fullReplicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+                service,
+                "rev-test");
+            var routedReplicaGroup = fullReplicaGroup with
+            {
+                RequestedReplicaSlots = 2,
+                Instances = fullReplicaGroup.Instances
+                    .Where(instance => instance.ReplicaOrdinal <= 2)
+                    .ToArray()
+            };
+            var routingBinding = new ResourceOrchestratorServiceRoutingBindingDefinition(
+                "api-http-routing",
+                ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+                service.Name,
+                routedReplicaGroup.Id,
+                ResourceEndpointReference.ForEndpoint(resource.EffectiveResourceId, "http"));
+            commandRunner.Enqueue(new(0, "running", string.Empty));
+
+            var diagnostics = await bridge.ReconcileOrchestratorServiceRoutingAsync(
+                resource,
+                service,
+                routedReplicaGroup,
+                [routingBinding]);
+
+            Assert.Empty(diagnostics);
+            var configuration = await File.ReadAllTextAsync(
+                Path.Combine(contentRoot, "Data", "runtime-ingress", "dynamic.yml"));
+            Assert.Contains("cloudshell-replicated-health-api-replica-1:8080", configuration);
+            Assert.Contains("cloudshell-replicated-health-api-replica-2:8080", configuration);
+            Assert.DoesNotContain("cloudshell-replicated-health-api-replica-3:8080", configuration);
+            Assert.DoesNotContain("cloudshell-replicated-health-api-replica-4:8080", configuration);
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task RuntimeBridge_ReplicaGroupStopDoesNotRemoveSlotReplacedByNewReplicaGroup()
     {
         var commandRunner = new RecordingCommandRunner();
