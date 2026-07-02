@@ -61,6 +61,9 @@ on `git blame --follow`, and then by the broad type of change.
   Monitoring views to use Control Plane deployment records and live replica
   resources instead of the empty pre-Resource Model history fallback, including
   local-process replica memory metrics.
+- Added per-container-app replica slot reconciliation status to the Scale and
+  replicas view so materialized slots show repair, unhealthy, and last-result
+  state without requiring the global environment page.
 
 ### 2026-07-01
 
