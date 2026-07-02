@@ -97,6 +97,15 @@ Runtime options may still override local names, ingress directories, probe
 ports, telemetry endpoints, or migration-time project paths, but those options
 are not the source of container app intent.
 
+Implicit local Docker materialization scopes Docker container names, network
+aliases, and ingress configuration directories to the running CloudShell host
+instance. The stable CloudShell resource ID remains the container app resource
+ID, but Docker's global name namespace must not let a test run, another sample,
+or a second local host reuse or inspect the wrong containers for the same
+resource ID. Hosts can set `CloudShell:RuntimeNameScope` when they need an
+explicit stable materialization scope; otherwise the local runtime derives one
+from the host endpoint and content root when that information is available.
+
 For project-backed container apps declared directly with
 `AddContainerApplication(...)`, use `.WithProjectPath(...)` to keep the build
 source on the resource declaration. The local Docker runtime also derives

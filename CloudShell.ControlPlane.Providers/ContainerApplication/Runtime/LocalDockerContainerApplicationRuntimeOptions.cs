@@ -9,6 +9,8 @@ public sealed class LocalDockerContainerApplicationRuntimeOptions
     private readonly Dictionary<string, LocalDockerContainerApplicationRuntimeDefinition> applications =
         new(StringComparer.OrdinalIgnoreCase);
 
+    public string? NameScope { get; set; }
+
     public IReadOnlyDictionary<string, LocalDockerContainerApplicationRuntimeDefinition> Applications => applications;
 
     public LocalDockerContainerApplicationRuntimeOptions AddApplication(
@@ -19,7 +21,7 @@ public sealed class LocalDockerContainerApplicationRuntimeOptions
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
         ArgumentException.ThrowIfNullOrWhiteSpace(projectPath);
 
-        var definition = LocalDockerContainerApplicationRuntimeDefinition.CreateDefault(resourceId, projectPath);
+        var definition = LocalDockerContainerApplicationRuntimeDefinition.CreateDefault(resourceId, projectPath, NameScope);
         configure?.Invoke(definition);
         applications[resourceId] = definition;
         return this;
@@ -62,6 +64,8 @@ public sealed class LocalDockerContainerApplicationRuntimeDefinition(
 
     public string ReplicaServiceNamePrefix { get; set; } = "container-app-replica-";
 
+    public string? RuntimeNameScope { get; set; }
+
     public string? TraceIngestEndpoint { get; set; }
 
     public string? MetricIngestEndpoint { get; set; }
@@ -82,20 +86,26 @@ public sealed class LocalDockerContainerApplicationRuntimeDefinition(
 
     public static LocalDockerContainerApplicationRuntimeDefinition CreateDefault(
         string resourceId,
-        string? projectPath = null)
+        string? projectPath = null,
+        string? nameScope = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
 
         var serviceName = ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(resourceId);
+        var normalizedScope = CreateNameSegment(nameScope);
+        var dockerServiceName = CreateScopedServiceName(serviceName, normalizedScope);
         var resourceSegment = CreateResourceSegment(resourceId);
         return new(resourceId, projectPath ?? string.Empty)
         {
-            IngressContainerName = $"{serviceName}-ingress",
-            IngressConfigurationDirectory = Path.Combine("Data", "runtime-ingress", serviceName),
-            ReplicaContainerNamePrefix = $"{serviceName}-replica-",
-            ReplicaNetworkAliasPrefix = $"{serviceName}-replica-",
+            IngressContainerName = $"{dockerServiceName}-ingress",
+            IngressConfigurationDirectory = normalizedScope is null
+                ? Path.Combine("Data", "runtime-ingress", serviceName)
+                : Path.Combine("Data", "runtime-ingress", normalizedScope, serviceName),
+            ReplicaContainerNamePrefix = $"{dockerServiceName}-replica-",
+            ReplicaNetworkAliasPrefix = $"{dockerServiceName}-replica-",
             ReplicaResourceIdPrefix = $"runtime-container:{resourceSegment}:replica-",
-            ReplicaServiceNamePrefix = $"{serviceName}-replica-"
+            ReplicaServiceNamePrefix = $"{serviceName}-replica-",
+            RuntimeNameScope = normalizedScope
         };
     }
 
@@ -117,6 +127,41 @@ public sealed class LocalDockerContainerApplicationRuntimeDefinition(
         var segment = builder.ToString().Trim('-');
         return string.IsNullOrWhiteSpace(segment)
             ? "container-app"
+            : segment;
+    }
+
+    private static string CreateScopedServiceName(
+        string serviceName,
+        string? nameScope)
+    {
+        if (string.IsNullOrWhiteSpace(nameScope))
+        {
+            return serviceName;
+        }
+
+        const string prefix = "cloudshell-";
+        var serviceSegment = serviceName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            ? serviceName[prefix.Length..]
+            : serviceName;
+        return $"{prefix}{nameScope}-{serviceSegment}";
+    }
+
+    private static string? CreateNameSegment(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var builder = new StringBuilder(value.Length);
+        foreach (var character in value.Trim().ToLowerInvariant())
+        {
+            builder.Append(char.IsLetterOrDigit(character) ? character : '-');
+        }
+
+        var segment = builder.ToString().Trim('-');
+        return string.IsNullOrWhiteSpace(segment)
+            ? null
             : segment;
     }
 }

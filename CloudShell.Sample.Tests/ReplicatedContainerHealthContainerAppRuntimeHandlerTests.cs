@@ -136,6 +136,33 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     }
 
     [Fact]
+    public async Task RuntimeBridge_DefaultConfigurationScopesDockerNamesByHostInstance()
+    {
+        var firstBridge = CreateRuntimeBridge(
+            new RecordingCommandRunner(),
+            CreateConfiguration(urls: "http://localhost:5011"),
+            options: new LocalDockerContainerApplicationRuntimeOptions());
+        var secondBridge = CreateRuntimeBridge(
+            new RecordingCommandRunner(),
+            CreateConfiguration(urls: "http://localhost:64178"),
+            options: new LocalDockerContainerApplicationRuntimeOptions());
+        var resource = await CreateGraphAppResourceAsync(
+            resourceId: "application.container-app:api");
+
+        Assert.True(firstBridge.TryResolveDefinition(resource, out var firstDefinition));
+        Assert.True(secondBridge.TryResolveDefinition(resource, out var secondDefinition));
+
+        Assert.NotEqual(firstDefinition.IngressContainerName, secondDefinition.IngressContainerName);
+        Assert.NotEqual(firstDefinition.ReplicaContainerNamePrefix, secondDefinition.ReplicaContainerNamePrefix);
+        Assert.NotEqual(
+            firstDefinition.IngressConfigurationDirectory,
+            secondDefinition.IngressConfigurationDirectory);
+        Assert.Equal(firstDefinition.ReplicaResourceIdPrefix, secondDefinition.ReplicaResourceIdPrefix);
+        Assert.StartsWith("cloudshell-rt-", firstDefinition.IngressContainerName);
+        Assert.EndsWith("-application-container-app-api-ingress", firstDefinition.IngressContainerName);
+    }
+
+    [Fact]
     public async Task RuntimeBridge_StartCleansGraphContainersWhenReplicaStartFails()
     {
         var commandRunner = new RecordingCommandRunner();
@@ -1176,13 +1203,19 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
 
     private static IConfiguration CreateConfiguration(
         int? replicaCleanupLimit = null,
-        int? statusCacheMilliseconds = null)
+        int? statusCacheMilliseconds = null,
+        string? urls = null)
     {
         var values = new Dictionary<string, string?>
         {
             ["Observability:TraceIngestEndpoint"] = "http://host.docker.internal:5011/api/control-plane/v1/traces/ingest",
             ["Observability:MetricIngestEndpoint"] = "http://host.docker.internal:5011/api/control-plane/v1/metrics/ingest"
         };
+        if (!string.IsNullOrWhiteSpace(urls))
+        {
+            values["urls"] = urls;
+        }
+
         if (replicaCleanupLimit is not null)
         {
             values["ReplicatedContainerHealth:RuntimeReplicaCleanupLimit"] = replicaCleanupLimit.Value.ToString();

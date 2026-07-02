@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using GraphResource = CloudShell.ResourceModel.Resource;
 
@@ -19,6 +20,9 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
     private const string ReplicaGroupLabel = "cloudshell.replica-group-id";
     private const string RuntimeRevisionLabel = "cloudshell.runtime-revision-id";
     private readonly LocalDockerContainerApplicationRuntimeOptions options = options.Value;
+    private readonly string? runtimeNameScope = FirstNonEmpty(
+        options.Value.NameScope,
+        ResolveRuntimeNameScope(configuration, hostEnvironment));
     private readonly object _statusGate = new();
     private readonly TimeSpan _statusProbeTimeout = TimeSpan.FromMilliseconds(
         configuration.GetValue<int?>("ReplicatedContainerHealth:RuntimeStatusProbeTimeoutMilliseconds") ?? 1_000);
@@ -53,7 +57,8 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
 
         definition = LocalDockerContainerApplicationRuntimeDefinition.CreateDefault(
             resource.EffectiveResourceId,
-            resource.Attributes.GetString(ResourceAttributeId.Create(ResourceAttributeNames.ProjectPath)));
+            resource.Attributes.GetString(ResourceAttributeId.Create(ResourceAttributeNames.ProjectPath)),
+            runtimeNameScope);
         return true;
     }
 
@@ -1169,6 +1174,39 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         (configuration.GetValue<int?>("PORT") is { } port
             ? $"http://localhost:{port.ToString(CultureInfo.InvariantCulture)}"
             : null);
+
+    private static string? ResolveRuntimeNameScope(
+        IConfiguration configuration,
+        IHostEnvironment? hostEnvironment)
+    {
+        var configuredScope = FirstNonEmpty(
+            configuration["CloudShell:RuntimeNameScope"],
+            configuration["CloudShell:EnvironmentId"],
+            configuration["CloudShell:EnvironmentName"]);
+        if (!string.IsNullOrWhiteSpace(configuredScope))
+        {
+            return configuredScope;
+        }
+
+        var material = string.Join(
+            "|",
+            new[]
+            {
+                hostEnvironment?.ContentRootPath,
+                FirstHttpEndpoint(configuration["urls"]),
+                FirstHttpEndpoint(Environment.GetEnvironmentVariable("ASPNETCORE_URLS")),
+                configuration.GetValue<int?>("PORT")?.ToString(CultureInfo.InvariantCulture)
+            }.Where(value => !string.IsNullOrWhiteSpace(value)));
+        return string.IsNullOrWhiteSpace(material)
+            ? null
+            : CreateShortRuntimeScope(material);
+    }
+
+    private static string CreateShortRuntimeScope(string material)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(material));
+        return $"rt-{Convert.ToHexString(hash, 0, 5).ToLowerInvariant()}";
+    }
 
     private static string? FirstHttpEndpoint(string? value)
     {
