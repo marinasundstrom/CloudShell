@@ -102,11 +102,11 @@ else
                                        Summary="Sum of observed replica memory usage."
                                        Compact="true" />
                     <SummaryMetricCard Title="Network received"
-                                       Value="@FormatValue(SumMetric(NetworkReceivedMetricName), BytesUnit)"
+                                       Value="@FormatOptionalSumMetric(NetworkReceivedMetricName, BytesUnit, "not collected")"
                                        Summary="Total observed replica network bytes received."
                                        Compact="true" />
                     <SummaryMetricCard Title="Network sent"
-                                       Value="@FormatValue(SumMetric(NetworkSentMetricName), BytesUnit)"
+                                       Value="@FormatOptionalSumMetric(NetworkSentMetricName, BytesUnit, "not collected")"
                                        Summary="Total observed replica network bytes sent."
                                        Compact="true" />
                     <SummaryMetricCard Title="Process count"
@@ -159,8 +159,8 @@ else
                                     <td>@FormatMetric(row, CpuUsageMetricName)</td>
                                     <td>@FormatMetric(row, MemoryUsageMetricNames)</td>
                                     <td>
-                                        <strong>@FormatMetric(row, NetworkReceivedMetricName)</strong>
-                                        <span>sent @FormatMetric(row, NetworkSentMetricName)</span>
+                                        <strong>@FormatMetric(row, NetworkReceivedMetricName, "not collected")</strong>
+                                        <span>sent @FormatMetric(row, NetworkSentMetricName, "not collected")</span>
                                     </td>
                                     <td>@FormatMetric(row, ProcessCountMetricName)</td>
                                 </tr>
@@ -311,12 +311,26 @@ else
     private double SumMetric(IReadOnlyList<string> names) =>
         Rows.Sum(row => GetMetricValue(row.Snapshot, names));
 
+    private string FormatOptionalSumMetric(string name, string unit, string fallback) =>
+        Rows.Any(row => HasMetric(row.Snapshot, name))
+            ? FormatValue(SumMetric(name), unit)
+            : fallback;
+
     private static string FormatMetric(ReplicaMonitoringRow row, string name)
     {
         var metric = row.Snapshot?.Metrics.FirstOrDefault(metric =>
             string.Equals(metric.Name, name, StringComparison.OrdinalIgnoreCase));
         return metric is null
             ? "n/a"
+            : FormatValue(metric.Value, metric.Unit);
+    }
+
+    private static string FormatMetric(ReplicaMonitoringRow row, string name, string fallback)
+    {
+        var metric = row.Snapshot?.Metrics.FirstOrDefault(metric =>
+            string.Equals(metric.Name, name, StringComparison.OrdinalIgnoreCase));
+        return metric is null
+            ? fallback
             : FormatValue(metric.Value, metric.Unit);
     }
 
@@ -334,6 +348,10 @@ else
 
     private static double GetMetricValue(ResourceMonitoringSnapshot? snapshot, IReadOnlyList<string> names) =>
         FindMetric(snapshot, names)?.Value ?? 0;
+
+    private static bool HasMetric(ResourceMonitoringSnapshot? snapshot, string name) =>
+        snapshot?.Metrics.Any(metric =>
+            string.Equals(metric.Name, name, StringComparison.OrdinalIgnoreCase)) == true;
 
     private static ResourceMetricSample? FindMetric(ResourceMonitoringSnapshot? snapshot, IReadOnlyList<string> names) =>
         snapshot?.Metrics.FirstOrDefault(metric =>
