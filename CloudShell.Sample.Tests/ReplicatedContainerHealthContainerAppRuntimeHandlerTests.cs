@@ -444,7 +444,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 command,
                 "cloudshell-replicated-health-api-replica-2",
                 replica: 2,
-                expectedProbePort: 5193),
+                expectedProbePort: 5193,
+                expectedRuntimeRevisionId: "rev-test"),
             command => AssertDockerInspect(command, LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName()));
         Assert.DoesNotContain(
             commandRunner.Commands,
@@ -1180,7 +1181,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         string containerName,
         int replica,
         int? expectedProbePort = null,
-        int expectedReplicaCount = 2)
+        int expectedReplicaCount = 2,
+        string? expectedRuntimeRevisionId = null)
     {
         Assert.Equal("docker", command.FileName);
         Assert.Equal("run", command.Arguments[0]);
@@ -1198,11 +1200,20 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             $"CLOUDSHELL_RESOURCE_ID={LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica)}",
             command.Arguments);
         Assert.Contains(
-            $"OTEL_SERVICE_NAME=replicated-container-health-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}",
+            $"CLOUDSHELL_TELEMETRY_RESOURCE_ID={LocalDockerContainerApplicationRuntimeConventions.ApiResourceId}",
             command.Arguments);
         Assert.Contains(
-            CreateExpectedOtelResourceAttributes(replica, expectedReplicaCount),
+            $"OTEL_SERVICE_NAME=replicated-container-health-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}",
             command.Arguments);
+        var otelAttributes = Assert.Single(command.Arguments, argument =>
+            argument.StartsWith("OTEL_RESOURCE_ATTRIBUTES=", StringComparison.Ordinal));
+        foreach (var attribute in CreateExpectedOtelResourceAttributes(
+                     replica,
+                     expectedReplicaCount,
+                     expectedRuntimeRevisionId))
+        {
+            Assert.Contains(attribute, otelAttributes);
+        }
         Assert.Contains("CLOUDSHELL_TRACE_INGEST_ENDPOINT=http://host.docker.internal:5011/api/control-plane/v1/traces/ingest", command.Arguments);
         Assert.Contains("CLOUDSHELL_METRIC_INGEST_ENDPOINT=http://host.docker.internal:5011/api/control-plane/v1/metrics/ingest", command.Arguments);
         Assert.Contains("cloudshell-application-api:20260622.2", command.Arguments);
@@ -1238,18 +1249,19 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             command.Arguments);
     }
 
-    private static string CreateExpectedOtelResourceAttributes(
+    private static IReadOnlyList<string> CreateExpectedOtelResourceAttributes(
         int replica,
-        int replicaCount)
+        int replicaCount,
+        string? runtimeRevisionId = null)
     {
         var resourceId = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica);
         var containerName = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(replica);
-        var expectedRevisionId = ContainerApplicationRuntimeRevisions.CreateImageRevisionId(
+        var expectedRevisionId = runtimeRevisionId ?? ContainerApplicationRuntimeRevisions.CreateImageRevisionId(
             ContainerRegistryDefaults.Default,
             "cloudshell-application-api:20260622.2");
-        return string.Join(
-            ',',
-            $"OTEL_RESOURCE_ATTRIBUTES=service.instance.id={resourceId}",
+        return
+        [
+            $"service.instance.id={resourceId}",
             $"cloudshell.resource.id={resourceId}",
             "cloudshell.resource.type=runtime.container",
             $"telemetry.scope.resourceId={LocalDockerContainerApplicationRuntimeConventions.ApiResourceId}",
@@ -1258,7 +1270,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             $"runtime.replica.ordinal={replica.ToString(CultureInfo.InvariantCulture)}",
             $"runtime.replica.count={replicaCount.ToString(CultureInfo.InvariantCulture)}",
             $"runtime.container.name={containerName}",
-            $"deployment.revision={expectedRevisionId}");
+            $"deployment.revision={expectedRevisionId}"
+        ];
     }
 
     private static void AssertGraphReplicaResource(

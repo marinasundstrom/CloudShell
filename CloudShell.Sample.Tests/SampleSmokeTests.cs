@@ -2051,6 +2051,7 @@ public sealed class SampleSmokeTests
 
 
     [Fact]
+    [Trait("Category", "DockerIntegration")]
     public async Task SignalRContainerAppSample_DeclaresFrontendAndContainerAppIntent()
     {
         var ports = await GetFreePortRangeAsync(6);
@@ -2076,13 +2077,20 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "application.aspnet-core-project:signalr-frontend");
         var api = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application.container-app:signalr-api");
+        var containerHost = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "cloudshell.container-host:default");
         var apiAttributes = api.GetProperty("attributes");
         var frontendAttributes = frontend.GetProperty("attributes");
+        var containerHostAttributes = containerHost.GetProperty("attributes");
 
         Assert.Equal("application.aspnet-core-project", frontend.GetProperty("typeId").GetString());
         Assert.Equal("application.container-app", api.GetProperty("typeId").GetString());
+        Assert.Equal("cloudshell.container-host", containerHost.GetProperty("typeId").GetString());
         Assert.Equal("SignalR Frontend", frontend.GetProperty("displayName").GetString());
         Assert.Equal("SignalR API", api.GetProperty("displayName").GetString());
+        Assert.Equal("Default container host", containerHost.GetProperty("displayName").GetString());
+        Assert.Equal("Docker", containerHostAttributes.GetProperty("container.host.kind").GetString());
+        Assert.Equal("true", containerHostAttributes.GetProperty("container.host.default").GetString());
         Assert.Equal(
             $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}",
             GetPrimaryEndpointAddress(frontend));
@@ -2103,6 +2111,9 @@ public sealed class SampleSmokeTests
         Assert.Contains(
             $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}",
             frontendAttributes.GetRawText());
+        Assert.Contains(
+            "cloudshell.container-host:default",
+            api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
 
         await AssertExportedSignalRTemplateCanRoundTripAndApplyAsync(host);
 
@@ -2347,7 +2358,7 @@ public sealed class SampleSmokeTests
                     Assert.Equal((int)ResourceState.Running, resource.GetProperty("state").GetInt32());
                     Assert.Equal(expectedServiceId, attributes.GetProperty(ResourceAttributeNames.DeploymentServiceId).GetString());
                     Assert.Equal(expectedReplicaGroupId, attributes.GetProperty(ResourceAttributeNames.DeploymentReplicaGroupId).GetString());
-                    Assert.Equal("localProcess", attributes.GetProperty(ResourceAttributeNames.RuntimeMaterialization).GetString());
+                    Assert.Equal("signalrDockerRuntime", attributes.GetProperty(ResourceAttributeNames.RuntimeMaterialization).GetString());
                     Assert.Equal(replicaText, attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString());
                     Assert.Equal("3", attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaCount).GetString());
                     Assert.Equal(expectedRevisionId, attributes.GetProperty(ResourceAttributeNames.RuntimeRevision).GetString());
@@ -2366,7 +2377,7 @@ public sealed class SampleSmokeTests
         while (DateTimeOffset.UtcNow < deadline);
 
         throw new TimeoutException(
-            $"Timed out waiting for SignalR local-process runtime replica resources. Last response: {lastBody}");
+            $"Timed out waiting for SignalR Docker runtime replica resources. Last response: {lastBody}");
     }
 
     private static async Task AssertSignalRRuntimeReplicaMonitoringSnapshotsAsync(SampleProcess host)
@@ -2417,7 +2428,7 @@ public sealed class SampleSmokeTests
         }
 
         throw new TimeoutException(
-            $"SignalR local-process runtime replica monitoring did not return metric snapshots for all replicas within {StartupTimeout}." +
+            $"SignalR Docker runtime replica monitoring did not return metric snapshots for all replicas within {StartupTimeout}." +
             $"{Environment.NewLine}{lastSnapshotJson}{Environment.NewLine}{lastException?.Message}");
     }
 
@@ -2472,7 +2483,7 @@ public sealed class SampleSmokeTests
                 $"Replica {replica.ToString(CultureInfo.InvariantCulture)} logs",
                 source.GetProperty("name").GetString());
             Assert.Equal(apiResourceId, source.GetProperty("resourceId").GetString());
-            Assert.Equal((int)ResourceLogSourceKind.ProcessOutput, source.GetProperty("kind").GetInt32());
+            Assert.Equal((int)ResourceLogSourceKind.Container, source.GetProperty("kind").GetInt32());
             Assert.Equal((int)LogFormat.JsonConsole, source.GetProperty("format").GetInt32());
             Assert.Equal((int)ResourceLogSourceOrigin.ProviderProjected, source.GetProperty("origin").GetInt32());
             Assert.Equal((int)LogSourceAvailability.ProducerRunning, source.GetProperty("availability").GetInt32());

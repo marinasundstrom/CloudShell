@@ -645,6 +645,8 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         arguments.Add("-e");
         arguments.Add($"CLOUDSHELL_RESOURCE_ID={replicaResourceId}");
         arguments.Add("-e");
+        arguments.Add($"CLOUDSHELL_TELEMETRY_RESOURCE_ID={resource.EffectiveResourceId}");
+        arguments.Add("-e");
         arguments.Add($"CLOUDSHELL_REPLICA_ORDINAL={replica.ToString(CultureInfo.InvariantCulture)}");
         arguments.Add("-e");
         arguments.Add($"OTEL_SERVICE_NAME={definition.ReplicaServiceNamePrefix}{replica.ToString(CultureInfo.InvariantCulture)}");

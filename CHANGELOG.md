@@ -106,6 +106,9 @@ on `git blame --follow`, and then by the broad type of change.
   synchronously on async graph snapshots while listing resources.
 - Added volume usage previews to application storage mount rows so resource
   consumers can see mounted volume usage in context.
+- Updated the SignalR container app sample to start Docker-backed API replicas
+  through the default container host resource instead of the local process
+  runtime.
 - Renamed the shell observability workspace to Telemetry with canonical
   `/telemetry` routes while keeping the old `/observability` routes as
   compatibility aliases.
