@@ -37,6 +37,7 @@ app
   .withScript("dev")
   .withServiceDiscovery()
   .withReference(settings)
+  .dependsOn(settings)
   .withEnvironmentVariable(
     "CLOUDSHELL_SETTINGS_ENDPOINT",
     settingsEntriesEndpoint)
@@ -51,16 +52,21 @@ app
   .withHttpHealthCheck("/healthz", { endpointName: "http" })
   .withHttpLivenessCheck("/alive", { endpointName: "http" });
 
-if (process.argv.includes("--apply")) {
-  const result = await app.apply({
+if (process.argv.includes("--apply") || process.argv.includes("--start") || process.argv.includes("--run")) {
+  const options = {
     cliProject,
     hostProject,
-    start: process.argv.includes("--start"),
     noBuild: process.argv.includes("--no-build"),
     controlPlaneUrl: process.env.CLOUDSHELL_CONTROL_PLANE_URL,
+    url: process.env.CLOUDSHELL_CONTROL_PLANE_URL,
     stateDir,
     dataDir
-  });
+  };
+  const result = process.argv.includes("--run")
+    ? await app.run(options)
+    : process.argv.includes("--start")
+      ? await app.start(options)
+      : await app.apply(options);
 
   process.exitCode = result.exitCode;
 } else {

@@ -27,7 +27,15 @@ CLOUDSHELL_CONTROL_PLANE_URL=http://127.0.0.1:5099 \
 dotnet run --project AppHost/CloudShell.CSharpAppHost.csproj -- --apply
 ```
 
-Start or reuse the local-development host profile, then apply the declarations:
+Run the local-development host in the foreground, apply the declarations, and
+keep the host tied to the launcher command lifetime:
+
+```bash
+Authentication__Enabled=false ./cloudshell.sh run
+```
+
+Start or reuse the daemon-style local-development host profile, then apply the
+declarations:
 
 ```bash
 Authentication__Enabled=false \
@@ -45,10 +53,9 @@ dotnet run --project ../../CloudShell.Cli/CloudShell.Cli.csproj -- ui open \
 ```
 
 The JavaScript app resource is declared but not auto-started. Start it from
-Resource Manager or through the CLI:
+Resource Manager or through the helper. The helper enables dependency startup,
+so the Configuration Store resource is started before the JavaScript app:
 
 ```bash
-dotnet run --project ../../CloudShell.Cli/CloudShell.Cli.csproj -- resource action execute \
-  application.javascript-app:csharp-declared-frontend start \
-  --control-plane http://127.0.0.1:5099
+./cloudshell.sh start-app
 ```

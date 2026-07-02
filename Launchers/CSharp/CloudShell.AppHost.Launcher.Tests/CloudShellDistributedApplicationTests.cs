@@ -94,6 +94,34 @@ public sealed class CloudShellDistributedApplicationTests
     }
 
     [Fact]
+    public void BuildHostRunArguments_MapsLauncherOptionsToForegroundHostCommand()
+    {
+        var arguments = CloudShellHostLauncher.BuildHostRunArguments(
+            new CloudShellHostLauncherOptions
+            {
+                HostProjectPath = "Host/CloudShell.Host.csproj",
+                HostUrl = new Uri("http://127.0.0.1:5200"),
+                DataDirectory = ".cloudshell/data",
+                NoBuild = true
+            },
+            new Uri("http://127.0.0.1:5200"));
+
+        Assert.Equal(
+            [
+                "run",
+                "--project",
+                "Host/CloudShell.Host.csproj",
+                "--no-build",
+                "--",
+                "--urls",
+                "http://127.0.0.1:5200",
+                "--CloudShell:DataDirectory",
+                ".cloudshell/data"
+            ],
+            arguments);
+    }
+
+    [Fact]
     public async Task ApplyAsync_WritesTemplateAndRunsCliProject()
     {
         using var directory = new TemporaryDirectory();

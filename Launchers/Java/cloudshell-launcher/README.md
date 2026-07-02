@@ -16,13 +16,38 @@ The first supported surface is intentionally small:
 - `JavaAppResource`
 - `ConfigurationStoreResource`
 - `SecretsVaultResource`
+- `CloudShellLauncherOptions`
+- `CloudShellApp.apply(...)`
+- `CloudShellApp.start(...)`
+- `CloudShellApp.run(...)`
 
 The API uses ordinary Java classes and fluent methods instead of C# extension
 method patterns. The stable interoperability boundary remains the
 ResourceTemplate JSON shape.
 
-CLI apply/start helpers are still exercised from `samples/JavaAppHost` until
-the Java process orchestration API is proven across more scenarios.
+`withReference(...)` and `dependsOn(...)` intentionally model different
+CloudShell relationships. References feed provider-specific service discovery
+bindings. Dependencies feed lifecycle ordering and are honored by commands such
+as `resource action execute <resource> start --start-dependencies`.
+
+The lifecycle methods match the shared launcher vocabulary:
+
+- `toJson()` emits the ResourceTemplate.
+- `apply(...)` applies the template to an already-running Control Plane.
+- `start(...)` uses the CLI's daemon-style `template apply --start` path.
+- `run(...)` starts the host in the foreground, applies the template after the
+  Control Plane is ready, and keeps the host tied to the Java launcher
+  process lifetime.
+
+```java
+CloudShellLauncherOptions options = new CloudShellLauncherOptions()
+    .withCliProject(Path.of("CloudShell.Cli/CloudShell.Cli.csproj"))
+    .withHostProject(Path.of("CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj"))
+    .withHostUrl("http://127.0.0.1:5100")
+    .withDataDirectory(Path.of(".cloudshell"));
+
+app.run(options);
+```
 
 Compile the package sources directly:
 

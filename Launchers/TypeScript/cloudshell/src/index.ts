@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { ChildProcess, spawn } from "node:child_process";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -232,8 +232,12 @@ export class CloudShellApp {
     return { command, args: commandArgs, exitCode };
   }
 
-  public run(options: ApplyOptions = {}): Promise<CommandResult> {
+  public start(options: ApplyOptions = {}): Promise<CommandResult> {
     return this.apply({ ...options, start: true });
+  }
+
+  public run(options: ApplyOptions = {}): Promise<CommandResult> {
+    return runForegroundHost(this, options);
   }
 }
 
@@ -727,6 +731,21 @@ function buildTemplateApplyArgs(
   return args;
 }
 
+function buildHostRunArgs(options: ApplyOptions, hostUrl: string): string[] {
+  if (!options.hostProject || options.hostProject.trim().length === 0) {
+    throw new Error("A host project is required for foreground run.");
+  }
+
+  const args = ["run", "--project", options.hostProject];
+  if (options.noBuild) {
+    args.push("--no-build");
+  }
+
+  args.push("--", "--urls", hostUrl);
+  pushOption(args, "--CloudShell:DataDirectory", options.dataDir);
+  return args;
+}
+
 function pushOption(args: string[], name: string, value: string | undefined): void {
   if (value && value.trim().length > 0) {
     args.push(name, value);
@@ -737,16 +756,108 @@ async function spawnCommand(
   command: string,
   args: string[],
   options: ApplyOptions): Promise<number> {
-  return await new Promise<number>((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd: options.cwd,
-      stdio: options.stdio ?? "inherit",
-      shell: false
-    });
+  const child = spawnProcess(command, args, options);
+  return await waitForExit(child);
+}
 
+function spawnProcess(
+  command: string,
+  args: string[],
+  options: ApplyOptions): ChildProcess {
+  return spawn(command, args, {
+    cwd: options.cwd,
+    stdio: options.stdio ?? "inherit",
+    shell: false
+  });
+}
+
+async function waitForExit(child: ChildProcess): Promise<number> {
+  return await new Promise<number>((resolve, reject) => {
     child.on("error", reject);
     child.on("close", code => resolve(code ?? 1));
   });
+}
+
+async function runForegroundHost(
+  app: CloudShellApp,
+  options: ApplyOptions): Promise<CommandResult> {
+  const hostUrl = options.url ?? options.controlPlaneUrl;
+  if (!hostUrl || hostUrl.trim().length === 0) {
+    throw new Error("A host URL or Control Plane URL is required for foreground run.");
+  }
+
+  const templatePath = options.templatePath ??
+    join(await mkdtemp(join(tmpdir(), "cloudshell-template-")), "resources.json");
+  await app.writeTemplate(templatePath);
+
+  const hostArgs = buildHostRunArgs(options, hostUrl);
+  const host = spawnProcess("dotnet", hostArgs, options);
+  const stopHost = (): void => {
+    if (!host.killed) {
+      host.kill();
+    }
+  };
+  process.once("exit", stopHost);
+
+  try {
+    await waitForReady(host, hostUrl, options);
+    const applyOptions: ApplyOptions = {
+      cliProject: options.cliProject,
+      cloudshellCommand: options.cloudshellCommand,
+      controlPlaneUrl: hostUrl,
+      mode: options.mode,
+      bearerToken: options.bearerToken,
+      cwd: options.cwd,
+      stdio: options.stdio
+    };
+    const applyArgs = buildTemplateApplyArgs(templatePath, applyOptions);
+    const applyCommand = applyOptions.cliProject ? "dotnet" : (applyOptions.cloudshellCommand ?? "cloudshell");
+    const applyCommandArgs = applyOptions.cliProject
+      ? ["run", "--project", applyOptions.cliProject, "--", ...applyArgs]
+      : applyArgs;
+    const applyExitCode = await spawnCommand(applyCommand, applyCommandArgs, applyOptions);
+    if (applyExitCode !== 0) {
+      stopHost();
+      return { command: applyCommand, args: applyCommandArgs, exitCode: applyExitCode };
+    }
+
+    const exitCode = await waitForExit(host);
+    return { command: "dotnet", args: hostArgs, exitCode };
+  } finally {
+    process.removeListener("exit", stopHost);
+  }
+}
+
+async function waitForReady(
+  host: ChildProcess,
+  hostUrl: string,
+  options: ApplyOptions): Promise<void> {
+  const timeoutMilliseconds = (options.timeoutSeconds ?? 60) * 1000;
+  const deadline = Date.now() + timeoutMilliseconds;
+  const url = `${hostUrl.replace(/\/$/, "")}/api/control-plane/v1/resources`;
+
+  while (Date.now() < deadline) {
+    if (host.exitCode !== null) {
+      throw new Error("CloudShell host exited before it was ready.");
+    }
+
+    try {
+      const response = await fetch(url, {
+        headers: options.bearerToken
+          ? { Authorization: `Bearer ${options.bearerToken}` }
+          : undefined
+      });
+      if (response.status === 200 || response.status === 204) {
+        return;
+      }
+    } catch {
+      // Host is still starting.
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  throw new Error(`CloudShell host did not become ready within ${(options.timeoutSeconds ?? 60)} seconds.`);
 }
 
 function setDottedValue(

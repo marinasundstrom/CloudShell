@@ -67,10 +67,10 @@ fi
 
 case "$command" in
   run)
-    dotnet run --project "$host_project" -- --urls "$control_plane_url" --CloudShell:DataDirectory "$data_dir" "$@"
+    CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" npm run apply -- --run "$@"
     ;;
   run-no-auth)
-    Authentication__Enabled=false dotnet run --project "$host_project" -- --urls "$control_plane_url" --CloudShell:DataDirectory "$data_dir" "$@"
+    Authentication__Enabled=false CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" npm run apply -- --run "$@"
     ;;
   start)
     run_cli control-plane start \
@@ -116,6 +116,7 @@ case "$command" in
   start-app)
     run_cli resource action execute "$app_resource_id" start \
       --control-plane "$control_plane_url" \
+      --start-dependencies \
       "$@"
     ;;
   stop-app)
@@ -126,6 +127,7 @@ case "$command" in
   restart-app)
     run_cli resource action execute "$app_resource_id" restart \
       --control-plane "$control_plane_url" \
+      --start-dependencies \
       "$@"
     ;;
   apply)

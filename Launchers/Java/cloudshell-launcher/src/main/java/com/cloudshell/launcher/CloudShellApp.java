@@ -6,6 +6,7 @@ import static com.cloudshell.launcher.JsonSupport.object;
 import static com.cloudshell.launcher.JsonSupport.property;
 
 import com.cloudshell.launcher.JsonSupport.NameValue;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -72,5 +73,20 @@ public final class CloudShellApp {
         line(builder, 1, "]");
         line(builder, 0, "}");
         return builder.toString();
+    }
+
+    public CloudShellLauncherResult apply(CloudShellLauncherOptions options)
+            throws IOException, InterruptedException {
+        return CloudShellLauncher.apply(this, options);
+    }
+
+    public CloudShellLauncherResult start(CloudShellLauncherOptions options)
+            throws IOException, InterruptedException {
+        return CloudShellLauncher.start(this, options);
+    }
+
+    public CloudShellLauncherResult run(CloudShellLauncherOptions options)
+            throws IOException, InterruptedException {
+        return CloudShellLauncher.run(this, options);
     }
 }

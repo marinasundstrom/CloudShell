@@ -45,6 +45,7 @@ app.DefineResources(resources =>
         .WithScript("dev")
         .WithServiceDiscovery()
         .WithReference(settings)
+        .DependsOn(settings)
         .WithHttpEndpoint(
             host: appEndpoint.Host,
             port: appEndpoint.Port,
@@ -83,7 +84,7 @@ var launcherOptions = new CloudShellHostLauncherOptions
     HostProjectPath = hostProject,
     HostUrl = controlPlaneUrl,
     NoBuild = HasArgument(args, "--no-build"),
-    StartHost = HasArgument(args, "--start") || HasArgument(args, "--run"),
+    StartHost = HasArgument(args, "--start"),
     TemplatePath = HasArgument(args, "--template-path")
         ? ReadArgumentValue(args, "--template-path")
         : null,
@@ -92,7 +93,13 @@ var launcherOptions = new CloudShellHostLauncherOptions
     BearerToken = Environment.GetEnvironmentVariable("CLOUDSHELL_CONTROL_PLANE_TOKEN")
 };
 
-if (HasArgument(args, "--apply") || HasArgument(args, "--start") || HasArgument(args, "--run"))
+if (HasArgument(args, "--run"))
+{
+    var result = await app.RunAsync(launcherOptions);
+    return result.ExitCode;
+}
+
+if (HasArgument(args, "--apply") || HasArgument(args, "--start"))
 {
     var result = await app.ApplyAsync(launcherOptions);
     return result.ExitCode;

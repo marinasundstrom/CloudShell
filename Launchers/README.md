@@ -15,6 +15,17 @@ Current launcher packages:
 - `TypeScript/cloudshell`
 - `Java/cloudshell-launcher`
 
+Launchers should expose consistent lifecycle verbs:
+
+- `template` or `toJson` emits the ResourceTemplate.
+- `apply` targets an already-running Control Plane.
+- `start` may start or reuse a daemon-style local host before applying.
+- `run` owns a foreground host process for the launcher command lifetime.
+
+Launchers should also keep resource relationship semantics consistent:
+references are for provider-specific binding and discovery, while dependencies
+are for lifecycle ordering and dependency startup.
+
 Runtime service clients stay under `sdk/`. For example,
 `sdk/java/cloudshell` is used by Java applications after CloudShell starts
 them, while `Launchers/Java/cloudshell-launcher` is used by Java App Host code

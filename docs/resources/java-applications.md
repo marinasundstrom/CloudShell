@@ -32,7 +32,10 @@ a CloudShell resource-model concept.
 When a Java app references Configuration Store or Secrets Vault resources, the
 provider derives `CLOUDSHELL_CONFIGURATION_*` and `CLOUDSHELL_SECRETS_*`
 binding variables for the running process. Java code consumes those bindings
-through the Java SDK clients under `sdk/java/cloudshell`.
+through the Java SDK clients under `sdk/java/cloudshell`. A service-discovery
+reference is not a startup dependency by itself. Launcher code should also
+declare `dependsOn(...)` when the referenced service should be started before
+the Java app through dependency startup.
 
 ## Launcher Shape
 
@@ -48,8 +51,11 @@ Its small entrypoint consumes the experimental Java launcher package under
 `Launchers/Java/cloudshell-launcher`. That package owns Java ResourceTemplate
 authoring and stays separate from the Java runtime service-client SDK, which
 is for Java applications that are already running and need to consume
-CloudShell-managed services. CLI apply/start helpers remain in the sample
-until more Java launcher scenarios prove the package API.
+CloudShell-managed services. The Java launcher package supports template
+emission, apply, daemon-backed start, and foreground run so Java follows the
+same launcher lifecycle vocabulary as the C# and TypeScript integrations.
+Its builders expose both `withReference(...)` for service discovery and
+`dependsOn(...)` for lifecycle ordering.
 
 ## Samples
 

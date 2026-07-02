@@ -66,6 +66,25 @@ apply a generated template, pass `--data-dir` for launcher-local CloudShell
 data, and later target an existing Control Plane by URL. See
 [CloudShell CLI](cli.md) for command details.
 
+Launcher packages and samples should use the same lifecycle vocabulary across
+languages:
+
+- `template` or `toJson`: emit the ResourceTemplate without applying it.
+- `apply`: apply the template to an already-running Control Plane.
+- `start`: start or reuse a daemon-style local host, then apply the template.
+- `run`: start the host in the foreground, apply the template, and keep the
+  host process tied to the launcher command lifetime.
+
+The API shape can be idiomatic to each language. C# can use records and async
+methods, TypeScript can use object-literal options and promises, and Java can
+use ordinary option classes and fluent methods. The behavior behind those
+verbs should remain consistent.
+
+Resource relationships should keep the same meaning in every launcher.
+Service-discovery references and startup dependencies are separate concepts:
+references feed provider-specific binding projection, while dependencies feed
+lifecycle ordering and `--start-dependencies` behavior.
+
 The experimental TypeScript launcher package under `Launchers/TypeScript/cloudshell`
 proves the non-C# authoring shape. It has hand-authored builders for the first
 resource types, emits ResourceTemplate JSON, and can call the CLI apply path.
@@ -75,14 +94,14 @@ resource types, emits ResourceTemplate JSON, and can call the CLI apply path.
 The experimental Java launcher package under `Launchers/Java/cloudshell-launcher`
 contains Java-native ResourceTemplate builders for Java launcher apps.
 `samples/JavaAppHost` consumes that package from a small Java source-file
-launcher, emits a ResourceTemplate, and applies it through the CLI.
+launcher, emits a ResourceTemplate, applies it through the CLI, and can run the
+local host in the foreground for launcher-owned lifetime scenarios.
 
 ## Java Staging
 
 The Java launcher builder is experimental. It owns the initial Java
-ResourceTemplate authoring shape but intentionally keeps CLI integration in
-the sample helper until more Java launcher scenarios prove which process
-helpers should become package API.
+ResourceTemplate authoring shape and the first Java process helpers for
+`apply`, daemon-backed `start`, and foreground `run`.
 
 The Java runtime service clients under `sdk/java/cloudshell` are a separate
 surface. They are for Java applications that are already running and need to

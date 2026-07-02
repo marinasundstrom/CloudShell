@@ -21,8 +21,10 @@ public final class ConfigurationStoreResource extends ResourceBuilder<Configurat
         StringBuilder builder = new StringBuilder();
         line(builder, indent, "{");
         appendCommon(builder, indent + 1);
-        line(builder, indent + 1, "\"configuration\": {");
-        property(builder, indent + 2, "endpoint", json(endpoint), false);
+        line(builder, indent + 1, "\"attributes\": {");
+        line(builder, indent + 2, "\"configuration\": {");
+        property(builder, indent + 3, "endpoint", json(endpoint), false);
+        line(builder, indent + 2, "}");
         line(builder, indent + 1, "}");
         line(builder, indent, "}");
         return builder.toString();

@@ -19,7 +19,21 @@ Generate the template:
 ./cloudshell.sh template
 ```
 
-Start or reuse the local-development host profile, then apply the declarations:
+Run the local-development host in the foreground, apply the declarations, and
+keep the host tied to the launcher command lifetime:
+
+```bash
+Authentication__Enabled=false ./cloudshell.sh run
+```
+
+Apply to an already-running Control Plane:
+
+```bash
+./cloudshell.sh apply
+```
+
+Start or reuse the daemon-style local-development host profile, then apply the
+declarations:
 
 ```bash
 Authentication__Enabled=false ./cloudshell.sh start
@@ -32,7 +46,8 @@ Open the Web UI:
 ```
 
 The Java app resource is declared but not auto-started. Start it from Resource
-Manager or through the helper:
+Manager or through the helper. The helper enables dependency startup, so the
+Configuration Store and Secrets Vault resources are started before the Java app:
 
 ```bash
 ./cloudshell.sh start-app

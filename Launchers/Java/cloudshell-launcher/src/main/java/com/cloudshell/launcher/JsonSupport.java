@@ -64,19 +64,83 @@ final class JsonSupport {
         int indent,
         List<? extends ResourceBuilder<?>> references,
         boolean trailingComma) {
-        line(builder, indent, "\"references\": [");
+        line(builder, indent, json("references") + ": [");
         for (int index = 0; index < references.size(); index++) {
             ResourceBuilder<?> reference = references.get(index);
-            line(builder, indent + 1, "{");
-            property(builder, indent + 2, "resourceId", json(reference.resourceId()), true);
-            property(builder, indent + 2, "relationship", json("reference"), true);
-            property(builder, indent + 2, "addressingMode", json("resourceId"), true);
-            property(builder, indent + 2, "typeId", json(reference.type()), true);
-            property(builder, indent + 2, "providerId", json(reference.providerId()), false);
-            line(builder, indent + 1, "}" + (index < references.size() - 1 ? "," : ""));
+            appendReferenceObject(
+                builder,
+                indent + 1,
+                new ResourceReferenceValue(
+                    reference.resourceId(),
+                    "reference",
+                    "resourceId",
+                    reference.type(),
+                    reference.providerId()),
+                index < references.size() - 1);
         }
 
         line(builder, indent, "]" + (trailingComma ? "," : ""));
+    }
+
+    static void appendResourceReferences(
+        StringBuilder builder,
+        int indent,
+        String name,
+        List<ResourceReferenceValue> references,
+        boolean trailingComma) {
+        line(builder, indent, json(name) + ": [");
+        for (int index = 0; index < references.size(); index++) {
+            appendReferenceObject(
+                builder,
+                indent + 1,
+                references.get(index),
+                index < references.size() - 1);
+        }
+
+        line(builder, indent, "]" + (trailingComma ? "," : ""));
+    }
+
+    static ResourceReferenceValue dependsOn(ResourceBuilder<?> resource) {
+        return new ResourceReferenceValue(
+            resource.resourceId(),
+            "dependsOn",
+            "resourceId",
+            resource.type(),
+            resource.providerId());
+    }
+
+    static ResourceReferenceValue dependsOn(String resourceId) {
+        return new ResourceReferenceValue(
+            resourceId,
+            "dependsOn",
+            "resourceId",
+            null,
+            null);
+    }
+
+    private static void appendReferenceObject(
+        StringBuilder builder,
+        int indent,
+        ResourceReferenceValue reference,
+        boolean trailingComma) {
+        line(builder, indent, "{");
+        property(builder, indent + 1, "resourceId", json(reference.resourceId()), true);
+        property(builder, indent + 1, "relationship", json(reference.relationship()), true);
+        property(
+            builder,
+            indent + 1,
+            "addressingMode",
+            json(reference.addressingMode()),
+            reference.typeId() != null || reference.providerId() != null);
+        if (reference.typeId() != null) {
+            property(builder, indent + 1, "typeId", json(reference.typeId()), reference.providerId() != null);
+        }
+
+        if (reference.providerId() != null) {
+            property(builder, indent + 1, "providerId", json(reference.providerId()), false);
+        }
+
+        line(builder, indent, "}" + (trailingComma ? "," : ""));
     }
 
     static void line(StringBuilder builder, int indent, String value) {
@@ -92,5 +156,13 @@ final class JsonSupport {
     }
 
     record NameValue(String name, String value) {
+    }
+
+    record ResourceReferenceValue(
+        String resourceId,
+        String relationship,
+        String addressingMode,
+        String typeId,
+        String providerId) {
     }
 }

@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Net;
+using System.Net.Http.Headers;
 using CloudShell.ResourceModel;
 
 namespace CloudShell.AppHost.Launcher;
@@ -115,6 +117,75 @@ public static class CloudShellHostLauncher
         return new(command, arguments, exitCode, templatePath);
     }
 
+    public static async Task<CloudShellHostLauncherResult> RunAsync(
+        ResourceTemplate template,
+        CloudShellHostLauncherOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(template);
+        ArgumentNullException.ThrowIfNull(options);
+
+        var templatePath = options.TemplatePath ??
+            Path.Combine(
+                Directory.CreateTempSubdirectory("cloudshell-template-").FullName,
+                options.TemplateFormat == ResourceTemplateFormat.Json
+                    ? "resources.json"
+                    : "resources.yaml");
+        await WriteTemplateAsync(
+            template,
+            templatePath,
+            options.TemplateFormat,
+            cancellationToken);
+
+        var hostUrl = options.HostUrl ?? options.ControlPlaneUrl ??
+            throw new InvalidOperationException("A host URL or Control Plane URL is required for foreground run.");
+        if (string.IsNullOrWhiteSpace(options.HostProjectPath))
+        {
+            throw new InvalidOperationException("A host project path is required for foreground run.");
+        }
+
+        var hostArguments = BuildHostRunArguments(options, hostUrl);
+        using var hostProcess = StartProcess("dotnet", hostArguments, options);
+        try
+        {
+            await WaitForReadyAsync(
+                hostUrl,
+                options.BearerToken,
+                hostProcess,
+                TimeSpan.FromSeconds(options.TimeoutSeconds ?? 60),
+                cancellationToken);
+
+            var applyOptions = options with
+            {
+                ControlPlaneUrl = hostUrl,
+                HostUrl = null,
+                HostProjectPath = null,
+                StateDirectory = null,
+                DataDirectory = null,
+                StartHost = false,
+                NoBuild = false,
+                TemplatePath = templatePath
+            };
+            var applyResult = await ApplyAsync(
+                template,
+                applyOptions,
+                cancellationToken);
+            if (applyResult.ExitCode != 0)
+            {
+                await TryStopAsync(hostProcess);
+                return applyResult;
+            }
+
+            await hostProcess.WaitForExitAsync(cancellationToken);
+            return new("dotnet", hostArguments, hostProcess.ExitCode, templatePath);
+        }
+        catch
+        {
+            await TryStopAsync(hostProcess);
+            throw;
+        }
+    }
+
     public static async Task<string> WriteTemplateAsync(
         ResourceTemplate template,
         string path,
@@ -165,6 +236,35 @@ public static class CloudShellHostLauncher
         return arguments;
     }
 
+    public static IReadOnlyList<string> BuildHostRunArguments(
+        CloudShellHostLauncherOptions options,
+        Uri hostUrl)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(hostUrl);
+        if (string.IsNullOrWhiteSpace(options.HostProjectPath))
+        {
+            throw new InvalidOperationException("A host project path is required for foreground run.");
+        }
+
+        var arguments = new List<string>
+        {
+            "run",
+            "--project",
+            options.HostProjectPath
+        };
+        if (options.NoBuild)
+        {
+            arguments.Add("--no-build");
+        }
+
+        arguments.Add("--");
+        arguments.Add("--urls");
+        arguments.Add(FormatUri(hostUrl)!);
+        AddOption(arguments, "--CloudShell:DataDirectory", options.DataDirectory);
+        return arguments;
+    }
+
     private static void AddOption(
         List<string> arguments,
         string name,
@@ -190,18 +290,11 @@ public static class CloudShellHostLauncher
 
     private static string? FormatUri(Uri? uri) =>
         uri?.ToString().TrimEnd('/');
-}
 
-internal sealed class DefaultCloudShellHostLauncherCommandRunner :
-    ICloudShellHostLauncherCommandRunner
-{
-    public static DefaultCloudShellHostLauncherCommandRunner Instance { get; } = new();
-
-    public async Task<int> RunAsync(
+    internal static Process StartProcess(
         string command,
         IReadOnlyList<string> arguments,
-        CloudShellHostLauncherOptions options,
-        CancellationToken cancellationToken)
+        CloudShellHostLauncherOptions options)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -218,8 +311,95 @@ internal sealed class DefaultCloudShellHostLauncherCommandRunner :
             startInfo.ArgumentList.Add(argument);
         }
 
-        using var process = Process.Start(startInfo) ??
+        return Process.Start(startInfo) ??
             throw new InvalidOperationException("Failed to start the CloudShell launcher command.");
+    }
+
+    private static async Task WaitForReadyAsync(
+        Uri baseUrl,
+        string? bearerToken,
+        Process process,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        using var timeoutSource = new CancellationTokenSource(timeout);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken,
+            timeoutSource.Token);
+
+        while (!linked.Token.IsCancellationRequested)
+        {
+            if (process.HasExited)
+            {
+                throw new InvalidOperationException("CloudShell host exited before it was ready.");
+            }
+
+            if (await IsReadyAsync(baseUrl, bearerToken, linked.Token))
+            {
+                return;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(500), linked.Token);
+        }
+
+        throw new TimeoutException($"CloudShell host did not become ready within {timeout.TotalSeconds:N0} seconds.");
+    }
+
+    private static async Task<bool> IsReadyAsync(
+        Uri baseUrl,
+        string? bearerToken,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var client = new HttpClient { BaseAddress = NormalizeBaseAddress(baseUrl) };
+            if (!string.IsNullOrWhiteSpace(bearerToken))
+            {
+                client.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", bearerToken);
+            }
+
+            using var response = await client.GetAsync("api/control-plane/v1/resources", cancellationToken);
+            return response.StatusCode is HttpStatusCode.OK or HttpStatusCode.NoContent;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static Uri NormalizeBaseAddress(Uri baseUrl)
+    {
+        var value = baseUrl.ToString();
+        return value.EndsWith("/", StringComparison.Ordinal)
+            ? baseUrl
+            : new Uri(value + "/", UriKind.Absolute);
+    }
+
+    private static async Task TryStopAsync(Process process)
+    {
+        if (process.HasExited)
+        {
+            return;
+        }
+
+        process.Kill(entireProcessTree: true);
+        await process.WaitForExitAsync();
+    }
+}
+
+internal sealed class DefaultCloudShellHostLauncherCommandRunner :
+    ICloudShellHostLauncherCommandRunner
+{
+    public static DefaultCloudShellHostLauncherCommandRunner Instance { get; } = new();
+
+    public async Task<int> RunAsync(
+        string command,
+        IReadOnlyList<string> arguments,
+        CloudShellHostLauncherOptions options,
+        CancellationToken cancellationToken)
+    {
+        using var process = CloudShellHostLauncher.StartProcess(command, arguments, options);
         await process.WaitForExitAsync(cancellationToken);
         return process.ExitCode;
     }

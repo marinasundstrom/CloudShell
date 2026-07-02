@@ -66,13 +66,9 @@ public sealed class CloudShellDistributedApplicationBuilder
 
     public Task<CloudShellHostLauncherResult> RunAsync(
         CloudShellHostLauncherOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
-        var effectiveOptions = options ?? new CloudShellHostLauncherOptions();
-        effectiveOptions = effectiveOptions with
-        {
-            StartHost = true
-        };
-        return ApplyAsync(effectiveOptions, cancellationToken);
-    }
+        CancellationToken cancellationToken = default) =>
+        CloudShellHostLauncher.RunAsync(
+            BuildTemplate(options?.EnvironmentId, options?.Metadata),
+            options ?? new CloudShellHostLauncherOptions(),
+            cancellationToken);
 }

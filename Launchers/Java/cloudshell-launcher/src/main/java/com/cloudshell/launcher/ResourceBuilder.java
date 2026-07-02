@@ -3,10 +3,15 @@ package com.cloudshell.launcher;
 import static com.cloudshell.launcher.JsonSupport.json;
 import static com.cloudshell.launcher.JsonSupport.property;
 
+import com.cloudshell.launcher.JsonSupport.ResourceReferenceValue;
+import java.util.ArrayList;
+import java.util.List;
+
 public abstract class ResourceBuilder<T extends ResourceBuilder<T>> {
     private final String name;
     private final String type;
     private final String providerId;
+    private final List<ResourceReferenceValue> dependencies = new ArrayList<>();
     private String resourceId;
     private String displayName;
 
@@ -47,6 +52,16 @@ public abstract class ResourceBuilder<T extends ResourceBuilder<T>> {
         return self();
     }
 
+    public T dependsOn(ResourceBuilder<?> resource) {
+        dependencies.add(JsonSupport.dependsOn(resource));
+        return self();
+    }
+
+    public T dependsOn(String resourceId) {
+        dependencies.add(JsonSupport.dependsOn(resourceId));
+        return self();
+    }
+
     abstract String toJson(int indent);
 
     protected abstract T self();
@@ -58,6 +73,10 @@ public abstract class ResourceBuilder<T extends ResourceBuilder<T>> {
         property(builder, indent, "providerId", json(providerId), true);
         if (displayName != null) {
             property(builder, indent, "displayName", json(displayName), true);
+        }
+
+        if (!dependencies.isEmpty()) {
+            JsonSupport.appendResourceReferences(builder, indent, "dependsOn", dependencies, true);
         }
     }
 }

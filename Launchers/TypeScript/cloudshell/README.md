@@ -39,6 +39,11 @@ await app.apply({
 });
 ```
 
+Use `start(...)` for daemon-style local host startup/reuse before applying the
+template. Use `run(...)` when the launcher should start the host in the
+foreground, apply the template after the Control Plane is ready, and keep the
+host tied to the launcher command lifetime.
+
 Run the package tests:
 
 ```bash

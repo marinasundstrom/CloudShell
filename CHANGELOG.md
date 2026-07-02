@@ -22,6 +22,15 @@ on `git blame --follow`, and then by the broad type of change.
   and introduced `Launchers/Java/cloudshell-launcher` as an experimental Java
   ResourceTemplate builder package consumed by `samples/JavaAppHost`; see
   ADR-20260703-001.
+- Added Java launcher lifecycle helpers for template apply, daemon-backed
+  start, and foreground run so Java App Host code can start the host, apply
+  the template, and keep the host tied to the launcher command lifetime.
+- Added Java launcher `dependsOn(...)` resource builder support and updated
+  launcher samples so app start helpers use dependency startup for referenced
+  Configuration Store and Secrets Vault resources.
+- Aligned C#, TypeScript, and Java launcher lifecycle verbs so `apply` targets
+  an already-running Control Plane, `start` uses daemon startup/reuse, and
+  `run` owns a foreground host process for the launcher command lifetime.
 - Clarified container app cookie session affinity documentation so it states
   that sticky cookies affect ordinary HTTP requests as well as SignalR and
   WebSocket setup flows, documented current provider enforcement limits, and

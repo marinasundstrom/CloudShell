@@ -8,7 +8,7 @@ public final class SecretsVaultResource extends ResourceBuilder<SecretsVaultReso
     private String endpoint;
 
     SecretsVaultResource(String name) {
-        super(name, "secrets.vault", "secrets");
+        super(name, "secrets.vault", "secrets-vault");
     }
 
     public SecretsVaultResource withEndpoint(String endpoint) {
@@ -21,8 +21,10 @@ public final class SecretsVaultResource extends ResourceBuilder<SecretsVaultReso
         StringBuilder builder = new StringBuilder();
         line(builder, indent, "{");
         appendCommon(builder, indent + 1);
-        line(builder, indent + 1, "\"secrets\": {");
-        property(builder, indent + 2, "endpoint", json(endpoint), false);
+        line(builder, indent + 1, "\"attributes\": {");
+        line(builder, indent + 2, "\"secrets\": {");
+        property(builder, indent + 3, "endpoint", json(endpoint), false);
+        line(builder, indent + 2, "}");
         line(builder, indent + 1, "}");
         line(builder, indent, "}");
         return builder.toString();

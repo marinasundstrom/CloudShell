@@ -26,6 +26,21 @@ ADR-20260702-004's sample-local Java staging decision by moving the first
 Java-native ResourceTemplate builders into an experimental Java launcher
 package while keeping Java runtime service clients separate.
 
+### ADR-20260703-002: Use consistent launcher lifecycle verbs across languages
+
+Launcher packages and samples should expose the same lifecycle concepts across
+C#, TypeScript, Java, and future language integrations while allowing each API
+to feel idiomatic in its language. `template` or `toJson` emits the
+ResourceTemplate without applying it. `apply` targets an already-running
+Control Plane. `start` may start or reuse a daemon-style local host before
+applying the template. `run` owns a foreground host process, applies the
+template after the Control Plane is ready, and keeps the host tied to the
+launcher command lifetime.
+
+The consistent behavior matters more than copying syntax. C# can use records
+and async methods, TypeScript can use promises and object-literal options, and
+Java can use fluent option classes and ordinary methods.
+
 ## 2026-07-02
 
 ### ADR-20260702-003: Scope implicit local Docker container-app materialization by host instance

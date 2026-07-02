@@ -30,22 +30,24 @@ Apply the template to an already-running Control Plane:
 CLOUDSHELL_CONTROL_PLANE_URL=http://127.0.0.1:5097 npm run apply
 ```
 
-Run the local-development host in a foreground terminal. The host starts the
-Control Plane and Web UI in the same process:
+Run the local-development host in a foreground terminal, apply the
+TypeScript-authored template, and keep the host tied to the launcher command
+lifetime:
 
 ```bash
 ./cloudshell.sh run-no-auth
 ```
 
-From a second terminal, apply the TypeScript-authored template to that running
-host:
+Apply the TypeScript-authored template to an already-running host:
 
 ```bash
 ./cloudshell.sh apply
 ```
 
 After applying the template, open the Web UI and start the TypeScript-declared
-JavaScript app from Resource Manager, or start it from the helper:
+JavaScript app from Resource Manager, or start it from the helper. The helper
+enables dependency startup, so the Configuration Store resource is started
+before the JavaScript app:
 
 ```bash
 ./cloudshell.sh open
@@ -58,8 +60,9 @@ After the app starts, open:
 http://localhost:5173
 ```
 
-The helper also keeps CLI daemon commands available for daemon-specific
-testing, but daemon mode is not part of the normal sample flow.
+The helper also keeps CLI daemon `start` and `apply-start` commands available
+for daemon-specific testing, but foreground `run` is the normal local sample
+flow.
 
 Use `CLOUDSHELL_DATA_DIR` to choose a different local CloudShell data
 directory for the launched host.

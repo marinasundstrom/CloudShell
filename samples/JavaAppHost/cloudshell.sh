@@ -22,8 +22,11 @@ Commands:
   build-app      Compile the Java workload jar used by the launcher template.
   template       Print the Java-authored ResourceTemplate JSON.
   apply          Apply the template to the configured Control Plane.
-  start          Start or reuse the local development host, then apply the template.
-  start-no-auth  Start or reuse the local development host with authentication disabled
+  run            Run the local development host in the foreground, apply the
+                 template, and keep the host tied to the launcher lifetime.
+  run-no-auth    Run the foreground host with authentication disabled.
+  start          Start or reuse the local development host daemon, then apply the template.
+  start-no-auth  Start or reuse the daemon with authentication disabled
                  when a new host process is launched, then apply the template.
   stop           Stop the recorded host process.
   reset          Stop the recorded host process and remove generated sample state.
@@ -87,6 +90,14 @@ case "$command" in
     build_app
     run_launcher --apply "$@"
     ;;
+  run)
+    build_app
+    run_launcher --run "$@"
+    ;;
+  run-no-auth)
+    build_app
+    Authentication__Enabled=false run_launcher --run "$@"
+    ;;
   start)
     build_app
     run_launcher --start "$@"
@@ -119,6 +130,7 @@ case "$command" in
     build_app
     run_cli resource action execute "$app_resource_id" start \
       --control-plane "$control_plane_url" \
+      --start-dependencies \
       "$@"
     ;;
   stop-app)
@@ -130,6 +142,7 @@ case "$command" in
     build_app
     run_cli resource action execute "$app_resource_id" restart \
       --control-plane "$control_plane_url" \
+      --start-dependencies \
       "$@"
     ;;
   help|--help|-h)
