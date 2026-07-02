@@ -1051,6 +1051,136 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddLoadBalancerResourceType_RejectsDuplicateEntrypointNamesAndRouteIds()
+    {
+        var services = new ServiceCollection();
+        services.AddLoadBalancerResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "edge",
+            LoadBalancerResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [LoadBalancerResourceTypeProvider.Attributes.Provider] = "traefik",
+                [LoadBalancerResourceTypeProvider.Attributes.Entrypoints] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new LoadBalancerEntrypointValue("web", ResourceEndpointProtocol.Http.ToString(), 8080),
+                        new LoadBalancerEntrypointValue(" WEB ", ResourceEndpointProtocol.Https.ToString(), 8443)
+                    }),
+                [LoadBalancerResourceTypeProvider.Attributes.Routes] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new LoadBalancerRouteValue(
+                            "api",
+                            "API",
+                            LoadBalancerRouteKind.Http.ToString(),
+                            "web",
+                            new LoadBalancerRouteMatchValue("api.local", "/"),
+                            new LoadBalancerRouteTargetValue(
+                                ResourceReference.ReferenceResourceId("application:api"),
+                                "http")),
+                        new LoadBalancerRouteValue(
+                            " API ",
+                            "API copy",
+                            LoadBalancerRouteKind.Http.ToString(),
+                            "web",
+                            new LoadBalancerRouteMatchValue("copy.local", "/"),
+                            new LoadBalancerRouteTargetValue(
+                                ResourceReference.ReferenceResourceId("application:api-copy"),
+                                "http"))
+                    })
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphValidationPipeline>()
+            .ValidateAsync(
+                new ResourceDefinitionGraph([definition]),
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.True(validation.HasErrors);
+        Assert.Contains(validation.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.AttributeValueInvalid &&
+            diagnostic.Target == definition.EffectiveResourceId &&
+            diagnostic.Message.Contains(
+                "multiple entrypoints named 'web'",
+                StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(validation.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.AttributeValueInvalid &&
+            diagnostic.Target == definition.EffectiveResourceId &&
+            diagnostic.Message.Contains(
+                "multiple routes with id 'api'",
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task AddLoadBalancerResourceType_RejectsIncompatibleAndConflictingRoutes()
+    {
+        var services = new ServiceCollection();
+        services.AddLoadBalancerResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "edge",
+            LoadBalancerResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [LoadBalancerResourceTypeProvider.Attributes.Provider] = "traefik",
+                [LoadBalancerResourceTypeProvider.Attributes.Entrypoints] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new LoadBalancerEntrypointValue(
+                            "tcp",
+                            ResourceEndpointProtocol.Tcp.ToString(),
+                            15432)
+                    }),
+                [LoadBalancerResourceTypeProvider.Attributes.Routes] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new LoadBalancerRouteValue(
+                            "api",
+                            "API",
+                            LoadBalancerRouteKind.Http.ToString(),
+                            "tcp",
+                            new LoadBalancerRouteMatchValue("api.local", "/"),
+                            new LoadBalancerRouteTargetValue(
+                                ResourceReference.ReferenceResourceId("application:api"),
+                                "http")),
+                        new LoadBalancerRouteValue(
+                            "api-copy",
+                            "API copy",
+                            LoadBalancerRouteKind.Http.ToString(),
+                            "tcp",
+                            new LoadBalancerRouteMatchValue("api.local", "/"),
+                            new LoadBalancerRouteTargetValue(
+                                ResourceReference.ReferenceResourceId("application:api-copy"),
+                                "http"))
+                    })
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphValidationPipeline>()
+            .ValidateAsync(
+                new ResourceDefinitionGraph([definition]),
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.True(validation.HasErrors);
+        Assert.Contains(validation.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid &&
+            diagnostic.Target == definition.EffectiveResourceId &&
+            diagnostic.Message.Contains(
+                "route 'api' is a http route but entrypoint 'tcp' uses protocol 'Tcp'",
+                StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(validation.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.AttributeValueInvalid &&
+            diagnostic.Target == definition.EffectiveResourceId &&
+            diagnostic.Message.Contains("conflicting route match", StringComparison.OrdinalIgnoreCase) &&
+            diagnostic.Message.Contains("api", StringComparison.OrdinalIgnoreCase) &&
+            diagnostic.Message.Contains("api-copy", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task AddNetworkResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();

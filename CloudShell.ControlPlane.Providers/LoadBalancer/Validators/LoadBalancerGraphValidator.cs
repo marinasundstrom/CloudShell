@@ -1,3 +1,6 @@
+using System.Globalization;
+using CloudShell.Abstractions.ResourceManager;
+
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class LoadBalancerGraphValidator : IResourceDefinitionGraphValidator
@@ -73,26 +76,137 @@ public sealed class LoadBalancerGraphValidator : IResourceDefinitionGraphValidat
         var routes = resource.Attributes
             .GetObject<LoadBalancerRouteValue[]>(
                 LoadBalancerResourceTypeProvider.Attributes.Routes) ?? [];
+        ValidateDuplicateEntrypointNames(resource, entrypoints, diagnostics);
+        ValidateDuplicateRouteIds(resource, routes, diagnostics);
+
         var entrypointNames = entrypoints
             .Select(entrypoint => entrypoint.Name.Trim())
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var entrypointsByName = entrypoints
+            .Where(entrypoint => !string.IsNullOrWhiteSpace(entrypoint.Name))
+            .GroupBy(entrypoint => entrypoint.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.First(),
+                StringComparer.OrdinalIgnoreCase);
 
         foreach (var route in routes)
         {
             var entrypointName = route.EntrypointName.Trim();
-            if (string.IsNullOrWhiteSpace(entrypointName) ||
-                entrypointNames.Contains(entrypointName))
+            if (string.IsNullOrWhiteSpace(entrypointName))
             {
                 continue;
             }
 
+            if (!entrypointNames.Contains(entrypointName))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid,
+                    $"Load balancer '{resource.EffectiveResourceId}' route '{route.Id}' references missing entrypoint '{entrypointName}'.",
+                    resource.EffectiveResourceId));
+                continue;
+            }
+
+            if (entrypointsByName.TryGetValue(entrypointName, out var entrypoint) &&
+                !IsRouteCompatibleWithEntrypoint(route, entrypoint))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid,
+                    $"Load balancer '{resource.EffectiveResourceId}' route '{route.Id}' is a {route.Kind.Trim().ToLowerInvariant()} route but entrypoint '{entrypoint.Name.Trim()}' uses protocol '{entrypoint.Protocol}'.",
+                    resource.EffectiveResourceId));
+            }
+        }
+
+        ValidateRouteConflicts(resource, routes, diagnostics);
+    }
+
+    private static void ValidateDuplicateEntrypointNames(
+        Resource resource,
+        IReadOnlyList<LoadBalancerEntrypointValue> entrypoints,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        foreach (var duplicate in entrypoints
+            .Select(entrypoint => entrypoint.Name.Trim())
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .GroupBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1))
+        {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid,
-                $"Load balancer '{resource.EffectiveResourceId}' route '{route.Id}' references missing entrypoint '{entrypointName}'.",
+                ResourceDefinitionDiagnosticCodes.AttributeValueInvalid,
+                $"Load balancer '{resource.EffectiveResourceId}' has multiple entrypoints named '{duplicate.Key}'.",
                 resource.EffectiveResourceId));
         }
     }
+
+    private static void ValidateDuplicateRouteIds(
+        Resource resource,
+        IReadOnlyList<LoadBalancerRouteValue> routes,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        foreach (var duplicate in routes
+            .Select(route => route.Id.Trim())
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .GroupBy(id => id, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.AttributeValueInvalid,
+                $"Load balancer '{resource.EffectiveResourceId}' has multiple routes with id '{duplicate.Key}'.",
+                resource.EffectiveResourceId));
+        }
+    }
+
+    private static void ValidateRouteConflicts(
+        Resource resource,
+        IReadOnlyList<LoadBalancerRouteValue> routes,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        foreach (var duplicate in routes
+            .Where(route => !string.IsNullOrWhiteSpace(route.Id))
+            .GroupBy(CreateRouteConflictKey, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1))
+        {
+            var routeIds = string.Join(", ", duplicate.Select(route => route.Id.Trim()));
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.AttributeValueInvalid,
+                $"Load balancer '{resource.EffectiveResourceId}' has conflicting route match '{duplicate.Key}' on routes: {routeIds}.",
+                resource.EffectiveResourceId));
+        }
+    }
+
+    private static bool IsRouteCompatibleWithEntrypoint(
+        LoadBalancerRouteValue route,
+        LoadBalancerEntrypointValue entrypoint)
+    {
+        if (!Enum.TryParse<LoadBalancerRouteKind>(route.Kind.Trim(), ignoreCase: true, out var kind) ||
+            !Enum.TryParse<ResourceEndpointProtocol>(entrypoint.Protocol.Trim(), ignoreCase: true, out var protocol))
+        {
+            return true;
+        }
+
+        return kind switch
+        {
+            LoadBalancerRouteKind.Http => protocol is ResourceEndpointProtocol.Http or ResourceEndpointProtocol.Https,
+            LoadBalancerRouteKind.Tcp => protocol == ResourceEndpointProtocol.Tcp,
+            _ => true
+        };
+    }
+
+    private static string CreateRouteConflictKey(LoadBalancerRouteValue route)
+    {
+        var kind = route.Kind.Trim();
+        var entrypointName = route.EntrypointName.Trim();
+        var host = NormalizeNullable(route.Match.Host)?.ToLowerInvariant() ?? "*";
+        var pathPrefix = NormalizeNullable(route.Match.PathPrefix) ?? "/";
+        var port = route.Match.Port?.ToString(CultureInfo.InvariantCulture) ?? "*";
+        return string.Equals(kind, "Tcp", StringComparison.OrdinalIgnoreCase)
+            ? $"{kind}:{entrypointName}:{port}"
+            : $"{kind}:{entrypointName}:{host}:{pathPrefix}";
+    }
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static bool IsHostReference(ResourceReference reference) =>
         IsHostType(reference.TypeId);

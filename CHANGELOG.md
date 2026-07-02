@@ -49,6 +49,9 @@ on `git blame --follow`, and then by the broad type of change.
   while keeping the first HTTP endpoint as the direct-runtime fallback.
 - Added Resource Model graph validation for load-balancer routes that reference
   undeclared entrypoints, surfacing the error before provider execution.
+- Extended Resource Model graph validation for load-balancer duplicate
+  entrypoints, duplicate route IDs, incompatible route protocols, and
+  conflicting route matches.
 
 ### 2026-07-01
 
