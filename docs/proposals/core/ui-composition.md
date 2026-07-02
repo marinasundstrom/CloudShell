@@ -17,14 +17,24 @@ activation, Fluent UI, or Control Plane concepts.
 For the current implementation guide, package split, and sandbox behavior, see
 [UI composition](../../ui-composition.md). For the CloudShell product layer
 that consumes this library through CoreShell, see
-[Shell composition](shell-composition.md).
+[Shell composition](../../future/shell-composition.md).
 
 ## Status
 
-Current implementation working document. The library exists experimentally as
-`CoreShell.Composition` and `CoreShell.Composition.Blazor`; this
-proposal owns the reusable library direction while the shell composition
-proposal owns the CoreShell toolkit layer above it.
+- Status: Current implementation working document
+- Strategy fit: Medium-high; valuable where it stabilizes current shell,
+  Settings, navigation, and Resource Manager UI boundaries without broadening
+  into a general shell platform.
+- Canonical feature docs:
+  [UI composition](../../ui-composition.md),
+  [Shell customization](../../shell-customization.md), and
+  [UI extensions](../../extensions/ui.md)
+- Remaining action: keep proposal content focused on reusable composition
+  library direction, descriptor/runtime/renderer split, persistence-safe
+  metadata, and CoreShell boundary decisions.
+- Out of scope: broad shell-platform contracts and extension marketplace
+  behavior. Those stay in
+  [Shell composition](../../future/shell-composition.md).
 
 ## Goals
 
@@ -89,18 +99,11 @@ library.
 
 ## Current Library Shape
 
-The current implementation is intentionally small:
-
-- `CoreShell.Composition` contains typed IDs, module registration,
-  registry assembly, descriptors, validation, target-to-link resolution, page,
-  menu, section-outlet, and section projections.
-- `CoreShell.Composition.Blazor` contains plain Blazor components for
-  composition hosts, menus, links, title outlets, page layouts, section
-  outlets, section navigation, and tabbed section layouts.
-- `samples/CompositionSandbox` proves the same graph outside CloudShell
-  Hosting with ordinary Blazor routing and host-owned styling.
-- CloudShell Hosting currently consumes the graph through adapters and
-  presenters, but those adapters should stay above the library boundary.
+Implemented package split, sandbox behavior, CoreShell adapter behavior,
+CloudShell Hosting consumption, Settings integration, route/link behavior,
+presenter boundaries, and current limitations are documented in
+[UI composition](../../ui-composition.md). Keep this proposal focused on
+remaining direction rather than repeating package inventories.
 
 ## Relationship to CoreShell
 

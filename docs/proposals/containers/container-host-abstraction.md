@@ -2,13 +2,35 @@
 
 ## Status
 
-In progress.
+Status: In progress.
+
+Strategy fit: High; container hosts are required for container apps, SQL
+Server, load balancers, storage mounts, remote Docker, and future host
+providers.
+
+Canonical feature docs:
+
+- [Container Hosts](../../resources/container-hosts.md)
+- [Container Apps](../../resources/container-apps.md)
+- [Programmatic resources](../../programmatic-resources.md)
+- [Orchestration and Deployments](../../orchestration-and-deployments.md)
+
+Remaining action: finish provider-owned runtime integration, richer readiness
+diagnostics, remote Docker completion, and cleanup of older engine/container
+host naming seams.
+
+Out of scope: standardizing Kubernetes, systemd, scheduler-specific, or
+vendor-appliance behavior before more providers prove the required contracts.
 
 This proposal defines how CloudShell should select and use container-capable
 hosts for provider-owned runtime infrastructure. It is the bridge between the
 user-visible host resource model, such as `docker.host`, and provider-owned
 runtime work, such as starting a Traefik implementation container for a load
 balancer resource.
+
+Implemented generic host behavior is documented in
+[Container Hosts](../../resources/container-hosts.md). This proposal tracks
+remaining host abstraction work and concrete provider gaps.
 
 ## Problem
 

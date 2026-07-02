@@ -173,14 +173,13 @@ String IDs remain available as lower-level references for existing resources
 and advanced scenarios, but new declarations should treat the authored value
 as a resource name unless the API explicitly asks for a resource ID.
 
-The Resource Model POC is adding a separate `ResourceGraphBuilder`
-for code-first authoring of resources and resource templates. These builders
-emit `ResourceDefinition` values, not Resource Manager declarations, so the
-same authored resource graph can be serialized, imported, applied as a
-`ResourceTemplate`, or used by tests. Provider builders should start as small
-manual implementations next to the resource type provider they target. Source
-generation remains a future option once several manual builders show the
-stable conventions and the customization points providers need.
+CloudShell has a `ResourceGraphBuilder` for code-first authoring of resources
+and resource templates. Builders emit `ResourceDefinition` values, not
+Resource Manager declarations, so the same authored resource graph can be
+serialized, imported, applied as a `ResourceTemplate`, or used by tests.
+Provider builders are hand-authored next to the resource type provider they
+target. Source generation remains a future option once the manual builders
+show the stable conventions and customization points providers need.
 The same issue applies to future language SDKs: provider-specific builder
 wrappers and extension methods will need to exist in TypeScript/JavaScript and
 other ecosystems if those SDKs are to feel as natural as C#. Hand-authored
@@ -218,29 +217,32 @@ Resource Model, providers validate and plan provider-owned changes, and
 deployment planning then projects accepted resource state to orchestrator services,
 replica groups, load-balancer bindings, and the running system.
 
-The initial manual builders cover generic networks, Configuration Store,
-Secrets Vault, storage, CloudShell storage-backed volume, SQL Server, SQL
-Database, generic container hosts, Docker hosts, Docker containers, container
-application, local volumes, executable application, ASP.NET Core project,
-identity provisioning, load balancer, and host configuration source graph
-resources, plus service, DNS zone, and name mapping exposure resources. They
-are useful for test setup as well as host authoring because provider tests can
-compose realistic resource templates without repeating raw attribute
-dictionaries, configuration payloads, capability payloads, and typed
-`ResourceReference` values. The SQL builders cover declared database
-configuration, typed server dependencies, and volume mount capability setup.
-The container builders cover host dependencies, endpoint requests, replicas,
-image settings, and volume mount capability setup. The executable and project
-builders cover command/project settings, endpoint requests, environment
-variables, service-discovery references, volume mounts, and health-check
-payloads. The identity provisioning builder covers the provider identity and
-provider-kind attributes used by the runtime setup seam. The exposure builders
-cover service target/network dependencies, DNS zone declaration, name mapping
-DNS-zone/target dependencies, load balancer host/backend dependencies, and
-host configuration source declaration. The configuration and secrets builders
-can declare service endpoints and participate in dependencies, but they
-intentionally do not author configuration entries or secret values as graph
-attributes. Those values remain provider/runtime data.
+The current manual builders cover generic networks, virtual networks, host
+networking, Configuration Store, Secrets Vault, storage, CloudShell
+storage-backed volumes, local volumes, SQL Server, SQL Database, generic
+container hosts, Docker hosts, Docker containers, container applications,
+executable applications, ASP.NET Core projects, JavaScript apps, Java apps,
+identity provisioning, services, DNS zones, name mappings, load balancers, and
+host configuration sources. They are useful for test setup as well as host
+authoring because provider tests can compose realistic resource templates
+without repeating raw attribute dictionaries, configuration payloads,
+capability payloads, and typed `ResourceReference` values.
+
+The SQL builders cover declared database configuration, typed server
+dependencies, and volume mount capability setup. Container and Docker builders
+cover host dependencies, endpoint requests, replicas, image settings, registry
+and container metadata, and volume mount capability setup. Executable,
+ASP.NET Core project, JavaScript, and Java app builders cover command/project
+settings, endpoint requests, environment variables, service-discovery
+references, volume mounts, and health-check payloads. Identity provisioning
+builders cover provider identity and provider-kind attributes used by the
+runtime setup seam. Exposure builders cover service target/network
+dependencies, DNS zone declaration, name mapping DNS-zone/target
+dependencies, load balancer host/backend dependencies, and host configuration
+source declaration. Configuration and secrets builders can declare service
+endpoints and participate in dependencies, but they intentionally do not
+author configuration entries or secret values as graph attributes. Those
+values remain provider/runtime data.
 
 Display names are optional presentation labels. Use `.WithDisplayName(...)`
 when a local development dashboard or sample benefits from a friendlier label.
@@ -347,6 +349,8 @@ configuration, or host-level `controlPlane.AddIdentityProvider(...)` calls.
 identity-provider context that can create provider-scoped principal references,
 for example `resources.GetIdentityProvider().GetUser("alice")`. Identity
 providers are not emitted as `ResourceDefinition` entries.
+For host placement, descriptors, capabilities, and resolver diagnostics, see
+[Container Hosts](resources/container-hosts.md).
 
 Graph-backed generic container-host resources project orchestration descriptors
 for the runtime host resolver. This means a resource such as SQL Server can omit
@@ -490,6 +494,9 @@ controlPlane.DefineResources(resources =>
         .WithDisplayName("Main SQL Server");
 });
 ```
+
+For the shared storage and volume authoring model, see
+[Storage and Volumes](resources/storage-and-volumes.md).
 
 The current local provider still uses a SQL Server container image internally,
 but callers receive an `application.sql-server` service resource rather than a

@@ -272,5 +272,5 @@ extension-owned IDs, host validation, permission-aware visibility, grouped
 local navigation where useful, dynamic component hosting, named content areas,
 and a clear boundary between UI composition and Control Plane behavior.
 
-See the [shell composition proposal](../proposals/core/shell-composition.md)
+See the [shell composition future direction](../future/shell-composition.md)
 for the target direction.

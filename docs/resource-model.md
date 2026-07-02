@@ -292,6 +292,11 @@ projection decides whether the reference is allowed before materialization,
 whether it can be resolved later, and which diagnostics should be shown when
 resolution fails.
 
+For the current provider-created and runtime-managed resource contract,
+including `Source`, `ManagementMode`, `Visibility`, owner cleanup behavior,
+Resource Manager filtering, and provider parity expectations, see
+[Provider-created and runtime-managed resources](runtime-managed-resources.md).
+
 Resource Manager selector components should follow the same distinction. A
 standard selector can query existing projected resources by class, type,
 provider, capability, group, or access level. Specialized hierarchical

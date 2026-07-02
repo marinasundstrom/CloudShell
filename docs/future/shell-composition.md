@@ -1,4 +1,4 @@
-# Shell composition
+# Shell Composition Future Direction
 
 CoreShell should become an independently useful toolkit for building
 extensible shells from CMS-like fundamentals, not only the host for Resource
@@ -7,9 +7,9 @@ CoreShell extension model should be general enough for provider workspaces,
 settings, notifications, dashboards, developer portals, operations consoles,
 and future product areas.
 
-This proposal is about the CoreShell layer. The reusable UI composition
+This future direction is about the CoreShell layer. The reusable UI composition
 library is its own subject, tracked by the
-[UI composition library proposal](ui-composition.md). Composition UI stores
+[UI composition library proposal](../proposals/core/ui-composition.md). Composition UI stores
 low-level structure and relationships between content. CoreShell consumes that
 lower-level library, defines the generic shell UI extension model on top, and
 projects shell-owned contributions into the generic composition graph.
@@ -74,9 +74,10 @@ only provided a host area.
 
 ## Status
 
-Proposed. This is post-MVP platform direction. MVP work should keep Resource
-Manager and supported local-development samples stable while avoiding
-short-term UI decisions that would prevent this model.
+Deferred strategic direction, not an active proposal. This is post-MVP
+platform direction. MVP work should keep Resource Manager and supported
+local-development samples stable while avoiding short-term UI decisions that
+would prevent this model.
 
 The immediate MVP UI work is still important to this direction, but it is not
 the final shell extensibility layer. Current Resource Manager and Settings
@@ -88,9 +89,9 @@ contracts. The extension contract should not be today's internal presenter
 types exposed directly.
 
 For the reusable library direction, see
-[UI composition library](ui-composition.md). For the current experimental
+[UI composition library](../proposals/core/ui-composition.md). For the current experimental
 library, CloudShell Hosting integration slices, and sample behavior, see
-[UI composition](../../ui-composition.md).
+[UI composition](../ui-composition.md).
 
 ## Layering Decision
 

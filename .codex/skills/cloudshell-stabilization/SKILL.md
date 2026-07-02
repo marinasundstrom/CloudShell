@@ -14,6 +14,7 @@ Read these first:
 
 - `docs/goal.md`
 - `CONTRIBUTIONS.md`
+- `docs/features.md`
 - `ADR.md`
 - `CHANGELOG.md`
 - `docs/system-design-guidelines.md`
@@ -52,7 +53,24 @@ Then inspect the current code and tests around the failing or weak behavior.
    relevant proposal documents in sync when stabilization completes proposal
    work, changes proposal order, changes MVP scope, or creates new remaining
    tasks.
-9. Follow `CONTRIBUTIONS.md` for verification, changelog, ADR, commit, and
+9. When stabilization completes or verifies implemented behavior that was
+   described in a proposal, move or port the durable behavior and concrete
+   details into the relevant feature or specification docs. If those docs
+   already describe the implementation, link to them from the proposal and
+   remove duplicated landed detail. Keep proposals focused on remaining
+   stabilization work, open decisions, migration tasks, and deferred ideas.
+   Verify proposal claims against the current code before converting them into
+   feature/spec documentation.
+10. When stabilization affects provider, extension, launcher, or language SDK
+   parity, update the feature/spec docs with the required behavior and any
+   intentional non-parity. Include contracts, authoring surfaces,
+   API/client/UI projection, diagnostics, security, persistence/lifecycle
+   behavior, and known gaps so future integrations can stay aligned.
+11. Review proposal Mermaid diagrams when stabilizing or documenting completed
+   behavior. Move valid current diagrams into feature/spec docs, update stale
+   diagrams before moving them, and leave proposal diagrams only for active
+   stabilization options, migration choices, or deferred ideas.
+12. Follow `CONTRIBUTIONS.md` for verification, changelog, ADR, commit, and
    push expectations. Run the verification baseline from `AGENTS.md` before
    committing cross-boundary stabilization work. Commit only files owned by the
    current chat or thread. Leave pure documentation changes uncommitted and

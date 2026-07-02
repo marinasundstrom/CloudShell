@@ -126,6 +126,8 @@ they are only implementation details of the application. They should be
 projected as child or runtime-managed resources only when that projection adds
 resource-model value, such as independent inspection, targeted diagnostics,
 actions, permissions, ownership traversal, or references from other resources.
+The common projection rules are defined in
+[Provider-created and runtime-managed resources](../runtime-managed-resources.md).
 Sub-resources that are managed through the Resource Manager are different:
 they are real resources with normal resource identity, even when the
 application provider creates or reconciles them on behalf of the parent.
@@ -169,6 +171,8 @@ volumes. For local process-backed resources, `FileSystem` volume mounts are
 materialized by linking the resolved volume source into the application target
 path before launch; relative target paths are resolved under the application
 working directory.
+For the shared storage and volume model, see
+[Storage and Volumes](storage-and-volumes.md).
 
 The goal is for any resource author to be able to implement a normal resource
 type when the runtime is backed by a local executable, an ad-hoc container, or

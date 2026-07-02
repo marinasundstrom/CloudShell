@@ -16,6 +16,12 @@ Still, every resource provider should make that call explicitly. For
 interactive features, the Resource Manager UI integration is part of the
 expected implementation chain.
 
+For ResourceDefinition-based providers, see
+[Resource model providers](../resource-model-providers.md). That spec covers
+resource type providers, class/type definitions, capability and operation
+providers, graph validators, apply providers, projection providers, and parity
+expectations for new provider packages.
+
 ## Internal Resource Providers
 
 Implement `IResourceProvider` to contribute discovered resource data:

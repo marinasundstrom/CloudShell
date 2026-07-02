@@ -116,16 +116,21 @@ which is a separate provider operation request to create the database if it is
 missing before database grants are reconciled. CloudShell does not drop
 databases or project database connection strings for workloads.
 
-Access grants on SQL Server resources are modeled in CloudShell today so the
-Resource Manager can show intended access. They are not yet enforced inside
-SQL Server. The next access-control slice should translate grants into
-provider-owned SQL logins, database users, roles, or another provider-specific
-credential model without exposing bootstrap administrator credentials to
-workloads. Before that provider materialization lands, Resource Manager should
-distinguish requested CloudShell grants from effective SQL Server access so
-the UI can show whether the provider has actually applied a grant. The current
-Access control view starts that distinction by marking SQL Server database
-grants as requested but not yet applied by the SQL Server provider.
+Database read/write grant intent can be assigned to SQL Server resources
+through the normal Access control model. Resource Manager distinguishes
+requested CloudShell grants from effective SQL Server access so users can see
+whether the provider has applied, failed, or drifted from the requested state.
+The local SQL Server provider can reconcile read/write grants for
+resource-identity principals by creating provider-owned contained database
+users and `db_datareader`/`db_datawriter` role memberships for declared
+databases, then inspect SQL-side state and report applied, pending, failed, or
+drifted status.
+
+SQL Server resources expose a **Reconcile database access** action that
+reapplies CloudShell database grants to declared SQL databases while the
+instance is running. The action uses the provider's SQL administrator path;
+workloads still receive provider-neutral resource identity credentials rather
+than the bootstrap administrator password.
 
 ## Overview
 
@@ -147,6 +152,9 @@ The password is hidden by default with reveal and copy actions for local
 development convenience.
 
 ## Storage
+
+For the shared storage and volume model, see
+[Storage and Volumes](storage-and-volumes.md).
 
 SQL Server has a resource-specific data mount point:
 
@@ -184,18 +192,20 @@ Detached/persistent production-like SQL Server management should eventually be
 modeled through the same top-level resource shape, but with provider-backed
 storage, clearer recovery behavior, and explicit persistence policy.
 
-## Identity Direction
+## Identity And Access
 
 The current SQL Server provider uses password-based access because the MVP
 implementation is container-backed and optimized for local development. The
 `MSSQL_SA_PASSWORD` value remains the bootstrap path for the built-in resource
-until identity-backed database access is implemented and proven.
+and for provider-owned reconciliation operations.
 
-The direction is to support CloudShell resource identity for SQL Server access
-in addition to password authentication. An application resource with an assigned
-CloudShell identity should be able to connect to SQL Server through that
-identity, similar to Azure managed identity flows, once the provider can
-materialize the required server logins, database users, and grants.
+CloudShell resource identity is the user-facing access model. An application
+resource with an assigned CloudShell identity can receive standard
+`CLOUDSHELL_IDENTITY_*` credential environment variables, and the SQL Server
+provider can materialize matching database users and role memberships for
+declared database grants. This is intentionally similar to Azure managed
+identity flows at the product level, while the current local provider still
+uses SQL Server-contained users behind the provider boundary.
 
 Identity access should be modeled through resource identity and scoped grants,
 not by projecting database credentials as ordinary secrets into dependent
@@ -208,18 +218,19 @@ The current builder can record grant intent on the SQL Server resource:
 sql.Allow(api.Principal, CloudShellPermissions.Database.Actions.ReadWrite);
 ```
 
-For now, that grant is visible in Resource Manager Access control and identity
-views. Materializing SQL logins, database users, and roles from the grant is a
-future provider capability.
+Resource Manager Access control and identity views show the requested grant and
+the provider-reported effective status when the provider can inspect the SQL
+Server.
 
 ## Future Database Resources
 
 `application.sql-server` represents the SQL Server instance. The current
-provider can project declared `application.sql-database` child resources. A
-future SQL Server provider should also be able to inspect a running instance
-and project discovered databases, possibly through a dedicated
-`sqlserver.database` resource type with a database-oriented resource class when
-that class is added to the domain model.
+provider can project declared `application.sql-database` child resources and
+inspect whether those declared databases exist. A future SQL Server provider
+should also be able to inspect a running instance and project discovered
+databases, possibly through a dedicated `sqlserver.database` resource type with
+a database-oriented resource class when that class is added to the domain
+model.
 
 Those database resources should be children of, or otherwise related to, the
 SQL Server instance. They can then support database-specific management

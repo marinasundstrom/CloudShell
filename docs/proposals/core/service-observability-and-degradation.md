@@ -467,9 +467,11 @@ health scope definition and status model.
 - [Container applications](../containers/container-applications.md) owns
   container app replicas, runtime-managed child resources, app-scoped
   telemetry scopes, and provider-owned container app Monitoring dashboards.
-- [Provider-created and runtime-managed resources](provider-created-and-runtime-managed-resources.md)
-  owns runtime resource projection, ownership, visibility, cleanup, and future
-  placement/materialization diagnostics.
+- [Provider-created and runtime-managed resources](../../runtime-managed-resources.md)
+  owns the implemented runtime resource projection, ownership, visibility, and
+  cleanup contract; the
+  [runtime-managed resources proposal](provider-created-and-runtime-managed-resources.md)
+  tracks future placement/materialization diagnostics.
 - Future Health/status-page work can reuse service degradation findings, but
   broad uptime, incident annotation, subscriptions, and public status pages
   remain separate post-MVP work.

@@ -1,13 +1,14 @@
-# Deployment Projection Proposal
+# Deployment Projection Future Direction
 
 ## Status
 
-In progress.
+Deferred strategic direction, not an active proposal.
 
-This is the current first implementation focus. The initial slice should
-establish application-model projection compatibility, allowing CloudShell
-resource graphs to be transformed into deployment artifacts for external
-platforms and environments.
+Deployment projection has strong long-term product fit, but it is not an
+active implementation track. It should wait until ResourceDefinition apply,
+container app orchestration, networking, storage, identity, and initial
+on-premise target boundaries are stable enough to project without inventing a
+parallel deployment model.
 
 CloudShell currently supports resources, providers, orchestrators,
 runtime-managed resources, dependencies, and resource templates. However,
@@ -480,7 +481,7 @@ Application
 
 Normal users should only see information they are authorized to view.
 
-## Implementation Plan
+## Possible Later Implementation Plan
 
 1. Define projection abstractions.
 2. Define projection-provider abstractions.
@@ -497,7 +498,7 @@ Normal users should only see information they are authorized to view.
 13. Add compatibility testing.
 14. Add integration tests.
 
-## Remaining Tasks
+## Possible Later Tasks
 
 * Define projection-provider contracts.
 * Define resource-mapping contracts.

@@ -71,7 +71,20 @@ GET /api/control-plane/v1/resources/{resourceId}/monitoring
 The first route lets Resource Manager decide whether to show the generated
 Management > Monitoring tab. The second route returns the current provider
 snapshot when one is available. See
-[Resource monitoring](proposals/core/resource-monitoring.md).
+[Resource Monitoring and Usage](monitoring-and-usage.md).
+
+Resource Manager deployment history is exposed as a Control Plane read model:
+
+```text
+GET /api/control-plane/v1/deployments
+```
+
+The route supports filtering by source resource id, deployment id,
+orchestrator id, and maximum record count. It returns internal Resource
+Manager deployment records and environment revision metadata for runtime work
+derived from accepted resource state. It is not a user-authored deployment
+template API. See
+[Orchestration and Deployments](orchestration-and-deployments.md).
 
 Resource procedure responses return a primary `message`, optional restart
 metadata, and a `signals` collection. Signals use the shared Resource Manager
@@ -91,6 +104,8 @@ provider-owned streams, OpenTelemetry exporters such as OTLP, or
 Prometheus/OpenMetrics-style endpoints. The retained telemetry APIs stay
 query-oriented so shell views do not need to know which standards-based
 transport or provider path produced the data.
+For the full signal taxonomy and log/event/trace/metric/monitoring/health
+boundaries, see [Observability](observability.md).
 
 The current API surface remains snapshot/list based while CloudShell proves
 basic monitoring support across resource providers. Future live telemetry and
@@ -260,12 +275,14 @@ the domain managers, not the generated client.
 The OpenAPI document must describe the domain-shaped resource projection. The
 `GET /api/control-plane/v1/resources` response schema references
 `ResourceResponse`, and `ResourceResponse` includes `resourceClass`,
-`attributes`, `identity`, and `resourceActions`. `identity` is an optional
-resource identity binding with kind, provider ID when resolved, subject, scopes,
-and non-secret claim metadata. `resourceActions` is a dictionary keyed by
-action ID whose values include required permission, method, and href
-affordances. Creation requests include `startAfterCreate` as an explicit
-lifecycle option.
+`attributes`, `identity`, `resourceActions`, `source`, `managementMode`,
+`visibility`, `ownerResourceId`, and `cleanupBehavior`. `identity` is an
+optional resource identity binding with kind, provider ID when resolved,
+subject, scopes, and non-secret claim metadata. `resourceActions` is a
+dictionary keyed by action ID whose values include required permission, method,
+and href affordances. Runtime-managed resource metadata is described in
+[Provider-created and runtime-managed resources](runtime-managed-resources.md).
+Creation requests include `startAfterCreate` as an explicit lifecycle option.
 
 Resource permission grants are exposed through the same domain-shaped Control
 Plane API:

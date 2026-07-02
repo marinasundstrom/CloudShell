@@ -1,8 +1,11 @@
 # Proposals
 
-Proposals are living design documents meant to track the progress of a feature.
-Their status, remaining tasks, open questions, and relationship to the current
-roadmap should be kept updated as implementation work lands.
+Proposals are working documents for actionable product increments. They should
+track the work that can plausibly be implemented in the current MVP, the next
+post-MVP milestone, or a clearly scoped stabilization slice. Far-future ideas
+belong in [Future directions](../future/) until they have a near-term
+implementation path. Current behavior belongs in the
+[Feature and specification index](../features.md) and the linked feature docs.
 
 When a proposal changes direction or an implementation slice completes, update
 the relevant proposal together with [Roadmap](../roadmap.md),
@@ -12,44 +15,100 @@ repo-local Codex skills also require this synchronization for feature and
 stabilization work.
 
 Use the [Refactoring tracker](../refactoring.md) for active cross-cutting
-cleanup task lists. Proposals should retain feature shape and open questions;
-the tracker should carry current refactoring slices, completed cleanup, and
-near-term boundary work.
+cleanup task lists. Proposals should retain feature shape, value, open
+questions, and remaining work; the tracker should carry current refactoring
+slices, completed cleanup, and near-term boundary work. Landed behavior should
+move into the relevant specification docs, not remain as the main content of a
+proposal. When a proposal contains current implementation details, verify the
+details against code before moving them. If feature/specification docs were
+written from the start, link to those docs from the proposal and keep only the
+active proposal work here. Review proposal Mermaid diagrams during the same
+pass: move valid current diagrams to feature/spec docs, update stale diagrams
+before moving them, and leave proposal diagrams only when they explain active
+design work or deferred options.
 
 ## Proposal Status
 
-This table is the authoritative proposal status index. Keep it current whenever
-proposal status, MVP relevance, implementation order, or remaining work
+This table is the authoritative active proposal index. Keep it current whenever
+proposal status, MVP relevance, implementation order, fit, or remaining work
 changes. Milestone scope remains authoritative in [Roadmap](../roadmap.md).
 
-| Order | Proposal | Status | Milestone relationship | Notes |
+Active proposals should start with a short metadata block before deeper design
+detail:
+
+```markdown
+## Status
+
+- Status: In progress | Proposed | Migration in progress | Partially implemented
+- Strategy fit: High | Medium | Low, with one short reason
+- Canonical feature docs: links to implemented/current behavior
+- Remaining action: the next concrete work or decision
+- Out of scope: deferred or future-direction items
+```
+
+Avoid using `Status` to restate the whole implementation history. If the
+proposal needs that context, link to the feature/spec docs or changelog and
+keep only the delta that affects remaining work.
+
+| Order | Proposal | Status | Fit likelihood | Action |
 | --- | --- | --- | --- | --- |
-| 1 | [Platform foundations](core/platform-foundations.md) | In progress | MVP: UX polish; Samples should work | Current MVP convergence focus. Tracks the local development target with the UI foundation as the stabilization lens: consistent current UI structure, reusable components, iconography, maintainable Resource Manager and Settings patterns, Application Topology confidence, app-centric workflows, focused relationship comprehension, readiness diagnostics, readable resource labels, settings/secrets/identity polish, persisted-state handoff, and cross-cutting reliability. |
-| 2 | [Secrets management](services/secrets-management.md) | In progress | MVP: App settings and secrets integrations | Built-in vault and reference flow exist; remaining work focuses Resource Manager assignment polish, safe reference display, diagnostics, and identity-backed access where needed. |
-| 3 | [Identity and access](core/identity-and-access.md) | Current implementation working document | MVP: Identity, Built-in; external validation | Built-in provisioning, scoped tokens, grants, and service integration are working. A Keycloak sample validates external OIDC user sign-in, role claim mapping, sample-scoped resource identity provisioning, runtime credential injection, provider setup, external service-bearer validation plumbing, and automated workload smoke coverage with a Keycloak-issued token. |
-| 4 | [Lifecycle orchestration](core/lifecycle-orchestration.md) | Proposed | MVP: Resource Manager behavior and traceability | Defines the common lifecycle action procedure, dependency execution flow, resource events, failure semantics, and future event-triggered extension point. |
-| 5 | [Logging infrastructure](core/logging-infrastructure.md) | In progress | MVP: Traceability and Resource Manager UX polish | Provider logs now have additive structured metadata fields using familiar logging and OpenTelemetry terminology. Remaining work tracks audit schemas, retention, metrics, traces, diagnostics, and future non-text payloads. |
-| 6 | [Resource monitoring](core/resource-monitoring.md) | In progress | MVP: Resource Manager UX polish; provider diagnostics | Tracks provider-observed resource metrics under the Management group. Current slices add the `monitoring` resource capability, provider-backed snapshots, Control Plane API/client support, a generated Monitoring tab, Docker container CPU/memory/network/block/process/restart/uptime metrics, local application/configuration/secrets service process CPU/memory/thread/uptime metrics, single-instance container-backed application stats, and a provider-owned container app Monitoring dashboard with app summaries and per-replica breakdowns when a static/default container host can be resolved. |
-| 7 | [Resource recovery](core/resource-recovery.md) | Proposed | MVP: Recovery policy after lifecycle and health foundations | Tracks liveness-signal-driven automatic restart policy, exponential backoff, provider restart participation through standard lifecycle actions, Resource Manager configuration, and recovery diagnostics while keeping host restart cleanup separate from workload crash recovery. |
-| 8 | [Service telemetry and degradation](core/service-observability-and-degradation.md) | Proposed | MVP: App telemetry and local degradation analysis | Tracks the service-first, replica-aware telemetry overview that correlates load, recent exceptions, logs, traces, health, telemetry metrics, resource monitoring, capacity context, and redacted public reports without turning CloudShell into a full observability platform. |
-| 9 | [Container applications](containers/container-applications.md) | In progress | MVP: Container Apps, Version 1; Application exposure, discovery, and names | Tracks `application.container-app` as the managed-service resource and first hard proof of graph-backed orchestration: image/revision, replica slots, endpoints, service discovery, identity, storage, observability, routing, and exposure relationships should converge through ResourceDefinition apply plus internal orchestrator deployment planning instead of old provider-specific update paths. |
-| 10 | [Container host abstraction](containers/container-host-abstraction.md) | In progress | MVP: Container Apps, Version 1 | Host descriptor/provider layer, shared resolver, Control Plane validation, Docker Compose resolver use, canonical host naming, missing-host action capability reasons, and basic host readiness/capability diagnostics are in place. Next work is credential readiness diagnostics and provider-owned runtime infrastructure. |
-| 11 | [Virtual network resource](networking/virtual-network-resource.md) | In progress | MVP: Network primitives | Core model and host-local path exist; next MVP work is UI-managed public endpoint exposure, provider diagnostics, and integration with service/name mapping. |
-| 12 | [Load balancer resource](networking/load-balancer-resource.md) | In progress | MVP: Network primitives | First Traefik/file-provider slice exists; remaining work focuses provider selection, validation, host readiness, lifecycle, and public endpoint UX. |
-| 13 | [DNS and name mapping](networking/dns-and-name-mapping-resource.md) | In progress | MVP: Application exposure, discovery, and names; provider-backed DNS post-MVP | First logical DNS zone and name-mapping projection exists through programmatic declarations. Resource Manager can create a DNS zone with one initial mapping and add standalone mappings to existing zones. Name-mapping update/delete UI, provider-backed DNS propagation, and network-level service registries remain open. |
-| 14 | [Storage and volume mappings](storage/volume-mappings.md) | In progress | MVP: Storage and volume mappings | Initial Local Storage resource kind under `ResourceClass.Storage`, FileSystem medium projection, `cloudshell.volume`, `AddVolume(...)`, `ResourceVolumeMount`, mount permissions, container app selector/workload projection, dedicated Storage tab, direct volume UI, storage-owned volume work, consumer mount observations, and storage/volume runtime status projection are in place. Next work is broader provider-backed materialization, richer host/storage-medium compatibility diagnostics, relationship visibility, and usage monitoring. |
-| 15 | [Remote Docker hosts](containers/remote-docker-hosts.md) | Partially implemented | MVP: Container Apps, Version 1 | Concrete remote-host work continues on top of the shared host abstraction, but should not block the local/default container-host MVP path. |
-| 16 | [Provider-created and runtime-managed resources](core/provider-created-and-runtime-managed-resources.md) | In progress | MVP foundation for container app diagnostics; broader runtime projection later | Resource source, management mode, visibility, owner, and cleanup metadata now project through Resource, API, remote client, and Resource Manager inventory filtering. Container apps now materialize requested replica resources as hidden runtime-managed children, and Resource Manager can opt into hidden/runtime-managed views separately; Docker host container discovery remains a provider-observed projection path. Next work is provider-observed IDs, health, placement, and materialization diagnostics. |
-| 17 | [Orchestrator deployments and environment revisions](deployment/deployments-and-revisions.md) | In progress | MVP internal foundation, with environment-history support | Internal orchestrator deployment/environment-revision data contracts exist for provider/orchestrator use, with container apps as the first consumer. Graph-backed container app image and replica-slot updates now enter Resource Manager through an internal deployment coordinator. Next work is finishing the controller/reconciliation boundary for first start, routing rebinding, service tear-down, and cleanup. Rich rollout history, environment replay, retention, traffic splitting, and public management APIs remain deferred. |
-| 18 | [Deployment projection](deployment/deployment-projection.md) | In progress | Later portability | Tracks external deployment artifact projection and should not displace the MVP control-plane milestone. |
-| 19 | [UI composition library](core/ui-composition.md) | Current implementation working document | Post-MVP reusable UI foundation | Tracks the standalone `CoreShell.Composition` and `CoreShell.Composition.Blazor` library direction: generic graph primitives, typed IDs, modules, menus, pages, section containers, sections, route metadata, renderer hints, plain Blazor renderers, descriptor projection, and future graph persistence. This is separate from the CoreShell product experience and extension API. |
-| 20 | [Shell composition](core/shell-composition.md) | Proposed | Post-MVP extensible shell platform | Tracks the future CoreShell direction above the UI composition library: formal main navigation, common Settings hierarchy, notifications, provider workspaces, documented extension areas, shell-owned validation, default Fluent UI presenters, and adapters from CloudShell product abstractions into generic composition primitives. The current MVP should consume the landed composition work only to stabilize existing shell, Settings, and Resource Manager surfaces. |
-| 21 | [Resource Manager project structure](core/resource-manager-project-structure.md) | Proposed | Post-MVP UI and hosting structure | Tracks the desired logical and physical split between CoreShell infrastructure, CoreShell extension contracts, CoreShell Fluent UI presenters, the CloudShell product host, Resource Manager UI, Resource Manager UI abstractions, Resource Manager host installation, Control Plane services, and provider UI versus provider runtime integrations. |
-| 22 | [Resource graph and runtime separation](core/resource-graph-and-runtime-separation.md) | Migration in progress; active migration anchor | MVP foundation plus later authoring and provider model | The initial isolated `CloudShell.ResourceModel` project proved the graph/configuration contract, definition envelope, inheritance resolver, diagnostics, and attached provider contracts. Resource model work is now an active migration track: resource templates should be ResourceDefinition-based, selected providers should switch to graph-backed state, old provider template serialization should be retired where possible, and container app orchestration should derive deployments from accepted graph state. |
-| 23 | [Resource graph import and code generation](core/resource-graph-import.md) | Proposed | Later portability and advanced authoring | Tracks external file import into CloudShell graph drafts, starting with Docker Compose YAML, with generated programmatic declarations as the preferred first output. |
-| 24 | [Cross-language local development](core/cross-language-local-development.md) | Proposed | Local-development portability; post-MVP SDK hardening | Tracks TypeScript/JavaScript and future non-C# app-host authoring through ResourceDefinition-based graph interchange, a host launcher, generated clients, and normal Control Plane/Resource Manager operation without making language SDKs parallel Control Planes. |
-| 25 | [Managed SQL Server resource](resources/managed-sql-server.md) | Partially implemented | Post-MVP managed database resource shape | Tracks the future SQL Server managed resource surface. The current `application.sql-server` implementation remains a local-development container-backed bridge, but now has a provider-owned builder, projects as a service resource, displays declared database children, reports requested-versus-effective grant status, and avoids generic container-app deployment controls by default. |
-| 26 | [IoT device provisioning](core/iot-device-provisioning.md) | Proposed future direction | Later device and edge integration | Tracks a future IoT/edge story where devices bootstrap with pre-issued credentials, are reconciled into the CloudShell resource graph, receive principals and service access through the existing identity/access model, and publish health, activity, and telemetry without requiring a separate Azure-like service catalog. |
+| 1 | [Platform foundations](core/platform-foundations.md) | In progress | High; this is the MVP convergence lens. | Continue action for UI consistency, sample confidence, diagnostics, persisted-state handoff, and release hardening. Move landed foundations into specs as they settle. |
+| 2 | [Secrets management](services/secrets-management.md) | In progress | High; required for app settings and secrets integrations. | Continue focused Resource Manager assignment polish, safe reference display, diagnostics, and identity-backed access. |
+| 3 | [Identity and access](core/identity-and-access.md) | Current implementation working document | High; required for built-in and external identity validation. | Keep only remaining identity/access work here. Move stable auth, permissions, grants, and sample behavior into specification docs. |
+| 4 | [Lifecycle orchestration](core/lifecycle-orchestration.md) | Proposed | High; directly improves Resource Manager operations and traceability. | Take after current action-capability and diagnostics stabilization, starting with common procedure/event semantics. |
+| 5 | [Logging infrastructure](core/logging-infrastructure.md) | In progress | High; supports MVP traceability and diagnostics. | Continue audit schema, retention, metrics/traces alignment, and diagnostic display work; keep provider log metadata already landed in specs. |
+| 6 | [Resource monitoring](core/resource-monitoring.md) | In progress | High; supports provider diagnostics and app-centric Resource Manager pages. | Use [Resource Monitoring and Usage](../monitoring-and-usage.md) as the landed spec. Continue provider coverage, live updates, and history decisions here. |
+| 7 | [Resource recovery](core/resource-recovery.md) | Proposed | Medium-high; valuable after lifecycle and liveness foundations are stable. | Defer implementation until lifecycle procedure, health/liveness, and provider restart semantics are clearer. |
+| 8 | [Service telemetry and degradation](core/service-observability-and-degradation.md) | Proposed | Medium-high; valuable for local degradation analysis but easy to overbuild. | Take only slices that improve app-centric diagnosis with existing logs, traces, metrics, health, and monitoring. |
+| 9 | [Container applications](containers/container-applications.md) | In progress | High; core MVP proof. | Continue orchestration convergence, deployment/revision clarity, route rebinding, storage/identity/networking integration, and user-facing diagnostics. |
+| 10 | [Container host abstraction](containers/container-host-abstraction.md) | In progress | High; required for default/local and future host targets. | Continue credential readiness diagnostics and provider-owned runtime infrastructure without blocking the local/default host path. |
+| 11 | [Virtual network resource](networking/virtual-network-resource.md) | In progress | High; required network primitive. | Continue UI-managed exposure, provider diagnostics, and service/name-mapping integration. |
+| 12 | [Load balancer resource](networking/load-balancer-resource.md) | In progress | High; required for explicit public routing and replicated app scenarios. | Continue provider selection, validation, host readiness, lifecycle, and public endpoint UX. |
+| 13 | [DNS and name mapping](networking/dns-and-name-mapping-resource.md) | In progress | High for MVP naming; provider-backed DNS is later. | Finish name-mapping update/delete UI and local hostname diagnostics; defer provider-backed DNS propagation until network providers are stronger. |
+| 14 | [Storage and volume mappings](storage/volume-mappings.md) | In progress | High; required for stateful local apps. | Continue provider-backed materialization, host/storage compatibility diagnostics, relationship visibility, and usage integration. |
+| 15 | [Remote Docker hosts](containers/remote-docker-hosts.md) | Partially implemented | Medium; useful but should not block local/default host MVP. | Keep behind shared host abstraction. Take concrete slices only when they validate the host boundary or unblock samples. |
+| 16 | [Provider-created and runtime-managed resources](core/provider-created-and-runtime-managed-resources.md) | In progress | High; supports replica/resource diagnostics and cleanup. | Use [Provider-created and runtime-managed resources](../runtime-managed-resources.md) as the landed spec. Continue provider-observed IDs, health, placement, ownership traversal, and materialization diagnostics. |
+| 17 | [Orchestrator deployments and environment revisions](deployment/deployments-and-revisions.md) | In progress | High for container app internals; later for public rollout history. | Finish controller/reconciliation boundary for first start, routing rebinding, service tear-down, and cleanup. Keep rich rollout history deferred. |
+| 18 | [UI composition library](core/ui-composition.md) | Current implementation working document | Medium-high; active only where it stabilizes current UI surfaces. | Avoid broadening for MVP. Use it to reduce current shell, Settings, and Resource Manager drift; keep generic library behavior in [UI composition](../ui-composition.md). |
+| 19 | [Resource graph and runtime separation](core/resource-graph-and-runtime-separation.md) | Migration in progress; active migration anchor | High; foundational to templates, graph apply, and orchestration. | Continue ResourceDefinition-based templates, graph-backed provider migration, and retirement of obsolete provider-template paths. |
+| 20 | [Cross-language local development](core/cross-language-local-development.md) | In progress | High; required to keep CloudShell ecosystem-neutral. | Continue launcher/profile, TypeScript/JavaScript, Java, CLI, and SDK hardening as focused slices. Move stable package and sample behavior into launcher, CLI, SDK, and resource specs. |
+| 21 | [Managed SQL Server resource](resources/managed-sql-server.md) | Partially implemented | Medium-high; valuable after MVP storage, identity, and database access stabilize. | Keep current SQL Server local-development bridge stable. Defer full managed database surface until provider-backed grants, storage, and backup/restore value are clear. |
+
+## Deferred Strategy Notes
+
+These items fit CloudShell's long-term direction, but they are not active
+proposals. Pull one back into `docs/proposals/` only when there is a clear
+incremental implementation slice with near-term value.
+
+| Direction | Fit likelihood | Next action |
+| --- | --- | --- |
+| [Deployment projection](../future/deployment-projection.md) | High long-term fit for portability and target-specific deployment output. | Defer until ResourceDefinition apply, container app orchestration, networking, storage, identity, and on-premise target boundaries are stable. |
+| [Resource graph import and code generation](../future/resource-graph-import-and-code-generation.md) | High adoption fit for Docker Compose and existing local app topologies. | Defer implementation; revisit after container apps, volumes, networking, and import/read-only UX are stable. |
+| [Shell composition](../future/shell-composition.md) | High strategic fit for the post-MVP extensible shell platform. | Defer broad shell-platform contracts; only extract proven patterns when current Resource Manager, Settings, or shell work needs them. |
+| [Resource Manager project structure](../future/resource-manager-project-structure.md) | Medium-high structural fit once Resource Manager UI and CoreShell boundaries are proven. | Defer physical project/assembly restructuring until current UI and shell composition paths are stable. |
+| [IoT device provisioning](../future/iot-device-provisioning.md) | Plausible later fit for edge/device environments. | No action now; revisit after local and initial on-premise control-plane flows are credible. |
+
+## Feature Doc Migration Queue
+
+Completed work should move from proposals into feature/specification docs, or
+be linked from proposals when the feature/specification docs already contain
+the implementation details. Some areas are large enough to process as their
+own documentation slice instead of folding into this overview cleanup.
+
+| Area | Current source | Feature doc target | Action |
+| --- | --- | --- | --- |
+| Container apps | [Container applications](containers/container-applications.md) current implementation section and changelog entries | [Container Apps](../resources/container-apps.md), [Application resources](../resources/application-resources.md), [Resource model](../resource-model.md), and [Networking](../networking.md) | Initial drain done for Resource Manager, deployment, replica, monitoring, ingress, relationship, and readiness behavior. Later pass should verify all changelog details are represented and remove any remaining landed detail from the proposal. |
+| SQL Server | [Managed SQL Server resource](resources/managed-sql-server.md) current implementation section and changelog entries | [SQL Server resources](../resources/sql-server.md), [Application resources](../resources/application-resources.md), and [Resource identity and permissions](../resource-identity-and-permissions.md) | Initial drain done for builder, database child-resource, grant reconciliation, storage, and local container-backed bridge behavior. Later pass should verify sample-specific behavior and provider caveats. |
+| Identity and access | [Identity and access](core/identity-and-access.md) | [Resource identity and permissions](../resource-identity-and-permissions.md) and [Authentication and authorization](../authentication-and-authorization.md) | Initial cleanup done; later pass should verify all Keycloak and protected-service details are represented in feature docs. |
+| Resource monitoring and usage | [Resource monitoring](core/resource-monitoring.md) | [Resource Monitoring and Usage](../monitoring-and-usage.md), [Persistence](../persistence.md), and [Control Plane API](../control-plane-api.md) | Initial spec extracted. Later pass should verify provider-specific resource docs link to the spec. |
+| Orchestrator deployments and environment revisions | [Orchestrator deployments and environment revisions](deployment/deployments-and-revisions.md) | [Orchestration and Deployments](../orchestration-and-deployments.md), [Container Apps](../resources/container-apps.md), and [Resource templates](../resource-templates.md) | Initial spec extracted for internal deployment records, environment revisions, replica groups, API/client read model, and authoring boundary. Later pass should drain remaining implemented controller/reconciliation detail from the proposal. |
+| Observability and logging | [Logging infrastructure](core/logging-infrastructure.md), [Service telemetry and degradation](core/service-observability-and-degradation.md), and changelog entries | [Observability](../observability.md), [Resource Monitoring and Usage](../monitoring-and-usage.md), [Control Plane API](../control-plane-api.md), and [Persistence](../persistence.md) | Initial spec extracted for signal taxonomy, log-source contracts, resource events, traces, metrics, monitoring, usage, health, routes, permissions, and boundaries. Later pass should drain structured logging, UI filtering, retention, and correlation details. |
+| Container hosts | [Container host abstraction](containers/container-host-abstraction.md), [Remote Docker hosts](containers/remote-docker-hosts.md), and changelog entries | [Container Hosts](../resources/container-hosts.md), [Container Apps](../resources/container-apps.md), [Programmatic resources](../programmatic-resources.md), and [Orchestration and Deployments](../orchestration-and-deployments.md) | Initial spec extracted for generic host resource shape, descriptors, resolver order, capabilities, diagnostics, runtime boundaries, and provider/launcher parity. Later pass should drain Docker-specific host details as remote host support stabilizes. |
+| Storage and volumes | [Storage and volume mappings](storage/volume-mappings.md) and changelog entries | [Storage and Volumes](../resources/storage-and-volumes.md), [Container Hosts](../resources/container-hosts.md), [Application resources](../resources/application-resources.md), and [SQL Server resources](../resources/sql-server.md) | Initial spec extracted for storage/volume resource types, volume-consumer payloads, permissions, materialization observations, Resource Manager views, diagnostics, and provider/launcher parity. Later pass should drain provider-backed storage and usage details as they land. |
+| Provider-created and runtime-managed resources | [Provider-created and runtime-managed resources](core/provider-created-and-runtime-managed-resources.md) and changelog entries | [Provider-created and runtime-managed resources](../runtime-managed-resources.md), [Resource model](../resource-model.md), [Container Apps](../resources/container-apps.md), and [Orchestration and Deployments](../orchestration-and-deployments.md) | Initial spec extracted for source, management mode, visibility, ownership, cleanup behavior, Resource Manager filtering, API/client projection, container app runtime replicas, storage-owned hidden volumes, and provider/launcher parity. Later pass should drain provider-created durable-resource examples as they land. |
+| Cross-language local development | [Cross-language local development](core/cross-language-local-development.md) and changelog entries | [Launchers and app hosts](../launchers-and-app-hosts.md), [CloudShell CLI](../cli.md), [SDK clients](../sdk-clients.md), and language resource docs | Initial drain done for C# launcher, TypeScript/JavaScript, Java launcher, CLI `--data-dir`, SDK-client, and sample behavior. Later pass should verify package status and generated-client guidance. |
+| Resource model providers | [Resource graph and runtime separation](core/resource-graph-and-runtime-separation.md) provider sections and diagrams | [Resource model providers](../resource-model-providers.md), [ResourceDefinition structure](../resource-definition-structure.md), and [Extensions](../extensions.md) | Initial spec extracted for type providers, class/type definitions, capability and operation providers, graph validators, apply providers, projection providers, provider package shape, and parity expectations. Proposal diagrams that still mention generated wrappers or persistence strategies are now marked proposal-only. |
+| UI/CoreShell composition | [UI composition library](core/ui-composition.md), [Shell composition](../future/shell-composition.md), and changelog entries | [UI composition](../ui-composition.md), [Shell customization](../shell-customization.md), and extension docs | Initial proposal cleanup done; current package split and CloudShell/CoreShell consumption now live in feature docs. Later pass should verify landed CoreShell services, Blazor adapter, route/link resolution, Settings, and navigation behavior against code and changelog entries. |
 
 ## Current proposal order
 
@@ -111,19 +170,17 @@ hardening.
    the local/default host path
 12. Runtime ownership decisions through
    [Runtime-managed resources](core/provider-created-and-runtime-managed-resources.md)
-13. [UI composition library](core/ui-composition.md),
-    [Shell composition](core/shell-composition.md), and
-    [Resource Manager project structure](core/resource-manager-project-structure.md),
-    after Resource Manager and supported local-development samples are stable
-    enough to generalize the reusable library primitives, CoreShell-owned
-    shell experience contracts, and Resource Manager UI/hosting boundaries.
-    During MVP convergence, only take composition or project-boundary work that
-    fixes regressions or directly supports the current shell, Resource Manager,
-    and Settings experience.
-14. Advanced app and environment concepts, including external-format resource
-    graph import and code generation, cross-language local-development
-    authoring and host launchers, IoT device provisioning, and edge/device
-    resource management
+13. [UI composition library](core/ui-composition.md), only where it fixes
+    regressions or directly supports the current shell, Resource Manager, and
+    Settings experience. Broader CoreShell shell contracts and Resource Manager
+    project restructuring remain [future directions](../future/).
+14. Cross-language local-development hardening through
+    [Cross-language local development](core/cross-language-local-development.md)
+    only where it keeps the local-development model ecosystem-neutral without
+    distracting from MVP stabilization. External-format import, deployment
+    projection, IoT provisioning, and edge/device resource management remain
+    [future directions](../future/) until a concrete near-term value slice is
+    accepted.
 
 Use [Roadmap](../roadmap.md) for the reasoning behind this order and the
 concrete MVP execution plan.

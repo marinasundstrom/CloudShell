@@ -1,6 +1,6 @@
-# IoT device provisioning
+# IoT Device Provisioning Future Direction
 
-Status: Proposed future direction
+Status: Deferred strategic direction, not an active proposal.
 
 CloudShell should eventually have an IoT story that fits the same resource,
 identity, access, networking, and observability model used by applications and
@@ -9,8 +9,9 @@ catalog. The goal is to let device workloads securely join a CloudShell
 environment, become manageable resources, and use already-registered services
 through provider-neutral CloudShell concepts.
 
-This proposal is post-MVP. It should not displace the local-development MVP,
-Application Topology confidence, or Resource Manager stabilization work.
+This direction is post-MVP and likely post-initial-on-premise. It should not
+displace the local-development MVP, Application Topology confidence, Resource
+Manager stabilization work, or the first on-premise control-plane proof.
 
 ## Problem
 

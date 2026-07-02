@@ -12,7 +12,7 @@ coupling them to the shell.
 For future direction, see the
 [UI composition library proposal](proposals/core/ui-composition.md). For the
 CloudShell product layer built on top of the library, see the
-[shell composition proposal](proposals/core/shell-composition.md).
+[shell composition future direction](future/shell-composition.md).
 
 ## Packages
 

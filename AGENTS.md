@@ -16,7 +16,10 @@ Before making product or architecture changes, read:
 - [Development workflow](CONTRIBUTIONS.md)
 - [Architecture](docs/architecture.md)
 - [Domain model](docs/domain-model.md)
+- [Feature and specification index](docs/features.md)
 - [Resource model](docs/resource-model.md)
+- [Resource model providers](docs/resource-model-providers.md)
+- [Provider-created and runtime-managed resources](docs/runtime-managed-resources.md)
 - [Naming conventions](docs/naming-conventions.md)
 - [System design guidelines](docs/system-design-guidelines.md)
 - [Architecture decision log](ADR.md)
@@ -30,6 +33,10 @@ For focused areas, read the relevant documentation:
 - [Extensions](docs/extensions.md)
 - [Programmatic resources](docs/programmatic-resources.md)
 - [Resource templates](docs/resource-templates.md)
+- [Orchestration and deployments](docs/orchestration-and-deployments.md)
+- [Observability](docs/observability.md)
+- [Container Hosts](docs/resources/container-hosts.md)
+- [Storage and Volumes](docs/resources/storage-and-volumes.md)
 - [Configuration services](docs/configuration-services.md)
 - [Application resources](docs/resources/)
 - [Persistence](docs/persistence.md)
@@ -136,6 +143,24 @@ That document defines:
 - documentation updates
 - ADR and changelog updates
 - commit and push expectations
+
+When processing proposals, verify current behavior against the code where
+needed. Move or port implemented behavior and concrete details into the
+relevant feature/specification docs, then keep proposals focused on active
+work, open decisions, migration tasks, or deferred ideas. If implementation
+docs were written from the start, link to them from the proposal instead of
+duplicating the details.
+
+For extensible behavior, feature/specification docs must capture the parity
+contract for future providers, UI extensions, shell extensions, launchers, and
+language SDKs: owning contracts, resource model shape, authoring surfaces,
+runtime boundaries, API/client projection, UI projection, security,
+diagnostics, persistence/lifecycle behavior, and known gaps.
+
+Review Mermaid diagrams when moving implemented proposal content. Valid current
+diagrams belong in feature/specification docs; stale diagrams should be
+updated before moving; proposal diagrams should remain only for active design
+or deferred work.
 
 ## Skills
 

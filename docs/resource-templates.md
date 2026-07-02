@@ -128,6 +128,26 @@ template and an apply mode:
 In all modes, provider validation runs before graph state is committed.
 Runtime reconciliation runs only after accepted state has been committed.
 
+The implemented apply surfaces are:
+
+- `IResourceTemplateManager.ApplyResourceTemplateAsync(...)` for in-process
+  and remote Control Plane clients.
+- `POST /resource-templates/apply` on the Control Plane API.
+- `CloudShell.Cli template apply`, which accepts `create-or-update`,
+  `create-only`, and `update-existing` apply modes.
+- `CloudShell.AppHost.Launcher`, which builds a `ResourceTemplate` from a
+  `ResourceGraphBuilder`, writes YAML or JSON, and applies it through the CLI
+  or runs a local host profile before applying.
+
+Control Plane host setup also exposes `DefineResources(...)` and
+`DefineInitialTemplate(...)` for in-memory graph declarations. Both callbacks
+use `ControlPlaneResourceGraphBuilder`, register Resource Manager declarations
+for the graph resources, and seed the in-memory Resource Model graph. Use
+`DefineResources(...)` for ordinary programmatic host declarations. Use
+`DefineInitialTemplate(...)` when the host wants to name the graph as a
+template and attach environment or metadata while using the same builder
+surface.
+
 ## Export And Portability
 
 Exporting resources produces a resource template containing

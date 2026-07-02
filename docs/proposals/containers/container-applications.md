@@ -170,50 +170,8 @@ correlate its app revision to that orchestrator deployment or environment
 revision, especially when projecting runtime replica resources, but it does not
 share revision identity with the orchestrator.
 
-The conceptual mapping is:
-
-```mermaid
-flowchart LR
-    subgraph App["Container app domain"]
-        AppResource["Container app resource\napplication.container-app"]
-        AppDeployment["Container app deployment\nuser/provider request"]
-        AppRevision["Container app revision\nconfiguration snapshot"]
-    end
-
-    subgraph ResourceManager["Resource Manager"]
-        DeploymentSpec["Orchestrator deployment\ndesired runtime state"]
-        Orchestrator["Orchestration service\nmaterializes resources"]
-        EnvironmentRevision["Environment revision\nmaterialized outcome"]
-    end
-
-    subgraph Runtime["Materialized runtime"]
-        Service["Orchestrator service\nservice boundary"]
-        Routing["Routing / load balancer\ntraffic mapping"]
-        ReplicaGroup["Replica group\nversioned runtime set"]
-        Slot1["Replica slot 1\nstable desired position"]
-        Slot2["Replica slot 2\nstable desired position"]
-        Replica1["Runtime resource occupant\ncontainer replica 1"]
-        Replica2["Runtime resource occupant\ncontainer replica 2"]
-    end
-
-    AppResource --> AppDeployment
-    AppDeployment --> AppRevision
-    AppRevision --> DeploymentSpec
-    DeploymentSpec --> Orchestrator
-    Orchestrator --> Service
-    Orchestrator --> Routing
-    Orchestrator --> ReplicaGroup
-    Service --> Routing
-    Service --> ReplicaGroup
-    ReplicaGroup --> Slot1
-    ReplicaGroup --> Slot2
-    Slot1 --> Replica1
-    Slot2 --> Replica2
-    Orchestrator --> EnvironmentRevision
-    EnvironmentRevision -. "records" .-> Service
-    EnvironmentRevision -. "records" .-> ReplicaGroup
-    AppRevision -. "may reference" .-> EnvironmentRevision
-```
+The current container app to runtime mapping diagram is maintained in
+[Container Apps](../../resources/container-apps.md).
 
 The stable app resource owns the user-facing app configuration and app
 configuration revisions. The orchestrator deployment is the translated desired
@@ -488,107 +446,11 @@ so users can answer "how is this app exposed?" from the app page.
 
 ## Current Implementation
 
-Implemented pieces include:
-
-* programmatic `AddContainerApplication(...)` and Aspire-compatible
-  `AddContainer(...)` declarations
-* Resource Manager registration and configuration UI for container apps
-* image, registry, environment-variable, endpoint, lifetime, replica, and
-  container-host configuration, including create and update host selection
-* `AsContainer(...)` conversion for ASP.NET Core project resources
-* current revision projection when a container app image is updated
-* Resource Manager Deployment tab with image update action. This is the
-  current bridge to the deployment model; the desired direction is a Deploy
-  image command that creates a new revision, starts its containers next to the
-  current revision, verifies readiness, then switches traffic or endpoint
-  routing before retiring the old revision.
-* provider-owned container app deployment and revision history for image
-  deployments, tracked separately from the desired application definition
-  while correlating each app deployment to the produced app revision and the
-  orchestrator deployment used for runtime materialization
-* Resource Manager Application > Scale and replicas tab for enabling replicas
-  and setting requested replica count through a dedicated update command. This
-  is active-revision capacity management, not image deployment.
-* Scale and replicas tab renders requested replica slots first and polls for
-  changes so slot health and repair transitions are visible while the app is
-  running.
-* app-owned internal deployment projection with status, service id, workload
-  version, requested replica slots, materialized slots, and occupied runtime
-  replicas. This is the container app use of the broader default-deployment
-  rule: a resource remains directly manageable while the orchestrator derives a
-  deployment for deployment-relevant changes.
-* explicit replica count update API that also opts a container app into
-  replica mode
-* shared resource metadata for provider/orchestrator/runtime ownership,
-  visibility, owner resource, and cleanup behavior
-* internal orchestrator deployment/environment-revision data contracts and a
-  Control Plane deployment-apply boundary for future container app runtime
-  materialization
-* deployment-applied container app replicas use revision-scoped runtime
-  container names based on the app revision so a new image revision can
-  materialize beside the currently serving app revision before ingress/routing
-* first liveness-driven replica slot replacement path: a failed runtime slot
-  is observed by health refresh, queued for replica management, emits
-  replica-management events, and is replaced by the orchestration service
-  according to the latest active materialized replica group when deployment
-  history exists, without rerunning full service preparation
-* orchestrator services derive an explicit revision-scoped replica group for
-  runtime resource instances, and projected container app replicas carry the
-  group id so replicas can be tracked as a set across materialization,
-  readiness, routing, diagnostics, drain, and cleanup
-* orchestrator environment revisions and internal deployment history retain or
-  reference the materialized replica group state produced by deployment apply
-* deployment apply returns superseded replica groups as part of the
-  materialized deployment outcome, and the container app provider only
-  describes legacy stable-name replica groups as a bridge when prior
-  deployment history is unavailable
-* default orchestrator rollback events and best-effort candidate replica-group
-  tear-down when deployment setup fails before an orchestrator environment
-  revision is produced
-* hidden runtime-managed child resources for container app replicas, parented
-  to and owned by the stable container app resource, with
-  deployment/service/revision correlation metadata
-* containment-aware operational projection where the container app resource
-  lists contained runtime replica log sources, telemetry scopes, monitoring
-  samples, and expandable health rows without merging the underlying signals
-  into a single artificial source
-* replicated HTTP health and liveness declarations projected onto hidden
-  runtime replica resources, with active local Docker replicas materializing
-  probe-only endpoint mappings and the stable container app receiving the
-  aggregate health assessment while remaining the lifecycle, recovery, and
-  management boundary
-* app-scoped Scale and replicas diagnostics that list materialized runtime
-  replicas without requiring global hidden/runtime-managed inventory settings;
-  single-instance apps explain that replicas are not enabled instead of
-  projecting a single-instance container as a replica set
-* app-scoped Monitoring tab under Management that summarizes single-instance
-  container stats and replicated app resource usage from materialized
-  replica/container monitoring snapshots when a static/default container host
-  can be resolved
-* application-level service discovery opt-in through `WithServiceDiscovery()`
-* volume mount model and Storage tab for resources that support storage
-* identity binding and standard runtime credential delivery path
-* observability environment variable projection
-* structured logs and trace views for application diagnostics
-* app-scoped telemetry design for multi-replica container apps, where
-  resource Telemetry views default to all runtime instances and later expose a
-  telemetry scope selector only when multiple instances exist
-* app-owned ingress for replicated Docker-backed apps
-* inbound virtual-network, load-balancer, and DNS/name-mapping relationship
-  display on application overview pages
-* app-centric load-balancer creation from container-backed application overview
-  pages through a prefilled Resource Manager create flow with the target app
-  endpoint selected
-* app-centric name-mapping creation from container-backed application overview
-  pages through a prefilled Resource Manager create flow
-* attached volume display on application overview pages, with the Storage tab
-  remaining the edit surface
-* local host-published endpoint preflight before container app start
-* declared Docker container Start preflight for occupied local TCP/HTTP
-  endpoint ports, covering local registry resources used by container app
-  deployment samples
-* local/default container-host path, host capability diagnostics, and
-  application overview host placement/readiness display
+The landed container app behavior is documented in
+[Container Apps](../../resources/container-apps.md),
+[Application resources](../../resources/application-resources.md),
+[Resource Monitoring and Usage](../../monitoring-and-usage.md), and the
+related networking and load-balancer feature docs.
 
 Automatic scaling policies remain deferred. The current model supports manual
 requested replica count changes. A future scaling policy should be declared on

@@ -27,7 +27,7 @@ one stable target.
 
 For related resource types, see [Container apps](container-apps.md),
 [Application resources](application-resources.md), and the
-[Load Balancer Resource Proposal](../proposals/load-balancer-resource.md).
+[Load Balancer Resource Proposal](../proposals/networking/load-balancer-resource.md).
 
 ## Resource Shape
 
@@ -126,7 +126,10 @@ resource itself is not a running service.
 Future provider-owned runtime resources, such as implementation containers or
 replicas created for a stable load balancer, should be inspectable as
 implementation details and can be hidden from the normal Resource Manager view
-by default.
+by default. Use the cross-cutting
+[provider-created and runtime-managed resource](../runtime-managed-resources.md)
+contract for source, management mode, visibility, ownership, and cleanup
+metadata.
 
 ## Resource Manager
 

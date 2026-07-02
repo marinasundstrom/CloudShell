@@ -2,18 +2,42 @@
 
 ## Status
 
-In progress.
+Status: In progress.
 
-CloudShell currently has two related but separate surfaces:
+Strategy fit: High; observability is required for Resource Manager
+traceability, diagnostics, provider integration, and app-centric operations.
+
+Canonical feature docs:
+
+- [Observability](../../observability.md)
+- [Control Plane API](../../control-plane-api.md)
+- [Resource model](../../resource-model.md)
+- [ResourceDefinition structure](../../resource-definition-structure.md)
+- [Persistence](../../persistence.md)
+
+Remaining action: keep evolving audit schemas, retention, structured logging,
+trace/metric correlation, source filtering, diagnostics, and non-text payload
+support without collapsing all operational signals into text logs.
+
+Out of scope: a full observability platform, compliance-grade audit export,
+or mandatory structured logging for every provider.
+
+CloudShell currently has separate implemented surfaces for logs, resource
+events, traces, telemetry metrics, resource monitoring, usage, and health. The
+current taxonomy, API routes, permissions, and provider boundaries are
+documented in [Observability](../../observability.md). This proposal tracks
+the remaining work needed to harden logging, activity, audit, diagnostics,
+metrics, and trace correlation intentionally.
+
+Two core boundaries remain important:
 
 - provider-owned operational logs through `ILogProvider`, `ILogStore`, and
   `ILogManager`
 - platform-owned resource events through `ResourceEvent` and
   `IResourceEventManager`
 
-This proposal exists so CloudShell can evolve logging, resource activity,
-audit, diagnostics, metrics, and trace correlation intentionally instead of
-treating every operational signal as a text log.
+Both are implemented, but future slices still need to refine retention,
+querying, structured fields, UI filtering, correlation, and audit behavior.
 
 ## Problem
 

@@ -90,6 +90,35 @@ belongs in `CHANGELOG.md`.
    Update documentation when behavior, APIs, concepts, resource types, samples,
    architecture decisions, or roadmap priorities change.
 
+   When implementation work has landed, move or port the durable behavior and
+   concrete implementation details into the relevant feature or specification
+   docs. Do not leave completed behavior as the main content of a proposal.
+   Proposals are working documents for incremental/open work, active design
+   questions, migration trackers, and deferred decisions. If a proposal
+   contains current implementation details, verify them against the code before
+   moving them, then replace the proposal section with links to the feature
+   docs and a focused list of remaining decisions or tasks. If the feature or
+   specification docs were written as part of the implementation from the
+   start, keep the proposal concise and link to those docs instead of copying
+   implementation detail back into the proposal. Use
+   `docs/features.md` to find or add the canonical feature/specification home
+   for current behavior.
+
+   For extensible behavior, document the parity contract that future providers,
+   Resource Manager UI extensions, shell extensions, launchers, and language
+   SDKs must follow. Capture the owning contracts, resource model shape,
+   authoring surfaces, runtime boundaries, API/client projection, UI
+   projection, security constraints, diagnostics, persistence/lifecycle
+   behavior, and known gaps. If a provider or launcher intentionally does not
+   support part of the feature, record that non-parity in the feature/spec docs
+   or the relevant proposal so it is visible during roadmap planning.
+
+   Review Mermaid diagrams and other architecture diagrams during the same
+   documentation pass. Valid diagrams that explain implemented/current behavior
+   belong in feature or specification docs. Stale diagrams should be corrected
+   or replaced before being moved. Proposal diagrams should remain only when
+   they explain active design work, migration options, or deferred ideas.
+
    * Update `CHANGELOG.md` for landed implementation slices and approved
      documentation changes.
    * Update `ADR.md` when a durable architectural or product decision changes.

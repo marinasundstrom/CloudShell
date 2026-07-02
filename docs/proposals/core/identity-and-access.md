@@ -105,110 +105,14 @@ audit trails cannot reliably explain who or what changed a resource.
 The first resource identity and permission slices are implemented and described
 normatively in
 [Resource identity and permissions](../../resource-identity-and-permissions.md).
-The proposal remains the tracker for why the model exists and what remains.
+Authentication, authorization, roles, operation permissions, protected-service
+bearer validation, and usage/observability permissions are described in
+[Authentication and authorization](../../authentication-and-authorization.md).
 
-Implemented today:
-
-- `ResourceIdentityProviderDefinition` and provider kinds.
-- Configuration-backed and programmatic identity provider registration.
-- Default provider selection through host configuration or programmatic
-  declarations.
-- One optional `ResourceIdentityBinding` per resource.
-- `Required` bindings that resolve through the default provider path.
-- Resource model diagnostics for unresolved providers.
-- `ResourceResponse.identity` API projection and remote client mapping.
-- Programmatic `WithIdentity(...)` and `RequireIdentity(...)` authoring.
-- Programmatic resource permission grants with `Allow(...)`.
-- Grant list and evaluation operations through `IResourceManager` and the
-  Control Plane API.
-- Resource action execution with an explicit acting resource identity.
-- Provider-neutral `IResourceIdentityProvisioner` and provisioning planning.
-- Declarative startup provisioning intent through
-  `ProvisionIdentityOnStartup()`.
-- Provider-neutral provisioning status lookup through
-  `IResourceIdentityProvisioningStatusProvider`.
-- A development-oriented built-in provisioner that issues scoped
-  resource-permission token claims through the built-in authority.
-- Optional provisioning-resource authorization for resource identity providers.
-- Provisioning-status authorization requiring read access on both the target
-  resource and the provisioning resource.
-- Provider-neutral `IResourceIdentityDirectoryProvider` contract for querying
-  identity-provider directory data such as users, groups, service principals,
-  managed identities, workload identities, and provider-owned identity
-  references.
-- Control Plane, API, remote-client, and Resource Manager principal lookup
-  through `IResourceManager.QueryResourcePrincipalsAsync(...)`, with resource
-  identities supplied from the resource model and provider directory hooks
-  contributing provider-backed principal data.
-- The built-in ASP.NET Core identity provider acts as the reference
-  local-development integration for simple cases. It provisions resource
-  identity clients, issues scoped resource-permission tokens, reports
-  provisioning status, exposes provisioned resource identity clients through
-  the provider-neutral directory hook, supports persisted account-UI users
-  through the database-backed ASP.NET Core Identity store, and supports
-  in-memory login users, roles, claims, and grant-derived resource-permission
-  claims through `ConfigureInMemoryIdentity(...)`.
-- A `setupIdentityProvider` Resource Manager action on identity provisioning
-  resources that runs the attached provider's setup/reconcile hook with the
-  same provisioning-resource permission boundary as the setup endpoint.
-- Resource-operation permission constants for lifecycle actions, custom
-  actions, configuration entry reads, secret value reads, identity
-  provisioning, network endpoint reconciliation, and load-balancer
-  configuration apply.
-- Configuration and Secrets providers requiring matching grants when an
-  identity-bound resource resolves configuration entries or secrets.
-- Settings and Secrets sample proof that a provisioned Web API resource
-  identity can acquire a bearer token from the built-in authority and call
-  provider-backed Configuration Store and Secrets Vault HTTP services with
-  scoped resource-permission claims.
-- Resource Manager overview identity metadata and a generated Identity tab for
-  identity-enabled resources. The Identity tab lists grants, exposes
-  provisioning, and shows provisioning status and diagnostics for the selected
-  resource.
-- HTTP tests proving built-in resource identity tokens respect read,
-  lifecycle action, and identity-management permission boundaries.
-- Opt-in mock-principal permission-boundary evaluation for
-  authentication-disabled local hosts and tests through
-  `Authentication:EvaluateClaimsWhenDisabled`.
-- Third-party user authentication validation with Keycloak. The
-  `samples/ThirdPartyIdentity` host uses standard OIDC sign-in, maps Keycloak
-  realm roles into CloudShell role claims, and exercises the existing
-  CloudShell authorization service without provider-specific authorization
-  code. The sample also declares a Keycloak provisioning-resource boundary,
-  an `Oidc` resource identity provider, a resource identity binding, and a
-  scoped grant. A sample-scoped `KeycloakResourceIdentityProvisioner`
-  translates the provisioning request into Keycloak confidential clients and
-  client roles for declared CloudShell grants, assigns those roles to the
-  service-account user, and maps them into access-token
-  `cloudshell.resource-permission` claims. Protected-service authorization
-  accepts both direct resource-permission claims and the nested JSON claim
-  shape emitted by providers such as Keycloak when dotted claim names are
-  represented as objects.
-- Provider-neutral runtime credential delivery through
-  `IResourceIdentityCredentialEnvironmentProvider`. The Keycloak sample uses
-  this hook to expose the same `CLOUDSHELL_IDENTITY_*` contract as the
-  built-in identity path for provisioned resource clients.
-- Shared protected-service bearer validation for Configuration Store and
-  Secrets Vault. The services can validate built-in authority tokens or
-  configured external OIDC/OAuth JWT bearer tokens, then use the same
-  `cloudshell.resource-permission` claim evaluator.
-- A Keycloak-provisioned workload path in the Third-party Identity sample. The
-  sample declares an ASP.NET Core project resource, injects the standard
-  `CLOUDSHELL_IDENTITY_*` credential environment, grants it Configuration
-  Store read access, and exposes `/configuration` for validation against a
-  Keycloak-issued token.
-- Automated end-to-end sample smoke coverage that starts Keycloak with Docker
-  Compose when available, verifies the `identity-provisioning:keycloak`
-  resource boundary and provisioning status, starts the dependent workload,
-  and confirms the workload reads Configuration Store through a
-  Keycloak-issued token.
-
-Not implemented yet:
-
-- Durable external authority registration for protected API audiences and
-  provider-backed client secret storage. The current Keycloak sample keeps
-  deterministic local-development client secrets so workload credential
-  injection can be exercised without adding a secret database.
+The proposal remains the tracker for why the model exists and what remains:
+durable external authority registration for protected API audiences,
+provider-backed client secret storage, and any identity/access work that
+directly improves the local-development MVP.
 
 ## Domain Model
 

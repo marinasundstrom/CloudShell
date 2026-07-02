@@ -1,635 +1,130 @@
-# Provider-Created and Runtime-Managed Resource Proposal
+# Provider-Created and Runtime-Managed Resources Proposal
 
 ## Status
 
-In progress.
+- Status: In progress
+- Strategy fit: High; this is the foundation for replica diagnostics,
+  provider-owned child resources, ownership traversal, and cleanup semantics.
+- Canonical feature docs:
+  [Provider-created and runtime-managed resources](../../runtime-managed-resources.md),
+  [Resource model](../../resource-model.md),
+  [Container Apps](../../resources/container-apps.md), and
+  [Orchestration and Deployments](../../orchestration-and-deployments.md)
+- Remaining action: continue provider-observed IDs, placement,
+  materialization diagnostics, shared ownership, orphan cleanup, and richer
+  provider-created resource policies as focused increments.
+- Out of scope: broad public runtime-resource authoring, full deployment
+  revision productization, and provider-native resource import.
 
-The resource model already supports resource registration, dependencies,
-capabilities, actions, and projection through the Resource Manager. However,
-there is currently no formal distinction between how a resource is created,
-who is responsible for managing it, how visible it should be, and how its
-lifecycle relates to other resources.
+## Current Implementation
 
-Initial implementation now adds these distinctions to the projected `Resource`
-shape: source, management mode, visibility, owner resource, and cleanup
-behavior. The Control Plane API and remote client preserve those fields, and
-Resource Manager hides resources based on visibility, not management mode.
-Provider-managed and runtime-managed resources may still be normal/public
-resources. Hidden resources stay out of the standard inventory by default
-while remaining available in the loaded graph for parent/detail inspection.
-Resource Manager can opt into showing hidden resources, and hidden
-runtime-managed artifacts additionally require a runtime-managed inspection
-setting and permission. Generic child-resource lists now use the same
-visibility gates as the global inventory so hidden implementation details do
-not appear merely because they are parented to a stable resource. This is an
-internal foundation for container app runtime artifacts before broad runtime
-resource projection is announced as a public product surface.
-Container apps now use this foundation to materialize requested replica
-resources as hidden runtime-managed children of the stable container app
-resource. Those replicas are app-owned resources even when a local Docker
-container backs each replica. Provider-observed backing container IDs, health,
-placement, and materialization details remain future enrichment.
-Docker host discovery is a different path: it projects raw Docker containers
-as hidden runtime-managed observations by default. Explicit
-`AddDockerContainer(...)` resources remain normal user-managed resources.
+Implemented behavior has moved to
+[Provider-created and runtime-managed resources](../../runtime-managed-resources.md).
+That spec is now the canonical source for:
 
-Runtime-managed resources are one important case, but the broader problem is
-that provider-created, orchestrator-created, and runtime-created resources need
-to participate in the same resource graph without becoming part of the normal
-user-authored application contract.
+- `Resource.Source`, `Resource.ManagementMode`, `Resource.Visibility`,
+  `OwnerResourceId`, and `CleanupBehavior`
+- Control Plane API and remote-client projection of runtime-managed metadata
+- Resource Manager hidden/runtime-managed display settings
+- `resources.runtime-managed.read` gating
+- container app hidden `runtime.container` replica resources
+- storage-owned hidden volume ownership behavior
+- provider parity and launcher/language parity expectations
 
-Not every materialized runtime artifact needs to be a resource. A parent
-resource may spawn and own local processes, ad-hoc containers, sidecars, helper
-tasks, provider sessions, or external handles as provider-owned runtime state.
-Those artifacts should become `Resource` projections only when resource
-identity adds value: inspection, relationships, authorization, lifecycle
-actions, diagnostics, cleanup traversal, or references from other resources.
-This lets an application resource own runtime work without making every
-process or container part of the user-authored resource graph.
+Keep new implementation details in the feature/spec docs when they land, then
+update this proposal only for remaining work and decisions.
 
 ## Problem
 
-CloudShell resources can cause additional resources to be created during
-execution, deployment, orchestration, scaling, networking, provisioning, and
-reconciliation.
+CloudShell resources can cause additional resources or runtime artifacts to be
+created during execution, deployment, orchestration, scaling, networking,
+provisioning, and reconciliation.
 
 Examples include:
 
-* container images
-* container instances
-* replicas
-* volume attachments
-* health probes
-* service registrations
-* runtime endpoints
-* gateway configuration
-* load-balancer target registrations
+- container replicas and backing containers
+- generated images
+- volume attachments
+- endpoint and backend registrations
+- gateway routes
+- service discovery records
+- health probes
+- deployment revisions
+- runtime certificates
 
-Some of these resources are transient runtime artifacts. Others are durable
-provider-created resources, such as deployment revisions, generated container
-images, gateway routes, or backend registrations. They may be essential to
-system operation and lifecycle management, but they are not necessarily
-user-authored resources.
-
-There is also a middle category: materialized runtime state that belongs to a
-resource but is not itself a resource. Examples include a process ID for a
-local executable, an ad-hoc container name used by an application resource, a
-provider-owned log tailing session, or a temporary helper process used during
-reconciliation. These artifacts still need ownership, observation, cleanup, and
-lifetime policy, but those concerns can be satisfied by provider-owned runtime
-state when resource projection would add noise rather than value.
-
-Keeping such artifacts outside the Resource Manager creates several problems:
-
-* ownership relationships become implicit
-* cleanup becomes difficult
-* diagnostics become fragmented
-* dependencies become harder to model
-* orchestrators must maintain separate state stores
-* runtime artifacts cannot participate in the resource graph
-
-CloudShell should track provider-created and runtime-created resources while
-preserving a clean user-facing model.
+These artifacts need clear ownership, lifecycle, diagnostics, cleanup, and
+visibility rules. At the same time, CloudShell should not expose every
+provider-owned implementation detail as part of the user-authored application
+contract.
 
 ## Goals
 
-* Model provider-created and runtime-created entities as ordinary resources.
-* Provide guidance for deciding when an entity should be represented as a resource.
-* Distinguish resource source, management responsibility, lifecycle ownership,
-  and visibility as separate qualities.
-* Distinguish user-authored resources from provider-created, orchestrator-created,
-  and runtime-created resources.
-* Allow non-authored resources to participate in dependencies, relationships,
-  actions, capabilities, diagnostics, and lifecycle operations.
-* Keep normal resource views focused on user-facing resources.
-* Allow advanced tooling and diagnostics to inspect provider-created and
-  runtime-created resources.
-* Support provider-owned, orchestrator-owned, and runtime-controller-owned
-  resource creation.
-* Preserve ownership relationships between user-managed resources and the
-  resources created on their behalf.
-* Avoid separate runtime state registries where possible.
-* Allow non-authored resources to be projected selectively by API and UI.
+- Keep user-authored resources, provider-created resources, and
+  runtime-managed artifacts in one coherent resource graph when resource
+  identity adds operational value.
+- Preserve a clean default Resource Manager inventory.
+- Allow advanced and owner-scoped views to inspect runtime/provider artifacts.
+- Make ownership, source, management responsibility, visibility, and cleanup
+  explicit and independent.
+- Give providers guidance for when to project a runtime artifact as a resource
+  and when to keep it as provider-owned state.
+- Support diagnostics, logs, traces, metrics, health, actions, and dependency
+  relationships where child resource identity is useful.
 
 ## Non-Goals
 
-* Do not expose every provider-created or runtime-created resource in normal UI
-  views.
-* Do not require provider-created or runtime-created resources to be authorable.
-* Do not make non-authored resources part of the public application contract by
+- Do not require every provider-created or runtime-created object to be a
+  resource.
+- Do not expose provider-owned secrets or raw implementation state as resource
+  attributes.
+- Do not make hidden runtime-managed resources part of the normal inventory by
   default.
-* Do not standardize every provider-created or runtime-created resource type in
-  the first version.
-* Do not require providers to model every implementation detail as a resource.
-* Do not require all providers to project their internal implementation state.
-* Do not expose provider-owned secrets or implementation details as projected
-  resource attributes.
-* Do not introduce separate runtime-resource storage systems outside the
-  Resource Manager.
-
-## Resource Qualities
-
-A provider-created or runtime-created resource is still an ordinary `Resource`.
-The difference is not entity shape, but a set of independent qualities.
-
-Suggested source modes:
-
-```csharp
-public enum ResourceSource
-{
-    User,
-    Provider,
-    Orchestrator,
-    RuntimeController
-}
-```
-
-Suggested management modes:
-
-```csharp
-public enum ResourceManagementMode
-{
-    UserManaged,
-    ProviderManaged,
-    OrchestratorManaged,
-    RuntimeManaged
-}
-```
-
-Source describes where the resource came from. Management mode describes who is
-responsible for reconciling, updating, and deleting it. Visibility describes
-whether the resource is part of normal inventory and whether extra display
-settings or permissions are needed to see it. Ownership describes lifecycle
-relationships. Resource Manager decides the UI context where a visible resource
-is presented.
-
-These qualities should not be collapsed into a single category. For example, a
-generated deployment revision may be provider-created, provider-managed, and
-visible. A storage-owned volume may be user-created, user-managed, hidden from
-global inventory, and still visible from Storage-owned UI flows when the user
-has permission. A container app replica may be materialized by the container
-app, runtime-managed, hidden from global inventory, and visible from
-container-app UI flows. A Docker container observed by a Docker host provider
-may be a projected provider observation rather than the container app's replica
-resource. A health probe may be runtime-created, runtime-managed, and internal.
-
-Projected resources can remain useful facades even when they are not owned
-runtime children. Future support may allow providers or the Control Plane to
-reference a projected resource by ID convention plus metadata, resolve it, and
-materialize an operational facade out of its original context. That should stay
-separate from resources that a parent provider actively materializes and owns.
-
-Every non-internal resource remains:
-
-* addressable
-* identifiable
-* related to other resources
-* capable of exposing capabilities
-* capable of exposing actions
-* capable of participating in diagnostics
-
-Internal managed resources can still be addressable to the Control Plane and
-providers, but they are not part of the default visible resource graph. They
-exist to preserve ownership, cleanup, diagnostics, or reconciliation integrity
-for another resource.
-
-## Ownership Model
-
-Runtime-managed resources should maintain an explicit ownership relationship.
-
-Examples:
-
-```text
-ContainerApp
- └── ContainerImage
-```
-
-```text
-ContainerApp
- └── Replica
-      └── ContainerInstance
-```
-
-```text
-VirtualNetwork
- └── EndpointMapping
-```
-
-```text
-LoadBalancer
- └── BackendRegistration
-```
-
-Ownership should allow the Resource Manager to determine:
-
-* who created a resource
-* who is responsible for reconciliation
-* who is responsible for cleanup
-* whether a resource should be deleted when its owner is deleted
-
-The relationship should be explicit rather than inferred from naming
-conventions or provider state.
-
-Ownership and dependency are different relationships. A dependency means one
-resource needs another resource to exist or be running. It does not mean the
-dependent resource should be displayed as a child or sub-resource. Child
-projection is reserved for ownership or provider-authored inspection
-relationships, and the UI should still respect the child's visibility metadata.
-
-Providers can deliberately expose provider-owned or runtime-owned children in
-one of three ways:
-
-* make them normal resources when they are part of the user-facing model
-* keep them hidden but allow advanced inventory inspection through the global
-  Resource Manager display settings
-* show selected artifacts in provider-specific tabs, such as a future Docker
-  host Containers tab, without making them normal global inventory items
-
-## Provider-Created and Runtime-Created Resource Examples
-
-Potential provider-created and runtime-created resource types include:
-
-* container images
-* container instances
-* replicas
-* deployment revisions
-* backend pool registrations
-* endpoint registrations
-* health probes
-* service discovery records
-* DNS registrations
-* mounted volumes
-* runtime certificates
-* gateway routes
-* traffic-split entries
-
-The exact set should remain extensible and provider-owned where appropriate.
-
-## Resource Registration Guidance
-
-Not every provider-managed or runtime-managed implementation detail should be
-represented as a resource.
-
-The purpose of the resource model is to track meaningful resources and their
-relationships, not to expose every internal object maintained by a provider.
-
-Providers, orchestrators, and runtime controllers should register a separate
-resource when one or more of the following conditions apply:
-
-* the entity has an independent lifecycle
-* the entity can be created, updated, or deleted independently
-* the entity participates in ownership or dependency relationships
-* the entity exposes useful diagnostics or operational state
-* the entity exposes capabilities or actions
-* the entity may require authorization or auditing
-* the entity is useful for inspection, troubleshooting, or traceability
-* the entity may be referenced by other resources
-
-Providers are not required to register implementation details that do not
-provide meaningful value through the resource model.
-
-Providers should keep a materialized artifact as runtime state when all of the
-following are true:
-
-* the artifact has no useful identity outside its owner
-* lifecycle actions are naturally performed through the owning resource
-* authorization and audit can be represented by the owning resource's actions
-* diagnostics can be projected through the owning resource's logs, telemetry,
-  health, activity, or generated detail sections
-* no other resource needs to depend on or reference the artifact directly
-
-This is the expected shape for many local processes and ad-hoc containers
-spawned by application resources. The application resource still owns their
-lifetime and must track enough runtime identity to stop, clean up, recover, and
-explain them. It does not need to project each artifact as a child resource
-unless the child has independent operational value.
-
-Examples that are often good candidates for resources:
-
-* deployment revisions
-* container images
-* replicas
-* endpoint registrations
-* backend registrations
-* mounted volumes
-* generated certificates
-
-Examples that may remain provider-owned implementation state:
-
-* temporary reconciliation operations
-* internal caches
-* protocol-specific connection objects
-* transient retry state
-* provider-specific optimization data
-* local process identities owned by an application resource
-* ad-hoc container identities owned only for application lifetime management
-
-CloudShell should not require providers to model every implementation detail as
-resources. A provider may maintain internal state outside the Resource Manager
-when that state does not benefit from resource tracking, ownership, diagnostics,
-or lifecycle management.
-
-The decision to register a resource should be based on whether representing the
-entity in the resource graph provides meaningful value to operators, providers,
-or other resources.
-
-## Visibility Model
-
-Visibility should be independent of source, management mode, and ownership.
-
-Suggested visibility modes:
-
-```csharp
-public enum ResourceVisibility
-{
-    Visible,
-    DiagnosticOnly,
-    Hidden
-}
-```
-
-| Resource           | Source       | Management          | Visibility     |
-| ------------------ | ------------ | ------------------- | -------------- |
-| ContainerApp       | User         | UserManaged         | Visible        |
-| VirtualNetwork     | User         | UserManaged         | Visible        |
-| DeploymentRevision | Provider     | ProviderManaged     | Visible        |
-| Replica            | Orchestrator | RuntimeManaged      | DiagnosticOnly |
-| ContainerImage     | Provider     | ProviderManaged     | DiagnosticOnly |
-| HealthProbe        | RuntimeController | RuntimeManaged | Hidden         |
-
-This allows runtime-managed resources to exist within the graph without
-cluttering normal user experiences.
-
-Visibility is independent from management. A user-managed resource may be
-hidden, and a provider-managed or runtime-managed resource may be normal or
-hidden. Hidden also has two practical forms:
-
-* hidden from the global inventory by default, but still eligible for Resource
-  Manager presentation from parent pages, relationship views, or selectors
-  when the user has permission
-* hidden because the user lacks permission to inspect that part of the graph
-
-Resource Manager therefore treats `Show hidden resources` and `Show
-runtime-managed resources` as separate display settings. A normal
-runtime-managed resource is visible by default if it is part of the public
-resource surface. Hidden runtime-managed artifacts require both settings to
-appear in inventory.
-
-Internal managed artifacts are stricter than resources that are merely hidden
-from inventory. They are provider, orchestrator, or runtime implementation
-details and should never appear in the default user-facing graph. Resource
-Manager may expose them only through explicit advanced or diagnostic views,
-normally behind a dedicated permission such as runtime-managed inspection.
-
-## Source and Management Model
-
-Source and management mode should answer different questions.
-
-Source answers:
-
-* who or what created this resource?
-* did it come from user-authored declarations?
-* was it synthesized by a provider, orchestrator, or runtime controller?
-
-Management mode answers:
-
-* who is responsible for reconciliation?
-* who may update the resource?
-* who is responsible for deletion?
-* who owns provider-specific state transitions?
-
-These values may often align, but they should not be required to align.
-
-Example:
-
-```text
-ContainerApp
- └── DeploymentRevision
-      Source: Provider
-      Management: ProviderManaged
-      Visibility: Visible
-```
-
-```text
-ContainerApp
- └── Replica
-      Source: Orchestrator
-      Management: RuntimeManaged
-      Visibility: DiagnosticOnly
-```
-
-```text
-ContainerApp
- └── HealthProbe
-      Source: RuntimeController
-      Management: RuntimeManaged
-      Visibility: Hidden
-```
-
-## Provider Responsibilities
-
-Providers may create provider-managed or runtime-managed resources as part of
-provisioning, reconciliation, or execution.
-
-Examples:
-
-* container providers create images and container instances
-* networking providers create endpoint registrations
-* load-balancer providers create backend registrations
-* deployment providers create revisions and rollout artifacts
-
-Providers remain responsible for:
-
-* runtime-specific configuration
-* runtime-specific validation
-* runtime-specific cleanup
-* runtime-specific state transitions
-
-The Resource Manager remains responsible for:
-
-* identity
-* ownership relationships
-* dependency tracking
-* resource projection
-* diagnostics
-* action capability reporting
-
-## Orchestrator Relationship
-
-Orchestrators may create orchestrator-managed or runtime-managed resources when
-materializing a graph.
-
-Examples:
-
-* Docker Compose orchestrator creates container instances
-* Kubernetes orchestrator creates workload projections
-* host orchestrator creates local proxy resources
-* deployment orchestrator creates rollout resources
-
-Orchestrators should not maintain separate runtime graphs when the resources can
-be represented as ordinary runtime-managed resources.
-
-The Resource Manager remains the authoritative source of resource identity and
-relationships.
-
-## Lifecycle Management
-
-Provider-created and runtime-created resources should participate in normal
-lifecycle operations when they are represented in the Resource Manager.
-
-Examples:
-
-### Creation
-
-```text
-ContainerApp
- └── creates ContainerImage
-```
-
-### Reconciliation
-
-```text
-ContainerApp
- ├── Replica A
- ├── Replica B
- └── Replica C
-```
-
-### Scale Down
-
-```text
-Replica C deleted
-```
-
-### Resource Removal
-
-```text
-ContainerApp deleted
- └── owned runtime resources deleted
-```
-
-Ownership relationships should allow cascading cleanup while preserving
-provider-specific behavior.
-
-## Diagnostics and Inspection
-
-Provider-created and runtime-created resources are often the most useful
-resources when debugging.
-
-CloudShell should allow advanced inspection of provider-created and runtime-created resources
-without requiring them to appear in predefined resource views.
-
-Examples:
-
-* replica health
-* image version
-* container logs
-* endpoint registrations
-* backend membership
-* routing state
-* deployment revisions
-
-Diagnostic views should be able to traverse ownership relationships from
-user-managed resources to provider-created and runtime-created resources.
-
-## API and UI Projection
-
-The API should continue to expose resources through the Resource Manager.
-
-Additional projected fields may include:
-
-* source
-* management mode
-* visibility mode
-* owner resource reference
-* creation source details
-* runtime status
-
-Normal UI views should:
-
-* show user-managed resources
-* show normal provider-managed and runtime-managed resources when they are part
-  of the public resource surface
-* hide hidden resources from the global inventory by default
-* decide, as a UI concern, whether hidden-but-visible resources appear on an
-  owning resource page, relationship view, or selector when that is the
-  expected management workflow and the user has permission
-* keep internal managed artifacts out of the default user-facing graph
-
-Advanced views may:
-
-* show owned runtime resources when the user has permission
-* display ownership trees
-* display runtime diagnostics
-* expose runtime actions only when the resource explicitly supports them
-
-Resource Manager may show hidden and runtime-managed resources for inspection,
-but normal edit, delete, and lifecycle controls remain limited to normal
-user-managed resources. Parent-scoped management can still be exposed by the
-owning resource's UI when the resource provider owns that workflow, such as
-managing Storage-owned volumes from the Storage resource's Volumes tab.
-
-Example:
-
-```text
-ContainerApp
- ├── Endpoints
- ├── Dependencies
- └── Runtime Resources
-      ├── Image
-      ├── Replica #1
-      └── Replica #2
-```
-
-## Implementation Plan
-
-1. Introduce resource source metadata.
-2. Introduce resource management modes.
-3. Introduce resource visibility modes.
-4. Introduce explicit ownership relationships.
-5. Add provider-created and runtime-created resource registration APIs.
-6. Add cleanup and cascading deletion rules based on ownership.
-7. Add API projection for source, ownership, visibility, and management
-   metadata.
-8. Add declaration and reconciliation tests covering non-authored resources.
-9. Add diagnostics APIs for traversing ownership relationships.
-10. Add UI support for inspecting provider-created and runtime-created
-    resources.
-11. Add provider APIs for resource creation and reconciliation.
-12. Add orchestrator integration for resource registration.
-13. Add lifecycle and cleanup validation tests.
-
-## Remaining Tasks
-
-* Define ownership semantics for shared provider-created and runtime-created
-  resources.
-* Define garbage-collection behavior for orphaned non-authored resources.
-* Determine whether ownership should support multiple owners or whether shared
-  relationships should be modeled as one owner plus references.
-* Define event and history projection for provider-created and runtime-created
-  resources.
-* Add provider guidance for resource registration patterns.
-* Define projected-resource facade references and out-of-context
-  materialization/resolution semantics.
-* Define whether source and management mode should be extensible by providers.
+- Do not require runtime-managed resources to be authorable.
+- Do not standardize every possible provider-created resource type in one
+  increment.
+
+## Strategy Fit
+
+Fit is high because this proposal supports several MVP and post-MVP needs:
+
+- replicated container app diagnostics
+- app-scoped health, logs, traces, and metrics
+- storage-owned and provider-owned child-resource workflows
+- runtime cleanup and orphan detection
+- future Docker host, Kubernetes, and on-premise provider parity
+- clearer Resource Manager filtering and inspection behavior
+
+The near-term value is diagnostic clarity and cleanup correctness, not a broad
+new authoring surface.
+
+## Remaining Work
+
+1. Define shared ownership semantics for provider-created resources that are
+   used by multiple stable resources.
+2. Define garbage-collection behavior for orphaned non-authored resources.
+3. Decide when shared resources should use one owner plus references versus a
+   future shared-ownership model.
+4. Enrich container app runtime replicas with provider-observed backing IDs,
+   placement, health, and materialization details.
+5. Define event and history projection for provider-created and runtime-created
+   resources.
+6. Add provider guidance for durable provider-created resources such as
+   generated images, deployment revisions, gateway routes, and backend
+   registrations.
+7. Define projected-resource facade references and out-of-context
+   materialization/resolution semantics.
+8. Decide whether source and management mode need provider-extensible values
+   or whether fixed platform enums should remain the contract.
 
 ## Open Questions
 
-* Should non-authored resources be addressable through the same API routes as
-  user-authored resources?
-* Should ownership be modeled as a dependency, a dedicated ownership
-  relationship, or both?
-* Should provider-created and runtime-created resources be queryable by default
-  or only through diagnostic APIs?
-* How should non-authored resources participate in authorization checks?
-* Should providers be allowed to project partially materialized resources during
-  reconciliation?
-* How should provider-created and runtime-created resources be versioned and
-  audited?
-* Should resource visibility be standardized or provider-controlled?
-* How should shared resources be represented when multiple user-managed
-  resources depend on them?
-* Should deployment revisions, container images, and replicas all be modeled as
-  resources, or should some remain provider-owned state?
-* What diagnostics should be standardized across all non-authored resource
-  types?
+- Should provider-created resources be queryable through normal resource APIs
+  by default, or should some classes require diagnostic APIs?
+- How should versioning and auditing work for durable provider-created
+  resources?
+- Which provider-created artifacts should become first-class feature docs
+  versus provider-owned implementation details?
+- What standardized diagnostics should apply to all hidden runtime-managed
+  resources?
+- How should public Resource Manager views show shared provider-created
+  resources without implying single-resource ownership?

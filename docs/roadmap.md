@@ -18,6 +18,7 @@ Plane API.
 Useful references:
 
 - [CloudShell Terminology](terminology.md)
+- [Feature and Specification Index](features.md)
 - [Domain model](domain-model.md)
 - [Resource capabilities](capabilities.md)
 - [System design guidelines](system-design-guidelines.md)
@@ -25,10 +26,30 @@ Useful references:
 - [Control Plane API](control-plane-api.md)
 - [CloudShell and Aspire](cloudshell-and-aspire.md)
 - [CloudShell CLI](cli.md)
+- [Resource Monitoring and Usage](monitoring-and-usage.md)
+- [Orchestration and Deployments](orchestration-and-deployments.md)
+- [Container Hosts](resources/container-hosts.md)
+- [Storage and Volumes](resources/storage-and-volumes.md)
 - [Refactoring tracker](refactoring.md)
 - [Cross-language local development proposal](proposals/core/cross-language-local-development.md)
 - [Container applications proposal](proposals/containers/container-applications.md)
-- [Resource graph import and code generation proposal](proposals/core/resource-graph-import.md)
+- [Future directions](future/)
+
+## Current Focus Stack
+
+Use this focus stack when choosing the next implementation slice. The roadmap
+is deliberately biased toward work that improves the current local
+app-development loop before broader platform expansion.
+
+| Priority | Focus | Why now | Action |
+| --- | --- | --- | --- |
+| 1 | Resource Model and graph-backed apply convergence | The MVP depends on one ResourceDefinition path for code, UI, templates, and orchestration. | Finish graph-backed provider migration, template apply/export, and retirement of obsolete provider-template paths. |
+| 2 | Container app orchestration and runtime diagnostics | Container apps are the hardest proof of the resource/runtime boundary. | Finish first start, image update, replica-slot reconciliation, routing rebinding, cleanup, and readable failure diagnostics. |
+| 3 | App-centric Resource Manager experience | The product value is whether a developer can understand and operate the app from Resource Manager. | Keep endpoints, names, storage, identity, settings/secrets, logs, traces, monitoring, activity, and actions in the app context. |
+| 4 | Readiness and capability reasons | Supported actions should fail early with clear reasons. | Tighten host, credential, route, port, storage, identity, grant, and provider-readiness diagnostics. |
+| 5 | Supported sample reliability | Samples are the current proof that the model works end to end. | Keep smoke coverage green and avoid opening new fronts that do not improve the supported sample path. |
+| 6 | Ecosystem-neutral authoring boundary | CloudShell should not become a C#-only local-development tool. | Harden CLI, launcher/profile, TypeScript/JavaScript, Java, and SDK boundaries without letting language SDKs become parallel Control Planes. |
+| 7 | UI composition and shell structure | Useful only when it reduces current Resource Manager, Settings, or shell drift. | Pause broad shell-platform work except for regressions, current-surface stabilization, or extraction from proven patterns. |
 
 ## Authoritative Milestones
 
@@ -81,7 +102,11 @@ Required outcome:
 | Integration points | Providers, CloudShell extensions, webhooks, WebSocket/streaming subscriptions, and API clients can react to resource events and lifecycle state without replacing the core orchestrator path. |
 | Validation samples | More complex samples prove multi-resource application topology, public ingress, DNS/name mapping, service discovery, identity-backed configuration/secrets, and operator UI workflows. |
 
-### Later: IoT and Edge Devices
+### Future Direction: IoT and Edge Devices
+
+This is not an active milestone. It remains a strategic direction until the
+local-development MVP and the first on-premise control-plane scenario are
+credible.
 
 Goal: let devices and edge workloads securely join a CloudShell environment,
 appear in the resource graph, use existing CloudShell-managed services, and be
@@ -108,7 +133,8 @@ Required outcome:
 | Resource Manager visibility | Device resources show health, activity, telemetry, relationships, and provider-owned non-secret attributes. |
 | Provider boundary | Certificate validation, hardware-root checks, enrollment groups, and provider-specific device state remain provider-owned. |
 
-This is tracked by the [IoT device provisioning proposal](proposals/core/iot-device-provisioning.md).
+This is tracked by the
+[IoT device provisioning future direction](future/iot-device-provisioning.md).
 
 ### Post-MVP: Extensible Shell Composition
 
@@ -538,40 +564,16 @@ listed here before pulling in broader proposal work.
    remain separate work. Application provider source logs are memory-only by
    default and can opt into bounded plain-file persistence with optional
    per-day splitting; resource event log retention remains a separate design.
-   Track provider-supported resource Monitoring separately under the resource
-   Management group because resource monitoring is about provider-observed
-   resource metrics such as process/container CPU and memory usage rather than
-   application telemetry. `management:monitoring` is now the standard
-   predefined resource view ID for provider-owned Monitoring tabs. The first
-   resource monitoring slice adds the `monitoring` resource capability,
-   provider-backed current snapshots, Control Plane API/client support, a
-   generated resource Monitoring tab, and Docker
-   container CPU/memory, network I/O, block I/O, process count, restart count,
-   and uptime metrics, plus application process CPU/memory/thread/uptime
-   metrics for executable, ASP.NET Core project, Configuration Store, and
-   Secrets Vault service resources. Single-instance container-backed
-   application resources can use container-host stats when a static/default
-   container host can be resolved. A provider-owned container app
-   Monitoring dashboard under Management that summarizes app-level resource
-   usage and breaks down metrics by materialized runtime replica/container for
-   replicated apps is now in place for current snapshots. Durable
-   resource-metric history, charts, richer replica diagnostics, and additional
-   provider implementations remain separate work. Keep the near-term focus on
-   provider monitoring abstractions and implementations; live telemetry and
-   monitoring subscriptions for
-   split-hosted UIs are a later Control Plane API design question. Keep
-   shared Telemetry pages for cross-resource investigation
-   instead of forcing normal per-resource work through global views.
-   Do not
-   mix usage reporting into Telemetry: usage is a separate shell workspace
-   backed by samples recorded from monitoring and future provider-owned usage
-   events. The first usage slices add in-memory recording, Control Plane
-   API/client access, environment and resource views, auto-refresh, short-range
-   trend projections, and opt-in database-backed usage sample history with
-   per-resource retention. Next usage work should improve summary-first
-   dashboards, drill-down views by resource or usage metric, and trend
-   projection quality instead of displaying every metric with equal weight.
-   Do not
+   Keep resource monitoring and usage in context without mixing them into
+   application Telemetry. Provider-observed resource metrics belong under the
+   resource Management group; retained usage belongs in the Usage workspace and
+   resource Usage tabs. Use [Resource Monitoring and Usage](monitoring-and-usage.md)
+   for the landed model. The next roadmap action is better provider coverage,
+   richer replica diagnostics, summary-first usage dashboards, drill-down by
+   resource or metric, and better trend quality. Live telemetry and monitoring
+   subscriptions for split-hosted UIs remain a later Control Plane API design
+   question. Keep shared Telemetry pages for cross-resource investigation
+   instead of forcing normal per-resource work through global views. Do not
    start broad new shell areas before the supported samples are stable. The
    recent shell-composition migration provides useful infrastructure, but new
    composition/router work should wait unless it is needed to stabilize the
@@ -633,30 +635,14 @@ listed here before pulling in broader proposal work.
 13. Remote Docker host completion: finish concrete remote-host registration and
    credentials if it validates the host model, but do not let it block the
    local/default container-host MVP path.
-14. Runtime-managed resources and deployment model: the first ownership,
-   visibility, cleanup, and internal orchestrator deployment/revision contracts
-   are in place. Deployment apply now materializes the requested runtime state,
-   and container apps describe superseded local runtime replicas as explicit
-   post-apply replica-group tear-down targets. The Resource Manager graph
-   bridge now exposes container-app-specific deployment-controller primitives
-   for service preparation, per-instance materialization/removal, and routing
-   reconciliation; keep this provider-owned until another resource type needs
-   the same orchestration hook, then lift the seam into a generic resource
-   orchestration contract. Container apps now materialize
-   requested replica resources as hidden runtime-managed children parented to the
-   app, with Resource Manager visibility controlled separately for hidden
-   resources and hidden runtime-managed artifacts. Docker host raw container
-   discoveries are a separate provider-observation path that projects Docker
-   container resources
-   as hidden runtime-managed resources by default, while explicitly declared
-   Docker containers remain normal user-managed resources. Generic
-   child-resource UI should honor visibility settings; providers should expose
-   deliberate host/app-scoped tabs when those artifacts need first-class
-   inspection. Container apps now have app-scoped materialized runtime-child
-   diagnostics in Application > Scale and replicas. Next slices should enrich
-   those children only where container apps need provider-observed container
-   IDs, health, placement, or materialization diagnostics, not as a broad
-   public deployment product surface.
+14. Runtime-managed resources and deployment model: keep the implemented
+   source, management, visibility, owner, cleanup, and internal deployment
+   contracts aligned with
+   [Provider-created and runtime-managed resources](runtime-managed-resources.md)
+   and [Orchestration and Deployments](orchestration-and-deployments.md). Next
+   slices should enrich runtime children only where container apps need
+   provider-observed container IDs, health, placement, or materialization
+   diagnostics, not as a broad public deployment product surface.
    Operational views should remain containment-aware: the stable resource is
    the default row or page, while hidden runtime children such as container app
    replicas appear as expandable details, log sources, telemetry scopes, or
@@ -705,10 +691,11 @@ listed here before pulling in broader proposal work.
    traffic splitting, provider-backed network-level service discovery,
    provider-backed DNS propagation, external deployment projection,
    formal resource definition pipeline integration, external-format resource
-   graph import and code generation, cross-language local-development
-   authoring and host launchers, IoT device provisioning, edge/device resource
-   management, container application environments, and the initial on-premise
-   hosting scenario. The isolated `CloudShell.ResourceModel` POC can continue
+   graph import and code generation, IoT device provisioning, edge/device
+   resource management, container application environments, and the initial
+   on-premise hosting scenario. Cross-language local-development work remains
+   active only where it hardens the shared ResourceDefinition, CLI, launcher,
+   and SDK boundary. The isolated `CloudShell.ResourceModel` POC can continue
    proving the model, but it should not displace MVP convergence or imply that
    Control Plane persistence, API, or provider migration work has started.
 
@@ -932,33 +919,14 @@ listed here before pulling in broader proposal work.
   formatting, empty states, permission/read-only handling, validation, and
   typed filtering where the behavior is common.
 - Keep resource-scoped operations in context. Events should remain under the
-  resource Management menu as resource-management history. Logs and Traces now
+  resource Management menu as resource-management history. Logs and Traces
   render inline from a resource-detail Telemetry menu group when matching
-  application/runtime signals are available. Resource Monitoring should be a
-  provider-supported, extensible Management tab for resource metrics such as
-  process/container CPU and memory usage. `management:monitoring` is now the
-  standard predefined resource view ID for provider-owned Monitoring tabs, and
-  the generated Monitoring tab appears when the resource advertises the
-  `monitoring` capability and a provider can return a current resource
-  monitoring snapshot for the resource. Docker containers now provide CPU,
-  memory, network I/O, block I/O, process count, restart count, and uptime
-  snapshots through that path. Executable and ASP.NET Core project resources
-  now provide basic application process CPU, memory, thread count, process
-  count, and uptime snapshots, Configuration Store plus Secrets Vault resources
-  expose the same service-process metrics, and single-instance
-  container-backed application resources can use container-host stats when a
-  static/default container host can be resolved. The generated tab is not
-  enough for replicated container apps; those need a provider-owned
-  Monitoring dashboard that keeps users on the container app resource while
-  summarizing app usage and showing each materialized replica/container
-  separately. Split-hosted live monitoring and telemetry should flow through
-  Control Plane streaming subscriptions rather than provider-local UI calls
-  when CloudShell moves past basic snapshot/list monitoring.
-  ASP.NET Core resources already report application-level health checks for
-  the resource; CloudShell does not currently have a separate resource-level
-  health-check model. Cross-resource trace exploration can keep a shared
-  Telemetry area with resource-aware links back into the relevant resource
-  detail views.
+  application/runtime signals are available. Resource Monitoring remains a
+  provider-supported Management tab for provider-observed resource metrics;
+  Usage remains retained sample history and trend reporting. See
+  [Resource Monitoring and Usage](monitoring-and-usage.md) for the landed
+  model. Cross-resource trace exploration can keep a shared Telemetry area
+  with resource-aware links back into the relevant resource detail views.
 - Keep resource-scoped Health focused on the current resource. The common
   Health workspace can later evolve toward a status-page-style system summary
   with timeline rows for services, capabilities, or other health scopes, but
@@ -1305,11 +1273,14 @@ listed here before pulling in broader proposal work.
   the default orchestrator controller and load-balancer providers react to
   those bindings instead of inferring replica membership from labels or
   container-app-specific runtime names.
-- Decide which runtime artifacts become runtime-managed resources versus
-  provider-owned state: replicas, implementation containers, images, endpoint
-  registrations, backend registrations, health probes, and revisions.
-- Define ownership, visibility, query, authorization, cleanup, and
-  garbage-collection rules for runtime-managed resources.
+- Apply the
+  [runtime-managed resource projection rules](runtime-managed-resources.md) to
+  the next concrete artifact classes: implementation containers, generated
+  images, endpoint registrations, backend registrations, health probes, and
+  revisions.
+- Define the remaining shared ownership, query, authorization, cleanup, and
+  garbage-collection rules that are not covered by the current
+  runtime-managed resource spec.
 - Design provider-originated resource change streams so providers such as
   Docker can push discovered container/status changes into Resource Manager
   instead of relying only on UI-side inventory polling.
@@ -1390,7 +1361,10 @@ The current model boundaries should hold through the MVP:
   provider setup, and workload-to-platform calls without pulling broad IAM into
   the MVP.
 - Runtime-managed resources and deployment/revision contracts stay internal or
-  diagnostic until ownership, visibility, cleanup, and traceability are stable.
+  diagnostic according to
+  [Provider-created and runtime-managed resources](runtime-managed-resources.md)
+  until ownership, visibility, cleanup, and traceability are stable enough for
+  broader product surfaces.
 
 ### Defer Deliberately
 

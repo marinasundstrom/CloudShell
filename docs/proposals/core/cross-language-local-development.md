@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+In progress.
 
 This proposal tracks the local-development authoring and launch experience for
 CloudShell hosts that are controlled through language-specific hosting
@@ -13,6 +13,12 @@ the Control Plane own validation, lifecycle, projection, and operations. The
 first additional target is TypeScript/JavaScript because it is the closest
 comparison point to Aspire's TypeScript app-host work, but the model should
 apply to Java, Python, Go, and other ecosystems through the same contracts.
+The first implementation slices now include the CloudShell CLI,
+`CloudShell.AppHost.Launcher`, `CloudShell.LocalDevelopmentHost`,
+experimental TypeScript/JavaScript hosting packages and samples, Java app
+resources, Java runtime service clients, and Java launcher samples. This
+proposal remains the tracker for remaining SDK hardening, package boundaries,
+generated clients, profile/credential behavior, and future ecosystems.
 
 ## Problem
 
@@ -330,26 +336,24 @@ not deployment to another environment.
 
 ## Implementation plan
 
-1. Add the first `cloudshell` CLI with `control-plane start|stop|status`,
-   common `resource` operations, local host-name mapping helpers, and
-   `template apply` over the Control Plane API.
-2. Define the launcher contract and ResourceTemplate envelope expected by
-   external language SDKs and by the C# launcher app-host package.
-3. Add a TypeScript SDK POC as a Node package manager package with an API
-   shaped like the C# programmatic resource API. The first package should prove
-   a hand-authored builder path for JavaScript apps, Configuration Store,
-   default networking, typed references, endpoint requests, health checks,
-   JSON ResourceTemplate emission, and CLI apply integration before expanding
-   to ASP.NET Core or generic process apps, container apps, secrets, SQL
-   Server, and richer endpoint references.
-4. Add Control Plane diagnostics for source metadata and missing provider or
+The current CLI, C# launcher, local host profile, experimental TypeScript
+hosting package, Java app resource, Java service clients, and Java launcher
+sample are documented in [Launchers and app hosts](../../launchers-and-app-hosts.md),
+[CloudShell CLI](../../cli.md), [SDK clients](../../sdk-clients.md),
+[JavaScript applications](../../resources/javascript-applications.md), and
+[Java applications](../../resources/java-applications.md).
+
+Remaining implementation work:
+
+1. Add Control Plane diagnostics for source metadata and missing provider or
    runtime adapter capabilities.
-5. Add sample coverage for a TypeScript-authored local distributed app.
-6. Add a JavaScript frontend sample that proves framework dev-server endpoint
-   projection, TypeScript support, and hot reload behavior through a
-   provider-owned runtime adapter.
-7. Add remote attach support using generated Control Plane client bindings.
-8. Decide which SDK APIs are stable enough to document as public preview.
+2. Expand TypeScript builders only where current samples prove the need:
+   container apps, secrets, SQL Server, richer endpoint references, and remote
+   attach helpers.
+3. Decide whether generated Control Plane client bindings are required before
+   broader SDK hardening.
+4. Define the CLI profile and credential store before persisting token material.
+5. Decide which SDK APIs are stable enough to document as public preview.
 
 ## Verification
 

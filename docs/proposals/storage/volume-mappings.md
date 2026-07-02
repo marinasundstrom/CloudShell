@@ -2,53 +2,32 @@
 
 ## Status
 
-In progress.
+Status: In progress.
 
-Initial domain primitives are in place for volume resources and application
-volume mounts: `cloudshell.volume`, `ResourceVolumeMount`, workload descriptor
-projection, declaration builder support for container, executable, and ASP.NET
-Core project resources, application resource mount counts, storage
-volume/consumer capabilities, standard volume mount permissions, first
-Resource Manager selectors plus a dedicated Storage tab for resources that can
-map volumes, and a basic Resource Manager create/configuration/overview flow
-for direct `cloudshell.volume` resources.
-SQL Server is the first resource-specific flow that recommends a known data
-mount point and warns when data will not be persisted.
-Volume overviews show reverse consumers, including declared target path and
-read/write mode when the workload descriptor is available.
-The current resource materializers support `FileSystem` mounts and application
-Start/Restart availability now reports when a managed volume or storage parent
-uses an unsupported medium. Container hosts can now advertise the standard
-`storage.mount.filesystem` capability, and application Start/Restart
-availability reports when the selected host does not advertise that capability
-for a managed `FileSystem` volume. Local executable and ASP.NET Core project
-resources materialize filesystem mounts by linking the resolved source
-directory into the app's target path before launch; relative target paths are
-resolved under the app working directory, while absolute target paths are
-honored as host paths. Provider-defined storage resources, provider-backed
-volume resources, richer host-specific compatibility negotiation, and usage
-monitoring remain open.
-The local Docker runner now records runtime-observed volume mount
-materialization facts, including resolved source, target path, access mode, and
-active/not-active status, after a successful container start. Application
-overview pages show those observations and volume overview pages surface the
-consumer's aggregate materialization status through projected resource
-attributes. Volume materialization observations now use the shared
-`IResourceVolumeMountMaterializationStore` contract so orchestrators can report
-runtime facts without depending on the application provider. Docker Compose
-records observations through that contract after successful Start/Restart
-actions and marks existing observations not active after Stop. Resource Manager
-generated diagnostics now warn when standard mount materialization attributes
-report partial, not-active, or unknown status, and Local Storage overview pages
-warn when consumers of owned volumes report incomplete or unobserved mount
-materialization. Local Storage resources now project provider-backed filesystem
-root availability through `storage.runtimeStatus` and
-`storage.runtimeStatusReason`; Volume resources now use the same runtime
-status attributes for direct local paths and storage-owned subpath readiness.
-Provider-backed storage usage metrics remain open.
-Deletion is guarded for volume resources that are still referenced by another
-resource dependency, and storage mappings cannot be changed while the target
-resource is running.
+Strategy fit: High; storage and volume mappings are required for stateful
+local apps, SQL Server, container apps, and future on-premise storage
+providers.
+
+Canonical feature docs:
+
+- [Storage and Volumes](../../resources/storage-and-volumes.md)
+- [Container Hosts](../../resources/container-hosts.md)
+- [Application resources](../../resources/application-resources.md)
+- [SQL Server resources](../../resources/sql-server.md)
+
+Remaining action: broaden provider-backed storage materialization, improve
+host/storage-medium compatibility diagnostics, complete usage monitoring, and
+decide the team/on-premise model for direct/ad-hoc local volumes versus
+storage-owned volumes.
+
+Out of scope: object buckets, managed databases, backup/snapshot policy,
+encryption, replication, quotas, and storage accounts until their contracts are
+proven as separate resource types or provider features.
+
+Implemented storage, volume, mount, materialization, permission, and Resource
+Manager behavior is documented in
+[Storage and Volumes](../../resources/storage-and-volumes.md). This proposal
+tracks remaining provider and product-shape work.
 
 ## Problem
 

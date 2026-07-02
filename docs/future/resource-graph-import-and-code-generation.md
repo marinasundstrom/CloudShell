@@ -1,8 +1,8 @@
-# Resource Graph Import and Code Generation Proposal
+# Resource Graph Import and Code Generation Future Direction
 
 ## Status
 
-Proposed.
+Deferred strategic direction, not an active proposal.
 
 Resource graph import should help users bring an existing application topology
 into CloudShell without making provider-native files the long-term source of
@@ -98,7 +98,7 @@ Docker Compose YAML
        or resource group template
 ```
 
-## Recommended First Slice
+## Candidate First Slice
 
 The first slice should be a documentation and design-backed translator for
 Docker Compose to generated CloudShell declarations. It should not create a new
@@ -248,7 +248,7 @@ variables where possible. It should avoid writing secrets and should include
 small comments only where an imported feature was intentionally skipped or
 needs manual completion.
 
-## Remaining Tasks
+## Possible Later Tasks
 
 * Define the graph draft abstraction and diagnostic model.
 * Decide whether the public entry point is an `IResourceGraphImportManager`, a

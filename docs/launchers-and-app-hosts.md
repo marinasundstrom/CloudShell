@@ -38,6 +38,38 @@ normal classes, fluent methods, records where useful, and package boundaries
 that feel ordinary to Java developers. A Java API should not copy C# extension
 method patterns directly.
 
+## Current Implementations
+
+`CloudShell.AppHost.Launcher` is the current C# launcher/app-host authoring
+package. It reuses Resource Model builders, emits a `ResourceTemplate`, and
+delegates local host startup or template apply to the CloudShell CLI. It does
+not reference Control Plane stores, provider runtimes, or UI hosting packages.
+
+`CloudShell.LocalDevelopmentHost` is the stable built-in local host profile for
+launchers that do not need a custom CloudShell host process. It composes the
+Control Plane, Web UI, built-in resource model providers, Resource Manager UI
+integrations, local runtime adapters, and sample-friendly local persistence
+settings. Custom host profiles are reserved for cases where the CloudShell host
+process itself needs extra extensions, authentication, persistence, or
+host-specific services.
+
+The CloudShell CLI is the shared automation boundary for launcher workflows.
+Launchers can use `template apply --start` to start or reuse a local host,
+apply a generated template, pass `--data-dir` for launcher-local CloudShell
+data, and later target an existing Control Plane by URL. See
+[CloudShell CLI](cli.md) for command details.
+
+The experimental TypeScript hosting package under `sdk/typescript/cloudshell`
+proves the non-C# authoring shape. It has hand-authored builders for the first
+resource types, emits ResourceTemplate JSON, and can call the CLI apply path.
+`samples/TypeScriptAppHost` exercises the end-to-end flow with
+`CloudShell.LocalDevelopmentHost`.
+
+Java app-host authoring is still sample-local. `samples/JavaAppHost` contains
+a Java source-file launcher that emits a ResourceTemplate and applies it
+through the CLI. Keep Java authoring builders there until CloudShell is ready
+for a dedicated Java app-host authoring package.
+
 ## Java Staging
 
 The first Java launcher builder lives in `samples/JavaAppHost` as

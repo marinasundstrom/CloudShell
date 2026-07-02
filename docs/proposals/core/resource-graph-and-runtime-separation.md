@@ -2,7 +2,27 @@
 
 ## Status
 
-POC in progress; active migration anchor.
+Status: Migration in progress.
+
+Strategy fit: High; this is foundational to templates, graph apply, provider
+migration, and runtime orchestration.
+
+Canonical feature docs:
+
+- [Resource model](../../resource-model.md)
+- [ResourceDefinition structure](../../resource-definition-structure.md)
+- [Resource model providers](../../resource-model-providers.md)
+- [Resource templates](../../resource-templates.md)
+- [Programmatic resources](../../programmatic-resources.md)
+- [Orchestration and Deployments](../../orchestration-and-deployments.md)
+
+Remaining action: continue provider migration to ResourceDefinition-backed
+state, retire obsolete provider-template paths where graph-backed providers can
+round-trip definitions, and keep runtime materialization behind Resource
+Manager/orchestrator contracts.
+
+Out of scope: external graph import/code generation and broad deployment
+projection. Those are tracked as [future directions](../../future/).
 
 CloudShell already distinguishes projected resources from declared resources in
 the resource model documentation, and several providers already carry typed
@@ -52,25 +72,10 @@ process state, health snapshots, logs, traces, metrics, runtime handles, locks,
 provider caches, and operational history belong to the Control Plane and
 Resource Manager.
 
-The boundary can be summarized as:
-
-```mermaid
-flowchart TD
-    definition["ResourceDefinition<br/>interchange format"]
-    graph["Resource graph<br/>durable configuration contract"]
-    resolved["Resolved Resource<br/>effective graph view"]
-    declarations["Capabilities and operations<br/>resolved declarations"]
-    manager["Resource Manager<br/>Control Plane operational model"]
-    runtime["Runtime integrations<br/>handlers and provider services"]
-    infrastructure["Running infrastructure"]
-
-    definition --> graph
-    graph --> resolved
-    resolved --> declarations
-    declarations --> manager
-    manager --> runtime
-    runtime --> infrastructure
-```
+The current boundary diagram is maintained in
+[ResourceDefinition structure](../../resource-definition-structure.md).
+The current provider validation, apply, and projection contracts are
+maintained in [Resource model providers](../../resource-model-providers.md).
 
 `ResourceDefinition` is the interchange format for graph state. It is used for
 authoring, deployments, templates, imports, exports, debug views, and applying
@@ -957,188 +962,29 @@ Working plan and progress:
 | Pull health and liveness declarations into the graph model | In progress | The graph model now has a `health.checks` capability payload for HTTP health/liveness declarations, and Resource Manager bridge projections map those declarations to `ResourceHealthCheck` plus the derived `liveness` capability. The ProjectReference graph-backed ASP.NET Core project now declares `/health` and `/alive` through this payload and verifies that Control Plane health refresh can evaluate both probes through the projected endpoint mapping. Configuration Store and Secrets Vault graph providers now declare `/healthz` health and liveness checks on their projected service endpoints, with runtime materialization delegated to provider-local backing-service controllers. Polling, observed snapshots, degradation policy, and recovery decisions remain Control Plane concerns. |
 | Project provider-owned endpoint requests into Resource Manager | In progress | The Resource Manager bridge now accepts an endpoint projection resolver and registered endpoint projection providers, allowing a host or provider integration to translate provider-owned endpoint request attributes into `ResourceEndpoint` and `ResourceEndpointNetworkMapping` projections without making endpoints graph-native primitives. ProjectReference uses this for the graph-backed ASP.NET Core project. |
 | Project provider-owned observability declarations into Resource Manager | In progress | The Resource Manager bridge now accepts an observability resolver and registered observability providers, allowing a host or provider integration to declare Resource Manager logs/traces/metrics support for graph resources. ProjectReference uses this for the graph-backed ASP.NET Core project so telemetry tabs are declared by the runtime integration instead of inferred by the generic graph model. |
-| Re-introduce the Resource Model builder | In progress | The POC now has a `ResourceGraphBuilder` that builds `ResourceDefinitionGraph` and `ResourceTemplate` values, and this API is expected to remain important after the POC as the programmatic declaration surface used while porting providers and later as one of the durable authoring surfaces for Resource Model declarations. Resource templates are resource-state artifacts, so the Resource Manager integration exposes host-level `DefineResources(...)` for in-memory host resource declarations by default and `DefineInitialTemplate(...)` for seed declarations with name, environment, and metadata. `DefineInitialTemplate(...)` is intended to behave like an initial seed or migration: it applies only for a fresh host that has no accepted Resource Model state. Both methods use a Control Plane resource-definition context that extends the resource builder for resource declarations while exposing host-level metadata, such as identity-provider selection, that can influence resource construction without becoming `ResourceDefinition` entries. That means a host can start with `DefineResources(...)` while the Resource Model is still an in-memory programmatic declaration, and later switch the same builder block to `DefineInitialTemplate(...)` when it becomes template seed material. The builder also has a common base for manual definition builders, and provider-owned Network, Configuration Store, Secrets Vault, Storage, CloudShell Volume, Local Volume, SQL Server, SQL Database, Container Host, Docker Host, Docker Container, Container Application, Executable Application, ASP.NET Core Project, Identity Provisioning, Service, DNS Zone, Name Mapping, Load Balancer, and Host Configuration Source builders. Builders should stay provider-owned and hand-written until multiple resource types prove the conventions that source generation should automate. The preferred programmatic API should be similar enough to the old CloudShell builder pattern to make provider porting and user migration straightforward. Aspire-like extension methods can be supplied as compatibility and convenience layers where they make intent clearer, but the core builder should remain a CloudShell Resource Model builder and should not fundamentally imitate Aspire or hide CloudShell-specific resource semantics. They are also being used to improve provider test and sample setup by replacing raw attribute dictionaries, configuration payloads, capability payloads, and typed reference payloads with provider-shaped builder calls. SQL tests now use builders for declared database configuration, typed server dependencies, and SQL Server volume mount payloads. Container tests and the ContainerAppDeployment, ReplicatedContainerHealth, and LoadBalancer graph declarations now use builders for host dependencies, endpoint requests, replicas, image settings, load-balancer summaries, and volume mount payloads. Executable/project tests and the ProjectReference graph declarations now use builders for command/project settings, endpoint requests, environment variables, service-discovery references, volume mounts, and health-check payloads. Identity tests and the ThirdPartyIdentity graph provisioning declaration now use builders for provider identity and provider-kind attributes. Exposure tests now use builders for service target/network dependencies, DNS zones, name mappings, load balancers, and host configuration sources. Configuration and secrets builders intentionally declare service resources and endpoints, not entry or secret values. |
+| Re-introduce the Resource Model builder | Landed, cleanup remains | `ResourceGraphBuilder`, provider-owned manual builders, `DefineResources(...)`, `DefineInitialTemplate(...)`, CLI apply, and launcher apply are now implementation surface documented in [Programmatic resources](../../programmatic-resources.md) and [Resource templates](../../resource-templates.md). Remaining proposal work is to decide which builder conventions should become durable API and whether source generation is justified after more provider ports prove stable patterns. |
 | Port the next provider | Deferred | Continue only after the ASP.NET Core vertical slice proves the provider seam and exposes any needed model changes. Provider selection should favor the next concrete integration question over broad type-count coverage. |
 
-Resource Model declarations are declarative regardless of authoring format.
-They can be authored programmatically through `ResourceGraphBuilder` today,
-or through interchange formats such as JSON, YAML, or XML later. The format
-should not change the meaning of the resource declaration.
-`DefineResources(...)` is the host-friendly programmatic path for declaring
-in-memory resources, which keeps compatibility with the Aspire-style host
-model where resources are declared in code and exist for the lifetime of that
-host. The Resource Manager integration now automatically creates Resource
-Manager declarations for graph resources defined through `DefineResources(...)`
-and `DefineInitialTemplate(...)`, so samples no longer need to re-declare
-each graph resource through old provider-declaration blocks just to make it
-visible to Resource Manager. Host-facing declaration metadata, such as
-resource group assignment, autostart policy, and identity-provider selection,
-is carried by Control Plane authoring context methods and Resource Manager
-builder extensions like `WithResourceGroup(...)`, `WithAutoStart(...)`, and
-`WithDependencyAutoStart(...)`; it is intentionally not part of the
-`ResourceDefinition` interchange format. `DefineInitialTemplate(...)` is the
-resource-template seed path: it can use the same builder but represents an
-initial resource template that should only be applied when the host is fresh
-and there is no accepted resource graph state yet. Samples use
-`DefineResources(...)` as the current programmatic graph declaration API.
-Provider-managed read-only attributes, such as configuration entry counts and
-secret counts, are not authored into `ResourceDefinition` values. Samples that
-need those values while running in-memory project them into graph
-`ResourceState` after the definition has been converted to state, matching the
-runtime/provider-managed nature of those attributes.
-The basic builder API should stay tied to Resource model concepts:
-resource definitions, attributes, capabilities, operations, references,
-resource type ids, graph/deployment envelopes, and native resource authoring
-channels such as environment variables and configuration. Environment variable
-authoring is not merely an Aspire-compatible alias; it is the native way to
-declare values that a resource runtime should receive as process or container
-environment variables. Configuration authoring follows the same principle:
-`WithConfiguration(...)` writes to the ResourceDefinition `configuration`
-channel and is the native way to declare general resource configuration,
-separate from process or container environment variables.
-Aspire-like ergonomics and old-builder flexibility should be brought back
-primarily as extension-method layers only where they make provider authoring
-clearer without hiding CloudShell's resource semantics. The builder API should
-remain concept-compatible with the previous programmatic resource API where the
-concepts are the same, but use clearer ResourceDefinition terms where the new
-model intentionally distinguishes concepts. For example,
-`WithEnvironmentVariable(...)` is explicit because `configuration` is now a
-separate native authoring channel. Identity declaration is another good
-example: the core model should keep the explicit resource definition shape
-visible, while convenience extensions can provide shorter host or
-provider-specific authoring forms for common identity bindings, grants, or
-provisioning patterns. This keeps the programmatic API approachable without
-prematurely coupling all providers to one shared toolkit.
-The first bridge-owned convenience helpers project Resource Manager identity
-authoring values from graph builders: `resource.Identity(name)`,
-`resource.Principal(identityName)`, and `resource.IdentityClientId(name)`.
-These mirror the old builder's identity ergonomics for samples and runtime
-environment composition while keeping the actual identity binding and grant
-declarations in the Resource Manager seam for now.
-Provider-owned builders should expose native authoring methods for their
-resource shape and may add convenience methods where those methods still map
-clearly to CloudShell concepts. The ASP.NET Core project builder now has native
-`WithEnvironmentVariable(...)` overloads for literal values,
-configuration-entry references, and secret references. It also has
-provider-owned convenience methods such as `WithServiceDiscovery()`,
-`WithHttpEndpoint(...)`, `WithHttpsEndpoint(...)`,
-`WithHttpHealthCheck(...)`, and `WithHttpLivenessCheck(...)` over endpoint
-request attributes, service-discovery-name attributes, and health-check
-capabilities. Container application and SQL Server builders also expose
-endpoint-oriented methods such as `WithEndpoint(...)`, `WithHttpEndpoint(...)`,
-and `WithTcpEndpoint(...)` so declarations do not need to hand-author raw
-endpoint request payloads for common cases. All resource definition builders
-also expose native
-`WithConfiguration(sectionName, value)` authoring for the ResourceDefinition
-`configuration` channel.
-`environmentVariables` and `configuration` are separate authoring channels.
-Both may use the same kinds of value sources, such as literal values,
-configuration-entry references, or secret references, but they are resolved for
-different purposes and usually at different phases. `environmentVariables`
-describes values passed to a resource as process or container environment
-variables when that resource supports them. `configuration` is a more general
-resource configuration channel and should be interpreted by resource types or
-runtime integrations that explicitly support it. The ASP.NET Core project
-ResourceDefinition format therefore uses a human-authored
-`project.environmentVariables` map keyed by environment variable name:
+Current Resource model declaration, builder, template, and attribute
+resolution behavior is documented in
+[Programmatic resources](../../programmatic-resources.md),
+[Resource templates](../../resource-templates.md), and
+[ResourceDefinition structure](../../resource-definition-structure.md).
 
-```json
-{
-  "attributes": {
-    "project.environmentVariables": {
-      "ASPNETCORE_ENVIRONMENT": {
-        "value": "Development"
-      },
-      "SAMPLE_MESSAGE": {
-        "configurationEntryRef": {
-          "storeResourceId": "configuration.store:sample-app",
-          "name": "Sample:Message"
-        }
-      },
-      "SERVICE_APIKEY": {
-        "secretRef": {
-          "vaultResourceId": "secrets.vault:sample-app",
-          "name": "application-topology:api-key"
-        }
-      }
-    }
-  }
-}
-```
+The remaining proposal work is to stabilize policy and ergonomics around that
+implemented surface:
 
-The ResourceDefinition declares the source; the Resource Manager/runtime bridge
-resolves referenced values when it starts the resource. This mirrors the old
-programmatic API shape (`WithEnvironmentVariable("NAME", value)`,
-`WithEnvironmentVariable("NAME", settings.Entry(...))`, and
-`WithEnvironmentVariable("NAME", secrets.Secret(...))`) while keeping
-ResourceDefinition readable and authorable.
-Resource authoring should normally use resource names as the stable
-human-authored identifiers. Resource ids are assigned by platform conventions
-or provider conventions and should usually be left implicit. Programmatic
-builders now resolve omitted ids through an `IResourceIdConvention` supplied by
-the host integration; the default convention preserves the current
-`resourceTypeId:name` shape. Builder APIs therefore remain Aspire-like:
-provider extension methods can return a builder whose `EffectiveResourceId` is
-already resolved, while authors normally identify resources by name. Built
-graphs and deployment envelopes carry the resolved resource id so references,
-runtime providers, and Resource Manager adapters all see the same identity.
-Builder methods such as `WithResourceId(...)` exist for explicit platform ids,
-migration cases, and bridge seams where an existing external identity must be
-preserved. Display names remain convenience labels, not identity.
-The final resource-id and naming conventions still need a dedicated cleanup
-pass after the provider switch. The current default convention is intentionally
-minimal and compatibility-shaped; later work should decide whether provider
-families need human-friendly aliases, version-qualified type names, or other
-logical naming schemes before those conventions become durable API.
-Container authoring should also keep the resource concepts explicit.
-`resources.AddContainerApplication(...)` defines a container application
-resource. A future `resources.AddContainer(...)` convenience should define a
-container resource on the default or selected Docker host, equivalent to a
-provider-shaped `dockerHost.AddContainer(...)` builder call, not a container
-application.
-The same host integration should eventually be able to attach an initial
-deployment, resource graph document, or similar interchange artifact instead
-of requiring code to declare the initial graph.
-External formats such as Docker Compose can later be projected into a
-CloudShell deployment specification and `ResourceDefinition` values instead of
-becoming separate runtime models.
-The same boundary should also support future daemon and CLI flows: a daemonized
-host can keep the Resource Manager process running, while a CLI applies
-deployment specifications or resource graph documents to that host through the
-Control Plane API. That should complement the Web API rather than introduce a
-separate graph mutation path.
-
-Attribute value-state naming needs one cleanup pass before the model is
-considered stable. `Undefined` should mean "there is no attribute definition
-for this attribute id." A separate state should represent "the attribute is
-defined, but no resource value has been set and no default value applies."
-That separation matters for validation, ResourceDefinition rendering, typed
-wrappers, and provider logic because an unknown attribute id is a schema
-problem, while an unset value may be valid, defaultable, required, or
-provider-managed depending on the resolved `ResourceAttributeDefinition`.
-The immediate value of this distinction is status projection. A defined but
-unset status-related attribute or projection slot can mean "this resource does
-not currently project a status value." That is different from setting a value
-to `Unknown`, which means the resource participates in that status surface but
-the current provider cannot determine the current status. If an attribute
-definition marks the value as required, unset is invalid unless the definition
-or provider contract explicitly says the value is provider-managed and may be
-filled later by provider projection.
-Resource state should still be able to carry custom id/value attributes that
-do not have resolved definitions, for annotations and extension metadata. The
-model should treat those as undefined/custom attributes, not as defined
-attributes with unset values. Validation can stay permissive for neutral
-custom namespaces while warning or rejecting unknown attributes in reserved
-provider or CloudShell namespaces where an unknown id is more likely to be a
-schema error.
-The POC now reflects this distinction in `ResourceAttributeResolution`:
-`IsDefined` indicates whether the attribute id came from a resolved
-class/type definition, and `IsSet` indicates whether the resolved resource has
-an actual string value. Class/type attributes without defaults resolve as
-defined but unset. Resource-state attributes without class/type definitions
-resolve as undefined/custom but set. Projections that need concrete
-id/string maps, such as the Resource Manager bridge, should include only set
-attributes.
+- decide which builder conveniences should become durable API rather than
+  sample or provider-local helpers
+- decide whether `DefineInitialTemplate(...)` needs an explicit persisted
+  "seed only when fresh" contract beyond the current in-memory host setup
+- decide whether provider families need human-friendly aliases,
+  version-qualified type names, or other logical naming schemes before the
+  current default `resourceTypeId:name` convention is treated as durable API
+- decide whether external formats such as Docker Compose should project into
+  resource templates, deployment specifications, or both
+- keep future daemon and CLI flows behind the Control Plane API instead of
+  introducing a separate graph mutation path
 
 The bridge project should own registration helpers for this integration seam.
 Hosts can register a graph-backed Resource model provider as an existing
@@ -3217,28 +3063,14 @@ layer at runtime. The same pattern can later be applied to operation
 projections so operation implementations can consume capability projections
 instead of duplicating capability-specific resolution.
 
-Core and interchange structure:
+The current core definition-layer diagram is maintained in
+[ResourceDefinition structure](../../resource-definition-structure.md). The
+current provider validation/apply/projection pipeline diagram is maintained in
+[Resource model providers](../../resource-model-providers.md).
 
-```mermaid
-flowchart TD
-    resourceClassDefinition["ResourceClassDefinition<br/>shared class contract"]
-    typeDef["ResourceTypeDefinition<br/>type contract within a class"]
-    resourceClass["ResourceClass<br/>resolved class view"]
-    resourceType["ResourceType<br/>resolved type view"]
-    resourceDef["ResourceDefinition<br/>interchange model/format"]
-
-    classValues["Attributes, capabilities, operations<br/>class defaults and requirements"]
-    typeValues["Attributes, capabilities, operations<br/>type defaults and requirements"]
-    resourceValues["Attributes, capabilities, operations<br/>rendered resource values and payloads"]
-
-    resourceClassDefinition --> resourceClass --> resourceType
-    typeDef --> resourceType
-    resourceType --> resourceDef
-
-    resourceClassDefinition --> classValues
-    typeDef --> typeValues
-    resourceDef --> resourceValues
-```
+The following generated-wrapper diagram is proposal-only. It describes a
+future source-generation and typed-facade direction, not the current provider
+contract.
 
 Runtime resolution, providers, and generated wrappers:
 
@@ -3402,6 +3234,11 @@ graph model.
 For example, an executable application resource type provider could own the
 `application.executable` type while delegating storage mounts and start/stop
 operations to DI-backed attached providers:
+
+The following package-structure diagram is proposal-only because it includes
+generated wrappers and optional typed authoring facades. The current provider
+package responsibilities are documented in
+[Resource model providers](../../resource-model-providers.md).
 
 Sample provider package structure:
 
@@ -4176,6 +4013,12 @@ graph payload from accepted `ResourceState`. The Resource Manager bridge
 exposes a generic in-memory graph registration overload for projected store
 records, so hosts can supply their own Resource Manager-owned row type plus an
 `IResourceGraphStoreProjector<TRecord>`.
+
+The following persistence diagrams are proposal-only. They describe possible
+store-backed and distributed projection strategies; the current
+ResourceDefinition structure and provider contracts are documented in
+[ResourceDefinition structure](../../resource-definition-structure.md) and
+[Resource model providers](../../resource-model-providers.md).
 
 Conceptual Resource model layer stack, from outer consumers down to persisted
 data representation:

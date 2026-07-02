@@ -4,9 +4,10 @@
 
 In progress.
 
-Resource monitoring is the provider-observed resource health and usage surface
-for CloudShell resources. It belongs under the Resource Manager Management
-group and is separate from application Telemetry metrics.
+The implemented monitoring and usage behavior is now specified in
+[Resource Monitoring and Usage](../../monitoring-and-usage.md). This proposal
+tracks only the remaining incremental work needed to improve provider coverage,
+diagnostics, live update transport, and history behavior.
 
 ## Problem
 
@@ -104,58 +105,15 @@ breakdown for CPU, memory, process count, network I/O, block I/O, restart
 count, uptime, and provider health/materialization details when the runtime
 provider can observe them.
 
-## Current Implementation
-
-The first implementation slice adds:
-
-- provider-backed resource monitoring contracts
-- Control Plane manager, API, and remote-client projection
-- generated Resource Manager Monitoring tab
-- `monitoring` resource capability projection for resources that support
-  generated resource monitoring
-- Docker container CPU, memory, network I/O, block I/O, process count,
-  restart count, and uptime snapshots
-- application process CPU, CPU time, memory, thread count, process count, and
-  uptime snapshots for executable and ASP.NET Core project resources
-- single-instance container-backed application resource CPU, memory, network
-  I/O, block I/O, and process count snapshots from container-host stats when
-  the application provider can resolve a static/default container host
-- container app provider-owned Monitoring tab that summarizes single-instance
-  app metrics or replicated app metrics by materialized runtime replica/container
-- configuration store and Secrets Vault service process CPU, CPU time, memory,
-  thread count, process count, and uptime snapshots
-
-Docker-backed container resources report current CPU usage, memory usage,
-memory limit, memory usage percentage, network bytes received/sent, block
-bytes read/written, process count, restart count, and container uptime from
-Docker stats and inspection data when the container is running. Stopped
-containers can still expose the Monitoring tab, but the snapshot reports that
-live Docker metrics are unavailable until the container is running.
-
-Executable application and ASP.NET Core project resources report process CPU
-usage, total CPU time, working-set memory, private memory, thread count,
-process count, and uptime when the local application process is running.
-Single-instance container-backed application resources can use container-host
-`stats` output when the application provider can resolve a static/default
-container host without Resource Manager context. Replica-mode container app
-resources use a provider-owned Monitoring tab. Their materialized runtime
-replica/container child resources can return container-host metric snapshots
-when their owner application and static/default container host can be
-resolved, letting the tab aggregate app-level CPU, memory, network, and
-process metrics while keeping the user on the stable container app resource.
-
-Configuration Store and Secrets Vault resources report the same local service
-process metrics when their provider-owned service processes are running.
-
 ## Remaining Work
 
-- Add provider-owned Monitoring tabs when generated metric cards are too
-  limited.
-- Enrich the container app Monitoring tab with provider-observed container IDs,
+- Add provider-owned Monitoring tabs for resource types where generated metric
+  cards are too limited.
+- Enrich container app Monitoring with provider-observed container IDs,
   placement, health, restart count, uptime, and materialization diagnostics as
   providers report them consistently.
-- Add resource-metric history and charting after concrete providers prove the
-  retention needs.
+- Decide which metrics should be promoted from snapshot-only monitoring into
+  retained usage history and charts.
 - Decide whether resource monitoring snapshots should emit resource events or
   diagnostics when providers cannot observe a resource.
 - Decide whether CloudShell needs a separate resource-level health-check model

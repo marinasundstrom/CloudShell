@@ -14,6 +14,7 @@ Read these first:
 
 - `docs/goal.md`
 - `CONTRIBUTIONS.md`
+- `docs/features.md`
 - `docs/system-design-guidelines.md`
 - `docs/domain-model.md`
 - `docs/naming-conventions.md`
@@ -59,8 +60,27 @@ Then inspect the relevant implementation and tests before editing.
    Keep those files, `ADR.md`, `CHANGELOG.md`, and the relevant proposal
    documents in sync so decisions, landed changes, remaining tasks, and current
    priorities do not drift.
-8. Update `docs/roadmap.md` when the feature changes the current task queue.
-9. Follow `CONTRIBUTIONS.md` for verification, changelog, ADR, commit, and
+8. When implementation lands, move or port durable behavior and concrete
+   implementation details from proposals into the relevant feature or
+   specification docs. If the feature/spec docs were written as part of the
+   implementation from the start, keep the proposal concise and link to those
+   docs. Proposals should continue as working documents for active design
+   questions, incremental work, migration tasks, and deferred decisions, not as
+   the primary documentation for completed behavior. Verify proposal claims
+   against the code before moving implementation details.
+9. For extensible features, update the feature/spec docs with parity
+   expectations for providers, Resource Manager UI extensions, shell
+   extensions, launchers, and language SDKs. Capture required contracts,
+   resource model shape, authoring surfaces, runtime boundaries, API/client
+   projection, UI projection, security, diagnostics, persistence/lifecycle
+   behavior, and known gaps. Do not leave these details only in tests or
+   proposal notes.
+10. Review proposal Mermaid diagrams when moving implemented behavior into
+   feature/spec docs. Move valid current diagrams, update stale diagrams before
+   moving them, and leave proposal diagrams only for active design work,
+   migration options, or deferred ideas.
+11. Update `docs/roadmap.md` when the feature changes the current task queue.
+12. Follow `CONTRIBUTIONS.md` for verification, changelog, ADR, commit, and
    push expectations. Run the relevant narrow tests first, then the
    verification baseline from `AGENTS.md` for cross-boundary changes. Commit
    only files owned by the current chat or thread. Leave pure documentation

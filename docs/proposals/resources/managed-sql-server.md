@@ -61,40 +61,10 @@ configuration to the user.
 
 ## Current Implementation
 
-Implemented today:
-
-* Resource type `application.sql-server`.
-* Provider-owned programmatic `AddSqlServer(...)` builder that projects the
-  SQL Server resource type and returns a SQL-oriented builder instead of a
-  container-app builder.
-* Resource Manager create flow with image, SA password, container host,
-  TDS endpoint, resource group, and optional data volume.
-* Container-backed runtime using `mcr.microsoft.com/mssql/server:2022-latest`.
-* TDS endpoint projection and convenience connection string display.
-* Password reveal/copy for the raw `MSSQL_SA_PASSWORD` value.
-* SQL Server-specific storage recommendation for `/var/opt/mssql`.
-* Volume selector and Storage tab inherited from the application resource
-  provider.
-* ApplicationTopology and Container Host samples that use SQL Server as a
-  stateful dependency through the provider-owned builder.
-* Resource Manager SQL Server pages omit generic container-app Deployment and
-  Scale and replicas tabs by default.
-* Database read/write grant intent can be assigned to SQL Server resources
-  through the existing Access control model.
-* Resource Manager can show requested-versus-effective grant status from the
-  SQL Server provider. The local provider can reconcile read/write grants for
-  resource-identity principals by creating provider-owned contained database
-  users and `db_datareader`/`db_datawriter` role memberships for declared
-  databases, then inspect SQL-side state and report applied, pending, failed,
-  or drifted status.
-* SQL Server resources expose a **Reconcile database access** action that
-  reapplies CloudShell database grants to declared SQL databases while the
-  instance is running.
-* Programmatic declarations can record the assumption that a database should
-  exist on a SQL Server with `DeclareDatabase(...)`; those project as
-  provider-managed
-  `application.sql-database` child resources and display in a SQL Server
-  **Databases** tab.
+The landed SQL Server behavior is documented in
+[SQL Server resources](../../resources/sql-server.md),
+[Application resources](../../resources/application-resources.md), and
+[Resource identity and permissions](../../resource-identity-and-permissions.md).
 
 Implementation caveat: because the provider currently stores SQL Server as an
 application resource and uses the same runtime path as container-backed

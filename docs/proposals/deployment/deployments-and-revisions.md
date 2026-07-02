@@ -1,91 +1,41 @@
 # Orchestrator Deployments and Environment Revisions Proposal
 
-> This proposal depends on the [Runtime managed resource](runtime-managed-resource.md) proposal.
+> This proposal depends on the
+> [Provider-created and runtime-managed resources](../../runtime-managed-resources.md)
+> contract and the remaining
+> [provider-created/runtime-managed proposal](../core/provider-created-and-runtime-managed-resources.md)
+> work.
 
 ## Status
 
-In progress.
+Status: In progress.
 
-CloudShell already has a Resource Manager, a resource graph, an orchestrator
-abstraction, a default orchestrator, a Docker Compose-based orchestrator, and
-an orchestrator-level service abstraction.
+Strategy fit: High for container app runtime convergence; public rollout
+history remains later work.
 
-The current orchestration model can manage standalone runtime resources and can
-group runtime instances through services, but there is no formal deployment and
-revision model for recording requested workload changes, versioned workload
-state, rollout history, replica changes, or traceability across orchestrator
-implementations.
-Standalone resource management remains the default mode: the resource itself is
-the orchestrated unit, and declared dependency relationships are still managed
-by the orchestrator when actions require dependency ordering or dependency
-startup. Services, deployments, revisions, and replica groups extend the
-orchestrator model for systems that scale; they should not make every
-orchestrated resource pretend to be a scaled service.
-Most resources primarily represent things that exist in an environment, such as
-hosts, networks, volumes, databases, load balancers, configuration stores, or
-provider-owned services. They may still be orchestrated for lifecycle and
-dependency ordering, but they do not necessarily create a deployment. Workload
-resources such as container apps are different when they affect the environment
-by asking the orchestrator to create or reconcile runtime resources. Those are
-the cases where Resource Manager deployment and environment-revision tracking
-become useful.
+Canonical feature docs:
 
-Container apps are the first motivating workload, but this proposal is not the
-container app revision model. It defines how Resource Manager asks an
-orchestrator to apply desired runtime state and how the orchestrator records
-environment history after apply. Container app configuration revisions,
-restore-to-configuration behavior, and app UI terminology belong in the
-[Container applications](../containers/container-applications.md) proposal.
+- [Orchestration and Deployments](../../orchestration-and-deployments.md)
+- [Provider-created and runtime-managed resources](../../runtime-managed-resources.md)
+- [Resource templates](../../resource-templates.md)
+- [Container Apps](../../resources/container-apps.md)
 
-Initial implementation now adds internal data contracts for
-`ResourceOrchestratorDeployment`, `ResourceOrchestratorDeploymentSpec`, and
-`ResourceOrchestratorRevision` in the orchestration abstractions, plus an
-opt-in `IResourceOrchestratorDeploymentApplier` boundary and Control Plane
-dispatcher for applying a deployment through the selected orchestrator.
-Resource Manager also exposes an internal deployment coordinator boundary for
-graph-backed apply paths. A provider or graph reconciler that has accepted
-resource state should describe the required runtime deployment and hand that
-definition back to Resource Manager, rather than calling low-level
-orchestrator appliers directly. This keeps deployment locking, deployment
-history, previous replica-group lookup, routing reconciliation, and
-post-apply cleanup in the Resource Manager deployment path.
-These are CloudShell runtime concepts: the orchestrator manages resources and
-their runtime configuration, and deployment/revisioning records the desired and
-materialized CloudShell runtime state rather than exposing a Kubernetes,
-Docker Compose, or other provider-native deployment object as the domain model.
-The orchestrator is part of Resource Manager's execution layer. Resource
-Manager is the umbrella concept for the services that manage resources:
-lifecycle, graph validation, authorization, grouping, persistence, and runtime
-materialization. Its public surface is the logical facade for resource-facing
-operations, while orchestrators are how Resource Manager materializes runtime
-services and resources behind that facade.
-Resource providers remain the Resource Manager integration boundary for
-resource types. A provider defines the resource type's lifecycle actions,
-validation, configuration-to-runtime mapping, action availability, and
-provider-specific commands. Shared helper services can support families of
-resources, such as application resources that spawn local processes or
-containers, but those helpers should not own Resource Manager deployment,
-revision, lifecycle, or replica-management semantics.
-Providers can opt into `IResourceOrchestratorDeploymentProvider` to describe
-the deployment spec that should be applied after a domain update. These are
-intended for container apps, providers, and orchestrators to build on first.
-A deployment apply is incremental setup: it creates or updates the specified
-runtime resources by stable id. It does not implicitly remove omitted resources.
-Resource Manager orchestration now has an internal service tear-down boundary
-for stopping or deleting the runtime resources that belong to an orchestration
-service. Tear-down is a separate operation over individual runtime resources,
-replica groups, or all resources belonging to an orchestration service.
-Workload resources can use the deployment contract to project deployment
-status, service id, workload version, requested replica slots, materialized
-slot count, and occupied replica count onto their own resource surfaces.
-Materialized runtime resources can also carry the deployment id, service id,
-and orchestrator revision id for traceability. In this model, the resource
-provider describes the desired runtime state it wants Resource Manager to
-apply. That deployment targets an identifiable orchestrator service or
-standalone runtime scope. The orchestrator service unit is the runtime boundary
-that can contain service routing or loader materialization plus a replica
-group with requested slots for a specific workload version and replicated
-configuration.
+Remaining action: finish the controller/reconciliation boundary for first
+start, route rebinding, service tear-down, replica cleanup, and app-facing
+revision semantics without turning orchestrator deployments into a public
+authoring format.
+
+Out of scope: rich public rollout history, traffic splitting, environment
+replay, and external deployment projection.
+
+CloudShell already has internal deployment records, environment revisions,
+replica groups, deployment apply/coordinator contracts, provider deployment
+hooks, a Control Plane deployment read model, and container app integration.
+Those implemented details are documented in
+[Orchestration and Deployments](../../orchestration-and-deployments.md).
+This proposal now tracks the remaining migration work needed to make container
+app runtime reconciliation coherent and to decide which revision concepts
+should become user-facing.
 
 As the resource-definition model matures, user-facing apply should start with
 `ResourceDefinition` entries, either individually or grouped in a
@@ -147,50 +97,8 @@ are not a current use case. Rich rollout history, environment replay, traffic
 splitting, retention, and live resource/orchestrator graph visualization remain
 deferred.
 
-```mermaid
-flowchart TD
-    Definition["ResourceDefinition apply\nuser or UI intent"] --> Graph["Resource graph\naccepted resource state"]
-    Graph --> Resource["CloudShell resource\nfor example container app"]
-    Resource --> Provider["Resource provider\nplans runtime intent"]
-    Provider --> Coordinator["Resource Manager deployment coordinator"]
-    Coordinator --> Deployment["Orchestrator deployment\ndesired runtime state"]
-
-    subgraph ResourceManager["Resource Manager"]
-        DeploymentService["Deployment service\nrecords apply attempt"]
-        Orchestration["Orchestration service\nselects orchestrator"]
-        DeploymentHistory["Deployment history\nattempts, status, actor"]
-        RevisionHistory["Environment revisions\nmaterialized outcomes"]
-        Reconciliation["Replica group reconciler\nkeeps active slots aligned"]
-    end
-
-    subgraph Orchestrator["Selected orchestrator"]
-        Service["Orchestrator service\nruntime boundary"]
-        Routing["Routing or loader\nservice endpoint"]
-        ReplicaGroup["Replica group\nrequested replica slots"]
-        Slot1["Replica slot 1\nstable position"]
-        Slot2["Replica slot 2\nstable position"]
-        SlotN["Replica slot N\nstable position"]
-        Replica1["Runtime resource\nslot occupant"]
-        Replica2["Runtime resource\nslot occupant"]
-        ReplicaN["Runtime resource\nslot occupant"]
-    end
-
-    Deployment --> DeploymentService
-    DeploymentService --> DeploymentHistory
-    DeploymentService --> Orchestration
-    Orchestration --> Service
-    Service --> Routing
-    Service --> ReplicaGroup
-    ReplicaGroup --> Slot1
-    ReplicaGroup --> Slot2
-    ReplicaGroup --> SlotN
-    Slot1 --> Replica1
-    Slot2 --> Replica2
-    SlotN --> ReplicaN
-    Orchestration --> RevisionHistory
-    RevisionHistory --> Reconciliation
-    Reconciliation --> ReplicaGroup
-```
+The current ResourceDefinition-to-deployment boundary diagram is maintained in
+[Orchestration and Deployments](../../orchestration-and-deployments.md).
 
 ## Problem
 
@@ -1248,35 +1156,8 @@ Load-balancer nodes should appear only when a load balancer is projected as an
 actual CloudShell resource; otherwise routing can remain an edge or binding
 until the Runtime model exposes a resource-backed participant.
 
-```mermaid
-flowchart LR
-    desired["Desired state change"]
-    deployment["Deployment definition"]
-    orchestrator["Orchestrator apply"]
-    revision["Environment revision"]
-
-    subgraph artifacts["Environment artifacts"]
-        resources["Resources"]
-        services["Orchestration services"]
-        replicaGroups["Replica groups"]
-        replicas["Replicas"]
-        routing["Routing bindings"]
-    end
-
-    desired --> deployment
-    deployment --> orchestrator
-    orchestrator --> resources
-    orchestrator --> services
-    orchestrator --> replicaGroups
-    orchestrator --> replicas
-    orchestrator --> routing
-
-    resources --> revision
-    services --> revision
-    replicaGroups --> revision
-    replicas --> revision
-    routing --> revision
-```
+The current desired-state-to-environment-revision diagram is maintained in
+[Orchestration and Deployments](../../orchestration-and-deployments.md).
 
 ## Resource Relationship
 

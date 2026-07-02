@@ -37,7 +37,7 @@ registration methods, UI components, provider services, and client helpers.
 
 See [shell customization design goals](shell-customization.md),
 [current UI composition](ui-composition.md), and the
-[shell composition proposal](proposals/core/shell-composition.md) for the
+[shell composition future direction](future/shell-composition.md) for the
 broader product objectives behind these extension points.
 
 ## Specification Docs
@@ -48,6 +48,7 @@ broader product objectives behind these extension points.
 | [UI composition](ui-composition.md) | Current experimental composition libraries and standalone Blazor sample: typed IDs, registry, menu/link/title/section components, normal Blazor routing, and current limitations. |
 | [Resource Manager UI extensions](extensions/resource-manager-ui.md) | Resource-specific UI built on the base UI extension architecture: Add Resource forms, update components, generated details, tabs, detail routes, and resource UI actions. |
 | [Control Plane resource providers](extensions/control-plane-resource-providers.md) | Non-UI resource-provider extensions: resource projection, creation, procedures, logs, templates, programmatic declarations, and provider examples. |
+| [Resource model providers](resource-model-providers.md) | ResourceDefinition-based provider contracts: type providers, capability and operation providers, graph validators, apply providers, projection providers, and provider parity expectations. |
 | [Resource provider integration workflow](extensions/control-plane-resource-manager.md) | How user-facing resource providers pair Control Plane behavior with Resource Manager UI integration. |
 
 ## Boundary

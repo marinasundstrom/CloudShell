@@ -137,5 +137,5 @@ remain global programmatic configuration today.
 - Provide an admin UI for enabling/disabling extension-contributed views and choosing the start experience.
 - Keep extension-declared capabilities as the source of truth, even when UI configuration hides or reorders contributed content.
 
-See the [shell composition proposal](proposals/core/shell-composition.md) for
+See the [shell composition future direction](future/shell-composition.md) for
 the planned post-MVP direction.

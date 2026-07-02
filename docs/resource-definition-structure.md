@@ -6,22 +6,59 @@ model used by deployments, templates, imports, exports, debug views, and apply
 operations. YAML is the preferred authoring format. JSON remains the
 Control Plane API-compatible projection.
 
+For the provider contracts that validate, apply, and project these
+definitions, see [Resource model providers](resource-model-providers.md).
+
 The Resource Graph still owns the durable graph/configuration state. The
 Control Plane and Resource Manager own runtime state, operational records,
 live endpoint observations, logs, traces, metrics, orchestration, and provider
 runtime caches.
+
+The boundary is:
+
+```mermaid
+flowchart TD
+    definition["ResourceDefinition<br/>interchange format"]
+    graph["Resource graph<br/>durable configuration contract"]
+    resolved["Resolved Resource<br/>effective graph view"]
+    declarations["Capabilities and operations<br/>resolved declarations"]
+    manager["Resource Manager<br/>Control Plane operational model"]
+    runtime["Runtime integrations<br/>handlers and provider services"]
+    infrastructure["Running infrastructure"]
+
+    definition --> graph
+    graph --> resolved
+    resolved --> declarations
+    declarations --> manager
+    manager --> runtime
+    runtime --> infrastructure
+```
 
 ## Definition Layers
 
 `ResourceDefinition` is not resolved by itself. It is interpreted through
 definition layers:
 
-```text
-Implicit root/common resource contract
-    -> ResourceClassDefinition
-        -> ResourceTypeDefinition
-            -> ResourceDefinition
-                -> resolved Resource
+```mermaid
+flowchart TD
+    root["Implicit root/common resource contract"]
+    classDefinition["ResourceClassDefinition<br/>shared class contract"]
+    typeDefinition["ResourceTypeDefinition<br/>type contract within a class"]
+    resourceDefinition["ResourceDefinition<br/>resource-owned interchange state"]
+    resolved["Resolved Resource<br/>effective graph view"]
+
+    root --> classDefinition
+    classDefinition --> typeDefinition
+    typeDefinition --> resourceDefinition
+    resourceDefinition --> resolved
+
+    classValues["Attributes, capabilities, operations<br/>class defaults and requirements"]
+    typeValues["Attributes, capabilities, operations<br/>type defaults and requirements"]
+    resourceValues["Attributes, configuration, metadata,<br/>references and resource payloads"]
+
+    classDefinition --> classValues
+    typeDefinition --> typeValues
+    resourceDefinition --> resourceValues
 ```
 
 The root/common resource contract is a conceptual layer for fields and
@@ -381,6 +418,21 @@ state, read-only/provider-managed mutability, collection shape, and optional
 complex shape. A resource may still carry custom attributes without a
 definition, but defined attributes are the portable contract for validation,
 authoring, and provider integration.
+
+Resolved attributes track definition state separately from value state.
+`ResourceAttributeResolution.IsDefined` means the attribute ID came from a
+resolved class or type definition. `ResourceAttributeResolution.IsSet` means
+the resolved resource has an actual value for that attribute. A class/type
+attribute without a default resolves as defined but unset. A custom
+resource-state attribute without a class/type definition resolves as
+undefined/custom but set. Projection code that needs concrete ID/value maps,
+such as the Resource Manager bridge, should include only set attributes.
+
+This distinction keeps schema problems separate from legitimate absence of a
+runtime or provider-managed value. An unknown attribute ID may be invalid in a
+reserved provider namespace, while an unset defined attribute may be valid,
+defaultable, required, or provider-managed depending on its
+`ResourceAttributeDefinition`.
 
 Capabilities may also contribute attribute definitions and validators. For
 example, a volume-consumer capability can define the mount-related attributes

@@ -1,11 +1,11 @@
-# Resource Manager project structure
+# Resource Manager Project Structure Future Direction
 
 ## Status
 
-Proposed.
+Deferred strategic direction, not an active proposal.
 
-This proposal applies the general CloudShell application-layer model from
-[CloudShell architecture](../../architecture.md) to Resource Manager. It
+This future direction applies the general CloudShell application-layer model from
+[CloudShell architecture](../architecture.md) to Resource Manager. It
 describes the desired logical and physical structure for Resource Manager
 assemblies, shared concepts, extension contracts, and provider integrations.
 It is not an immediate MVP refactor. The current priority remains stabilizing

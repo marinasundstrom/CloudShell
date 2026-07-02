@@ -19,8 +19,13 @@ see [Executable applications](executable-applications.md) and
 container-backed authored resource with its own storage guidance; see
 [SQL Server resources](sql-server.md). To route traffic to container apps
 through a stable provider-neutral routing resource, see [Load balancers](load-balancers.md).
+For host placement, host capabilities, and resolver diagnostics, see
+[Container Hosts](container-hosts.md).
 For the tracked product proposal and remaining MVP work, see
 [Container applications](../proposals/containers/container-applications.md).
+For the internal runtime materialization model behind image updates, replica
+updates, deployment records, environment revisions, and replica groups, see
+[Orchestration and Deployments](../orchestration-and-deployments.md).
 
 ## Host Binding
 
@@ -163,6 +168,78 @@ to the image setting. Docker host registration/configuration exposes a registry
 setting for Docker child-container resources; that setting also defaults to
 `docker.io`.
 
+## Resource Manager Experience
+
+Resource Manager can create and configure container apps with image, registry,
+environment-variable, endpoint, lifetime, replica, and container-host settings.
+Create and update flows support explicit host selection while still allowing
+the configured default container host path.
+
+The container app overview is the normal operator entry point. It shows the
+current app identity, image, host placement and readiness, endpoint summary,
+attached volumes, app relationships, and inbound exposure relationships from
+virtual networks, load balancers, DNS zones, and name mappings. Attached
+volumes are visible on the overview so storage impact is understandable from
+the app context; the Storage tab remains the edit surface. For the shared
+storage and volume model, see [Storage and Volumes](storage-and-volumes.md).
+
+When an app has an endpoint that should be exposed through a stable routing or
+name resource, Resource Manager provides app-centric entry points into the
+normal add-resource flows. Load-balancer creation can be prefilled from the
+container app overview with the target app endpoint selected. Name-mapping
+creation can also be prefilled from the app overview so users do not have to
+start from a DNS or networking resource to answer "how do I expose this app?"
+
+Runtime-managed replica resources are surfaced in app-scoped views such as
+Scale and replicas, Monitoring, Health, Logs, and Telemetry when they explain
+the selected app. Users do not need to enable global hidden/runtime-managed
+inventory settings for normal app diagnostics.
+
+The current container app to runtime mapping is:
+
+```mermaid
+flowchart LR
+    subgraph App["Container app domain"]
+        AppResource["Container app resource<br/>application.container-app"]
+        AppDeployment["Container app deployment<br/>user/provider request"]
+        AppRevision["Container app revision<br/>configuration snapshot"]
+    end
+
+    subgraph ResourceManager["Resource Manager"]
+        DeploymentSpec["Orchestrator deployment<br/>desired runtime state"]
+        Orchestrator["Orchestration service<br/>materializes resources"]
+        EnvironmentRevision["Environment revision<br/>materialized outcome"]
+    end
+
+    subgraph Runtime["Materialized runtime"]
+        Service["Orchestrator service<br/>service boundary"]
+        Routing["Routing / load balancer<br/>traffic mapping"]
+        ReplicaGroup["Replica group<br/>versioned runtime set"]
+        Slot1["Replica slot 1<br/>stable desired position"]
+        Slot2["Replica slot 2<br/>stable desired position"]
+        Replica1["Runtime resource occupant<br/>container replica 1"]
+        Replica2["Runtime resource occupant<br/>container replica 2"]
+    end
+
+    AppResource --> AppDeployment
+    AppDeployment --> AppRevision
+    AppRevision --> DeploymentSpec
+    DeploymentSpec --> Orchestrator
+    Orchestrator --> Service
+    Orchestrator --> Routing
+    Orchestrator --> ReplicaGroup
+    Service --> Routing
+    Service --> ReplicaGroup
+    ReplicaGroup --> Slot1
+    ReplicaGroup --> Slot2
+    Slot1 --> Replica1
+    Slot2 --> Replica2
+    Orchestrator --> EnvironmentRevision
+    EnvironmentRevision -. "records" .-> Service
+    EnvironmentRevision -. "records" .-> ReplicaGroup
+    AppRevision -. "may reference" .-> EnvironmentRevision
+```
+
 ## Resource Manager Deployment
 
 Container app resources expose container app deployment controls on the
@@ -278,9 +355,8 @@ across instances. The endpoint is still owned by the container app: a single
 container binds it in single-instance mode, and an ingress or load balancer
 binds it on behalf of the app in replicated mode.
 Worker-style replicated apps without inbound endpoints do not require a load
-balancer. A later Resource Manager flow should prompt users to assign or
-create a load balancer/ingress provider when they enable replicas for an
-endpoint-bearing app.
+balancer. Resource Manager can prompt endpoint-bearing apps to create a
+load-balancer route when replicas are enabled.
 
 Update the replica count through the Container Apps API:
 
@@ -375,6 +451,19 @@ the default user-facing graph. A future runtime-managed resource that is part of
 the public application surface can use normal visibility and remain visible
 without being treated as an internal artifact.
 
+The cross-cutting rules for source, management mode, visibility, ownership,
+cleanup behavior, Resource Manager filtering, and provider parity are described
+in [Provider-created and runtime-managed resources](../runtime-managed-resources.md).
+
+Replicated HTTP health and liveness declarations are projected onto hidden
+runtime replica resources. Active local Docker replicas materialize probe-only
+endpoint mappings, while the stable container app receives the aggregate health
+assessment and remains the lifecycle, recovery, and management boundary. A
+failed runtime slot can be observed by health refresh, queued for replica
+management, recorded as replica-management activity, and replaced by the
+orchestration service according to the latest active materialized replica
+group when deployment history is available.
+
 When multiple local containers are materialized, they are named by convention
 from the parent container app, for example with a `-replica-{n}` suffix. Docker
 Compose maps the same desired count to `deploy.replicas`; future orchestrators
@@ -424,7 +513,7 @@ application instance resources behind one shared Service resource frontend that
 a load balancer targets. The replica containers themselves still remain runtime
 artifacts, not separate Resource Manager resources.
 
-Resource Manager should expose ingress through the Container App experience:
+Resource Manager exposes ingress through the Container App experience:
 
 - Overview shows the best reachable address.
 - Networking > Endpoints shows the app-owned endpoint contract.
@@ -432,6 +521,37 @@ Resource Manager should expose ingress through the Container App experience:
   ingress or an explicit load balancer.
 - Future exposure sections can show whether the endpoint is directly bound,
   provider-ingressed, virtual-network mapped, or load-balancer routed.
+
+## Readiness And Diagnostics
+
+Before Start or Restart dispatches, Resource Manager evaluates container app
+readiness from the same provider context used by lifecycle execution. Current
+checks include selected host resolution, host credentials, registry credential
+environment variables, required host capabilities, image or build metadata,
+and local host-published endpoint availability. Declared Docker container
+resources use the same local TCP/HTTP endpoint preflight path, which covers
+local registry resources used by container app deployment samples.
+
+The application overview reports host placement and readiness so the user can
+see whether the default/local container-host path is available before invoking
+an operation. Missing hosts, missing credentials, unsupported capabilities, and
+occupied local ports should appear as action capability reasons or diagnostics
+instead of provider exception text.
+
+The Scale and replicas tab is diagnostic as well as mutating. It renders
+requested replica slots first, polls for changes while the app is running, and
+shows materialized runtime replicas, repair/unhealthy state, and last result
+state without requiring the global environment page.
+
+## Monitoring
+
+Container apps use a provider-owned Monitoring tab under Management instead of
+only the generated metric-card view. The tab summarizes single-instance
+container stats and replicated app resource usage from materialized
+replica/container monitoring snapshots when the active runtime can resolve the
+selected container host. Missing CPU, memory, network, process, or provider
+counters are shown as not collected rather than zero. For the shared model, see
+[Resource Monitoring and Usage](../monitoring-and-usage.md).
 
 ## Image Deployment Procedure
 
