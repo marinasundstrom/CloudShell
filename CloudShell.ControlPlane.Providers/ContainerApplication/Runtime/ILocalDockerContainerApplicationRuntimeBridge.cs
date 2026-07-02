@@ -7,6 +7,10 @@ public interface ILocalDockerContainerApplicationRuntimeBridge
 {
     bool CanHandle(GraphResource resource);
 
+    bool TryResolveDefinition(
+        GraphResource resource,
+        out LocalDockerContainerApplicationRuntimeDefinition definition);
+
     ContainerApplicationRuntimeStatus GetStatus(GraphResource resource);
 
     ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(

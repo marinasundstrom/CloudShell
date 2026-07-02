@@ -2,7 +2,6 @@ using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Options;
 using System.Globalization;
 using GraphResource = CloudShell.ResourceModel.Resource;
 using GraphResourceState = CloudShell.ResourceModel.ResourceState;
@@ -16,25 +15,16 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
     ResourceGraphModel graph,
     ResourceResolver resolver,
     ILocalDockerContainerApplicationRuntimeBridge runtime,
-    IConfiguration configuration,
-    IOptions<LocalDockerContainerApplicationRuntimeOptions> options) : IResourceProvider
+    IConfiguration configuration) : IResourceProvider
 {
-    private readonly LocalDockerContainerApplicationRuntimeOptions options = options.Value;
-
     public string Id => "local-docker-container-application.runtime";
 
     public string DisplayName => "Local Docker container application runtime";
 
     public IReadOnlyList<ResourceManagerResource> GetResources()
     {
-        var snapshot = graph
-            .GetSnapshotAsync()
-            .AsTask()
-            .ConfigureAwait(false)
-            .GetAwaiter()
-            .GetResult();
+        var snapshot = graph.GetSnapshot();
         return snapshot.Resources
-            .Where(resource => options.Applications.ContainsKey(resource.EffectiveResourceId))
             .SelectMany(CreateRuntimeReplicaResources)
             .ToArray();
     }
@@ -42,8 +32,12 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
     private IReadOnlyList<ResourceManagerResource> CreateRuntimeReplicaResources(
         GraphResourceState state)
     {
-        var definition = options.Applications[state.EffectiveResourceId];
         var resource = resolver.Resolve(state);
+        if (!runtime.TryResolveDefinition(resource, out var definition))
+        {
+            return [];
+        }
+
         if (runtime.GetStatus(resource) != ContainerApplicationRuntimeStatus.Running)
         {
             return [];

@@ -11,15 +11,18 @@ The declared CloudShell resources are intentionally small:
   replica slots and cookie session affinity.
 
 The backend replicas and sticky ingress are runtime materialization for the
-container app. They are not authored as user resources. Until the durable
-container app orchestrator exists, the sample configures the built-in local
-process container app runtime to start replica processes and expose the
-declared API endpoint.
+container app. They are not authored as user resources. The sample registers
+the built-in local Docker container app runtime once; the runtime builds the
+project-backed API image from the resource's `project.path`, starts three
+replica containers, and exposes the declared API endpoint through a local
+Traefik ingress container.
 
-The provider-owned local process runtime keeps SignalR negotiate and WebSocket
-requests on the same replica by tracking negotiated connection tokens. This is
-local-development proof for sticky real-time routing; the durable container app
-runtime/orchestrator should own the general behavior later.
+The browser frontend uses the default SignalR negotiation flow through a
+same-origin frontend proxy path. That proxy forwards HTTP and WebSocket
+traffic to the backend container app ingress. The app declares cookie session
+affinity at the container app resource level, and the local Docker runtime
+projects that intent into Traefik sticky routing so negotiate and follow-up
+transport requests stay on the same replica.
 
 ## Run
 
@@ -43,7 +46,6 @@ uses these defaults:
 
 - CloudShell host: `http://localhost:5011`
 - SignalR API ingress: `http://localhost:5012`
-- SignalR API replicas: `http://localhost:5013` through `http://localhost:5015`
 - Blazor frontend: `http://localhost:5016`
 
 Without `--urls`, the sample falls back to:
@@ -60,6 +62,7 @@ SignalRContainerApp__FrontendEndpoint=http://localhost:6096 \
 dotnet run --project samples/SignalRContainerApp/CloudShell.SignalRContainerApp.csproj
 ```
 
-The local process runtime is intentionally a migration adapter. It avoids
-sample-local runtime handlers while the durable container app
-runtime/orchestrator path is still being designed.
+Implicit local Docker runtime container names are scoped to the running
+CloudShell host instance. That lets this sample, another local CloudShell host,
+and sample smoke tests use the same resource IDs without reusing each other's
+Docker containers or ingress.

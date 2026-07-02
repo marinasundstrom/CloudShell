@@ -183,11 +183,7 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
             displayName,
             serviceProvider => serviceProvider
                 .GetRequiredService<ResourceGraphModel>()
-                .GetSnapshotAsync()
-                .AsTask()
-                .ConfigureAwait(false)
-                .GetAwaiter()
-                .GetResult(),
+                .GetSnapshot(),
             resolutionContext,
             projectionOptions);
     }
@@ -231,11 +227,7 @@ public static class ResourceModelResourceManagerServiceCollectionExtensions
             displayName,
             serviceProvider => serviceProvider
                 .GetRequiredService<ResourceGraphModel>()
-                .GetSnapshotAsync()
-                .AsTask()
-                .ConfigureAwait(false)
-                .GetAwaiter()
-                .GetResult(),
+                .GetSnapshot(),
             resolutionContext,
             projectionOptions);
     }

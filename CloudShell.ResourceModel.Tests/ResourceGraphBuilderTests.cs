@@ -618,7 +618,8 @@ public sealed class ResourceGraphBuilderTests
 
         storage.AddVolume(
             "data",
-            subPath: "data");
+            subPath: "data",
+            maxSizeBytes: 10 * 1024 * 1024);
 
         var template = graph.BuildTemplate("storage-volume", environmentId: "local");
 
@@ -644,6 +645,10 @@ public sealed class ResourceGraphBuilderTests
             CloudShellVolumeResourceTypeProvider.Attributes.SubPath].StringValue);
         Assert.Equal(true, volumeDefinition.ResourceAttributeValues[
             CloudShellVolumeResourceTypeProvider.Attributes.Persistent].BooleanValue);
+        Assert.Equal(10 * 1024 * 1024, volumeDefinition.ResourceAttributeValues[
+            CloudShellVolumeResourceTypeProvider.Attributes.MaxSizeBytes].IntegerValue);
+        Assert.Equal(VolumeMaxSizeEnforcementModes.Advisory, volumeDefinition.ResourceAttributeValues[
+            CloudShellVolumeResourceTypeProvider.Attributes.MaxSizeEnforcement].StringValue);
         var dependency = Assert.Single(volumeDefinition.StartupDependencies);
         Assert.True(dependency.TryGetDependsOnResourceId(out var dependencyId));
         Assert.Equal(storage.EffectiveResourceId, dependencyId);
@@ -674,7 +679,8 @@ public sealed class ResourceGraphBuilderTests
         graph.AddVolume(
             "data",
             path: "./Data/storage/data",
-            accessMode: StorageVolumeAccessMode.ReadWriteMany);
+            accessMode: StorageVolumeAccessMode.ReadWriteMany,
+            maxSizeBytes: 5 * 1024 * 1024);
         graph.AddVolume("current");
 
         var template = graph.BuildTemplate("direct-volume", environmentId: "local");
@@ -693,6 +699,8 @@ public sealed class ResourceGraphBuilderTests
             CloudShellVolumeResourceTypeProvider.Attributes.Location].StringValue);
         Assert.Equal("ReadWriteMany", volumeDefinition.ResourceAttributeValues[
             CloudShellVolumeResourceTypeProvider.Attributes.AccessMode].StringValue);
+        Assert.Equal(5 * 1024 * 1024, volumeDefinition.ResourceAttributeValues[
+            CloudShellVolumeResourceTypeProvider.Attributes.MaxSizeBytes].IntegerValue);
         Assert.Empty(volumeDefinition.StartupDependencies);
         Assert.Equal(".", currentDirectoryVolume.ResourceAttributeValues[
             CloudShellVolumeResourceTypeProvider.Attributes.Location].StringValue);

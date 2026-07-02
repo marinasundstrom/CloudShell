@@ -168,6 +168,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.TryAddSingleton<LocalHostNetworkProvisioner>();
         builder.Services.TryAddSingleton<LocalHostNetworkProvider>();
         builder.Services.TryAddSingleton<PlatformResourceProvider>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceMonitoringProvider, VolumeFilesystemMonitoringProvider>());
         builder.Services.AddSingleton<INamePublishingProvider>(
             serviceProvider => serviceProvider.GetRequiredService<LocalHostNamePublishingProvider>());
         builder.Services.AddSingleton<IResourceEndpointMappingProvisioner>(

@@ -41,6 +41,17 @@ on `git blame --follow`, and then by the broad type of change.
   TypeScript app-host samples so developers can run the app host in the
   foreground and use CLI resource/UI commands against that running host, while
   keeping daemon commands available for daemon-specific testing.
+- Scoped implicit local Docker container-app materialization names to the
+  running CloudShell host instance so concurrent samples or smoke tests with
+  the same resource IDs cannot reuse the wrong Docker containers or ingress,
+  while keeping scoped replica network aliases within Docker DNS label limits.
+- Updated the SignalR container app sample to use the default negotiated
+  SignalR flow through a same-origin frontend proxy backed by container app
+  cookie session affinity, matching the standard ingress behavior expected for
+  replicated stateful HTTP workloads without forcing WebSockets.
+- Fixed local Docker container app runtime resource projection to avoid
+  blocking synchronously on the resource graph async snapshot path, preventing
+  Resources-view polling from contributing to shutdown hangs.
 - Fixed the JavaScript app sample host to configure the Configuration Store
   runtime service project from the repository root, so starting the sample
   Configuration Store resource no longer resolves a missing project under the
@@ -51,6 +62,12 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated local Docker container app routing reconciliation to choose the
   ingress endpoint from service-routing binding definitions when present,
   while keeping the first HTTP endpoint as the direct-runtime fallback.
+- Updated the local Docker container-app runtime to handle declared
+  `application.container-app` resources without per-app runtime registration,
+  deriving default Docker names from the resource id and using resource
+  `project.path` or build metadata when publishing is needed. SignalR and
+  JavaScript container app samples now register the Docker runtime once and
+  keep build source on the resource declaration.
 - Added Resource Model graph validation for load-balancer routes that reference
   undeclared entrypoints, surfacing the error before provider execution.
 - Extended Resource Model graph validation for load-balancer duplicate
@@ -98,6 +115,17 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated the Usage dashboard to prioritize CPU, memory, network, process,
   and storage usage summaries and visually group priority trends by resource
   before the full metric and sample detail tables.
+- Added observed volume max-size limits and local filesystem volume monitoring
+  so used bytes, configured max size, remaining bytes, utilization, and
+  max-size-reached warnings are retained as per-resource usage samples, with a
+  fixed-size quota visualization for current monitoring snapshots.
+- Fixed Resource Manager freezes caused by the Resource Model bridge blocking
+  synchronously on async graph snapshots while listing resources.
+- Added volume usage previews to application storage mount rows so resource
+  consumers can see mounted volume usage in context.
+- Updated the SignalR container app sample to start Docker-backed API replicas
+  through the default container host resource instead of the local process
+  runtime.
 - Renamed the shell observability workspace to Telemetry with canonical
   `/telemetry` routes while keeping the old `/observability` routes as
   compatibility aliases.

@@ -273,6 +273,8 @@ public static class ResourceAttributeNames
     public const string VolumeSubPath = "storage.volume.subPath";
     public const string VolumeAccessMode = "storage.volume.accessMode";
     public const string VolumePersistent = "storage.volume.persistent";
+    public const string VolumeMaxSizeBytes = "storage.volume.maxSizeBytes";
+    public const string VolumeMaxSizeEnforcement = "storage.volume.maxSizeEnforcement";
     public const string VolumeMountCount = "storage.volumeMounts";
     public const string VolumeMountMaterializedCount = "storage.volumeMounts.materialized";
     public const string VolumeMountMaterializationStatus = "storage.volumeMounts.materializationStatus";

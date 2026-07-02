@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Logs;
 using ResourceOrchestratorSessionAffinityMode = CloudShell.Abstractions.ResourceManager.ResourceOrchestratorSessionAffinityMode;
 
@@ -21,6 +22,9 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
 
     public ContainerApplicationResourceDefinitionBuilder WithRegistry(string registry) =>
         SetScalarAttribute(ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry, registry);
+
+    public ContainerApplicationResourceDefinitionBuilder WithProjectPath(string projectPath) =>
+        SetScalarAttribute(ResourceAttributeId.Create(ResourceAttributeNames.ProjectPath), projectPath);
 
     public ContainerApplicationResourceDefinitionBuilder WithContainerBuild(
         string buildContext,

@@ -1,0 +1,101 @@
+@using System.Globalization
+
+<div class="@ChartCssClass" role="img" aria-label="@EffectiveAriaLabel">
+    <div class="cloudshell-quota-chart-visual">
+        <svg viewBox="0 0 120 120" focusable="false" aria-hidden="true">
+            <circle class="cloudshell-quota-chart-track" cx="60" cy="60" r="52"></circle>
+            <circle class="cloudshell-quota-chart-used"
+                    cx="60"
+                    cy="60"
+                    r="52"
+                    pathLength="100"
+                    stroke-dasharray="@UsedDashArray"
+                    transform="rotate(-90 60 60)"></circle>
+        </svg>
+        <div class="cloudshell-quota-chart-label">
+            <strong>@UsagePercentage</strong>
+            <span>@StatusLabel</span>
+        </div>
+    </div>
+    <dl class="cloudshell-quota-chart-values">
+        <div>
+            <dt>@UsedLabel</dt>
+            <dd>@FormatBytes(UsedBytes)</dd>
+        </div>
+        <div>
+            <dt>@FreeLabel</dt>
+            <dd>@FormatBytes(FreeBytes)</dd>
+        </div>
+        <div>
+            <dt>@MaxSizeLabel</dt>
+            <dd>@FormatBytes(MaxSizeBytes)</dd>
+        </div>
+    </dl>
+</div>
+
+@code {
+    [Parameter]
+    public double UsedBytes { get; set; }
+
+    [Parameter]
+    public double MaxSizeBytes { get; set; }
+
+    [Parameter]
+    public string UsedLabel { get; set; } = "Used";
+
+    [Parameter]
+    public string FreeLabel { get; set; } = "Free";
+
+    [Parameter]
+    public string MaxSizeLabel { get; set; } = "Max size";
+
+    [Parameter]
+    public string WithinMaxSizeLabel { get; set; } = "Within max size";
+
+    [Parameter]
+    public string ExceededMaxSizeLabel { get; set; } = "Max size reached";
+
+    [Parameter]
+    public string? AriaLabel { get; set; }
+
+    private double FreeBytes => Math.Max(0, MaxSizeBytes - UsedBytes);
+
+    private double UsageRatio => MaxSizeBytes <= 0 ? 0 : UsedBytes / MaxSizeBytes;
+
+    private double UsedPercentage => Math.Clamp(UsageRatio * 100, 0, 100);
+
+    private bool IsAtOrAboveMaxSize => MaxSizeBytes > 0 && UsedBytes >= MaxSizeBytes;
+
+    private string UsagePercentage =>
+        $"{(UsageRatio * 100).ToString("0.#", CultureInfo.InvariantCulture)}%";
+
+    private string UsedDashArray =>
+        string.Create(CultureInfo.InvariantCulture, $"{UsedPercentage:0.###} {100 - UsedPercentage:0.###}");
+
+    private string StatusLabel => IsAtOrAboveMaxSize ? ExceededMaxSizeLabel : WithinMaxSizeLabel;
+
+    private string ChartCssClass => IsAtOrAboveMaxSize
+        ? "cloudshell-quota-chart at-limit"
+        : "cloudshell-quota-chart";
+
+    private string EffectiveAriaLabel => string.IsNullOrWhiteSpace(AriaLabel)
+        ? $"{UsedLabel}: {FormatBytes(UsedBytes)}. {FreeLabel}: {FormatBytes(FreeBytes)}. {MaxSizeLabel}: {FormatBytes(MaxSizeBytes)}."
+        : AriaLabel;
+
+    private static string FormatBytes(double value)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        var scaled = Math.Abs(value);
+        var unitIndex = 0;
+        while (scaled >= 1024 && unitIndex < units.Length - 1)
+        {
+            scaled /= 1024;
+            unitIndex++;
+        }
+
+        var signed = value < 0 ? -scaled : scaled;
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{signed:0.##} {units[unitIndex]}");
+    }
+}

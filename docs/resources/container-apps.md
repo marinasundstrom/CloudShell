@@ -88,6 +88,33 @@ resource contract remains a container app plus container host intent so Podman
 or other OCI-compatible hosts can be added without changing the authored app
 shape.
 
+When the local Docker container-app runtime is registered, container apps do
+not need separate per-app runtime registration. The runtime reads the resolved
+resource state: image-only apps run the declared image, `container.buildContext`
+apps build through Docker, and `project.path` apps publish through the .NET SDK
+container target when no Dockerfile-backed build context is present.
+Runtime options may still override local names, ingress directories, probe
+ports, telemetry endpoints, or migration-time project paths, but those options
+are not the source of container app intent.
+
+Implicit local Docker materialization scopes Docker container names, network
+aliases, and ingress configuration directories to the running CloudShell host
+instance. The stable CloudShell resource ID remains the container app resource
+ID, but Docker's global name namespace must not let a test run, another sample,
+or a second local host reuse or inspect the wrong containers for the same
+resource ID. Hosts can set `CloudShell:RuntimeNameScope` when they need an
+explicit stable materialization scope; otherwise the local runtime derives one
+from the host endpoint and content root when that information is available.
+Scoped names are compacted with a deterministic hash when needed so Docker DNS
+network aliases stay within label length limits.
+
+For project-backed container apps declared directly with
+`AddContainerApplication(...)`, use `.WithProjectPath(...)` to keep the build
+source on the resource declaration. The local Docker runtime also derives
+container-reachable trace and metric ingest endpoints from the host's
+configured CloudShell endpoint when explicit observability endpoints are not
+set, so samples normally do not need per-app telemetry wiring.
+
 ## Lifetime
 
 Programmatic container app declarations default to `ControlPlaneScoped` for

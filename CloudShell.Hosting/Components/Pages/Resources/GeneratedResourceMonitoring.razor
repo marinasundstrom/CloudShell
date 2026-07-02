@@ -107,6 +107,8 @@
         }
         else
         {
+            var quotaVisualization = BuildQuotaVisualization(Snapshot);
+
             <dl class="detail-list">
                 <dt>@L["Provider"]</dt>
                 <dd>@Snapshot.Provider</dd>
@@ -118,6 +120,18 @@
                     <dd>@Snapshot.Status</dd>
                 }
             </dl>
+
+            @if (quotaVisualization is not null)
+            {
+                <CloudShellQuotaChart UsedBytes="@quotaVisualization.UsedBytes"
+                                      MaxSizeBytes="@quotaVisualization.MaxSizeBytes"
+                                      UsedLabel="@L["Used"].Value"
+                                      FreeLabel="@L["Unused"].Value"
+                                      MaxSizeLabel="@L["Max size"].Value"
+                                      WithinMaxSizeLabel="@L["Within max size"].Value"
+                                      ExceededMaxSizeLabel="@L["Max size reached"].Value"
+                                      AriaLabel="@L["Volume max-size utilization: {0} used of {1}.", FormatBytes(quotaVisualization.UsedBytes), FormatBytes(quotaVisualization.MaxSizeBytes)].Value" />
+            }
 
             <SummaryMetricGrid AriaLabel="@L["Resource metrics"].Value">
                 @foreach (var metric in Snapshot.Metrics)
@@ -151,6 +165,29 @@
                 ? $"{metric.Value.ToString("0.##", CultureInfo.InvariantCulture)}%"
                 : $"{metric.Value.ToString("0.###", CultureInfo.InvariantCulture)} {metric.Unit}".TrimEnd();
 
+    private static VolumeQuotaVisualization? BuildQuotaVisualization(ResourceMonitoringSnapshot snapshot)
+    {
+        var used = FindMetric(snapshot, "storage.volume.used");
+        var maxSize = FindMetric(snapshot, "storage.volume.maxSize");
+        if (used is null ||
+            maxSize is null ||
+            !IsByteMetric(used) ||
+            !IsByteMetric(maxSize) ||
+            maxSize.Value <= 0)
+        {
+            return null;
+        }
+
+        return new VolumeQuotaVisualization(used.Value, maxSize.Value);
+    }
+
+    private static ResourceMetricSample? FindMetric(ResourceMonitoringSnapshot snapshot, string name) =>
+        snapshot.Metrics.FirstOrDefault(metric =>
+            string.Equals(metric.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsByteMetric(ResourceMetricSample metric) =>
+        string.Equals(metric.Unit, "bytes", StringComparison.OrdinalIgnoreCase);
+
     private static string FormatBytes(double value)
     {
         string[] units = ["B", "KB", "MB", "GB", "TB"];
@@ -163,4 +200,8 @@
 
         return $"{value.ToString(unitIndex == 0 ? "0" : "0.##", CultureInfo.InvariantCulture)} {units[unitIndex]}";
     }
+
+    private sealed record VolumeQuotaVisualization(
+        double UsedBytes,
+        double MaxSizeBytes);
 }

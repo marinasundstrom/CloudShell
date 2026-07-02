@@ -19,6 +19,19 @@ public sealed class ResourceGraphModel(IResourceStateProvider stateProvider)
         }
     }
 
+    public ResourceGraphSnapshot GetSnapshot()
+    {
+        _sync.Wait();
+        try
+        {
+            return GetSnapshotCore();
+        }
+        finally
+        {
+            _sync.Release();
+        }
+    }
+
     public async ValueTask<ResourceGraphSnapshot> ReloadAsync(
         CancellationToken cancellationToken = default) =>
         await RefreshAsync(ResourceGraphRefreshContext.Full, cancellationToken);
@@ -72,6 +85,24 @@ public sealed class ResourceGraphModel(IResourceStateProvider stateProvider)
         CancellationToken cancellationToken)
     {
         _snapshot ??= await stateProvider.GetSnapshotAsync(cancellationToken);
+        return _snapshot;
+    }
+
+    private ResourceGraphSnapshot GetSnapshotCore()
+    {
+        if (_snapshot is not null)
+        {
+            return _snapshot;
+        }
+
+        var snapshot = stateProvider.GetSnapshotAsync();
+        if (!snapshot.IsCompletedSuccessfully)
+        {
+            throw new InvalidOperationException(
+                "The resource graph snapshot could not be resolved synchronously. Register an in-memory resource graph provider or use an async graph access path.");
+        }
+
+        _snapshot = snapshot.Result;
         return _snapshot;
     }
 

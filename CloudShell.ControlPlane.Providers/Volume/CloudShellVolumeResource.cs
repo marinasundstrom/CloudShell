@@ -34,6 +34,16 @@ public sealed class CloudShellVolumeResource(
             out var persistent) &&
         persistent;
 
+    public long? MaxSizeBytes =>
+        long.TryParse(
+            Resource.Attributes.GetString(CloudShellVolumeResourceTypeProvider.Attributes.MaxSizeBytes),
+            out var maxSizeBytes)
+            ? maxSizeBytes
+            : null;
+
+    public string? MaxSizeEnforcement =>
+        Resource.Attributes.GetString(CloudShellVolumeResourceTypeProvider.Attributes.MaxSizeEnforcement);
+
     public IReadOnlyList<ResourceReference> References =>
         Resource.State.StartupDependencies;
 

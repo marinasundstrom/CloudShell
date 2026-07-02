@@ -1,5 +1,6 @@
 @page "/"
 @inject HttpClient Http
+@inject NavigationManager Navigation
 @implements IAsyncDisposable
 
 <PageTitle>SignalR Container App</PageTitle>
@@ -86,16 +87,12 @@
             return;
         }
 
-        _hubUrl = $"{_options.BackendBaseUrl.TrimEnd('/')}/hubs/replicas";
+        _hubUrl = Navigation.ToAbsoluteUri(
+            $"{_options.BackendBaseUrl.TrimEnd('/')}/hubs/replicas").ToString();
         _connectionState = "Connecting";
 
         _connection = new HubConnectionBuilder()
-            .WithUrl(
-                _hubUrl,
-                options =>
-                {
-                    options.Transports = HttpTransportType.WebSockets;
-                })
+            .WithUrl(_hubUrl)
             .WithAutomaticReconnect()
             .Build();
 

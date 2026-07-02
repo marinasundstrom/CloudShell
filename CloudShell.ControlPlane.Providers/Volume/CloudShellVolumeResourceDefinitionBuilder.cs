@@ -1,3 +1,5 @@
+using CloudShell.Abstractions.ResourceManager;
+
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class CloudShellVolumeResourceDefinitionBuilder(string name) :
@@ -42,10 +44,22 @@ public sealed class CloudShellVolumeResourceDefinitionBuilder(string name) :
     public CloudShellVolumeResourceDefinitionBuilder WithPersistent(bool persistent = true) =>
         SetScalarAttribute(CloudShellVolumeResourceTypeProvider.Attributes.Persistent, persistent);
 
+    public CloudShellVolumeResourceDefinitionBuilder WithMaxSizeBytes(
+        long maxSizeBytes,
+        string maxSizeEnforcement = VolumeMaxSizeEnforcementModes.Advisory)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxSizeBytes);
+
+        SetScalarAttribute(CloudShellVolumeResourceTypeProvider.Attributes.MaxSizeBytes, maxSizeBytes);
+        SetScalarAttribute(CloudShellVolumeResourceTypeProvider.Attributes.MaxSizeEnforcement, maxSizeEnforcement);
+        return this;
+    }
+
     public CloudShellVolumeResourceDefinitionBuilder UseLocalFileSystemVolume(
         string? subPath = null,
         StorageVolumeAccessMode accessMode = DefaultAccessMode,
-        bool persistent = true)
+        bool persistent = true,
+        long? maxSizeBytes = null)
     {
         WithProvider(StorageResourceDefaults.LocalProvider);
         WithStorageMedium(StorageResourceDefaults.FileSystemMedium);
@@ -57,18 +71,28 @@ public sealed class CloudShellVolumeResourceDefinitionBuilder(string name) :
             WithSubPath(subPath);
         }
 
+        if (maxSizeBytes is { } value)
+        {
+            WithMaxSizeBytes(value);
+        }
+
         return this;
     }
 
     public CloudShellVolumeResourceDefinitionBuilder UseLocalFileSystemPath(
         string? path = StorageResourceDefaults.DefaultAdHocVolumePath,
         StorageVolumeAccessMode accessMode = DefaultAccessMode,
-        bool persistent = true)
+        bool persistent = true,
+        long? maxSizeBytes = null)
     {
         WithProvider(StorageResourceDefaults.LocalProvider);
         WithStorageMedium(StorageResourceDefaults.FileSystemMedium);
         WithAccessMode(accessMode);
         WithPersistent(persistent);
+        if (maxSizeBytes is { } value)
+        {
+            WithMaxSizeBytes(value);
+        }
 
         WithLocation(string.IsNullOrWhiteSpace(path)
             ? StorageResourceDefaults.DefaultAdHocVolumePath
@@ -96,13 +120,14 @@ public static class CloudShellVolumeResourceDefinitionBuilderExtensions
         string name,
         string? path = StorageResourceDefaults.DefaultAdHocVolumePath,
         StorageVolumeAccessMode accessMode = CloudShellVolumeResourceDefinitionBuilder.DefaultAccessMode,
-        bool persistent = true)
+        bool persistent = true,
+        long? maxSizeBytes = null)
     {
         ArgumentNullException.ThrowIfNull(graph);
 
         return graph
             .AddCloudShellVolume(name)
-            .UseLocalFileSystemPath(path, accessMode, persistent);
+            .UseLocalFileSystemPath(path, accessMode, persistent, maxSizeBytes);
     }
 
     public static CloudShellVolumeResourceDefinitionBuilder AddVolume(
@@ -111,7 +136,8 @@ public static class CloudShellVolumeResourceDefinitionBuilderExtensions
         IResourceDefinitionBuilder storage,
         string? subPath = null,
         StorageVolumeAccessMode accessMode = CloudShellVolumeResourceDefinitionBuilder.DefaultAccessMode,
-        bool persistent = true)
+        bool persistent = true,
+        long? maxSizeBytes = null)
     {
         ArgumentNullException.ThrowIfNull(graph);
         ArgumentNullException.ThrowIfNull(storage);
@@ -119,6 +145,6 @@ public static class CloudShellVolumeResourceDefinitionBuilderExtensions
         return graph
             .AddCloudShellVolume(name)
             .UseStorage(storage)
-            .UseLocalFileSystemVolume(subPath, accessMode, persistent);
+            .UseLocalFileSystemVolume(subPath, accessMode, persistent, maxSizeBytes);
     }
 }

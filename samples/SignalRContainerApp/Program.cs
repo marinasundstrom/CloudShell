@@ -16,7 +16,6 @@ var builder = CloudShellApplication.CreateBuilder(args);
 
 const string sampleImageTag = "20260630.1";
 const string resourceGroupId = "signalr-container-app";
-const string apiResourceId = "application.container-app:signalr-api";
 
 var hostPort = TryGetConfiguredHostPort(builder.Configuration);
 var apiEndpointPort =
@@ -33,12 +32,6 @@ var frontendProjectPath = Path.GetFullPath(
 var apiProjectPath = Path.GetFullPath(
     "Api/CloudShell.SignalRContainerApp.Api.csproj",
     builder.Environment.ContentRootPath);
-var runtimeControlPlaneEndpoint = builder.Configuration["SignalRContainerApp:RuntimeControlPlaneEndpoint"]
-    ?? $"http://localhost:{(hostPort ?? 5094).ToString(CultureInfo.InvariantCulture)}";
-var traceIngestEndpoint = builder.Configuration["Observability:TraceIngestEndpoint"]
-    ?? $"{runtimeControlPlaneEndpoint}/api/control-plane/v1/traces/ingest";
-var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndpoint"]
-    ?? $"{runtimeControlPlaneEndpoint}/api/control-plane/v1/metrics/ingest";
 
 var cloudShell = builder.AddCloudShellControlPlane(controlPlane =>
 {
@@ -49,12 +42,19 @@ var cloudShell = builder.AddCloudShellControlPlane(controlPlane =>
             "SignalR Container App",
             "Blazor WebAssembly frontend connected to a replicated SignalR container app backend.");
 
+        var containerHostResource = resources
+            .GetContainerHost()
+            .WithResourceGroup(resourceGroup)
+            .WithAutoStart(false);
+
         var apiResource = resources
             .AddContainerApplication("signalr-api")
             .WithDisplayName("SignalR API")
             .WithResourceGroup(resourceGroup)
             .WithAutoStart(false)
+            .UseContainerHost(containerHostResource)
             .WithImage($"cloudshell-signalr-api:{sampleImageTag}")
+            .WithProjectPath(apiProjectPath)
             .WithRuntimeLogSources(LogFormat.JsonConsole)
             .WithReplicas(3)
             .WithCookieSessionAffinity("CloudShellSignalRReplica", durationSeconds: 3600)
@@ -99,21 +99,7 @@ var cloudShell = builder.AddCloudShellControlPlane(controlPlane =>
 
 builder.Services
     .AddLocalContainerApplicationResourceTypes()
-    .AddLocalContainerApplicationProcessRuntime(options =>
-        options.AddProject(
-            apiResourceId,
-            apiProjectPath,
-            runtime =>
-            {
-                runtime.ReplicaPortStart =
-                    builder.Configuration.GetValue<int?>("SignalRContainerApp:ReplicaPortStart");
-                runtime.ReplicaStartTimeout = TimeSpan.FromSeconds(
-                    builder.Configuration.GetValue<int?>(
-                        "SignalRContainerApp:ReplicaStartTimeoutSeconds") ?? 60);
-                runtime.ReplicaServiceNamePrefix = "signalr-api-replica-";
-                runtime.TraceIngestEndpoint = traceIngestEndpoint;
-                runtime.MetricIngestEndpoint = metricIngestEndpoint;
-            }))
+    .AddLocalDockerContainerApplicationRuntime()
     .AddAspNetCoreProjectResourceType();
 cloudShell.UseResourceGraphIntegration();
 

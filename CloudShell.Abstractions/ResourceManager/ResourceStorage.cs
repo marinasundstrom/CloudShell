@@ -15,7 +15,16 @@ public sealed record VolumeResourceDefinition(
     bool Persistent = true,
     VolumeAccessMode AccessMode = VolumeAccessMode.ReadWriteOnce,
     string? StorageResourceId = null,
-    string? SubPath = null);
+    string? SubPath = null,
+    long? MaxSizeBytes = null,
+    string? MaxSizeEnforcement = null);
+
+public static class VolumeMaxSizeEnforcementModes
+{
+    public const string Advisory = "advisory";
+    public const string Enforced = "enforced";
+    public const string Unknown = "unknown";
+}
 
 public sealed record StorageResourceDefinition(
     string Id,

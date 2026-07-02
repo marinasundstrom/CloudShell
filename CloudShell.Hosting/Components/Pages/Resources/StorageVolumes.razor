@@ -3,6 +3,7 @@
 @inject NavigationManager Navigation
 @inject ICoreShellRouteService ShellRoutes
 @inject IStringLocalizer<SharedResource> L
+@using System.Globalization
 
 @if (Storage is null)
 {
@@ -174,7 +175,37 @@ else
             parts.Add($"Storage: {string.Join(", ", materializationSummaries)}");
         }
 
+        if (FormatMaxSize(volume.Volume) is { } maxSize)
+        {
+            parts.Add($"Max size: {maxSize}");
+        }
+
         return string.Join(" - ", parts);
+    }
+
+    private static string? FormatMaxSize(Resource volume)
+    {
+        if (volume.ResourceAttributes.TryGetValue(ResourceAttributeNames.VolumeMaxSizeBytes, out var value) != true ||
+            !long.TryParse(value, out var maxSizeBytes) ||
+            maxSizeBytes <= 0)
+        {
+            return null;
+        }
+
+        return $"{FormatBytes(maxSizeBytes)} ({maxSizeBytes.ToString(CultureInfo.InvariantCulture)} bytes)";
+    }
+
+    private static string FormatBytes(double value)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        var unitIndex = 0;
+        while (value >= 1024 && unitIndex < units.Length - 1)
+        {
+            value /= 1024;
+            unitIndex++;
+        }
+
+        return $"{value.ToString(unitIndex == 0 ? "0" : "0.##", CultureInfo.InvariantCulture)} {units[unitIndex]}";
     }
 
     private string? GetConsumerMountMaterialization(StorageVolumeConsumerView consumer)

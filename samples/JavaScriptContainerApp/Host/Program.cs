@@ -23,7 +23,6 @@ var appEndpoint = builder.Configuration["JavaScriptContainerApp:Endpoint"]
 var settingsServiceEndpoint = builder.Configuration["JavaScriptContainerApp:SettingsEndpoint"]
     ?? "http://localhost:5102";
 var settingsResourceId = "configuration.store:javascript-container-app-settings";
-var appResourceId = "application.container-app:javascript-container-frontend";
 var settingsEntriesEndpoint =
     $"{settingsServiceEndpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(settingsResourceId)}/entries";
 var appEndpointUri = new Uri(appEndpoint);
@@ -79,26 +78,7 @@ var cloudShell = builder.AddCloudShellControlPlaneApplication(
         });
     });
 
-builder.Services.AddLocalDockerContainerApplicationRuntime(options =>
-{
-    options.AddApplication(appResourceId, appPath, runtime =>
-    {
-        runtime.IngressContainerName = "cloudshell-javascript-container-app-ingress";
-        runtime.IngressConfigurationDirectory = Path.Combine(
-            sampleRootPath,
-            "Host",
-            "Data",
-            "javascript-container-app-ingress");
-        runtime.ReplicaContainerNamePrefix = "cloudshell-javascript-container-app-replica-";
-        runtime.ReplicaNetworkAliasPrefix = "cloudshell-javascript-container-app-replica-";
-        runtime.ReplicaResourceIdPrefix = "runtime-container:application-container-app-javascript-container-frontend:replica-";
-        runtime.ReplicaServiceNamePrefix = "javascript-container-frontend-replica-";
-        runtime.ReplicaProbePortStart = appEndpointUri.Port + 100;
-        runtime.RuntimeResourceProviderId = "javascript-container-app.runtime";
-        runtime.RuntimeResourceProviderName = "JavaScript container app sample runtime";
-        runtime.RuntimeMaterialization = "javascriptContainerApp";
-    });
-});
+builder.Services.AddLocalDockerContainerApplicationRuntime();
 
 cloudShell.UseConfigurationStoreResourceProvider(runtime =>
 {

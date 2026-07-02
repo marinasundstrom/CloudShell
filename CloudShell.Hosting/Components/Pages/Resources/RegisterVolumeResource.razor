@@ -49,6 +49,12 @@
             Persistent
         </FluentCheckbox>
 
+        <label for="volume-max-size">Max size bytes</label>
+        <FluentNumberField TValue="long?"
+                           Id="volume-max-size"
+                           Min="1"
+                           @bind-Value="MaxSizeBytes" />
+
         @if (ErrorMessage is not null)
         {
             <div class="provider-error">@ErrorMessage</div>
@@ -72,6 +78,7 @@
     private string Location { get; set; } = string.Empty;
     private string SelectedAccessMode { get; set; } = VolumeAccessMode.ReadWriteOnce.ToString();
     private bool Persistent { get; set; } = true;
+    private long? MaxSizeBytes { get; set; }
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
     private IReadOnlyList<Resource> StorageResources { get; set; } = [];
@@ -127,7 +134,8 @@
             Persistent,
             ParseAccessMode(),
             NormalizeNullable(SelectedStorageResourceId),
-            HasSelectedStorage ? NormalizeNullable(Location) : null);
+            HasSelectedStorage ? NormalizeNullable(Location) : null,
+            MaxSizeBytes is > 0 ? MaxSizeBytes : null);
 
         await ResourceManager.CreateResourceAsync(
             new CreateResourceCommand(

@@ -6,6 +6,27 @@ namespace CloudShell.ResourceModel.Tests;
 public sealed class ResourceGraphChangeTrackingTests
 {
     [Fact]
+    public void GetSnapshot_ReturnsInMemorySnapshotSynchronously()
+    {
+        var model = new ResourceGraphModel(new InMemoryResourceStateProvider([CreateState("api", "./api")]));
+
+        var snapshot = model.GetSnapshot();
+
+        Assert.Equal(ResourceGraphVersion.Initial, snapshot.Version);
+        Assert.Equal("application.executable:api", Assert.Single(snapshot.Resources).EffectiveResourceId);
+    }
+
+    [Fact]
+    public void GetSnapshot_RejectsAsynchronousStateProviderInsteadOfBlocking()
+    {
+        var model = new ResourceGraphModel(new AsyncOnlyResourceStateProvider());
+
+        var exception = Assert.Throws<InvalidOperationException>(() => model.GetSnapshot());
+
+        Assert.Contains("could not be resolved synchronously", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task CommitAsync_PersistsAcceptedChangesWithSingleGraphVersion()
     {
         var createdAt = new DateTimeOffset(2026, 6, 23, 12, 0, 0, TimeSpan.Zero);
@@ -808,5 +829,21 @@ public sealed class ResourceGraphChangeTrackingTests
                                 "The expected principal was not passed to resource resolution.",
                                 attribute.Name)
                         ]);
+    }
+
+    private sealed class AsyncOnlyResourceStateProvider : IResourceStateProvider
+    {
+        public async ValueTask<ResourceGraphSnapshot> GetSnapshotAsync(
+            CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            return new ResourceGraphSnapshot(ResourceGraphVersion.Initial, []);
+        }
+
+        public ValueTask<ResourceGraphCommitResult> CommitAsync(
+            ResourceGraphChangeSet changes,
+            ResourceGraphCommitContext context,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 }

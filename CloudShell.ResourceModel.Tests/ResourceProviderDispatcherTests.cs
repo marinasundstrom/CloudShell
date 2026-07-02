@@ -448,7 +448,9 @@ public sealed class ResourceProviderDispatcherTests
                 [CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium] = "FileSystem",
                 [CloudShellVolumeResourceTypeProvider.Attributes.SubPath] = "data",
                 [CloudShellVolumeResourceTypeProvider.Attributes.AccessMode] = "ReadWriteOnce",
-                [CloudShellVolumeResourceTypeProvider.Attributes.Persistent] = bool.TrueString.ToLowerInvariant()
+                [CloudShellVolumeResourceTypeProvider.Attributes.Persistent] = bool.TrueString.ToLowerInvariant(),
+                [CloudShellVolumeResourceTypeProvider.Attributes.MaxSizeBytes] = "1048576",
+                [CloudShellVolumeResourceTypeProvider.Attributes.MaxSizeEnforcement] = VolumeMaxSizeEnforcementModes.Advisory
             });
 
         var validation = await serviceProvider
@@ -482,6 +484,8 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal("data", projection.SubPath);
         Assert.Equal(StorageVolumeAccessMode.ReadWriteOnce, projection.AccessMode);
         Assert.True(projection.Persistent);
+        Assert.Equal(1048576, projection.MaxSizeBytes);
+        Assert.Equal(VolumeMaxSizeEnforcementModes.Advisory, projection.MaxSizeEnforcement);
         Assert.Equal([storage.EffectiveResourceId], projection.References.Select(reference => reference.Value));
         var provision = await projection.GetProvisionOperationAsync();
 
@@ -517,6 +521,34 @@ public sealed class ResourceProviderDispatcherTests
         var diagnostic = Assert.Single(validation.Diagnostics, diagnostic =>
             diagnostic.Code == "storage.volume.accessModeInvalid");
         Assert.Equal(CloudShellVolumeResourceTypeProvider.Attributes.AccessMode.ToString(), diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task AddCloudShellVolumeResourceType_RejectsInvalidMaxSize()
+    {
+        var services = new ServiceCollection();
+        services.AddCloudShellVolumeResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "data",
+            CloudShellVolumeResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, string>
+            {
+                [CloudShellVolumeResourceTypeProvider.Attributes.StorageMedium] = "FileSystem",
+                [CloudShellVolumeResourceTypeProvider.Attributes.AccessMode] = "ReadWriteOnce",
+                [CloudShellVolumeResourceTypeProvider.Attributes.MaxSizeBytes] = "0"
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionValidationPipeline>()
+            .ValidateAsync(
+                definition,
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        var diagnostic = Assert.Single(validation.Diagnostics, diagnostic =>
+            diagnostic.Code == "storage.volume.maxSizeBytesInvalid");
+        Assert.Equal(CloudShellVolumeResourceTypeProvider.Attributes.MaxSizeBytes.ToString(), diagnostic.Target);
     }
 
     [Fact]

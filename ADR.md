@@ -11,6 +11,51 @@ link to the decision so the dependency is visible.
 
 ## 2026-07-02
 
+### ADR-20260702-003: Scope implicit local Docker container-app materialization by host instance
+
+Implicit local Docker container-app materialization must not use only the
+CloudShell resource ID when choosing Docker container names, network aliases,
+or ingress configuration directories. Docker names are daemon-global, while
+CloudShell resource IDs are stable inside a managed environment. Two local
+hosts, a sample smoke test, or a restarted instance can legitimately contain
+the same container app resource ID and must not accidentally inspect, reuse,
+stop, or route through each other's Docker containers.
+
+The local Docker container-app runtime therefore scopes implicit
+materialization names to the running CloudShell host instance. The scope can be
+configured explicitly with `CloudShell:RuntimeNameScope`; otherwise the runtime
+derives a short deterministic scope from the host endpoint and content root
+when available. Scoped names must also remain valid Docker DNS labels, so the
+runtime may compact long service names with a deterministic hash. The scope is
+an implementation detail of local Docker materialization. It does not change
+the stable container app resource ID, runtime replica resource IDs, deployment
+identity, telemetry scope resource ID, or user-facing resource model.
+
+Explicit runtime definitions that override Docker names remain supported for
+migration and specialized hosts, but such names are caller-owned and can still
+collide if reused across host instances.
+
+### ADR-20260702-002: Treat volume max sizes as storage-owned observations first
+
+CloudShell volume max sizes represent an intended storage boundary and the
+basis for quota-style operational warnings. The storage or volume provider
+owns whether a max size can be hard-enforced by the backing system. CloudShell must not claim
+generic filesystem or Docker volume enforcement when the backing storage only
+supports ordinary host-path or daemon-managed mounts.
+
+The first platform behavior is observation: volume resources can carry a
+configured byte max size, resource monitoring reports current usage, remaining
+bytes, utilization, and whether the observed usage has reached the max size,
+and usage recording stores those points over time. Reaching the max size is a
+monitoring warning that can indicate unexpected growth or a misbehaving
+workload. It does not by itself block writes or lifecycle operations.
+Fixed-size snapshots may be shown as used and unused space within the max size;
+recorded usage over time remains a time-series visualization.
+
+Future provider-backed storage implementations may report stronger enforcement
+only when they can prove the backing runtime enforces the limit, such as
+through a quota-capable filesystem, storage driver, or managed storage service.
+
 ### ADR-20260702-001: Treat C# app hosts as launcher clients by default
 
 C# app-host authoring should follow the same integration pattern as
