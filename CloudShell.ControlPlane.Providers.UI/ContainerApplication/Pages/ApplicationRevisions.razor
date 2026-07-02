@@ -1,5 +1,5 @@
 @using System.Globalization
-@inject IContainerApplicationHistoryOperations ContainerHistory
+@inject IResourceDeploymentManager DeploymentManager
 @inject IResourceManager ResourceManager
 
 @if (Resource is null)
@@ -35,17 +35,17 @@ else
             <div class="container-app-deployment-summary">
                 <div class="container-app-deployment-primary">
                     <small>Image</small>
-                    <strong>@CurrentRevision.Image</strong>
+                    <strong>@GetRevisionImage(CurrentRevision)</strong>
                     <span>@FormatRevisionCreated(CurrentRevision)</span>
                 </div>
                 <dl class="container-app-deployment-metrics">
                     <div>
                         <dt>Requested replicas</dt>
-                        <dd>@CurrentRevision.RequestedReplicas.ToString(CultureInfo.InvariantCulture)</dd>
+                        <dd>@GetRequestedReplicas(CurrentRevision).ToString(CultureInfo.InvariantCulture)</dd>
                     </div>
                     <div>
                         <dt>Change</dt>
-                        <dd>@FormatChangeKind(CurrentRevision.ChangeKind)</dd>
+                        <dd>@FormatChangeKind(CurrentRevision)</dd>
                     </div>
                     <div>
                         <dt>Revision</dt>
@@ -88,13 +88,15 @@ else
     public string? ResourceId { get; set; }
 
     private Resource? Resource { get; set; }
-    private IReadOnlyList<ApplicationContainerRevisionHistoryEntry> Revisions { get; set; } = [];
+    private IReadOnlyList<ResourceDeploymentRecord> Revisions { get; set; } = [];
 
-    private ApplicationContainerRevisionHistoryEntry? CurrentRevision =>
+    private ResourceDeploymentRecord? CurrentRevision =>
         Revisions.FirstOrDefault(revision =>
-            string.Equals(revision.Status, ApplicationContainerRevisionStatuses.Active, StringComparison.OrdinalIgnoreCase)) ??
+            revision.EnvironmentRevisionStatus == ResourceOrchestratorRevisionStatus.Active ||
+            revision.Status == ResourceOrchestratorDeploymentStatus.Active) ??
         Revisions.FirstOrDefault(revision =>
-            string.Equals(revision.Id, GetDeploymentRevision(Resource), StringComparison.OrdinalIgnoreCase));
+            string.Equals(revision.RuntimeRevisionId, GetDeploymentRevision(Resource), StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(revision.EnvironmentRevisionId, GetDeploymentRevision(Resource), StringComparison.OrdinalIgnoreCase));
 
     protected override async Task OnParametersSetAsync()
     {
@@ -103,7 +105,17 @@ else
             : await ResourceManager.GetResourceAsync(ResourceId);
         Revisions = string.IsNullOrWhiteSpace(ResourceId)
             ? []
-            : ContainerHistory.GetContainerRevisions(ResourceId);
+            : await LoadRevisionsAsync(ResourceId);
+    }
+
+    private async Task<IReadOnlyList<ResourceDeploymentRecord>> LoadRevisionsAsync(string resourceId)
+    {
+        var records = await DeploymentManager.ListResourceDeploymentsAsync(new ResourceDeploymentQuery(
+            SourceResourceId: resourceId,
+            MaxRecords: 50));
+        return records
+            .OrderByDescending(record => record.EnvironmentRevisionCreatedAt ?? record.CompletedAt ?? record.StartedAt)
+            .ToArray();
     }
 
     private static string GetDeploymentRevision(Resource? resource) =>
@@ -111,26 +123,26 @@ else
         resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerRevision) ??
         string.Empty;
 
-    private static string FormatRevisionHeadline(ApplicationContainerRevisionHistoryEntry revision) =>
+    private static string FormatRevisionHeadline(ResourceDeploymentRecord revision) =>
         string.Create(
             CultureInfo.CurrentCulture,
-            $"{GetRevisionStatus(revision)} revision from {revision.CreatedAt.ToLocalTime():g}");
+            $"{GetRevisionStatus(revision)} revision from {GetRevisionTimestamp(revision).ToLocalTime():g}");
 
-    private static string FormatRevisionMetadata(ApplicationContainerRevisionHistoryEntry revision)
+    private static string FormatRevisionMetadata(ResourceDeploymentRecord revision)
     {
         var parts = new List<string>
         {
-            $"Requested replicas: {revision.RequestedReplicas.ToString(CultureInfo.InvariantCulture)}",
-            $"Change: {FormatChangeKind(revision.ChangeKind)}",
-            $"Revision id: {revision.Id}"
+            $"Requested replicas: {GetRequestedReplicas(revision).ToString(CultureInfo.InvariantCulture)}",
+            $"Change: {FormatChangeKind(revision)}",
+            $"Runtime revision: {revision.RuntimeRevisionId}"
         };
-        if (revision.RevisionNumber > 0)
+        if (revision.EnvironmentRevisionNumber is > 0)
         {
-            parts.Add($"Revision number: {revision.RevisionNumber.ToString(CultureInfo.InvariantCulture)}");
+            parts.Add($"Revision number: {revision.EnvironmentRevisionNumber.Value.ToString(CultureInfo.InvariantCulture)}");
         }
-        if (!string.IsNullOrWhiteSpace(revision.BasedOnRevisionId))
+        if (!string.IsNullOrWhiteSpace(revision.BasedOnEnvironmentRevisionId))
         {
-            parts.Add($"Based on: {revision.BasedOnRevisionId}");
+            parts.Add($"Based on: {revision.BasedOnEnvironmentRevisionId}");
         }
         if (!string.IsNullOrWhiteSpace(revision.ProvisionedBy))
         {
@@ -144,65 +156,110 @@ else
         return string.Join(" | ", parts);
     }
 
-    private static string FormatRevisionCreated(ApplicationContainerRevisionHistoryEntry revision)
+    private static string FormatRevisionCreated(ResourceDeploymentRecord revision)
     {
         var actor = string.IsNullOrWhiteSpace(revision.ProvisionedBy)
             ? "system"
             : revision.ProvisionedBy;
         return string.Create(
             CultureInfo.CurrentCulture,
-            $"Created {revision.CreatedAt.ToLocalTime():g}. Provisioned by {actor}.");
+            $"Created {GetRevisionTimestamp(revision).ToLocalTime():g}. Provisioned by {actor}.");
     }
 
-    private static string FormatRevisionNumber(ApplicationContainerRevisionHistoryEntry revision) =>
-        revision.RevisionNumber > 0
-            ? string.Create(CultureInfo.InvariantCulture, $"Revision {revision.RevisionNumber}")
-            : "Revision";
+    private static string FormatRevisionNumber(ResourceDeploymentRecord revision) =>
+        revision.EnvironmentRevisionNumber is > 0
+            ? string.Create(CultureInfo.InvariantCulture, $"Revision {revision.EnvironmentRevisionNumber.Value}")
+            : revision.EnvironmentRevisionId ?? revision.RuntimeRevisionId;
 
-    private static string FormatProvisionedBy(ApplicationContainerRevisionHistoryEntry revision) =>
+    private static string FormatProvisionedBy(ResourceDeploymentRecord revision) =>
         string.IsNullOrWhiteSpace(revision.ProvisionedBy)
             ? "system"
             : revision.ProvisionedBy;
 
-    private static string FormatChangeKind(string changeKind) =>
-        string.Equals(changeKind, ApplicationContainerRevisionChangeKinds.ImageDeployment, StringComparison.OrdinalIgnoreCase)
-            ? "Image deployment"
-            : changeKind;
-
-    private static string GetRevisionStatus(ApplicationContainerRevisionHistoryEntry? revision) =>
-        revision?.Status switch
-        {
-            ApplicationContainerRevisionStatuses.Active => "Active",
-            ApplicationContainerRevisionStatuses.Superseded => "Previous",
-            ApplicationContainerRevisionStatuses.Failed => "Failed",
-            null => "Unavailable",
-            _ => revision.Status
-        };
-
-    private static string GetRevisionCssClass(ApplicationContainerRevisionHistoryEntry revision) =>
+    private static string FormatChangeKind(ResourceDeploymentRecord revision) =>
         revision.Status switch
         {
-            ApplicationContainerRevisionStatuses.Active => "generated-diagnostic success",
-            ApplicationContainerRevisionStatuses.Failed => "generated-diagnostic error",
+            ResourceOrchestratorDeploymentStatus.Active => "Deployment",
+            ResourceOrchestratorDeploymentStatus.Applying => "Deployment applying",
+            ResourceOrchestratorDeploymentStatus.Failed => "Deployment failed",
+            ResourceOrchestratorDeploymentStatus.Deleted => "Deployment removed",
+            _ => "Deployment"
+        };
+
+    private static string GetRevisionStatus(ResourceDeploymentRecord? revision) =>
+        revision?.EnvironmentRevisionStatus switch
+        {
+            ResourceOrchestratorRevisionStatus.Active => "Active",
+            ResourceOrchestratorRevisionStatus.Superseded => "Previous",
+            ResourceOrchestratorRevisionStatus.Failed => "Failed",
+            ResourceOrchestratorRevisionStatus.Deleted => "Removed",
+            ResourceOrchestratorRevisionStatus.Pending => "Pending",
+            null when revision?.Status == ResourceOrchestratorDeploymentStatus.Active => "Active",
+            null when revision?.Status == ResourceOrchestratorDeploymentStatus.Applying => "Pending",
+            null when revision?.Status == ResourceOrchestratorDeploymentStatus.Failed => "Failed",
+            null when revision?.Status == ResourceOrchestratorDeploymentStatus.Deleted => "Removed",
+            null => "Unavailable",
+            _ => revision.EnvironmentRevisionStatus.Value.ToString()
+        };
+
+    private static string GetRevisionCssClass(ResourceDeploymentRecord revision) =>
+        GetRevisionSeverity(revision) switch
+        {
+            ResourceSignalSeverity.Success => "generated-diagnostic success",
+            ResourceSignalSeverity.Error => "generated-diagnostic error",
+            ResourceSignalSeverity.Warning => "generated-diagnostic warning",
             _ => "generated-diagnostic info"
         };
 
-    private static string GetRevisionStatusCssClass(ApplicationContainerRevisionHistoryEntry? revision) =>
-        revision?.Status switch
+    private static string GetRevisionStatusCssClass(ResourceDeploymentRecord? revision) =>
+        GetRevisionSeverity(revision) switch
         {
-            ApplicationContainerRevisionStatuses.Active => "container-app-status-pill success",
-            ApplicationContainerRevisionStatuses.Failed => "container-app-status-pill error",
-            ApplicationContainerRevisionStatuses.Superseded => "container-app-status-pill info",
+            ResourceSignalSeverity.Success => "container-app-status-pill success",
+            ResourceSignalSeverity.Error => "container-app-status-pill error",
+            ResourceSignalSeverity.Warning => "container-app-status-pill warning",
             _ => "container-app-status-pill"
         };
 
-    private static ResourceSignalSeverity GetRevisionSeverity(ApplicationContainerRevisionHistoryEntry revision) =>
-        revision.Status switch
+    private static ResourceSignalSeverity GetRevisionSeverity(ResourceDeploymentRecord? revision) =>
+        revision?.EnvironmentRevisionStatus switch
         {
-            ApplicationContainerRevisionStatuses.Active => ResourceSignalSeverity.Success,
-            ApplicationContainerRevisionStatuses.Failed => ResourceSignalSeverity.Error,
+            ResourceOrchestratorRevisionStatus.Active => ResourceSignalSeverity.Success,
+            ResourceOrchestratorRevisionStatus.Failed => ResourceSignalSeverity.Error,
+            ResourceOrchestratorRevisionStatus.Pending => ResourceSignalSeverity.Warning,
+            null when revision?.Status == ResourceOrchestratorDeploymentStatus.Active => ResourceSignalSeverity.Success,
+            null when revision?.Status == ResourceOrchestratorDeploymentStatus.Failed => ResourceSignalSeverity.Error,
+            null when revision?.Status == ResourceOrchestratorDeploymentStatus.Applying => ResourceSignalSeverity.Warning,
             _ => ResourceSignalSeverity.Info
         };
+
+    private static DateTimeOffset GetRevisionTimestamp(ResourceDeploymentRecord revision) =>
+        revision.EnvironmentRevisionCreatedAt ?? revision.CompletedAt ?? revision.StartedAt;
+
+    private static int GetRequestedReplicas(ResourceDeploymentRecord revision)
+    {
+        if (revision.ReplicaGroup?.RequestedReplicas is { } requestedReplicas)
+        {
+            return requestedReplicas;
+        }
+
+        var definitionReplicas = revision.Definition?.DeploymentServices
+            .SelectMany(service => service.ReplicaGroupDefinitions)
+            .Select(definition => definition.RequestedReplicas)
+            .FirstOrDefault(replicas => replicas > 0);
+        return definitionReplicas is > 0 ? definitionReplicas.Value : 1;
+    }
+
+    private static string GetRevisionImage(ResourceDeploymentRecord? revision)
+    {
+        if (revision is null)
+        {
+            return string.Empty;
+        }
+
+        var service = revision.Definition?.DeploymentServices.FirstOrDefault();
+        return service?.ServiceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerImage) ??
+            string.Empty;
+    }
 
     private static Icon GetSeverityIcon(ResourceSignalSeverity severity) =>
         severity switch

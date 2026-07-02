@@ -57,6 +57,10 @@ on `git blame --follow`, and then by the broad type of change.
   metadata, declared type mismatches, and invalid backend resource types.
 - Added Resource Model graph validation for load-balancer route target endpoint
   names when the target resource declares endpoint requests.
+- Updated container app Deployment, Revisions, Scale and replicas, and
+  Monitoring views to use Control Plane deployment records and live replica
+  resources instead of the empty pre-Resource Model history fallback, including
+  local-process replica memory metrics.
 
 ### 2026-07-01
 

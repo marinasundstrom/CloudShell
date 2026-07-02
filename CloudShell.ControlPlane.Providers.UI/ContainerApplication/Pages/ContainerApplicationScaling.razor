@@ -41,7 +41,7 @@ else
             <dt>Occupied slots</dt>
             <dd>@OccupiedReplicaSlots.ToString(CultureInfo.InvariantCulture)</dd>
             <dt>Materialized slots</dt>
-            <dd>@GetAttribute(ResourceAttributeNames.DeploymentMaterializedReplicas, "not projected")</dd>
+            <dd>@GetMaterializedSlotsLabel()</dd>
             <dt>Session affinity</dt>
             <dd>@GetSessionAffinityLabel(Resource)</dd>
             <dt>Resource type</dt>
@@ -413,6 +413,11 @@ else
 
     private int OccupiedReplicaSlots =>
         ReplicaSlots.Count(slot => slot.Occupant is not null);
+
+    private string GetMaterializedSlotsLabel() =>
+        MaterializedReplicas.Count > 0
+            ? MaterializedReplicas.Count.ToString(CultureInfo.InvariantCulture)
+            : GetAttribute(ResourceAttributeNames.DeploymentMaterializedReplicas, "not projected");
 
     private string GetAttribute(string attributeName, string fallback) =>
         Resource is not null &&

@@ -28,8 +28,6 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
 
     public void Configure(ICloudShellExtensionBuilder builder)
     {
-        builder.Services.TryAddSingleton<IContainerApplicationHistoryOperations, EmptyContainerApplicationHistoryOperations>();
-
         builder
             .AddResourceType<SharedPages.RegisterApplicationResource>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
@@ -364,12 +362,6 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 ["database"] = "master"
             });
 
-    private sealed class EmptyContainerApplicationHistoryOperations : IContainerApplicationHistoryOperations
-    {
-        public IReadOnlyList<ApplicationContainerDeployment> GetContainerDeployments(string applicationId) => [];
-
-        public IReadOnlyList<ApplicationContainerRevisionHistoryEntry> GetContainerRevisions(string applicationId) => [];
-    }
 }
 
 public static class BuiltInProviderResourceManagerUiHostExtensions
