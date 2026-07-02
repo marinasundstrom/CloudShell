@@ -43,7 +43,8 @@ on `git blame --follow`, and then by the broad type of change.
   keeping daemon commands available for daemon-specific testing.
 - Scoped implicit local Docker container-app materialization names to the
   running CloudShell host instance so concurrent samples or smoke tests with
-  the same resource IDs cannot reuse the wrong Docker containers or ingress.
+  the same resource IDs cannot reuse the wrong Docker containers or ingress,
+  while keeping scoped replica network aliases within Docker DNS label limits.
 - Fixed the JavaScript app sample host to configure the Configuration Store
   runtime service project from the repository root, so starting the sample
   Configuration Store resource no longer resolves a missing project under the

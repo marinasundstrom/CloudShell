@@ -147,7 +147,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             CreateConfiguration(urls: "http://localhost:64178"),
             options: new LocalDockerContainerApplicationRuntimeOptions());
         var resource = await CreateGraphAppResourceAsync(
-            resourceId: "application.container-app:api");
+            resourceId: "application.container-app:signalr-api");
 
         Assert.True(firstBridge.TryResolveDefinition(resource, out var firstDefinition));
         Assert.True(secondBridge.TryResolveDefinition(resource, out var secondDefinition));
@@ -159,7 +159,11 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             secondDefinition.IngressConfigurationDirectory);
         Assert.Equal(firstDefinition.ReplicaResourceIdPrefix, secondDefinition.ReplicaResourceIdPrefix);
         Assert.StartsWith("cloudshell-rt-", firstDefinition.IngressContainerName);
-        Assert.EndsWith("-application-container-app-api-ingress", firstDefinition.IngressContainerName);
+        Assert.Contains("signalr-api", firstDefinition.IngressContainerName);
+        Assert.True(
+            LocalDockerContainerApplicationRuntimeConventions
+                .CreateReplicaNetworkAlias(firstDefinition, 1)
+                .Length <= 63);
     }
 
     [Fact]

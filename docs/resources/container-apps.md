@@ -105,6 +105,8 @@ or a second local host reuse or inspect the wrong containers for the same
 resource ID. Hosts can set `CloudShell:RuntimeNameScope` when they need an
 explicit stable materialization scope; otherwise the local runtime derives one
 from the host endpoint and content root when that information is available.
+Scoped names are compacted with a deterministic hash when needed so Docker DNS
+network aliases stay within label length limits.
 
 For project-backed container apps declared directly with
 `AddContainerApplication(...)`, use `.WithProjectPath(...)` to keep the build

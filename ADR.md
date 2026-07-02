@@ -25,10 +25,11 @@ The local Docker container-app runtime therefore scopes implicit
 materialization names to the running CloudShell host instance. The scope can be
 configured explicitly with `CloudShell:RuntimeNameScope`; otherwise the runtime
 derives a short deterministic scope from the host endpoint and content root
-when available. The scope is an implementation detail of local Docker
-materialization. It does not change the stable container app resource ID,
-runtime replica resource IDs, deployment identity, telemetry scope resource
-ID, or user-facing resource model.
+when available. Scoped names must also remain valid Docker DNS labels, so the
+runtime may compact long service names with a deterministic hash. The scope is
+an implementation detail of local Docker materialization. It does not change
+the stable container app resource ID, runtime replica resource IDs, deployment
+identity, telemetry scope resource ID, or user-facing resource model.
 
 Explicit runtime definitions that override Docker names remain supported for
 migration and specialized hosts, but such names are caller-owned and can still

@@ -1363,6 +1363,7 @@ public sealed class SampleSmokeTests
         JsonElement resource,
         string label)
     {
+        resource = await RefreshGraphResourceAsync(host, resource);
         if (resource.TryGetProperty("state", out var state) &&
             state.ValueKind == JsonValueKind.Number &&
             state.GetInt32() == (int)ResourceState.Stopped)
@@ -1379,6 +1380,32 @@ public sealed class SampleSmokeTests
         }
 
         Assert.Equal((int)ResourceState.Stopped, resource.GetProperty("state").GetInt32());
+    }
+
+    private static async Task<JsonElement> RefreshGraphResourceAsync(
+        SampleProcess host,
+        JsonElement resource)
+    {
+        var resourceId = resource.GetProperty("id").GetString();
+        if (string.IsNullOrWhiteSpace(resourceId))
+        {
+            return resource;
+        }
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        foreach (var candidate in resourcesDocument.RootElement.EnumerateArray())
+        {
+            if (string.Equals(
+                candidate.GetProperty("id").GetString(),
+                resourceId,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                return candidate.Clone();
+            }
+        }
+
+        return resource;
     }
 
     [Fact]
@@ -4368,6 +4395,7 @@ public sealed class SampleSmokeTests
                 resource => resource.GetProperty("attributes").GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString()!,
                 resource => resource.GetProperty("id").GetString()!,
                 StringComparer.OrdinalIgnoreCase);
+        var replicaResourceIds = replicaResourceIdsByOrdinal.Values.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var logSourcesJson = await host.GetStringAsync(
             $"/api/control-plane/v1/log-sources?resourceId={Uri.EscapeDataString(resourceId)}");
@@ -4376,9 +4404,8 @@ public sealed class SampleSmokeTests
             .EnumerateArray()
             .Where(source =>
                 source.TryGetProperty("producerResourceId", out var producer) &&
-                producer.GetString()?.StartsWith(
-                    $"{resourceId}:replica-",
-                    StringComparison.OrdinalIgnoreCase) == true)
+                producer.GetString() is { } producerResourceId &&
+                replicaResourceIds.Contains(producerResourceId))
             .OrderBy(source => source.GetProperty("name").GetString(), StringComparer.OrdinalIgnoreCase)
             .ToArray();
 

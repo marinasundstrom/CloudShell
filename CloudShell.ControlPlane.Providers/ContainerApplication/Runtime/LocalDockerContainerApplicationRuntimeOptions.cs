@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.Hosting;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace CloudShell.ControlPlane.Providers;
@@ -37,6 +38,9 @@ public sealed class LocalDockerContainerApplicationRuntimeDefinition(
     string resourceId,
     string projectPath = "")
 {
+    private const int DockerServiceNameMaxLength = 48;
+    private const int RuntimeNameScopeMaxLength = 16;
+
     public string ResourceId { get; } = resourceId;
 
     public string ProjectPath { get; set; } = projectPath;
@@ -143,7 +147,21 @@ public sealed class LocalDockerContainerApplicationRuntimeDefinition(
         var serviceSegment = serviceName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
             ? serviceName[prefix.Length..]
             : serviceName;
-        return $"{prefix}{nameScope}-{serviceSegment}";
+        var candidate = $"{prefix}{nameScope}-{serviceSegment}";
+        if (candidate.Length <= DockerServiceNameMaxLength)
+        {
+            return candidate;
+        }
+
+        var hash = CreateHashSegment(candidate);
+        var tailLength = DockerServiceNameMaxLength - prefix.Length - nameScope.Length - hash.Length - 2;
+        if (tailLength <= 0)
+        {
+            return CompactNameSegment(candidate, DockerServiceNameMaxLength);
+        }
+
+        var tail = TakeNameTail(serviceSegment, tailLength);
+        return $"{prefix}{nameScope}-{tail}-{hash}".Trim('-');
     }
 
     private static string? CreateNameSegment(string? value)
@@ -162,6 +180,55 @@ public sealed class LocalDockerContainerApplicationRuntimeDefinition(
         var segment = builder.ToString().Trim('-');
         return string.IsNullOrWhiteSpace(segment)
             ? null
-            : segment;
+            : CompactNameSegment(segment, RuntimeNameScopeMaxLength);
+    }
+
+    private static string CompactNameSegment(
+        string value,
+        int maxLength)
+    {
+        if (value.Length <= maxLength)
+        {
+            return value;
+        }
+
+        var hash = CreateHashSegment(value);
+        var tailLength = maxLength - hash.Length - 1;
+        if (tailLength <= 0)
+        {
+            return hash[..Math.Min(hash.Length, maxLength)];
+        }
+
+        var tail = TakeNameTail(value, tailLength);
+        return $"{tail}-{hash}".Trim('-');
+    }
+
+    private static string TakeNameTail(
+        string value,
+        int maxLength)
+    {
+        if (value.Length <= maxLength)
+        {
+            return value.Trim('-');
+        }
+
+        var tail = value[^maxLength..].Trim('-');
+        var hyphenIndex = tail.IndexOf('-', StringComparison.Ordinal);
+        if (hyphenIndex > 0 && hyphenIndex < tail.Length - 1)
+        {
+            var hyphenAlignedTail = tail[(hyphenIndex + 1)..];
+            if (hyphenAlignedTail.Length >= Math.Min(4, maxLength / 2))
+            {
+                return hyphenAlignedTail;
+            }
+        }
+
+        return tail;
+    }
+
+    private static string CreateHashSegment(string value)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+        return Convert.ToHexString(hash, 0, 4).ToLowerInvariant();
     }
 }
