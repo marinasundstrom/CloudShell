@@ -4288,6 +4288,22 @@ public sealed class SampleSmokeTests
         string resourceId,
         int expectedReplicas)
     {
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var replicaResourceIdsByOrdinal = resourcesDocument.RootElement
+            .EnumerateArray()
+            .Where(resource =>
+                string.Equals(resource.GetProperty("typeId").GetString(), "runtime.container", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(resource.GetProperty("ownerResourceId").GetString(), resourceId, StringComparison.OrdinalIgnoreCase) &&
+                resource.TryGetProperty("attributes", out var attributes) &&
+                attributes.TryGetProperty(ResourceAttributeNames.RuntimeKind, out var runtimeKind) &&
+                string.Equals(runtimeKind.GetString(), "containerReplica", StringComparison.OrdinalIgnoreCase) &&
+                attributes.TryGetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal, out _))
+            .ToDictionary(
+                resource => resource.GetProperty("attributes").GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString()!,
+                resource => resource.GetProperty("id").GetString()!,
+                StringComparer.OrdinalIgnoreCase);
+
         var logSourcesJson = await host.GetStringAsync(
             $"/api/control-plane/v1/log-sources?resourceId={Uri.EscapeDataString(resourceId)}");
         using var logSourcesDocument = JsonDocument.Parse(logSourcesJson);
@@ -4295,21 +4311,28 @@ public sealed class SampleSmokeTests
             .EnumerateArray()
             .Where(source =>
                 source.TryGetProperty("producerResourceId", out var producer) &&
-                string.Equals(producer.GetString(), resourceId, StringComparison.OrdinalIgnoreCase))
+                producer.GetString()?.StartsWith(
+                    $"{resourceId}:replica-",
+                    StringComparison.OrdinalIgnoreCase) == true)
             .OrderBy(source => source.GetProperty("name").GetString(), StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
         Assert.Equal(expectedReplicas, sources.Length);
         for (var replica = 1; replica <= expectedReplicas; replica++)
         {
+            var replicaText = replica.ToString(CultureInfo.InvariantCulture);
             var source = sources[replica - 1];
             Assert.Equal(
-                $"{resourceId}:replica-{replica.ToString(CultureInfo.InvariantCulture)}:logs",
+                $"{resourceId}:replica-{replicaText}:logs",
                 source.GetProperty("id").GetString());
             Assert.Equal(
-                $"Replica {replica.ToString(CultureInfo.InvariantCulture)} logs",
+                $"Replica {replicaText} logs",
                 source.GetProperty("name").GetString());
             Assert.Equal(resourceId, source.GetProperty("resourceId").GetString());
+            Assert.True(replicaResourceIdsByOrdinal.TryGetValue(replicaText, out var replicaResourceId));
+            Assert.Equal(
+                replicaResourceId,
+                source.GetProperty("producerResourceId").GetString());
             Assert.Equal((int)LogSourceKind.Resource, source.GetProperty("sourceKind").GetInt32());
             Assert.Equal((int)ResourceLogSourceKind.Container, source.GetProperty("kind").GetInt32());
             Assert.Equal((int)LogFormat.JsonConsole, source.GetProperty("format").GetInt32());

@@ -693,6 +693,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 CreateResourceManagerGraphAppResource(replicas: 2),
                 CreateGraphReplicaResource(replica: 1),
                 CreateGraphReplicaResource(replica: 2)));
+        var replica1 = CreateGraphReplicaResource(replica: 1);
+        var replica2 = CreateGraphReplicaResource(replica: 2);
 
         var sources = provider.GetLogSources();
 
@@ -703,6 +705,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 Assert.Equal("application.container-app:api:replica-1:logs", source.Id);
                 Assert.Equal("Replica 1 logs", source.Name);
                 Assert.Equal("application.container-app:api", source.ResourceId);
+                Assert.Equal(replica1.Id, source.ProducerResourceId);
                 Assert.Equal(ResourceLogSourceKind.Container, source.Kind);
                 Assert.Equal(LogFormat.JsonConsole, source.Format);
             },
@@ -711,6 +714,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 Assert.Equal("application.container-app:api:replica-2:logs", source.Id);
                 Assert.Equal("Replica 2 logs", source.Name);
                 Assert.Equal("application.container-app:api", source.ResourceId);
+                Assert.Equal(replica2.Id, source.ProducerResourceId);
                 Assert.Equal(ResourceLogSourceKind.Container, source.Kind);
                 Assert.Equal(LogFormat.JsonConsole, source.Format);
             });

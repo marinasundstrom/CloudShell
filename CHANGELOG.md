@@ -121,6 +121,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Renamed the shared application Configuration version label from Revision to
   Resource version so it is not confused with container app deployment or
   runtime revisions.
+- Updated resource log source labels to prefer producer resources and marked
+  Docker container app replica logs with the replica producer resource, so
+  merged container app logs identify the emitting replica.
 
 ### 2026-07-01
 
