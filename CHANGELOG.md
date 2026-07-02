@@ -81,6 +81,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated container app Deployment runtime details to infer service and replica
   group names from live materialized replica resources when deployment records
   and projection attributes are unavailable.
+- Updated local Docker container app runtime replica resources to project
+  deployment service, replica group, and runtime revision attributes directly.
 - Updated container app Revisions to infer the active revision from live
   materialized replica resources when deployment history is not available.
 - Updated container app Revisions to fall back to the requested resource image

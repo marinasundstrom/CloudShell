@@ -127,11 +127,26 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             Options.Create(CreateRuntimeOptions()));
 
         var replicas = provider.GetResources();
+        var expectedServiceId = ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(resource.EffectiveResourceId);
+        var expectedRevisionId = LocalDockerContainerApplicationRuntimeConventions.ResolveRuntimeRevisionId(resource);
+        var expectedReplicaGroupId = LocalDockerContainerApplicationRuntimeConventions.ResolveReplicaGroupId(resource);
 
         Assert.Collection(
             replicas,
-            replica => AssertGraphReplicaResource(replica, ordinal: 1, port: 5192),
-            replica => AssertGraphReplicaResource(replica, ordinal: 2, port: 5193));
+            replica => AssertGraphReplicaResource(
+                replica,
+                ordinal: 1,
+                port: 5192,
+                expectedServiceId,
+                expectedReplicaGroupId,
+                expectedRevisionId),
+            replica => AssertGraphReplicaResource(
+                replica,
+                ordinal: 2,
+                port: 5193,
+                expectedServiceId,
+                expectedReplicaGroupId,
+                expectedRevisionId));
     }
 
     [Fact]
@@ -1241,7 +1256,10 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     private static void AssertGraphReplicaResource(
         CloudShell.Abstractions.ResourceManager.Resource replica,
         int ordinal,
-        int port)
+        int port,
+        string expectedServiceId,
+        string expectedReplicaGroupId,
+        string expectedRevisionId)
     {
         Assert.Equal(
             LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(ordinal),
@@ -1251,12 +1269,15 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         Assert.Equal(ResourceVisibility.Hidden, replica.Visibility);
         Assert.Equal(CloudShell.Abstractions.ResourceManager.ResourceState.Running, replica.State);
         Assert.Equal("runtime.container", replica.TypeId);
+        Assert.Equal(expectedServiceId, replica.ResourceAttributes[ResourceAttributeNames.DeploymentServiceId]);
+        Assert.Equal(expectedReplicaGroupId, replica.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaGroupId]);
         Assert.Equal("containerReplica", replica.ResourceAttributes[ResourceAttributeNames.RuntimeKind]);
         Assert.Equal(
             LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(ordinal),
             replica.ResourceAttributes[ResourceAttributeNames.RuntimeContainerName]);
         Assert.Equal(ordinal.ToString(CultureInfo.InvariantCulture), replica.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal]);
         Assert.Equal("2", replica.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaCount]);
+        Assert.Equal(expectedRevisionId, replica.ResourceAttributes[ResourceAttributeNames.RuntimeRevision]);
         Assert.Equal(2, replica.ResourceHealthChecks.Count);
         Assert.Contains(replica.ResourceHealthChecks, check => check.Type == ResourceProbeType.Health);
         Assert.Contains(replica.ResourceHealthChecks, check => check.Type == ResourceProbeType.Liveness);

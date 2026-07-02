@@ -5,7 +5,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using System.Globalization;
-using System.Security.Cryptography;
 using System.Text;
 using GraphResource = CloudShell.ResourceModel.Resource;
 
@@ -620,14 +619,16 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             "--network-alias",
             LocalDockerContainerApplicationRuntimeConventions.CreateReplicaNetworkAlias(definition, replica)
         };
-        var replicaGroupId = replicaGroup?.Id ?? ResolveReplicaGroupId(resource);
+        var replicaGroupId = replicaGroup?.Id ??
+            LocalDockerContainerApplicationRuntimeConventions.ResolveReplicaGroupId(resource);
         if (!string.IsNullOrWhiteSpace(replicaGroupId))
         {
             arguments.Add("--label");
             arguments.Add($"{ReplicaGroupLabel}={replicaGroupId}");
         }
 
-        var runtimeRevisionId = replicaGroup?.RuntimeRevisionId ?? ResolveRuntimeRevisionId(resource);
+        var runtimeRevisionId = replicaGroup?.RuntimeRevisionId ??
+            LocalDockerContainerApplicationRuntimeConventions.ResolveRuntimeRevisionId(resource);
         if (!string.IsNullOrWhiteSpace(runtimeRevisionId))
         {
             arguments.Add("--label");
@@ -1049,26 +1050,6 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         resource.Attributes.GetString(ContainerApplicationResourceTypeProvider.Attributes.ContainerImage)
         ?? throw new InvalidOperationException(
             "The container app image must be set before sample runtime can start it.");
-
-    private static string ResolveReplicaGroupId(GraphResource resource) =>
-        ResourceOrchestratorReplicaGroups.CreateReplicaGroupId(
-            ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(resource.EffectiveResourceId),
-            ResolveRuntimeRevisionId(resource));
-
-    private static string ResolveRuntimeRevisionId(GraphResource resource)
-    {
-        var registry = resource.Attributes.GetString(ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry);
-        if (string.IsNullOrWhiteSpace(registry))
-        {
-            registry = ContainerRegistryDefaults.Default;
-        }
-
-        var image = ResolveImage(resource);
-        var revisionKey = $"{registry.Trim()}\n{image.Trim()}";
-        Span<byte> hash = stackalloc byte[32];
-        SHA256.HashData(Encoding.UTF8.GetBytes(revisionKey), hash);
-        return $"rev-img-{Convert.ToHexString(hash[..6]).ToLowerInvariant()}";
-    }
 
     private static int ResolveReplicas(GraphResource resource) =>
         int.TryParse(
