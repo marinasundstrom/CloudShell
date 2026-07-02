@@ -59,6 +59,19 @@ public sealed class SampleSmokeRuntimeCleanupFixture : IAsyncLifetime
                 $"cloudshell-replicated-health-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}");
         }
 
+        var signalRDefinition = LocalDockerContainerApplicationRuntimeDefinition.CreateDefault(
+            "application.container-app:signalr-api");
+        await RemoveContainerIfExistsAsync("cloudshell-signalr-api-ingress");
+        await RemoveContainerIfExistsAsync(
+            LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName(signalRDefinition));
+        for (var replica = 1; replica <= 10; replica++)
+        {
+            await RemoveContainerIfExistsAsync(
+                $"cloudshell-signalr-api-replica-{replica.ToString(CultureInfo.InvariantCulture)}");
+            await RemoveContainerIfExistsAsync(
+                LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(signalRDefinition, replica));
+        }
+
         foreach (var path in Directory.EnumerateFiles(
             Path.GetTempPath(),
             "cloudshell-load-balancer-*.hosts"))
@@ -2329,6 +2342,7 @@ public sealed class SampleSmokeTests
         var expectedReplicaGroupId = ResourceOrchestratorReplicaGroups.CreateReplicaGroupId(
             expectedServiceId,
             expectedRevisionId);
+        var expectedDefinition = LocalDockerContainerApplicationRuntimeDefinition.CreateDefault(apiResourceId);
         var deadline = DateTimeOffset.UtcNow.Add(StartupTimeout);
         string? lastBody = null;
         do
@@ -2353,12 +2367,16 @@ public sealed class SampleSmokeTests
                     var replicaText = replica.ToString(CultureInfo.InvariantCulture);
                     var resource = replicas[replica - 1];
                     var attributes = resource.GetProperty("attributes");
-                    Assert.Equal($"{apiResourceId}:replica-{replicaText}", resource.GetProperty("id").GetString());
+                    Assert.Equal(
+                        LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(
+                            expectedDefinition,
+                            replica),
+                        resource.GetProperty("id").GetString());
                     Assert.Equal(apiResourceId, resource.GetProperty("parentResourceId").GetString());
                     Assert.Equal((int)ResourceState.Running, resource.GetProperty("state").GetInt32());
                     Assert.Equal(expectedServiceId, attributes.GetProperty(ResourceAttributeNames.DeploymentServiceId).GetString());
                     Assert.Equal(expectedReplicaGroupId, attributes.GetProperty(ResourceAttributeNames.DeploymentReplicaGroupId).GetString());
-                    Assert.Equal("signalrDockerRuntime", attributes.GetProperty(ResourceAttributeNames.RuntimeMaterialization).GetString());
+                    Assert.Equal("localDockerContainerApplication", attributes.GetProperty(ResourceAttributeNames.RuntimeMaterialization).GetString());
                     Assert.Equal(replicaText, attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString());
                     Assert.Equal("3", attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaCount).GetString());
                     Assert.Equal(expectedRevisionId, attributes.GetProperty(ResourceAttributeNames.RuntimeRevision).GetString());
@@ -2382,7 +2400,6 @@ public sealed class SampleSmokeTests
 
     private static async Task AssertSignalRRuntimeReplicaMonitoringSnapshotsAsync(SampleProcess host)
     {
-        const string apiResourceId = "application.container-app:signalr-api";
         var deadline = DateTimeOffset.UtcNow.Add(StartupTimeout);
         var observed = new HashSet<int>();
         string? lastSnapshotJson = null;
@@ -2395,7 +2412,7 @@ public sealed class SampleSmokeTests
 
             foreach (var replica in Enumerable.Range(1, 3))
             {
-                var replicaResourceId = $"{apiResourceId}:replica-{replica.ToString(CultureInfo.InvariantCulture)}";
+                var replicaResourceId = CreateSignalRReplicaResourceId(replica);
                 try
                 {
                     lastSnapshotJson = await host.GetStringAsync(
@@ -2446,7 +2463,7 @@ public sealed class SampleSmokeTests
     private static async Task AssertSignalRReplicaResourceLinksAsync(SampleProcess host)
     {
         const string apiResourceId = "application.container-app:signalr-api";
-        var replicaRoute = ResourceManagerRoutes.ResourceDetails($"{apiResourceId}:replica-1");
+        var replicaRoute = ResourceManagerRoutes.ResourceDetails(CreateSignalRReplicaResourceId(1));
         var scalingHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString(apiResourceId)}/details?tab={Uri.EscapeDataString("application:scale-replicas")}");
         var monitoringHtml = await host.GetStringAsync(
@@ -2459,6 +2476,7 @@ public sealed class SampleSmokeTests
     private static async Task AssertSignalRReplicaLogSourcesAsync(SampleProcess host)
     {
         const string apiResourceId = "application.container-app:signalr-api";
+        var runtimeDefinition = CreateSignalRRuntimeDefinition();
         var logSourcesJson = await host.GetStringAsync(
             $"/api/control-plane/v1/log-sources?resourceId={Uri.EscapeDataString(apiResourceId)}");
         using var logSourcesDocument = JsonDocument.Parse(logSourcesJson);
@@ -2467,7 +2485,7 @@ public sealed class SampleSmokeTests
             .Where(source =>
                 source.TryGetProperty("producerResourceId", out var producer) &&
                 producer.GetString()?.StartsWith(
-                    $"{apiResourceId}:replica-",
+                    runtimeDefinition.ReplicaResourceIdPrefix,
                     StringComparison.OrdinalIgnoreCase) == true)
             .OrderBy(source => source.GetProperty("id").GetString(), StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -2476,9 +2494,11 @@ public sealed class SampleSmokeTests
         for (var replica = 1; replica <= 3; replica++)
         {
             var source = replicaSources[replica - 1];
+            var replicaResourceId = CreateSignalRReplicaResourceId(replica);
             Assert.Equal(
                 $"{apiResourceId}:replica-{replica.ToString(CultureInfo.InvariantCulture)}:logs",
                 source.GetProperty("id").GetString());
+            Assert.Equal(replicaResourceId, source.GetProperty("producerResourceId").GetString());
             Assert.Equal(
                 $"Replica {replica.ToString(CultureInfo.InvariantCulture)} logs",
                 source.GetProperty("name").GetString());
@@ -2491,6 +2511,14 @@ public sealed class SampleSmokeTests
 
         await WaitForAnyStructuredSignalRReplicaLogEntriesAsync(host, replicaSources);
     }
+
+    private static LocalDockerContainerApplicationRuntimeDefinition CreateSignalRRuntimeDefinition() =>
+        LocalDockerContainerApplicationRuntimeDefinition.CreateDefault("application.container-app:signalr-api");
+
+    private static string CreateSignalRReplicaResourceId(int replica) =>
+        LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(
+            CreateSignalRRuntimeDefinition(),
+            replica);
 
     private static async Task WaitForAnyStructuredSignalRReplicaLogEntriesAsync(
         SampleProcess host,

@@ -1,19 +1,19 @@
 using System.Text.Json;
 using CloudShell.Abstractions.ResourceManager;
-using Microsoft.Extensions.Options;
 using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class LocalDockerContainerApplicationOrchestrationDescriptorProvider(
-    IOptions<LocalDockerContainerApplicationRuntimeOptions> options) :
+public sealed class LocalDockerContainerApplicationOrchestrationDescriptorProvider :
     IResourceOrchestrationDescriptorProvider
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
-    private readonly LocalDockerContainerApplicationRuntimeOptions options = options.Value;
 
     public bool CanDescribe(ResourceManagerResource resource) =>
-        options.Applications.ContainsKey(resource.Id);
+        string.Equals(
+            resource.EffectiveTypeId,
+            ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
+            StringComparison.OrdinalIgnoreCase);
 
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(
         ResourceManagerResource resource,

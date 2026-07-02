@@ -51,6 +51,12 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated local Docker container app routing reconciliation to choose the
   ingress endpoint from service-routing binding definitions when present,
   while keeping the first HTTP endpoint as the direct-runtime fallback.
+- Updated the local Docker container-app runtime to handle declared
+  `application.container-app` resources without per-app runtime registration,
+  deriving default Docker names from the resource id and using resource
+  `project.path` or build metadata when publishing is needed. SignalR and
+  JavaScript container app samples now register the Docker runtime once and
+  keep build source on the resource declaration.
 - Added Resource Model graph validation for load-balancer routes that reference
   undeclared entrypoints, surfacing the error before provider execution.
 - Extended Resource Model graph validation for load-balancer duplicate

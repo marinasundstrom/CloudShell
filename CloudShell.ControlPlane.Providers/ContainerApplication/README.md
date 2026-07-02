@@ -127,21 +127,34 @@ orchestrator-service routing calls through the provider-owned
 ```csharp
 services
     .AddLocalContainerApplicationResourceTypes()
-    .AddLocalDockerContainerApplicationRuntime(options =>
-        options.AddApplication(
-            "application.container-app:api",
-            "Api/MyApp.Api.csproj"));
+    .AddLocalDockerContainerApplicationRuntime();
 ```
 
+The local Docker runtime handles graph `application.container-app` resources
+from their declared resource state. Image-only apps run the declared image
+directly. Apps with `container.buildContext` build through Docker, and apps
+with `project.path` publish through the .NET SDK container target when no
+Dockerfile-backed build context is supplied. The runtime synthesizes local
+container, network-alias, ingress, and hidden replica resource names from the
+container app resource id, so a host does not need to repeat each app in
+runtime configuration. It also derives Docker-reachable trace and metric
+ingest endpoints from the host's configured CloudShell endpoint when explicit
+observability endpoints are not set.
+
+`AddApplication(...)` remains available as an override path for migration
+hosts and samples that need stable local names, custom ingress directories,
+probe ports, telemetry endpoints, or project mapping while older declarations
+are still being moved into resource attributes. It is not required for normal
+image-backed or project-backed container app declarations.
+
 The ReplicatedContainerHealth sample currently proves this seam with the
-provider-owned local Docker container-app runtime. That adapter maps
-`application.container-app:api` to the sample API project, builds the image,
-creates replica containers, reconciles the local Traefik ingress container,
-and projects hidden runtime replicas with the metadata consumed by the
-provider-owned log and monitoring providers. The Docker smoke verifies that
-graph image updates recreate revision-scoped runtime containers, replica
-updates retain active slots where possible, and graph stop removes the
-containers that graph start created.
+provider-owned local Docker container-app runtime. That adapter builds the
+image when project metadata is available, creates replica containers,
+reconciles the local Traefik ingress container, and projects hidden runtime
+replicas with the metadata consumed by the provider-owned log and monitoring
+providers. The Docker smoke verifies that graph image updates recreate
+revision-scoped runtime containers, replica updates retain active slots where
+possible, and graph stop removes the containers that graph start created.
 
 The ContainerAppDeployment sample uses the provider-owned deferred runtime
 adapter for `application.container-app:sample-api`. It accepts image and

@@ -34,6 +34,29 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
     public bool CanHandle(GraphResource resource) =>
         TryResolveDefinition(resource, out _);
 
+    public bool TryResolveDefinition(
+        GraphResource resource,
+        out LocalDockerContainerApplicationRuntimeDefinition definition)
+    {
+        if (options.TryGetApplication(resource.EffectiveResourceId, out definition!))
+        {
+            return true;
+        }
+
+        if (resource.Type.TypeId != ContainerApplicationResourceTypeProvider.ResourceTypeId ||
+            string.IsNullOrWhiteSpace(resource.Attributes.GetString(
+                ContainerApplicationResourceTypeProvider.Attributes.ContainerImage)))
+        {
+            definition = null!;
+            return false;
+        }
+
+        definition = LocalDockerContainerApplicationRuntimeDefinition.CreateDefault(
+            resource.EffectiveResourceId,
+            resource.Attributes.GetString(ResourceAttributeId.Create(ResourceAttributeNames.ProjectPath)));
+        return true;
+    }
+
     public ContainerApplicationRuntimeStatus GetStatus(GraphResource resource)
     {
         if (!TryResolveDefinition(resource, out var definition))
@@ -491,6 +514,11 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             return;
         }
 
+        if (string.IsNullOrWhiteSpace(definition.ProjectPath))
+        {
+            return;
+        }
+
         var (repository, tag) = SplitImage(image);
         await commandRunner.RunAsync(
             "dotnet",
@@ -652,8 +680,20 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         arguments.Add($"OTEL_SERVICE_NAME={definition.ReplicaServiceNamePrefix}{replica.ToString(CultureInfo.InvariantCulture)}");
         arguments.Add("-e");
         arguments.Add($"OTEL_RESOURCE_ATTRIBUTES={CreateOtelResourceAttributes(definition, replicaResourceId, replicaContainerName, replicaName, replica, replicaCount, runtimeRevisionId)}");
-        AddEnvironment(arguments, "CLOUDSHELL_TRACE_INGEST_ENDPOINT", FirstNonEmpty(definition.TraceIngestEndpoint, configuration["Observability:TraceIngestEndpoint"]));
-        AddEnvironment(arguments, "CLOUDSHELL_METRIC_INGEST_ENDPOINT", FirstNonEmpty(definition.MetricIngestEndpoint, configuration["Observability:MetricIngestEndpoint"]));
+        AddEnvironment(
+            arguments,
+            "CLOUDSHELL_TRACE_INGEST_ENDPOINT",
+            ResolveRuntimeEndpoint(
+                definition.TraceIngestEndpoint,
+                configuration["Observability:TraceIngestEndpoint"],
+                "api/control-plane/v1/traces/ingest"));
+        AddEnvironment(
+            arguments,
+            "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
+            ResolveRuntimeEndpoint(
+                definition.MetricIngestEndpoint,
+                configuration["Observability:MetricIngestEndpoint"],
+                "api/control-plane/v1/metrics/ingest"));
         foreach (var variable in ContainerizedProjectEnvironmentVariables.Read(resource))
         {
             AddEnvironment(arguments, variable.Name, variable.Value);
@@ -1035,19 +1075,6 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             : throw new InvalidOperationException(
                 $"No local Docker container application runtime is configured for resource '{resource.EffectiveResourceId}'.");
 
-    private bool TryResolveDefinition(
-        GraphResource resource,
-        out LocalDockerContainerApplicationRuntimeDefinition definition)
-    {
-        if (options.Applications.TryGetValue(resource.EffectiveResourceId, out definition!))
-        {
-            return true;
-        }
-
-        definition = null!;
-        return false;
-    }
-
     private static string ResolveImage(GraphResource resource) =>
         resource.Attributes.GetString(ContainerApplicationResourceTypeProvider.Attributes.ContainerImage)
         ?? throw new InvalidOperationException(
@@ -1098,6 +1125,69 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
 
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
+
+    private static string? ResolveDockerReachableEndpoint(string? endpoint)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint) ||
+            !Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ||
+            uri.Host is not ("localhost" or "127.0.0.1" or "::1" or "0.0.0.0" or "::"))
+        {
+            return endpoint;
+        }
+
+        var builder = new UriBuilder(uri)
+        {
+            Host = "host.docker.internal"
+        };
+        return builder.Uri.GetLeftPart(UriPartial.Authority);
+    }
+
+    private string? ResolveRuntimeEndpoint(
+        string? explicitEndpoint,
+        string? configuredEndpoint,
+        string relativePath)
+    {
+        var endpoint = FirstNonEmpty(explicitEndpoint, configuredEndpoint);
+        if (!string.IsNullOrWhiteSpace(endpoint))
+        {
+            return ResolveDockerReachableEndpoint(endpoint);
+        }
+
+        var controlPlaneEndpoint = ResolveCloudShellEndpoint();
+        if (string.IsNullOrWhiteSpace(controlPlaneEndpoint))
+        {
+            return null;
+        }
+
+        return $"{ResolveDockerReachableEndpoint(controlPlaneEndpoint)}/{relativePath.TrimStart('/')}";
+    }
+
+    private string? ResolveCloudShellEndpoint() =>
+        FirstHttpEndpoint(configuration["Observability:Endpoint"]) ??
+        FirstHttpEndpoint(configuration["urls"]) ??
+        FirstHttpEndpoint(Environment.GetEnvironmentVariable("ASPNETCORE_URLS")) ??
+        (configuration.GetValue<int?>("PORT") is { } port
+            ? $"http://localhost:{port.ToString(CultureInfo.InvariantCulture)}"
+            : null);
+
+    private static string? FirstHttpEndpoint(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        foreach (var candidate in value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (Uri.TryCreate(candidate, UriKind.Absolute, out var uri) &&
+                uri.Scheme is "http" or "https")
+            {
+                return uri.GetLeftPart(UriPartial.Authority);
+            }
+        }
+
+        return null;
+    }
 
     private int ResolveReplicaCleanupLimit(
         LocalDockerContainerApplicationRuntimeDefinition definition,

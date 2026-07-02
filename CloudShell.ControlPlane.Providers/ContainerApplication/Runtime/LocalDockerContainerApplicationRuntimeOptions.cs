@@ -1,4 +1,6 @@
+using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.Hosting;
+using System.Text;
 
 namespace CloudShell.ControlPlane.Providers;
 
@@ -17,16 +19,21 @@ public sealed class LocalDockerContainerApplicationRuntimeOptions
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
         ArgumentException.ThrowIfNullOrWhiteSpace(projectPath);
 
-        var definition = new LocalDockerContainerApplicationRuntimeDefinition(resourceId, projectPath);
+        var definition = LocalDockerContainerApplicationRuntimeDefinition.CreateDefault(resourceId, projectPath);
         configure?.Invoke(definition);
         applications[resourceId] = definition;
         return this;
     }
+
+    public bool TryGetApplication(
+        string resourceId,
+        out LocalDockerContainerApplicationRuntimeDefinition definition) =>
+        applications.TryGetValue(resourceId, out definition!);
 }
 
 public sealed class LocalDockerContainerApplicationRuntimeDefinition(
     string resourceId,
-    string projectPath)
+    string projectPath = "")
 {
     public string ResourceId { get; } = resourceId;
 
@@ -73,10 +80,43 @@ public sealed class LocalDockerContainerApplicationRuntimeDefinition(
     public string ResolveIngressConfigurationDirectory(IHostEnvironment? hostEnvironment) =>
         ResolvePath(hostEnvironment, IngressConfigurationDirectory);
 
+    public static LocalDockerContainerApplicationRuntimeDefinition CreateDefault(
+        string resourceId,
+        string? projectPath = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+
+        var serviceName = ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(resourceId);
+        var resourceSegment = CreateResourceSegment(resourceId);
+        return new(resourceId, projectPath ?? string.Empty)
+        {
+            IngressContainerName = $"{serviceName}-ingress",
+            IngressConfigurationDirectory = Path.Combine("Data", "runtime-ingress", serviceName),
+            ReplicaContainerNamePrefix = $"{serviceName}-replica-",
+            ReplicaNetworkAliasPrefix = $"{serviceName}-replica-",
+            ReplicaResourceIdPrefix = $"runtime-container:{resourceSegment}:replica-",
+            ReplicaServiceNamePrefix = $"{serviceName}-replica-"
+        };
+    }
+
     private static string ResolvePath(
         IHostEnvironment? hostEnvironment,
         string path) =>
         Path.IsPathRooted(path) || hostEnvironment is null
             ? path
             : Path.Combine(hostEnvironment.ContentRootPath, path);
+
+    private static string CreateResourceSegment(string resourceId)
+    {
+        var builder = new StringBuilder(resourceId.Length);
+        foreach (var character in resourceId.Trim().ToLowerInvariant())
+        {
+            builder.Append(char.IsLetterOrDigit(character) ? character : '-');
+        }
+
+        var segment = builder.ToString().Trim('-');
+        return string.IsNullOrWhiteSpace(segment)
+            ? "container-app"
+            : segment;
+    }
 }
