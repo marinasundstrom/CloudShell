@@ -2189,22 +2189,17 @@ public sealed class SampleSmokeTests
                 StartupTimeout);
             var frontendConfig = await frontendClient.GetStringAsync(
                 $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}/sample-config.json");
-            Assert.Contains(
-                $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}",
-                frontendConfig);
+            Assert.Contains("/signalr-backend", frontendConfig);
+            await WaitForHttpSuccessAsync(
+                $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}/signalr-backend/health",
+                StartupTimeout);
 
             var connected = new TaskCompletionSource<SignalRReplicaTestMessage>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var echoed = new TaskCompletionSource<SignalRReplicaTestMessage>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             await using var connection = new HubConnectionBuilder()
-                .WithUrl(
-                    $"http://localhost:{apiPort.ToString(CultureInfo.InvariantCulture)}/hubs/replicas",
-                    options =>
-                    {
-                        options.Transports = HttpTransportType.WebSockets;
-                        options.SkipNegotiation = true;
-                    })
+                .WithUrl($"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}/signalr-backend/hubs/replicas")
                 .Build();
             connection.On<SignalRReplicaTestMessage>(
                 "ReplicaConnected",

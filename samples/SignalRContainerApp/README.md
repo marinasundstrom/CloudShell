@@ -17,12 +17,12 @@ project-backed API image from the resource's `project.path`, starts three
 replica containers, and exposes the declared API endpoint through a local
 Traefik ingress container.
 
-The browser frontend connects with a direct WebSocket transport. That avoids
-binding the SignalR negotiation token to one replica before the browser opens
-the WebSocket to the ingress. Cookie session affinity remains configured on
-the ingress for ordinary HTTP requests; the durable container app
-runtime/orchestrator should own the general sticky real-time routing behavior
-later.
+The browser frontend uses the default SignalR negotiation flow through a
+same-origin frontend proxy path. That proxy forwards HTTP and WebSocket
+traffic to the backend container app ingress. The app declares cookie session
+affinity at the container app resource level, and the local Docker runtime
+projects that intent into Traefik sticky routing so negotiate and follow-up
+transport requests stay on the same replica.
 
 ## Run
 

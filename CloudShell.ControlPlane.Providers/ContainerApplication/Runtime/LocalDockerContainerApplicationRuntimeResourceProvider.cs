@@ -23,12 +23,7 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
 
     public IReadOnlyList<ResourceManagerResource> GetResources()
     {
-        var snapshot = graph
-            .GetSnapshotAsync()
-            .AsTask()
-            .ConfigureAwait(false)
-            .GetAwaiter()
-            .GetResult();
+        var snapshot = graph.GetSnapshot();
         return snapshot.Resources
             .SelectMany(CreateRuntimeReplicaResources)
             .ToArray();

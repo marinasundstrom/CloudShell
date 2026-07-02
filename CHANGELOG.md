@@ -45,9 +45,13 @@ on `git blame --follow`, and then by the broad type of change.
   running CloudShell host instance so concurrent samples or smoke tests with
   the same resource IDs cannot reuse the wrong Docker containers or ingress,
   while keeping scoped replica network aliases within Docker DNS label limits.
-- Updated the SignalR container app sample frontend to use direct WebSockets
-  so browser connections do not depend on cross-origin sticky cookies carrying
-  the SignalR negotiation token to the same replica.
+- Updated the SignalR container app sample to use the default negotiated
+  SignalR flow through a same-origin frontend proxy backed by container app
+  cookie session affinity, matching the standard ingress behavior expected for
+  replicated stateful HTTP workloads without forcing WebSockets.
+- Fixed local Docker container app runtime resource projection to avoid
+  blocking synchronously on the resource graph async snapshot path, preventing
+  Resources-view polling from contributing to shutdown hangs.
 - Fixed the JavaScript app sample host to configure the Configuration Store
   runtime service project from the repository root, so starting the sample
   Configuration Store resource no longer resolves a missing project under the
