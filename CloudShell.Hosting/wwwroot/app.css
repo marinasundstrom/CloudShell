@@ -4141,6 +4141,70 @@ h3 {
     gap: .65rem;
 }
 
+.usage-resource-groups {
+    display: grid;
+    gap: .85rem;
+}
+
+.usage-resource-group {
+    display: grid;
+    gap: .55rem;
+    min-width: 0;
+}
+
+.usage-resource-group + .usage-resource-group {
+    padding-top: .85rem;
+    border-top: 1px solid var(--cloudshell-divider);
+}
+
+.usage-resource-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    min-width: 0;
+}
+
+.usage-resource-group-header h4 {
+    margin: 0;
+    overflow: hidden;
+    color: var(--cloudshell-text);
+    font-size: .86rem;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.usage-resource-group-header span {
+    flex: 0 0 auto;
+    color: var(--cloudshell-text-muted);
+    font-size: .72rem;
+}
+
+.usage-section-heading {
+    display: grid;
+    gap: .15rem;
+    margin-top: .1rem;
+}
+
+.usage-section-heading h3,
+.usage-section-heading p {
+    margin: 0;
+}
+
+.usage-section-heading h3 {
+    color: var(--cloudshell-text);
+    font-size: .9rem;
+    line-height: 1.25;
+}
+
+.usage-section-heading p {
+    color: var(--cloudshell-text-muted);
+    font-size: .78rem;
+    line-height: 1.35;
+}
+
 .usage-panel {
     display: grid;
     align-content: start;
@@ -4256,6 +4320,23 @@ h3 {
 .usage-table-value {
     width: 7rem;
     white-space: nowrap;
+}
+
+.usage-metric-name,
+.usage-metric-id {
+    display: block;
+    min-width: 0;
+}
+
+.usage-metric-name {
+    color: var(--cloudshell-text);
+}
+
+.usage-metric-id {
+    overflow-wrap: anywhere;
+    color: var(--cloudshell-text-muted);
+    font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: .72rem;
 }
 
 .usage-attributes {

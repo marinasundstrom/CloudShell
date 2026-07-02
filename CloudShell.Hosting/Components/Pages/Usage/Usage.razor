@@ -11,6 +11,8 @@
 
 @{
     var panels = BuildUsagePanels();
+    var panelGroups = BuildUsagePanelGroups(panels);
+    var summaryCards = BuildSummaryCards();
     var resourceOptions = GetResourceOptions();
     var usageNameOptions = GetUsageNameOptions();
 }
@@ -127,52 +129,61 @@ else
             else
             {
                 <SummaryMetricGrid AriaLabel="@L["Usage summary"].Value">
-                    <SummaryMetricCard Title="@L["Usage samples"].Value"
-                                       Value="@RecentSamples.Count"
-                                       Summary="@L["retained in current filter"].Value"
-                                       Compact="true" />
-                    <SummaryMetricCard Title="@L["Usage metrics"].Value"
-                                       Value="@Statistics.Select(statistic => statistic.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count()"
-                                       Summary="@L["distinct names"].Value"
-                                       Compact="true" />
-                    <SummaryMetricCard Title="@L["Resources"].Value"
-                                       Value="@Statistics.Select(statistic => statistic.ResourceId).Distinct(StringComparer.OrdinalIgnoreCase).Count()"
-                                       Summary="@L["with usage statistics"].Value"
-                                       Compact="true" />
-                    <SummaryMetricCard Title="@L["Projected trends"].Value"
-                                       Value="@panels.Count(panel => panel.HasProjection)"
-                                       Summary="@L["series with enough samples"].Value"
-                                       Compact="true" />
+                    @foreach (var card in summaryCards)
+                    {
+                        <SummaryMetricCard Title="@card.Title"
+                                           Value="@card.Value"
+                                           Summary="@card.Summary"
+                                           Compact="true" />
+                    }
                 </SummaryMetricGrid>
 
                 @if (panels.Count > 0)
                 {
-                    <div class="usage-panel-grid" aria-label="@L["Usage trend panels"].Value">
-                        @foreach (var panel in panels)
+                    <div class="usage-section-heading">
+                        <h3>@L["Priority usage trends"]</h3>
+                        <p>@L["Most relevant resource consumption signals for the current filter."]</p>
+                    </div>
+                    <div class="usage-resource-groups" aria-label="@L["Usage trend panels"].Value">
+                        @foreach (var panelGroup in panelGroups)
                         {
-                            <section class="usage-panel">
-                                <header>
-                                    <div>
-                                        <h3>@panel.ResourceLabel</h3>
-                                        <p>@panel.Name</p>
-                                    </div>
-                                    <span>@(panel.Unit ?? L["unitless"].Value)</span>
+                            <section class="usage-resource-group">
+                                <header class="usage-resource-group-header">
+                                    <h4>@panelGroup.ResourceLabel</h4>
+                                    <span>@L["{0} metrics", panelGroup.Panels.Count]</span>
                                 </header>
+                                <div class="usage-panel-grid">
+                                    @foreach (var panel in panelGroup.Panels)
+                                    {
+                                        <section class="usage-panel">
+                                            <header>
+                                                <div>
+                                                    <h3>@panel.DisplayName</h3>
+                                                    @if (!string.Equals(panel.DisplayName, panel.Name, StringComparison.Ordinal))
+                                                    {
+                                                        <p>@panel.Name</p>
+                                                    }
+                                                </div>
+                                                <span>@(panel.Unit ?? L["unitless"].Value)</span>
+                                            </header>
 
-                                <CloudShellLineChart Values="@panel.ChartValues"
-                                                     AriaLabel="@L["{0} usage trend", panel.Name].Value" />
-                                <div class="usage-panel-stats">
-                                    <span>@L["actual latest {0}", FormatUsageValue(panel.LatestValue, panel.Unit)]</span>
-                                    <span>@L["sum {0}", FormatUsageValue(panel.Sum, panel.Unit)]</span>
-                                    <span>@L["avg {0}", FormatUsageValue(panel.Average, panel.Unit)]</span>
-                                    @if (panel.HasProjection)
-                                    {
-                                        <span>@L["projected +1h {0}", FormatUsageValue(panel.ProjectedOneHour!.Value, panel.Unit)]</span>
-                                        <span>@L["projected +24h {0}", FormatUsageValue(panel.ProjectedDay!.Value, panel.Unit)]</span>
-                                    }
-                                    else
-                                    {
-                                        <span>@L["projection needs 2 samples"]</span>
+                                            <CloudShellLineChart Values="@panel.ChartValues"
+                                                                 AriaLabel="@L["{0} usage trend for {1}", panel.DisplayName, panel.ResourceLabel].Value" />
+                                            <div class="usage-panel-stats">
+                                                <span>@L["actual latest {0}", FormatUsageValue(panel.LatestValue, panel.Unit)]</span>
+                                                <span>@L["sum {0}", FormatUsageValue(panel.Sum, panel.Unit)]</span>
+                                                <span>@L["avg {0}", FormatUsageValue(panel.Average, panel.Unit)]</span>
+                                                @if (panel.HasProjection)
+                                                {
+                                                    <span>@L["projected +1h {0}", FormatUsageValue(panel.ProjectedOneHour!.Value, panel.Unit)]</span>
+                                                    <span>@L["projected +24h {0}", FormatUsageValue(panel.ProjectedDay!.Value, panel.Unit)]</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>@L["projection needs 2 samples"]</span>
+                                                }
+                                            </div>
+                                        </section>
                                     }
                                 </div>
                             </section>
@@ -198,7 +209,13 @@ else
                             {
                                 <tr>
                                     <td>@GetResourceLabel(statistic.ResourceId)</td>
-                                    <td>@statistic.Name</td>
+                                    <td>
+                                        <span class="usage-metric-name">@GetUsageDisplayName(statistic.Name)</span>
+                                        @if (!string.Equals(GetUsageDisplayName(statistic.Name), statistic.Name, StringComparison.Ordinal))
+                                        {
+                                            <span class="usage-metric-id">@statistic.Name</span>
+                                        }
+                                    </td>
                                     <td>@FormatUsageValue(statistic.LatestValue, statistic.Unit)</td>
                                     <td>@FormatUsageValue(statistic.Sum, statistic.Unit)</td>
                                     <td>@FormatUsageValue(statistic.Average, statistic.Unit)</td>
@@ -231,7 +248,13 @@ else
                                             <time>@sample.Timestamp.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture)</time>
                                         </td>
                                         <td>@GetResourceLabel(sample.ResourceId)</td>
-                                        <td>@sample.Name</td>
+                                        <td>
+                                            <span class="usage-metric-name">@GetUsageDisplayName(sample.Name)</span>
+                                            @if (!string.Equals(GetUsageDisplayName(sample.Name), sample.Name, StringComparison.Ordinal))
+                                            {
+                                                <span class="usage-metric-id">@sample.Name</span>
+                                            }
+                                        </td>
                                         <td class="usage-table-value">@FormatUsageValue(sample.Value, sample.Unit)</td>
                                         <td>
                                             @if (sample.UsageAttributes.Count == 0)
@@ -446,11 +469,83 @@ else
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-    private IReadOnlyList<UsageTrendPanel> BuildUsagePanels() =>
-        Statistics
+    private IReadOnlyList<UsageSummaryCard> BuildSummaryCards()
+    {
+        var panels = Statistics
             .Select(BuildUsagePanel)
-            .OrderBy(panel => panel.ResourceLabel, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(panel => panel.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var cards = new List<UsageSummaryCard>();
+        AddCategoryCard(cards, panels, UsageMetricCategory.Cpu, L["CPU"].Value);
+        AddCategoryCard(cards, panels, UsageMetricCategory.Memory, L["Memory"].Value);
+        AddCategoryCard(cards, panels, UsageMetricCategory.Network, L["Network"].Value);
+        AddCategoryCard(cards, panels, UsageMetricCategory.Process, L["Processes"].Value);
+        AddCategoryCard(cards, panels, UsageMetricCategory.Storage, L["Storage"].Value);
+
+        cards.Add(new UsageSummaryCard(
+            L["Usage samples"].Value,
+            RecentSamples.Count.ToString(CultureInfo.InvariantCulture),
+            L["retained in current filter"].Value));
+        cards.Add(new UsageSummaryCard(
+            L["Tracked metrics"].Value,
+            Statistics.Select(statistic => statistic.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count().ToString(CultureInfo.InvariantCulture),
+            L["distinct usage signals"].Value));
+
+        return cards.Take(Inline ? 4 : 6).ToArray();
+    }
+
+    private void AddCategoryCard(
+        List<UsageSummaryCard> cards,
+        IReadOnlyList<UsageTrendPanel> panels,
+        UsageMetricCategory category,
+        string title)
+    {
+        var matching = panels
+            .Where(panel => panel.Category == category)
+            .ToArray();
+        if (matching.Length == 0)
+        {
+            return;
+        }
+
+        var primary = matching
+            .OrderBy(panel => panel.CategoryRank)
+            .ThenBy(panel => panel.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .First();
+        var value = ShouldAggregateLatest(category, primary.Unit)
+            ? FormatUsageValue(matching.Sum(panel => panel.LatestValue), primary.Unit)
+            : FormatUsageValue(matching.Average(panel => panel.LatestValue), primary.Unit);
+        var summary = matching.Length == 1
+            ? primary.ResourceLabel
+            : L["{0} series observed", matching.Length].Value;
+        cards.Add(new UsageSummaryCard(title, value, summary));
+    }
+
+    private IReadOnlyList<UsageTrendPanel> BuildUsagePanels()
+    {
+        var panels = Statistics
+            .Select(BuildUsagePanel)
+            .OrderByDescending(panel => panel.Importance)
+            .ThenByDescending(panel => panel.LastTimestamp)
+            .ThenBy(panel => panel.ResourceLabel, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(panel => panel.DisplayName, StringComparer.OrdinalIgnoreCase);
+        return panels
+            .Take(SelectedUsageName is null ? 6 : 12)
+            .ToArray();
+    }
+
+    private static IReadOnlyList<UsageResourcePanelGroup> BuildUsagePanelGroups(IReadOnlyList<UsageTrendPanel> panels) =>
+        panels
+            .GroupBy(panel => panel.ResourceId, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new UsageResourcePanelGroup(
+                group.Key,
+                group.First().ResourceLabel,
+                group
+                    .OrderByDescending(panel => panel.Importance)
+                    .ThenBy(panel => panel.DisplayName, StringComparer.OrdinalIgnoreCase)
+                    .ToArray()))
+            .OrderByDescending(group => group.Panels.Max(panel => panel.Importance))
+            .ThenByDescending(group => group.Panels.Max(panel => panel.LastTimestamp))
+            .ThenBy(group => group.ResourceLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private UsageTrendPanel BuildUsagePanel(UsageStatistic statistic)
@@ -480,10 +575,14 @@ else
             statistic.ResourceId,
             GetResourceLabel(statistic.ResourceId),
             statistic.Name,
+            GetUsageDisplayName(statistic.Name),
+            GetUsageMetricCategory(statistic.Name, statistic.Unit),
+            GetUsageMetricCategoryRank(statistic.Name, statistic.Unit),
             statistic.Unit,
             statistic.Sum,
             statistic.Average,
             statistic.LatestValue,
+            statistic.LastTimestamp,
             projection?.ProjectedValue(1),
             projection?.ProjectedValue(24),
             values);
@@ -514,13 +613,115 @@ else
             ? DisplaySelection.GetResourceLabel(resource)
             : ResourceDisplayLabels.GetName(resourceId);
 
+    private string GetUsageDisplayName(string name)
+    {
+        var displayName = RecentSamples
+            .Where(sample => string.Equals(sample.Name, name, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(sample => sample.Timestamp)
+            .Select(sample => sample.UsageAttributes.GetValueOrDefault(UsageAttributeNames.DisplayName))
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        return string.IsNullOrWhiteSpace(displayName)
+            ? name
+            : displayName;
+    }
+
     private static string? NormalizeFilter(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static string FormatUsageValue(double value, string? unit) =>
-        string.IsNullOrWhiteSpace(unit)
+        string.Equals(unit, "bytes", StringComparison.OrdinalIgnoreCase)
+            ? FormatBytes(value)
+            : string.IsNullOrWhiteSpace(unit)
             ? value.ToString("0.###", CultureInfo.InvariantCulture)
             : $"{value.ToString("0.###", CultureInfo.InvariantCulture)} {unit}";
+
+    private static string FormatBytes(double value)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        var scaled = Math.Abs(value);
+        var unitIndex = 0;
+        while (scaled >= 1024 && unitIndex < units.Length - 1)
+        {
+            scaled /= 1024;
+            unitIndex++;
+        }
+
+        var signed = value < 0 ? -scaled : scaled;
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{signed:0.##} {units[unitIndex]}");
+    }
+
+    private static UsageMetricCategory GetUsageMetricCategory(string name, string? unit)
+    {
+        var normalized = name.ToLowerInvariant();
+        if (normalized.Contains("cpu", StringComparison.Ordinal))
+        {
+            return UsageMetricCategory.Cpu;
+        }
+
+        if (normalized.Contains("memory", StringComparison.Ordinal) ||
+            normalized.Contains("working", StringComparison.Ordinal))
+        {
+            return UsageMetricCategory.Memory;
+        }
+
+        if (normalized.Contains("network", StringComparison.Ordinal) ||
+            normalized.Contains("rxbytes", StringComparison.Ordinal) ||
+            normalized.Contains("txbytes", StringComparison.Ordinal))
+        {
+            return UsageMetricCategory.Network;
+        }
+
+        if (normalized.Contains("process", StringComparison.Ordinal) ||
+            normalized.Contains("thread", StringComparison.Ordinal))
+        {
+            return UsageMetricCategory.Process;
+        }
+
+        if (normalized.Contains("block", StringComparison.Ordinal) ||
+            normalized.Contains("storage", StringComparison.Ordinal) ||
+            normalized.Contains("disk", StringComparison.Ordinal))
+        {
+            return UsageMetricCategory.Storage;
+        }
+
+        return string.Equals(unit, "bytes", StringComparison.OrdinalIgnoreCase)
+            ? UsageMetricCategory.Storage
+            : UsageMetricCategory.Other;
+    }
+
+    private static int GetUsageMetricCategoryRank(string name, string? unit)
+    {
+        var normalized = name.ToLowerInvariant();
+        if (normalized.Contains("usagepercent", StringComparison.Ordinal))
+        {
+            return 0;
+        }
+
+        if (normalized.EndsWith(".usage", StringComparison.Ordinal) ||
+            normalized.Contains("usage", StringComparison.Ordinal))
+        {
+            return 1;
+        }
+
+        if (normalized.Contains("count", StringComparison.Ordinal))
+        {
+            return 2;
+        }
+
+        if (string.Equals(unit, "bytes", StringComparison.OrdinalIgnoreCase))
+        {
+            return 3;
+        }
+
+        return 5;
+    }
+
+    private static bool ShouldAggregateLatest(UsageMetricCategory category, string? unit) =>
+        category is UsageMetricCategory.Memory or UsageMetricCategory.Network or UsageMetricCategory.Process or UsageMetricCategory.Storage ||
+        string.Equals(unit, "bytes", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(unit, "count", StringComparison.OrdinalIgnoreCase);
 
     private static string FormatWindow(DateTimeOffset first, DateTimeOffset last)
     {
@@ -538,19 +739,44 @@ else
         string ResourceId,
         string Label);
 
+    private sealed record UsageSummaryCard(
+        string Title,
+        string Value,
+        string Summary);
+
+    private sealed record UsageResourcePanelGroup(
+        string ResourceId,
+        string ResourceLabel,
+        IReadOnlyList<UsageTrendPanel> Panels);
+
     private sealed record UsageTrendPanel(
         string ResourceId,
         string ResourceLabel,
         string Name,
+        string DisplayName,
+        UsageMetricCategory Category,
+        int CategoryRank,
         string? Unit,
         double Sum,
         double Average,
         double LatestValue,
+        DateTimeOffset LastTimestamp,
         double? ProjectedOneHour,
         double? ProjectedDay,
         IReadOnlyList<double> ChartValues)
     {
         public bool HasProjection => ProjectedOneHour is not null && ProjectedDay is not null;
+
+        public int Importance =>
+            Category switch
+            {
+                UsageMetricCategory.Cpu => 100 - CategoryRank,
+                UsageMetricCategory.Memory => 90 - CategoryRank,
+                UsageMetricCategory.Network => 80 - CategoryRank,
+                UsageMetricCategory.Process => 70 - CategoryRank,
+                UsageMetricCategory.Storage => 60 - CategoryRank,
+                _ => 10 - CategoryRank
+            };
     }
 
     private sealed record UsageProjection(
@@ -558,5 +784,15 @@ else
         double SlopePerHour)
     {
         public double ProjectedValue(int hours) => LatestValue + (SlopePerHour * hours);
+    }
+
+    private enum UsageMetricCategory
+    {
+        Cpu,
+        Memory,
+        Network,
+        Process,
+        Storage,
+        Other
     }
 }

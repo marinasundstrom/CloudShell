@@ -95,6 +95,9 @@ on `git blame --follow`, and then by the broad type of change.
   recorded usage samples and statistics update without leaving the view.
 - Added opt-in database-backed usage sample persistence with per-resource
   retention so usage statistics can survive CloudShell host restarts.
+- Updated the Usage dashboard to prioritize CPU, memory, network, process,
+  and storage usage summaries and visually group priority trends by resource
+  before the full metric and sample detail tables.
 - Renamed the shell observability workspace to Telemetry with canonical
   `/telemetry` routes while keeping the old `/observability` routes as
   compatibility aliases.
