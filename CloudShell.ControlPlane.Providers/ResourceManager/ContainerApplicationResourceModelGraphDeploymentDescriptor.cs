@@ -1,8 +1,6 @@
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceModel;
 using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
 using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
 
 namespace CloudShell.ControlPlane.Providers;
@@ -30,7 +28,9 @@ public sealed class ContainerApplicationResourceModelGraphDeploymentDescriptor :
             return null;
         }
 
-        var revisionId = CreateRuntimeRevisionId(container);
+        var revisionId = ContainerApplicationRuntimeRevisions.CreateImageRevisionId(
+            container.Registry,
+            image);
         var workloadKind = string.IsNullOrWhiteSpace(container.BuildContext)
             ? ResourceWorkloadKind.ContainerImage
             : ResourceWorkloadKind.ContainerBuild;
@@ -147,18 +147,6 @@ public sealed class ContainerApplicationResourceModelGraphDeploymentDescriptor :
                     mount.TargetPath,
                     mount.ReadOnly))
             .ToArray();
-
-    private static string CreateRuntimeRevisionId(ContainerApplicationResource container)
-    {
-        var registry = string.IsNullOrWhiteSpace(container.Registry)
-            ? ContainerRegistryDefaults.Default
-            : container.Registry.Trim();
-        var image = container.Image?.Trim() ?? string.Empty;
-        var revisionKey = $"{registry}\n{image}";
-        Span<byte> hash = stackalloc byte[32];
-        SHA256.HashData(Encoding.UTF8.GetBytes(revisionKey), hash);
-        return $"rev-img-{Convert.ToHexString(hash[..6]).ToLowerInvariant()}";
-    }
 
     private static TEnum ParseEnum<TEnum>(
         string? value,

@@ -35,8 +35,8 @@
         @if (Authorization.CanReadAnyObservability())
         {
             <FluentAnchor Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.DataUsage())"
-                          Href="/observability">
-                @L["Observability"]
+                          Href="/telemetry">
+                @L["Telemetry"]
             </FluentAnchor>
         }
     </div>
@@ -175,11 +175,11 @@
                     <ShellNavigationIcon Icon="health" />
                 </Leading>
             </ShellActivityLink>
-            <ShellActivityLink Href="/observability"
-                               Title="@L["Observability"].Value"
+            <ShellActivityLink Href="/telemetry"
+                               Title="@L["Telemetry"].Value"
                                Summary="@L["Logs, traces, metrics, request flow"].Value">
                 <Leading>
-                    <ShellNavigationIcon Icon="observability" />
+                    <ShellNavigationIcon Icon="telemetry" />
                 </Leading>
             </ShellActivityLink>
             <ShellActivityLink Href="/settings/extensions"
@@ -539,7 +539,7 @@
 
     private static string BuildTraceRoute(string resourceId, string traceId) =>
         Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-            "/observability/traces",
+            "/telemetry/traces",
             new Dictionary<string, string?>
             {
                 ["resourceId"] = resourceId,

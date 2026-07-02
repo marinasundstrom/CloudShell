@@ -5,7 +5,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using System.Globalization;
-using System.Security.Cryptography;
 using System.Text;
 using GraphResource = CloudShell.ResourceModel.Resource;
 
@@ -323,6 +322,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
                 resource,
                 cancellationToken,
                 createWhenMissing: ResolveReplicas(resource) > 1,
+                replicaGroup: replicaGroup,
                 routingBindings: routingBindings);
             ClearStatusCache();
             return [];
@@ -619,21 +619,23 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             "--network-alias",
             LocalDockerContainerApplicationRuntimeConventions.CreateReplicaNetworkAlias(definition, replica)
         };
-        var replicaGroupId = replicaGroup?.Id ?? ResolveReplicaGroupId(resource);
+        var replicaGroupId = replicaGroup?.Id ??
+            LocalDockerContainerApplicationRuntimeConventions.ResolveReplicaGroupId(resource);
         if (!string.IsNullOrWhiteSpace(replicaGroupId))
         {
             arguments.Add("--label");
             arguments.Add($"{ReplicaGroupLabel}={replicaGroupId}");
         }
 
-        var runtimeRevisionId = replicaGroup?.RuntimeRevisionId ?? ResolveRuntimeRevisionId(resource);
+        var runtimeRevisionId = replicaGroup?.RuntimeRevisionId ??
+            LocalDockerContainerApplicationRuntimeConventions.ResolveRuntimeRevisionId(resource);
         if (!string.IsNullOrWhiteSpace(runtimeRevisionId))
         {
             arguments.Add("--label");
             arguments.Add($"{RuntimeRevisionLabel}={runtimeRevisionId}");
         }
 
-        if (TryResolveHttpEndpoint(resource, out var endpoint))
+        if (TryResolveHttpEndpoint(resource, [], out var endpoint))
         {
             arguments.Add("-p");
             arguments.Add(
@@ -647,7 +649,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         arguments.Add("-e");
         arguments.Add($"OTEL_SERVICE_NAME={definition.ReplicaServiceNamePrefix}{replica.ToString(CultureInfo.InvariantCulture)}");
         arguments.Add("-e");
-        arguments.Add($"OTEL_RESOURCE_ATTRIBUTES={CreateOtelResourceAttributes(definition, replicaResourceId, replicaContainerName, replicaName, replica, replicaCount)}");
+        arguments.Add($"OTEL_RESOURCE_ATTRIBUTES={CreateOtelResourceAttributes(definition, replicaResourceId, replicaContainerName, replicaName, replica, replicaCount, runtimeRevisionId)}");
         AddEnvironment(arguments, "CLOUDSHELL_TRACE_INGEST_ENDPOINT", FirstNonEmpty(definition.TraceIngestEndpoint, configuration["Observability:TraceIngestEndpoint"]));
         AddEnvironment(arguments, "CLOUDSHELL_METRIC_INGEST_ENDPOINT", FirstNonEmpty(definition.MetricIngestEndpoint, configuration["Observability:MetricIngestEndpoint"]));
         foreach (var variable in ContainerizedProjectEnvironmentVariables.Read(resource))
@@ -695,9 +697,11 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         CancellationToken cancellationToken,
         bool createWhenMissing = true,
         bool reuseExisting = true,
+        ResourceOrchestratorReplicaGroup? replicaGroup = null,
         IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition>? routingBindings = null)
     {
-        if (!TryResolveHttpEndpoint(resource, out var endpoint))
+        var serviceRoutingBindings = routingBindings ?? [];
+        if (!TryResolveHttpEndpoint(resource, serviceRoutingBindings, out var endpoint))
         {
             return;
         }
@@ -706,7 +710,8 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             definition,
             resource,
             endpoint,
-            routingBindings ?? [],
+            replicaGroup,
+            serviceRoutingBindings,
             cancellationToken);
         if (reuseExisting)
         {
@@ -729,12 +734,13 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             }
         }
 
-        if (!createWhenMissing && ResolveReplicas(resource) <= 1)
+        var routedReplicaCount = ResolveRoutedReplicaOrdinals(resource, replicaGroup).Count;
+        if (!createWhenMissing && routedReplicaCount <= 1)
         {
             return;
         }
 
-        if (ResolveReplicas(resource) <= 1)
+        if (routedReplicaCount <= 1)
         {
             return;
         }
@@ -817,6 +823,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         LocalDockerContainerApplicationRuntimeDefinition definition,
         GraphResource resource,
         NetworkingEndpointRequestValue endpoint,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
         IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         CancellationToken cancellationToken)
     {
@@ -824,7 +831,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         Directory.CreateDirectory(ingressConfigurationDirectory);
         await File.WriteAllTextAsync(
             Path.Combine(ingressConfigurationDirectory, "dynamic.yml"),
-            CreateIngressConfiguration(definition, resource, endpoint, routingBindings),
+            CreateIngressConfiguration(definition, resource, endpoint, replicaGroup, routingBindings),
             cancellationToken);
     }
 
@@ -832,9 +839,11 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         LocalDockerContainerApplicationRuntimeDefinition definition,
         GraphResource resource,
         NetworkingEndpointRequestValue endpoint,
+        ResourceOrchestratorReplicaGroup? replicaGroup,
         IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings)
     {
         var targetPort = endpoint.TargetPort ?? endpoint.Port!.Value;
+        var routedReplicas = ResolveRoutedReplicaOrdinals(resource, replicaGroup);
         var sessionAffinity = ResolveSessionAffinity(resource, endpoint, routingBindings);
         var builder = new StringBuilder();
         builder.AppendLine("http:");
@@ -847,7 +856,7 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         builder.AppendLine("    api-http:");
         builder.AppendLine("      loadBalancer:");
         builder.AppendLine("        servers:");
-        for (var replica = 1; replica <= ResolveReplicas(resource); replica++)
+        foreach (var replica in routedReplicas)
         {
             builder.AppendLine(
                 CultureInfo.InvariantCulture,
@@ -874,6 +883,25 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         }
 
         return builder.ToString();
+    }
+
+    private static IReadOnlyList<int> ResolveRoutedReplicaOrdinals(
+        GraphResource resource,
+        ResourceOrchestratorReplicaGroup? replicaGroup)
+    {
+        if (replicaGroup is not null)
+        {
+            return replicaGroup.Instances
+                .Select(instance => instance.ReplicaOrdinal)
+                .Where(ordinal => ordinal > 0)
+                .Distinct()
+                .Order()
+                .ToArray();
+        }
+
+        return Enumerable
+            .Range(1, ResolveReplicas(resource))
+            .ToArray();
     }
 
     private static ResourceOrchestratorSessionAffinityPolicy? ResolveSessionAffinity(
@@ -956,17 +984,48 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
 
     private static bool TryResolveHttpEndpoint(
         GraphResource resource,
+        IReadOnlyList<ResourceOrchestratorServiceRoutingBindingDefinition> routingBindings,
         out NetworkingEndpointRequestValue endpoint)
     {
-        endpoint = resource.Attributes
+        var endpoints = resource.Attributes
             .GetObject<NetworkingEndpointRequestValue[]>(
-                ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests)?
-            .FirstOrDefault(candidate =>
-                string.Equals(candidate.Name, "http", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(candidate.Protocol, "http", StringComparison.OrdinalIgnoreCase))!;
+                ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests) ?? [];
 
+        foreach (var routingBinding in routingBindings)
+        {
+            if (!string.Equals(
+                    routingBinding.SourceEndpoint.ResourceId,
+                    resource.EffectiveResourceId,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            endpoint = endpoints.FirstOrDefault(candidate =>
+                string.Equals(
+                    candidate.Name,
+                    routingBinding.SourceEndpoint.EndpointName,
+                    StringComparison.OrdinalIgnoreCase) &&
+                IsHttpEndpoint(candidate))!;
+            if (endpoint is { Port: > 0 })
+            {
+                return true;
+            }
+        }
+
+        if (routingBindings.Count > 0)
+        {
+            endpoint = null!;
+            return false;
+        }
+
+        endpoint = endpoints.FirstOrDefault(IsHttpEndpoint)!;
         return endpoint is { Port: > 0 };
     }
+
+    private static bool IsHttpEndpoint(NetworkingEndpointRequestValue endpoint) =>
+        string.Equals(endpoint.Name, "http", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(endpoint.Protocol, "http", StringComparison.OrdinalIgnoreCase);
 
     private LocalDockerContainerApplicationRuntimeDefinition ResolveDefinition(GraphResource resource) =>
         TryResolveDefinition(resource, out var definition)
@@ -992,26 +1051,6 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         ?? throw new InvalidOperationException(
             "The container app image must be set before sample runtime can start it.");
 
-    private static string ResolveReplicaGroupId(GraphResource resource) =>
-        ResourceOrchestratorReplicaGroups.CreateReplicaGroupId(
-            ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(resource.EffectiveResourceId),
-            ResolveRuntimeRevisionId(resource));
-
-    private static string ResolveRuntimeRevisionId(GraphResource resource)
-    {
-        var registry = resource.Attributes.GetString(ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry);
-        if (string.IsNullOrWhiteSpace(registry))
-        {
-            registry = ContainerRegistryDefaults.Default;
-        }
-
-        var image = ResolveImage(resource);
-        var revisionKey = $"{registry.Trim()}\n{image.Trim()}";
-        Span<byte> hash = stackalloc byte[32];
-        SHA256.HashData(Encoding.UTF8.GetBytes(revisionKey), hash);
-        return $"rev-img-{Convert.ToHexString(hash[..6]).ToLowerInvariant()}";
-    }
-
     private static int ResolveReplicas(GraphResource resource) =>
         int.TryParse(
             resource.Attributes.GetString(ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas),
@@ -1025,7 +1064,8 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         string replicaContainerName,
         string replicaName,
         int replica,
-        int replicaCount)
+        int replicaCount,
+        string runtimeRevisionId)
     {
         var replicaOrdinal = replica.ToString(CultureInfo.InvariantCulture);
         var totalReplicas = replicaCount.ToString(CultureInfo.InvariantCulture);
@@ -1039,7 +1079,8 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             CreateOtelAttribute(TelemetryAttributeNames.ScopeKind, "runtime"),
             CreateOtelAttribute(TelemetryAttributeNames.RuntimeReplicaOrdinal, replicaOrdinal),
             CreateOtelAttribute(TelemetryAttributeNames.RuntimeReplicaCount, totalReplicas),
-            CreateOtelAttribute(TelemetryAttributeNames.RuntimeContainerName, replicaContainerName));
+            CreateOtelAttribute(TelemetryAttributeNames.RuntimeContainerName, replicaContainerName),
+            CreateOtelAttribute(TelemetryAttributeNames.DeploymentRevision, runtimeRevisionId));
     }
 
     private static string CreateOtelAttribute(

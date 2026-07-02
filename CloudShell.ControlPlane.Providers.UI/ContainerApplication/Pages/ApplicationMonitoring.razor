@@ -46,7 +46,7 @@ else
             <dt>Observed replicas</dt>
             <dd>@ObservedReplicaCount</dd>
             <dt>Revision</dt>
-            <dd>@GetAttribute(Application, ResourceAttributeNames.DeploymentRevision, Application.Version)</dd>
+            <dd>@GetCurrentRevision(Application)</dd>
         </dl>
     </section>
 
@@ -94,23 +94,23 @@ else
             {
                 <SummaryMetricGrid AriaLabel="Container app replica metrics">
                     <SummaryMetricCard Title="CPU usage"
-                                       Value="@FormatValue(SumMetric(CpuUsageMetricName), PercentUnit)"
+                                       Value="@FormatOptionalSumMetric(CpuUsageMetricName, PercentUnit, "not collected")"
                                        Summary="Sum of observed replica CPU usage."
                                        Compact="true" />
                     <SummaryMetricCard Title="Memory usage"
-                                       Value="@FormatValue(SumMetric(MemoryUsageMetricName), BytesUnit)"
+                                       Value="@FormatOptionalSumMetric(MemoryUsageMetricNames, BytesUnit, "not collected")"
                                        Summary="Sum of observed replica memory usage."
                                        Compact="true" />
                     <SummaryMetricCard Title="Network received"
-                                       Value="@FormatValue(SumMetric(NetworkReceivedMetricName), BytesUnit)"
+                                       Value="@FormatOptionalSumMetric(NetworkReceivedMetricName, BytesUnit, "not collected")"
                                        Summary="Total observed replica network bytes received."
                                        Compact="true" />
                     <SummaryMetricCard Title="Network sent"
-                                       Value="@FormatValue(SumMetric(NetworkSentMetricName), BytesUnit)"
+                                       Value="@FormatOptionalSumMetric(NetworkSentMetricName, BytesUnit, "not collected")"
                                        Summary="Total observed replica network bytes sent."
                                        Compact="true" />
                     <SummaryMetricCard Title="Process count"
-                                       Value="@FormatValue(SumMetric(ProcessCountMetricName), CountUnit)"
+                                       Value="@FormatOptionalSumMetric(ProcessCountMetricName, CountUnit, "not collected")"
                                        Summary="Sum of observed replica process counts."
                                        Compact="true" />
                 </SummaryMetricGrid>
@@ -121,8 +121,8 @@ else
             <h3>Replicas</h3>
             @if (Rows.Count == 0)
             {
-                <EmptyState Title="No replicas are projected"
-                            Message="Runtime replica monitoring will appear after the provider projects replica artifacts."
+                <EmptyState Title="No replicas are materialized"
+                            Message="Runtime replica monitoring will appear after the provider materializes replica resources."
                             Compact="true" />
             }
             else
@@ -146,8 +146,13 @@ else
                                     <td>
                                         <ResourceTableIdentity IconName="replica"
                                                                IconTitle="Replica"
-                                                               Title="@row.Resource.Name"
-                                                               Summary="@FormatReplicaOrdinal(row.Resource)" />
+                                                               Summary="@FormatReplicaOrdinal(row.Resource)">
+                                            <TitleContent>
+                                                <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(row.Resource.Id)">
+                                                    @row.Resource.Name
+                                                </FluentAnchor>
+                                            </TitleContent>
+                                        </ResourceTableIdentity>
                                     </td>
                                     <td>
                                         <ResourceStateIndicator State="row.Resource.State" Variant="pill" />
@@ -156,13 +161,13 @@ else
                                         <strong>@(row.Snapshot?.Status ?? "Unavailable")</strong>
                                         <span>@GetMonitoringMessage(row)</span>
                                     </td>
-                                    <td>@FormatMetric(row, CpuUsageMetricName)</td>
-                                    <td>@FormatMetric(row, MemoryUsageMetricName)</td>
+                                    <td>@FormatMetric(row, CpuUsageMetricName, "not collected")</td>
+                                    <td>@FormatMetric(row, MemoryUsageMetricNames, "not collected")</td>
                                     <td>
-                                        <strong>@FormatMetric(row, NetworkReceivedMetricName)</strong>
-                                        <span>sent @FormatMetric(row, NetworkSentMetricName)</span>
+                                        <strong>@FormatMetric(row, NetworkReceivedMetricName, "not collected")</strong>
+                                        <span>sent @FormatMetric(row, NetworkSentMetricName, "not collected")</span>
                                     </td>
-                                    <td>@FormatMetric(row, ProcessCountMetricName)</td>
+                                    <td>@FormatMetric(row, ProcessCountMetricName, "not collected")</td>
                                 </tr>
                             }
                         </tbody>
@@ -175,7 +180,12 @@ else
 @code {
     private static readonly TimeSpan AutoRefreshInterval = TimeSpan.FromSeconds(5);
     private const string CpuUsageMetricName = "resource.cpu.usage";
-    private const string MemoryUsageMetricName = "resource.memory.usage";
+    private static readonly string[] MemoryUsageMetricNames =
+    [
+        "resource.memory.usage",
+        "resource.memory.workingSet",
+        "resource.memory.private"
+    ];
     private const string NetworkReceivedMetricName = "resource.network.rxBytes";
     private const string NetworkSentMetricName = "resource.network.txBytes";
     private const string ProcessCountMetricName = "resource.process.count";
@@ -197,6 +207,14 @@ else
 
     private int ObservedReplicaCount =>
         Rows.Count(row => IsAvailable(row.Snapshot));
+
+    private string GetCurrentRevision(Resource resource) =>
+        GetAttribute(resource, ResourceAttributeNames.DeploymentRevision, string.Empty) is { Length: > 0 } revision
+            ? revision
+            : Replicas
+                .Select(replica => GetAttribute(replica, ResourceAttributeNames.RuntimeRevision, string.Empty))
+                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ??
+                resource.Version;
 
     protected override void OnInitialized()
     {
@@ -303,18 +321,54 @@ else
     private double SumMetric(string name) =>
         Rows.Sum(row => GetMetricValue(row.Snapshot, name));
 
-    private static string FormatMetric(ReplicaMonitoringRow row, string name)
+    private double SumMetric(IReadOnlyList<string> names) =>
+        Rows.Sum(row => GetMetricValue(row.Snapshot, names));
+
+    private string FormatOptionalSumMetric(string name, string unit, string fallback) =>
+        Rows.Any(row => HasMetric(row.Snapshot, name))
+            ? FormatValue(SumMetric(name), unit)
+            : fallback;
+
+    private string FormatOptionalSumMetric(IReadOnlyList<string> names, string unit, string fallback) =>
+        Rows.Any(row => HasMetric(row.Snapshot, names))
+            ? FormatValue(SumMetric(names), unit)
+            : fallback;
+
+    private static string FormatMetric(ReplicaMonitoringRow row, string name, string fallback)
     {
         var metric = row.Snapshot?.Metrics.FirstOrDefault(metric =>
             string.Equals(metric.Name, name, StringComparison.OrdinalIgnoreCase));
         return metric is null
-            ? "n/a"
+            ? fallback
+            : FormatValue(metric.Value, metric.Unit);
+    }
+
+    private static string FormatMetric(ReplicaMonitoringRow row, IReadOnlyList<string> names, string fallback)
+    {
+        var metric = FindMetric(row.Snapshot, names);
+        return metric is null
+            ? fallback
             : FormatValue(metric.Value, metric.Unit);
     }
 
     private static double GetMetricValue(ResourceMonitoringSnapshot? snapshot, string name) =>
         snapshot?.Metrics.FirstOrDefault(metric =>
             string.Equals(metric.Name, name, StringComparison.OrdinalIgnoreCase))?.Value ?? 0;
+
+    private static double GetMetricValue(ResourceMonitoringSnapshot? snapshot, IReadOnlyList<string> names) =>
+        FindMetric(snapshot, names)?.Value ?? 0;
+
+    private static bool HasMetric(ResourceMonitoringSnapshot? snapshot, string name) =>
+        snapshot?.Metrics.Any(metric =>
+            string.Equals(metric.Name, name, StringComparison.OrdinalIgnoreCase)) == true;
+
+    private static bool HasMetric(ResourceMonitoringSnapshot? snapshot, IReadOnlyList<string> names) =>
+        snapshot?.Metrics.Any(metric =>
+            names.Any(name => string.Equals(metric.Name, name, StringComparison.OrdinalIgnoreCase))) == true;
+
+    private static ResourceMetricSample? FindMetric(ResourceMonitoringSnapshot? snapshot, IReadOnlyList<string> names) =>
+        snapshot?.Metrics.FirstOrDefault(metric =>
+            names.Any(name => string.Equals(metric.Name, name, StringComparison.OrdinalIgnoreCase)));
 
     private static string GetMonitoringMessage(ReplicaMonitoringRow row)
     {
@@ -343,11 +397,16 @@ else
             StringComparison.OrdinalIgnoreCase);
 
     private static int GetConfiguredReplicas(Resource resource) =>
-        int.TryParse(
-            GetAttribute(resource, ResourceAttributeNames.ContainerReplicas, string.Empty),
-            out var replicas)
+        TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentRequestedReplicaSlots) ??
+        TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentRequestedReplicas) ??
+        TryGetReplicaCount(resource, ResourceAttributeNames.ContainerReplicas) ??
+        1;
+
+    private static int? TryGetReplicaCount(Resource resource, string attributeName) =>
+        resource.ResourceAttributes.TryGetValue(attributeName, out var value) &&
+        int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var replicas)
             ? Math.Max(1, replicas)
-            : 1;
+            : null;
 
     private static bool IsReplicaModeEnabled(Resource resource) =>
         string.Equals(
@@ -379,7 +438,9 @@ else
             ? FormatBytes(value)
             : string.Equals(unit, "%", StringComparison.Ordinal)
                 ? $"{value.ToString("0.##", CultureInfo.InvariantCulture)}%"
-                : $"{value.ToString("0.###", CultureInfo.InvariantCulture)} {unit}".TrimEnd();
+                : string.Equals(unit, CountUnit, StringComparison.OrdinalIgnoreCase)
+                    ? value.ToString("0.###", CultureInfo.InvariantCulture)
+                    : $"{value.ToString("0.###", CultureInfo.InvariantCulture)} {unit}".TrimEnd();
 
     private static string FormatBytes(double value)
     {

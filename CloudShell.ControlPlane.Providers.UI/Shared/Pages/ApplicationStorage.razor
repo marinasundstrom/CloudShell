@@ -27,8 +27,14 @@ else
             </FluentButton>
         </div>
 
-        @if (VolumeMounts.Count > 0)
+        @if (StorageMounts.Count > 0)
         {
+            @if (StorageMounts.Any(mount => !mount.HasProjectedMount))
+            {
+                <ProcedureMessage Compact="true">
+                    One or more attached volumes do not expose mount target details yet. Materialization status is shown from the application resource when available.
+                </ProcedureMessage>
+            }
             <ResourceTable AriaLabel="Application volume mounts">
                 <thead>
                     <tr>
@@ -39,42 +45,13 @@ else
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var mount in VolumeMounts)
+                    @foreach (var mount in StorageMounts)
                     {
                         <tr>
-                            <td>@VolumeReference(mount.VolumeReference)</td>
-                            <td>@mount.NormalizedTargetPath</td>
-                            <td>@(mount.ReadOnly ? "Read-only" : "Read/write")</td>
-                            <td>@GetMountMaterializationLabel()</td>
-                        </tr>
-                    }
-                </tbody>
-            </ResourceTable>
-        }
-        else if (VolumeDependencies.Count > 0)
-        {
-            <ProcedureMessage Compact="true">
-                Volume dependencies are declared, but mount target details are not projected into the Resource Manager view yet.
-            </ProcedureMessage>
-            <ResourceTable AriaLabel="Application volume dependencies">
-                <thead>
-                    <tr>
-                        <th>Volume</th>
-                        <th>Type</th>
-                        <th>Mount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var volume in VolumeDependencies)
-                    {
-                        <tr>
-                            <td>
-                                <a class="resource-link" href="@ResourceManagerRoutes.ResourceDetails(volume.Id)">
-                                    @ResourceDisplayLabels.GetLabel(volume)
-                                </a>
-                            </td>
-                            <td>@volume.EffectiveTypeId</td>
-                            <td>not projected</td>
+                            <td>@VolumeReference(mount)</td>
+                            <td>@mount.Mount</td>
+                            <td>@mount.Access</td>
+                            <td>@mount.Status</td>
                         </tr>
                     }
                 </tbody>
@@ -83,7 +60,7 @@ else
         else
         {
             <EmptyState Title="No mounted storage"
-                        Message="No volume mounts or volume dependencies are projected for this resource." />
+                        Message="No volume mounts or storage dependencies are declared for this resource." />
         }
     </section>
 }
@@ -95,7 +72,7 @@ else
     private Resource? Application { get; set; }
     private IReadOnlyDictionary<string, Resource> ResourcesById { get; set; } =
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
-    private IReadOnlyList<ResourceVolumeMount> VolumeMounts { get; set; } = [];
+    private IReadOnlyList<ApplicationStorageMountView> StorageMounts { get; set; } = [];
     private IReadOnlyList<Resource> VolumeDependencies { get; set; } = [];
     private bool IsLoading { get; set; }
 
@@ -117,7 +94,7 @@ else
             if (Application is null ||
                 !BuiltInProviderResourceUiTypes.IsApplicationResource(Application.EffectiveTypeId))
             {
-                VolumeMounts = [];
+                StorageMounts = [];
                 VolumeDependencies = [];
                 ResourcesById = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
                 return;
@@ -129,7 +106,7 @@ else
                 StringComparer.OrdinalIgnoreCase);
 
             var orchestration = await OrchestrationCatalog.GetSnapshotAsync();
-            VolumeMounts = orchestration.Workloads.TryGetValue(Application.Id, out var workload)
+            var volumeMounts = orchestration.Workloads.TryGetValue(Application.Id, out var workload)
                 ? workload.WorkloadVolumeMounts
                     .OrderBy(mount => mount.NormalizedTargetPath, StringComparer.OrdinalIgnoreCase)
                     .ToArray()
@@ -142,6 +119,8 @@ else
                 .Where(BuiltInProviderResourceUiTypes.IsVolumeResource)
                 .OrderBy(resource => ResourceDisplayLabels.GetLabel(resource), StringComparer.OrdinalIgnoreCase)
                 .ToArray();
+
+            StorageMounts = CreateStorageMountRows(volumeMounts, VolumeDependencies);
         }
         finally
         {
@@ -151,11 +130,19 @@ else
 
     private string GetSummaryMessage()
     {
-        if (VolumeMounts.Count > 0)
+        if (StorageMounts.Count > 0)
         {
-            return VolumeMounts.Count == 1
-                ? "1 volume mount is projected from the runtime workload descriptor."
-                : $"{VolumeMounts.Count} volume mounts are projected from the runtime workload descriptor.";
+            var projectedCount = StorageMounts.Count(mount => mount.HasProjectedMount);
+            if (projectedCount == StorageMounts.Count)
+            {
+                return StorageMounts.Count == 1
+                    ? "1 volume mount is projected from the runtime workload descriptor."
+                    : $"{StorageMounts.Count} volume mounts are projected from the runtime workload descriptor.";
+            }
+
+            return StorageMounts.Count == 1
+                ? "1 attached volume is declared for this resource; mount target details are not available yet."
+                : $"{StorageMounts.Count} attached volumes are declared for this resource; {StorageMounts.Count - projectedCount} do not expose mount target details yet.";
         }
 
         if (VolumeDependencies.Count > 0)
@@ -165,12 +152,54 @@ else
                 : $"{VolumeDependencies.Count} volume dependencies are declared for this resource.";
         }
 
-        return "No mounted storage is projected for this application resource.";
+        return "No mounted storage is declared for this application resource.";
     }
 
-    private RenderFragment VolumeReference(string volumeReference) => builder =>
+    private IReadOnlyList<ApplicationStorageMountView> CreateStorageMountRows(
+        IReadOnlyList<ResourceVolumeMount> projectedMounts,
+        IReadOnlyList<Resource> declaredVolumes)
     {
-        if (ResourcesById.GetValueOrDefault(volumeReference) is { } volume)
+        var rows = new List<ApplicationStorageMountView>();
+        var projectedVolumeReferences = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var materialization = GetMountMaterializationLabel();
+
+        foreach (var mount in projectedMounts)
+        {
+            projectedVolumeReferences.Add(mount.NormalizedVolumeReference);
+            rows.Add(new(
+                mount.NormalizedVolumeReference,
+                ResourcesById.GetValueOrDefault(mount.NormalizedVolumeReference),
+                mount.NormalizedTargetPath,
+                mount.ReadOnly ? "Read-only" : "Read/write",
+                materialization,
+                HasProjectedMount: true));
+        }
+
+        foreach (var volume in declaredVolumes)
+        {
+            if (projectedVolumeReferences.Contains(volume.Id))
+            {
+                continue;
+            }
+
+            rows.Add(new(
+                volume.Id,
+                volume,
+                "mount target unavailable",
+                "declared dependency",
+                materialization,
+                HasProjectedMount: false));
+        }
+
+        return rows
+            .OrderBy(row => ResourceDisplayLabels.GetLabel(row.Volume, row.VolumeReference), StringComparer.OrdinalIgnoreCase)
+            .ThenBy(row => row.Mount, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private RenderFragment VolumeReference(ApplicationStorageMountView mount) => builder =>
+    {
+        if (mount.Volume is { } volume)
         {
             builder.OpenElement(0, "a");
             builder.AddAttribute(1, "class", "resource-link");
@@ -180,12 +209,20 @@ else
             return;
         }
 
-        builder.AddContent(4, volumeReference);
+        builder.AddContent(4, mount.VolumeReference);
     };
 
     private string GetMountMaterializationLabel() =>
         Application is not null &&
         ResourceVolumeMountDisplay.GetMaterializationSummary(Application) is { } materialization
             ? materialization
-            : "not projected";
+            : "declared";
+
+    private sealed record ApplicationStorageMountView(
+        string VolumeReference,
+        Resource? Volume,
+        string Mount,
+        string Access,
+        string Status,
+        bool HasProjectedMount);
 }

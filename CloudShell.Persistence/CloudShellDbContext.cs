@@ -19,6 +19,8 @@ public sealed class CloudShellDbContext(DbContextOptions<CloudShellDbContext> op
 
     internal DbSet<TelemetryMetricPointEntity> TelemetryMetricPoints => Set<TelemetryMetricPointEntity>();
 
+    internal DbSet<UsageSampleEntity> UsageSamples => Set<UsageSampleEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ResourceGroupEntity>(entity =>
@@ -124,6 +126,22 @@ public sealed class CloudShellDbContext(DbContextOptions<CloudShellDbContext> op
             entity.HasIndex(point => point.ResourceId);
             entity.HasIndex(point => point.Name);
             entity.HasIndex(point => point.Timestamp);
+        });
+
+        modelBuilder.Entity<UsageSampleEntity>(entity =>
+        {
+            entity.ToTable("UsageSamples");
+            entity.HasKey(sample => sample.Id);
+            entity.Property(sample => sample.Name).HasMaxLength(300).IsRequired();
+            entity.Property(sample => sample.ResourceId).HasMaxLength(500).IsRequired();
+            entity.Property(sample => sample.Timestamp)
+                .HasConversion(new DateTimeOffsetToBinaryConverter());
+            entity.Property(sample => sample.Unit).HasMaxLength(100);
+            entity.Property(sample => sample.AttributesJson).IsRequired();
+            entity.HasIndex(sample => sample.ResourceId);
+            entity.HasIndex(sample => sample.Name);
+            entity.HasIndex(sample => sample.Timestamp);
+            entity.HasIndex(sample => new { sample.ResourceId, sample.Name, sample.Timestamp });
         });
     }
 }

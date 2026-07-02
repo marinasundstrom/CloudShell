@@ -137,6 +137,7 @@ internal static class CommandLineParser
         var command = new ControlPlaneStartCommand(
             options.ReadString("--state-dir", DefaultStateDirectory),
             options.ReadOptionalString("--host-project"),
+            options.ReadOptionalString("--data-dir"),
             options.ReadUri("--url", DefaultControlPlaneUrl),
             options.ReadOptionalString("--bearer-token") ??
                 Environment.GetEnvironmentVariable("CLOUDSHELL_CONTROL_PLANE_TOKEN"),
@@ -195,6 +196,7 @@ internal static class CommandLineParser
                 Environment.GetEnvironmentVariable("CLOUDSHELL_CONTROL_PLANE_TOKEN"),
             options.ReadFlag("--start"),
             options.ReadOptionalString("--host-project"),
+            options.ReadOptionalString("--data-dir"),
             options.ReadUri("--url", DefaultControlPlaneUrl),
             options.ReadFlag("--no-build"),
             options.ReadInt("--timeout-seconds", DefaultTimeoutSeconds),

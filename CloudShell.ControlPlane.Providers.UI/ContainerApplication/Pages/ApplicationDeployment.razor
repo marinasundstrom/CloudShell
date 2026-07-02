@@ -1,6 +1,6 @@
 @using Microsoft.JSInterop
 @using System.Globalization
-@inject IContainerApplicationHistoryOperations ContainerHistory
+@inject IResourceDeploymentManager DeploymentManager
 @inject IResourceManager ResourceManager
 @inject IResourceEventManager ResourceEvents
 @inject IJSRuntime JS
@@ -16,36 +16,36 @@ else
         <div class="blade-section-header">
             <div>
                 <h3>Current image</h3>
-                <p>@GetCurrentDeploymentSummary(Resource)</p>
+                <p>@GetCurrentDeploymentSummary()</p>
             </div>
-            <span class="@GetDeploymentStatusCssClass(Resource)">
-                @GetDeploymentStatusLabel(Resource)
+            <span class="@GetDeploymentStatusCssClass()">
+                @GetDeploymentStatusLabel()
             </span>
         </div>
 
         <div class="container-app-deployment-summary">
             <div class="container-app-deployment-primary">
                 <small>Running image</small>
-                <strong>@GetCurrentContainerImage(Resource)</strong>
+                <strong>@GetCurrentContainerImage()</strong>
                 <span>@GetLatestDeploymentLine()</span>
             </div>
             <dl class="container-app-deployment-metrics">
                 <div>
                     <dt>Capacity</dt>
-                    <dd>@GetDeploymentCapacity(Resource)</dd>
+                    <dd>@GetDeploymentCapacity()</dd>
                 </div>
                 <div>
                     <dt>Mode</dt>
-                    <dd>@GetScalingMode(Resource)</dd>
+                    <dd>@GetScalingMode()</dd>
                 </div>
                 <div>
                     <dt>Materialized</dt>
-                    <dd>@GetMaterializedSummary(Resource)</dd>
+                    <dd>@GetMaterializedSummary()</dd>
                 </div>
             </dl>
         </div>
 
-        @if (GetDeploymentStatusDescription(Resource) is { Length: > 0 } statusDescription)
+        @if (GetDeploymentStatusDescription() is { Length: > 0 } statusDescription)
         {
             <ProcedureMessage Message="@statusDescription"
                               Compact="true" />
@@ -112,13 +112,13 @@ else
         </div>
         <dl class="detail-list">
             <dt>Requested replicas</dt>
-            <dd>@GetDeploymentRequestedReplicas(Resource!)</dd>
+            <dd>@GetDeploymentRequestedReplicas()</dd>
             <dt>Materialized replicas</dt>
-            <dd>@GetDeploymentMaterializedReplicas(Resource!)</dd>
+            <dd>@GetDeploymentMaterializedReplicas()</dd>
             <dt>Orchestrator service</dt>
-            <dd>@GetDeploymentService(Resource!)</dd>
+            <dd>@GetDeploymentService()</dd>
             <dt>Replica group</dt>
-            <dd>@GetReplicaGroup(Resource!)</dd>
+            <dd>@GetReplicaGroup()</dd>
         </dl>
     </section>
 
@@ -152,8 +152,9 @@ else
     [Parameter]
     public string? ResourceId { get; set; }
 
-    private IReadOnlyList<ApplicationContainerDeployment> Deployments { get; set; } = [];
+    private IReadOnlyList<ResourceDeploymentRecord> DeploymentRecords { get; set; } = [];
     private IReadOnlyList<ResourceEvent> DeploymentEvents { get; set; } = [];
+    private IReadOnlyList<Resource> MaterializedReplicas { get; set; } = [];
     private Resource? Resource { get; set; }
     private ResourceOperationCapabilities Capabilities { get; set; } =
         ResourceOperationCapabilities.None(string.Empty);
@@ -162,6 +163,11 @@ else
     private int DeploymentRequestedReplicas { get; set; } = 1;
     private string? ImageDeploymentMessage { get; set; }
     private bool IsDeploying { get; set; }
+
+    private ResourceDeploymentRecord? LatestDeployment => DeploymentRecords.FirstOrDefault();
+
+    private ResourceDeploymentRecord? ActiveDeployment =>
+        DeploymentRecords.FirstOrDefault(record => record.Status == ResourceOrchestratorDeploymentStatus.Active);
 
     private bool CanEditDeployment =>
         Resource is not null &&
@@ -178,12 +184,15 @@ else
         Resource = string.IsNullOrWhiteSpace(ResourceId)
             ? null
             : await ResourceManager.GetResourceAsync(ResourceId);
-        Deployments = string.IsNullOrWhiteSpace(ResourceId)
+        DeploymentRecords = string.IsNullOrWhiteSpace(ResourceId)
             ? []
-            : ContainerHistory.GetContainerDeployments(ResourceId);
+            : await LoadDeploymentRecordsAsync(ResourceId);
         DeploymentEvents = string.IsNullOrWhiteSpace(ResourceId)
             ? []
             : await LoadDeploymentEventsAsync(ResourceId);
+        MaterializedReplicas = Resource is null
+            ? []
+            : await LoadMaterializedReplicasAsync(Resource.Id);
         Capabilities = Resource is null
             ? ResourceOperationCapabilities.None(ResourceId ?? string.Empty)
             : await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
@@ -208,7 +217,7 @@ else
         }
 
         CurrentDeploymentResourceId = Resource.Id;
-        DeploymentImage = GetCurrentContainerImage(Resource);
+        DeploymentImage = GetRequestedContainerImage(Resource);
         DeploymentRequestedReplicas = GetDeploymentRequestedReplicasValue(Resource);
         ImageDeploymentMessage = null;
     }
@@ -248,9 +257,10 @@ else
             if (updatedResource is not null)
             {
                 Resource = updatedResource;
-                Deployments = ContainerHistory.GetContainerDeployments(updatedResource.Id);
+                DeploymentRecords = await LoadDeploymentRecordsAsync(updatedResource.Id);
                 DeploymentEvents = await LoadDeploymentEventsAsync(updatedResource.Id);
-                DeploymentImage = GetCurrentContainerImage(Resource);
+                MaterializedReplicas = await LoadMaterializedReplicasAsync(updatedResource.Id);
+                DeploymentImage = GetRequestedContainerImage(Resource);
                 DeploymentRequestedReplicas = GetDeploymentRequestedReplicasValue(Resource);
                 CurrentDeploymentResourceId = Resource.Id;
             }
@@ -267,22 +277,25 @@ else
 
     private string GetLatestDeploymentLine()
     {
-        var latest = Deployments.FirstOrDefault();
+        var latest = LatestDeployment;
         if (latest is null)
         {
-            return "No image deployment has been recorded yet.";
+            return MaterializedReplicas.Count > 0
+                ? "Runtime replicas are materialized; no deployment record is available."
+                : "No image deployment has been recorded yet.";
         }
 
-        var actor = string.IsNullOrWhiteSpace(latest.TriggeredBy)
+        var actor = string.IsNullOrWhiteSpace(latest.TriggeredBy ?? latest.ProvisionedBy)
             ? "system"
-            : latest.TriggeredBy;
+            : latest.TriggeredBy ?? latest.ProvisionedBy;
+        var timestamp = latest.CompletedAt ?? latest.StartedAt;
         return string.Create(
             CultureInfo.CurrentCulture,
-            $"Last deployed {latest.CreatedAt.ToLocalTime():g} by {actor}.");
+            $"Last deployment {FormatDeploymentStatus(latest.Status).ToLowerInvariant()} {timestamp.ToLocalTime():g} by {actor}.");
     }
 
-    private static string GetCurrentDeploymentSummary(Resource resource) =>
-        IsReplicaModeEnabled(resource)
+    private string GetCurrentDeploymentSummary() =>
+        Resource is not null && IsReplicaModeEnabled(Resource)
             ? "This app is served by a materialized replica group. Revision and replica details are available when needed."
             : "This app is served by a single runtime instance. Revision details are available when needed.";
 
@@ -291,51 +304,126 @@ else
             ? "Deploy a new image and optionally change requested capacity for the next running state."
             : "Deploy a new image for this app without treating the update as a manual restart.";
 
-    private static string GetCurrentContainerImage(Resource resource) =>
+    private string GetCurrentContainerImage() =>
+        GetDeploymentImage(ActiveDeployment) ??
+        (Resource is null ? null : GetRequestedContainerImage(Resource)) ??
+        GetDeploymentImage(LatestDeployment) ??
+        string.Empty;
+
+    private static string GetRequestedContainerImage(Resource resource) =>
         resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerImage) ?? string.Empty;
 
-    private static string GetDeploymentService(Resource resource) =>
-        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentServiceId) ?? "not projected";
+    private string GetDeploymentService() =>
+        ActiveDeployment?.ServiceId ??
+        LatestDeployment?.ServiceId ??
+        Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentServiceId) ??
+        GetMaterializedReplicaAttribute(ResourceAttributeNames.DeploymentServiceId) ??
+        GetInferredDeploymentServiceId() ??
+        "not observed";
 
-    private static string GetReplicaGroup(Resource resource) =>
-        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentReplicaGroupId) ?? "not projected";
+    private string GetReplicaGroup() =>
+        ActiveDeployment?.ReplicaGroup?.Id ??
+        LatestDeployment?.ReplicaGroup?.Id ??
+        Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentReplicaGroupId) ??
+        GetMaterializedReplicaAttribute(ResourceAttributeNames.DeploymentReplicaGroupId) ??
+        GetInferredReplicaGroupId() ??
+        "not observed";
 
-    private static string GetScalingMode(Resource resource) =>
-        IsReplicaModeEnabled(resource) ? "Replicated" : "Single instance";
+    private string? GetMaterializedReplicaAttribute(string attributeName) =>
+        MaterializedReplicas
+            .Select(replica => replica.ResourceAttributes.GetValueOrDefault(attributeName))
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
-    private static string GetDeploymentCapacity(Resource resource) =>
-        IsReplicaModeEnabled(resource)
-            ? $"{GetDeploymentMaterializedReplicas(resource)} of {GetDeploymentRequestedReplicas(resource)} replica slots occupied"
+    private string? GetInferredDeploymentServiceId() =>
+        Resource is not null && MaterializedReplicas.Count > 0
+            ? ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(Resource.Id)
+            : null;
+
+    private string? GetInferredReplicaGroupId()
+    {
+        var serviceId = GetInferredDeploymentServiceId();
+        if (string.IsNullOrWhiteSpace(serviceId))
+        {
+            return null;
+        }
+
+        return ResourceOrchestratorReplicaGroups.CreateReplicaGroupId(
+            serviceId,
+            GetInferredRuntimeRevisionId());
+    }
+
+    private string? GetInferredRuntimeRevisionId() =>
+        GetMaterializedReplicaAttribute(ResourceAttributeNames.RuntimeRevision) ??
+        Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentRevision) ??
+        Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerRevision);
+
+    private string GetScalingMode() =>
+        Resource is not null && IsReplicaModeEnabled(Resource) ? "Replicated" : "Single instance";
+
+    private string GetDeploymentCapacity() =>
+        Resource is not null && IsReplicaModeEnabled(Resource)
+            ? $"{GetDeploymentMaterializedReplicas()} of {GetDeploymentRequestedReplicas()} replica slots occupied"
             : "Single instance";
 
-    private static string GetMaterializedSummary(Resource resource) =>
-        IsReplicaModeEnabled(resource)
-            ? GetDeploymentMaterializedReplicas(resource)
-            : "1";
+    private string GetMaterializedSummary() =>
+        Resource is not null && IsReplicaModeEnabled(Resource)
+            ? GetDeploymentMaterializedReplicas()
+            : GetSingleInstanceMaterializedSummary();
 
-    private static string GetDeploymentRequestedReplicas(Resource resource) =>
-        IsReplicaModeEnabled(resource)
-            ? GetDeploymentRequestedReplicasValue(resource).ToString(CultureInfo.InvariantCulture)
+    private string GetSingleInstanceMaterializedSummary() =>
+        Resource?.State switch
+        {
+            ResourceState.Running or ResourceState.Starting => "1",
+            _ => "0"
+        };
+
+    private string GetDeploymentRequestedReplicas() =>
+        Resource is not null && IsReplicaModeEnabled(Resource)
+            ? GetDeploymentRequestedReplicasValue(Resource).ToString(CultureInfo.InvariantCulture)
             : "not enabled";
 
-    private static int GetDeploymentRequestedReplicasValue(Resource resource) =>
+    private int GetDeploymentRequestedReplicasValue(Resource resource) =>
+        ActiveDeployment?.ReplicaGroup?.RequestedReplicas ??
+        LatestDeployment?.ReplicaGroup?.RequestedReplicas ??
+        GetRequestedReplicasFromDefinition(ActiveDeployment) ??
+        GetRequestedReplicasFromDefinition(LatestDeployment) ??
         TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentRequestedReplicaSlots) ??
         TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentRequestedReplicas) ??
         TryGetReplicaCount(resource, ResourceAttributeNames.ContainerReplicas) ??
         1;
 
-    private static int? TryGetReplicaCount(Resource resource, string attributeName) =>
+    private static int? TryGetReplicaCount(Resource? resource, string attributeName) =>
+        resource is not null &&
         resource.ResourceAttributes.TryGetValue(attributeName, out var value) &&
         int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var replicas)
             ? Math.Max(1, replicas)
             : null;
 
-    private static string GetDeploymentMaterializedReplicas(Resource resource) =>
-        IsReplicaModeEnabled(resource)
-            ? resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentMaterializedReplicas) ??
-                resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentProjectedReplicas) ??
-                "0"
+    private string GetDeploymentMaterializedReplicas() =>
+        Resource is not null && IsReplicaModeEnabled(Resource)
+            ? GetDeploymentMaterializedReplicaCount().ToString(CultureInfo.InvariantCulture)
             : "not enabled";
+
+    private int GetDeploymentMaterializedReplicaCount()
+    {
+        if (MaterializedReplicas.Count > 0)
+        {
+            return MaterializedReplicas.Count;
+        }
+
+        return ActiveDeployment?.ReplicaGroup?.MaterializedReplicas ??
+            LatestDeployment?.ReplicaGroup?.MaterializedReplicas ??
+            TryGetReplicaCount(Resource, ResourceAttributeNames.DeploymentMaterializedReplicas, 0) ??
+            TryGetReplicaCount(Resource, ResourceAttributeNames.DeploymentProjectedReplicas, 0) ??
+            0;
+    }
+
+    private static int? TryGetReplicaCount(Resource? resource, string attributeName, int minimumCount) =>
+        resource is not null &&
+        resource.ResourceAttributes.TryGetValue(attributeName, out var value) &&
+        int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var replicas)
+            ? Math.Max(minimumCount, replicas)
+            : null;
 
     private static bool IsReplicaModeEnabled(Resource resource) =>
         string.Equals(
@@ -343,37 +431,130 @@ else
             "true",
             StringComparison.OrdinalIgnoreCase);
 
-    private static string GetDeploymentStatusLabel(Resource resource) =>
-        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentStatus) switch
+    private string GetDeploymentStatusLabel()
+    {
+        if (LatestDeployment is not null)
         {
-            "active" => "Running",
-            "applying" => "Deploying",
-            "failed" => "Needs attention",
-            "deleted" => "Removed",
-            "pending" => "Not running",
+            return FormatDeploymentStatus(LatestDeployment.Status);
+        }
+
+        if (MaterializedReplicas.Count > 0)
+        {
+            return "Running";
+        }
+
+        var projectedStatus = Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentStatus);
+        if (!string.IsNullOrWhiteSpace(projectedStatus))
+        {
+            return projectedStatus switch
+            {
+                "active" => "Running",
+                "applying" => "Deploying",
+                "failed" => "Needs attention",
+                "deleted" => "Removed",
+                "pending" => "Not running",
+                _ => "Not deployed"
+            };
+        }
+
+        return Resource?.State switch
+        {
+            ResourceState.Running => "Running",
+            ResourceState.Starting => "Deploying",
+            ResourceState.Degraded => "Needs attention",
+            ResourceState.Stopped => "Not running",
+            ResourceState.Stopping => "Stopping",
             _ => "Not deployed"
         };
+    }
 
-    private static string GetDeploymentStatusCssClass(Resource resource) =>
-        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentStatus) switch
+    private string GetDeploymentStatusCssClass()
+    {
+        if (LatestDeployment is not null)
         {
-            "active" => "container-app-status-pill success",
-            "applying" => "container-app-status-pill info",
-            "failed" => "container-app-status-pill error",
-            "pending" => "container-app-status-pill warning",
+            return LatestDeployment.Status switch
+            {
+                ResourceOrchestratorDeploymentStatus.Active => "container-app-status-pill success",
+                ResourceOrchestratorDeploymentStatus.Applying => "container-app-status-pill info",
+                ResourceOrchestratorDeploymentStatus.Failed => "container-app-status-pill error",
+                ResourceOrchestratorDeploymentStatus.Pending => "container-app-status-pill warning",
+                _ => "container-app-status-pill"
+            };
+        }
+
+        if (MaterializedReplicas.Count > 0)
+        {
+            return "container-app-status-pill success";
+        }
+
+        var projectedStatus = Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentStatus);
+        if (!string.IsNullOrWhiteSpace(projectedStatus))
+        {
+            return projectedStatus switch
+            {
+                "active" => "container-app-status-pill success",
+                "applying" => "container-app-status-pill info",
+                "failed" => "container-app-status-pill error",
+                "pending" => "container-app-status-pill warning",
+                _ => "container-app-status-pill"
+            };
+        }
+
+        return Resource?.State switch
+        {
+            ResourceState.Running => "container-app-status-pill success",
+            ResourceState.Starting or ResourceState.Stopping => "container-app-status-pill info",
+            ResourceState.Degraded => "container-app-status-pill error",
+            ResourceState.Stopped => "container-app-status-pill warning",
             _ => "container-app-status-pill"
         };
+    }
 
-    private static string GetDeploymentStatusDescription(Resource resource) =>
-        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentStatus) switch
+    private string GetDeploymentStatusDescription()
+    {
+        if (LatestDeployment is not null)
         {
-            "active" => string.Empty,
-            "applying" => "CloudShell is applying this image to the selected container host.",
-            "failed" => "The latest image deployment failed. Check deployment events and logs for details.",
-            "pending" => "Start the app to materialize runtime instances.",
-            "deleted" => "The current runtime projection has been removed.",
+            return LatestDeployment.Status switch
+            {
+                ResourceOrchestratorDeploymentStatus.Active => string.Empty,
+                ResourceOrchestratorDeploymentStatus.Applying => "CloudShell is applying this image to the selected container host.",
+                ResourceOrchestratorDeploymentStatus.Failed => LatestDeployment.Error ??
+                    "The latest image deployment failed. Check deployment events and logs for details.",
+                ResourceOrchestratorDeploymentStatus.Pending => "Start the app to materialize runtime instances.",
+                ResourceOrchestratorDeploymentStatus.Deleted => "The current runtime projection has been removed.",
+                _ => string.Empty
+            };
+        }
+
+        if (MaterializedReplicas.Count > 0)
+        {
+            return string.Empty;
+        }
+
+        var projectedStatus = Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentStatus);
+        if (!string.IsNullOrWhiteSpace(projectedStatus))
+        {
+            return projectedStatus switch
+            {
+                "active" => string.Empty,
+                "applying" => "CloudShell is applying this image to the selected container host.",
+                "failed" => "The latest image deployment failed. Check deployment events and logs for details.",
+                "pending" => "Start the app to materialize runtime instances.",
+                "deleted" => "The current runtime projection has been removed.",
+                _ => "No runtime projection is available for this app yet."
+            };
+        }
+
+        return Resource?.State switch
+        {
+            ResourceState.Running => string.Empty,
+            ResourceState.Starting => "CloudShell is starting this container app.",
+            ResourceState.Stopping => "CloudShell is stopping this container app.",
+            ResourceState.Stopped => "Start the app to materialize runtime instances.",
+            ResourceState.Degraded => "The app is degraded. Check deployment events, health, and logs for details.",
             _ => "No runtime projection is available for this app yet."
         };
+    }
 
     private DeploymentReadinessView? GetDeploymentReadiness()
     {
@@ -399,7 +580,7 @@ else
                 "Image deployment preflight");
         }
 
-        var currentImage = GetCurrentContainerImage(Resource);
+        var currentImage = GetCurrentContainerImage();
         var replicaChangeRequested =
             IsReplicaModeEnabled(Resource) &&
             DeploymentRequestedReplicas != GetDeploymentRequestedReplicasValue(Resource);
@@ -435,6 +616,23 @@ else
             ? DeploymentImage
             : fieldValue)?.Trim() ?? string.Empty;
     }
+
+    private async Task<IReadOnlyList<ResourceDeploymentRecord>> LoadDeploymentRecordsAsync(string resourceId)
+    {
+        var records = await DeploymentManager.ListResourceDeploymentsAsync(new ResourceDeploymentQuery(
+            SourceResourceId: resourceId,
+            MaxRecords: 20));
+        return records
+            .OrderByDescending(record => record.StartedAt)
+            .ToArray();
+    }
+
+    private async Task<IReadOnlyList<Resource>> LoadMaterializedReplicasAsync(string resourceId) =>
+        (await ResourceManager.ListResourceChildrenAsync(resourceId))
+            .Where(IsReplicaResource)
+            .OrderBy(GetReplicaOrdinal)
+            .ThenBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
     private async Task<IReadOnlyList<ResourceEvent>> LoadDeploymentEventsAsync(string resourceId)
     {
@@ -486,6 +684,17 @@ else
             _ => "Deployment activity"
         };
 
+    private static string FormatDeploymentStatus(ResourceOrchestratorDeploymentStatus status) =>
+        status switch
+        {
+            ResourceOrchestratorDeploymentStatus.Active => "Running",
+            ResourceOrchestratorDeploymentStatus.Applying => "Deploying",
+            ResourceOrchestratorDeploymentStatus.Failed => "Needs attention",
+            ResourceOrchestratorDeploymentStatus.Deleted => "Removed",
+            ResourceOrchestratorDeploymentStatus.Pending => "Not running",
+            _ => status.ToString()
+        };
+
     private static string GetDeploymentEventCssClass(ResourceEvent resourceEvent) =>
         resourceEvent.Severity switch
         {
@@ -502,6 +711,46 @@ else
             ResourceSignalSeverity.Warning => new Icons.Regular.Size20.Warning(),
             _ => new Icons.Regular.Size20.Info()
         };
+
+    private static string? GetDeploymentImage(ResourceDeploymentRecord? deployment)
+    {
+        var service = deployment?.Definition?.DeploymentServices.FirstOrDefault();
+        if (service?.ServiceAttributes.TryGetValue(ResourceAttributeNames.ContainerImage, out var image) == true &&
+            !string.IsNullOrWhiteSpace(image))
+        {
+            return image;
+        }
+
+        return null;
+    }
+
+    private static int? GetRequestedReplicasFromDefinition(ResourceDeploymentRecord? deployment)
+    {
+        var replicas = deployment?.Definition?.DeploymentServices
+            .SelectMany(service => service.ReplicaGroupDefinitions)
+            .Select(definition => definition.RequestedReplicas)
+            .FirstOrDefault(replicas => replicas > 0);
+        return replicas is > 0 ? replicas : null;
+    }
+
+    private static bool IsReplicaResource(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, "runtime.container", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(
+            GetAttribute(resource, ResourceAttributeNames.RuntimeKind, string.Empty),
+            "containerReplica",
+            StringComparison.OrdinalIgnoreCase);
+
+    private static int GetReplicaOrdinal(Resource resource) =>
+        int.TryParse(
+            GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaOrdinal, string.Empty),
+            out var ordinal)
+            ? ordinal
+            : int.MaxValue;
+
+    private static string GetAttribute(Resource resource, string key, string fallback) =>
+        resource.ResourceAttributes.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
 
     private sealed record DeploymentReadinessView(
         string Status,

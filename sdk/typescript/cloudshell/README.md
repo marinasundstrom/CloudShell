@@ -34,7 +34,8 @@ For local integration with the current CLI:
 ```ts
 await app.apply({
   cliProject: "../../CloudShell.Cli/CloudShell.Cli.csproj",
-  controlPlaneUrl: "http://127.0.0.1:5097"
+  controlPlaneUrl: "http://127.0.0.1:5097",
+  dataDir: ".cloudshell"
 });
 ```
 

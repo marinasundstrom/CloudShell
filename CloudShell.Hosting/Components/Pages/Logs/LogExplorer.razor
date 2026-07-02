@@ -646,17 +646,20 @@ else if (ShowHeading)
             var inlineLogSources = await LogManager.ListLogSourcesAsync(query);
             VisibleLogSources = inlineLogSources;
             LogResourceFilters = [];
-            LogResourcesById = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
-            SelectedResource = string.IsNullOrWhiteSpace(ResourceId)
-                ? null
-                : await ResourceManager.GetResourceAsync(ResourceId);
-            if (SelectedResource is not null)
-            {
-                LogResourcesById = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase)
-                {
-                    [SelectedResource.Id] = SelectedResource
-                };
-            }
+            var inlineResourceIds = inlineLogSources
+                .SelectMany(log => new[] { log.ResourceId, log.ProducerResourceId })
+                .Append(ResourceId)
+                .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var inlineResources = inlineResourceIds.Length == 0
+                ? []
+                : await ResourceManager.ListResourcesAsync();
+            LogResourcesById = ResourceCollectionProjection.ToDictionaryById(inlineResources);
+            SelectedResource = !string.IsNullOrWhiteSpace(ResourceId) &&
+                LogResourcesById.TryGetValue(ResourceId, out var inlineSelectedResource)
+                    ? inlineSelectedResource
+                    : null;
             return;
         }
 
@@ -823,6 +826,10 @@ else if (ShowHeading)
     }
 
     private string GetLogSourceLabel(LogSource log) =>
+        !string.IsNullOrWhiteSpace(log.ProducerResourceId) &&
+        LogResourcesById.TryGetValue(log.ProducerResourceId, out var producerResource)
+            ? GetResourceLabel(producerResource)
+            :
         !string.IsNullOrWhiteSpace(log.ResourceId) &&
         LogResourcesById.TryGetValue(log.ResourceId, out var resource)
             ? GetResourceLabel(resource)
@@ -1422,7 +1429,7 @@ else if (ShowHeading)
         }
 
         return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-            "/observability/traces",
+            "/telemetry/traces",
             query);
     }
 

@@ -50,6 +50,7 @@ public sealed class CloudShellDistributedApplicationTests
             {
                 ControlPlaneUrl = new Uri("http://127.0.0.1:5200"),
                 StateDirectory = ".cloudshell",
+                DataDirectory = ".cloudshell/data",
                 StartHost = true,
                 HostProjectPath = "Host/CloudShell.Host.csproj",
                 HostUrl = new Uri("http://127.0.0.1:5200"),
@@ -70,6 +71,8 @@ public sealed class CloudShellDistributedApplicationTests
                 ".cloudshell",
                 "--host-project",
                 "Host/CloudShell.Host.csproj",
+                "--data-dir",
+                ".cloudshell/data",
                 "--url",
                 "http://127.0.0.1:5200",
                 "--timeout-seconds",

@@ -37,10 +37,10 @@ else
             <dd>@Resource.Visibility</dd>
             <dt>Resource membership</dt>
             <dd>@Resource.ResourceGraphMembership</dd>
-            <dt>Revision</dt>
+            <dt>Resource version</dt>
             <dd>@Resource.Version</dd>
             <dt>Last updated</dt>
-            <dd>@Resource.LastUpdated.ToLocalTime().ToString("g")</dd>
+            <dd>@FormatResourceTimestamp(Resource.LastUpdated)</dd>
         </dl>
     </section>
 
@@ -177,6 +177,13 @@ else
 
     private string GetCapabilityOperationSummary() =>
         $"{Resource?.ResourceCapabilities.Count ?? 0} capabilities and {Resource?.ResourceActions.Count ?? 0} operations are projected.";
+
+    private static string FormatResourceTimestamp(DateTimeOffset timestamp) =>
+        timestamp != default &&
+        timestamp != DateTimeOffset.MinValue &&
+        timestamp != DateTimeOffset.UnixEpoch
+            ? timestamp.ToLocalTime().ToString("g")
+            : "not observed";
 
     private static string FormatAttributeValue(string name, string value) =>
         IsSensitiveAttribute(name)

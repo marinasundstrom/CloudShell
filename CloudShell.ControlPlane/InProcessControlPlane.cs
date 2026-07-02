@@ -3,6 +3,7 @@ using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Abstractions.Usage;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Deployment;
 using CloudShell.ControlPlane.ResourceManager.Health;
@@ -35,6 +36,7 @@ public sealed class InProcessControlPlane(
     ILogStore logs,
     ITraceStore traces,
     IMetricStore metrics,
+    IUsageStore usage,
     IResourceHealthStore resourceHealth,
     IResourceRecoveryStore resourceRecovery,
     ResourceHealthProbeService healthProbes,
@@ -1320,6 +1322,61 @@ public sealed class InProcessControlPlane(
         return Task.CompletedTask;
     }
 
+    public Task<IReadOnlyList<UsageSample>> ListUsageSamplesAsync(
+        UsageQuery? query = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        EnsureCanReadUsage();
+        var readableResourceIds = GetReadableResourceIds();
+        if (query?.ResourceId is not null &&
+            !readableResourceIds.Contains(query.ResourceId))
+        {
+            return Task.FromResult<IReadOnlyList<UsageSample>>([]);
+        }
+
+        return Task.FromResult<IReadOnlyList<UsageSample>>(usage.GetSamples(
+            query?.ResourceId,
+            query?.UsageName,
+            query?.MaxSamples ?? 200,
+            query?.From,
+            query?.To)
+            .Where(sample => readableResourceIds.Contains(sample.ResourceId))
+            .ToArray());
+    }
+
+    public Task<IReadOnlyList<UsageStatistic>> ListUsageStatisticsAsync(
+        UsageStatisticsQuery? query = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        EnsureCanReadUsage();
+        var readableResourceIds = GetReadableResourceIds();
+        if (query?.ResourceId is not null &&
+            !readableResourceIds.Contains(query.ResourceId))
+        {
+            return Task.FromResult<IReadOnlyList<UsageStatistic>>([]);
+        }
+
+        return Task.FromResult<IReadOnlyList<UsageStatistic>>(usage.GetStatistics(
+            query?.ResourceId,
+            query?.UsageName,
+            query?.From,
+            query?.To,
+            query?.MaxStatistics ?? 200)
+            .Where(statistic => readableResourceIds.Contains(statistic.ResourceId))
+            .ToArray());
+    }
+
+    public Task RecordUsageSamplesAsync(
+        IEnumerable<UsageSample> samples,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        usage.AddSamples(samples);
+        return Task.CompletedTask;
+    }
+
     public async Task<IReadOnlyDictionary<string, ResourceHealthSummary>> ListResourceHealthAsync(
         CancellationToken cancellationToken = default)
     {
@@ -2546,6 +2603,11 @@ public sealed class InProcessControlPlane(
         EnsureHasAnyPermission(
             ObservabilityAuthorization.MetricsReadPermissions,
             "metrics");
+
+    private void EnsureCanReadUsage() =>
+        EnsureHasAnyPermission(
+            UsageAuthorization.UsageReadPermissions,
+            "usage");
 
     private void EnsureHasAnyPermission(
         IReadOnlyList<string> permissions,

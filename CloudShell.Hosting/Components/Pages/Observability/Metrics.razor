@@ -1,3 +1,4 @@
+@page "/telemetry/metrics"
 @page "/observability/metrics"
 @rendermode InteractiveServer
 @inject ICloudShellAuthorizationService Authorization
@@ -9,7 +10,7 @@
 @if (!Authorization.CanReadMetrics())
 {
     <EmptyState Title="@L["Access denied"].Value"
-                Message="@L["Your identity does not have permission to view observability metrics."].Value" />
+                Message="@L["Your identity does not have permission to view telemetry metrics."].Value" />
 }
 else
 {

@@ -121,6 +121,11 @@ public static class CloudShellPermissions
         }
     }
 
+    public static class Usage
+    {
+        public const string Read = "usage.read";
+    }
+
     public static class Network
     {
         public static class Actions

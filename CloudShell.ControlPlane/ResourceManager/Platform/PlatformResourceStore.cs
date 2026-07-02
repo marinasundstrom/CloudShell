@@ -1,5 +1,7 @@
 using System.Text.Json;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
 namespace CloudShell.ControlPlane.ResourceManager.Platform;
@@ -17,9 +19,20 @@ public sealed class PlatformResourceStore
 
     public PlatformResourceStore(
         PlatformResourceOptions options,
+        IHostEnvironment environment) :
+        this(options, new ConfigurationBuilder().Build(), environment)
+    {
+    }
+
+    public PlatformResourceStore(
+        PlatformResourceOptions options,
+        IConfiguration configuration,
         IHostEnvironment environment)
     {
-        _definitionsPath = ResolvePath(options.DefinitionsPath, environment.ContentRootPath);
+        _definitionsPath = CloudShellDataDirectory.ResolvePath(
+            options.DefinitionsPath,
+            configuration,
+            environment);
         _definitions = LoadDefinitions();
 
         foreach (var network in options.DeclaredNetworks)
@@ -684,11 +697,6 @@ public sealed class PlatformResourceStore
             ? $"{prefix}:{Guid.NewGuid():N}"
             : $"{prefix}:{slug}";
     }
-
-    private static string ResolvePath(string path, string contentRootPath) =>
-        Path.IsPathRooted(path)
-            ? path
-            : Path.GetFullPath(path, contentRootPath);
 
     private sealed record PlatformResourceDefinitions(
         IReadOnlyList<NetworkResourceDefinition> Networks,

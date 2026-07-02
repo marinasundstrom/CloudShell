@@ -561,7 +561,17 @@ listed here before pulling in broader proposal work.
    monitoring subscriptions for
    split-hosted UIs are a later Control Plane API design question. Keep
    shared Telemetry pages for cross-resource investigation
-   instead of forcing normal per-resource work through global views. Do not
+   instead of forcing normal per-resource work through global views.
+   Do not
+   mix usage reporting into Telemetry: usage is a separate shell workspace
+   backed by samples recorded from monitoring and future provider-owned usage
+   events. The first usage slices add in-memory recording, Control Plane
+   API/client access, environment and resource views, auto-refresh, short-range
+   trend projections, and opt-in database-backed usage sample history with
+   per-resource retention. Next usage work should improve summary-first
+   dashboards, drill-down views by resource or usage metric, and trend
+   projection quality instead of displaying every metric with equal weight.
+   Do not
    start broad new shell areas before the supported samples are stable. The
    recent shell-composition migration provides useful infrastructure, but new
    composition/router work should wait unless it is needed to stabilize the
@@ -584,7 +594,11 @@ listed here before pulling in broader proposal work.
 7. Persisted-state handoff: keep `Persist()` focused on resource and
    provider-owned configuration persistence, keep deployment separate, and make
    transient startup declarations visible enough that developers understand
-   which UI changes are process-scoped.
+   which UI changes are process-scoped. Launcher/profile split scenarios also
+   need a host configuration and data-root handoff so a development launcher
+   can place CloudShell databases, data files, and provider-owned local state
+   next to the launcher project instead of implicitly resolving everything from
+   the built-in host profile content root.
 8. Stateful application foundation: continue the storage and volume-mapping
    path now that `cloudshell.storage`, `cloudshell.volume`, `AddVolume(...)`,
    and container app volume mounts exist. Runtime materialization diagnostics

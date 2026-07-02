@@ -22,6 +22,10 @@ on `git blame --follow`, and then by the broad type of change.
   Control Plane or UI hosting, plus `CloudShell.LocalDevelopmentHost` as the
   stable built-in Control Plane/UI/provider host profile used by launcher
   samples.
+- Added a launcher-friendly CloudShell data directory setting, CLI
+  `--data-dir` forwarding, and C#/TypeScript sample defaults so launched local
+  development hosts can keep databases and CloudShell-owned data files next to
+  the launcher project.
 - Added a reusable Resource Model containerization decorator path, enabled
   JavaScript app resources to project as Dockerfile-backed container apps with
   replica scaling, and split that flow into a dedicated JavaScript container
@@ -41,6 +45,116 @@ on `git blame --follow`, and then by the broad type of change.
   runtime service project from the repository root, so starting the sample
   Configuration Store resource no longer resolves a missing project under the
   sample host directory.
+- Updated local Docker container app ingress reconciliation to build Traefik
+  backends from the orchestrator-selected replica group when deployment
+  routing supplies one, keeping direct runtime behavior as the fallback.
+- Updated local Docker container app routing reconciliation to choose the
+  ingress endpoint from service-routing binding definitions when present,
+  while keeping the first HTTP endpoint as the direct-runtime fallback.
+- Added Resource Model graph validation for load-balancer routes that reference
+  undeclared entrypoints, surfacing the error before provider execution.
+- Extended Resource Model graph validation for load-balancer duplicate
+  entrypoints, duplicate route IDs, incompatible route protocols, and
+  conflicting route matches.
+- Added Resource Model graph validation for load-balancer route target
+  references, including missing targets, invalid addressing or relationship
+  metadata, declared type mismatches, and invalid backend resource types.
+- Added Resource Model graph validation for load-balancer route target endpoint
+  names when the target resource declares endpoint requests.
+- Updated container app Deployment, Revisions, Scale and replicas, and
+  Monitoring views to use Control Plane deployment records and live replica
+  resources instead of the empty pre-Resource Model history fallback, including
+  local-process replica memory metrics.
+- Added per-container-app replica slot reconciliation status to the Scale and
+  replicas view so materialized slots show repair, unhealthy, and last-result
+  state without requiring the global environment page.
+- Updated container app Scale and Monitoring empty-runtime states to report
+  stopped or not-yet-materialized replicas as zero or not observed instead of
+  old projection placeholders.
+- Updated container app Monitoring network fields to show when per-replica
+  network counters are not collected by the active runtime instead of
+  presenting them as missing values.
+- Updated container app Monitoring metric summaries and replica rows to show
+  missing CPU, memory, network, and process counters as not collected instead
+  of mixing missing values with zero totals.
+- Updated container app Monitoring configured replica counts to use the same
+  deployment-requested replica attributes as Deployment and Scale views.
+- Updated container app Monitoring revision summaries to infer the active
+  runtime revision from materialized replica resources when deployment
+  projection attributes are unavailable.
+- Added a separate Usage workspace with in-memory usage sample recording,
+  aggregate statistics queries, remote Control Plane API/client methods, and
+  environment-wide usage graphs with short-horizon trend projections.
+- Added automatic usage recording from resource monitoring snapshots so
+  provider-exposed CPU, memory, network, process, and other monitoring metrics
+  are retained as per-resource usage samples.
+- Surfaced Usage in sample shell menus and resource Management tabs, and
+  replaced the dashboard's log-style layout with usage-specific filters,
+  trend panels, and tables.
+- Added auto-refresh to the Usage dashboard and resource Usage tabs so newly
+  recorded usage samples and statistics update without leaving the view.
+- Added opt-in database-backed usage sample persistence with per-resource
+  retention so usage statistics can survive CloudShell host restarts.
+- Updated the Usage dashboard to prioritize CPU, memory, network, process,
+  and storage usage summaries and visually group priority trends by resource
+  before the full metric and sample detail tables.
+- Renamed the shell observability workspace to Telemetry with canonical
+  `/telemetry` routes while keeping the old `/observability` routes as
+  compatibility aliases.
+- Updated container app Deployment details to prefer the active deployment
+  record for the running image, service, and replica group while preserving the
+  latest deployment attempt status.
+- Updated container app Deployment runtime details to infer service and replica
+  group names from live materialized replica resources when deployment records
+  and projection attributes are unavailable.
+- Updated local Docker container app runtime replica resources to project
+  deployment service, replica group, and runtime revision attributes directly.
+- Updated local-process container app runtime replica resources to project the
+  same deployment service, replica group, and runtime revision attributes.
+- Updated local Docker and local-process container app replica telemetry to tag
+  runtime observability scopes and OTEL resource attributes with the active
+  deployment revision.
+- Centralized container app image revision ID generation so deployment records
+  and local runtime replica projections use the same hash convention.
+- Updated container app Revisions to infer the active revision from live
+  materialized replica resources when deployment history is not available.
+- Updated container app Revisions to fall back to the requested resource image
+  and live replica runtime revision when deployment record details are
+  incomplete.
+- Updated container app Deployment status to fall back to Resource Manager
+  resource state when deployment records and deployment projection attributes
+  are not available.
+- Fixed container app Deployment materialized/projected replica count parsing
+  so a projected value of zero remains zero instead of being clamped like a
+  requested replica count.
+- Updated application Storage views to show declared volume attachments as
+  storage rows when runtime workload mount details are not projected yet,
+  while still surfacing application-level mount materialization status.
+- Updated single-instance container app Deployment summaries to show zero
+  materialized runtime instances when the resource is not running or starting.
+- Updated the container app Deploy image form to initialize from the requested
+  resource image while the Current image summary continues to prefer the active
+  running deployment image.
+- Added empty deployment and replica-slot state manager fallbacks to the
+  built-in Resource Manager UI extension so container app tabs degrade cleanly
+  in custom hosts that do not register deployment services.
+- Reworded container app Deployment, Scale, Environment, and Storage empty
+  states to describe unobserved or undeclared runtime facts instead of old
+  projection placeholders.
+- Renamed the shared application Configuration version label from Revision to
+  Resource version so it is not confused with container app deployment or
+  runtime revisions.
+- Updated resource log source labels to prefer producer resources and marked
+  Docker container app replica logs with the replica producer resource, so
+  merged container app logs identify the emitting replica.
+- Updated Resource Manager timestamp rendering to treat unobserved Resource
+  Model sentinel timestamps as not observed instead of displaying 1970-era
+  update times.
+- Updated the Metrics tab to surface current resource monitoring snapshots
+  when no retained telemetry points exist, including replica monitoring
+  snapshots for replicated container apps.
+- Linked materialized container app replicas from the Monitoring and Scale
+  tabs to their runtime replica resource details.
 
 ### 2026-07-01
 

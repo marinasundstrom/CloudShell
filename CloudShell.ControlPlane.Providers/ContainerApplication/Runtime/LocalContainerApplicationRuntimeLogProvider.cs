@@ -66,7 +66,7 @@ public sealed class LocalContainerApplicationRuntimeLogProvider(
             Format: format,
             Capabilities: LogSourceCapabilities.Read,
             ResourceId: resource.OwnerResourceId ?? resource.ParentResourceId ?? resource.Id,
-            ProducerResourceId: resource.OwnerResourceId ?? resource.ParentResourceId ?? resource.Id,
+            ProducerResourceId: resource.Id,
             Description: "Runtime replica container logs.",
             Origin: ResourceLogSourceOrigin.ProviderProjected,
             Purpose: ResourceLogSourcePurpose.Default,

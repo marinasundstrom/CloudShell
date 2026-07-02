@@ -15,7 +15,7 @@ namespace CloudShell.Persistence.Migrations.CloudShell
         // If you encounter a merge conflict in the line below, it means you need to
         // discard one of the migration branches and recreate its migrations on top of
         // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-        public override string LatestMigrationId => "20260621102255_AddTelemetryPersistence";
+        public override string LatestMigrationId => "20260702164000_AddUsagePersistence";
 
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
@@ -296,6 +296,49 @@ namespace CloudShell.Persistence.Migrations.CloudShell
                     b.HasIndex("TraceId");
 
                     b.ToTable("TelemetryTraceSpans", (string)null);
+                });
+
+            modelBuilder.Entity("CloudShell.Persistence.UsageSampleEntity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AttributesJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResourceId")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Timestamp")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("Value")
+                        .HasColumnType("REAL");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    b.HasIndex("ResourceId");
+
+                    b.HasIndex("Timestamp");
+
+                    b.HasIndex("ResourceId", "Name", "Timestamp");
+
+                    b.ToTable("UsageSamples", (string)null);
                 });
 
             modelBuilder.Entity("CloudShell.Persistence.ResourceRegistrationEntity", b =>

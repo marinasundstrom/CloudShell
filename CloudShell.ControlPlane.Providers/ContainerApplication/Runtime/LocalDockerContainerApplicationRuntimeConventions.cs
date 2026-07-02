@@ -1,5 +1,7 @@
+using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.Configuration;
 using System.Globalization;
+using GraphResource = CloudShell.ResourceModel.Resource;
 
 namespace CloudShell.ControlPlane.Providers;
 
@@ -79,5 +81,20 @@ public static class LocalDockerContainerApplicationRuntimeConventions
             : Math.Max(1, mainEndpointPort + 100);
 
         return start + Math.Max(1, replica) - 1;
+    }
+
+    public static string ResolveReplicaGroupId(GraphResource resource) =>
+        ResourceOrchestratorReplicaGroups.CreateReplicaGroupId(
+            ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(resource.EffectiveResourceId),
+            ResolveRuntimeRevisionId(resource));
+
+    public static string ResolveRuntimeRevisionId(GraphResource resource)
+    {
+        var image = resource.Attributes.GetString(ContainerApplicationResourceTypeProvider.Attributes.ContainerImage)
+            ?? throw new InvalidOperationException(
+                "The container app image must be set before sample runtime can resolve the runtime revision.");
+        return ContainerApplicationRuntimeRevisions.CreateImageRevisionId(
+            resource.Attributes.GetString(ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry),
+            image);
     }
 }

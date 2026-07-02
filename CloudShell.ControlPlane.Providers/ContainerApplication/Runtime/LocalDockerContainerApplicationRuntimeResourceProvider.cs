@@ -64,12 +64,13 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
         var replicas = ResolveReplicas(resource);
         return Enumerable
             .Range(1, replicas)
-            .Select(replica => CreateRuntimeReplicaResource(definition, parent, endpoint, replica, replicas))
+            .Select(replica => CreateRuntimeReplicaResource(definition, resource, parent, endpoint, replica, replicas))
             .ToArray();
     }
 
     private ResourceManagerResource CreateRuntimeReplicaResource(
         LocalDockerContainerApplicationRuntimeDefinition definition,
+        GraphResource graphResource,
         ResourceManagerResource parent,
         NetworkingEndpointRequestValue endpoint,
         int replica,
@@ -80,6 +81,11 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
         var replicaOrdinal = replica.ToString(CultureInfo.InvariantCulture);
         var totalReplicas = replicaCount.ToString(CultureInfo.InvariantCulture);
         var replicaName = $"Replica {replicaOrdinal}";
+        var deploymentServiceId = ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(graphResource.EffectiveResourceId);
+        var runtimeRevisionId = LocalDockerContainerApplicationRuntimeConventions.ResolveRuntimeRevisionId(graphResource);
+        var replicaGroupId = ResourceOrchestratorReplicaGroups.CreateReplicaGroupId(
+            deploymentServiceId,
+            runtimeRevisionId);
         var protocol = NormalizeProtocol(endpoint.Protocol);
         var targetPort = endpoint.TargetPort ?? endpoint.Port ?? 8080;
         var probePort = LocalDockerContainerApplicationRuntimeConventions.ResolveReplicaProbePort(
@@ -105,10 +111,13 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
             ResourceClass: ResourceManagerClass.Container,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
+                [ResourceAttributeNames.DeploymentServiceId] = deploymentServiceId,
+                [ResourceAttributeNames.DeploymentReplicaGroupId] = replicaGroupId,
                 [ResourceAttributeNames.RuntimeKind] = "containerReplica",
                 [ResourceAttributeNames.RuntimeContainerName] = containerName,
                 [ResourceAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
                 [ResourceAttributeNames.RuntimeReplicaCount] = totalReplicas,
+                [ResourceAttributeNames.RuntimeRevision] = runtimeRevisionId,
                 [ResourceAttributeNames.RuntimeMaterialization] = definition.RuntimeMaterialization
             },
             Capabilities:
@@ -137,7 +146,8 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
                 replicaName,
                 containerName,
                 replicaOrdinal,
-                totalReplicas));
+                totalReplicas,
+                runtimeRevisionId));
     }
 
     private static ResourceObservability CreateRuntimeReplicaObservability(
@@ -147,7 +157,8 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
         string replicaName,
         string containerName,
         string replicaOrdinal,
-        string replicaCount) =>
+        string replicaCount,
+        string runtimeRevisionId) =>
         new(
             Logs: true,
             Traces: true,
@@ -162,7 +173,8 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
                 [TelemetryAttributeNames.ScopeKind] = "runtime",
                 [TelemetryAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
                 [TelemetryAttributeNames.RuntimeReplicaCount] = replicaCount,
-                [TelemetryAttributeNames.RuntimeContainerName] = containerName
+                [TelemetryAttributeNames.RuntimeContainerName] = containerName,
+                [TelemetryAttributeNames.DeploymentRevision] = runtimeRevisionId
             },
             Scopes:
             [
@@ -171,11 +183,13 @@ public sealed class LocalDockerContainerApplicationRuntimeResourceProvider(
                     replicaName,
                     "runtime",
                     $"Runtime replica {replicaOrdinal}",
+                    DeploymentRevision: runtimeRevisionId,
                     Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
                         [TelemetryAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
                         [TelemetryAttributeNames.RuntimeReplicaCount] = replicaCount,
-                        [TelemetryAttributeNames.RuntimeContainerName] = containerName
+                        [TelemetryAttributeNames.RuntimeContainerName] = containerName,
+                        [TelemetryAttributeNames.DeploymentRevision] = runtimeRevisionId
                     })
             ]);
 

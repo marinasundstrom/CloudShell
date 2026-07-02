@@ -162,48 +162,48 @@ public sealed class ShellNavigationTests
     }
 
     [Fact]
-    public async Task ObservabilityExtension_RegistersMainMenuItemsAsCoreShellNavigation()
+    public async Task TelemetryExtension_RegistersMainMenuItemsAsCoreShellNavigation()
     {
-        var catalog = CreateCoreShellCatalog(new ObservabilityExtension());
+        var catalog = CreateCoreShellCatalog(new TelemetryExtension());
         ICoreShellRouteService routes = catalog;
 
         Assert.Equal(
-            "/observability",
-            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(ObservabilityShellIds.OverviewPage))).Href);
+            "/telemetry",
+            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(TelemetryShellIds.OverviewPage))).Href);
         Assert.Equal(
             "/logs",
-            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(ObservabilityShellIds.LogsPage))).Href);
+            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(TelemetryShellIds.LogsPage))).Href);
         Assert.Equal(
-            "/observability/dependencies",
-            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(ObservabilityShellIds.DependenciesPage))).Href);
+            "/telemetry/dependencies",
+            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(TelemetryShellIds.DependenciesPage))).Href);
         Assert.Equal(
-            "/observability/service-map",
-            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(ObservabilityShellIds.ServiceMapPage))).Href);
+            "/telemetry/service-map",
+            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(TelemetryShellIds.ServiceMapPage))).Href);
         Assert.Equal(
-            "/observability/traces",
-            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(ObservabilityShellIds.TracesPage))).Href);
+            "/telemetry/traces",
+            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(TelemetryShellIds.TracesPage))).Href);
         Assert.Equal(
-            "/observability/metrics",
-            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(ObservabilityShellIds.MetricsPage))).Href);
+            "/telemetry/metrics",
+            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(TelemetryShellIds.MetricsPage))).Href);
 
         Assert.Equal(
             ObservabilityAuthorization.AnyReadPermissions,
-            (await catalog.GetPageAsync(ObservabilityShellIds.OverviewPage))?.Authorization.AnyPermissions);
+            (await catalog.GetPageAsync(TelemetryShellIds.OverviewPage))?.Authorization.AnyPermissions);
         Assert.Equal(
             ObservabilityAuthorization.LogsReadPermissions,
-            (await catalog.GetPageAsync(ObservabilityShellIds.LogsPage))?.Authorization.AnyPermissions);
+            (await catalog.GetPageAsync(TelemetryShellIds.LogsPage))?.Authorization.AnyPermissions);
         Assert.Equal(
             ObservabilityAuthorization.TracesReadPermissions,
-            (await catalog.GetPageAsync(ObservabilityShellIds.DependenciesPage))?.Authorization.AnyPermissions);
+            (await catalog.GetPageAsync(TelemetryShellIds.DependenciesPage))?.Authorization.AnyPermissions);
         Assert.Equal(
             ObservabilityAuthorization.TracesReadPermissions,
-            (await catalog.GetPageAsync(ObservabilityShellIds.ServiceMapPage))?.Authorization.AnyPermissions);
+            (await catalog.GetPageAsync(TelemetryShellIds.ServiceMapPage))?.Authorization.AnyPermissions);
         Assert.Equal(
             ObservabilityAuthorization.TracesReadPermissions,
-            (await catalog.GetPageAsync(ObservabilityShellIds.TracesPage))?.Authorization.AnyPermissions);
+            (await catalog.GetPageAsync(TelemetryShellIds.TracesPage))?.Authorization.AnyPermissions);
         Assert.Equal(
             ObservabilityAuthorization.MetricsReadPermissions,
-            (await catalog.GetPageAsync(ObservabilityShellIds.MetricsPage))?.Authorization.AnyPermissions);
+            (await catalog.GetPageAsync(TelemetryShellIds.MetricsPage))?.Authorization.AnyPermissions);
 
         var menu = await catalog.GetMenuAsync(ShellIds.MainMenu);
         Assert.NotNull(menu);
@@ -213,45 +213,67 @@ public sealed class ShellNavigationTests
             workspaceGroup.Items,
             overview =>
             {
-                Assert.Equal(ObservabilityShellIds.OverviewMenuItem, overview.Id);
-                Assert.Equal(ObservabilityShellIds.OverviewPage.Value, overview.Target.Value);
+                Assert.Equal(TelemetryShellIds.OverviewMenuItem, overview.Id);
+                Assert.Equal(TelemetryShellIds.OverviewPage.Value, overview.Target.Value);
                 Assert.Equal(ObservabilityAuthorization.AnyReadPermissions, overview.Authorization.AnyPermissions);
             },
             logs =>
             {
-                Assert.Equal(ObservabilityShellIds.LogsMenuItem, logs.Id);
-                Assert.Equal(ObservabilityShellIds.OverviewMenuItem, logs.ParentId);
-                Assert.Equal(ObservabilityShellIds.LogsPage.Value, logs.Target.Value);
+                Assert.Equal(TelemetryShellIds.LogsMenuItem, logs.Id);
+                Assert.Equal(TelemetryShellIds.OverviewMenuItem, logs.ParentId);
+                Assert.Equal(TelemetryShellIds.LogsPage.Value, logs.Target.Value);
                 Assert.Equal(ObservabilityAuthorization.LogsReadPermissions, logs.Authorization.AnyPermissions);
             },
             dependencies =>
             {
-                Assert.Equal(ObservabilityShellIds.DependenciesMenuItem, dependencies.Id);
-                Assert.Equal(ObservabilityShellIds.OverviewMenuItem, dependencies.ParentId);
-                Assert.Equal(ObservabilityShellIds.DependenciesPage.Value, dependencies.Target.Value);
+                Assert.Equal(TelemetryShellIds.DependenciesMenuItem, dependencies.Id);
+                Assert.Equal(TelemetryShellIds.OverviewMenuItem, dependencies.ParentId);
+                Assert.Equal(TelemetryShellIds.DependenciesPage.Value, dependencies.Target.Value);
                 Assert.Equal(ObservabilityAuthorization.TracesReadPermissions, dependencies.Authorization.AnyPermissions);
             },
             serviceMap =>
             {
-                Assert.Equal(ObservabilityShellIds.ServiceMapMenuItem, serviceMap.Id);
-                Assert.Equal(ObservabilityShellIds.OverviewMenuItem, serviceMap.ParentId);
-                Assert.Equal(ObservabilityShellIds.ServiceMapPage.Value, serviceMap.Target.Value);
+                Assert.Equal(TelemetryShellIds.ServiceMapMenuItem, serviceMap.Id);
+                Assert.Equal(TelemetryShellIds.OverviewMenuItem, serviceMap.ParentId);
+                Assert.Equal(TelemetryShellIds.ServiceMapPage.Value, serviceMap.Target.Value);
                 Assert.Equal(ObservabilityAuthorization.TracesReadPermissions, serviceMap.Authorization.AnyPermissions);
             },
             traces =>
             {
-                Assert.Equal(ObservabilityShellIds.TracesMenuItem, traces.Id);
-                Assert.Equal(ObservabilityShellIds.OverviewMenuItem, traces.ParentId);
-                Assert.Equal(ObservabilityShellIds.TracesPage.Value, traces.Target.Value);
+                Assert.Equal(TelemetryShellIds.TracesMenuItem, traces.Id);
+                Assert.Equal(TelemetryShellIds.OverviewMenuItem, traces.ParentId);
+                Assert.Equal(TelemetryShellIds.TracesPage.Value, traces.Target.Value);
                 Assert.Equal(ObservabilityAuthorization.TracesReadPermissions, traces.Authorization.AnyPermissions);
             },
             metrics =>
             {
-                Assert.Equal(ObservabilityShellIds.MetricsMenuItem, metrics.Id);
-                Assert.Equal(ObservabilityShellIds.OverviewMenuItem, metrics.ParentId);
-                Assert.Equal(ObservabilityShellIds.MetricsPage.Value, metrics.Target.Value);
+                Assert.Equal(TelemetryShellIds.MetricsMenuItem, metrics.Id);
+                Assert.Equal(TelemetryShellIds.OverviewMenuItem, metrics.ParentId);
+                Assert.Equal(TelemetryShellIds.MetricsPage.Value, metrics.Target.Value);
                 Assert.Equal(ObservabilityAuthorization.MetricsReadPermissions, metrics.Authorization.AnyPermissions);
             });
+    }
+
+    [Fact]
+    public async Task UsageExtension_RegistersMainMenuItemAsCoreShellNavigation()
+    {
+        var catalog = CreateCoreShellCatalog(new UsageExtension());
+        ICoreShellRouteService routes = catalog;
+
+        Assert.Equal(
+            "/usage",
+            (await routes.ResolveTargetAsync(CoreShellTarget.ForPage(UsageShellIds.UsagePage))).Href);
+        Assert.Equal(
+            UsageAuthorization.UsageReadPermissions,
+            (await catalog.GetPageAsync(UsageShellIds.UsagePage))?.Authorization.AnyPermissions);
+
+        var menu = await catalog.GetMenuAsync(ShellIds.MainMenu);
+        Assert.NotNull(menu);
+        var workspaceGroup = Assert.Single(menu.Groups);
+        var item = Assert.Single(workspaceGroup.Items);
+        Assert.Equal(UsageShellIds.UsageMenuItem, item.Id);
+        Assert.Equal(UsageShellIds.UsagePage.Value, item.Target.Value);
+        Assert.Equal(UsageAuthorization.UsageReadPermissions, item.Authorization.AnyPermissions);
     }
 
     [Fact]

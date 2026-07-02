@@ -8,6 +8,11 @@ const appRoot = resolve(repoRoot, "samples", "JavaScriptApp", "App");
 const cliProject = resolve(repoRoot, "CloudShell.Cli", "CloudShell.Cli.csproj");
 const hostProject = process.env.CLOUDSHELL_HOST_PROJECT ??
   resolve(repoRoot, "CloudShell.LocalDevelopmentHost", "CloudShell.LocalDevelopmentHost.csproj");
+const stateDir = process.env.CLOUDSHELL_STATE_DIR ??
+  resolve(sampleHostRoot, ".cloudshell");
+const dataDir = readArgumentValue("--data-dir") ??
+  process.env.CLOUDSHELL_DATA_DIR ??
+  stateDir;
 const settingsServiceEndpoint = "http://localhost:5101";
 const settingsResourceId = "configuration.store:typescript-app-settings";
 const settingsEntriesEndpoint =
@@ -53,10 +58,17 @@ if (process.argv.includes("--apply")) {
     start: process.argv.includes("--start"),
     noBuild: process.argv.includes("--no-build"),
     controlPlaneUrl: process.env.CLOUDSHELL_CONTROL_PLANE_URL,
-    stateDir: resolve(sampleHostRoot, ".cloudshell")
+    stateDir,
+    dataDir
   });
 
   process.exitCode = result.exitCode;
 } else {
   process.stdout.write(app.toJson());
+}
+
+function readArgumentValue(name: string): string | undefined {
+  const index = process.argv.findIndex(argument =>
+    argument.toLowerCase() === name.toLowerCase());
+  return index >= 0 ? process.argv[index + 1] : undefined;
 }

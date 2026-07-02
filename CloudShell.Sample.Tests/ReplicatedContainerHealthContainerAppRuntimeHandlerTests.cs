@@ -127,11 +127,26 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             Options.Create(CreateRuntimeOptions()));
 
         var replicas = provider.GetResources();
+        var expectedServiceId = ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(resource.EffectiveResourceId);
+        var expectedRevisionId = LocalDockerContainerApplicationRuntimeConventions.ResolveRuntimeRevisionId(resource);
+        var expectedReplicaGroupId = LocalDockerContainerApplicationRuntimeConventions.ResolveReplicaGroupId(resource);
 
         Assert.Collection(
             replicas,
-            replica => AssertGraphReplicaResource(replica, ordinal: 1, port: 5192),
-            replica => AssertGraphReplicaResource(replica, ordinal: 2, port: 5193));
+            replica => AssertGraphReplicaResource(
+                replica,
+                ordinal: 1,
+                port: 5192,
+                expectedServiceId,
+                expectedReplicaGroupId,
+                expectedRevisionId),
+            replica => AssertGraphReplicaResource(
+                replica,
+                ordinal: 2,
+                port: 5193,
+                expectedServiceId,
+                expectedReplicaGroupId,
+                expectedRevisionId));
     }
 
     [Fact]
@@ -499,6 +514,139 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     }
 
     [Fact]
+    public async Task RuntimeBridge_RoutingReconciliationUsesReplicaGroupInstancesForBackends()
+    {
+        var contentRoot = Path.Combine(
+            Path.GetTempPath(),
+            $"cloudshell-replicated-health-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(contentRoot);
+        try
+        {
+            var commandRunner = new RecordingCommandRunner();
+            var bridge = CreateRuntimeBridge(
+                commandRunner,
+                CreateConfiguration(replicaCleanupLimit: 4),
+                new TestHostEnvironment(contentRoot));
+            var resource = await CreateGraphAppResourceAsync(
+                replicas: 4,
+                endpointPort: 5092);
+            var service = CreateOrchestratorService(resource, replicas: 4);
+            var fullReplicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+                service,
+                "rev-test");
+            var routedReplicaGroup = fullReplicaGroup with
+            {
+                RequestedReplicaSlots = 2,
+                Instances = fullReplicaGroup.Instances
+                    .Where(instance => instance.ReplicaOrdinal <= 2)
+                    .ToArray()
+            };
+            var routingBinding = new ResourceOrchestratorServiceRoutingBindingDefinition(
+                "api-http-routing",
+                ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+                service.Name,
+                routedReplicaGroup.Id,
+                ResourceEndpointReference.ForEndpoint(resource.EffectiveResourceId, "http"));
+            commandRunner.Enqueue(new(0, "running", string.Empty));
+
+            var diagnostics = await bridge.ReconcileOrchestratorServiceRoutingAsync(
+                resource,
+                service,
+                routedReplicaGroup,
+                [routingBinding]);
+
+            Assert.Empty(diagnostics);
+            var configuration = await File.ReadAllTextAsync(
+                Path.Combine(contentRoot, "Data", "runtime-ingress", "dynamic.yml"));
+            Assert.Contains("cloudshell-replicated-health-api-replica-1:8080", configuration);
+            Assert.Contains("cloudshell-replicated-health-api-replica-2:8080", configuration);
+            Assert.DoesNotContain("cloudshell-replicated-health-api-replica-3:8080", configuration);
+            Assert.DoesNotContain("cloudshell-replicated-health-api-replica-4:8080", configuration);
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RuntimeBridge_RoutingReconciliationUsesRoutingBindingEndpoint()
+    {
+        var contentRoot = Path.Combine(
+            Path.GetTempPath(),
+            $"cloudshell-replicated-health-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(contentRoot);
+        try
+        {
+            var commandRunner = new RecordingCommandRunner();
+            var bridge = CreateRuntimeBridge(
+                commandRunner,
+                CreateConfiguration(replicaCleanupLimit: 2),
+                new TestHostEnvironment(contentRoot));
+            var resource = await CreateGraphAppResourceAsync(
+                replicas: 2,
+                endpointRequests:
+                [
+                    new NetworkingEndpointRequestValue(
+                        "public",
+                        "http",
+                        TargetPort: 8080,
+                        Host: "localhost",
+                        Port: 5092,
+                        Exposure: "Local"),
+                    new NetworkingEndpointRequestValue(
+                        "admin",
+                        "http",
+                        TargetPort: 9090,
+                        Host: "localhost",
+                        Port: 6092,
+                        Exposure: "Local")
+                ]);
+            var service = CreateOrchestratorService(resource, replicas: 2);
+            var replicaGroup = ResourceOrchestratorReplicaGroups.CreateRevisionReplicaGroup(
+                service,
+                "rev-test");
+            var routingBinding = new ResourceOrchestratorServiceRoutingBindingDefinition(
+                "api-admin-routing",
+                ResourceOrchestratorDeploymentDefinition.CurrentDefinitionVersion,
+                service.Name,
+                replicaGroup.Id,
+                ResourceEndpointReference.ForEndpoint(resource.EffectiveResourceId, "admin"));
+            commandRunner.Enqueue(new(1, string.Empty, "missing"));
+            commandRunner.EnqueueSuccess(1);
+
+            var diagnostics = await bridge.ReconcileOrchestratorServiceRoutingAsync(
+                resource,
+                service,
+                replicaGroup,
+                [routingBinding]);
+
+            Assert.Empty(diagnostics);
+            var configuration = await File.ReadAllTextAsync(
+                Path.Combine(contentRoot, "Data", "runtime-ingress", "dynamic.yml"));
+            Assert.Contains("cloudshell-replicated-health-api-replica-1:9090", configuration);
+            Assert.Contains("cloudshell-replicated-health-api-replica-2:9090", configuration);
+            var ingressRun = Assert.Single(
+                commandRunner.Commands,
+                command => command.Arguments.FirstOrDefault() == "run" &&
+                    command.Arguments.Contains(
+                    LocalDockerContainerApplicationRuntimeConventions.CreateIngressContainerName()));
+            Assert.Contains("127.0.0.1:6092:6092/tcp", ingressRun.Arguments);
+            Assert.Contains("--entrypoints.http.address=:6092", ingressRun.Arguments);
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task RuntimeBridge_ReplicaGroupStopDoesNotRemoveSlotReplacedByNewReplicaGroup()
     {
         var commandRunner = new RecordingCommandRunner();
@@ -545,6 +693,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 CreateResourceManagerGraphAppResource(replicas: 2),
                 CreateGraphReplicaResource(replica: 1),
                 CreateGraphReplicaResource(replica: 2)));
+        var replica1 = CreateGraphReplicaResource(replica: 1);
+        var replica2 = CreateGraphReplicaResource(replica: 2);
 
         var sources = provider.GetLogSources();
 
@@ -555,6 +705,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 Assert.Equal("application.container-app:api:replica-1:logs", source.Id);
                 Assert.Equal("Replica 1 logs", source.Name);
                 Assert.Equal("application.container-app:api", source.ResourceId);
+                Assert.Equal(replica1.Id, source.ProducerResourceId);
                 Assert.Equal(ResourceLogSourceKind.Container, source.Kind);
                 Assert.Equal(LogFormat.JsonConsole, source.Format);
             },
@@ -563,6 +714,7 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
                 Assert.Equal("application.container-app:api:replica-2:logs", source.Id);
                 Assert.Equal("Replica 2 logs", source.Name);
                 Assert.Equal("application.container-app:api", source.ResourceId);
+                Assert.Equal(replica2.Id, source.ProducerResourceId);
                 Assert.Equal(ResourceLogSourceKind.Container, source.Kind);
                 Assert.Equal(LogFormat.JsonConsole, source.Format);
             });
@@ -743,7 +895,8 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         int replicas = 3,
         int? endpointPort = null,
         bool includeHealthChecks = false,
-        bool includeCookieSessionAffinity = false)
+        bool includeCookieSessionAffinity = false,
+        IReadOnlyList<NetworkingEndpointRequestValue>? endpointRequests = null)
     {
         var operationProviders = CreateContainerApplicationOperationProviders();
         var pipeline = new ResourceDefinitionValidationPipeline(
@@ -756,7 +909,12 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = image,
             [ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas] = replicas
         };
-        if (endpointPort is not null)
+        if (endpointRequests is not null)
+        {
+            attributes[ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests] =
+                ResourceAttributeValue.FromObject(endpointRequests);
+        }
+        else if (endpointPort is not null)
         {
             attributes[ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests] =
                 ResourceAttributeValue.FromObject(new[]
@@ -1086,6 +1244,9 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     {
         var resourceId = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(replica);
         var containerName = LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(replica);
+        var expectedRevisionId = ContainerApplicationRuntimeRevisions.CreateImageRevisionId(
+            ContainerRegistryDefaults.Default,
+            "cloudshell-application-api:20260622.2");
         return string.Join(
             ',',
             $"OTEL_RESOURCE_ATTRIBUTES=service.instance.id={resourceId}",
@@ -1096,13 +1257,17 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             "telemetry.scope.kind=runtime",
             $"runtime.replica.ordinal={replica.ToString(CultureInfo.InvariantCulture)}",
             $"runtime.replica.count={replicaCount.ToString(CultureInfo.InvariantCulture)}",
-            $"runtime.container.name={containerName}");
+            $"runtime.container.name={containerName}",
+            $"deployment.revision={expectedRevisionId}");
     }
 
     private static void AssertGraphReplicaResource(
         CloudShell.Abstractions.ResourceManager.Resource replica,
         int ordinal,
-        int port)
+        int port,
+        string expectedServiceId,
+        string expectedReplicaGroupId,
+        string expectedRevisionId)
     {
         Assert.Equal(
             LocalDockerContainerApplicationRuntimeConventions.CreateReplicaResourceId(ordinal),
@@ -1112,12 +1277,15 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         Assert.Equal(ResourceVisibility.Hidden, replica.Visibility);
         Assert.Equal(CloudShell.Abstractions.ResourceManager.ResourceState.Running, replica.State);
         Assert.Equal("runtime.container", replica.TypeId);
+        Assert.Equal(expectedServiceId, replica.ResourceAttributes[ResourceAttributeNames.DeploymentServiceId]);
+        Assert.Equal(expectedReplicaGroupId, replica.ResourceAttributes[ResourceAttributeNames.DeploymentReplicaGroupId]);
         Assert.Equal("containerReplica", replica.ResourceAttributes[ResourceAttributeNames.RuntimeKind]);
         Assert.Equal(
             LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(ordinal),
             replica.ResourceAttributes[ResourceAttributeNames.RuntimeContainerName]);
         Assert.Equal(ordinal.ToString(CultureInfo.InvariantCulture), replica.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal]);
         Assert.Equal("2", replica.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaCount]);
+        Assert.Equal(expectedRevisionId, replica.ResourceAttributes[ResourceAttributeNames.RuntimeRevision]);
         Assert.Equal(2, replica.ResourceHealthChecks.Count);
         Assert.Contains(replica.ResourceHealthChecks, check => check.Type == ResourceProbeType.Health);
         Assert.Contains(replica.ResourceHealthChecks, check => check.Type == ResourceProbeType.Liveness);
@@ -1134,10 +1302,14 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         Assert.Equal(
             ordinal.ToString(CultureInfo.InvariantCulture),
             replica.EffectiveObservability.Attributes["runtime.replica.ordinal"]);
+        Assert.Equal(
+            expectedRevisionId,
+            replica.EffectiveObservability.Attributes[TelemetryAttributeNames.DeploymentRevision]);
         var scope = Assert.Single(replica.EffectiveObservability.TelemetryScopes);
         Assert.Equal(LocalDockerContainerApplicationRuntimeConventions.ApiResourceId, scope.ScopeResourceId);
         Assert.Equal($"Replica {ordinal.ToString(CultureInfo.InvariantCulture)}", scope.Name);
         Assert.Equal("runtime", scope.Kind);
+        Assert.Equal(expectedRevisionId, scope.DeploymentRevision);
         var mapping = Assert.Single(replica.ResourceEndpointNetworkMappings);
         Assert.Equal($"http://localhost:{port.ToString(CultureInfo.InvariantCulture)}", mapping.Address);
     }

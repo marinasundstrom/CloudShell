@@ -1,0 +1,28 @@
+@using CloudShell.Hosting.Components.Pages.Usage
+@inject IStringLocalizer<SharedResource> L
+
+<div class="generated-resource-view">
+    <GeneratedResourceViewLayout ResourceType="ResourceType"
+                                 ResourceId="@(ResourceId ?? string.Empty)"
+                                 ViewId="@ResourcePredefinedViewIds.Usage"
+                                 Sections="@BuildSections()" />
+</div>
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    [Parameter]
+    public ResourceTypeContribution? ResourceType { get; set; }
+
+    private IReadOnlyList<GeneratedResourceViewSection> BuildSections() =>
+    [
+        new("usage", string.Empty, 0, RenderUsage())
+    ];
+
+    private RenderFragment RenderUsage() => @<text>
+        <ResourceActivityHeader Title="@L["Usage"].Value"
+                                Subtitle="@L["Recorded resource usage, aggregate statistics, and projected trends."].Value" />
+        <ResourceUsage ResourceId="@ResourceId" />
+    </text>;
+}

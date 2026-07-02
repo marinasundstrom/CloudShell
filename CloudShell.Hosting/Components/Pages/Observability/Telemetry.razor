@@ -1,3 +1,4 @@
+@page "/telemetry"
 @page "/observability"
 @inject IResourceManager ResourceManager
 @inject ILogManager LogManager
@@ -8,30 +9,30 @@
 @inject IStringLocalizer<SharedResource> L
 @using CloudShell.Abstractions.Authorization
 
-<PageTitle>@L["Observability"]</PageTitle>
+<PageTitle>@L["Telemetry"]</PageTitle>
 
 @if (!Authorization.CanReadAnyObservability())
 {
     <EmptyState Title="@L["Access denied"].Value"
-                Message="@L["Your identity does not have permission to view observability data."].Value" />
+                Message="@L["Your identity does not have permission to view telemetry data."].Value" />
 }
 else
 {
-    <PageHeading Eyebrow="@L["Observability"].Value"
+    <PageHeading Eyebrow="@L["Telemetry"].Value"
                  Title="@L["Telemetry workspace"].Value"
-                 Description="@L["Review telemetry coverage, recent service signals, and the shared observability views for this CloudShell environment."].Value"
+                 Description="@L["Review telemetry coverage, recent service signals, and the shared telemetry views for this CloudShell environment."].Value"
                  ShowActions="@Authorization.CanReadTraces()">
         <Actions>
-            <FluentAnchor Appearance="Appearance.Neutral" Href="/observability/dependencies">
+            <FluentAnchor Appearance="Appearance.Neutral" Href="/telemetry/dependencies">
                 @L["Dependencies"]
             </FluentAnchor>
-            <FluentAnchor Appearance="Appearance.Accent" Href="/observability/service-map">
+            <FluentAnchor Appearance="Appearance.Accent" Href="/telemetry/service-map">
                 @L["Service map"]
             </FluentAnchor>
         </Actions>
     </PageHeading>
 
-    <SummaryMetricGrid AriaLabel="@L["Observability summary"].Value">
+    <SummaryMetricGrid AriaLabel="@L["Telemetry summary"].Value">
         <SummaryMetricCard Title="@L["Telemetry resources"].Value"
                            Value="@TelemetryResourceCount"
                            Summary="@L["Resources declaring logs, traces, or metrics"].Value"
@@ -99,7 +100,7 @@ else
                                            Summary="@FormatObservedServiceSummary(service)"
                                            TrailingText="@FormatLastSeen(service.LastSeen)">
                             <Leading>
-                                <ShellNavigationIcon Icon="observability" />
+                                <ShellNavigationIcon Icon="telemetry" />
                             </Leading>
                         </ShellActivityLink>
                     }
@@ -177,19 +178,19 @@ else
             views.Add(new(
                 L["Dependencies"].Value,
                 L["Inspect OpenTelemetry service request relationships as edge data."].Value,
-                "/observability/dependencies",
+                "/telemetry/dependencies",
                 "dependencies",
                 L["{0} edge(s)", RequestEdgeCount].Value));
             views.Add(new(
                 L["Service map"].Value,
                 L["Follow live request flow between mapped telemetry services."].Value,
-                "/observability/service-map",
+                "/telemetry/service-map",
                 "service-map",
                 L["{0} service(s)", ObservedServices.Count].Value));
             views.Add(new(
                 L["Traces"].Value,
                 L["Inspect spans, trace details, related logs, and resource activity."].Value,
-                "/observability/traces",
+                "/telemetry/traces",
                 "traces",
                 L["{0} span(s)", TraceSpans.Count].Value));
         }
@@ -199,7 +200,7 @@ else
             views.Add(new(
                 L["Metrics"].Value,
                 L["Review telemetry metric points by resource and service scope."].Value,
-                "/observability/metrics",
+                "/telemetry/metrics",
                 "metrics",
                 L["{0} point(s)", MetricPoints.Count].Value));
         }
@@ -307,8 +308,8 @@ else
         }
 
         var route = service.TraceSpanCount > 0
-            ? "/observability/traces"
-            : "/observability/metrics";
+            ? "/telemetry/traces"
+            : "/telemetry/metrics";
 
         return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
             route,

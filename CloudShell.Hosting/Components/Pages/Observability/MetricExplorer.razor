@@ -1,6 +1,7 @@
 @implements IDisposable
 @using System.Globalization
 @inject IMetricManager MetricManager
+@inject IResourceMonitoringManager MonitoringManager
 @inject IResourceManager ResourceManager
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject NavigationManager Navigation
@@ -18,6 +19,7 @@
     var metricPanels = selected is null
         ? Array.Empty<MetricPanelViewModel>()
         : BuildMetricPanels(selected, points);
+    var monitoringSummaries = BuildMonitoringMetricSummaries(MonitoringSnapshotPoints);
     var selectedMetricView = ResolveMetricView(metricPanels);
 }
 
@@ -36,7 +38,7 @@
 }
 else if (ShowHeading)
 {
-    <PageHeading Eyebrow="@L["Observability"].Value"
+    <PageHeading Eyebrow="@L["Telemetry"].Value"
                  Title="@L["Metrics"].Value"
                  Description="@L["Inspect application/runtime metric points retained by CloudShell."].Value">
         <Actions>
@@ -127,7 +129,7 @@ else if (ShowHeading)
                 </dl>
             }
 
-            @if (points.Count == 0 && metricPanels.Count == 0)
+            @if (points.Count == 0 && metricPanels.Count == 0 && monitoringSummaries.Count == 0)
             {
                 <EmptyState Title="@L["No metrics received"].Value"
                             Message="@L["Start this resource and send traffic through it. Metrics are retained only while CloudShell is running."].Value"
@@ -135,6 +137,25 @@ else if (ShowHeading)
             }
             else
             {
+                @if (points.Count == 0 && monitoringSummaries.Count > 0)
+                {
+                    <section class="metric-monitoring-snapshot">
+                        <header>
+                            <h3>@L["Current monitoring snapshot"]</h3>
+                            <p>@L["Live provider metrics from {0} observed source(s).", GetMonitoringSourceCount(MonitoringSnapshotPoints)]</p>
+                        </header>
+                        <SummaryMetricGrid AriaLabel="@L["Current monitoring snapshot metrics"].Value">
+                            @foreach (var summary in monitoringSummaries)
+                            {
+                                <SummaryMetricCard Title="@summary.DisplayName"
+                                                   Value="@FormatMetricValue(summary.Value, summary.Unit)"
+                                                   Summary="@L["{0} / {1} source(s) / latest {2}", summary.Name, summary.SourceCount, FormatTimestamp(summary.LatestTimestamp)].Value"
+                                                   Compact="true" />
+                            }
+                        </SummaryMetricGrid>
+                    </section>
+                }
+
                 @if (points.Count > 0)
                 {
                     <SummaryMetricGrid AriaLabel="@L["Metric summaries"].Value">
@@ -314,6 +335,7 @@ else if (ShowHeading)
     private IReadOnlyDictionary<string, Resource> ResourcesById { get; set; } =
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<MetricPoint> RecentPoints { get; set; } = [];
+    private IReadOnlyList<MonitoringMetricPoint> MonitoringSnapshotPoints { get; set; } = [];
     private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
         ResourceManagerDisplaySelection.Default;
     private bool IsDisposed { get; set; }
@@ -378,7 +400,7 @@ else if (ShowHeading)
                 L["Metric resource not found"].Value,
                 L["Resource '{0}' does not expose metrics or is not available.", GetResourceLabel(resourceId)].Value,
                 Inline ? L["Open Resources"].Value : L["All metric resources"].Value,
-                Inline ? GetResourcesRoute() : "/observability/metrics");
+                Inline ? GetResourcesRoute() : "/telemetry/metrics");
         }
 
         var selected = GetSelectedResource(resources);
@@ -415,6 +437,9 @@ else if (ShowHeading)
                     ResourceId: selected.Id,
                     MaxPoints: GetMetricPointWindow(selected),
                     Scope: GetSelectedScope(selected)?.ToQueryScope()));
+            MonitoringSnapshotPoints = selected is null || RecentPoints.Count > 0
+                ? []
+                : await LoadMonitoringSnapshotPointsAsync(selected);
 
             await InvokeAsync(StateHasChanged);
         }
@@ -449,7 +474,7 @@ else if (ShowHeading)
         Navigation.NavigateTo(BuildMetricRoute(selected.Id, args.Value?.ToString(), GetRequestedMetricView()));
     }
 
-    private void ShowAllResources() => Navigation.NavigateTo("/observability/metrics");
+    private void ShowAllResources() => Navigation.NavigateTo("/telemetry/metrics");
 
     private string GetResourcesRoute() =>
         ResourceManagerShellLinks.ResourceManagerPage(ShellRoutes,
@@ -482,7 +507,7 @@ else if (ShowHeading)
 
         query["resourceId"] = resourceId;
         return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-            "/observability/metrics",
+            "/telemetry/metrics",
             query);
     }
 
@@ -587,6 +612,78 @@ else if (ShowHeading)
 
     private static string FormatTimestamp(DateTimeOffset? timestamp) =>
         timestamp?.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture) ?? "--";
+
+    private async Task<IReadOnlyList<MonitoringMetricPoint>> LoadMonitoringSnapshotPointsAsync(Resource resource)
+    {
+        var snapshotPoints = new List<MonitoringMetricPoint>();
+        await AddMonitoringSnapshotPointsAsync(resource, snapshotPoints);
+
+        if (IsReplicaModeEnabled(resource))
+        {
+            var replicas = (await ResourceManager.ListResourceChildrenAsync(resource.Id))
+                .Where(IsReplicaResource)
+                .OrderBy(GetReplicaOrdinal)
+                .ThenBy(child => child.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            foreach (var replica in replicas)
+            {
+                await AddMonitoringSnapshotPointsAsync(replica, snapshotPoints);
+            }
+        }
+
+        return snapshotPoints;
+    }
+
+    private async Task AddMonitoringSnapshotPointsAsync(
+        Resource resource,
+        List<MonitoringMetricPoint> snapshotPoints)
+    {
+        var snapshot = await MonitoringManager.GetResourceMonitoringAsync(resource.Id);
+        if (snapshot is null || snapshot.Metrics.Count == 0)
+        {
+            return;
+        }
+
+        var sourceName = GetResourceLabel(resource);
+        foreach (var metric in snapshot.Metrics)
+        {
+            snapshotPoints.Add(new MonitoringMetricPoint(
+                resource.Id,
+                sourceName,
+                metric.Name,
+                metric.DisplayName ?? metric.Name,
+                metric.Value,
+                metric.Unit,
+                metric.Timestamp,
+                metric.Description));
+        }
+    }
+
+    private static bool IsReplicaModeEnabled(Resource resource) =>
+        string.Equals(
+            GetAttribute(resource, ResourceAttributeNames.ContainerReplicasEnabled, "false"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsReplicaResource(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, "runtime.container", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(
+            GetAttribute(resource, ResourceAttributeNames.RuntimeKind, string.Empty),
+            "containerReplica",
+            StringComparison.OrdinalIgnoreCase);
+
+    private static int GetReplicaOrdinal(Resource resource) =>
+        int.TryParse(
+            GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaOrdinal, string.Empty),
+            out var ordinal)
+            ? ordinal
+            : int.MaxValue;
+
+    private static string GetAttribute(Resource resource, string attributeName, string fallback) =>
+        resource.ResourceAttributes.TryGetValue(attributeName, out var value) &&
+        !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
 
     private IReadOnlyList<MetricPanelViewModel> BuildMetricPanels(
         Resource resource,
@@ -756,12 +853,54 @@ else if (ShowHeading)
             .OrderBy(summary => summary.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
+    private static IReadOnlyList<MonitoringMetricSummary> BuildMonitoringMetricSummaries(
+        IReadOnlyList<MonitoringMetricPoint> points) =>
+        points
+            .GroupBy(point => point.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                var latest = group.OrderByDescending(point => point.Timestamp).First();
+                return new MonitoringMetricSummary(
+                    group.Key,
+                    latest.DisplayName,
+                    group.Sum(point => point.Value),
+                    latest.Unit,
+                    group.Select(point => point.ResourceId).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                    latest.Timestamp);
+            })
+            .OrderBy(summary => summary.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static int GetMonitoringSourceCount(IReadOnlyList<MonitoringMetricPoint> points) =>
+        points
+            .Select(point => point.ResourceId)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
+
     private sealed record MetricSummary(
         string Name,
         double LatestValue,
         string? Unit,
         DateTimeOffset LatestTimestamp,
         int PointCount);
+
+    private sealed record MonitoringMetricPoint(
+        string ResourceId,
+        string SourceName,
+        string Name,
+        string DisplayName,
+        double Value,
+        string? Unit,
+        DateTimeOffset Timestamp,
+        string? Description);
+
+    private sealed record MonitoringMetricSummary(
+        string Name,
+        string DisplayName,
+        double Value,
+        string? Unit,
+        int SourceCount,
+        DateTimeOffset LatestTimestamp);
 
     private sealed record MetricPanelViewModel(
         string Title,

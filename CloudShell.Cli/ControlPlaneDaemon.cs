@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Net;
 using System.Runtime.InteropServices;
@@ -27,6 +28,7 @@ internal sealed class ControlPlaneDaemon
         var hostProject = ResolveHostProject(command.HostProject);
         var processId = await StartHostProcessAsync(
             hostProject,
+            command.DataDirectory,
             command.Url,
             command.NoBuild,
             command.StateDirectory,
@@ -35,6 +37,7 @@ internal sealed class ControlPlaneDaemon
             processId,
             command.Url,
             hostProject,
+            ResolveDataDirectory(command.DataDirectory),
             DateTimeOffset.UtcNow);
 
         await WriteStateAsync(stateFile, state, cancellationToken);
@@ -111,6 +114,7 @@ internal sealed class ControlPlaneDaemon
 
     private static async Task<int> StartHostProcessAsync(
         string hostProject,
+        string? dataDirectory,
         Uri url,
         bool noBuild,
         string stateDirectory,
@@ -135,6 +139,7 @@ internal sealed class ControlPlaneDaemon
             return await StartDetachedUnixHostProcessAsync(
                 targetPath,
                 Path.GetDirectoryName(hostProject) ?? Environment.CurrentDirectory,
+                dataDirectory,
                 url,
                 stateDirectory,
                 cancellationToken);
@@ -143,6 +148,7 @@ internal sealed class ControlPlaneDaemon
         var process = StartWindowsHostProcess(
             targetPath,
             Path.GetDirectoryName(hostProject) ?? Environment.CurrentDirectory,
+            dataDirectory,
             url);
         return process.Id;
     }
@@ -150,6 +156,7 @@ internal sealed class ControlPlaneDaemon
     private static Process StartWindowsHostProcess(
         string targetPath,
         string workingDirectory,
+        string? dataDirectory,
         Uri url)
     {
         var startInfo = new ProcessStartInfo
@@ -162,6 +169,7 @@ internal sealed class ControlPlaneDaemon
         startInfo.ArgumentList.Add(targetPath);
         startInfo.ArgumentList.Add("--urls");
         startInfo.ArgumentList.Add(url.ToString());
+        AddDataDirectoryArguments(startInfo.ArgumentList, dataDirectory);
 
         return Process.Start(startInfo) ??
             throw new InvalidOperationException("Failed to start the CloudShell host process.");
@@ -170,6 +178,7 @@ internal sealed class ControlPlaneDaemon
     private static async Task<int> StartDetachedUnixHostProcessAsync(
         string targetPath,
         string workingDirectory,
+        string? dataDirectory,
         Uri url,
         string stateDirectory,
         CancellationToken cancellationToken)
@@ -181,6 +190,11 @@ internal sealed class ControlPlaneDaemon
             "--urls",
             url.ToString()
         };
+        if (!string.IsNullOrWhiteSpace(dataDirectory))
+        {
+            arguments.Add("--CloudShell:DataDirectory");
+            arguments.Add(Path.GetFullPath(dataDirectory));
+        }
 
         var command = string.Join(
             " ",
@@ -404,6 +418,24 @@ internal sealed class ControlPlaneDaemon
     private static string GetStateFile(string stateDirectory) =>
         Path.Combine(Path.GetFullPath(stateDirectory), "control-plane.json");
 
+    private static string? ResolveDataDirectory(string? dataDirectory) =>
+        string.IsNullOrWhiteSpace(dataDirectory)
+            ? null
+            : Path.GetFullPath(dataDirectory);
+
+    private static void AddDataDirectoryArguments(
+        Collection<string> arguments,
+        string? dataDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(dataDirectory))
+        {
+            return;
+        }
+
+        arguments.Add("--CloudShell:DataDirectory");
+        arguments.Add(Path.GetFullPath(dataDirectory));
+    }
+
     private static string ShellQuote(string value) =>
         "'" + value.Replace("'", "'\"'\"'", StringComparison.Ordinal) + "'";
 
@@ -457,6 +489,7 @@ internal sealed record ControlPlaneDaemonState(
     int ProcessId,
     Uri BaseUrl,
     string HostProjectPath,
+    string? DataDirectory,
     DateTimeOffset StartedAt);
 
 internal sealed record ControlPlaneDaemonStopResult(

@@ -1,6 +1,8 @@
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
 using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
@@ -27,12 +29,21 @@ public sealed class ResourceOrchestratorSelectionStore : IResourceOrchestrationS
 
     public ResourceOrchestratorSelectionStore(
         IHostEnvironment environment,
+        IOptionsMonitor<ResourceManagerOptions> options) :
+        this(new ConfigurationBuilder().Build(), environment, options)
+    {
+    }
+
+    public ResourceOrchestratorSelectionStore(
+        IConfiguration configuration,
+        IHostEnvironment environment,
         IOptionsMonitor<ResourceManagerOptions> options)
     {
         _options = options;
-        _settingsPath = Path.GetFullPath(
+        _settingsPath = CloudShellDataDirectory.ResolvePath(
             "Data/orchestration-settings.json",
-            environment.ContentRootPath);
+            configuration,
+            environment);
         _selection = Load();
     }
 

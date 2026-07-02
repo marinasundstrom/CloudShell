@@ -6,14 +6,14 @@ internal static class HelpText
 CloudShell CLI
 
 Usage:
-  cloudshell control-plane start [--host-project <path>] [--url <url>] [--state-dir <path>] [--no-build] [--bearer-token <token>]
+  cloudshell control-plane start [--host-project <path>] [--data-dir <path>] [--url <url>] [--state-dir <path>] [--no-build] [--bearer-token <token>]
   cloudshell control-plane stop [--state-dir <path>]
   cloudshell control-plane status [--state-dir <path>] [--bearer-token <token>]
   cloudshell ui open [--url <url>] [--state-dir <path>]
   cloudshell resource list [--control-plane <url>] [--type <type>] [--class <class>] [--registered <true|false>]
   cloudshell resource show <resource-id> [--control-plane <url>]
   cloudshell resource action execute <resource-id> <action-id> [--control-plane <url>]
-  cloudshell template apply <template.yaml|template.json> [--control-plane <url>] [--mode <mode>] [--start] [--bearer-token <token>]
+  cloudshell template apply <template.yaml|template.json> [--control-plane <url>] [--mode <mode>] [--start] [--host-project <path>] [--data-dir <path>] [--bearer-token <token>]
   cloudshell host names add <host-name> <ip-address> [--hosts-file <path>] [--dry-run]
   cloudshell host names remove <host-name> [--hosts-file <path>] [--dry-run]
 
@@ -32,6 +32,7 @@ Options:
   --control-plane        Control Plane base URL. Defaults to recorded daemon state.
   --bearer-token         Bearer token for Control Plane API calls. Defaults to CLOUDSHELL_CONTROL_PLANE_TOKEN.
   --host-project         CloudShell host project to run. Defaults to CloudShell.Host in the current repo.
+  --data-dir             Directory for CloudShell host databases and local data files.
   --mode                 create-or-update, create-only, or update-existing. Default: create-or-update.
   --no-build             Pass --no-build to dotnet run when starting the host.
   --start                Start the local Control Plane before applying the template.

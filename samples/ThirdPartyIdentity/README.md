@@ -67,8 +67,9 @@ The role names are not provider-specific. They are CloudShell roles mapped to
 CloudShell permissions in `appsettings.json`.
 
 The reader and contributor roles in this sample include grouped
-`observability.read`, so logs, traces, metrics, Dependencies, Service map, and
-the Telemetry workspace are visible for resources the signed-in user can read.
+`observability.read` and `usage.read`, so logs, traces, metrics, usage,
+Dependencies, Service map, and the Telemetry workspace are visible for
+resources the signed-in user can read.
 CloudShell still filters observability rows to the user's readable resources;
 the observability permission does not reveal resources outside the user's
 resource or resource-group scope.

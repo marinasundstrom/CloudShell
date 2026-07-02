@@ -12,7 +12,7 @@ public static class ShellNavigationIcons
             "server" or "resources" or "resource" => new Icons.Regular.Size20.AppFolder(),
             "environment" => new Icons.Regular.Size20.CubeTree(),
             "health" or "health-checks" => new Icons.Regular.Size20.HeartPulseCheckmark(),
-            "pulse" or "observability" => new Icons.Regular.Size20.DataUsage(),
+            "pulse" or "telemetry" or "observability" or "usage" => new Icons.Regular.Size20.DataUsage(),
             "document" or "logs" or "log" => new Icons.Regular.Size20.SlideTextSparkle(),
             "dependencies" => new Icons.Regular.Size20.BranchFork(),
             "service-map" => new Icons.Regular.Size20.FlowchartCircle(),

@@ -10,6 +10,7 @@ internal sealed record HelpCommand : CliCommand;
 internal sealed record ControlPlaneStartCommand(
     string StateDirectory,
     string? HostProject,
+    string? DataDirectory,
     Uri Url,
     string? BearerToken,
     bool NoBuild,
@@ -33,6 +34,7 @@ internal sealed record TemplateApplyCommand(
     string? BearerToken,
     bool StartControlPlane,
     string? HostProject,
+    string? DataDirectory,
     Uri StartUrl,
     bool NoBuild,
     int TimeoutSeconds,

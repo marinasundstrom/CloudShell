@@ -87,6 +87,7 @@ export interface ApplyOptions {
   templatePath?: string;
   controlPlaneUrl?: string;
   stateDir?: string;
+  dataDir?: string;
   start?: boolean;
   hostProject?: string;
   url?: string;
@@ -556,6 +557,7 @@ function buildTemplateApplyArgs(
   pushOption(args, "--control-plane", options.controlPlaneUrl);
   pushOption(args, "--state-dir", options.stateDir);
   pushOption(args, "--host-project", options.hostProject);
+  pushOption(args, "--data-dir", options.dataDir);
   pushOption(args, "--url", options.url);
   pushOption(args, "--timeout-seconds", options.timeoutSeconds?.toString());
   pushOption(args, "--mode", options.mode);

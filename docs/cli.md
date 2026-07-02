@@ -37,7 +37,19 @@ dotnet run --project CloudShell.Cli -- control-plane start \
 
 The CLI records daemon state in `.cloudshell/control-plane.json` by default.
 That state contains the process id, Control Plane URL, host project path, and
-start time. It must not contain credentials or secret values.
+start time. It can also record the selected data directory when `--data-dir`
+is supplied. It must not contain credentials or secret values.
+
+Use `--data-dir` when a launcher or sample should keep CloudShell databases
+and local host data next to the launcher project instead of under the host
+profile project:
+
+```bash
+dotnet run --project CloudShell.Cli -- control-plane start \
+  --host-project CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj \
+  --state-dir samples/CSharpAppHost/.cloudshell \
+  --data-dir samples/CSharpAppHost/.cloudshell
+```
 
 Inspect or stop the recorded process:
 
@@ -152,6 +164,7 @@ dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.yaml
   --host-project CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj \
   --url http://127.0.0.1:5097 \
   --state-dir samples/TypeScriptAppHost/.cloudshell \
+  --data-dir samples/TypeScriptAppHost/.cloudshell \
   --no-build
 ```
 
@@ -160,6 +173,11 @@ process, `--start` reuses that process. Host process environment variables and
 authentication settings are only applied when the CLI starts a new process; use
 `control-plane stop --state-dir <dir>` before relaunching with different host
 configuration, or pass credentials that match the running host.
+
+`--data-dir` is forwarded to the host as `CloudShell:DataDirectory`. Relative
+CloudShell-owned persistence paths, local user settings, orchestration
+settings, platform resource files, and built-in service definition files use
+that directory as their base when the host supports the setting.
 
 The current `--start` path uses the CLI's recorded local process state. The
 launcher/profile split is the durable boundary; future CLI work can add a

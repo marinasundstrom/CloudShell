@@ -2,15 +2,14 @@ using System.Security.Claims;
 using System.Text.Json;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Shell;
+using CloudShell.ControlPlane.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
 namespace CloudShell.ControlPlane.Shell;
 
-public sealed class ControlPlaneUserSettingsProvider(
-    IHttpContextAccessor httpContextAccessor,
-    ICloudShellAuthorizationService authorization,
-    IHostEnvironment environment) : ICloudShellControlPlaneUserSettingsProvider
+public sealed class ControlPlaneUserSettingsProvider : ICloudShellControlPlaneUserSettingsProvider
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
@@ -18,9 +17,31 @@ public sealed class ControlPlaneUserSettingsProvider(
     };
 
     private static readonly SemaphoreSlim Gate = new(1, 1);
-    private readonly string settingsPath = Path.GetFullPath(
-        "Data/environment-settings.json",
-        environment.ContentRootPath);
+    private readonly IHttpContextAccessor httpContextAccessor;
+    private readonly ICloudShellAuthorizationService authorization;
+    private readonly string settingsPath;
+
+    public ControlPlaneUserSettingsProvider(
+        IHttpContextAccessor httpContextAccessor,
+        ICloudShellAuthorizationService authorization,
+        IHostEnvironment environment) :
+        this(httpContextAccessor, authorization, new ConfigurationBuilder().Build(), environment)
+    {
+    }
+
+    public ControlPlaneUserSettingsProvider(
+        IHttpContextAccessor httpContextAccessor,
+        ICloudShellAuthorizationService authorization,
+        IConfiguration configuration,
+        IHostEnvironment environment)
+    {
+        this.httpContextAccessor = httpContextAccessor;
+        this.authorization = authorization;
+        settingsPath = CloudShellDataDirectory.ResolvePath(
+            "Data/environment-settings.json",
+            configuration,
+            environment);
+    }
 
     public async Task<IReadOnlyDictionary<string, CloudShellUserSetting>> GetSettingsAsync(
         CancellationToken cancellationToken = default)

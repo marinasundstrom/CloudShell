@@ -3811,6 +3811,33 @@ h3 {
     color: var(--cloudshell-text);
 }
 
+.metric-monitoring-snapshot {
+    display: grid;
+    gap: .65rem;
+    margin-bottom: .75rem;
+}
+
+.metric-monitoring-snapshot header {
+    display: grid;
+    gap: .2rem;
+}
+
+.metric-monitoring-snapshot h3,
+.metric-monitoring-snapshot p {
+    margin: 0;
+}
+
+.metric-monitoring-snapshot h3 {
+    font-size: .95rem;
+    line-height: 1.3;
+}
+
+.metric-monitoring-snapshot p {
+    color: var(--cloudshell-text-muted);
+    font-size: .82rem;
+    line-height: 1.4;
+}
+
 .metric-panel-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
@@ -3935,6 +3962,10 @@ h3 {
     background: #111827;
 }
 
+.usage-sample-table {
+    margin-top: .75rem;
+}
+
 .metric-point-table {
     width: 100%;
     min-width: 62rem;
@@ -4017,6 +4048,333 @@ h3 {
 
 .metric-point-empty {
     color: #93a4b7;
+}
+
+.usage-dashboard {
+    display: grid;
+    gap: .85rem;
+}
+
+.usage-dashboard.inline {
+    gap: .75rem;
+}
+
+.usage-dashboard-toolbar {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: .85rem;
+    padding: .75rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
+.usage-dashboard-title {
+    display: grid;
+    gap: .18rem;
+    min-width: 0;
+}
+
+.usage-dashboard-title h2,
+.usage-dashboard-title p {
+    margin: 0;
+}
+
+.usage-dashboard-title h2 {
+    color: var(--cloudshell-text);
+    font-size: 1rem;
+    line-height: 1.25;
+}
+
+.usage-dashboard-title p {
+    color: var(--cloudshell-text-muted);
+    font-size: .82rem;
+    line-height: 1.35;
+}
+
+.usage-dashboard-actions {
+    display: flex;
+    align-items: end;
+    justify-content: flex-end;
+    gap: .55rem;
+    flex-wrap: wrap;
+}
+
+.usage-refresh-controls {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    min-height: 2rem;
+    color: var(--cloudshell-text-muted);
+    font-size: .76rem;
+    white-space: nowrap;
+}
+
+.usage-refresh-controls span {
+    color: var(--cloudshell-text-muted);
+}
+
+.usage-filter {
+    display: grid;
+    gap: .22rem;
+    color: var(--cloudshell-text-muted);
+    font-size: .75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.usage-filter-select {
+    min-width: 13rem;
+    min-height: 2rem;
+    border: 1px solid var(--cloudshell-input-stroke);
+    border-radius: 4px;
+    background: var(--cloudshell-input);
+    color: var(--cloudshell-text);
+    padding: 0 .6rem;
+    text-transform: none;
+}
+
+.usage-panel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    gap: .65rem;
+}
+
+.usage-resource-groups {
+    display: grid;
+    gap: .85rem;
+}
+
+.usage-resource-group {
+    display: grid;
+    gap: .55rem;
+    min-width: 0;
+}
+
+.usage-resource-group + .usage-resource-group {
+    padding-top: .85rem;
+    border-top: 1px solid var(--cloudshell-divider);
+}
+
+.usage-resource-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    min-width: 0;
+}
+
+.usage-resource-group-header h4 {
+    margin: 0;
+    overflow: hidden;
+    color: var(--cloudshell-text);
+    font-size: .86rem;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.usage-resource-group-header span {
+    flex: 0 0 auto;
+    color: var(--cloudshell-text-muted);
+    font-size: .72rem;
+}
+
+.usage-section-heading {
+    display: grid;
+    gap: .15rem;
+    margin-top: .1rem;
+}
+
+.usage-section-heading h3,
+.usage-section-heading p {
+    margin: 0;
+}
+
+.usage-section-heading h3 {
+    color: var(--cloudshell-text);
+    font-size: .9rem;
+    line-height: 1.25;
+}
+
+.usage-section-heading p {
+    color: var(--cloudshell-text-muted);
+    font-size: .78rem;
+    line-height: 1.35;
+}
+
+.usage-panel {
+    display: grid;
+    align-content: start;
+    gap: .65rem;
+    min-width: 0;
+    min-height: 12rem;
+    padding: .75rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface);
+}
+
+.usage-panel header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: .75rem;
+    min-width: 0;
+}
+
+.usage-panel header div {
+    display: grid;
+    gap: .16rem;
+    min-width: 0;
+}
+
+.usage-panel h3,
+.usage-panel p {
+    margin: 0;
+}
+
+.usage-panel h3 {
+    overflow: hidden;
+    color: var(--cloudshell-text);
+    font-size: .9rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.usage-panel p,
+.usage-panel header span,
+.usage-panel-stats {
+    color: var(--cloudshell-text-muted);
+    font-size: .72rem;
+}
+
+.usage-panel header span {
+    flex: 0 1 auto;
+    max-width: 45%;
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.usage-panel-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .25rem .75rem;
+}
+
+.usage-table-shell {
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    overflow: auto;
+    background: var(--cloudshell-surface);
+}
+
+.usage-sample-table {
+    margin-top: .75rem;
+}
+
+.usage-table {
+    width: 100%;
+    min-width: 62rem;
+    border-collapse: collapse;
+    table-layout: fixed;
+    color: var(--cloudshell-text);
+    font-size: .78rem;
+    line-height: 1.45;
+}
+
+.usage-table th,
+.usage-table td {
+    padding: .46rem .65rem;
+    border-bottom: 1px solid var(--cloudshell-divider);
+    text-align: left;
+    vertical-align: top;
+}
+
+.usage-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--cloudshell-surface-muted);
+    color: var(--cloudshell-text-muted);
+    font-weight: 700;
+}
+
+.usage-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.usage-table tbody tr:hover {
+    background: var(--cloudshell-hover);
+}
+
+.usage-table-time {
+    width: 5.5rem;
+    white-space: nowrap;
+}
+
+.usage-table-value {
+    width: 7rem;
+    white-space: nowrap;
+}
+
+.usage-metric-name,
+.usage-metric-id {
+    display: block;
+    min-width: 0;
+}
+
+.usage-metric-name {
+    color: var(--cloudshell-text);
+}
+
+.usage-metric-id {
+    overflow-wrap: anywhere;
+    color: var(--cloudshell-text-muted);
+    font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: .72rem;
+}
+
+.usage-attributes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .25rem .4rem;
+}
+
+.usage-attribute {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    color: var(--cloudshell-text);
+    font-family: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.usage-attribute strong,
+.usage-table-empty {
+    color: var(--cloudshell-text-muted);
+}
+
+@media (max-width: 760px) {
+    .usage-dashboard-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .usage-dashboard-actions {
+        justify-content: flex-start;
+    }
+
+    .usage-refresh-controls {
+        width: 100%;
+    }
+
+    .usage-filter,
+    .usage-filter-select {
+        width: 100%;
+    }
 }
 
 .recent-trace-item {

@@ -3,6 +3,7 @@ using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Abstractions.Usage;
 using Microsoft.Extensions.Options;
 using System.Globalization;
 using System.Net;
@@ -707,6 +708,42 @@ public sealed class RemoteControlPlane : IControlPlane
         await EnsureSuccessAsync(response, cancellationToken);
     }
 
+    public Task<IReadOnlyList<UsageSample>> ListUsageSamplesAsync(
+        UsageQuery? query = null,
+        CancellationToken cancellationToken = default) =>
+        GetRequiredAsync<IReadOnlyList<UsageSample>>(
+            "usage",
+            cancellationToken,
+            ("resourceId", query?.ResourceId),
+            ("usageName", query?.UsageName),
+            ("maxSamples", (query?.MaxSamples ?? 200).ToString()),
+            ("from", query?.From?.ToString("O", CultureInfo.InvariantCulture)),
+            ("to", query?.To?.ToString("O", CultureInfo.InvariantCulture)));
+
+    public Task<IReadOnlyList<UsageStatistic>> ListUsageStatisticsAsync(
+        UsageStatisticsQuery? query = null,
+        CancellationToken cancellationToken = default) =>
+        GetRequiredAsync<IReadOnlyList<UsageStatistic>>(
+            "usage/statistics",
+            cancellationToken,
+            ("resourceId", query?.ResourceId),
+            ("usageName", query?.UsageName),
+            ("from", query?.From?.ToString("O", CultureInfo.InvariantCulture)),
+            ("to", query?.To?.ToString("O", CultureInfo.InvariantCulture)),
+            ("maxStatistics", (query?.MaxStatistics ?? 200).ToString()));
+
+    public async Task RecordUsageSamplesAsync(
+        IEnumerable<UsageSample> samples,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsJsonAsync(
+            BuildUri("usage/record"),
+            new UsageRecordRequest(samples.ToArray()),
+            SerializerOptions,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+    }
+
     public Task<IReadOnlyDictionary<string, ResourceHealthSummary>> ListResourceHealthAsync(
         CancellationToken cancellationToken = default) =>
         GetRequiredAsync<IReadOnlyDictionary<string, ResourceHealthSummary>>(
@@ -1370,6 +1407,8 @@ file sealed record LogEntryResponse(
 file sealed record TraceIngestRequest(IReadOnlyList<TraceSpan> Spans);
 
 file sealed record MetricIngestRequest(IReadOnlyList<MetricPoint> Points);
+
+file sealed record UsageRecordRequest(IReadOnlyList<UsageSample> Samples);
 
 sealed record ProblemResponse(string? Title, string? Detail, string? Code);
 

@@ -12,7 +12,7 @@
 
 @if (ShowHeading)
 {
-    <PageHeading Eyebrow="@L["Observability"].Value"
+    <PageHeading Eyebrow="@L["Telemetry"].Value"
                  Title="@HeadingTitle"
                  Description="@HeadingDescription">
         <Actions>
@@ -399,7 +399,7 @@ else
         }
 
         return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-            "/observability/traces",
+            "/telemetry/traces",
             query);
     }
 

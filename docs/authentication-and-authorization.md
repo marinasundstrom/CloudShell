@@ -413,8 +413,8 @@ Roles map to permissions through configuration. The default roles are:
 
 - `CloudShell.Administrator`: all permissions and all scopes.
 - `CloudShell.Contributor`: shell read plus resource read, runtime-managed
-  resource inspection, observability read, create, and manage permissions.
-- `CloudShell.Reader`: shell, resource read, and observability read
+  resource inspection, observability and usage read, create, and manage permissions.
+- `CloudShell.Reader`: shell, resource read, observability read, and usage read
   permissions.
 
 Available permissions are:
@@ -432,6 +432,7 @@ Available permissions are:
 - `observability.logs.read`
 - `observability.traces.read`
 - `observability.metrics.read`
+- `usage.read`
 - `CloudShell.Resources/resources/lifecycle/action`
 - `CloudShell.Resources/resources/actions/execute/action`
 - `CloudShell.Network/networks/reconcileEndpointMappings/action`
@@ -456,6 +457,11 @@ reads, and log streams are subject to the same rule. A caller must be able to
 read the common logs feature and the owning resource; provider-owned or
 artifact-owned log sources without a resource owner are gated by the common
 logs permission.
+
+Usage permissions gate access to recorded usage samples, usage statistics,
+trend projections, the environment-wide Usage workspace, and resource-scoped
+Usage tabs. The `usage.read` permission still respects resource access:
+resource-scoped usage is returned only for resources the caller can read.
 
 Resource operation permissions should be documented when they are added. The
 current resource-type and resource-class operation catalog is:

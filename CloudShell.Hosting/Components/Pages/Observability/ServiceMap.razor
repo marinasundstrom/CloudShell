@@ -1,3 +1,4 @@
+@page "/telemetry/service-map"
 @page "/observability/service-map"
 @rendermode InteractiveServer
 @inject ICloudShellAuthorizationService Authorization
@@ -9,7 +10,7 @@
 @if (!Authorization.CanReadTraces())
 {
     <EmptyState Title="@L["Access denied"].Value"
-                Message="@L["Your identity does not have permission to view observability traces."].Value" />
+                Message="@L["Your identity does not have permission to view telemetry traces."].Value" />
 }
 else
 {

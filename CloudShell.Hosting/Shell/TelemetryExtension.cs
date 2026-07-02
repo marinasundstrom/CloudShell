@@ -5,51 +5,51 @@ using CoreShell;
 
 namespace CloudShell.Hosting.Shell;
 
-public sealed class ObservabilityExtension : ICloudShellExtension
+public sealed class TelemetryExtension : ICloudShellExtension
 {
     public CloudShellExtensionManifest Manifest => new(
-        "cloudshell.observability",
-        "Observability",
+        "cloudshell.telemetry",
+        "Telemetry",
         "Shared telemetry views for resources, providers, and extension-owned artifacts.",
         "0.1.0",
-        ["observability.views", "logs.views", "logs.sources", "traces.views", "metrics.views"],
+        ["telemetry.views", "logs.views", "logs.sources", "traces.views", "metrics.views"],
         ["resource-manager.resources"]);
 
     public void Configure(ICloudShellExtensionBuilder builder)
     {
         builder.AddCoreShellModule(
-            ObservabilityShellIds.Module,
+            TelemetryShellIds.Module,
             module =>
             {
                 module.AddPage(
-                    ObservabilityShellIds.OverviewPage,
-                    "Observability",
-                    "/observability",
+                    TelemetryShellIds.OverviewPage,
+                    "Telemetry",
+                    "/telemetry",
                     authorization: CoreShellAuthorizationRequirements.FromAnyPermissions(ObservabilityAuthorization.AnyReadPermissions));
                 module.AddPage(
-                    ObservabilityShellIds.LogsPage,
+                    TelemetryShellIds.LogsPage,
                     "Logs",
                     "/logs",
                     authorization: CoreShellAuthorizationRequirements.FromAnyPermissions(ObservabilityAuthorization.LogsReadPermissions));
                 module.AddPage(
-                    ObservabilityShellIds.DependenciesPage,
+                    TelemetryShellIds.DependenciesPage,
                     "Dependencies",
-                    "/observability/dependencies",
+                    "/telemetry/dependencies",
                     authorization: CoreShellAuthorizationRequirements.FromAnyPermissions(ObservabilityAuthorization.TracesReadPermissions));
                 module.AddPage(
-                    ObservabilityShellIds.ServiceMapPage,
+                    TelemetryShellIds.ServiceMapPage,
                     "Service map",
-                    "/observability/service-map",
+                    "/telemetry/service-map",
                     authorization: CoreShellAuthorizationRequirements.FromAnyPermissions(ObservabilityAuthorization.TracesReadPermissions));
                 module.AddPage(
-                    ObservabilityShellIds.TracesPage,
+                    TelemetryShellIds.TracesPage,
                     "Traces",
-                    "/observability/traces",
+                    "/telemetry/traces",
                     authorization: CoreShellAuthorizationRequirements.FromAnyPermissions(ObservabilityAuthorization.TracesReadPermissions));
                 module.AddPage(
-                    ObservabilityShellIds.MetricsPage,
+                    TelemetryShellIds.MetricsPage,
                     "Metrics",
-                    "/observability/metrics",
+                    "/telemetry/metrics",
                     authorization: CoreShellAuthorizationRequirements.FromAnyPermissions(ObservabilityAuthorization.MetricsReadPermissions));
 
                 var workspaceMenu = module
@@ -57,48 +57,48 @@ public sealed class ObservabilityExtension : ICloudShellExtension
                     .AddGroup(ShellIds.WorkspaceMenuGroup, "Workspace", 10);
 
                 workspaceMenu
-                    .AddItem(ObservabilityShellIds.OverviewMenuItem, "Observability", 20)
+                    .AddItem(TelemetryShellIds.OverviewMenuItem, "Telemetry", 20)
                     .WithAttribute(CoreShellAttributeNames.Icon, "pulse")
                     .RequiresPermissions(ObservabilityAuthorization.AnyReadPermissions)
-                    .Target(ObservabilityShellIds.OverviewPage);
+                    .Target(TelemetryShellIds.OverviewPage);
                 workspaceMenu
-                    .AddItem(ObservabilityShellIds.LogsMenuItem, "Logs", 21)
+                    .AddItem(TelemetryShellIds.LogsMenuItem, "Logs", 21)
                     .WithAttribute(CoreShellAttributeNames.Icon, "document")
-                    .WithParent(ObservabilityShellIds.OverviewMenuItem)
+                    .WithParent(TelemetryShellIds.OverviewMenuItem)
                     .RequiresPermissions(ObservabilityAuthorization.LogsReadPermissions)
-                    .Target(ObservabilityShellIds.LogsPage);
+                    .Target(TelemetryShellIds.LogsPage);
                 workspaceMenu
-                    .AddItem(ObservabilityShellIds.DependenciesMenuItem, "Dependencies", 22)
+                    .AddItem(TelemetryShellIds.DependenciesMenuItem, "Dependencies", 22)
                     .WithAttribute(CoreShellAttributeNames.Icon, "dependencies")
-                    .WithParent(ObservabilityShellIds.OverviewMenuItem)
+                    .WithParent(TelemetryShellIds.OverviewMenuItem)
                     .RequiresPermissions(ObservabilityAuthorization.TracesReadPermissions)
-                    .Target(ObservabilityShellIds.DependenciesPage);
+                    .Target(TelemetryShellIds.DependenciesPage);
                 workspaceMenu
-                    .AddItem(ObservabilityShellIds.ServiceMapMenuItem, "Service map", 23)
+                    .AddItem(TelemetryShellIds.ServiceMapMenuItem, "Service map", 23)
                     .WithAttribute(CoreShellAttributeNames.Icon, "service-map")
-                    .WithParent(ObservabilityShellIds.OverviewMenuItem)
+                    .WithParent(TelemetryShellIds.OverviewMenuItem)
                     .RequiresPermissions(ObservabilityAuthorization.TracesReadPermissions)
-                    .Target(ObservabilityShellIds.ServiceMapPage);
+                    .Target(TelemetryShellIds.ServiceMapPage);
                 workspaceMenu
-                    .AddItem(ObservabilityShellIds.TracesMenuItem, "Traces", 24)
+                    .AddItem(TelemetryShellIds.TracesMenuItem, "Traces", 24)
                     .WithAttribute(CoreShellAttributeNames.Icon, "traces")
-                    .WithParent(ObservabilityShellIds.OverviewMenuItem)
+                    .WithParent(TelemetryShellIds.OverviewMenuItem)
                     .RequiresPermissions(ObservabilityAuthorization.TracesReadPermissions)
-                    .Target(ObservabilityShellIds.TracesPage);
+                    .Target(TelemetryShellIds.TracesPage);
                 workspaceMenu
-                    .AddItem(ObservabilityShellIds.MetricsMenuItem, "Metrics", 25)
+                    .AddItem(TelemetryShellIds.MetricsMenuItem, "Metrics", 25)
                     .WithAttribute(CoreShellAttributeNames.Icon, "metrics")
-                    .WithParent(ObservabilityShellIds.OverviewMenuItem)
+                    .WithParent(TelemetryShellIds.OverviewMenuItem)
                     .RequiresPermissions(ObservabilityAuthorization.MetricsReadPermissions)
-                    .Target(ObservabilityShellIds.MetricsPage);
+                    .Target(TelemetryShellIds.MetricsPage);
             });
 
         builder
-            .RegisterView<Components.Pages.Observability.Observability>(ObservabilityViews.Overview)
-            .RegisterView<Components.Pages.Logs.Logs>(ObservabilityViews.Logs)
-            .RegisterView<Components.Pages.Observability.DependencyGraph>(ObservabilityViews.Dependencies)
-            .RegisterView<Components.Pages.Observability.ServiceMap>(ObservabilityViews.ServiceMap)
-            .RegisterView<Components.Pages.Observability.Traces>(ObservabilityViews.Traces)
-            .RegisterView<Components.Pages.Observability.Metrics>(ObservabilityViews.Metrics);
+            .RegisterView<Components.Pages.Observability.Telemetry>(TelemetryViews.Overview)
+            .RegisterView<Components.Pages.Logs.Logs>(TelemetryViews.Logs)
+            .RegisterView<Components.Pages.Observability.DependencyGraph>(TelemetryViews.Dependencies)
+            .RegisterView<Components.Pages.Observability.ServiceMap>(TelemetryViews.ServiceMap)
+            .RegisterView<Components.Pages.Observability.Traces>(TelemetryViews.Traces)
+            .RegisterView<Components.Pages.Observability.Metrics>(TelemetryViews.Metrics);
     }
 }
