@@ -175,6 +175,64 @@ public sealed class LoadBalancerGraphValidator : IResourceDefinitionGraphValidat
                 $"Load balancer '{resource.EffectiveResourceId}' cannot use resource type '{target.Type.TypeId}' as a backend target.",
                 resource.EffectiveResourceId));
         }
+
+        ValidateRouteTargetEndpoint(resource, target, route, diagnostics);
+    }
+
+    private static void ValidateRouteTargetEndpoint(
+        Resource resource,
+        Resource target,
+        LoadBalancerRouteValue route,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (string.IsNullOrWhiteSpace(route.Target.EndpointName) ||
+            GetDeclaredEndpointRequests(target) is not { } endpointRequests)
+        {
+            return;
+        }
+
+        var endpointName = route.Target.EndpointName.Trim();
+        if (endpointRequests.Any(endpoint =>
+                !string.IsNullOrWhiteSpace(endpoint.Name) &&
+                string.Equals(endpoint.Name.Trim(), endpointName, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+            ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid,
+            $"Load balancer '{resource.EffectiveResourceId}' route '{route.Id}' target endpoint '{endpointName}' could not be found on resource '{target.EffectiveResourceId}'.",
+            resource.EffectiveResourceId));
+    }
+
+    private static IReadOnlyList<NetworkingEndpointRequestValue>? GetDeclaredEndpointRequests(
+        Resource target)
+    {
+        if (target.Type.TypeId == AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
+        {
+            return target.Attributes.GetObject<NetworkingEndpointRequestValue[]>(
+                AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+        }
+
+        if (target.Type.TypeId == JavaScriptAppResourceTypeProvider.ResourceTypeId)
+        {
+            return target.Attributes.GetObject<NetworkingEndpointRequestValue[]>(
+                JavaScriptAppResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+        }
+
+        if (target.Type.TypeId == ContainerApplicationResourceTypeProvider.ResourceTypeId)
+        {
+            return target.Attributes.GetObject<NetworkingEndpointRequestValue[]>(
+                ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+        }
+
+        if (target.Type.TypeId == SqlServerResourceTypeProvider.ResourceTypeId)
+        {
+            return target.Attributes.GetObject<NetworkingEndpointRequestValue[]>(
+                SqlServerResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+        }
+
+        return null;
     }
 
     private static void ValidateDuplicateEntrypointNames(

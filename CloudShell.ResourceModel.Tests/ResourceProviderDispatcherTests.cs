@@ -1102,6 +1102,75 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddLoadBalancerResourceType_RejectsRoutesWithMissingTargetEndpoints()
+    {
+        var services = new ServiceCollection();
+        services.AddLoadBalancerResourceType();
+        services.AddContainerApplicationResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var target = new ResourceDefinition(
+            "api",
+            ContainerApplicationResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [ContainerApplicationResourceTypeProvider.Attributes.ContainerImage] = "sample/api:1.0",
+                [ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new NetworkingEndpointRequestValue(
+                            "http",
+                            ResourceEndpointProtocol.Http.ToString(),
+                            TargetPort: 8080)
+                    })
+            });
+        var definition = new ResourceDefinition(
+            "edge",
+            LoadBalancerResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [LoadBalancerResourceTypeProvider.Attributes.Provider] = "traefik",
+                [LoadBalancerResourceTypeProvider.Attributes.Entrypoints] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new LoadBalancerEntrypointValue(
+                            "web",
+                            ResourceEndpointProtocol.Http.ToString(),
+                            8080)
+                    }),
+                [LoadBalancerResourceTypeProvider.Attributes.Routes] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new LoadBalancerRouteValue(
+                            "api",
+                            "API",
+                            LoadBalancerRouteKind.Http.ToString(),
+                            "web",
+                            new LoadBalancerRouteMatchValue("api.local", "/"),
+                            new LoadBalancerRouteTargetValue(
+                                ResourceReference.ReferenceResourceId(
+                                    target.EffectiveResourceId,
+                                    ContainerApplicationResourceTypeProvider.ResourceTypeId),
+                                "admin"))
+                    })
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphValidationPipeline>()
+            .ValidateAsync(
+                new ResourceDefinitionGraph([target, definition]),
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.True(validation.HasErrors);
+        Assert.Contains(validation.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid &&
+            diagnostic.Target == definition.EffectiveResourceId &&
+            diagnostic.Message.Contains(
+                "route 'api' target endpoint 'admin' could not be found on resource 'application.container-app:api'",
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task AddLoadBalancerResourceType_RejectsInvalidRouteTargetReferences()
     {
         var services = new ServiceCollection();
