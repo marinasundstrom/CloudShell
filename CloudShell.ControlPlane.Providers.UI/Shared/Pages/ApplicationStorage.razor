@@ -60,7 +60,7 @@ else
         else
         {
             <EmptyState Title="No mounted storage"
-                        Message="No volume mounts or volume dependencies are projected for this resource." />
+                        Message="No volume mounts or storage dependencies are declared for this resource." />
         }
     </section>
 }
@@ -152,7 +152,7 @@ else
                 : $"{VolumeDependencies.Count} volume dependencies are declared for this resource.";
         }
 
-        return "No mounted storage is projected for this application resource.";
+        return "No mounted storage is declared for this application resource.";
     }
 
     private IReadOnlyList<ApplicationStorageMountView> CreateStorageMountRows(

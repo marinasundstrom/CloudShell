@@ -135,8 +135,8 @@ else
             <h3>Replica slots</h3>
             @if (ReplicaSlots.Count == 0)
             {
-                <EmptyState Title="No replica slots are projected"
-                            Message="The provider has not projected requested replica slots for this app." />
+                <EmptyState Title="No replica slots are materialized"
+                            Message="No requested replica slots are materialized for this app yet." />
             }
             else
             {

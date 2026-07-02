@@ -112,6 +112,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added empty deployment and replica-slot state manager fallbacks to the
   built-in Resource Manager UI extension so container app tabs degrade cleanly
   in custom hosts that do not register deployment services.
+- Reworded container app Deployment, Scale, Environment, and Storage empty
+  states to describe unobserved or undeclared runtime facts instead of old
+  projection placeholders.
 
 ### 2026-07-01
 
