@@ -67,6 +67,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated container app Monitoring network fields to show when per-replica
   network counters are not collected by the active runtime instead of
   presenting them as missing values.
+- Updated container app Deployment details to prefer the active deployment
+  record for the running image, service, and replica group while preserving the
+  latest deployment attempt status.
 
 ### 2026-07-01
 

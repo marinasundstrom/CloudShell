@@ -166,6 +166,9 @@ else
 
     private ResourceDeploymentRecord? LatestDeployment => DeploymentRecords.FirstOrDefault();
 
+    private ResourceDeploymentRecord? ActiveDeployment =>
+        DeploymentRecords.FirstOrDefault(record => record.Status == ResourceOrchestratorDeploymentStatus.Active);
+
     private bool CanEditDeployment =>
         Resource is not null &&
         Capabilities.CanManage &&
@@ -302,16 +305,19 @@ else
             : "Deploy a new image for this app without treating the update as a manual restart.";
 
     private string GetCurrentContainerImage() =>
+        GetDeploymentImage(ActiveDeployment) ??
         Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerImage) ??
         GetDeploymentImage(LatestDeployment) ??
         string.Empty;
 
     private string GetDeploymentService() =>
+        ActiveDeployment?.ServiceId ??
         LatestDeployment?.ServiceId ??
         Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentServiceId) ??
         "not projected";
 
     private string GetReplicaGroup() =>
+        ActiveDeployment?.ReplicaGroup?.Id ??
         LatestDeployment?.ReplicaGroup?.Id ??
         Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentReplicaGroupId) ??
         "not projected";
@@ -335,7 +341,9 @@ else
             : "not enabled";
 
     private int GetDeploymentRequestedReplicasValue(Resource resource) =>
+        ActiveDeployment?.ReplicaGroup?.RequestedReplicas ??
         LatestDeployment?.ReplicaGroup?.RequestedReplicas ??
+        GetRequestedReplicasFromDefinition(ActiveDeployment) ??
         GetRequestedReplicasFromDefinition(LatestDeployment) ??
         TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentRequestedReplicaSlots) ??
         TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentRequestedReplicas) ??
@@ -361,7 +369,8 @@ else
             return MaterializedReplicas.Count;
         }
 
-        return LatestDeployment?.ReplicaGroup?.MaterializedReplicas ??
+        return ActiveDeployment?.ReplicaGroup?.MaterializedReplicas ??
+            LatestDeployment?.ReplicaGroup?.MaterializedReplicas ??
             TryGetReplicaCount(Resource, ResourceAttributeNames.DeploymentMaterializedReplicas) ??
             TryGetReplicaCount(Resource, ResourceAttributeNames.DeploymentProjectedReplicas) ??
             0;
