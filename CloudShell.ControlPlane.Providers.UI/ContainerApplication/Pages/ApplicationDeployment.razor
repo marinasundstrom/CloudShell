@@ -317,13 +317,45 @@ else
         ActiveDeployment?.ServiceId ??
         LatestDeployment?.ServiceId ??
         Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentServiceId) ??
+        GetMaterializedReplicaAttribute(ResourceAttributeNames.DeploymentServiceId) ??
+        GetInferredDeploymentServiceId() ??
         "not projected";
 
     private string GetReplicaGroup() =>
         ActiveDeployment?.ReplicaGroup?.Id ??
         LatestDeployment?.ReplicaGroup?.Id ??
         Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentReplicaGroupId) ??
+        GetMaterializedReplicaAttribute(ResourceAttributeNames.DeploymentReplicaGroupId) ??
+        GetInferredReplicaGroupId() ??
         "not projected";
+
+    private string? GetMaterializedReplicaAttribute(string attributeName) =>
+        MaterializedReplicas
+            .Select(replica => replica.ResourceAttributes.GetValueOrDefault(attributeName))
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+    private string? GetInferredDeploymentServiceId() =>
+        Resource is not null && MaterializedReplicas.Count > 0
+            ? ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(Resource.Id)
+            : null;
+
+    private string? GetInferredReplicaGroupId()
+    {
+        var serviceId = GetInferredDeploymentServiceId();
+        if (string.IsNullOrWhiteSpace(serviceId))
+        {
+            return null;
+        }
+
+        return ResourceOrchestratorReplicaGroups.CreateReplicaGroupId(
+            serviceId,
+            GetInferredRuntimeRevisionId());
+    }
+
+    private string? GetInferredRuntimeRevisionId() =>
+        GetMaterializedReplicaAttribute(ResourceAttributeNames.RuntimeRevision) ??
+        Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentRevision) ??
+        Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerRevision);
 
     private string GetScalingMode() =>
         Resource is not null && IsReplicaModeEnabled(Resource) ? "Replicated" : "Single instance";
