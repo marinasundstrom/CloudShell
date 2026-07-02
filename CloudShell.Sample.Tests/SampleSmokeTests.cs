@@ -2114,6 +2114,7 @@ public sealed class SampleSmokeTests
                 StartupTimeout);
             await AssertSignalRRuntimeReplicaResourcesAsync(host);
             await AssertSignalRRuntimeReplicaMonitoringSnapshotsAsync(host);
+            await AssertSignalRReplicaMonitoringMetricsFallbackAsync(host);
             await AssertSignalRReplicaLogSourcesAsync(host);
             await StartGraphResourceIfAvailableAsync(host, frontend, "SignalR Frontend");
             await WaitForHttpSuccessAsync(
@@ -2417,6 +2418,17 @@ public sealed class SampleSmokeTests
         throw new TimeoutException(
             $"SignalR local-process runtime replica monitoring did not return metric snapshots for all replicas within {StartupTimeout}." +
             $"{Environment.NewLine}{lastSnapshotJson}{Environment.NewLine}{lastException?.Message}");
+    }
+
+    private static async Task AssertSignalRReplicaMonitoringMetricsFallbackAsync(SampleProcess host)
+    {
+        const string apiResourceId = "application.container-app:signalr-api";
+        var metricsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString(apiResourceId)}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}");
+
+        Assert.Contains("Current monitoring snapshot", metricsHtml);
+        Assert.Contains("resource.cpu.usage", metricsHtml);
+        Assert.Contains("resource.process.count", metricsHtml);
     }
 
     private static async Task AssertSignalRReplicaLogSourcesAsync(SampleProcess host)

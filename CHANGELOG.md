@@ -127,6 +127,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated Resource Manager timestamp rendering to treat unobserved Resource
   Model sentinel timestamps as not observed instead of displaying 1970-era
   update times.
+- Updated the Metrics tab to surface current resource monitoring snapshots
+  when no retained telemetry points exist, including replica monitoring
+  snapshots for replicated container apps.
 
 ### 2026-07-01
 
