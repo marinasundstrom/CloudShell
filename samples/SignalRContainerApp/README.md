@@ -21,8 +21,10 @@ The browser frontend uses the default SignalR negotiation flow through a
 same-origin frontend proxy path. That proxy forwards HTTP and WebSocket
 traffic to the backend container app ingress. The app declares cookie session
 affinity at the container app resource level, and the local Docker runtime
-projects that intent into Traefik sticky routing so negotiate and follow-up
-transport requests stay on the same replica.
+projects that intent into Traefik sticky routing. Normal HTTP requests that
+carry the affinity cookie are routed back to the selected replica too; SignalR
+uses the same behavior so negotiate, reconnect, fallback transport, and
+WebSocket upgrade requests stay on the same replica.
 
 ## Run
 

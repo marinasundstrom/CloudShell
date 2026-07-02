@@ -13,6 +13,14 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-07-03
+
+#### Changed
+
+- Clarified container app cookie session affinity documentation so it states
+  that sticky cookies affect ordinary HTTP requests as well as SignalR and
+  WebSocket setup flows, and documented current provider enforcement limits.
+
 ### 2026-07-02
 
 #### Changed

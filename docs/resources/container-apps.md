@@ -391,11 +391,28 @@ Container apps can declare app-level service-routing session affinity with
 `WithSessionAffinity(...)`. The Resource Manager Scale and replicas tab exposes
 the same setting as resource intent. The deployment projection carries the
 policy into the orchestrator service routing binding so an orchestrator or
-load-balancer provider can keep repeated requests or upgraded connections,
-such as WebSockets, pinned to the same replica when that policy is enabled.
-Runtime enforcement is provider-specific; the current local sample projects
-cookie affinity into the sample Traefik bridge by writing sticky-cookie
-configuration when routing is reconciled.
+load-balancer provider can keep traffic from the same client pinned to the same
+replica when that policy is enabled.
+
+Cookie session affinity is endpoint-wide HTTP stickiness. Once the affinity
+cookie exists, ordinary HTTP requests that carry the cookie are routed back to
+the selected replica as well. SignalR and WebSocket workloads are the primary
+reason CloudShell models the setting: SignalR negotiation, reconnects,
+fallback transports, and WebSocket upgrade requests need to reach the same
+replica as the related session. The same sticky-cookie mechanism also affects
+REST, page, health, or other HTTP requests sent by that client to the
+container app endpoint. An already-upgraded WebSocket remains on its selected
+replica because the connection is long-lived; affinity controls which replica
+is selected for the HTTP requests that establish or resume that connection.
+
+Runtime enforcement is provider-specific. The current local Docker
+container-app runtime projects cookie affinity into its Traefik ingress bridge
+by writing sticky-cookie configuration when routing is reconciled. The
+local-process runtime enforces the same cookie behavior in its in-process
+proxy. `ClientIp` remains accepted as resource intent, but current local
+Traefik enforcement is cookie-based. Providers that do not enforce a declared
+affinity policy should document or report that non-parity instead of implying
+that the setting is active.
 
 Inside the orchestration layer, CloudShell represents this management group as
 a `ResourceOrchestratorService` descriptor. Container apps produce this

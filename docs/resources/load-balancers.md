@@ -202,6 +202,12 @@ The provider supports:
 - HTTP services with target URLs
 - TCP services with target addresses
 
+The standalone Traefik load-balancer provider does not currently consume
+container app session-affinity intent when it writes route configuration.
+Cookie affinity for replicated container apps is enforced by the local
+container-app runtime's app-owned Traefik ingress bridge, not by this shared
+load-balancer provider path.
+
 Configure the output directory when registering the provider:
 
 ```csharp

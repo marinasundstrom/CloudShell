@@ -45,7 +45,10 @@ The app declares cookie session affinity with the `CloudShellReplica` cookie.
 The current sample projects that setting into the orchestrator service routing
 binding so the Resource Manager UI can edit and inspect it. During routing
 reconciliation, the sample Traefik bridge writes sticky-cookie configuration
-for that binding so repeated requests can stay pinned to the same replica.
+for that binding so repeated HTTP requests that carry the affinity cookie can
+stay pinned to the same replica. This is ordinary endpoint-wide sticky routing;
+it is useful for SignalR and WebSocket setup flows, but it also affects normal
+HTTP requests from the same client.
 
 Replica telemetry is posted back to the Control Plane from inside the
 containers. For local `localhost` sample URLs, the sample maps the runtime
