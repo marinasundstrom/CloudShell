@@ -132,6 +132,11 @@ dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.yaml
 YAML is the preferred authoring format. Use `.json` when a workflow needs the
 JSON `ResourceTemplate` projection used by the Control Plane API.
 
+For normal local application development, run the app host itself and let that
+host start the Control Plane, UI, and declared resources. `template apply` is
+still useful when a script, SDK, or automation flow needs to apply changes to
+an already-running Control Plane instance.
+
 Use `--start` when the CLI should launch the local Control Plane host before
 applying the template. The same daemon options used by `control-plane start`
 can be supplied when the default host project, URL, state directory, or build

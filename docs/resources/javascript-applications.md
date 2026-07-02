@@ -42,12 +42,10 @@ javascript:
 
 JavaScript app resources can declare endpoint requests, environment variables,
 service references, health checks, log sources, and volume mounts using the
-same Resource model patterns as other application resources.
-
-Lifecycle execution is intentionally separate from the type declaration. This
-slice makes JavaScript apps first-class resources and template entries; the
-Node.js runtime operation provider can be added as a later provider adapter
-without changing the resource type identity.
+same Resource model patterns as other application resources. The default local
+runtime starts the declared package-manager script from the project directory,
+tracks process state, and exposes process logs and metrics through Resource
+Manager.
 
 Future JavaScript client packages can build on this resource type by giving
 Node.js applications typed access to CloudShell services such as Configuration
@@ -75,11 +73,10 @@ development. CloudShell should model those tools as provider-owned runtime
 adapter concerns rather than adding bundler-specific concepts to the core
 resource definition.
 
-Hot reload is also provider-owned behavior. A future JavaScript runtime adapter
-should start the selected development command, project the dev server endpoint,
-preserve process logs and health, and let the framework's own watcher or HMR
-server reload the app while CloudShell continues to manage resource identity,
-references, endpoints, and operations.
+Hot reload is provider-owned behavior. The current local runtime starts the
+selected development command and lets the framework's own watcher or HMR server
+reload the app while CloudShell continues to manage resource identity,
+references, endpoints, logs, metrics, and operations.
 
 ## Sample
 
@@ -90,11 +87,25 @@ The `samples/JavaScriptApp` sample declares:
 - environment variables that show how the app can receive another resource's
   endpoint during local development
 
-Run the CloudShell host:
+Run the app host in a foreground terminal. The host declares the JavaScript app
+resource and starts the Control Plane and Web UI in the same process:
 
 ```bash
-dotnet run --project samples/JavaScriptApp/Host/CloudShell.JavaScriptAppHost.csproj
+samples/JavaScriptApp/cloudshell.sh run-no-auth
 ```
+
+From a second terminal, open the Web UI, list resources, and start the
+JavaScript app:
+
+```bash
+samples/JavaScriptApp/cloudshell.sh open
+samples/JavaScriptApp/cloudshell.sh resources
+samples/JavaScriptApp/cloudshell.sh start-app
+```
+
+The helper still exposes daemon commands for CLI daemon testing. Daemon mode
+is useful for automation, but the normal local-development sample flow keeps
+the Control Plane bound to the foreground host process.
 
 The Node app itself can also be run directly while the resource type remains
 the CloudShell graph and Resource Manager representation:
@@ -103,3 +114,8 @@ the CloudShell graph and Resource Manager representation:
 cd samples/JavaScriptApp/App
 npm run dev
 ```
+
+Future provider work should support the same container-app wrapping path as
+other application resources, so a JavaScript application can either run as a
+local Node.js process for development or project into an
+`application.container-app` when the author chooses containerized execution.

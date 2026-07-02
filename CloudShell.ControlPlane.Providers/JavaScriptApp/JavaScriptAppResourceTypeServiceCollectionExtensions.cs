@@ -49,7 +49,38 @@ public static class JavaScriptAppResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceGraphDependencyProvider, VolumeConsumerGraphDependencyProvider>());
         services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProvider, JavaScriptAppStartOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProvider, JavaScriptAppStopOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProvider, JavaScriptAppRestartOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProjector, JavaScriptAppStartOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProjector, JavaScriptAppStopOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProjector, JavaScriptAppRestartOperationProvider>());
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, JavaScriptAppResourceProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IJavaScriptAppRuntimeEnvironmentProvider,
+                JavaScriptAppEnvironmentReferenceResolver>());
+        services.TryAddSingleton<JavaScriptAppProcessRuntimeController>();
+        services.TryAddSingleton<IJavaScriptAppRuntimeController>(
+            serviceProvider => serviceProvider.GetRequiredService<JavaScriptAppProcessRuntimeController>());
+        services.TryAddSingleton<IJavaScriptAppRuntimeOutputReader>(
+            serviceProvider =>
+                serviceProvider.GetRequiredService<IJavaScriptAppRuntimeController>()
+                    is IJavaScriptAppRuntimeOutputReader outputReader
+                    ? outputReader
+                    : serviceProvider.GetRequiredService<JavaScriptAppProcessRuntimeController>());
+        services.TryAddSingleton<IJavaScriptAppRuntimeMonitor>(
+            serviceProvider =>
+                serviceProvider.GetRequiredService<IJavaScriptAppRuntimeController>()
+                    is IJavaScriptAppRuntimeMonitor monitor
+                    ? monitor
+                    : serviceProvider.GetRequiredService<JavaScriptAppProcessRuntimeController>());
 
         return services;
     }

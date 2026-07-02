@@ -1,8 +1,36 @@
 using CloudShell.Abstractions.Observability;
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceModel;
+using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
+using ResourceManagerState = CloudShell.Abstractions.ResourceManager.ResourceState;
 
 namespace CloudShell.ControlPlane.Providers;
+
+public sealed class JavaScriptAppResourceManagerStateProvider(
+    IJavaScriptAppRuntimeController? runtimeController = null) :
+    IResourceModelResourceManagerStateProvider
+{
+    private readonly IJavaScriptAppRuntimeController _runtimeController =
+        runtimeController ?? new NoopJavaScriptAppRuntimeController();
+
+    public ResourceManagerState? GetState(Resource resource)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+
+        if (resource.Type.TypeId != JavaScriptAppResourceTypeProvider.ResourceTypeId)
+        {
+            return null;
+        }
+
+        return _runtimeController.GetStatus(resource) switch
+        {
+            JavaScriptAppRuntimeStatus.Running => ResourceManagerState.Running,
+            JavaScriptAppRuntimeStatus.Stopped => ResourceManagerState.Stopped,
+            _ => null
+        };
+    }
+}
 
 public sealed class JavaScriptAppResourceManagerEndpointProjectionProvider :
     IResourceModelResourceManagerEndpointProjectionProvider
@@ -120,4 +148,152 @@ public sealed class JavaScriptAppResourceManagerObservabilityProvider :
                 ServiceName: resource.Name)
             : null;
     }
+}
+
+public sealed class JavaScriptAppResourceManagerMonitoringProvider(
+    IJavaScriptAppRuntimeMonitor? runtimeMonitor = null) : IResourceMonitoringProvider
+{
+    private const string ProviderDisplayName = "JavaScript app";
+    private readonly IJavaScriptAppRuntimeMonitor _runtimeMonitor =
+        runtimeMonitor ?? new NoopJavaScriptAppRuntimeController();
+
+    public bool CanMonitor(ResourceManagerResource resource) =>
+        string.Equals(
+            resource.EffectiveTypeId,
+            JavaScriptAppResourceTypeProvider.ResourceTypeId.ToString(),
+            StringComparison.OrdinalIgnoreCase);
+
+    public async Task<ResourceMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        ResourceManagerResource resource,
+        CancellationToken cancellationToken = default)
+    {
+        if (!CanMonitor(resource))
+        {
+            return null;
+        }
+
+        var timestamp = DateTimeOffset.UtcNow;
+        var snapshot = await _runtimeMonitor.GetMonitoringSnapshotAsync(
+            resource.Id,
+            cancellationToken);
+        if (snapshot is null)
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                ProviderDisplayName,
+                timestamp,
+                [],
+                "Unavailable",
+                "The JavaScript app process could not be observed.");
+        }
+
+        return new ResourceMonitoringSnapshot(
+            resource.Id,
+            ProviderDisplayName,
+            snapshot.Timestamp,
+            ResourceProcessMonitoringMetricSamples.Create(
+                snapshot,
+                "JavaScript app process"),
+            "Available",
+            "JavaScript app process metrics.");
+    }
+}
+
+public sealed class JavaScriptAppResourceManagerLogProvider(
+    IJavaScriptAppRuntimeOutputReader? outputReader = null) : ILogProvider
+{
+    private readonly IJavaScriptAppRuntimeOutputReader _outputReader =
+        outputReader ?? new NoopJavaScriptAppRuntimeController();
+
+    public string Id => "resource-model.javascript-app.logs";
+
+    public string DisplayName => "JavaScript app logs";
+
+    public IReadOnlyList<LogSource> GetLogSources() => [];
+
+    public bool CanOpenLogSource(LogSource source) =>
+        IsJavaScriptAppLogSource(source);
+
+    public ValueTask<ILogSourceSession?> OpenLogSourceAsync(
+        LogSource source,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return ValueTask.FromResult<ILogSourceSession?>(
+            IsJavaScriptAppLogSource(source) && source.ResourceId is not null
+                ? new JavaScriptAppResourceManagerLogSourceSession(_outputReader, source)
+                : null);
+    }
+
+    public Task<IReadOnlyList<LogEntry>> ReadLogSourceAsync(
+        string logSourceId,
+        int maxEntries = 200,
+        DateTimeOffset? before = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult<IReadOnlyList<LogEntry>>([]);
+    }
+
+    private static bool IsJavaScriptAppLogSource(LogSource source) =>
+        source.ResourceId?.StartsWith(
+            $"{JavaScriptAppResourceTypeProvider.ResourceTypeId}:",
+            StringComparison.OrdinalIgnoreCase) == true &&
+        source.Kind is ResourceLogSourceKind.ProcessOutput
+            or ResourceLogSourceKind.ProcessStdout
+            or ResourceLogSourceKind.ProcessStderr;
+}
+
+public sealed class JavaScriptAppResourceManagerLogSourceSession(
+    IJavaScriptAppRuntimeOutputReader outputReader,
+    LogSource source) : ILogSourceSession
+{
+    public string Id { get; } = Guid.NewGuid().ToString("N");
+
+    public string SourceId => source.Id;
+
+    public LogSourceSessionStatus Status { get; private set; } = LogSourceSessionStatus.Active;
+
+    public Task<IReadOnlyList<LogEntry>> ReadAsync(
+        int maxEntries = 200,
+        DateTimeOffset? before = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        IReadOnlyList<LogEntry> entries = source.ResourceId is null
+            ? []
+            : outputReader
+                .ReadOutput(source.ResourceId, maxEntries, before)
+                .Select(ToLogEntry)
+                .ToArray();
+
+        return Task.FromResult(entries);
+    }
+
+    public async IAsyncEnumerable<LogEntry> StreamAsync(
+        int initialEntries = 50,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var entries = await ReadAsync(initialEntries, cancellationToken: cancellationToken);
+        foreach (var entry in entries)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return entry;
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        Status = LogSourceSessionStatus.Closed;
+        return ValueTask.CompletedTask;
+    }
+
+    private static LogEntry ToLogEntry(JavaScriptAppRuntimeOutputEntry entry) =>
+        new(
+            entry.Timestamp,
+            entry.Message,
+            entry.Severity,
+            entry.Stream);
 }

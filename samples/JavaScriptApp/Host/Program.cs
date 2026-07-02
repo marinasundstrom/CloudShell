@@ -44,6 +44,7 @@ builder.AddCloudShellControlPlaneApplication(
                 .AddJavaScriptApp("javascript-frontend", appPath)
                 .WithDisplayName("JavaScript Frontend")
                 .WithResourceGroup(group)
+                .WithAutoStart(false)
                 .WithPackageManager("npm")
                 .WithScript("dev")
                 .WithServiceDiscovery()

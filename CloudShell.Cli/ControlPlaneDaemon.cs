@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 
 namespace CloudShell.Cli;
@@ -24,9 +25,14 @@ internal sealed class ControlPlaneDaemon
 
         Directory.CreateDirectory(Path.GetDirectoryName(stateFile)!);
         var hostProject = ResolveHostProject(command.HostProject);
-        var process = StartHostProcess(hostProject, command.Url, command.NoBuild);
+        var processId = await StartHostProcessAsync(
+            hostProject,
+            command.Url,
+            command.NoBuild,
+            command.StateDirectory,
+            cancellationToken);
         var state = new ControlPlaneDaemonState(
-            process.Id,
+            processId,
             command.Url,
             hostProject,
             DateTimeOffset.UtcNow);
@@ -38,13 +44,13 @@ internal sealed class ControlPlaneDaemon
             await WaitForReadyAsync(
                 command.Url,
                 command.BearerToken,
-                process,
+                processId,
                 TimeSpan.FromSeconds(command.TimeoutSeconds),
                 cancellationToken);
         }
         catch
         {
-            await TryStopAsync(process.Id);
+            await TryStopAsync(processId);
             TryDelete(stateFile);
             throw;
         }
@@ -103,24 +109,57 @@ internal sealed class ControlPlaneDaemon
             SerializerOptions);
     }
 
-    private static Process StartHostProcess(string hostProject, Uri url, bool noBuild)
+    private static async Task<int> StartHostProcessAsync(
+        string hostProject,
+        Uri url,
+        bool noBuild,
+        string stateDirectory,
+        CancellationToken cancellationToken)
+    {
+        if (!noBuild)
+        {
+            await BuildHostProjectAsync(hostProject, cancellationToken);
+        }
+
+        var targetPath = await GetHostTargetPathAsync(hostProject, cancellationToken);
+        if (string.IsNullOrWhiteSpace(targetPath) ||
+            !File.Exists(targetPath))
+        {
+            throw new FileNotFoundException(
+                $"The host output assembly '{targetPath}' does not exist. Build the host first or omit --no-build.",
+                targetPath);
+        }
+
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return await StartDetachedUnixHostProcessAsync(
+                targetPath,
+                Path.GetDirectoryName(hostProject) ?? Environment.CurrentDirectory,
+                url,
+                stateDirectory,
+                cancellationToken);
+        }
+
+        var process = StartWindowsHostProcess(
+            targetPath,
+            Path.GetDirectoryName(hostProject) ?? Environment.CurrentDirectory,
+            url);
+        return process.Id;
+    }
+
+    private static Process StartWindowsHostProcess(
+        string targetPath,
+        string workingDirectory,
+        Uri url)
     {
         var startInfo = new ProcessStartInfo
         {
             FileName = "dotnet",
-            WorkingDirectory = Path.GetDirectoryName(hostProject) ?? Environment.CurrentDirectory,
+            WorkingDirectory = workingDirectory,
             UseShellExecute = false
         };
 
-        startInfo.ArgumentList.Add("run");
-        startInfo.ArgumentList.Add("--project");
-        startInfo.ArgumentList.Add(hostProject);
-        if (noBuild)
-        {
-            startInfo.ArgumentList.Add("--no-build");
-        }
-
-        startInfo.ArgumentList.Add("--");
+        startInfo.ArgumentList.Add(targetPath);
         startInfo.ArgumentList.Add("--urls");
         startInfo.ArgumentList.Add(url.ToString());
 
@@ -128,10 +167,144 @@ internal sealed class ControlPlaneDaemon
             throw new InvalidOperationException("Failed to start the CloudShell host process.");
     }
 
+    private static async Task<int> StartDetachedUnixHostProcessAsync(
+        string targetPath,
+        string workingDirectory,
+        Uri url,
+        string stateDirectory,
+        CancellationToken cancellationToken)
+    {
+        var logFile = Path.Combine(Path.GetFullPath(stateDirectory), "control-plane.log");
+        var arguments = new List<string>
+        {
+            targetPath,
+            "--urls",
+            url.ToString()
+        };
+
+        var command = string.Join(
+            " ",
+            [
+                "cd",
+                ShellQuote(workingDirectory),
+                "||",
+                "exit",
+                "1;",
+                "nohup",
+                "dotnet",
+                .. arguments.Select(ShellQuote),
+                ">",
+                ShellQuote(logFile),
+                "2>&1",
+                "<",
+                "/dev/null",
+                "&",
+                "echo",
+                "$!"
+            ]);
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "/bin/sh",
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        startInfo.ArgumentList.Add("-c");
+        startInfo.ArgumentList.Add(command);
+
+        using var launcher = Process.Start(startInfo) ??
+            throw new InvalidOperationException("Failed to start the CloudShell host process.");
+        var outputTask = launcher.StandardOutput.ReadToEndAsync(cancellationToken);
+        var errorTask = launcher.StandardError.ReadToEndAsync(cancellationToken);
+        await launcher.WaitForExitAsync(cancellationToken);
+
+        var output = await outputTask;
+        var error = await errorTask;
+        if (launcher.ExitCode != 0)
+        {
+            throw new InvalidOperationException(
+                $"Failed to start the CloudShell host process. {error}".Trim());
+        }
+
+        var pidText = output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .LastOrDefault();
+        if (!int.TryParse(pidText, out var processId))
+        {
+            throw new InvalidOperationException(
+                $"Failed to read the CloudShell host process id. {output}".Trim());
+        }
+
+        return processId;
+    }
+
+    private static async Task BuildHostProjectAsync(
+        string hostProject,
+        CancellationToken cancellationToken)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "dotnet",
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        startInfo.ArgumentList.Add("build");
+        startInfo.ArgumentList.Add(hostProject);
+
+        using var process = Process.Start(startInfo) ??
+            throw new InvalidOperationException("Failed to start dotnet build.");
+        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+
+        if (process.ExitCode != 0)
+        {
+            var output = await outputTask;
+            var error = await errorTask;
+            throw new InvalidOperationException(
+                $"Failed to build the CloudShell host project. {output} {error}".Trim());
+        }
+    }
+
+    private static async Task<string> GetHostTargetPathAsync(
+        string hostProject,
+        CancellationToken cancellationToken)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "dotnet",
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        startInfo.ArgumentList.Add("msbuild");
+        startInfo.ArgumentList.Add(hostProject);
+        startInfo.ArgumentList.Add("-getProperty:TargetPath");
+
+        using var process = Process.Start(startInfo) ??
+            throw new InvalidOperationException("Failed to evaluate the CloudShell host target path.");
+        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+
+        var output = await outputTask;
+        var error = await errorTask;
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException(
+                $"Failed to evaluate the CloudShell host target path. {error}".Trim());
+        }
+
+        return output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .LastOrDefault() ?? string.Empty;
+    }
+
     private static async Task WaitForReadyAsync(
         Uri baseUrl,
         string? bearerToken,
-        Process process,
+        int processId,
         TimeSpan timeout,
         CancellationToken cancellationToken)
     {
@@ -142,10 +315,10 @@ internal sealed class ControlPlaneDaemon
 
         while (!linked.Token.IsCancellationRequested)
         {
-            if (process.HasExited)
+            if (!IsProcessRunning(processId))
             {
                 throw new InvalidOperationException(
-                    $"Control Plane process exited before it was ready. Exit code: {process.ExitCode}.");
+                    "Control Plane process exited before it was ready.");
             }
 
             if (await IsReadyAsync(baseUrl, bearerToken, linked.Token))
@@ -230,6 +403,9 @@ internal sealed class ControlPlaneDaemon
 
     private static string GetStateFile(string stateDirectory) =>
         Path.Combine(Path.GetFullPath(stateDirectory), "control-plane.json");
+
+    private static string ShellQuote(string value) =>
+        "'" + value.Replace("'", "'\"'\"'", StringComparison.Ordinal) + "'";
 
     private static bool IsProcessRunning(int processId)
     {

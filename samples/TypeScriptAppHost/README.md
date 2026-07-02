@@ -3,11 +3,15 @@
 This sample declares a CloudShell resource graph from TypeScript using the
 experimental `@cloudshell/local-development` package.
 
-It proves the hosting integration shape:
+It proves the TypeScript declaration shape:
 
 - TypeScript code declares resources through builder-style APIs.
 - The package emits ResourceTemplate JSON accepted by CloudShell.
 - The sample can hand that template to the current CloudShell CLI.
+
+The current POC still runs the .NET CloudShell host as the process that owns
+the Control Plane and Web UI. The TypeScript file is the declaration client for
+that host, not a replacement host process yet.
 
 Generate the template:
 
@@ -22,62 +26,58 @@ Apply the template to an already-running Control Plane:
 CLOUDSHELL_CONTROL_PLANE_URL=http://127.0.0.1:5097 npm run apply
 ```
 
-Start the configured local host before applying. If the sample already has a
-recorded running Control Plane process in `.cloudshell/control-plane.json`, the
-CLI reuses that process instead of starting a new one:
+Run the app host in a foreground terminal. The host starts the Control Plane
+and Web UI in the same process:
 
 ```bash
-npm run apply -- --start
+./cloudshell.sh run-no-auth
 ```
 
-The current sample host normally enforces Control Plane authentication. For an
-isolated local proof-of-concept run, disable host authentication when launching
-a new host process:
+From a second terminal, apply the TypeScript-authored template to that running
+host:
 
 ```bash
-Authentication__Enabled=false npm run apply -- --start --no-build
+./cloudshell.sh apply
 ```
 
-On a fresh checkout, omit `--no-build` or build the .NET host first.
-
-`Authentication__Enabled=false` only affects a host process that is launched by
-that command. If a host is already running, it keeps the authentication mode it
-started with. Stop the recorded sample host before relaunching with different
-authentication settings:
+After applying the template, open the Web UI and start the TypeScript-declared
+JavaScript app from Resource Manager, or start it from the helper:
 
 ```bash
-dotnet run --project ../../CloudShell.Cli/CloudShell.Cli.csproj -- \
-  control-plane stop \
-  --state-dir .cloudshell
-Authentication__Enabled=false npm run apply -- --start --no-build
+./cloudshell.sh open
+./cloudshell.sh start-app
 ```
 
-A successful run starts the configured host, waits until the Control Plane API
-is ready, applies the generated template, and prints:
+After the app starts, open:
 
 ```text
-Template applied.
+http://localhost:5173
 ```
+
+The helper also keeps CLI daemon commands available for daemon-specific
+testing, but daemon mode is not part of the normal sample flow.
 
 When running against an authenticated host, supply a Control Plane bearer token
 through `CLOUDSHELL_CONTROL_PLANE_TOKEN` or pass `--bearer-token` through the
 sample apply command:
 
 ```bash
-CLOUDSHELL_CONTROL_PLANE_TOKEN=<token> npm run apply -- --start
-npm run apply -- --start --bearer-token <token>
+CLOUDSHELL_CONTROL_PLANE_TOKEN=<token> npm run apply
+npm run apply -- --bearer-token <token>
 ```
 
-Stop the local daemon state recorded for this sample:
+`Authentication__Enabled=false` only affects a host process that is launched by
+that command. Stop the foreground host and relaunch when changing
+authentication settings.
 
-```bash
-dotnet run --project ../../CloudShell.Cli/CloudShell.Cli.csproj -- \
-  control-plane stop \
-  --state-dir .cloudshell
+A successful apply prints:
+
+```text
+Template applied.
 ```
 
 If you want to reset generated local sample state after a run:
 
 ```bash
-rm -rf .cloudshell ../JavaScriptApp/Host/Data
+./cloudshell.sh reset
 ```

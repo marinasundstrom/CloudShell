@@ -132,6 +132,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerStateProvider,
+                JavaScriptAppResourceManagerStateProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerStateProvider,
                 ContainerApplicationResourceManagerStateProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
@@ -175,6 +179,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
                 AspNetCoreProjectEnvironmentReferenceResolver>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
+                IJavaScriptAppRuntimeEnvironmentProvider,
+                JavaScriptAppEnvironmentReferenceResolver>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
                 IConfigurationEntryReferenceResolver,
                 ConfigurationStoreRuntimeEntryReferenceResolver>());
         services.TryAddEnumerable(
@@ -185,6 +193,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 IResourceMonitoringProvider,
                 AspNetCoreProjectResourceManagerMonitoringProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceMonitoringProvider,
+                JavaScriptAppResourceManagerMonitoringProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceMonitoringProvider,
@@ -201,6 +213,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 ILogProvider,
                 AspNetCoreProjectResourceManagerLogProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                ILogProvider,
+                JavaScriptAppResourceManagerLogProvider>());
         services.AddScoped<
             ISqlDatabaseServerResolver,
             SqlDatabaseResourceManagerServerResolver>();

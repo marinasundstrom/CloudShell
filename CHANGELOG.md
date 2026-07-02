@@ -21,6 +21,13 @@ on `git blame --follow`, and then by the broad type of change.
   Configuration Store resource endpoints as service base URLs while passing
   canonical `/api/configuration/stores/{resource-id}/entries` URLs to the
   JavaScript app through environment variables.
+- Added JavaScript app start, stop, and restart operations backed by a local
+  package-manager process runtime, including Resource Manager state, logs, and
+  process monitoring projection for the running Node.js process.
+- Added sample-local `cloudshell.sh` helpers for the JavaScript app and
+  TypeScript app-host samples so developers can run the app host in the
+  foreground and use CLI resource/UI commands against that running host, while
+  keeping daemon commands available for daemon-specific testing.
 
 ### 2026-07-01
 
