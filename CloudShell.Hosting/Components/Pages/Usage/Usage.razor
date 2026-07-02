@@ -1,6 +1,7 @@
 @page "/usage"
 @rendermode InteractiveServer
 @using System.Globalization
+@implements IDisposable
 @inject ICloudShellAuthorizationService Authorization
 @inject IUsageManager UsageManager
 @inject IResourceManager ResourceManager
@@ -40,8 +41,9 @@ else
                 }
                 <FluentButton Appearance="Appearance.Neutral"
                               IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                              Disabled="@IsLoading"
                               OnClick="RefreshUsageAsync">
-                    @L["Refresh"]
+                    @(IsLoading ? L["Refreshing"] : L["Refresh"])
                 </FluentButton>
             </Actions>
         </PageHeading>
@@ -83,6 +85,15 @@ else
                         }
                     </select>
                 </label>
+                <div class="usage-refresh-controls">
+                    <FluentCheckbox @bind-Value="AutoRefresh">
+                        @L["Auto-refresh"]
+                    </FluentCheckbox>
+                    @if (LastRefreshed is not null)
+                    {
+                        <span>@L["Updated {0}", LastRefreshed.Value.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture)]</span>
+                    }
+                </div>
                 @if (!ShowHeading)
                 {
                     @if (ShowAllUsageAction)
@@ -93,8 +104,9 @@ else
                     }
                     <FluentButton Appearance="Appearance.Neutral"
                                   IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                                  Disabled="@IsLoading"
                                   OnClick="RefreshUsageAsync">
-                        @L["Refresh"]
+                        @(IsLoading ? L["Refreshing"] : L["Refresh"])
                     </FluentButton>
                 }
             </div>
@@ -249,6 +261,8 @@ else
 }
 
 @code {
+    private static readonly TimeSpan AutoRefreshInterval = TimeSpan.FromSeconds(30);
+
     [Parameter]
     [SupplyParameterFromQuery]
     public string? ResourceId { get; set; }
@@ -287,13 +301,36 @@ else
     private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
         ResourceManagerDisplaySelection.Default;
 
+    private System.Threading.Timer? RefreshTimer { get; set; }
+
     private bool IsLoading { get; set; }
+
+    private bool IsDisposed { get; set; }
+
+    private bool AutoRefresh { get; set; } = true;
+
+    private DateTimeOffset? LastRefreshed { get; set; }
 
     private string? SelectedResourceId => NormalizeFilter(ResourceId);
 
     private string? SelectedUsageName => NormalizeFilter(UsageName);
 
     private string UsageDashboardCssClass => Inline ? "usage-dashboard inline" : "usage-dashboard";
+
+    protected override void OnInitialized()
+    {
+        RefreshTimer = new System.Threading.Timer(
+            _ =>
+            {
+                if (!IsDisposed && AutoRefresh)
+                {
+                    _ = InvokeAsync(RefreshUsageAsync);
+                }
+            },
+            null,
+            AutoRefreshInterval,
+            AutoRefreshInterval);
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -306,6 +343,11 @@ else
 
     private async Task RefreshUsageAsync()
     {
+        if (IsLoading || IsDisposed || !Authorization.CanReadUsage())
+        {
+            return;
+        }
+
         IsLoading = true;
         try
         {
@@ -321,11 +363,22 @@ else
                     SelectedResourceId,
                     SelectedUsageName,
                     MaxSamples: 500));
+            LastRefreshed = DateTimeOffset.Now;
         }
         finally
         {
             IsLoading = false;
+            if (!IsDisposed)
+            {
+                await InvokeAsync(StateHasChanged);
+            }
         }
+    }
+
+    public void Dispose()
+    {
+        IsDisposed = true;
+        RefreshTimer?.Dispose();
     }
 
     private async Task SelectResource(ChangeEventArgs args)

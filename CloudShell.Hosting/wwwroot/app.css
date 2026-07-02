@@ -4101,6 +4101,20 @@ h3 {
     flex-wrap: wrap;
 }
 
+.usage-refresh-controls {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    min-height: 2rem;
+    color: var(--cloudshell-text-muted);
+    font-size: .76rem;
+    white-space: nowrap;
+}
+
+.usage-refresh-controls span {
+    color: var(--cloudshell-text-muted);
+}
+
 .usage-filter {
     display: grid;
     gap: .22rem;
@@ -4270,6 +4284,10 @@ h3 {
 
     .usage-dashboard-actions {
         justify-content: flex-start;
+    }
+
+    .usage-refresh-controls {
+        width: 100%;
     }
 
     .usage-filter,

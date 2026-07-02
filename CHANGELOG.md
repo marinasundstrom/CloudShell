@@ -87,6 +87,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Surfaced Usage in sample shell menus and resource Management tabs, and
   replaced the dashboard's log-style layout with usage-specific filters,
   trend panels, and tables.
+- Added auto-refresh to the Usage dashboard and resource Usage tabs so newly
+  recorded usage samples and statistics update without leaving the view.
 - Renamed the shell observability workspace to Telemetry with canonical
   `/telemetry` routes while keeping the old `/observability` routes as
   compatibility aliases.
