@@ -75,6 +75,9 @@ on `git blame --follow`, and then by the broad type of change.
   of mixing missing values with zero totals.
 - Updated container app Monitoring configured replica counts to use the same
   deployment-requested replica attributes as Deployment and Scale views.
+- Updated container app Monitoring revision summaries to infer the active
+  runtime revision from materialized replica resources when deployment
+  projection attributes are unavailable.
 - Updated container app Deployment details to prefer the active deployment
   record for the running image, service, and replica group while preserving the
   latest deployment attempt status.

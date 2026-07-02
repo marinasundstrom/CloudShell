@@ -46,7 +46,7 @@ else
             <dt>Observed replicas</dt>
             <dd>@ObservedReplicaCount</dd>
             <dt>Revision</dt>
-            <dd>@GetAttribute(Application, ResourceAttributeNames.DeploymentRevision, Application.Version)</dd>
+            <dd>@GetCurrentRevision(Application)</dd>
         </dl>
     </section>
 
@@ -202,6 +202,14 @@ else
 
     private int ObservedReplicaCount =>
         Rows.Count(row => IsAvailable(row.Snapshot));
+
+    private string GetCurrentRevision(Resource resource) =>
+        GetAttribute(resource, ResourceAttributeNames.DeploymentRevision, string.Empty) is { Length: > 0 } revision
+            ? revision
+            : Replicas
+                .Select(replica => GetAttribute(replica, ResourceAttributeNames.RuntimeRevision, string.Empty))
+                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ??
+                resource.Version;
 
     protected override void OnInitialized()
     {
