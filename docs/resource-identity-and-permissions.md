@@ -543,9 +543,10 @@ operate-level access for matching actions. `resources.manage` grants
 manage-level access and remains the compatibility superset for resource
 actions.
 
-Observability uses a separate grouped permission, `observability.read`, plus
-signal-specific permissions: `observability.logs.read`,
-`observability.traces.read`, and `observability.metrics.read`. These determine
+Observability uses a separate grouped permission, `observability.read`, while
+usage statistics use `usage.read`. Telemetry signal-specific permissions are
+`observability.logs.read`, `observability.traces.read`, and
+`observability.metrics.read`. These determine
 which telemetry areas a caller can enter. Telemetry records are still filtered
 to resources where the caller has read-level resource access.
 

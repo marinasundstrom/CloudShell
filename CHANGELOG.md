@@ -84,6 +84,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added automatic usage recording from resource monitoring snapshots so
   provider-exposed CPU, memory, network, process, and other monitoring metrics
   are retained as per-resource usage samples.
+- Surfaced Usage in sample shell menus and resource Management tabs, and
+  replaced the dashboard's log-style layout with usage-specific filters,
+  trend panels, and tables.
 - Renamed the shell observability workspace to Telemetry with canonical
   `/telemetry` routes while keeping the old `/observability` routes as
   compatibility aliases.

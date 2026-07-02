@@ -212,7 +212,8 @@ builder.AddCloudShellUi(ui =>
 {
     ui
         .AddExtension<ResourceManagerExtension>()
-        .AddExtension<TelemetryExtension>();
+        .AddExtension<TelemetryExtension>()
+        .AddExtension<UsageExtension>();
 });
 
 var app = builder.Build();

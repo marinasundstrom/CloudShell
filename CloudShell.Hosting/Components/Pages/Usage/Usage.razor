@@ -14,7 +14,10 @@
     var usageNameOptions = GetUsageNameOptions();
 }
 
-<PageTitle>@L["Usage"]</PageTitle>
+@if (!Inline)
+{
+    <PageTitle>@L["Usage"]</PageTitle>
+}
 
 @if (!Authorization.CanReadUsage())
 {
@@ -23,31 +26,40 @@
 }
 else
 {
-    <PageHeading Eyebrow="@L["Usage"].Value"
-                 Title="@L["Usage"].Value"
-                 Description="@L["Review recorded resource usage samples, aggregate statistics, and projected trends."].Value">
-        <Actions>
-            <FluentButton Appearance="Appearance.Neutral" OnClick="ShowAllUsage">
-                @L["All usage"]
-            </FluentButton>
-            <FluentButton Appearance="Appearance.Neutral"
-                          IconStart="@(new Icons.Regular.Size20.ArrowSync())"
-                          OnClick="RefreshUsageAsync">
-                @L["Refresh"]
-            </FluentButton>
-        </Actions>
-    </PageHeading>
+    @if (ShowHeading)
+    {
+        <PageHeading Eyebrow="@L["Usage"].Value"
+                     Title="@L["Usage"].Value"
+                     Description="@L["Review recorded resource usage samples, aggregate statistics, and projected trends."].Value">
+            <Actions>
+                @if (ShowAllUsageAction)
+                {
+                    <FluentButton Appearance="Appearance.Neutral" OnClick="ShowAllUsage">
+                        @L["All usage"]
+                    </FluentButton>
+                }
+                <FluentButton Appearance="Appearance.Neutral"
+                              IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                              OnClick="RefreshUsageAsync">
+                    @L["Refresh"]
+                </FluentButton>
+            </Actions>
+        </PageHeading>
+    }
 
-    <section class="trace-workspace">
-        <div class="log-viewer panel">
-            <TelemetryExplorerHeader ShowSummary="true"
-                                     Title="@L["Usage statistics"].Value"
-                                     Description="@L["Recorded samples are retained by the active Control Plane store."].Value">
-                <Actions>
-                    <label class="trace-source-filter" for="usage-resource-filter">
+    <section class="@UsageDashboardCssClass">
+        <div class="usage-dashboard-toolbar">
+            <div class="usage-dashboard-title">
+                <h2>@(DashboardTitle ?? L["Usage statistics"].Value)</h2>
+                <p>@(DashboardDescription ?? L["Recorded samples are retained by the active Control Plane store."].Value)</p>
+            </div>
+            <div class="usage-dashboard-actions">
+                @if (ShowResourceFilter)
+                {
+                    <label class="usage-filter" for="usage-resource-filter">
                         <span>@L["Resource"]</span>
                         <select id="usage-resource-filter"
-                                class="trace-source-select"
+                                class="usage-filter-select"
                                 value="@(SelectedResourceId ?? string.Empty)"
                                 @onchange="SelectResource">
                             <option value="">@L["All resources"]</option>
@@ -57,21 +69,36 @@ else
                             }
                         </select>
                     </label>
-                    <label class="trace-source-filter" for="usage-name-filter">
-                        <span>@L["Usage metric"]</span>
-                        <select id="usage-name-filter"
-                                class="trace-source-select"
-                                value="@(SelectedUsageName ?? string.Empty)"
-                                @onchange="SelectUsageName">
-                            <option value="">@L["All usage metrics"]</option>
-                            @foreach (var usageName in usageNameOptions)
-                            {
-                                <option value="@usageName">@usageName</option>
-                            }
-                        </select>
-                    </label>
-                </Actions>
-            </TelemetryExplorerHeader>
+                }
+                <label class="usage-filter" for="usage-name-filter">
+                    <span>@L["Usage metric"]</span>
+                    <select id="usage-name-filter"
+                            class="usage-filter-select"
+                            value="@(SelectedUsageName ?? string.Empty)"
+                            @onchange="SelectUsageName">
+                        <option value="">@L["All usage metrics"]</option>
+                        @foreach (var usageName in usageNameOptions)
+                        {
+                            <option value="@usageName">@usageName</option>
+                        }
+                    </select>
+                </label>
+                @if (!ShowHeading)
+                {
+                    @if (ShowAllUsageAction)
+                    {
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="ShowAllUsage">
+                            @L["All usage"]
+                        </FluentButton>
+                    }
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                                  OnClick="RefreshUsageAsync">
+                        @L["Refresh"]
+                    </FluentButton>
+                }
+            </div>
+        </div>
 
             @if (IsLoading)
             {
@@ -108,10 +135,10 @@ else
 
                 @if (panels.Count > 0)
                 {
-                    <div class="metric-panel-grid" aria-label="@L["Usage trend panels"].Value">
+                    <div class="usage-panel-grid" aria-label="@L["Usage trend panels"].Value">
                         @foreach (var panel in panels)
                         {
-                            <section class="metric-panel line">
+                            <section class="usage-panel">
                                 <header>
                                     <div>
                                         <h3>@panel.ResourceLabel</h3>
@@ -122,7 +149,7 @@ else
 
                                 <CloudShellLineChart Values="@panel.ChartValues"
                                                      AriaLabel="@L["{0} usage trend", panel.Name].Value" />
-                                <div class="metric-panel-stats">
+                                <div class="usage-panel-stats">
                                     <span>@L["actual latest {0}", FormatUsageValue(panel.LatestValue, panel.Unit)]</span>
                                     <span>@L["sum {0}", FormatUsageValue(panel.Sum, panel.Unit)]</span>
                                     <span>@L["avg {0}", FormatUsageValue(panel.Average, panel.Unit)]</span>
@@ -141,8 +168,8 @@ else
                     </div>
                 }
 
-                <div class="metric-point-table-shell">
-                    <table class="metric-point-table" aria-label="@L["Usage statistics"]">
+                <div class="usage-table-shell">
+                    <table class="usage-table" aria-label="@L["Usage statistics"]">
                         <thead>
                             <tr>
                                 <th scope="col">@L["Resource"]</th>
@@ -173,14 +200,14 @@ else
 
                 @if (RecentSamples.Count > 0)
                 {
-                    <div class="metric-point-table-shell usage-sample-table">
-                        <table class="metric-point-table" aria-label="@L["Recent usage samples"]">
+                    <div class="usage-table-shell usage-sample-table">
+                        <table class="usage-table usage-samples-table" aria-label="@L["Recent usage samples"]">
                             <thead>
                                 <tr>
-                                    <th class="metric-point-time" scope="col">@L["Time"]</th>
+                                    <th class="usage-table-time" scope="col">@L["Time"]</th>
                                     <th scope="col">@L["Resource"]</th>
                                     <th scope="col">@L["Usage metric"]</th>
-                                    <th class="metric-point-value" scope="col">@L["Value"]</th>
+                                    <th class="usage-table-value" scope="col">@L["Value"]</th>
                                     <th scope="col">@L["Attributes"]</th>
                                 </tr>
                             </thead>
@@ -188,23 +215,23 @@ else
                                 @foreach (var sample in RecentSamples)
                                 {
                                     <tr>
-                                        <td class="metric-point-time">
+                                        <td class="usage-table-time">
                                             <time>@sample.Timestamp.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture)</time>
                                         </td>
                                         <td>@GetResourceLabel(sample.ResourceId)</td>
                                         <td>@sample.Name</td>
-                                        <td class="metric-point-value">@FormatUsageValue(sample.Value, sample.Unit)</td>
+                                        <td class="usage-table-value">@FormatUsageValue(sample.Value, sample.Unit)</td>
                                         <td>
                                             @if (sample.UsageAttributes.Count == 0)
                                             {
-                                                <span class="metric-point-empty">@L["None"]</span>
+                                                <span class="usage-table-empty">@L["None"]</span>
                                             }
                                             else
                                             {
-                                                <div class="metric-point-attributes">
+                                                <div class="usage-attributes">
                                                     @foreach (var usageAttribute in sample.UsageAttributes)
                                                     {
-                                                        <span class="metric-point-attribute">
+                                                        <span class="usage-attribute">
                                                             <strong>@usageAttribute.Key</strong>=@usageAttribute.Value
                                                         </span>
                                                     }
@@ -218,7 +245,6 @@ else
                     </div>
                 }
             }
-        </div>
     </section>
 }
 
@@ -230,6 +256,24 @@ else
     [Parameter]
     [SupplyParameterFromQuery]
     public string? UsageName { get; set; }
+
+    [Parameter]
+    public bool Inline { get; set; }
+
+    [Parameter]
+    public bool ShowHeading { get; set; } = true;
+
+    [Parameter]
+    public bool ShowResourceFilter { get; set; } = true;
+
+    [Parameter]
+    public bool ShowAllUsageAction { get; set; } = true;
+
+    [Parameter]
+    public string? DashboardTitle { get; set; }
+
+    [Parameter]
+    public string? DashboardDescription { get; set; }
 
     private IReadOnlyList<UsageSample> RecentSamples { get; set; } = [];
 
@@ -248,6 +292,8 @@ else
     private string? SelectedResourceId => NormalizeFilter(ResourceId);
 
     private string? SelectedUsageName => NormalizeFilter(UsageName);
+
+    private string UsageDashboardCssClass => Inline ? "usage-dashboard inline" : "usage-dashboard";
 
     protected override async Task OnParametersSetAsync()
     {
@@ -282,11 +328,29 @@ else
         }
     }
 
-    private void SelectResource(ChangeEventArgs args) =>
-        NavigateToUsage(args.Value?.ToString(), SelectedUsageName);
+    private async Task SelectResource(ChangeEventArgs args)
+    {
+        if (Inline)
+        {
+            ResourceId = NormalizeFilter(args.Value?.ToString());
+            await RefreshUsageAsync();
+            return;
+        }
 
-    private void SelectUsageName(ChangeEventArgs args) =>
+        NavigateToUsage(args.Value?.ToString(), SelectedUsageName);
+    }
+
+    private async Task SelectUsageName(ChangeEventArgs args)
+    {
+        if (Inline)
+        {
+            UsageName = NormalizeFilter(args.Value?.ToString());
+            await RefreshUsageAsync();
+            return;
+        }
+
         NavigateToUsage(SelectedResourceId, args.Value?.ToString());
+    }
 
     private void ShowAllUsage() => Navigation.NavigateTo("/usage");
 

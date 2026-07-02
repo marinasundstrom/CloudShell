@@ -33,11 +33,13 @@
         ? null
         : FindResourceTypeContribution(resource);
     var hasDefaultIdentityProvider = HasDefaultIdentityProvider();
+    var canReadUsage = Authorization.CanReadUsage();
     var tabs = BuildTabs(
         resource,
         resourceType,
         ResourceLogSources.Count > 0,
         HasResourceMonitoring,
+        canReadUsage,
         hasDefaultIdentityProvider);
     var selectedTab = GetSelectedTab(tabs);
     var selectedTabIssue = GetSelectedTabIssue(tabs);
@@ -221,6 +223,7 @@
     private static readonly ResourceViewId GeneratedActivityTabId = ResourcePredefinedViewIds.Activity;
     private static readonly ResourceViewId GeneratedHealthTabId = ResourcePredefinedViewIds.Health;
     private static readonly ResourceViewId GeneratedMonitoringTabId = ResourcePredefinedViewIds.Monitoring;
+    private static readonly ResourceViewId GeneratedUsageTabId = ResourcePredefinedViewIds.Usage;
     private static readonly ResourceViewId GeneratedLogsTabId = ResourcePredefinedViewIds.Logs;
     private static readonly ResourceViewId GeneratedTracesTabId = ResourcePredefinedViewIds.Traces;
     private static readonly ResourceViewId GeneratedMetricsTabId = ResourcePredefinedViewIds.Metrics;
@@ -311,6 +314,7 @@
             resourceType,
             ResourceLogSources.Count > 0,
             HasResourceMonitoring,
+            Authorization.CanReadUsage(),
             HasDefaultIdentityProvider());
         SelectedTabId = ResolveRequestedTabId(tabs);
 
@@ -865,6 +869,7 @@
         tab.ComponentType == typeof(GeneratedResourceHealth) ||
         tab.ComponentType == typeof(GeneratedResourceRecovery) ||
         tab.ComponentType == typeof(GeneratedResourceMonitoring) ||
+        tab.ComponentType == typeof(GeneratedResourceUsage) ||
         tab.ComponentType == typeof(GeneratedResourceEndpoints) ||
         tab.ComponentType == typeof(GeneratedResourceDns);
 
@@ -873,6 +878,7 @@
         ResourceTypeContribution? resourceType,
         bool hasResourceLogs,
         bool hasResourceMonitoring,
+        bool canReadUsage,
         bool hasDefaultIdentityProvider)
     {
         var contributedTabs = resourceType?.ResourceTabs ?? [];
@@ -993,6 +999,18 @@
                 typeof(GeneratedResourceMonitoring),
                 GroupTitle: ResourceTabGroupTitles.Management,
                 Icon: GetPredefinedViewIcon(GeneratedMonitoringTabId)));
+        }
+
+        if (canReadUsage &&
+            !contributedTabs.Any(tab => tab.Id == GeneratedUsageTabId))
+        {
+            tabs.Add(new ResourceTabContribution(
+                GeneratedUsageTabId,
+                "Usage",
+                81,
+                typeof(GeneratedResourceUsage),
+                GroupTitle: ResourceTabGroupTitles.Management,
+                Icon: GetPredefinedViewIcon(GeneratedUsageTabId)));
         }
 
         if (resourceType?.UpdateComponentType is not null &&

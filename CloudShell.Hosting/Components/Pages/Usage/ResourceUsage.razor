@@ -1,0 +1,14 @@
+@inject IStringLocalizer<SharedResource> L
+
+<Usage ResourceId="@ResourceId"
+       Inline="true"
+       ShowHeading="false"
+       ShowResourceFilter="false"
+       ShowAllUsageAction="true"
+       DashboardTitle="@L["Resource usage"].Value"
+       DashboardDescription="@L["Recorded usage samples and projected trends for this resource."].Value" />
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+}
