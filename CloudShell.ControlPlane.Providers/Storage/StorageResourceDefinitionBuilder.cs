@@ -37,7 +37,8 @@ public sealed class StorageResourceDefinitionBuilder(
         string name,
         string? subPath = null,
         StorageVolumeAccessMode accessMode = StorageVolumeAccessMode.ReadWriteOnce,
-        bool persistent = true)
+        bool persistent = true,
+        long? maxSizeBytes = null)
     {
         if (graph is null)
         {
@@ -50,7 +51,8 @@ public sealed class StorageResourceDefinitionBuilder(
             this,
             subPath,
             accessMode,
-            persistent);
+            persistent,
+            maxSizeBytes);
     }
 }
 

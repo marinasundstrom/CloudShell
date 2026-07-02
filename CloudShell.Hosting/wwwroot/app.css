@@ -3941,6 +3941,101 @@ h3 {
     stroke-width: 2.2;
 }
 
+.cloudshell-quota-chart {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 1rem;
+    margin: .85rem 0;
+    padding: .85rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface);
+}
+
+.cloudshell-quota-chart-visual {
+    position: relative;
+    width: 9rem;
+    aspect-ratio: 1;
+}
+
+.cloudshell-quota-chart-visual svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.cloudshell-quota-chart-track,
+.cloudshell-quota-chart-used {
+    fill: none;
+    stroke-width: 12;
+}
+
+.cloudshell-quota-chart-track {
+    stroke: var(--cloudshell-divider);
+}
+
+.cloudshell-quota-chart-used {
+    stroke: var(--cloudshell-accent);
+    stroke-linecap: round;
+}
+
+.cloudshell-quota-chart.at-limit .cloudshell-quota-chart-used {
+    stroke: #dc2626;
+}
+
+.cloudshell-quota-chart-label {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    gap: .12rem;
+    min-width: 0;
+    text-align: center;
+}
+
+.cloudshell-quota-chart-label strong {
+    color: var(--cloudshell-text);
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+.cloudshell-quota-chart-label span {
+    max-width: 6.5rem;
+    color: var(--cloudshell-text-muted);
+    font-size: .72rem;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.cloudshell-quota-chart-values {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .75rem;
+    margin: 0;
+}
+
+.cloudshell-quota-chart-values div {
+    display: grid;
+    gap: .18rem;
+    min-width: 0;
+}
+
+.cloudshell-quota-chart-values dt {
+    color: var(--cloudshell-text-muted);
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.cloudshell-quota-chart-values dd {
+    margin: 0;
+    color: var(--cloudshell-text);
+    font-size: .92rem;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+
 .metric-panel-stats {
     display: flex;
     flex-wrap: wrap;
@@ -4365,6 +4460,15 @@ h3 {
 
     .usage-dashboard-actions {
         justify-content: flex-start;
+    }
+
+    .cloudshell-quota-chart {
+        grid-template-columns: 1fr;
+        justify-items: center;
+    }
+
+    .cloudshell-quota-chart-values {
+        width: 100%;
     }
 
     .usage-refresh-controls {

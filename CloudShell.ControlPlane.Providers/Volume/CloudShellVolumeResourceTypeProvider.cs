@@ -20,6 +20,8 @@ public sealed class CloudShellVolumeResourceTypeProvider :
         public static readonly ResourceAttributeId SubPath = "storage.volume.subPath";
         public static readonly ResourceAttributeId AccessMode = "storage.volume.accessMode";
         public static readonly ResourceAttributeId Persistent = "storage.volume.persistent";
+        public static readonly ResourceAttributeId MaxSizeBytes = "storage.volume.maxSizeBytes";
+        public static readonly ResourceAttributeId MaxSizeEnforcement = "storage.volume.maxSizeEnforcement";
     }
 
     public static class Capabilities
@@ -62,7 +64,11 @@ public sealed class CloudShellVolumeResourceTypeProvider :
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.Persistent] = new(
                 DefaultValue: true,
-                ValueType: ResourceAttributeValueType.Boolean)
+                ValueType: ResourceAttributeValueType.Boolean),
+            [Attributes.MaxSizeBytes] = new(
+                ValueType: ResourceAttributeValueType.Integer),
+            [Attributes.MaxSizeEnforcement] = new(
+                ValueType: ResourceAttributeValueType.String)
         },
         Capabilities:
         [
@@ -148,6 +154,15 @@ public sealed class CloudShellVolumeResourceTypeProvider :
             resource.Attributes.GetString(Attributes.Persistent),
             Attributes.Persistent,
             diagnostics);
+        ValidatePositiveLong(
+            resource.Attributes.GetString(Attributes.MaxSizeBytes),
+            Attributes.MaxSizeBytes,
+            "storage.volume.maxSizeBytesInvalid",
+            "Volume max size must be a positive byte count.",
+            diagnostics);
+        ValidateMaxSizeEnforcement(
+            resource.Attributes.GetString(Attributes.MaxSizeEnforcement),
+            diagnostics);
         return diagnostics;
     }
 
@@ -183,6 +198,21 @@ public sealed class CloudShellVolumeResourceTypeProvider :
         if (state.ResourceAttributes.TryGetValue(Attributes.Persistent, out var persistent))
         {
             ValidateBoolean(persistent, Attributes.Persistent, diagnostics);
+        }
+
+        if (state.ResourceAttributes.TryGetValue(Attributes.MaxSizeBytes, out var maxSizeBytes))
+        {
+            ValidatePositiveLong(
+                maxSizeBytes,
+                Attributes.MaxSizeBytes,
+                "storage.volume.maxSizeBytesInvalid",
+                "Volume max size must be a positive byte count.",
+                diagnostics);
+        }
+
+        if (state.ResourceAttributes.TryGetValue(Attributes.MaxSizeEnforcement, out var maxSizeEnforcement))
+        {
+            ValidateMaxSizeEnforcement(maxSizeEnforcement, diagnostics);
         }
 
         return diagnostics;
@@ -231,6 +261,39 @@ public sealed class CloudShellVolumeResourceTypeProvider :
                 "storage.volume.accessModeInvalid",
                 "Volume access mode must be ReadWriteOnce, ReadOnlyMany, or ReadWriteMany.",
                 attributeId));
+        }
+    }
+
+    private static void ValidatePositiveLong(
+        string? value,
+        ResourceAttributeId attributeId,
+        string code,
+        string message,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (!string.IsNullOrWhiteSpace(value) &&
+            (!long.TryParse(value, out var maxSizeBytes) || maxSizeBytes <= 0))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                code,
+                message,
+                attributeId));
+        }
+    }
+
+    private static void ValidateMaxSizeEnforcement(
+        string? value,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (!string.IsNullOrWhiteSpace(value) &&
+            !string.Equals(value, CloudShell.Abstractions.ResourceManager.VolumeMaxSizeEnforcementModes.Advisory, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(value, CloudShell.Abstractions.ResourceManager.VolumeMaxSizeEnforcementModes.Enforced, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(value, CloudShell.Abstractions.ResourceManager.VolumeMaxSizeEnforcementModes.Unknown, StringComparison.OrdinalIgnoreCase))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                "storage.volume.maxSizeEnforcementInvalid",
+                "Volume max-size enforcement must be advisory, enforced, or unknown.",
+                Attributes.MaxSizeEnforcement));
         }
     }
 }

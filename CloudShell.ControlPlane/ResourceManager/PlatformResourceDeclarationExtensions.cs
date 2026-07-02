@@ -3,6 +3,7 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Networking;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using Microsoft.Extensions.DependencyInjection;
+using System.Globalization;
 
 namespace CloudShell.ControlPlane.ResourceManager;
 
@@ -581,6 +582,8 @@ public interface IVolumeResourceBuilder : IResourceBuilder
     IVolumeResourceBuilder WithAccessMode(VolumeAccessMode accessMode);
 
     IVolumeResourceBuilder AsPersistent(bool persistent = true);
+
+    IVolumeResourceBuilder WithMaxSizeBytes(long maxSizeBytes);
 
     new IVolumeResourceBuilder DependsOn(string resourceId);
 
@@ -1402,6 +1405,22 @@ internal sealed class VolumeResourceBuilder(
         inner.WithResourceAttribute(
             ResourceAttributeNames.VolumePersistent,
             persistent.ToString().ToLowerInvariant());
+        return this;
+    }
+
+    public IVolumeResourceBuilder WithMaxSizeBytes(long maxSizeBytes)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxSizeBytes);
+        declared.Definition = declared.Definition with
+        {
+            MaxSizeBytes = maxSizeBytes
+        };
+        inner.WithResourceAttribute(
+            ResourceAttributeNames.VolumeMaxSizeBytes,
+            maxSizeBytes.ToString(CultureInfo.InvariantCulture));
+        inner.WithResourceAttribute(
+            ResourceAttributeNames.VolumeMaxSizeEnforcement,
+            VolumeMaxSizeEnforcementModes.Advisory);
         return this;
     }
 

@@ -9,7 +9,8 @@
 ## Ported
 
 - Storage class/type defaults.
-- Provider, medium, location, subpath, access-mode, and persistence attributes.
+- Provider, medium, location, subpath, access-mode, persistence, and observed
+  max-size attributes.
 - Passive storage-volume capability marker.
 - Typed `ResourceReference` storage dependencies and storage-reference graph validation.
 - Type-specific `storage.volume.provision` operation provider with an injected provider-owned provisioner seam.
@@ -40,7 +41,9 @@ host's working/content-root context. The default ad-hoc location is `.`.
     "storage.volume.medium": "FileSystem",
     "storage.volume.location": "App_Data",
     "storage.volume.accessMode": "ReadWriteOnce",
-    "storage.volume.persistent": true
+    "storage.volume.persistent": true,
+    "storage.volume.maxSizeBytes": 1073741824,
+    "storage.volume.maxSizeEnforcement": "advisory"
   }
 }
 ```
@@ -74,10 +77,20 @@ target path, for example `App_Data` for an ASP.NET Core project or
     "storage.volume.medium": "FileSystem",
     "storage.volume.subPath": "sql",
     "storage.volume.accessMode": "ReadWriteOnce",
-    "storage.volume.persistent": true
+    "storage.volume.persistent": true,
+    "storage.volume.maxSizeBytes": 10737418240,
+    "storage.volume.maxSizeEnforcement": "advisory"
   }
 }
 ```
+
+Volume max sizes are observed storage limits. Local filesystem and ordinary
+Docker-mounted volumes should report advisory max-size status unless their
+backing storage provider can prove hard enforcement. Resource monitoring emits
+used bytes, configured max size, remaining bytes, utilization, and
+max-size-reached samples so the Usage workspace can retain the volume growth
+history over time. The shell can visualize fixed-size snapshots as used and
+unused space in a quota circle; usage history remains a line trend.
 
 ## Switch-over status
 
@@ -91,4 +104,5 @@ initial switch gate.
 ## Remaining
 
 - Runtime filesystem availability as capability members or operation plans.
-- Provider-backed volume materialization, health, monitoring, and UI registration/update flow.
+- Provider-backed hard max-size enforcement and richer provider-specific volume
+  materialization.

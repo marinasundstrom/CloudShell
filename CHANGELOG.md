@@ -98,6 +98,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated the Usage dashboard to prioritize CPU, memory, network, process,
   and storage usage summaries and visually group priority trends by resource
   before the full metric and sample detail tables.
+- Added observed volume max-size limits and local filesystem volume monitoring
+  so used bytes, configured max size, remaining bytes, utilization, and
+  max-size-reached warnings are retained as per-resource usage samples, with a
+  fixed-size quota visualization for current monitoring snapshots.
 - Renamed the shell observability workspace to Telemetry with canonical
   `/telemetry` routes while keeping the old `/observability` routes as
   compatibility aliases.

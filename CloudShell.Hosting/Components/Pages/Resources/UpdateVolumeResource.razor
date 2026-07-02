@@ -60,6 +60,12 @@ else
             <FluentCheckbox Disabled="@IsStorageShapeLocked" @bind-Value="Persistent">
                 Persistent
             </FluentCheckbox>
+
+            <label for="volume-update-max-size">Max size bytes</label>
+            <FluentNumberField TValue="long?"
+                               Id="volume-update-max-size"
+                               Min="1"
+                               @bind-Value="MaxSizeBytes" />
         </FormPanel>
     </div>
 }
@@ -87,6 +93,7 @@ else
     private string Location { get; set; } = string.Empty;
     private string SelectedAccessMode { get; set; } = VolumeAccessMode.ReadWriteOnce.ToString();
     private bool Persistent { get; set; } = true;
+    private long? MaxSizeBytes { get; set; }
 
     private bool IsStorageShapeLocked => Consumers.Count > 0;
 
@@ -127,6 +134,10 @@ else
             Persistent = bool.TryParse(GetAttribute(ResourceAttributeNames.VolumePersistent, "true"), out var persistent)
                 ? persistent
                 : true;
+            MaxSizeBytes = long.TryParse(GetAttribute(ResourceAttributeNames.VolumeMaxSizeBytes, string.Empty), out var maxSizeBytes) &&
+                maxSizeBytes > 0
+                    ? maxSizeBytes
+                    : null;
         }
 
         if (Configuration is not null &&
@@ -171,7 +182,8 @@ else
             persistent,
             accessMode,
             NormalizeNullable(storageResourceId),
-            NormalizeNullable(subPath));
+            NormalizeNullable(subPath),
+            MaxSizeBytes is > 0 ? MaxSizeBytes : null);
 
         await ResourceManager.CreateResourceAsync(
             new CreateResourceCommand(

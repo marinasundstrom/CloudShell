@@ -187,7 +187,13 @@ A storage volume resource represents allocated physical storage that can be
 referenced and mounted by another resource. A simple local volume can be
 declared without a separate storage-provider resource for local development,
 while provider-backed storage can later own materialization, diagnostics, and
-usage metrics for specific volume types.
+usage metrics for specific volume types. A volume max size is an intended
+storage boundary and monitoring signal, not a generic CloudShell filesystem
+enforcement promise. The storage or volume provider reports current usage and
+whether observed usage has reached the max size. Fixed-size volume snapshots
+can be visualized as used and unused space within the configured max size,
+while retained usage history remains a time-series signal. Only providers
+backed by a quota-capable runtime should claim hard enforcement.
 
 A container app resource is the top-level deployable workload. It may be bound
 to a specific container host resource, such as Local Docker, or it may omit that

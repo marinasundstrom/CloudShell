@@ -2019,6 +2019,14 @@ public sealed class PlatformResourceProvider(
             attributes[ResourceAttributeNames.VolumeSubPath] = definition.SubPath;
         }
 
+        if (definition.MaxSizeBytes is { } maxSizeBytes)
+        {
+            attributes[ResourceAttributeNames.VolumeMaxSizeBytes] =
+                maxSizeBytes.ToString(CultureInfo.InvariantCulture);
+            attributes[ResourceAttributeNames.VolumeMaxSizeEnforcement] =
+                NormalizeVolumeMaxSizeEnforcement(definition.MaxSizeEnforcement);
+        }
+
         AddVolumeRuntimeAttributes(definition, attributes);
 
         return new(
@@ -2912,8 +2920,19 @@ public sealed class PlatformResourceProvider(
             Provider = NormalizeNullable(definition.Provider),
             Location = NormalizeNullable(definition.Location),
             StorageResourceId = NormalizeNullable(definition.StorageResourceId),
-            SubPath = NormalizeNullable(definition.SubPath)
+            SubPath = NormalizeNullable(definition.SubPath),
+            MaxSizeBytes = definition.MaxSizeBytes is > 0 ? definition.MaxSizeBytes : null,
+            MaxSizeEnforcement = definition.MaxSizeBytes is > 0
+                ? NormalizeVolumeMaxSizeEnforcement(definition.MaxSizeEnforcement)
+                : null
         };
+
+    private static string NormalizeVolumeMaxSizeEnforcement(string? value) =>
+        string.Equals(value, VolumeMaxSizeEnforcementModes.Enforced, StringComparison.OrdinalIgnoreCase)
+            ? VolumeMaxSizeEnforcementModes.Enforced
+            : string.Equals(value, VolumeMaxSizeEnforcementModes.Unknown, StringComparison.OrdinalIgnoreCase)
+                ? VolumeMaxSizeEnforcementModes.Unknown
+                : VolumeMaxSizeEnforcementModes.Advisory;
 
     private static StorageResourceDefinition NormalizeStorage(StorageResourceDefinition definition) =>
         definition with
