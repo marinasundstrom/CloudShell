@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using CloudShell.Abstractions.Authorization;
@@ -2308,6 +2309,11 @@ public sealed class SampleSmokeTests
     private static async Task AssertSignalRRuntimeReplicaResourcesAsync(SampleProcess host)
     {
         const string apiResourceId = "application.container-app:signalr-api";
+        var expectedServiceId = ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(apiResourceId);
+        var expectedRevisionId = CreateRuntimeRevisionId("cloudshell-signalr-api:20260630.1");
+        var expectedReplicaGroupId = ResourceOrchestratorReplicaGroups.CreateReplicaGroupId(
+            expectedServiceId,
+            expectedRevisionId);
         var deadline = DateTimeOffset.UtcNow.Add(StartupTimeout);
         string? lastBody = null;
         do
@@ -2335,9 +2341,12 @@ public sealed class SampleSmokeTests
                     Assert.Equal($"{apiResourceId}:replica-{replicaText}", resource.GetProperty("id").GetString());
                     Assert.Equal(apiResourceId, resource.GetProperty("parentResourceId").GetString());
                     Assert.Equal((int)ResourceState.Running, resource.GetProperty("state").GetInt32());
+                    Assert.Equal(expectedServiceId, attributes.GetProperty(ResourceAttributeNames.DeploymentServiceId).GetString());
+                    Assert.Equal(expectedReplicaGroupId, attributes.GetProperty(ResourceAttributeNames.DeploymentReplicaGroupId).GetString());
                     Assert.Equal("localProcess", attributes.GetProperty(ResourceAttributeNames.RuntimeMaterialization).GetString());
                     Assert.Equal(replicaText, attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaOrdinal).GetString());
                     Assert.Equal("3", attributes.GetProperty(ResourceAttributeNames.RuntimeReplicaCount).GetString());
+                    Assert.Equal(expectedRevisionId, attributes.GetProperty(ResourceAttributeNames.RuntimeRevision).GetString());
                 }
 
                 return;
@@ -3632,6 +3641,14 @@ public sealed class SampleSmokeTests
         throw new TimeoutException(
             $"Resource '{resourceId}' did not reach state '{state}' within {timeout}." +
             $"{Environment.NewLine}{lastBody}");
+    }
+
+    private static string CreateRuntimeRevisionId(string image)
+    {
+        var revisionKey = $"{ContainerRegistryDefaults.Default}\n{image}";
+        Span<byte> hash = stackalloc byte[32];
+        SHA256.HashData(Encoding.UTF8.GetBytes(revisionKey), hash);
+        return $"rev-img-{Convert.ToHexString(hash[..6]).ToLowerInvariant()}";
     }
 
     private static string GetEndpointAddress(JsonElement resource, string endpointName)

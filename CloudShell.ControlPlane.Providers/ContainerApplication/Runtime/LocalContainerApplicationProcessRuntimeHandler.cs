@@ -14,6 +14,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Net.WebSockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
@@ -973,6 +974,11 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
         var protocol = NormalizeProtocol(endpoint?.Protocol);
         var endpointName = endpoint?.Name ?? "http";
         var resourceId = replica.ResourceId;
+        var deploymentServiceId = ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(parent.Id);
+        var runtimeRevisionId = ResolveRuntimeRevisionId(parent);
+        var replicaGroupId = ResourceOrchestratorReplicaGroups.CreateReplicaGroupId(
+            deploymentServiceId,
+            runtimeRevisionId);
 
         return new ResourceManagerResource(
             resourceId,
@@ -991,9 +997,12 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
             ResourceClass: ResourceManagerClass.Container,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
+                [ResourceAttributeNames.DeploymentServiceId] = deploymentServiceId,
+                [ResourceAttributeNames.DeploymentReplicaGroupId] = replicaGroupId,
                 [ResourceAttributeNames.RuntimeKind] = "containerReplica",
                 [ResourceAttributeNames.RuntimeReplicaOrdinal] = replicaOrdinal,
                 [ResourceAttributeNames.RuntimeReplicaCount] = totalReplicas,
+                [ResourceAttributeNames.RuntimeRevision] = runtimeRevisionId,
                 [ResourceAttributeNames.RuntimeMaterialization] = "localProcess"
             },
             Capabilities:
@@ -1021,6 +1030,26 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
                 replicaName,
                 replicaOrdinal,
                 totalReplicas));
+    }
+
+    private static string ResolveRuntimeRevisionId(ResourceManagerResource resource)
+    {
+        var registry = resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerRegistry);
+        if (string.IsNullOrWhiteSpace(registry))
+        {
+            registry = ContainerRegistryDefaults.Default;
+        }
+
+        var image = resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerImage);
+        if (string.IsNullOrWhiteSpace(image))
+        {
+            return resource.Version;
+        }
+
+        var revisionKey = $"{registry.Trim()}\n{image.Trim()}";
+        Span<byte> hash = stackalloc byte[32];
+        SHA256.HashData(Encoding.UTF8.GetBytes(revisionKey), hash);
+        return $"rev-img-{Convert.ToHexString(hash[..6]).ToLowerInvariant()}";
     }
 
     private static ResourceEndpoint? ResolveReplicaEndpoint(ResourceManagerResource parent) =>
