@@ -13,6 +13,26 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-07-02
+
+#### Changed
+
+- Updated the JavaScript app and TypeScript app-host samples to keep
+  Configuration Store resource endpoints as service base URLs while passing
+  canonical `/api/configuration/stores/{resource-id}/entries` URLs to the
+  JavaScript app through environment variables.
+- Added JavaScript app start, stop, and restart operations backed by a local
+  package-manager process runtime, including Resource Manager state, logs, and
+  process monitoring projection for the running Node.js process.
+- Added sample-local `cloudshell.sh` helpers for the JavaScript app and
+  TypeScript app-host samples so developers can run the app host in the
+  foreground and use CLI resource/UI commands against that running host, while
+  keeping daemon commands available for daemon-specific testing.
+- Fixed the JavaScript app sample host to configure the Configuration Store
+  runtime service project from the repository root, so starting the sample
+  Configuration Store resource no longer resolves a missing project under the
+  sample host directory.
+
 ### 2026-07-01
 
 #### Changed

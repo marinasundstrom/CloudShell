@@ -165,12 +165,20 @@ start executable, project, or container-backed resources. The local Control
 Plane remains the owner of resource registration, lifecycle policy, dependency
 startup, provider dispatch, logs, and API projection.
 
+Programmatic and template-based APIs remain useful after a host is running.
+They can apply or update resource declarations against an existing local,
+split, team-owned, or on-premise Control Plane without taking ownership of the
+host process. That is an automation and update path, not the default local
+developer bootstrap path.
+
 That same boundary should support non-C# app-host authoring. A TypeScript,
 JavaScript, Java, Python, or other language SDK can build a resource graph,
-start a configured .NET CloudShell host profile through a launcher, and then
-apply the graph through ResourceDefinition-based interchange or the Control
-Plane API. The SDK owns ecosystem ergonomics and command integration; the
-launcher owns process startup and readiness; the Control Plane remains the
+target a running CloudShell host, and apply the graph through
+ResourceDefinition-based interchange or the Control Plane API. A launcher can
+remain available for automation and daemon-specific workflows, but the
+developer-oriented local flow should feel like the C# host: run the host file,
+and the Control Plane and UI start with the declared resources. The SDK owns
+ecosystem ergonomics and command integration; the Control Plane remains the
 resource-management authority. See the
 [cross-language local development proposal](proposals/core/cross-language-local-development.md).
 

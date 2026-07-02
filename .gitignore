@@ -18,3 +18,4 @@ samples/ProjectReference/Host/Data/
 samples/ReplicatedContainerHealth/Data/
 samples/SettingsAndSecrets/Data/
 samples/SplitHosting/ControlPlane/Data/
+.cloudshell

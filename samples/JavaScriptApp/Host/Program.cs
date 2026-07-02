@@ -12,14 +12,22 @@ using CloudShell.ResourceModel;
 var builder = CloudShellApplication.CreateBuilder(args);
 
 var sampleRootPath = Path.GetFullPath("..", builder.Environment.ContentRootPath);
+var repositoryRootPath = Path.GetFullPath("../..", sampleRootPath);
+var configurationStoreServiceProjectPath = Path.Combine(
+    repositoryRootPath,
+    "CloudShell.ConfigurationStoreService",
+    "CloudShell.ConfigurationStoreService.csproj");
 var appPath = Path.Combine(sampleRootPath, "App");
 var appEndpoint = builder.Configuration["JavaScriptApp:Endpoint"]
     ?? "http://localhost:5173";
-var settingsEndpoint = builder.Configuration["JavaScriptApp:SettingsEndpoint"]
-    ?? "http://localhost:5101/api/configuration/stores/javascript-app-settings/entries";
+var settingsServiceEndpoint = builder.Configuration["JavaScriptApp:SettingsEndpoint"]
+    ?? "http://localhost:5101";
+var settingsResourceId = "configuration.store:javascript-app-settings";
+var settingsEntriesEndpoint =
+    $"{settingsServiceEndpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(settingsResourceId)}/entries";
 var appEndpointUri = new Uri(appEndpoint);
 
-builder.AddCloudShellControlPlaneApplication(
+var cloudShell = builder.AddCloudShellControlPlaneApplication(
     configureBuiltInResourceModelProviders: null,
     configureControlPlane: controlPlane =>
     {
@@ -34,13 +42,14 @@ builder.AddCloudShellControlPlaneApplication(
                 .AddConfigurationStore("javascript-app-settings")
                 .WithDisplayName("Settings")
                 .WithResourceGroup(group)
-                .WithEndpoint(settingsEndpoint)
+                .WithEndpoint(settingsServiceEndpoint)
                 .WithAutoStart(false);
 
             resources
                 .AddJavaScriptApp("javascript-frontend", appPath)
                 .WithDisplayName("JavaScript Frontend")
                 .WithResourceGroup(group)
+                .WithAutoStart(false)
                 .WithPackageManager("npm")
                 .WithScript("dev")
                 .WithServiceDiscovery()
@@ -54,7 +63,7 @@ builder.AddCloudShellControlPlaneApplication(
                     appEndpointUri.Port.ToString())
                 .WithEnvironmentVariable(
                     "CLOUDSHELL_SETTINGS_ENDPOINT",
-                    settingsEndpoint)
+                    settingsEntriesEndpoint)
                 .WithEnvironmentVariable(
                     "OTEL_SERVICE_NAME",
                     "javascript-frontend")
@@ -66,6 +75,14 @@ builder.AddCloudShellControlPlaneApplication(
                     endpointName: "http");
         });
     });
+
+cloudShell.UseConfigurationStoreResourceProvider(runtime =>
+{
+    runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
+    runtime.ServiceWorkingDirectory = repositoryRootPath;
+    runtime.Entries.Add(new("Sample--Message", "Hello from the JavaScript app host"));
+});
+
 builder.AddCloudShellUi(ui =>
 {
     ui

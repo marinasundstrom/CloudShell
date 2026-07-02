@@ -132,6 +132,31 @@ dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.yaml
 YAML is the preferred authoring format. Use `.json` when a workflow needs the
 JSON `ResourceTemplate` projection used by the Control Plane API.
 
+For normal local application development, run the app host itself and let that
+host start the Control Plane, UI, and declared resources. `template apply` is
+still useful when a script, SDK, or automation flow needs to apply changes to
+an already-running Control Plane instance.
+
+Use `--start` when the CLI should launch the local Control Plane host before
+applying the template. The same daemon options used by `control-plane start`
+can be supplied when the default host project, URL, state directory, or build
+behavior does not fit:
+
+```bash
+dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.yaml \
+  --start \
+  --host-project samples/JavaScriptApp/Host/CloudShell.JavaScriptAppHost.csproj \
+  --url http://127.0.0.1:5097 \
+  --state-dir samples/TypeScriptAppHost/.cloudshell \
+  --no-build
+```
+
+If the selected state directory already records a running Control Plane
+process, `--start` reuses that process. Host process environment variables and
+authentication settings are only applied when the CLI starts a new process; use
+`control-plane stop --state-dir <dir>` before relaunching with different host
+configuration, or pass credentials that match the running host.
+
 `--control-plane` is the first explicit target selector. Later, the CLI should
 support profile-backed target selection so commands can default to a named
 local, split, team-owned, or on-premise Control Plane without repeating the URL

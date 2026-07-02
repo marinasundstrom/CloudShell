@@ -24,6 +24,13 @@ public sealed class JavaScriptAppResourceTypeProvider :
         public static readonly ResourceAttributeId References = "project.references";
     }
 
+    public static class Operations
+    {
+        public static readonly ResourceOperationId Start = "start";
+        public static readonly ResourceOperationId Stop = "stop";
+        public static readonly ResourceOperationId Restart = "restart";
+    }
+
     public ResourceTypeId TypeId => ResourceTypeId;
 
     public ResourceTypeDefinition TypeDefinition { get; } = new(
@@ -66,6 +73,12 @@ public sealed class JavaScriptAppResourceTypeProvider :
             new(
                 ResourceLogSourceCapabilityIds.LogSources,
                 ResourceDefinitionJson.FromValue(ResourceLogSourceDefinitionSet.DefaultConsole()))
+        ],
+        Operations:
+        [
+            new(Operations.Start),
+            new(Operations.Stop),
+            new(Operations.Restart)
         ]);
 
     public bool CanValidate(Resource resource) =>

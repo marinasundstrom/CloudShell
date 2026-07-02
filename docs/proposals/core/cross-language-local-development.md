@@ -159,6 +159,13 @@ The SDK can target a running Control Plane by base URL and credential. In this
 mode it does not launch a host; it applies or previews the graph through the
 API and can query resources and endpoints afterward.
 
+This is an important update and automation path. A TypeScript, JavaScript, or
+other language tool can apply changes to an existing local host, split Control
+Plane, team environment, or on-premise instance without owning process
+lifetime. It should complement the default local development loop, where a
+developer runs a host file and that process starts the Control Plane and UI
+with its declared resources.
+
 The first CLI accepts an explicit Control Plane URL. Later CLI profile work
 should let users select a named Control Plane target, similar to how cloud CLIs
 select an active subscription, tenant, or environment. That target can be a

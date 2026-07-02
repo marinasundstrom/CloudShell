@@ -462,6 +462,8 @@ public sealed class ResourceManagerIntegrationTests
             provider.GetType() == typeof(ConfigurationStoreResourceManagerMonitoringProvider));
         Assert.Contains(providers, provider =>
             provider.GetType() == typeof(SecretsVaultResourceManagerMonitoringProvider));
+        Assert.Contains(providers, provider =>
+            provider.GetType() == typeof(JavaScriptAppResourceManagerMonitoringProvider));
     }
 
     [Fact]
@@ -2886,6 +2888,109 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal("cloudshell/mock-api:20260608.1", appProjection.Image);
         Assert.Equal(registryAddress, appProjection.Registry);
         Assert.Equal(host.EffectiveResourceId, appProjection.ContainerHostResourceId);
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesJavaScriptAppAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddNetworkResourceType();
+        services.AddConfigurationStoreResourceType();
+        services.AddJavaScriptAppResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddBuiltInProviderResourceManagerProjections();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceGraphBuilder();
+        var settings = graph
+            .AddConfigurationStore("settings")
+            .WithEndpoint("http://localhost:5101");
+
+        var app = graph
+            .AddJavaScriptApp("frontend", "src/frontend")
+            .WithPackageManager("npm")
+            .WithScript("dev")
+            .WithReference(settings)
+            .WithHttpEndpoint(
+                host: "localhost",
+                port: 5173,
+                targetPort: 5173)
+            .WithHttpLivenessCheck(
+                "/alive",
+                endpointName: "http",
+                name: "alive",
+                interval: TimeSpan.FromSeconds(10));
+
+        var template = graph.BuildTemplate("javascript-app", environmentId: "local");
+        var appDefinition = Assert.Single(template.Resources, resource =>
+            resource.EffectiveResourceId == app.EffectiveResourceId);
+
+        var result = await service.ApplyTemplateAsync(
+            template,
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedApp = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == app.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Project, projectedApp.ResourceClass);
+        Assert.Equal(ResourceManagerResourceState.Stopped, projectedApp.State);
+        Assert.Equal(JavaScriptAppResourceTypeProvider.ProviderId, projectedApp.Provider);
+        Assert.Equal("src/frontend", projectedApp.ResourceAttributes["project.path"]);
+        Assert.Equal("node", projectedApp.ResourceAttributes["javascript.engine"]);
+        Assert.Equal("npm", projectedApp.ResourceAttributes["javascript.packageManager"]);
+        Assert.Equal("dev", projectedApp.ResourceAttributes["javascript.script"]);
+        Assert.Empty(projectedApp.DependsOn);
+        Assert.Equal("http://localhost:5173", projectedApp.PrimaryEndpoint);
+        Assert.Contains(projectedApp.ResourceCapabilities, capability =>
+            capability.Id == ResourceCommonCapabilityIds.EndpointSource.ToString());
+        Assert.Contains(projectedApp.ResourceCapabilities, capability =>
+            capability.Id == ResourceCommonCapabilityIds.Monitoring.ToString());
+        Assert.Contains(projectedApp.ResourceCapabilities, capability =>
+            capability.Id == ResourceLogSourceCapabilityIds.LogSources.ToString());
+        Assert.Contains(projectedApp.ResourceCapabilities, capability =>
+            capability.Id == ResourceHealthCheckCapabilityIds.HealthChecks.ToString());
+        Assert.Contains(projectedApp.ResourceCapabilities, capability =>
+            capability.Id == ResourceHealthCheckCapabilityIds.Liveness.ToString());
+        var healthCheck = Assert.Single(projectedApp.ResourceHealthChecks);
+        Assert.Equal("alive", healthCheck.Name);
+        Assert.Equal(ResourceProbeType.Liveness, healthCheck.Type);
+        Assert.Equal("/alive", healthCheck.Path);
+        Assert.Equal("http", healthCheck.EndpointName);
+        var logSource = Assert.Single(projectedApp.ResourceLogSources);
+        Assert.Equal("console", logSource.Id);
+        Assert.Equal(ResourceLogSourceKind.ProcessOutput, logSource.Kind);
+        Assert.True(projectedApp.SupportsLogSources);
+        var reference = Assert.Single(
+            appDefinition.ResourceAttributeValues.GetObject<ResourceReference[]>(
+                JavaScriptAppResourceTypeProvider.Attributes.References) ?? []);
+        Assert.Equal(settings.EffectiveResourceId, reference.Value);
+        var start = Assert.Single(projectedApp.ResourceActions, action =>
+            action.Id == JavaScriptAppResourceTypeProvider.Operations.Start.ToString());
+        var stop = Assert.Single(projectedApp.ResourceActions, action =>
+            action.Id == JavaScriptAppResourceTypeProvider.Operations.Stop.ToString());
+        var restart = Assert.Single(projectedApp.ResourceActions, action =>
+            action.Id == JavaScriptAppResourceTypeProvider.Operations.Restart.ToString());
+
+        var procedure = new ResourceProcedureContext(
+            projectedApp,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, start));
+        Assert.NotNull(await provider.GetActionUnavailableReasonAsync(procedure, stop));
+        Assert.NotNull(await provider.GetActionUnavailableReasonAsync(procedure, restart));
     }
 
     [Fact]
