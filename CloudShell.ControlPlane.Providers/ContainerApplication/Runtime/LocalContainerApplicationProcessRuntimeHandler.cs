@@ -14,7 +14,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Net.WebSockets;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
@@ -1034,22 +1033,15 @@ public sealed class LocalContainerApplicationProcessRuntimeBridge(
 
     private static string ResolveRuntimeRevisionId(ResourceManagerResource resource)
     {
-        var registry = resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerRegistry);
-        if (string.IsNullOrWhiteSpace(registry))
-        {
-            registry = ContainerRegistryDefaults.Default;
-        }
-
         var image = resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerImage);
         if (string.IsNullOrWhiteSpace(image))
         {
             return resource.Version;
         }
 
-        var revisionKey = $"{registry.Trim()}\n{image.Trim()}";
-        Span<byte> hash = stackalloc byte[32];
-        SHA256.HashData(Encoding.UTF8.GetBytes(revisionKey), hash);
-        return $"rev-img-{Convert.ToHexString(hash[..6]).ToLowerInvariant()}";
+        return ContainerApplicationRuntimeRevisions.CreateImageRevisionId(
+            resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerRegistry),
+            image);
     }
 
     private static ResourceEndpoint? ResolveReplicaEndpoint(ResourceManagerResource parent) =>

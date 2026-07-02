@@ -1,8 +1,6 @@
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.Configuration;
 using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
 using GraphResource = CloudShell.ResourceModel.Resource;
 
 namespace CloudShell.ControlPlane.Providers;
@@ -92,18 +90,11 @@ public static class LocalDockerContainerApplicationRuntimeConventions
 
     public static string ResolveRuntimeRevisionId(GraphResource resource)
     {
-        var registry = resource.Attributes.GetString(ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry);
-        if (string.IsNullOrWhiteSpace(registry))
-        {
-            registry = ContainerRegistryDefaults.Default;
-        }
-
         var image = resource.Attributes.GetString(ContainerApplicationResourceTypeProvider.Attributes.ContainerImage)
             ?? throw new InvalidOperationException(
                 "The container app image must be set before sample runtime can resolve the runtime revision.");
-        var revisionKey = $"{registry.Trim()}\n{image.Trim()}";
-        Span<byte> hash = stackalloc byte[32];
-        SHA256.HashData(Encoding.UTF8.GetBytes(revisionKey), hash);
-        return $"rev-img-{Convert.ToHexString(hash[..6]).ToLowerInvariant()}";
+        return ContainerApplicationRuntimeRevisions.CreateImageRevisionId(
+            resource.Attributes.GetString(ContainerApplicationResourceTypeProvider.Attributes.ContainerRegistry),
+            image);
     }
 }

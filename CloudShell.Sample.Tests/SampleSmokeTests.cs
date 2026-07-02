@@ -3,7 +3,6 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Net.Sockets;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using CloudShell.Abstractions.Authorization;
@@ -2310,7 +2309,9 @@ public sealed class SampleSmokeTests
     {
         const string apiResourceId = "application.container-app:signalr-api";
         var expectedServiceId = ResourceOrchestratorReplicaGroups.CreateDefaultServiceName(apiResourceId);
-        var expectedRevisionId = CreateRuntimeRevisionId("cloudshell-signalr-api:20260630.1");
+        var expectedRevisionId = ContainerApplicationRuntimeRevisions.CreateImageRevisionId(
+            ContainerRegistryDefaults.Default,
+            "cloudshell-signalr-api:20260630.1");
         var expectedReplicaGroupId = ResourceOrchestratorReplicaGroups.CreateReplicaGroupId(
             expectedServiceId,
             expectedRevisionId);
@@ -3641,14 +3642,6 @@ public sealed class SampleSmokeTests
         throw new TimeoutException(
             $"Resource '{resourceId}' did not reach state '{state}' within {timeout}." +
             $"{Environment.NewLine}{lastBody}");
-    }
-
-    private static string CreateRuntimeRevisionId(string image)
-    {
-        var revisionKey = $"{ContainerRegistryDefaults.Default}\n{image}";
-        Span<byte> hash = stackalloc byte[32];
-        SHA256.HashData(Encoding.UTF8.GetBytes(revisionKey), hash);
-        return $"rev-img-{Convert.ToHexString(hash[..6]).ToLowerInvariant()}";
     }
 
     private static string GetEndpointAddress(JsonElement resource, string endpointName)
