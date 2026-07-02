@@ -72,6 +72,9 @@ on `git blame --follow`, and then by the broad type of change.
   latest deployment attempt status.
 - Updated container app Revisions to infer the active revision from live
   materialized replica resources when deployment history is not available.
+- Updated container app Deployment status to fall back to Resource Manager
+  resource state when deployment records and deployment projection attributes
+  are not available.
 
 ### 2026-07-01
 

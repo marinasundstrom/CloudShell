@@ -394,13 +394,27 @@ else
             return "Running";
         }
 
-        return Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentStatus) switch
+        var projectedStatus = Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentStatus);
+        if (!string.IsNullOrWhiteSpace(projectedStatus))
         {
-            "active" => "Running",
-            "applying" => "Deploying",
-            "failed" => "Needs attention",
-            "deleted" => "Removed",
-            "pending" => "Not running",
+            return projectedStatus switch
+            {
+                "active" => "Running",
+                "applying" => "Deploying",
+                "failed" => "Needs attention",
+                "deleted" => "Removed",
+                "pending" => "Not running",
+                _ => "Not deployed"
+            };
+        }
+
+        return Resource?.State switch
+        {
+            ResourceState.Running => "Running",
+            ResourceState.Starting => "Deploying",
+            ResourceState.Degraded => "Needs attention",
+            ResourceState.Stopped => "Not running",
+            ResourceState.Stopping => "Stopping",
             _ => "Not deployed"
         };
     }
@@ -424,12 +438,25 @@ else
             return "container-app-status-pill success";
         }
 
-        return Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentStatus) switch
+        var projectedStatus = Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentStatus);
+        if (!string.IsNullOrWhiteSpace(projectedStatus))
         {
-            "active" => "container-app-status-pill success",
-            "applying" => "container-app-status-pill info",
-            "failed" => "container-app-status-pill error",
-            "pending" => "container-app-status-pill warning",
+            return projectedStatus switch
+            {
+                "active" => "container-app-status-pill success",
+                "applying" => "container-app-status-pill info",
+                "failed" => "container-app-status-pill error",
+                "pending" => "container-app-status-pill warning",
+                _ => "container-app-status-pill"
+            };
+        }
+
+        return Resource?.State switch
+        {
+            ResourceState.Running => "container-app-status-pill success",
+            ResourceState.Starting or ResourceState.Stopping => "container-app-status-pill info",
+            ResourceState.Degraded => "container-app-status-pill error",
+            ResourceState.Stopped => "container-app-status-pill warning",
             _ => "container-app-status-pill"
         };
     }
@@ -455,13 +482,27 @@ else
             return string.Empty;
         }
 
-        return Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentStatus) switch
+        var projectedStatus = Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentStatus);
+        if (!string.IsNullOrWhiteSpace(projectedStatus))
         {
-            "active" => string.Empty,
-            "applying" => "CloudShell is applying this image to the selected container host.",
-            "failed" => "The latest image deployment failed. Check deployment events and logs for details.",
-            "pending" => "Start the app to materialize runtime instances.",
-            "deleted" => "The current runtime projection has been removed.",
+            return projectedStatus switch
+            {
+                "active" => string.Empty,
+                "applying" => "CloudShell is applying this image to the selected container host.",
+                "failed" => "The latest image deployment failed. Check deployment events and logs for details.",
+                "pending" => "Start the app to materialize runtime instances.",
+                "deleted" => "The current runtime projection has been removed.",
+                _ => "No runtime projection is available for this app yet."
+            };
+        }
+
+        return Resource?.State switch
+        {
+            ResourceState.Running => string.Empty,
+            ResourceState.Starting => "CloudShell is starting this container app.",
+            ResourceState.Stopping => "CloudShell is stopping this container app.",
+            ResourceState.Stopped => "Start the app to materialize runtime instances.",
+            ResourceState.Degraded => "The app is degraded. Check deployment events, health, and logs for details.",
             _ => "No runtime projection is available for this app yet."
         };
     }
