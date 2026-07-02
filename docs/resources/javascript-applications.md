@@ -56,6 +56,31 @@ from the resource type: the resource type describes how the app participates in
 the graph, while client packages make it easier for the running app to consume
 CloudShell-managed services.
 
+## Frontend Applications And TypeScript
+
+The base JavaScript app type should remain framework-neutral. Frontend
+frameworks and build systems such as Vite, Next.js, Remix, Angular, Vue, React
+tooling, or other bundlers can require different development commands, dev
+server endpoint behavior, environment-variable conventions, build output
+locations, and hot reload semantics. Future provider extensions can add
+framework-specific helpers that still compile to `application.javascript-app`
+or to narrower resource types when a framework needs distinct runtime behavior.
+
+TypeScript should be treated as part of the JavaScript app story, but not as a
+single runtime mode. Plain Node.js server applications may run TypeScript files
+directly when the selected Node.js version and project configuration support
+that path. Browser-focused frontend applications usually need a framework or
+build engine to compile, bundle, transform, and serve the application during
+development. CloudShell should model those tools as provider-owned runtime
+adapter concerns rather than adding bundler-specific concepts to the core
+resource definition.
+
+Hot reload is also provider-owned behavior. A future JavaScript runtime adapter
+should start the selected development command, project the dev server endpoint,
+preserve process logs and health, and let the framework's own watcher or HMR
+server reload the app while CloudShell continues to manage resource identity,
+references, endpoints, and operations.
+
 ## Sample
 
 The `samples/JavaScriptApp` sample declares:

@@ -179,6 +179,33 @@ The SDK should avoid hiding CloudShell concepts behind Node-only terms. Use
 CloudShell nouns such as resources, endpoints, dependencies, references,
 Control Plane, and Resource Manager.
 
+### JavaScript frontend and TypeScript applications
+
+JavaScript app authoring needs a frontend-aware path, but CloudShell should not
+hard-code one frontend framework into the base resource model. Vite, Next.js,
+Remix, Angular, Vue, React tooling, workers, and future build systems can all
+have different development commands, dev server behavior, bundle outputs,
+environment-variable conventions, routing assumptions, and hot reload
+mechanics. The TypeScript/JavaScript SDK should expose ergonomic helpers for
+common frameworks while preserving the same ResourceDefinition interchange
+used by other resource types.
+
+Plain Node.js server applications can use the base JavaScript app resource and
+may run TypeScript files directly when the selected Node.js version and project
+configuration support it. Browser-focused frontend applications usually need a
+build engine or framework development server to transform and bundle the app.
+Those build engines should be modeled as SDK/provider/runtime-adapter concerns:
+they choose the command, watch behavior, endpoint projection, environment
+mapping, and produced artifacts without adding bundler-specific fields to the
+core Control Plane resource model.
+
+Hot reload should follow the same rule. The Control Plane owns resource
+identity, lifecycle operations, logs, health, endpoint projection, references,
+and authorization. The selected JavaScript runtime adapter starts the
+framework's development process and lets the framework's watcher or HMR server
+reload browser assets or server modules while CloudShell keeps the resource
+graph stable.
+
 ## Host launcher expectations
 
 The CloudShell CLI launcher is responsible for process concerns:
@@ -244,6 +271,10 @@ not deployment to another environment.
   launcher pass an initial graph to the host before the API is ready?
 - How much of the C# builder API should be generated from provider metadata
   versus hand-authored in each language package?
+- Which JavaScript frontend framework helpers should ship first, and how
+  should framework-specific hot reload, TypeScript, bundling, and dev server
+  behavior be described without leaking build-tool details into the core
+  resource model?
 - How should editor tooling surface source spans from generated
   ResourceDefinition diagnostics?
 - What is the CloudShell credential/profile store layout, and which OS-native
@@ -262,8 +293,11 @@ not deployment to another environment.
 4. Add Control Plane diagnostics for source metadata and missing provider or
    runtime adapter capabilities.
 5. Add sample coverage for a TypeScript-authored local distributed app.
-6. Add remote attach support using generated Control Plane client bindings.
-7. Decide which SDK APIs are stable enough to document as public preview.
+6. Add a JavaScript frontend sample that proves framework dev-server endpoint
+   projection, TypeScript support, and hot reload behavior through a
+   provider-owned runtime adapter.
+7. Add remote attach support using generated Control Plane client bindings.
+8. Decide which SDK APIs are stable enough to document as public preview.
 
 ## Verification
 
