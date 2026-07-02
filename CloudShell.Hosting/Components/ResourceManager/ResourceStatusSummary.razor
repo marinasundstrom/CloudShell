@@ -9,7 +9,7 @@
             <div class="resource-status-row">
                 <ResourceStateIndicator State="Resource.State" ProgressLabel="@LifecycleProgressLabel" />
                 <strong>@GetLifecycleStatusLabel()</strong>
-                <span>@L["Updated {0}", Resource.LastUpdated.ToLocalTime().ToString("HH:mm:ss")]</span>
+                <span>@GetUpdatedLabel()</span>
             </div>
         }
 
@@ -57,6 +57,11 @@
 
     private string GetLifecycleStatusLabel() =>
         LifecycleProgressLabel ?? Resource?.State?.ToString() ?? ResourceState.Unknown.ToString();
+
+    private string GetUpdatedLabel() =>
+        Resource is not null && ResourceTimestampDisplay.IsObserved(Resource.LastUpdated)
+            ? L["Updated {0}", ResourceTimestampDisplay.FormatTime(Resource.LastUpdated)].Value
+            : L["Update time not observed"].Value;
 
     private string GetHealthLabel()
     {

@@ -186,7 +186,7 @@
         <dt>@L["Version"]</dt>
         <dd>@Resource.Version</dd>
         <dt>@L["Updated"]</dt>
-        <dd>@Resource.LastUpdated.ToLocalTime().ToString("g")</dd>
+        <dd>@ResourceTimestampDisplay.FormatDateTime(Resource.LastUpdated)</dd>
     </dl>;
 
     private RenderFragment RenderNameMapping() => @<dl class="detail-list">
