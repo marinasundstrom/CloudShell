@@ -9,6 +9,23 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-07-03
+
+### ADR-20260703-001: Group language app-host launchers under Launchers
+
+Language-specific app-host authoring packages should live under the top-level
+`Launchers/` folder. Launchers are not runtime service clients; they define a
+ResourceTemplate and apply it to a local, separate, or remote CloudShell host
+profile through the CLI or Control Plane API. Runtime service clients remain
+under `sdk/` because they run inside workloads after CloudShell starts them.
+
+The C# launcher package lives under `Launchers/CSharp`, the TypeScript
+launcher package lives under `Launchers/TypeScript`, and the experimental Java
+launcher package lives under `Launchers/Java`. This supersedes
+ADR-20260702-004's sample-local Java staging decision by moving the first
+Java-native ResourceTemplate builders into an experimental Java launcher
+package while keeping Java runtime service clients separate.
+
 ## 2026-07-02
 
 ### ADR-20260702-003: Scope implicit local Docker container-app materialization by host instance
@@ -36,6 +53,9 @@ migration and specialized hosts, but such names are caller-owned and can still
 collide if reused across host instances.
 
 ### ADR-20260702-004: Keep Java app-host builders sample-local until a dedicated Java launcher SDK
+
+Superseded by ADR-20260703-001 for the package location and Java launcher
+builder staging. The Java-native API guidance remains current.
 
 Java launcher authoring should feel native to Java instead of copying C#
 extension-method patterns directly. The stable cross-language boundary remains

@@ -20,7 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CloudShell.AppHost.Launcher\CloudShell.AppHost.Launcher.csproj" />
-    <ProjectReference Include="..\CloudShell.ControlPlane.Providers\CloudShell.ControlPlane.Providers.csproj" />
+    <ProjectReference Include="..\..\..\CloudShell.ControlPlane.Providers\CloudShell.ControlPlane.Providers.csproj" />
   </ItemGroup>
 
 </Project>

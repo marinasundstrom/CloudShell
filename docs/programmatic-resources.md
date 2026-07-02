@@ -189,11 +189,15 @@ language packages.
 See [Launchers and app hosts](launchers-and-app-hosts.md) for the terminology
 split between host profiles, language-specific launchers, and runtime service
 clients.
-The experimental TypeScript hosting package under `sdk/typescript/cloudshell`
-is the first proof point for this shape. It emits ResourceTemplate JSON that
-the current CloudShell CLI can apply, while intentionally limiting its
-hand-authored builders to a small set until generation and provider metadata
-requirements are clearer.
+Language launcher packages live under `Launchers/` so C#, TypeScript, Java,
+and future app-host authoring surfaces are easy to find separately from
+runtime service clients under `sdk/`. The experimental TypeScript launcher
+package under `Launchers/TypeScript/cloudshell` is the first proof point for
+this shape. The experimental Java launcher package under
+`Launchers/Java/cloudshell-launcher` carries the first Java-native builder
+surface. Both emit ResourceTemplate JSON that the current CloudShell CLI can
+apply, while intentionally limiting hand-authored builders until generation
+and provider metadata requirements are clearer.
 For Resource Model provider ports, creating the provider-owned manual builder
 is part of the porting work unless the provider README explicitly records why
 the builder is deferred. The builder is the first code-first authoring surface

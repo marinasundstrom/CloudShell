@@ -9,7 +9,7 @@
     "apply": "npm run build && node dist/app-host.js --apply"
   },
   "dependencies": {
-    "@cloudshell/local-development": "file:../../sdk/typescript/cloudshell"
+    "@cloudshell/local-development": "file:../../Launchers/TypeScript/cloudshell"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

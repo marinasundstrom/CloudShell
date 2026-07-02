@@ -17,6 +17,11 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added a top-level `Launchers/` folder for language app-host launcher
+  packages, moved the C# launcher and TypeScript launcher package under it,
+  and introduced `Launchers/Java/cloudshell-launcher` as an experimental Java
+  ResourceTemplate builder package consumed by `samples/JavaAppHost`; see
+  ADR-20260703-001.
 - Clarified container app cookie session affinity documentation so it states
   that sticky cookies affect ordinary HTTP requests as well as SignalR and
   WebSocket setup flows, documented current provider enforcement limits, and
@@ -31,8 +36,7 @@ on `git blame --follow`, and then by the broad type of change.
   monitoring, endpoint projection, service-reference binding variables,
   Resource Manager UI registration, TypeScript launcher support, Java SDK
   Configuration Store and Secrets Vault clients, and Java app/launcher
-  samples. The Java launcher builder remains sample-local pending a dedicated
-  Java app-host authoring package; see ADR-20260702-004.
+  samples. Java launcher package extraction is tracked by ADR-20260703-001.
 - Added `CloudShell.AppHost.Launcher`, a lightweight C# launcher/app-host
   authoring package that reuses Resource Model builders without referencing
   Control Plane or UI hosting, plus `CloudShell.LocalDevelopmentHost` as the
@@ -260,7 +264,7 @@ on `git blame --follow`, and then by the broad type of change.
   transient bearer-token support, local hosts-file name mapping commands,
   parser and hosts-file tests, and CLI documentation.
 - Added an experimental TypeScript hosting integration proof of concept under
-  `sdk/typescript/cloudshell`, with hand-authored builders for JavaScript apps,
+  `Launchers/TypeScript/cloudshell`, with hand-authored builders for JavaScript apps,
   Configuration Store, default networking, typed references, endpoint requests,
   health checks, JSON ResourceTemplate emission, CLI apply integration, and a
   `samples/TypeScriptAppHost` sample that declares a JavaScript app from

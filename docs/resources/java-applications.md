@@ -44,13 +44,12 @@ See [Launchers and app hosts](../launchers-and-app-hosts.md) for the shared
 terminology and package-boundary guidance.
 
 `samples/JavaAppHost` demonstrates that shape with a Java source-file launcher.
-Its small `CloudShellApp`, resource, and endpoint builder classes are
-sample-local prototype code. Keep them there until CloudShell has enough Java
-launcher experience to publish a separate Java app-host authoring package.
-That future package should own ResourceTemplate authoring and CLI apply/start
-integration for Java launchers. It should stay separate from the Java runtime
-service-client SDK, which is for Java applications that are already running
-and need to consume CloudShell-managed services.
+Its small entrypoint consumes the experimental Java launcher package under
+`Launchers/Java/cloudshell-launcher`. That package owns Java ResourceTemplate
+authoring and stays separate from the Java runtime service-client SDK, which
+is for Java applications that are already running and need to consume
+CloudShell-managed services. CLI apply/start helpers remain in the sample
+until more Java launcher scenarios prove the package API.
 
 ## Samples
 

@@ -160,7 +160,7 @@ additional extensions, authentication, persistence, or host-specific services.
 
 - `CloudShell.Hosting`: Razor class library for the Blazor shell, layout, static assets, built-in Resource Manager, Extensions, and Observability views.
 - `CloudShell.AppHost`: combined-host composition helpers that wire the CloudShell UI and Control Plane into one ASP.NET Core process.
-- `CloudShell.AppHost.Launcher`: lightweight app-host launcher helpers that emit ResourceTemplates and ask the CLI to apply them.
+- `Launchers/`: language-specific app-host launcher packages that emit ResourceTemplates and ask the CLI or Control Plane API to apply them.
 - `CloudShell.Host`: development sample host that wires CloudShell UI, Control Plane, and local provider extensions together.
 - `CloudShell.LocalDevelopmentHost`: stable local Control Plane and UI host profile with the built-in provider presets for launcher-based samples.
 - `CloudShell.ControlPlane`: control-plane services, authorization adapters, resource/log stores, and the versioned OpenAPI endpoint module.

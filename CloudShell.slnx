@@ -4,6 +4,13 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
+  <Folder Name="/Launchers/" />
+  <Folder Name="/Launchers/CSharp/">
+    <Project Path="Launchers/CSharp/CloudShell.AppHost.Launcher/CloudShell.AppHost.Launcher.csproj" />
+    <Project Path="Launchers/CSharp/CloudShell.AppHost.Launcher.Tests/CloudShell.AppHost.Launcher.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Launchers/Java/" />
+  <Folder Name="/Launchers/TypeScript/" />
   <Folder Name="/samples/" />
   <Folder Name="/samples/CompositionSandbox/">
     <Project Path="samples/CompositionSandbox/CloudShell.CompositionSandbox.csproj" />
@@ -108,8 +115,6 @@
   </Folder>
   <Project Path="CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj" />
   <Project Path="CloudShell.Abstractions/CloudShell.Abstractions.csproj" />
-  <Project Path="CloudShell.AppHost.Launcher.Tests/CloudShell.AppHost.Launcher.Tests.csproj" />
-  <Project Path="CloudShell.AppHost.Launcher/CloudShell.AppHost.Launcher.csproj" />
   <Project Path="CloudShell.AppHost/CloudShell.AppHost.csproj" />
   <Project Path="CloudShell.Client.Tests/CloudShell.Client.Tests.csproj" />
   <Project Path="CloudShell.Client/CloudShell.Client.csproj" />

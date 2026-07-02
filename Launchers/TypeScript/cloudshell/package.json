@@ -1,7 +1,7 @@
 {
   "name": "@cloudshell/local-development",
   "version": "0.0.0-poc",
-  "description": "Experimental TypeScript hosting integration proof of concept for CloudShell.",
+  "description": "Experimental TypeScript launcher integration proof of concept for CloudShell.",
   "type": "module",
   "private": true,
   "main": "./dist/index.js",

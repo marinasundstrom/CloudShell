@@ -135,9 +135,10 @@ The implemented apply surfaces are:
 - `POST /resource-templates/apply` on the Control Plane API.
 - `CloudShell.Cli template apply`, which accepts `create-or-update`,
   `create-only`, and `update-existing` apply modes.
-- `CloudShell.AppHost.Launcher`, which builds a `ResourceTemplate` from a
-  `ResourceGraphBuilder`, writes YAML or JSON, and applies it through the CLI
-  or runs a local host profile before applying.
+- launcher packages under `Launchers/`, including
+  `Launchers/CSharp/CloudShell.AppHost.Launcher`, which builds a
+  `ResourceTemplate` from a `ResourceGraphBuilder`, writes YAML or JSON, and
+  applies it through the CLI or runs a local host profile before applying.
 
 Control Plane host setup also exposes `DefineResources(...)` and
 `DefineInitialTemplate(...)` for in-memory graph declarations. Both callbacks

@@ -40,6 +40,13 @@ method patterns directly.
 
 ## Current Implementations
 
+Language launcher packages live under the repository's top-level `Launchers/`
+folder:
+
+- `Launchers/CSharp/CloudShell.AppHost.Launcher`
+- `Launchers/TypeScript/cloudshell`
+- `Launchers/Java/cloudshell-launcher`
+
 `CloudShell.AppHost.Launcher` is the current C# launcher/app-host authoring
 package. It reuses Resource Model builders, emits a `ResourceTemplate`, and
 delegates local host startup or template apply to the CloudShell CLI. It does
@@ -59,23 +66,23 @@ apply a generated template, pass `--data-dir` for launcher-local CloudShell
 data, and later target an existing Control Plane by URL. See
 [CloudShell CLI](cli.md) for command details.
 
-The experimental TypeScript hosting package under `sdk/typescript/cloudshell`
+The experimental TypeScript launcher package under `Launchers/TypeScript/cloudshell`
 proves the non-C# authoring shape. It has hand-authored builders for the first
 resource types, emits ResourceTemplate JSON, and can call the CLI apply path.
 `samples/TypeScriptAppHost` exercises the end-to-end flow with
 `CloudShell.LocalDevelopmentHost`.
 
-Java app-host authoring is still sample-local. `samples/JavaAppHost` contains
-a Java source-file launcher that emits a ResourceTemplate and applies it
-through the CLI. Keep Java authoring builders there until CloudShell is ready
-for a dedicated Java app-host authoring package.
+The experimental Java launcher package under `Launchers/Java/cloudshell-launcher`
+contains Java-native ResourceTemplate builders for Java launcher apps.
+`samples/JavaAppHost` consumes that package from a small Java source-file
+launcher, emits a ResourceTemplate, and applies it through the CLI.
 
 ## Java Staging
 
-The first Java launcher builder lives in `samples/JavaAppHost` as
-sample-local prototype code. Keep it there until the Java authoring shape is
-proven across more scenarios. A future Java app-host authoring package should
-own ResourceTemplate builders and CLI apply/start integration.
+The Java launcher builder is experimental. It owns the initial Java
+ResourceTemplate authoring shape but intentionally keeps CLI integration in
+the sample helper until more Java launcher scenarios prove which process
+helpers should become package API.
 
 The Java runtime service clients under `sdk/java/cloudshell` are a separate
 surface. They are for Java applications that are already running and need to

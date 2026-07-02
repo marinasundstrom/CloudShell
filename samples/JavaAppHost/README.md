@@ -1,17 +1,17 @@
 # Java App Host Launcher Sample
 
 This sample shows the launcher-style Java hosting pattern. The Java source-file
-program in `AppHost/AppHost.java` uses a small fluent Java authoring surface to
-declare a ResourceTemplate, then uses the CloudShell CLI to apply it to the
-local development host profile. The launcher declares a Java app plus
+program in `AppHost/AppHost.java` uses the experimental Java launcher package
+from `Launchers/Java/cloudshell-launcher` to declare a ResourceTemplate, then
+uses the CloudShell CLI to apply it to the local development host profile. The
+launcher declares a Java app plus
 Configuration Store and Secrets Vault references so the running JVM process can
 consume the same service-binding variables as other language integrations.
 
-The small builder classes in `AppHost.java` are intentionally sample-local.
-They are a prototype for a future Java app-host authoring SDK, not the stable
-library surface. Keep reusable runtime clients in `sdk/java/cloudshell`; move
-launcher builders into a separate Java app-host package only after the Java
-authoring shape has settled.
+The Java launcher package is intentionally separate from the runtime clients in
+`sdk/java/cloudshell`. Runtime clients are used inside Java workloads after
+CloudShell starts them; launcher builders are used by App Host programs that
+define resources and apply them to a host profile.
 
 Generate the template:
 

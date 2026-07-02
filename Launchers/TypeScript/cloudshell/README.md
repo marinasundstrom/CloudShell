@@ -1,4 +1,4 @@
-# CloudShell TypeScript Hosting POC
+# CloudShell TypeScript Launcher POC
 
 This package is an experimental proof of concept for declaring CloudShell
 resource templates from TypeScript. It mirrors a small part of the C#
