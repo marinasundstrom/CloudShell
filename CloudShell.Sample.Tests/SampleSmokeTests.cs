@@ -2203,6 +2203,7 @@ public sealed class SampleSmokeTests
                     options =>
                     {
                         options.Transports = HttpTransportType.WebSockets;
+                        options.SkipNegotiation = true;
                     })
                 .Build();
             connection.On<SignalRReplicaTestMessage>(
@@ -5328,7 +5329,7 @@ public sealed class SampleSmokeTests
             using var client = new HttpClient
             {
                 BaseAddress = BaseAddress,
-                Timeout = TimeSpan.FromSeconds(10)
+                Timeout = StartupTimeout
             };
             using var request = new HttpRequestMessage(method, path)
             {
@@ -5340,8 +5341,11 @@ public sealed class SampleSmokeTests
             }
 
             using var response = await client.SendAsync(request);
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadAsStringAsync();
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.True(
+                response.IsSuccessStatusCode,
+                $"{method} {path} returned {(int)response.StatusCode} {response.ReasonPhrase}: {body}");
+            return body;
         }
 
         public async Task<string> GetClientCredentialsTokenAsync(

@@ -95,6 +95,7 @@
                 options =>
                 {
                     options.Transports = HttpTransportType.WebSockets;
+                    options.SkipNegotiation = true;
                 })
             .WithAutomaticReconnect()
             .Build();
