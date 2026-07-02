@@ -15,6 +15,10 @@ internal static class ContainerizedProjectEnvironmentVariables
                 JavaScriptAppResourceTypeProvider.Attributes.EnvironmentVariables));
         Add(
             environment,
+            resource.Attributes.GetObject<Dictionary<string, JavaAppEnvironmentVariableValue>>(
+                JavaAppResourceTypeProvider.Attributes.EnvironmentVariables));
+        Add(
+            environment,
             resource.Attributes.GetObject<Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>>(
                 AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables));
         return environment;
@@ -23,6 +27,21 @@ internal static class ContainerizedProjectEnvironmentVariables
     private static void Add(
         List<EnvironmentVariableAssignment> environment,
         IReadOnlyDictionary<string, JavaScriptAppEnvironmentVariableValue>? values)
+    {
+        if (values is null)
+        {
+            return;
+        }
+
+        foreach (var (name, value) in values)
+        {
+            AddLiteral(environment, name, value.Value);
+        }
+    }
+
+    private static void Add(
+        List<EnvironmentVariableAssignment> environment,
+        IReadOnlyDictionary<string, JavaAppEnvironmentVariableValue>? values)
     {
         if (values is null)
         {

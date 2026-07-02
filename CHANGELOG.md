@@ -17,6 +17,13 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added `application.java-app` as a first-class Java/JVM app resource with
+  ResourceGraph builders, local process lifecycle operations, logs,
+  monitoring, endpoint projection, service-reference binding variables,
+  Resource Manager UI registration, TypeScript launcher support, Java SDK
+  Configuration Store and Secrets Vault clients, and Java app/launcher
+  samples. The Java launcher builder remains sample-local pending a dedicated
+  Java app-host authoring package; see ADR-20260702-004.
 - Added `CloudShell.AppHost.Launcher`, a lightweight C# launcher/app-host
   authoring package that reuses Resource Model builders without referencing
   Control Plane or UI hosting, plus `CloudShell.LocalDevelopmentHost` as the

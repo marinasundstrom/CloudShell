@@ -1299,6 +1299,148 @@ public sealed class ResourceGraphBuilderTests
     }
 
     [Fact]
+    public async Task ResourceGraphBuilder_BuildsJavaAppDefinitions()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddNetworkResourceType();
+        services.AddConfigurationStoreResourceType();
+        services.AddJavaAppResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var graph = new ResourceGraphBuilder();
+        var settings = graph
+            .AddConfigurationStore("settings")
+            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/entries");
+
+        graph
+            .AddJavaApp("api", "src/api", "target/app.jar")
+            .WithJvmArguments("-Xmx256m")
+            .WithArguments("--spring.profiles.active=dev")
+            .WithServiceDiscovery()
+            .WithHttpEndpoint(
+                port: 5185,
+                targetPort: 5185,
+                host: "localhost")
+            .WithEnvironmentVariable("APP_ENV", "development")
+            .WithReference(settings)
+            .WithHttpLivenessCheck("/alive", endpointName: "http");
+
+        var template = graph.BuildTemplate("java-app", environmentId: "local");
+
+        var app = Assert.Single(template.Resources, resource =>
+            resource.TypeId == JavaAppResourceTypeProvider.ResourceTypeId);
+        var hostNetwork = Assert.Single(template.Resources, resource =>
+            resource.EffectiveResourceId == NetworkResourceDefinitionBuilderExtensions.DefaultNetworkResourceId);
+        Assert.Equal("application.java-app:api", app.EffectiveResourceId);
+        Assert.Equal(JavaAppResourceTypeProvider.ProviderId, app.ProviderId);
+        Assert.Equal("src/api", app.ResourceAttributeValues[
+            JavaAppResourceTypeProvider.Attributes.ProjectPath].StringValue);
+        Assert.Equal("java", app.ResourceAttributeValues[
+            JavaAppResourceTypeProvider.Attributes.Command].StringValue);
+        Assert.Equal("target/app.jar", app.ResourceAttributeValues[
+            JavaAppResourceTypeProvider.Attributes.ArtifactPath].StringValue);
+        Assert.Equal("-Xmx256m", app.ResourceAttributeValues[
+            JavaAppResourceTypeProvider.Attributes.JvmArguments].StringValue);
+        Assert.Equal("--spring.profiles.active=dev", app.ResourceAttributeValues[
+            JavaAppResourceTypeProvider.Attributes.Arguments].StringValue);
+        Assert.Equal("api", app.ResourceAttributeValues[
+            JavaAppResourceTypeProvider.Attributes.ServiceDiscoveryName].StringValue);
+
+        var endpoint = Assert.Single(app.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+            JavaAppResourceTypeProvider.Attributes.EndpointRequests) ?? []);
+        Assert.Equal("http", endpoint.Name);
+        Assert.Equal(5185, endpoint.Port);
+        Assert.Equal(5185, endpoint.TargetPort);
+        Assert.NotNull(endpoint.Network);
+        Assert.True(endpoint.Network!.TryGetResourceId(out var endpointNetworkId));
+        Assert.Equal(hostNetwork.EffectiveResourceId, endpointNetworkId);
+
+        var environmentVariables = app.ResourceAttributeValues
+            .GetObject<Dictionary<string, JavaAppEnvironmentVariableValue>>(
+                JavaAppResourceTypeProvider.Attributes.EnvironmentVariables) ?? [];
+        Assert.Equal("development", environmentVariables["APP_ENV"].Value);
+        var reference = Assert.Single(app.ResourceAttributeValues.GetObject<ResourceReference[]>(
+            JavaAppResourceTypeProvider.Attributes.References) ?? []);
+        Assert.Equal(ResourceReferenceRelationships.Reference, reference.Relationship);
+        Assert.Equal(settings.EffectiveResourceId, reference.Value);
+        Assert.Equal(ConfigurationStoreResourceTypeProvider.ResourceTypeId, reference.TypeId);
+        Assert.NotNull(app.GetCapability<ResourceHealthCheckDefinitionSet>(
+            ResourceHealthCheckCapabilityIds.HealthChecks));
+        Assert.NotNull(app.GetCapability<ResourceLogSourceDefinitionSet>(
+            ResourceLogSourceCapabilityIds.LogSources));
+
+        var result = await serviceProvider
+            .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
+            .ApplyTemplateAsync(
+                template,
+                new ResourceGraphCommitContext(
+                    PrincipalId: "developer",
+                    Timestamp: new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(result.IsCommitted);
+    }
+
+    [Fact]
+    public void ResourceGraphBuilder_BuildsJavaAppAsContainerDefinition()
+    {
+        var graph = new ResourceGraphBuilder();
+
+        var app = graph
+            .AddJavaApp("api", "src/api", "target/app.jar")
+            .WithHttpEndpoint(
+                port: 5185,
+                targetPort: 8080,
+                host: "localhost")
+            .AsContainer(tag: "dev", dockerfile: "Dockerfile")
+            .WithReplicas(2);
+
+        var template = graph.BuildTemplate("java-container-app", environmentId: "local");
+
+        var appDefinition = Assert.Single(template.Resources, resource =>
+            resource.EffectiveResourceId == app.EffectiveResourceId);
+        var hostDefinition = Assert.Single(template.Resources, resource =>
+            resource.TypeId == ContainerHostResourceTypeProvider.ResourceTypeId);
+        var hostNetwork = Assert.Single(template.Resources, resource =>
+            resource.EffectiveResourceId == NetworkResourceDefinitionBuilderExtensions.DefaultNetworkResourceId);
+
+        Assert.Equal(ContainerApplicationResourceTypeProvider.ResourceTypeId, appDefinition.TypeId);
+        Assert.Equal(ContainerApplicationResourceTypeProvider.ProviderId, appDefinition.ProviderId);
+        Assert.Equal("application.container-app:api", appDefinition.EffectiveResourceId);
+        Assert.Equal("src/api", appDefinition.ResourceAttributeValues[
+            JavaAppResourceTypeProvider.Attributes.ProjectPath].StringValue);
+        Assert.Equal("java", appDefinition.ResourceAttributeValues[
+            JavaAppResourceTypeProvider.Attributes.Command].StringValue);
+        Assert.Equal("target/app.jar", appDefinition.ResourceAttributeValues[
+            JavaAppResourceTypeProvider.Attributes.ArtifactPath].StringValue);
+        Assert.Equal("cloudshell-java-api:dev", appDefinition.ResourceAttributeValues[
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerImage].StringValue);
+        Assert.Equal("src/api", appDefinition.ResourceAttributeValues[
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerBuildContext].StringValue);
+        Assert.Equal("Dockerfile", appDefinition.ResourceAttributeValues[
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerDockerfile].StringValue);
+        Assert.Equal(2, appDefinition.ResourceAttributeValues[
+            ContainerApplicationResourceTypeProvider.Attributes.ContainerReplicas].IntegerValue);
+        Assert.False(appDefinition.ResourceAttributeValues.ContainsKey(
+            JavaAppResourceTypeProvider.Attributes.EndpointRequests));
+
+        var endpoint = Assert.Single(appDefinition.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+            ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests) ?? []);
+        Assert.Equal("http", endpoint.Name);
+        Assert.Equal(5185, endpoint.Port);
+        Assert.Equal(8080, endpoint.TargetPort);
+        Assert.NotNull(endpoint.Network);
+        Assert.True(endpoint.Network!.TryGetResourceId(out var endpointNetworkId));
+        Assert.Equal(hostNetwork.EffectiveResourceId, endpointNetworkId);
+
+        var dependency = Assert.Single(appDefinition.StartupDependencies);
+        Assert.True(dependency.TryGetDependsOnResourceId(out var dependencyId));
+        Assert.Equal(hostDefinition.EffectiveResourceId, dependencyId);
+        Assert.Equal(ContainerHostResourceTypeProvider.ResourceTypeId, dependency.TypeId);
+    }
+
+    [Fact]
     public async Task ResourceGraphBuilder_BuildsIdentityProvisioningDefinitions()
     {
         var services = new ServiceCollection();

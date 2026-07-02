@@ -220,6 +220,12 @@ public sealed class LoadBalancerGraphValidator : IResourceDefinitionGraphValidat
                 JavaScriptAppResourceTypeProvider.Attributes.EndpointRequests) ?? [];
         }
 
+        if (target.Type.TypeId == JavaAppResourceTypeProvider.ResourceTypeId)
+        {
+            return target.Attributes.GetObject<NetworkingEndpointRequestValue[]>(
+                JavaAppResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+        }
+
         if (target.Type.TypeId == ContainerApplicationResourceTypeProvider.ResourceTypeId)
         {
             return target.Attributes.GetObject<NetworkingEndpointRequestValue[]>(

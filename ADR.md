@@ -35,6 +35,22 @@ Explicit runtime definitions that override Docker names remain supported for
 migration and specialized hosts, but such names are caller-owned and can still
 collide if reused across host instances.
 
+### ADR-20260702-004: Keep Java app-host builders sample-local until a dedicated Java launcher SDK
+
+Java launcher authoring should feel native to Java instead of copying C#
+extension-method patterns directly. The stable cross-language boundary remains
+the CloudShell `ResourceTemplate`, resource type IDs, references, endpoint
+requests, metadata, and CLI apply/start flow. The first Java launcher sample
+therefore keeps its fluent ResourceTemplate builder classes inside
+`samples/JavaAppHost` as prototype code.
+
+CloudShell may introduce a dedicated Java app-host authoring package after the
+Java shape is proven across more scenarios. That package should own Java
+ResourceTemplate authoring and launcher/CLI integration. It should stay
+separate from the Java runtime service-client SDK, which is for Java
+applications that are already running and need to consume Configuration Store,
+Secrets Vault, and future CloudShell-managed services.
+
 ### ADR-20260702-002: Treat volume max sizes as storage-owned observations first
 
 CloudShell volume max sizes represent an intended storage boundary and the

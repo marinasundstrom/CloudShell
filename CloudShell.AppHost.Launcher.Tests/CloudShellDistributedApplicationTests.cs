@@ -23,6 +23,10 @@ public sealed class CloudShellDistributedApplicationTests
                 .AddJavaScriptApp("frontend", "App")
                 .WithReference(settings)
                 .WithHttpEndpoint(host: "localhost", port: 5173, targetPort: 5173);
+
+            resources
+                .AddJavaApp("api", "JavaApp", "target/api.jar")
+                .WithHttpEndpoint(host: "localhost", port: 5185, targetPort: 5185);
         });
 
         var template = app.BuildTemplate(
@@ -39,6 +43,8 @@ public sealed class CloudShellDistributedApplicationTests
             resource.EffectiveResourceId == "configuration.store:settings");
         Assert.Contains(template.Resources, resource =>
             resource.EffectiveResourceId == "application.javascript-app:frontend");
+        Assert.Contains(template.Resources, resource =>
+            resource.EffectiveResourceId == "application.java-app:api");
     }
 
     [Fact]

@@ -223,6 +223,25 @@ See `samples/TypeScriptConfigurationClient` for a minimal Node.js application
 that reads a Configuration Store endpoint from the environment and calls it
 with a bearer token.
 
+The experimental Java client follows the same boundary with Java-native
+classes under `sdk/java/cloudshell`:
+
+```java
+import com.cloudshell.sdk.ConfigurationStoreClient;
+
+ConfigurationStoreClient configuration =
+    ConfigurationStoreClient.fromEnvironment();
+
+String message = configuration
+    .getEntry("Sample--Message")
+    .map(entry -> entry.value())
+    .orElse("Default message");
+```
+
+`ConfigurationStoreClient.toProperties(true)` maps portable CloudShell
+hierarchy names such as `Sample--Message` into Java property names such as
+`Sample.Message`.
+
 ## Secrets Vault Client
 
 Use `CloudShell.Secrets.Client` for direct Secrets Vault service calls:
@@ -269,6 +288,23 @@ names maps to the .NET configuration `:` delimiter, matching the Azure Key
 Vault-style convention. Provider diagnostics are exposed under
 `CloudShell:SecretsVault:*`, including `Status`, `Detail`, `Source`, and
 `LoadedKeys`.
+
+The Java SDK also includes a `SecretsVaultClient`:
+
+```java
+import com.cloudshell.sdk.SecretsVaultClient;
+
+SecretsVaultClient secrets = SecretsVaultClient.fromEnvironment();
+String secret = secrets
+    .getSecret("Sample--Secret")
+    .map(value -> value.value())
+    .orElse("");
+```
+
+Java clients read `CLOUDSHELL_CONFIGURATION_*_ENDPOINT` and
+`CLOUDSHELL_SECRETS_*_ENDPOINT` variables and use
+`CLOUDSHELL_CONFIGURATION_TOKEN`, `CLOUDSHELL_SECRETS_TOKEN`,
+`CLOUDSHELL_CONTROL_PLANE_TOKEN`, or `CLOUDSHELL_TOKEN` for bearer tokens.
 
 ## Stability
 

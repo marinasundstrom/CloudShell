@@ -3069,6 +3069,108 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesJavaAppAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddNetworkResourceType();
+        services.AddConfigurationStoreResourceType();
+        services.AddJavaAppResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddBuiltInProviderResourceManagerProjections();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceGraphBuilder();
+        var settings = graph
+            .AddConfigurationStore("settings")
+            .WithEndpoint("http://localhost:5101");
+
+        var app = graph
+            .AddJavaApp("api", "src/api", "target/app.jar")
+            .WithJvmArguments("-Xmx256m")
+            .WithReference(settings)
+            .WithHttpEndpoint(
+                host: "localhost",
+                port: 5185,
+                targetPort: 5185)
+            .WithHttpLivenessCheck(
+                "/alive",
+                endpointName: "http",
+                name: "alive",
+                interval: TimeSpan.FromSeconds(10));
+
+        var template = graph.BuildTemplate("java-app", environmentId: "local");
+        var appDefinition = Assert.Single(template.Resources, resource =>
+            resource.EffectiveResourceId == app.EffectiveResourceId);
+
+        var result = await service.ApplyTemplateAsync(
+            template,
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 7, 2, 12, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedApp = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == app.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Project, projectedApp.ResourceClass);
+        Assert.Equal(ResourceManagerResourceState.Stopped, projectedApp.State);
+        Assert.Equal(JavaAppResourceTypeProvider.ProviderId, projectedApp.Provider);
+        Assert.Equal("src/api", projectedApp.ResourceAttributes["project.path"]);
+        Assert.Equal("java", projectedApp.ResourceAttributes["java.command"]);
+        Assert.Equal("target/app.jar", projectedApp.ResourceAttributes["java.artifactPath"]);
+        Assert.Equal("-Xmx256m", projectedApp.ResourceAttributes["java.jvmArguments"]);
+        Assert.Empty(projectedApp.DependsOn);
+        Assert.Equal("http://localhost:5185", projectedApp.PrimaryEndpoint);
+        Assert.Contains(projectedApp.ResourceCapabilities, capability =>
+            capability.Id == ResourceCommonCapabilityIds.EndpointSource.ToString());
+        Assert.Contains(projectedApp.ResourceCapabilities, capability =>
+            capability.Id == ResourceCommonCapabilityIds.Monitoring.ToString());
+        Assert.Contains(projectedApp.ResourceCapabilities, capability =>
+            capability.Id == ResourceLogSourceCapabilityIds.LogSources.ToString());
+        Assert.Contains(projectedApp.ResourceCapabilities, capability =>
+            capability.Id == ResourceHealthCheckCapabilityIds.HealthChecks.ToString());
+        Assert.Contains(projectedApp.ResourceCapabilities, capability =>
+            capability.Id == ResourceHealthCheckCapabilityIds.Liveness.ToString());
+        var healthCheck = Assert.Single(projectedApp.ResourceHealthChecks);
+        Assert.Equal("alive", healthCheck.Name);
+        Assert.Equal(ResourceProbeType.Liveness, healthCheck.Type);
+        Assert.Equal("/alive", healthCheck.Path);
+        Assert.Equal("http", healthCheck.EndpointName);
+        var logSource = Assert.Single(projectedApp.ResourceLogSources);
+        Assert.Equal("console", logSource.Id);
+        Assert.Equal(ResourceLogSourceKind.ProcessOutput, logSource.Kind);
+        Assert.True(projectedApp.SupportsLogSources);
+        var reference = Assert.Single(
+            appDefinition.ResourceAttributeValues.GetObject<ResourceReference[]>(
+                JavaAppResourceTypeProvider.Attributes.References) ?? []);
+        Assert.Equal(settings.EffectiveResourceId, reference.Value);
+        var start = Assert.Single(projectedApp.ResourceActions, action =>
+            action.Id == JavaAppResourceTypeProvider.Operations.Start.ToString());
+        var stop = Assert.Single(projectedApp.ResourceActions, action =>
+            action.Id == JavaAppResourceTypeProvider.Operations.Stop.ToString());
+        var restart = Assert.Single(projectedApp.ResourceActions, action =>
+            action.Id == JavaAppResourceTypeProvider.Operations.Restart.ToString());
+
+        var procedure = new ResourceProcedureContext(
+            projectedApp,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, start));
+        Assert.NotNull(await provider.GetActionUnavailableReasonAsync(procedure, stop));
+        Assert.NotNull(await provider.GetActionUnavailableReasonAsync(procedure, restart));
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesAspNetCoreProjectAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();

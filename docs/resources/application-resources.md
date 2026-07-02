@@ -13,6 +13,8 @@ Resource-type-specific guidance:
   `application.aspnet-core-project` project resources.
 - [JavaScript applications](javascript-applications.md) for
   `application.javascript-app` Node.js-backed project resources.
+- [Java applications](java-applications.md) for `application.java-app`
+  JVM-backed project resources.
 - [Container apps](container-apps.md) for `application.container-app` deployable
   container workloads.
 - [SQL Server resources](sql-server.md) for `application.sql-server`
@@ -42,7 +44,8 @@ like a managed service.
 Application resource authoring now flows through ResourceDefinition entries
 and the Resource graph. The current built-in providers expose builders such as
 `AddExecutableApplication(...)`, `AddAspNetCoreProject(...)`,
-`AddJavaScriptApp(...)`, and `AddContainerApplication(...)`, then map accepted
+`AddJavaScriptApp(...)`, `AddJavaApp(...)`, and
+`AddContainerApplication(...)`, then map accepted
 resource intent to provider projection, actions, logs, health, endpoint, and
 runtime adapter contracts.
 The earlier application-definition provider package was part of the old
@@ -68,6 +71,7 @@ flowchart TB
         Executable["application.executable"]
         AspNet["application.aspnet-core-project"]
         JavaScript["application.javascript-app"]
+        Java["application.java-app"]
         Container["application.container-app"]
         SqlServer["application.sql-server"]
     end
@@ -276,7 +280,8 @@ container-host CLI process as the workload identity.
 
 The application provider supports resource templates for
 `application.executable`, `application.aspnet-core-project`,
-`application.javascript-app`, `application.container-app`, and
+`application.javascript-app`, `application.java-app`,
+`application.container-app`, and
 `application.sql-server` resources. Export writes a provider-owned
 configuration payload with the resource-type-specific configuration, such as:
 
@@ -284,6 +289,8 @@ configuration payload with the resource-type-specific configuration, such as:
 - project path, project application arguments, and ASP.NET Core hot reload mode
 - JavaScript app project path, Node.js engine selection, package manager,
   development script, and application arguments
+- Java app project path, JVM command, artifact path, classpath/main-class
+  settings, JVM arguments, and application arguments
 - container image, registry, host binding, endpoints, and environment variables
 - SQL Server TDS endpoint, data-volume mount, and current provider image
   payload until the managed SQL Server model moves to version/edition settings

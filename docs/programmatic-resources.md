@@ -101,6 +101,7 @@ for their own resource types. Current provider methods include:
   provider.
 - `AddContainerApplication(...)` from the container application built-in
   provider.
+- `AddJavaApp(...)` from the Java app built-in provider.
 - `AddDockerHost(...)` and Docker container declarations from the Docker host
   and container built-in providers.
 
@@ -186,6 +187,9 @@ other ecosystems if those SDKs are to feel as natural as C#. Hand-authored
 wrappers are acceptable for early POCs, but provider metadata should eventually
 be rich enough to generate the common builder shape and reduce drift between
 language packages.
+See [Launchers and app hosts](launchers-and-app-hosts.md) for the terminology
+split between host profiles, language-specific launchers, and runtime service
+clients.
 The experimental TypeScript hosting package under `sdk/typescript/cloudshell`
 is the first proof point for this shape. It emits ResourceTemplate JSON that
 the current CloudShell CLI can apply, while intentionally limiting its

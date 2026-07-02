@@ -140,3 +140,53 @@ test("rejects duplicate resource ids", () => {
     () => app.resource("two", "example.resource", { resourceId: "example:shared" }),
     /already defined/);
 });
+
+test("builds a Java app resource template", () => {
+  const app = cloudshell("java-hosting-poc");
+
+  app
+    .addJavaApp("java-api", "samples/JavaApp/App", "target/cloudshell-java-app-sample.jar")
+    .withDisplayName("Java API")
+    .withJvmArguments("-Xmx256m")
+    .withArguments("--sample")
+    .withServiceDiscovery()
+    .withHttpEndpoint({
+      host: "localhost",
+      port: 5185,
+      targetPort: 5185
+    })
+    .withHttpHealthCheck("/healthz", { endpointName: "http" });
+
+  const template = app.buildTemplate();
+  const java = template.resources.find(resource => resource.name === "java-api")!;
+
+  assert.equal(java.type, "application.java-app");
+  assert.equal(java.resourceId, "application.java-app:java-api");
+  assert.deepEqual(java.java, {
+    command: "java",
+    artifactPath: "target/cloudshell-java-app-sample.jar",
+    jvmArguments: "-Xmx256m",
+    arguments: "--sample"
+  });
+  assert.deepEqual(java.project, {
+    path: "samples/JavaApp/App",
+    serviceDiscoveryName: "java-api",
+    endpointRequests: [
+      {
+        name: "http",
+        protocol: "http",
+        targetPort: 5185,
+        host: "localhost",
+        port: 5185,
+        exposure: "Local",
+        network: {
+          resourceId: "network:host",
+          relationship: "reference",
+          addressingMode: "resourceId",
+          typeId: "cloudshell.network",
+          providerId: "cloudshell.network"
+        }
+      }
+    ]
+  });
+});

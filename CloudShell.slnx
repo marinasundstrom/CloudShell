@@ -49,6 +49,11 @@
   <Folder Name="/samples/JavaScriptApp/Host/">
     <Project Path="samples/JavaScriptApp/Host/CloudShell.JavaScriptAppHost.csproj" />
   </Folder>
+  <Folder Name="/samples/JavaApp/" />
+  <Folder Name="/samples/JavaApp/Host/">
+    <Project Path="samples/JavaApp/Host/CloudShell.JavaAppHost.csproj" />
+  </Folder>
+  <Folder Name="/samples/JavaAppHost/" />
   <Folder Name="/samples/JavaScriptContainerApp/" />
   <Folder Name="/samples/JavaScriptContainerApp/Host/">
     <Project Path="samples/JavaScriptContainerApp/Host/CloudShell.JavaScriptContainerAppHost.csproj" />

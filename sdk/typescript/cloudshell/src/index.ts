@@ -163,6 +163,19 @@ export class CloudShellApp {
     return builder;
   }
 
+  public addJavaApp(
+    name: string,
+    projectPath: string,
+    artifactPath: string): JavaAppResourceBuilder {
+    const builder = new JavaAppResourceBuilder(name)
+      .withProjectPath(projectPath)
+      .withCommand("java")
+      .withArtifactPath(artifactPath)
+      .withDefaultConsoleLogSource();
+    this.add(builder);
+    return builder;
+  }
+
   public getDefaultNetwork(): NetworkResourceBuilder {
     const existing = this.resources.find(resource =>
       resource.effectiveResourceId.toLowerCase() === "network:host");
@@ -414,6 +427,147 @@ export class JavaScriptAppResourceBuilder extends ResourceBuilder {
 
   public withArguments(args: string): this {
     return this.withAttribute("javascript.arguments", args);
+  }
+
+  public withServiceDiscovery(name: string = this.name): this {
+    return this.withAttribute("project.serviceDiscoveryName", name);
+  }
+
+  public withDefaultConsoleLogSource(format: "plainText" | "jsonConsole" = "plainText"): this {
+    return this.withAttribute("logs.sources", [
+      {
+        id: "console",
+        name: "Console logs",
+        kind: "processOutput",
+        format,
+        capabilities: ["read", "stream"],
+        description: "Provider-captured process console output.",
+        origin: "providerDefault",
+        purpose: "default",
+        availability: "resourceRunning"
+      }
+    ]);
+  }
+
+  public withEndpoint(options: EndpointRequestOptions): this {
+    const network = resolveNetworkReference(options.network) ?? this.defaultNetworkReference();
+    this.endpointRequests.push(pruneUndefined({
+      name: options.name ?? "http",
+      protocol: options.protocol ?? "http",
+      targetPort: options.targetPort,
+      host: options.host,
+      port: options.port,
+      exposure: options.exposure ?? "Local",
+      ipAddress: options.ipAddress,
+      assignment: options.assignment,
+      network
+    }));
+    return this.withAttribute("project.endpointRequests", this.endpointRequests);
+  }
+
+  public withHttpEndpoint(options: Omit<EndpointRequestOptions, "protocol"> = {}): this {
+    return this.withEndpoint({ ...options, protocol: "http" });
+  }
+
+  public withEnvironmentVariable(
+    name: string,
+    value: EnvironmentVariableValue): this {
+    assertNotBlank(name, "Environment variable name is required.");
+    this.environmentVariables[name.trim()] = typeof value === "string"
+      ? { value }
+      : pruneUndefined(value);
+    return this.withAttribute("project.environmentVariables", this.environmentVariables);
+  }
+
+  public withReference(
+    resource: ResourceHandle | string,
+    typeId?: string,
+    providerId?: string): this {
+    this.references.push(this.reference(resource, typeId, providerId));
+    return this.withAttribute("project.references", this.references);
+  }
+
+  public withHttpHealthCheck(
+    path: string,
+    options: { endpointName?: string; name?: string; timeoutMilliseconds?: number; intervalSeconds?: number } = {}): this {
+    return this.withHttpProbe("health", path, {
+      name: options.name ?? "health",
+      endpointName: options.endpointName,
+      timeoutMilliseconds: options.timeoutMilliseconds,
+      intervalSeconds: options.intervalSeconds
+    });
+  }
+
+  public withHttpLivenessCheck(
+    path: string,
+    options: { endpointName?: string; name?: string; timeoutMilliseconds?: number; intervalSeconds?: number } = {}): this {
+    return this.withHttpProbe("liveness", path, {
+      name: options.name ?? "alive",
+      endpointName: options.endpointName,
+      timeoutMilliseconds: options.timeoutMilliseconds,
+      intervalSeconds: options.intervalSeconds
+    });
+  }
+
+  public withHttpProbe(
+    type: string,
+    path: string,
+    options: { endpointName?: string; name?: string; timeoutMilliseconds?: number; intervalSeconds?: number } = {}): this {
+    assertNotBlank(type, "Health check type is required.");
+    assertNotBlank(path, "Health check path is required.");
+    this.healthChecks.push(pruneUndefined({
+      name: options.name ?? type,
+      type,
+      source: {
+        kind: "http",
+        http: pruneUndefined({
+          path,
+          endpointName: options.endpointName,
+          timeoutMilliseconds: options.timeoutMilliseconds
+        })
+      },
+      intervalSeconds: options.intervalSeconds
+    }));
+    return this.withAttribute("health.checks", this.healthChecks);
+  }
+}
+
+export class JavaAppResourceBuilder extends ResourceBuilder {
+  private readonly endpointRequests: unknown[] = [];
+  private readonly environmentVariables: Record<string, unknown> = {};
+  private readonly references: ResourceReferenceDocument[] = [];
+  private readonly healthChecks: unknown[] = [];
+
+  public constructor(name: string) {
+    super(name, "application.java-app", "applications.java-app");
+  }
+
+  public withProjectPath(projectPath: string): this {
+    return this.withAttribute("project.path", projectPath);
+  }
+
+  public withCommand(command: string): this {
+    return this.withAttribute("java.command", command);
+  }
+
+  public withArtifactPath(artifactPath: string): this {
+    return this.withAttribute("java.artifactPath", artifactPath);
+  }
+
+  public withMainClass(mainClass: string): this {
+    return this.withAttribute("java.mainClass", mainClass);
+  }
+
+  public withClassPath(classPath: string): this {
+    return this.withAttribute("java.classPath", classPath);
+  }
+
+  public withJvmArguments(args: string): this {
+    return this.withAttribute("java.jvmArguments", args);
+  }
+
+  public withArguments(args: string): this {
+    return this.withAttribute("java.arguments", args);
   }
 
   public withServiceDiscovery(name: string = this.name): this {
