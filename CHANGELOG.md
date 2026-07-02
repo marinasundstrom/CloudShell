@@ -70,6 +70,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated container app Monitoring metric summaries and replica rows to show
   missing CPU, memory, network, and process counters as not collected instead
   of mixing missing values with zero totals.
+- Updated container app Monitoring configured replica counts to use the same
+  deployment-requested replica attributes as Deployment and Scale views.
 - Updated container app Deployment details to prefer the active deployment
   record for the running image, service, and replica group while preserving the
   latest deployment attempt status.

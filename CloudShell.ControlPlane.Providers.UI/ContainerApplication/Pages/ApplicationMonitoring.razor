@@ -384,11 +384,16 @@ else
             StringComparison.OrdinalIgnoreCase);
 
     private static int GetConfiguredReplicas(Resource resource) =>
-        int.TryParse(
-            GetAttribute(resource, ResourceAttributeNames.ContainerReplicas, string.Empty),
-            out var replicas)
+        TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentRequestedReplicaSlots) ??
+        TryGetReplicaCount(resource, ResourceAttributeNames.DeploymentRequestedReplicas) ??
+        TryGetReplicaCount(resource, ResourceAttributeNames.ContainerReplicas) ??
+        1;
+
+    private static int? TryGetReplicaCount(Resource resource, string attributeName) =>
+        resource.ResourceAttributes.TryGetValue(attributeName, out var value) &&
+        int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var replicas)
             ? Math.Max(1, replicas)
-            : 1;
+            : null;
 
     private static bool IsReplicaModeEnabled(Resource resource) =>
         string.Equals(
