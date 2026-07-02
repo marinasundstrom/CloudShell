@@ -9,9 +9,11 @@ It proves the TypeScript declaration shape:
 - The package emits ResourceTemplate JSON accepted by CloudShell.
 - The sample can hand that template to the current CloudShell CLI.
 
-The current POC still runs the .NET CloudShell host as the process that owns
-the Control Plane and Web UI. The TypeScript file is the declaration client for
-that host, not a replacement host process yet.
+The current POC uses `CloudShell.LocalDevelopmentHost` as the .NET process that
+owns the Control Plane and Web UI. The TypeScript file is the declaration
+client for that host, not a replacement host process. Set
+`CLOUDSHELL_HOST_PROJECT` only when a scenario needs a custom CloudShell host
+profile with additional extensions or host-specific services.
 
 Generate the template:
 
@@ -26,8 +28,8 @@ Apply the template to an already-running Control Plane:
 CLOUDSHELL_CONTROL_PLANE_URL=http://127.0.0.1:5097 npm run apply
 ```
 
-Run the app host in a foreground terminal. The host starts the Control Plane
-and Web UI in the same process:
+Run the local-development host in a foreground terminal. The host starts the
+Control Plane and Web UI in the same process:
 
 ```bash
 ./cloudshell.sh run-no-auth

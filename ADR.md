@@ -9,6 +9,34 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-07-02
+
+### ADR-20260702-001: Treat C# app hosts as launcher clients by default
+
+C# app-host authoring should follow the same integration pattern as
+TypeScript/JavaScript and future language SDKs. A C# launcher app defines the
+distributed application with Resource Model builders, emits a
+ResourceTemplate, and uses the CLI or Control Plane API to start or target a
+CloudShell host profile. The launcher package must not reference
+`CloudShell.ControlPlane`, `CloudShell.Hosting`, or provider runtime services.
+Application launcher projects can reference provider builder packages for the
+resource types they declare.
+
+A CloudShell host profile remains the .NET process that composes the Control
+Plane, Web UI, provider packages, runtime adapters, authentication, and
+persistence. `CloudShell.LocalDevelopmentHost` is the stable built-in local
+development host profile for launchers that do not need to customize
+CloudShell. Existing combined-host APIs remain supported for compatibility,
+host-profile customization, and specialized cases, but new local-development
+samples should prefer a launcher/profile split unless they are specifically
+proving combined-host behavior.
+
+This keeps C# from becoming a privileged resource-authoring path and gives
+all language integrations the same durable boundary: ResourceDefinition-based
+templates plus the Control Plane API.
+
+Related proposal: [Cross-language local development](docs/proposals/core/cross-language-local-development.md).
+
 ## 2026-07-01
 
 ### ADR-20260701-003: Start cross-language bootstrapping with a CloudShell CLI

@@ -5,7 +5,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
 
 cli_project="${CLOUDSHELL_CLI_PROJECT:-$repo_root/CloudShell.Cli/CloudShell.Cli.csproj}"
-host_project="${CLOUDSHELL_HOST_PROJECT:-$repo_root/samples/JavaScriptApp/Host/CloudShell.JavaScriptAppHost.csproj}"
+host_project="${CLOUDSHELL_HOST_PROJECT:-$repo_root/CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj}"
 state_dir="${CLOUDSHELL_STATE_DIR:-$script_dir/.cloudshell}"
 sibling_state_dir="$repo_root/samples/JavaScriptApp/.cloudshell"
 control_plane_url="${CLOUDSHELL_CONTROL_PLANE_URL:-http://127.0.0.1:5097}"
@@ -97,7 +97,7 @@ case "$command" in
   reset)
     stop_state_dir "$state_dir"
     stop_state_dir "$sibling_state_dir"
-    rm -rf "$state_dir" "$repo_root/samples/JavaScriptApp/Host/Data"
+    rm -rf "$state_dir" "$repo_root/CloudShell.LocalDevelopmentHost/Data"
     ;;
   open)
     run_cli ui open \

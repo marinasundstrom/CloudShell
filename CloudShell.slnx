@@ -41,6 +41,10 @@
   <Folder Name="/samples/HostVirtualNetwork/">
     <Project Path="samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj" />
   </Folder>
+  <Folder Name="/samples/CSharpAppHost/" />
+  <Folder Name="/samples/CSharpAppHost/AppHost/">
+    <Project Path="samples/CSharpAppHost/AppHost/CloudShell.CSharpAppHost.csproj" />
+  </Folder>
   <Folder Name="/samples/JavaScriptApp/" />
   <Folder Name="/samples/JavaScriptApp/Host/">
     <Project Path="samples/JavaScriptApp/Host/CloudShell.JavaScriptAppHost.csproj" />
@@ -99,6 +103,8 @@
   </Folder>
   <Project Path="CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj" />
   <Project Path="CloudShell.Abstractions/CloudShell.Abstractions.csproj" />
+  <Project Path="CloudShell.AppHost.Launcher.Tests/CloudShell.AppHost.Launcher.Tests.csproj" />
+  <Project Path="CloudShell.AppHost.Launcher/CloudShell.AppHost.Launcher.csproj" />
   <Project Path="CloudShell.AppHost/CloudShell.AppHost.csproj" />
   <Project Path="CloudShell.Client.Tests/CloudShell.Client.Tests.csproj" />
   <Project Path="CloudShell.Client/CloudShell.Client.csproj" />
@@ -117,6 +123,7 @@
   <Project Path="CoreShell.Blazor/CoreShell.Blazor.csproj" />
   <Project Path="CloudShell.Host/CloudShell.Host.csproj" />
   <Project Path="CloudShell.Hosting/CloudShell.Hosting.csproj" />
+  <Project Path="CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj" />
   <Project Path="CloudShell.Persistence/CloudShell.Persistence.csproj" />
   <Project Path="CoreShell.Composition.Blazor/CoreShell.Composition.Blazor.csproj" />
   <Project Path="CoreShell.Composition.Tests/CoreShell.Composition.Tests.csproj" />
