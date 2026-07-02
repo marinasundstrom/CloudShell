@@ -207,6 +207,9 @@ The experimental TypeScript package under
 Node.js applications: it discovers injected Configuration Store endpoints,
 sends bearer tokens, reads all entries or a single entry, and can map portable
 `--` setting names to `:` configuration keys.
+The `samples/TypeScriptConfigurationClient` sample shows the same flow from a
+Node.js application by setting
+`CLOUDSHELL_CONFIGURATION_<SERVICE_NAME>_ENDPOINT` and a bearer token.
 
 Applications that depend on a Secrets Vault receive:
 

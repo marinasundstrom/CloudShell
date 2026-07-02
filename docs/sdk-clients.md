@@ -219,6 +219,10 @@ This client reads the injected
 does not declare resources or launch hosts; that remains the responsibility of
 the TypeScript hosting package and the CloudShell CLI.
 
+See `samples/TypeScriptConfigurationClient` for a minimal Node.js application
+that reads a Configuration Store endpoint from the environment and calls it
+with a bearer token.
+
 ## Secrets Vault Client
 
 Use `CloudShell.Secrets.Client` for direct Secrets Vault service calls:

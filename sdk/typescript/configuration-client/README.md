@@ -33,3 +33,24 @@ const client = ConfigurationStoreClient.fromEnvironment({
   credential: new StaticTokenCredential(process.env.CLOUDSHELL_TOKEN ?? "")
 });
 ```
+
+If no credential is supplied, `EnvironmentTokenCredential` checks these
+environment variables in order:
+
+```text
+CLOUDSHELL_CONFIGURATION_TOKEN
+CLOUDSHELL_CONTROL_PLANE_TOKEN
+CLOUDSHELL_TOKEN
+```
+
+Each service call sends the acquired token as `Authorization: Bearer ...`.
+`getEntries()` reads the full entries collection, `getEntry(name)` reads a
+single entry, and `toObject()` maps portable `--` setting names to `:` keys for
+configuration-style lookup.
+
+Run the package tests:
+
+```bash
+npm install
+npm test
+```

@@ -37,3 +37,22 @@ await app.apply({
   controlPlaneUrl: "http://127.0.0.1:5097"
 });
 ```
+
+Run the package tests:
+
+```bash
+npm install
+npm test
+```
+
+The `samples/TypeScriptAppHost` project exercises the end-to-end path: build a
+ResourceTemplate from TypeScript, start a local CloudShell host through the
+CLI, and apply the generated template. The current sample host requires
+Control Plane authentication by default, so the isolated POC run either needs a
+token via `CLOUDSHELL_CONTROL_PLANE_TOKEN` or a permissive local host process:
+
+```bash
+Authentication__Enabled=false npm run apply -- --start --no-build
+```
+
+On a fresh checkout, omit `--no-build` or build the .NET host first.

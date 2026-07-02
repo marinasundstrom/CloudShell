@@ -27,3 +27,43 @@ Start the configured local host before applying:
 ```bash
 npm run apply -- --start
 ```
+
+The current sample host normally enforces Control Plane authentication. For an
+isolated local proof-of-concept run, disable host authentication for the
+launched process:
+
+```bash
+Authentication__Enabled=false npm run apply -- --start --no-build
+```
+
+On a fresh checkout, omit `--no-build` or build the .NET host first.
+
+A successful run starts the configured host, waits until the Control Plane API
+is ready, applies the generated template, and prints:
+
+```text
+Template applied.
+```
+
+When running against an authenticated host, supply a Control Plane bearer token
+through `CLOUDSHELL_CONTROL_PLANE_TOKEN` or pass `--bearer-token` through the
+sample apply command:
+
+```bash
+CLOUDSHELL_CONTROL_PLANE_TOKEN=<token> npm run apply -- --start
+npm run apply -- --start --bearer-token <token>
+```
+
+Stop the local daemon state recorded for this sample:
+
+```bash
+dotnet run --project ../../CloudShell.Cli/CloudShell.Cli.csproj -- \
+  control-plane stop \
+  --state-dir .cloudshell
+```
+
+If you want to reset generated local sample state after a run:
+
+```bash
+rm -rf .cloudshell ../JavaScriptApp/Host/Data
+```
