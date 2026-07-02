@@ -94,11 +94,11 @@ else
             {
                 <SummaryMetricGrid AriaLabel="Container app replica metrics">
                     <SummaryMetricCard Title="CPU usage"
-                                       Value="@FormatValue(SumMetric(CpuUsageMetricName), PercentUnit)"
+                                       Value="@FormatOptionalSumMetric(CpuUsageMetricName, PercentUnit, "not collected")"
                                        Summary="Sum of observed replica CPU usage."
                                        Compact="true" />
                     <SummaryMetricCard Title="Memory usage"
-                                       Value="@FormatValue(SumMetric(MemoryUsageMetricNames), BytesUnit)"
+                                       Value="@FormatOptionalSumMetric(MemoryUsageMetricNames, BytesUnit, "not collected")"
                                        Summary="Sum of observed replica memory usage."
                                        Compact="true" />
                     <SummaryMetricCard Title="Network received"
@@ -110,7 +110,7 @@ else
                                        Summary="Total observed replica network bytes sent."
                                        Compact="true" />
                     <SummaryMetricCard Title="Process count"
-                                       Value="@FormatValue(SumMetric(ProcessCountMetricName), CountUnit)"
+                                       Value="@FormatOptionalSumMetric(ProcessCountMetricName, CountUnit, "not collected")"
                                        Summary="Sum of observed replica process counts."
                                        Compact="true" />
                 </SummaryMetricGrid>
@@ -156,13 +156,13 @@ else
                                         <strong>@(row.Snapshot?.Status ?? "Unavailable")</strong>
                                         <span>@GetMonitoringMessage(row)</span>
                                     </td>
-                                    <td>@FormatMetric(row, CpuUsageMetricName)</td>
-                                    <td>@FormatMetric(row, MemoryUsageMetricNames)</td>
+                                    <td>@FormatMetric(row, CpuUsageMetricName, "not collected")</td>
+                                    <td>@FormatMetric(row, MemoryUsageMetricNames, "not collected")</td>
                                     <td>
                                         <strong>@FormatMetric(row, NetworkReceivedMetricName, "not collected")</strong>
                                         <span>sent @FormatMetric(row, NetworkSentMetricName, "not collected")</span>
                                     </td>
-                                    <td>@FormatMetric(row, ProcessCountMetricName)</td>
+                                    <td>@FormatMetric(row, ProcessCountMetricName, "not collected")</td>
                                 </tr>
                             }
                         </tbody>
@@ -316,14 +316,10 @@ else
             ? FormatValue(SumMetric(name), unit)
             : fallback;
 
-    private static string FormatMetric(ReplicaMonitoringRow row, string name)
-    {
-        var metric = row.Snapshot?.Metrics.FirstOrDefault(metric =>
-            string.Equals(metric.Name, name, StringComparison.OrdinalIgnoreCase));
-        return metric is null
-            ? "n/a"
-            : FormatValue(metric.Value, metric.Unit);
-    }
+    private string FormatOptionalSumMetric(IReadOnlyList<string> names, string unit, string fallback) =>
+        Rows.Any(row => HasMetric(row.Snapshot, names))
+            ? FormatValue(SumMetric(names), unit)
+            : fallback;
 
     private static string FormatMetric(ReplicaMonitoringRow row, string name, string fallback)
     {
@@ -334,11 +330,11 @@ else
             : FormatValue(metric.Value, metric.Unit);
     }
 
-    private static string FormatMetric(ReplicaMonitoringRow row, IReadOnlyList<string> names)
+    private static string FormatMetric(ReplicaMonitoringRow row, IReadOnlyList<string> names, string fallback)
     {
         var metric = FindMetric(row.Snapshot, names);
         return metric is null
-            ? "n/a"
+            ? fallback
             : FormatValue(metric.Value, metric.Unit);
     }
 
@@ -352,6 +348,10 @@ else
     private static bool HasMetric(ResourceMonitoringSnapshot? snapshot, string name) =>
         snapshot?.Metrics.Any(metric =>
             string.Equals(metric.Name, name, StringComparison.OrdinalIgnoreCase)) == true;
+
+    private static bool HasMetric(ResourceMonitoringSnapshot? snapshot, IReadOnlyList<string> names) =>
+        snapshot?.Metrics.Any(metric =>
+            names.Any(name => string.Equals(metric.Name, name, StringComparison.OrdinalIgnoreCase))) == true;
 
     private static ResourceMetricSample? FindMetric(ResourceMonitoringSnapshot? snapshot, IReadOnlyList<string> names) =>
         snapshot?.Metrics.FirstOrDefault(metric =>
@@ -420,7 +420,9 @@ else
             ? FormatBytes(value)
             : string.Equals(unit, "%", StringComparison.Ordinal)
                 ? $"{value.ToString("0.##", CultureInfo.InvariantCulture)}%"
-                : $"{value.ToString("0.###", CultureInfo.InvariantCulture)} {unit}".TrimEnd();
+                : string.Equals(unit, CountUnit, StringComparison.OrdinalIgnoreCase)
+                    ? value.ToString("0.###", CultureInfo.InvariantCulture)
+                    : $"{value.ToString("0.###", CultureInfo.InvariantCulture)} {unit}".TrimEnd();
 
     private static string FormatBytes(double value)
     {
