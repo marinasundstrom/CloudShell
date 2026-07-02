@@ -266,7 +266,11 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             builder.Configuration,
             persistenceOptions);
 
-        ResolveSqlitePaths(persistenceOptions, identityPersistenceOptions, builder.Environment.ContentRootPath);
+        ResolveSqlitePaths(
+            persistenceOptions,
+            identityPersistenceOptions,
+            builder.Configuration,
+            builder.Environment);
         ValidateSeparatePersistenceStores(persistenceOptions, identityPersistenceOptions);
         builder.Services.AddCloudShellPersistence(persistenceOptions, identityPersistenceOptions);
     }
@@ -299,20 +303,22 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
     private static void ResolveSqlitePaths(
         CloudShellPersistenceOptions options,
         BuiltInIdentityPersistenceOptions identityOptions,
-        string contentRootPath)
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
+        var dataRootPath = CloudShellDataDirectory.ResolveRoot(configuration, environment);
         if (options.Provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
         {
             options.ConnectionString = ResolveSqlitePath(
                 options.ConnectionString,
-                contentRootPath);
+                dataRootPath);
         }
 
         if (identityOptions.Provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
         {
             identityOptions.ConnectionString = ResolveSqlitePath(
                 identityOptions.ConnectionString,
-                contentRootPath);
+                dataRootPath);
         }
     }
 

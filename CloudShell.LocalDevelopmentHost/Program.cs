@@ -18,6 +18,9 @@ var secretsVaultServiceProjectPath = Path.Combine(
     repositoryRootPath,
     "CloudShell.SecretsVaultService",
     "CloudShell.SecretsVaultService.csproj");
+var cloudShellDataDirectory = ResolveCloudShellDataDirectory(
+    builder.Configuration,
+    builder.Environment.ContentRootPath);
 
 var cloudShell = builder.AddCloudShellControlPlaneApplication(
     configureBuiltInResourceModelProviders: null);
@@ -27,11 +30,17 @@ cloudShell
     {
         runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
         runtime.ServiceWorkingDirectory = repositoryRootPath;
+        runtime.DefinitionsDirectory = Path.Combine(
+            cloudShellDataDirectory,
+            "configuration-store-definitions");
     })
     .UseSecretsVaultResourceProvider(runtime =>
     {
         runtime.ServiceProjectPath = secretsVaultServiceProjectPath;
         runtime.ServiceWorkingDirectory = repositoryRootPath;
+        runtime.DefinitionsDirectory = Path.Combine(
+            cloudShellDataDirectory,
+            "secrets-vault-definitions");
     });
 
 builder.AddCloudShellUi(ui =>
@@ -51,3 +60,17 @@ app.MapCloudShellControlPlane();
 app.MapCloudShellUi<App>();
 
 app.Run();
+
+static string ResolveCloudShellDataDirectory(
+    IConfiguration configuration,
+    string contentRootPath)
+{
+    var configuredPath = configuration["CloudShell:DataDirectory"];
+    var path = string.IsNullOrWhiteSpace(configuredPath)
+        ? contentRootPath
+        : Path.IsPathRooted(configuredPath)
+            ? configuredPath
+            : Path.GetFullPath(configuredPath, contentRootPath);
+    Directory.CreateDirectory(path);
+    return path;
+}

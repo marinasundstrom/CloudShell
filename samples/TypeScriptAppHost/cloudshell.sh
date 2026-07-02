@@ -7,6 +7,7 @@ repo_root="$(cd "$script_dir/../.." && pwd)"
 cli_project="${CLOUDSHELL_CLI_PROJECT:-$repo_root/CloudShell.Cli/CloudShell.Cli.csproj}"
 host_project="${CLOUDSHELL_HOST_PROJECT:-$repo_root/CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj}"
 state_dir="${CLOUDSHELL_STATE_DIR:-$script_dir/.cloudshell}"
+data_dir="${CLOUDSHELL_DATA_DIR:-$state_dir}"
 sibling_state_dir="$repo_root/samples/JavaScriptApp/.cloudshell"
 control_plane_url="${CLOUDSHELL_CONTROL_PLANE_URL:-http://127.0.0.1:5097}"
 app_resource_id="${CLOUDSHELL_APP_RESOURCE_ID:-application.javascript-app:typescript-frontend}"
@@ -36,6 +37,7 @@ Commands:
 Environment:
   CLOUDSHELL_CONTROL_PLANE_URL  Host URL. Default: $control_plane_url
   CLOUDSHELL_STATE_DIR          Daemon state directory. Default: $state_dir
+  CLOUDSHELL_DATA_DIR           CloudShell host data directory. Default: $data_dir
   CLOUDSHELL_HOST_PROJECT       Host project path. Default: $host_project
   CLOUDSHELL_CLI_PROJECT        CLI project path. Default: $cli_project
   CLOUDSHELL_APP_RESOURCE_ID    App resource id. Default: $app_resource_id
@@ -65,16 +67,17 @@ fi
 
 case "$command" in
   run)
-    dotnet run --project "$host_project" -- --urls "$control_plane_url" "$@"
+    dotnet run --project "$host_project" -- --urls "$control_plane_url" --CloudShell:DataDirectory "$data_dir" "$@"
     ;;
   run-no-auth)
-    Authentication__Enabled=false dotnet run --project "$host_project" -- --urls "$control_plane_url" "$@"
+    Authentication__Enabled=false dotnet run --project "$host_project" -- --urls "$control_plane_url" --CloudShell:DataDirectory "$data_dir" "$@"
     ;;
   start)
     run_cli control-plane start \
       --host-project "$host_project" \
       --url "$control_plane_url" \
       --state-dir "$state_dir" \
+      --data-dir "$data_dir" \
       "$@"
     ;;
   start-no-auth)
@@ -82,6 +85,7 @@ case "$command" in
       --host-project "$host_project" \
       --url "$control_plane_url" \
       --state-dir "$state_dir" \
+      --data-dir "$data_dir" \
       "$@"
     ;;
   status)
@@ -97,7 +101,7 @@ case "$command" in
   reset)
     stop_state_dir "$state_dir"
     stop_state_dir "$sibling_state_dir"
-    rm -rf "$state_dir" "$repo_root/CloudShell.LocalDevelopmentHost/Data"
+    rm -rf "$state_dir"
     ;;
   open)
     run_cli ui open \

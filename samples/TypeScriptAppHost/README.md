@@ -13,7 +13,9 @@ The current POC uses `CloudShell.LocalDevelopmentHost` as the .NET process that
 owns the Control Plane and Web UI. The TypeScript file is the declaration
 client for that host, not a replacement host process. Set
 `CLOUDSHELL_HOST_PROJECT` only when a scenario needs a custom CloudShell host
-profile with additional extensions or host-specific services.
+profile with additional extensions or host-specific services. Generated daemon
+state and host data default to `.cloudshell/` under this sample so databases
+and local CloudShell files stay with the launcher project.
 
 Generate the template:
 
@@ -58,6 +60,9 @@ http://localhost:5173
 
 The helper also keeps CLI daemon commands available for daemon-specific
 testing, but daemon mode is not part of the normal sample flow.
+
+Use `CLOUDSHELL_DATA_DIR` to choose a different local CloudShell data
+directory for the launched host.
 
 When running against an authenticated host, supply a Control Plane bearer token
 through `CLOUDSHELL_CONTROL_PLANE_TOKEN` or pass `--bearer-token` through the

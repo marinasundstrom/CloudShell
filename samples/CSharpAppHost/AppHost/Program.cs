@@ -14,6 +14,9 @@ var controlPlaneUrl = new Uri(Environment.GetEnvironmentVariable("CLOUDSHELL_CON
     ?? "http://127.0.0.1:5099");
 var stateDirectory = Environment.GetEnvironmentVariable("CLOUDSHELL_STATE_DIR")
     ?? Path.Combine(sampleRoot, ".cloudshell");
+var dataDirectory = ReadArgumentValue(args, "--data-dir")
+    ?? Environment.GetEnvironmentVariable("CLOUDSHELL_DATA_DIR")
+    ?? stateDirectory;
 var settingsEndpoint = Environment.GetEnvironmentVariable("CLOUDSHELL_SETTINGS_ENDPOINT")
     ?? "http://localhost:5103";
 var settingsResourceId = "configuration.store:csharp-app-settings";
@@ -76,6 +79,7 @@ var launcherOptions = new CloudShellHostLauncherOptions
         ? new Uri(explicitControlPlane)
         : controlPlaneUrl,
     StateDirectory = stateDirectory,
+    DataDirectory = dataDirectory,
     HostProjectPath = hostProject,
     HostUrl = controlPlaneUrl,
     NoBuild = HasArgument(args, "--no-build"),

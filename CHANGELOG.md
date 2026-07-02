@@ -22,6 +22,10 @@ on `git blame --follow`, and then by the broad type of change.
   Control Plane or UI hosting, plus `CloudShell.LocalDevelopmentHost` as the
   stable built-in Control Plane/UI/provider host profile used by launcher
   samples.
+- Added a launcher-friendly CloudShell data directory setting, CLI
+  `--data-dir` forwarding, and C#/TypeScript sample defaults so launched local
+  development hosts can keep databases and CloudShell-owned data files next to
+  the launcher project.
 - Added a reusable Resource Model containerization decorator path, enabled
   JavaScript app resources to project as Dockerfile-backed container apps with
   replica scaling, and split that flow into a dedicated JavaScript container

@@ -14,6 +14,7 @@ public sealed class CommandLineParserTests
         Assert.Equal(".cloudshell", command.StateDirectory);
         Assert.Equal(new Uri("http://127.0.0.1:5097"), command.Url);
         Assert.Null(command.HostProject);
+        Assert.Null(command.DataDirectory);
         Assert.Null(command.BearerToken);
         Assert.False(command.NoBuild);
         Assert.Equal(60, command.TimeoutSeconds);
@@ -30,7 +31,26 @@ public sealed class CommandLineParserTests
         Assert.Null(command.ControlPlaneUrl);
         Assert.Null(command.BearerToken);
         Assert.False(command.StartControlPlane);
+        Assert.Null(command.DataDirectory);
         Assert.Equal(ResourceDefinitionApplyMode.CreateOrUpdate, command.Mode);
+    }
+
+    [Fact]
+    public void Parse_ControlPlaneStart_ReadsDataDirectory()
+    {
+        var command = Assert.IsType<ControlPlaneStartCommand>(
+            CommandLineParser.Parse(
+            [
+                "control-plane",
+                "start",
+                "--host-project",
+                "Host/CloudShell.Host.csproj",
+                "--data-dir",
+                ".cloudshell/data"
+            ]));
+
+        Assert.Equal("Host/CloudShell.Host.csproj", command.HostProject);
+        Assert.Equal(".cloudshell/data", command.DataDirectory);
     }
 
     [Fact]
@@ -46,12 +66,15 @@ public sealed class CommandLineParserTests
                 "https://control-plane.example.com",
                 "--bearer-token",
                 "token-value",
+                "--data-dir",
+                ".cloudshell/data",
                 "--mode",
                 "update-existing"
             ]));
 
         Assert.Equal(new Uri("https://control-plane.example.com"), command.ControlPlaneUrl);
         Assert.Equal("token-value", command.BearerToken);
+        Assert.Equal(".cloudshell/data", command.DataDirectory);
         Assert.Equal(ResourceDefinitionApplyMode.UpdateExisting, command.Mode);
     }
 

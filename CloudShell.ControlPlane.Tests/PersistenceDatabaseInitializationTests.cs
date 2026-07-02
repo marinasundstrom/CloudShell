@@ -4,10 +4,14 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Usage;
+using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Persistence;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 
 namespace CloudShell.ControlPlane.Tests;
 
@@ -31,6 +35,38 @@ public sealed class PersistenceDatabaseInitializationTests
             }));
 
         Assert.Contains("separate databases", exception.Message);
+    }
+
+    [Fact]
+    public void CloudShellDataDirectory_ResolvesRelativeDirectoryFromContentRoot()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "cloudshell-persistence-tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    [CloudShellDataDirectory.ConfigurationKey] = ".cloudshell/data"
+                })
+                .Build();
+            var environment = new TestHostEnvironment(directory);
+
+            var root = CloudShellDataDirectory.ResolveRoot(configuration, environment);
+
+            Assert.Equal(Path.Combine(directory, ".cloudshell", "data"), root);
+            Assert.True(Directory.Exists(root));
+            Assert.Equal(
+                Path.Combine(directory, ".cloudshell", "data", "Data", "cloudshell.db"),
+                CloudShellDataDirectory.ResolvePath("Data/cloudshell.db", configuration, environment));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     [Fact]
@@ -494,5 +530,16 @@ public sealed class PersistenceDatabaseInitializationTests
     private sealed class TestCloudShellBuilder : ICloudShellBuilder
     {
         public IServiceCollection Services { get; } = new ServiceCollection();
+    }
+
+    private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = Environments.Development;
+
+        public string ApplicationName { get; set; } = "CloudShell.ControlPlane.Tests";
+
+        public string ContentRootPath { get; set; } = contentRootPath;
+
+        public IFileProvider ContentRootFileProvider { get; set; } = null!;
     }
 }

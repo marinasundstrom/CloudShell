@@ -11,6 +11,8 @@ Web UI, built-in providers, and provider runtime adapters. The launcher app can
 start that host through the CLI, or apply the generated template to an already
 running Control Plane. Set `CLOUDSHELL_HOST_PROJECT` when a sample needs a
 custom host profile, but keep the launcher separate from CloudShell services.
+Generated daemon state and host data default to `.cloudshell/` under this
+sample so databases and local CloudShell files stay with the launcher project.
 
 Generate the template:
 
@@ -31,6 +33,9 @@ Start or reuse the local-development host profile, then apply the declarations:
 Authentication__Enabled=false \
 dotnet run --project AppHost/CloudShell.CSharpAppHost.csproj -- --start
 ```
+
+Use `CLOUDSHELL_DATA_DIR` to choose a different local CloudShell data
+directory for the launched host.
 
 Open the Web UI:
 

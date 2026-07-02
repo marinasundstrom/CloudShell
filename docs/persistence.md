@@ -58,8 +58,9 @@ See [Programmatic resources](programmatic-resources.md).
 
 ## SQLite
 
-SQLite is the default and resolves relative data-source paths from the consuming
-host's content root.
+SQLite is the default. Relative data-source paths resolve from
+`CloudShell:DataDirectory` when that setting is configured, otherwise from the
+consuming host's content root.
 
 ```json
 {
@@ -77,6 +78,21 @@ host's content root.
   }
 }
 ```
+
+Launcher-style local development flows can keep host data next to the launcher
+project by passing a data directory to the CLI or by setting
+`CloudShell:DataDirectory` directly:
+
+```bash
+dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.yaml \
+  --start \
+  --host-project CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj \
+  --data-dir samples/CSharpAppHost/.cloudshell
+```
+
+The data directory is a CloudShell host setting. It affects CloudShell-owned
+local databases and file stores that use relative paths. Absolute paths and
+provider-owned workload paths remain explicit and are not moved.
 
 The application applies EF Core migrations at startup. Existing databases
 created by the previous `EnsureCreated` startup path are baselined to the

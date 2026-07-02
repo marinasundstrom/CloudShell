@@ -21,6 +21,8 @@ public sealed record CloudShellHostLauncherOptions
 
     public string? StateDirectory { get; init; }
 
+    public string? DataDirectory { get; init; }
+
     public bool StartHost { get; init; }
 
     public string? HostProjectPath { get; init; }
@@ -145,6 +147,7 @@ public static class CloudShellHostLauncher
         AddOption(arguments, "--control-plane", FormatUri(options.ControlPlaneUrl));
         AddOption(arguments, "--state-dir", options.StateDirectory);
         AddOption(arguments, "--host-project", options.HostProjectPath);
+        AddOption(arguments, "--data-dir", options.DataDirectory);
         AddOption(arguments, "--url", FormatUri(options.HostUrl));
         AddOption(arguments, "--timeout-seconds", options.TimeoutSeconds?.ToString());
         AddOption(arguments, "--mode", ToCliMode(options.Mode));

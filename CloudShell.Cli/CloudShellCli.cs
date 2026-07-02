@@ -189,6 +189,7 @@ internal static class CloudShellCli
                                 new ControlPlaneStartCommand(
                                     apply.StateDirectory,
                                     apply.HostProject,
+                                    apply.DataDirectory,
                                     apply.StartUrl,
                                     apply.BearerToken,
                                     apply.NoBuild,
@@ -277,6 +278,10 @@ internal static class CloudShellCli
         table.AddRow("PID", state.ProcessId.ToString());
         table.AddRow("URL", Markup.Escape(state.BaseUrl.ToString()));
         table.AddRow("Host project", Markup.Escape(state.HostProjectPath));
+        if (!string.IsNullOrWhiteSpace(state.DataDirectory))
+        {
+            table.AddRow("Data directory", Markup.Escape(state.DataDirectory));
+        }
         table.AddRow("Started", Markup.Escape(state.StartedAt.ToString("O")));
         console.Write(table);
     }
@@ -584,6 +589,10 @@ internal static class CloudShellCli
         table.AddRow("PID", state.ProcessId.ToString());
         table.AddRow("URL", Markup.Escape(state.BaseUrl.ToString()));
         table.AddRow("Host project", Markup.Escape(state.HostProjectPath));
+        if (!string.IsNullOrWhiteSpace(state.DataDirectory))
+        {
+            table.AddRow("Data directory", Markup.Escape(state.DataDirectory));
+        }
         table.AddRow("Started", Markup.Escape(state.StartedAt.ToString("O")));
         table.AddRow("Process", status.ProcessRunning ? "[green]running[/]" : "[red]stopped[/]");
         table.AddRow("Control Plane API", status.ApiReady ? "[green]ready[/]" : "[yellow]not ready[/]");
