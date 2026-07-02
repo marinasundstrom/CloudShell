@@ -102,6 +102,8 @@ on `git blame --follow`, and then by the broad type of change.
   so used bytes, configured max size, remaining bytes, utilization, and
   max-size-reached warnings are retained as per-resource usage samples, with a
   fixed-size quota visualization for current monitoring snapshots.
+- Fixed Resource Manager freezes caused by the Resource Model bridge blocking
+  synchronously on async graph snapshots while listing resources.
 - Renamed the shell observability workspace to Telemetry with canonical
   `/telemetry` routes while keeping the old `/observability` routes as
   compatibility aliases.
