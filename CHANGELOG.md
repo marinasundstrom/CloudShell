@@ -78,6 +78,10 @@ on `git blame --follow`, and then by the broad type of change.
   health checks, JSON ResourceTemplate emission, CLI apply integration, and a
   `samples/TypeScriptAppHost` sample that declares a JavaScript app from
   TypeScript.
+- Added an experimental TypeScript Configuration Store client under
+  `sdk/typescript/configuration-client`, with bearer-token requests,
+  environment endpoint discovery, entry reads, portable key mapping, tests, and
+  a `samples/TypeScriptConfigurationClient` runtime-consumption sample.
 - ResourceDefinition and ResourceTemplate documents now serialize and
   deserialize through a shared ResourceModel YAML/JSON serializer. YAML is the
   preferred template authoring format, JSON remains available as the

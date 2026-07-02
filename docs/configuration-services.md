@@ -202,6 +202,11 @@ This is intentionally the same integration model authored Web APIs should use.
 Use the public-preview `ConfigurationStoreClient` from
 `CloudShell.Configuration.Client` for direct Configuration Store service calls.
 See [SDK clients](sdk-clients.md) for package boundaries and client usage.
+The experimental TypeScript package under
+`sdk/typescript/configuration-client` mirrors the same direct client shape for
+Node.js applications: it discovers injected Configuration Store endpoints,
+sends bearer tokens, reads all entries or a single entry, and can map portable
+`--` setting names to `:` configuration keys.
 
 Applications that depend on a Secrets Vault receive:
 

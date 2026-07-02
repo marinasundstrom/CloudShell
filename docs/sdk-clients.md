@@ -22,6 +22,10 @@ request/response contracts.
 - `CloudShell.Configuration.Client`: Configuration Store SDK client. It
   references `CloudShell.Client`, not the full Control Plane abstractions, and
   owns the Microsoft `IConfiguration` integration for configuration entries.
+- `sdk/typescript/configuration-client`: experimental TypeScript
+  Configuration Store client. It is separate from the TypeScript hosting
+  package and is used by Node.js applications at runtime to call a
+  Configuration Store endpoint.
 - `CloudShell.Secrets.Client`: Secrets Vault SDK client. It references
   `CloudShell.Client`, not the full Control Plane abstractions, and owns the
   Microsoft `IConfiguration` integration for vault secrets.
@@ -191,6 +195,29 @@ including `Status`, `Detail`, `Source`, `LoadedKeys`, and `SecretKeys`.
 By default, `--` in entry names maps to the .NET configuration `:`
 delimiter, so a stored entry named `Orders--Api--BaseUrl` is available through
 `Configuration["Orders:Api:BaseUrl"]`.
+
+The experimental TypeScript client follows the same service boundary for
+Node.js applications:
+
+```ts
+import {
+  ConfigurationStoreClient,
+  StaticTokenCredential
+} from "@cloudshell/configuration-client";
+
+const configuration = ConfigurationStoreClient.fromEnvironment({
+  credential: new StaticTokenCredential(process.env.CLOUDSHELL_TOKEN ?? "")
+});
+
+const entries = await configuration.getEntries();
+const values = await configuration.toObject();
+```
+
+This client reads the injected
+`CLOUDSHELL_CONFIGURATION_<SERVICE_NAME>_ENDPOINT` variables, sends
+`Authorization: Bearer ...`, and can map `--` in entry names to `:` keys. It
+does not declare resources or launch hosts; that remains the responsibility of
+the TypeScript hosting package and the CloudShell CLI.
 
 ## Secrets Vault Client
 

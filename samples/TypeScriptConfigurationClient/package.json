@@ -1,0 +1,17 @@
+{
+  "name": "cloudshell-typescript-configuration-client-sample",
+  "version": "0.0.0-poc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "read": "npm run build && node dist/read-configuration.js"
+  },
+  "dependencies": {
+    "@cloudshell/configuration-client": "file:../../sdk/typescript/configuration-client"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}
