@@ -78,6 +78,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Fixed container app Deployment materialized/projected replica count parsing
   so a projected value of zero remains zero instead of being clamped like a
   requested replica count.
+- Updated single-instance container app Deployment summaries to show zero
+  materialized runtime instances when the resource is not running or starting.
 
 ### 2026-07-01
 

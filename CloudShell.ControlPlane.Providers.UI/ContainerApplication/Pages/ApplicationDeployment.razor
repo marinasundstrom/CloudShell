@@ -333,7 +333,14 @@ else
     private string GetMaterializedSummary() =>
         Resource is not null && IsReplicaModeEnabled(Resource)
             ? GetDeploymentMaterializedReplicas()
-            : "1";
+            : GetSingleInstanceMaterializedSummary();
+
+    private string GetSingleInstanceMaterializedSummary() =>
+        Resource?.State switch
+        {
+            ResourceState.Running or ResourceState.Starting => "1",
+            _ => "0"
+        };
 
     private string GetDeploymentRequestedReplicas() =>
         Resource is not null && IsReplicaModeEnabled(Resource)
