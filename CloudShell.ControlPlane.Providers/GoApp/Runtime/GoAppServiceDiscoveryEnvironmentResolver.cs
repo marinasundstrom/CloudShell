@@ -1,7 +1,7 @@
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class JavaAppServiceDiscoveryEnvironmentResolver(
-    ResourceGraphModel? graphModel = null) : IJavaAppRuntimeEnvironmentProvider
+public sealed class GoAppServiceDiscoveryEnvironmentResolver(
+    ResourceGraphModel? graphModel = null) : IGoAppRuntimeEnvironmentProvider
 {
     private readonly ResourceGraphModel? _graphModel = graphModel;
 
@@ -12,7 +12,7 @@ public sealed class JavaAppServiceDiscoveryEnvironmentResolver(
         ArgumentNullException.ThrowIfNull(resource);
 
         var references = resource.Attributes.GetObject<ResourceReference[]>(
-            JavaAppResourceTypeProvider.Attributes.References) ?? [];
+            GoAppResourceTypeProvider.Attributes.References) ?? [];
         if (_graphModel is null || references.Length == 0)
         {
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -78,16 +78,16 @@ public sealed class JavaAppServiceDiscoveryEnvironmentResolver(
     private static IReadOnlyList<NetworkingEndpointRequestValue> GetEndpointRequests(
         ResourceState resource)
     {
-        if (resource.TypeId == JavaAppResourceTypeProvider.ResourceTypeId)
-        {
-            return resource.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
-                JavaAppResourceTypeProvider.Attributes.EndpointRequests) ?? [];
-        }
-
         if (resource.TypeId == GoAppResourceTypeProvider.ResourceTypeId)
         {
             return resource.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
                 GoAppResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+        }
+
+        if (resource.TypeId == JavaAppResourceTypeProvider.ResourceTypeId)
+        {
+            return resource.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+                JavaAppResourceTypeProvider.Attributes.EndpointRequests) ?? [];
         }
 
         if (resource.TypeId == JavaScriptAppResourceTypeProvider.ResourceTypeId)
@@ -206,7 +206,7 @@ public sealed class JavaAppServiceDiscoveryEnvironmentResolver(
     private static IReadOnlyList<string> ResolveServiceDiscoveryNames(ResourceState resource)
     {
         var configured = resource.ResourceAttributeValues.TryGetValue(
-            JavaAppResourceTypeProvider.Attributes.ServiceDiscoveryName,
+            GoAppResourceTypeProvider.Attributes.ServiceDiscoveryName,
             out var value) &&
             value.TryGetScalarString(out var serviceDiscoveryName)
                 ? serviceDiscoveryName
@@ -258,35 +258,17 @@ public sealed class JavaAppServiceDiscoveryEnvironmentResolver(
 
     private static string? CreateEndpointAddress(NetworkingEndpointRequestValue endpoint)
     {
-        if (string.IsNullOrWhiteSpace(endpoint.Protocol) ||
-            endpoint.Port is not > 0)
+        if (endpoint.Port is not > 0 ||
+            string.IsNullOrWhiteSpace(endpoint.Protocol))
         {
             return null;
         }
 
-        var host = FirstNonEmpty(endpoint.Host, endpoint.IpAddress);
-        if (host is null)
-        {
-            return null;
-        }
-
+        var host = FirstNonEmpty(endpoint.Host, endpoint.IpAddress, "localhost");
         var protocol = endpoint.Protocol.Trim().ToLowerInvariant();
         return protocol is "http" or "https"
             ? $"{protocol}://{host}:{endpoint.Port.Value}"
             : $"{host}:{endpoint.Port.Value}";
-    }
-
-    private static string? FirstNonEmpty(params string?[] values)
-    {
-        foreach (var value in values)
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-            {
-                return value.Trim();
-            }
-        }
-
-        return null;
     }
 
     private static void AddIfValid(List<string> values, string? value)
@@ -300,22 +282,10 @@ public sealed class JavaAppServiceDiscoveryEnvironmentResolver(
 
     private static string? CreateConfigurationSegment(string? value)
     {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        var characters = value
-            .Trim()
-            .ToLowerInvariant()
-            .Select(character =>
-                char.IsAsciiLetterOrDigit(character) ||
-                character is '_' or '.' or '-'
-                    ? character
-                    : '-')
-            .ToArray();
-
-        return new string(characters).Trim('-');
+        var segment = CreateEnvironmentSegment(value);
+        return string.IsNullOrWhiteSpace(segment)
+            ? null
+            : segment.ToLowerInvariant();
     }
 
     private static string? CreateEnvironmentSegment(string? value)
@@ -325,11 +295,31 @@ public sealed class JavaAppServiceDiscoveryEnvironmentResolver(
             return null;
         }
 
-        var characters = value
+        var chars = value
             .Trim()
-            .Select(character => char.IsLetterOrDigit(character) ? char.ToUpperInvariant(character) : '_')
+            .Select(character => char.IsLetterOrDigit(character)
+                ? char.ToUpperInvariant(character)
+                : '_')
             .ToArray();
+        var segment = new string(chars).Trim('_');
+        while (segment.Contains("__", StringComparison.Ordinal))
+        {
+            segment = segment.Replace("__", "_", StringComparison.Ordinal);
+        }
 
-        return new string(characters).Trim('_');
+        return string.IsNullOrWhiteSpace(segment) ? null : segment;
+    }
+
+    private static string? FirstNonEmpty(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value.Trim();
+            }
+        }
+
+        return null;
     }
 }

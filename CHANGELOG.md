@@ -21,6 +21,12 @@ on `git blame --follow`, and then by the broad type of change.
   launchers, Control Plane clients, Configuration Store and Secrets Vault
   runtime clients, and resource builder API parity across language
   integrations.
+- Added `application.go-app` as a first-class Go app resource with C#
+  ResourceGraph builders, local `go run` or binary-backed process lifecycle
+  operations, logs, monitoring, endpoint projection, service-reference binding
+  variables, Resource Manager UI registration, docs that clarify C#-only
+  provider authoring, and a C#-hosted Go app sample. Go launcher support is
+  deferred to a later slice.
 - Added a top-level `Launchers/` folder for language app-host launcher
   packages, moved the C# launcher and TypeScript launcher package under it,
   and introduced `Launchers/Java/cloudshell-launcher` as an experimental Java

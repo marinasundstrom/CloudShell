@@ -60,6 +60,10 @@
   <Folder Name="/samples/JavaApp/Host/">
     <Project Path="samples/JavaApp/Host/CloudShell.JavaAppHost.csproj" />
   </Folder>
+  <Folder Name="/samples/GoApp/" />
+  <Folder Name="/samples/GoApp/Host/">
+    <Project Path="samples/GoApp/Host/CloudShell.GoAppHost.csproj" />
+  </Folder>
   <Folder Name="/samples/JavaAppHost/" />
   <Folder Name="/samples/JavaScriptContainerApp/" />
   <Folder Name="/samples/JavaScriptContainerApp/Host/">

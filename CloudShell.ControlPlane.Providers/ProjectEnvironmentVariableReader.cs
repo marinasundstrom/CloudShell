@@ -68,6 +68,28 @@ internal static class ProjectEnvironmentVariableReader
                 StringComparer.OrdinalIgnoreCase);
     }
 
+    public static IReadOnlyDictionary<string, GoAppEnvironmentVariableValue> ReadGoApp(
+        ResourceAttributeSet attributes)
+    {
+        ArgumentNullException.ThrowIfNull(attributes);
+
+        var values = attributes.GetObject<Dictionary<string, GoAppEnvironmentVariableValue>>(
+            GoAppResourceTypeProvider.Attributes.EnvironmentVariables);
+        if (values is { Count: > 0 })
+        {
+            return values;
+        }
+
+        return ReadFlattened(attributes, GoAppResourceTypeProvider.Attributes.EnvironmentVariables)
+            .ToDictionary(
+                variable => variable.Key,
+                variable => new GoAppEnvironmentVariableValue(
+                    variable.Value.Value,
+                    variable.Value.ConfigurationEntryRef,
+                    variable.Value.SecretRef),
+                StringComparer.OrdinalIgnoreCase);
+    }
+
     private static IReadOnlyDictionary<string, EnvironmentVariableParts> ReadFlattened(
         ResourceAttributeSet attributes,
         ResourceAttributeId root)

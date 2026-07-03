@@ -15,6 +15,8 @@ Resource-type-specific guidance:
   `application.javascript-app` Node.js-backed project resources.
 - [Java applications](java-applications.md) for `application.java-app`
   JVM-backed project resources.
+- [Go applications](go-applications.md) for `application.go-app`
+  Go-backed project resources.
 - [Container apps](container-apps.md) for `application.container-app` deployable
   container workloads.
 - [SQL Server resources](sql-server.md) for `application.sql-server`
@@ -44,20 +46,28 @@ like a managed service.
 Application resource authoring now flows through ResourceDefinition entries
 and the Resource graph. The current built-in providers expose builders such as
 `AddExecutableApplication(...)`, `AddAspNetCoreProject(...)`,
-`AddJavaScriptApp(...)`, `AddJavaApp(...)`, and
+`AddJavaScriptApp(...)`, `AddJavaApp(...)`, `AddGoApp(...)`, and
 `AddContainerApplication(...)`, then map accepted
 resource intent to provider projection, actions, logs, health, endpoint, and
 runtime adapter contracts.
 The earlier application-definition provider package was part of the old
 provider model and has been removed from the active solution.
 
-Executable apps, ASP.NET Core projects, container apps, and SQL Server each
-have their own resource type and provider-owned semantics. They can still
-share provider-neutral helpers for common concerns such as local process
-execution, container-backed startup, environment variables, app settings,
-endpoint projection, logs, monitoring, and orchestration. Shared helpers must
-stay behind provider contracts or default runtime integration registrations so
-providers do not depend directly on a concrete host/runtime implementation.
+Executable apps, ASP.NET Core projects, JavaScript apps, Java apps, Go apps,
+container apps, and SQL Server each have their own resource type and
+provider-owned semantics. They can still share provider-neutral helpers for
+common concerns such as local process execution, container-backed startup,
+environment variables, app settings, endpoint projection, logs, monitoring,
+and orchestration. Shared helpers must stay behind provider contracts or
+default runtime integration registrations so providers do not depend directly
+on a concrete host/runtime implementation.
+
+CloudShell provider authoring is currently C#-only. Other languages integrate
+with CloudShell by running as workloads represented by resources, by emitting
+ResourceDefinition templates through launchers, or by using Resource
+Manager/Control Plane clients. A Go, Python, JavaScript, or Java launcher can
+author the same resource graph later, but it does not make the provider itself
+non-C#.
 
 ```mermaid
 flowchart TB
@@ -72,6 +82,7 @@ flowchart TB
         AspNet["application.aspnet-core-project"]
         JavaScript["application.javascript-app"]
         Java["application.java-app"]
+        Go["application.go-app"]
         Container["application.container-app"]
         SqlServer["application.sql-server"]
     end

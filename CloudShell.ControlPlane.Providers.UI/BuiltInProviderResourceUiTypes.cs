@@ -10,6 +10,7 @@ internal static class BuiltInProviderResourceUiTypes
         IsAspNetCoreProject(resourceType) ||
         IsJavaScriptApp(resourceType) ||
         IsJavaApp(resourceType) ||
+        IsGoApp(resourceType) ||
         IsContainerApplication(resourceType) ||
         IsSqlServer(resourceType);
 
@@ -35,6 +36,12 @@ internal static class BuiltInProviderResourceUiTypes
         string.Equals(
             resourceType,
             JavaAppResourceTypeProvider.ResourceTypeId.ToString(),
+            StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsGoApp(string? resourceType) =>
+        string.Equals(
+            resourceType,
+            GoAppResourceTypeProvider.ResourceTypeId.ToString(),
             StringComparison.OrdinalIgnoreCase);
 
     public static bool IsSqlServer(string? resourceType) =>

@@ -24,6 +24,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
             "resource-ui.application.aspnet-core-project",
             "resource-ui.application.javascript-app",
             "resource-ui.application.java-app",
+            "resource-ui.application.go-app",
             "resource-ui.application.sql-server",
             "resource-ui.application.container-app"
         ],
@@ -105,12 +106,33 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                             Source: ResourceProbeSource.ForHttp("/alive", "http"))
                     ]),
                 resourceClass: ResourceManagerResourceClass.Project)
+            .AddResourceType<SharedPages.RegisterApplicationResource>(
+                GoAppResourceTypeProvider.ResourceTypeId.ToString(),
+                "Go app",
+                "Inspect Go applications declared through Resource Manager.",
+                "application",
+                24,
+                probeOptions: new ResourceTypeProbeOptions(
+                    [
+                        new ResourceHealthCheck(
+                            "/healthz",
+                            EndpointName: "http",
+                            Name: "health",
+                            Source: ResourceProbeSource.ForHttp("/healthz", "http")),
+                        new ResourceHealthCheck(
+                            "/alive",
+                            ResourceProbeType.Liveness,
+                            "http",
+                            "liveness",
+                            Source: ResourceProbeSource.ForHttp("/alive", "http"))
+                    ]),
+                resourceClass: ResourceManagerResourceClass.Project)
             .AddResourceType<ContainerAppPages.RegisterContainerApplicationResource>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 "Container app",
                 "Inspect container applications declared through Resource Manager.",
                 "container",
-                24,
+                25,
                 probeOptions: new ResourceTypeProbeOptions(SupportsHealth: true),
                 resourceClass: ResourceManagerResourceClass.Container)
             .AddResourceType<SharedPages.RegisterApplicationResource>(
@@ -118,7 +140,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 "SQL Server",
                 "Inspect SQL Server resources declared through Resource Manager.",
                 "database-server",
-                25,
+                26,
                 probeOptions: new ResourceTypeProbeOptions(
                     [
                         new ResourceHealthCheck(
@@ -132,21 +154,21 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 "SQL Database",
                 "Inspect SQL database child resources declared through Resource Manager.",
                 "database-item",
-                26,
+                27,
                 resourceClass: ResourceManagerResourceClass.Service)
             .AddResourceType<SharedPages.RegisterResource>(
                 ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(),
                 "Configuration Store",
                 "Inspect configuration store resources declared through Resource Manager.",
                 "settings",
-                27,
+                28,
                 resourceClass: ResourceManagerResourceClass.Configuration)
             .AddResourceType<SharedPages.RegisterResource>(
                 SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),
                 "Secrets Vault",
                 "Inspect secrets vault resources declared through Resource Manager.",
                 "key",
-                28,
+                29,
                 resourceClass: ResourceManagerResourceClass.SecretsVault)
             .AddResourceTab<ConfigurationPages.ConfigurationStoreEntries>(
                 ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(),
@@ -169,63 +191,63 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 "Identity Provisioning",
                 "Inspect identity provisioning resources declared through Resource Manager.",
                 "identity",
-                29,
+                30,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 ContainerHostResourceTypeProvider.ResourceTypeId.ToString(),
                 "Container Host",
                 "Inspect container host resources declared through Resource Manager.",
                 "container-host",
-                30,
+                31,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 DockerHostResourceTypeProvider.ResourceTypeId.ToString(),
                 "Docker Host",
                 "Inspect Docker host resources declared through Resource Manager.",
                 "container-host",
-                31,
+                32,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 DockerContainerResourceTypeProvider.ResourceTypeId.ToString(),
                 "Docker Container",
                 "Inspect Docker container resources declared through Resource Manager.",
                 "container",
-                32,
+                33,
                 resourceClass: ResourceManagerResourceClass.Container)
             .AddResourceType<SharedPages.RegisterResource>(
                 HostConfigurationSourceResourceTypeProvider.ResourceTypeId.ToString(),
                 "Host Configuration Source",
                 "Inspect host configuration source resources declared through Resource Manager.",
                 "settings",
-                33,
+                34,
                 resourceClass: ResourceManagerResourceClass.Configuration)
             .AddResourceType<SharedPages.RegisterResource>(
                 VirtualNetworkResourceTypeProvider.ResourceTypeId.ToString(),
                 "Virtual Network",
                 "Inspect virtual network resources declared through Resource Manager.",
                 "network",
-                34,
+                35,
                 resourceClass: ResourceManagerResourceClass.Network)
             .AddResourceType<SharedPages.RegisterResource>(
                 LocalHostNetworkResourceTypeProvider.ResourceTypeId.ToString(),
                 "Local Host Networking",
                 "Inspect local host networking resources declared through Resource Manager.",
                 "network",
-                35,
+                36,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 MacOSHostNetworkResourceTypeProvider.ResourceTypeId.ToString(),
                 "macOS Host Networking",
                 "Inspect macOS host networking resources declared through Resource Manager.",
                 "network",
-                36,
+                37,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 LocalVolumeResourceTypeProvider.ResourceTypeId.ToString(),
                 "Local Volume",
                 "Inspect local volume resources declared through Resource Manager.",
                 "storage",
-                37,
+                38,
                 resourceClass: ResourceManagerResourceClass.Storage)
             .AddResourceTypeEndpoint(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
@@ -235,6 +257,9 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 ResourceEndpointDescriptor.Http())
             .AddResourceTypeEndpoint(
                 JavaAppResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourceEndpointDescriptor.Http())
+            .AddResourceTypeEndpoint(
+                GoAppResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourceEndpointDescriptor.Http())
             .AddResourceTypeEndpoint(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
@@ -266,6 +291,12 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 "Configuration",
                 20,
                 groupTitle: ResourceTabGroupTitles.General)
+            .AddResourceTab<SharedPages.ApplicationConfiguration>(
+                GoAppResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Configuration,
+                "Configuration",
+                20,
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<SharedPages.ApplicationEnvironment>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Environment,
@@ -290,6 +321,12 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 "Environment",
                 25,
                 groupTitle: ResourceTabGroupTitles.Management)
+            .AddResourceTab<SharedPages.ApplicationEnvironment>(
+                GoAppResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Environment,
+                "Environment",
+                25,
+                groupTitle: ResourceTabGroupTitles.Management)
             .AddResourceTab<SharedPages.ApplicationStorage>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
@@ -310,6 +347,12 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 groupTitle: ResourceTabGroupTitles.Storage)
             .AddResourceTab<SharedPages.ApplicationStorage>(
                 JavaAppResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Storage,
+                "Storage",
+                30,
+                groupTitle: ResourceTabGroupTitles.Storage)
+            .AddResourceTab<SharedPages.ApplicationStorage>(
+                GoAppResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
@@ -373,6 +416,12 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 10)
             .AddResourcePredefinedViewSection<SharedPages.ApplicationEndpointActions>(
                 JavaAppResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Endpoints,
+                "application.exposure-actions",
+                "Application exposure",
+                10)
+            .AddResourcePredefinedViewSection<SharedPages.ApplicationEndpointActions>(
+                GoAppResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Endpoints,
                 "application.exposure-actions",
                 "Application exposure",

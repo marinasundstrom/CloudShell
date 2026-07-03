@@ -96,6 +96,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerEndpointProjectionProvider,
+                GoAppResourceManagerEndpointProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerEndpointProjectionProvider,
                 ContainerApplicationResourceManagerEndpointProjectionProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
@@ -144,6 +148,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerStateProvider,
+                GoAppResourceManagerStateProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerStateProvider,
                 ContainerApplicationResourceManagerStateProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
@@ -173,6 +181,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerObservabilityProvider,
                 JavaAppResourceManagerObservabilityProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerObservabilityProvider,
+                GoAppResourceManagerObservabilityProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerAttributeProvider,
@@ -207,6 +219,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
                 JavaAppEnvironmentReferenceResolver>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
+                IGoAppRuntimeEnvironmentProvider,
+                GoAppEnvironmentReferenceResolver>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
                 IConfigurationEntryReferenceResolver,
                 ConfigurationStoreRuntimeEntryReferenceResolver>());
         services.TryAddEnumerable(
@@ -225,6 +241,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 IResourceMonitoringProvider,
                 JavaAppResourceManagerMonitoringProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceMonitoringProvider,
+                GoAppResourceManagerMonitoringProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceMonitoringProvider,
@@ -249,6 +269,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 ILogProvider,
                 JavaAppResourceManagerLogProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                ILogProvider,
+                GoAppResourceManagerLogProvider>());
         services.AddScoped<
             ISqlDatabaseServerResolver,
             SqlDatabaseResourceManagerServerResolver>();

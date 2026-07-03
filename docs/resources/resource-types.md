@@ -49,6 +49,7 @@ state and omitted from accepted graph state and normal exports.
 | `application.aspnet-core-project` | `project` | `applications.aspnet-core-project` | User-authored ASP.NET Core project. |
 | `application.javascript-app` | `project` | `applications.javascript-app` | User-authored JavaScript/Node.js project. |
 | `application.java-app` | `project` | `applications.java-app` | User-authored Java/JVM project. |
+| `application.go-app` | `project` | `applications.go-app` | User-authored Go project. |
 | `application.container-app` | `container` | `applications.container-app` | User-authored deployable container app. |
 | `application.sql-server` | `service` | `applications.sql-server` | User-authored local-development SQL Server. |
 | `application.sql-database` | `service` | `applications.sql-database` | User-authored SQL database child/resource. |
@@ -436,6 +437,45 @@ resources:
       command: java
       artifactPath: ./target/app.jar
       jvmArguments: -Xmx512m
+```
+
+### `application.go-app`
+
+Use for a Go project launched through the local Go runtime or through a
+prebuilt binary.
+
+Required authoring:
+
+- `project.path`
+
+Common optional attributes:
+
+- `go.command`
+- `go.packagePath`
+- `go.binaryPath`
+- `go.arguments`
+- `project.endpointRequests`
+- `project.environmentVariables`
+- `project.serviceDiscoveryName`
+- `project.references`
+- `container.*` attributes when the app is projected as a container app
+- `storage.volume.mounts`
+
+```yaml
+resources:
+  - type: application.go-app
+    name: go-api
+    project:
+      path: ./app
+      endpointRequests:
+        - name: http
+          protocol: http
+          targetPort: 8080
+          port: 8080
+          exposure: Local
+    go:
+      command: go
+      packagePath: .
 ```
 
 ### `application.container-app`
