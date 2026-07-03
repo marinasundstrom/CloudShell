@@ -175,15 +175,14 @@ The Broker and Topology tabs are intentionally not a RabbitMQ-native
 administration console. They do not create, update, or delete queues,
 exchanges, bindings, users, virtual hosts, policies, or cluster state.
 
-Resource Manager also contributes a focused **Broker access** tab for
-identity traceability. It lists RabbitMQ publish, consume, and configure
-grants assigned through the CloudShell Access control model, the mapped
-broker-native account name for resource-identity principals, the RabbitMQ
-permission category (`write`, `read`, or `configure`), and the provider
-effective status reported by the Management API-backed grant inspector. The
-view intentionally shows only non-secret broker account names and status
-details. It does not show the broker administrator username/password or the
-generated managed-user password.
+RabbitMQ access uses the generated **Access control** and **Identity** tabs
+rather than a separate broker-specific access management surface. Access
+control records CloudShell grants such as publish, consume, and configure, and
+provider status maps those grants to RabbitMQ virtual-host permissions
+(`write`, `read`, and `configure`). The Identity tab remains the place to
+inspect the resource identities that receive or hold those grants. Resource
+Manager does not show the broker administrator username/password or generated
+managed-user passwords.
 
 The management endpoint remains the supported path for broker-native
 configuration until those workflows are deliberately modeled in CloudShell.
@@ -261,9 +260,8 @@ credential material, connection strings, or message payloads.
   topology tab, but they are not projected as CloudShell child resources and
   virtual hosts, users, and policies are not surfaced yet.
 - RabbitMQ permission grants can be reconciled and inspected through the
-  Management API, and Resource Manager can show the non-secret broker account
-  mapping and effective status for publish, consume, and configure grants.
-  Editing still uses the generic Access control tab, and broker-native user
+  Management API. Resource Manager shows requested and effective state through
+  the generated Access control and Identity tabs; broker-native user
   administration remains in RabbitMQ.
 - No RabbitMQ-specific audit/event schema beyond standard resource actions and
   reconciliation diagnostics yet.

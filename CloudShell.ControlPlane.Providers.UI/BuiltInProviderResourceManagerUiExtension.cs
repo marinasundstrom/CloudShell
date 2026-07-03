@@ -498,13 +498,6 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 35,
                 groupTitle: "Messaging",
                 icon: "queue")
-            .AddResourceTab<RabbitMQPages.RabbitMQAccess>(
-                RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
-                new ResourceViewId(ResourceTabGroupIds.Management, "broker-access"),
-                "Broker access",
-                38,
-                groupTitle: ResourceTabGroupTitles.Management,
-                icon: "permissions")
             .AddResourceTab<RabbitMQPages.RabbitMQTopology>(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "topology"),
