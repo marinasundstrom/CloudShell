@@ -8,13 +8,13 @@ public sealed class ExecutableApplicationResourceTypeProvider :
     public static readonly ResourceClassId ClassId = "executable";
     public static readonly ResourceTypeId ResourceTypeId = "application.executable";
     public const string ProviderId = "applications.executable";
-    public const string ConfigurationSection = "executable";
 
     public static ResourceClassDefinition ClassDefinition { get; } = new(ClassId);
 
     public static class Attributes
     {
-        public static readonly ResourceAttributeId ExecutablePath = "executable.path";
+        public static readonly ResourceAttributeId Command = "command";
+        public static readonly ResourceAttributeId ExecutablePath = "path";
     }
 
     public static class Operations
@@ -30,6 +30,8 @@ public sealed class ExecutableApplicationResourceTypeProvider :
         DefaultProviderId: ProviderId,
         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
         {
+            [Attributes.Command] = new(
+                ValueType: ResourceAttributeValueType.ComplexType),
             [Attributes.ExecutablePath] = new(
                 Required: true,
                 RequiredMessage: "Executable path is required.",
@@ -56,17 +58,20 @@ public sealed class ExecutableApplicationResourceTypeProvider :
         ResourceProviderContext context,
         CancellationToken cancellationToken = default)
     {
-        var configuration = resource.GetConfiguration<ExecutableApplicationConfiguration>(
-            ConfigurationSection);
+        var configuration = resource.Attributes.GetObject<ExecutableApplicationConfiguration>(
+            Attributes.Command);
+        var path = FirstNonEmpty(
+            resource.Attributes.GetString(Attributes.ExecutablePath),
+            configuration?.Path);
 
-        if (string.IsNullOrWhiteSpace(configuration?.Path))
+        if (string.IsNullOrWhiteSpace(path))
         {
             return ValueTask.FromResult(ResourceDefinitionValidationResult.FromDiagnostics(
                 [
                     ResourceDefinitionDiagnostic.Error(
                         "application.executable.pathRequired",
-                        "Executable configuration path is required.",
-                        ConfigurationSection)
+                        "Executable path is required.",
+                        Attributes.ExecutablePath)
                 ]));
         }
 
@@ -81,8 +86,11 @@ public sealed class ExecutableApplicationResourceTypeProvider :
         ResourceDefinitionApplyContext context,
         CancellationToken cancellationToken = default)
     {
-        var configuration = resource.GetConfiguration<ExecutableApplicationConfiguration>(
-            ConfigurationSection);
+        var configuration = resource.Attributes.GetObject<ExecutableApplicationConfiguration>(
+            Attributes.Command);
+        var path = FirstNonEmpty(
+            resource.Attributes.GetString(Attributes.ExecutablePath),
+            configuration?.Path);
         var resourceId = resource.EffectiveResourceId;
 
         return ValueTask.FromResult(new ResourceDefinitionApplyPlan(
@@ -98,7 +106,7 @@ public sealed class ExecutableApplicationResourceTypeProvider :
                     resourceId,
                     ResourceTypeId,
                     ResourceDefinitionApplyStepKind.MaterializeRuntime,
-                    $"Materialize executable application runtime state for '{configuration?.Path}'.")
+                    $"Materialize executable application runtime state for '{path}'.")
             ],
             []));
     }
@@ -129,4 +137,7 @@ public sealed class ExecutableApplicationResourceTypeProvider :
 
         return ValueTask.FromResult(result);
     }
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 }

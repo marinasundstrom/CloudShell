@@ -21,8 +21,8 @@ public sealed class ExecutableApplicationProcessRuntimeControllerTests
         var startInfo = CreateStartInfo(
             resource,
             "dotnet",
-            resource.GetConfiguration<ExecutableApplicationConfiguration>(
-                ExecutableApplicationResourceTypeProvider.ConfigurationSection));
+            resource.Attributes.GetObject<ExecutableApplicationConfiguration>(
+                ExecutableApplicationResourceTypeProvider.Attributes.Command));
 
         Assert.Equal("dotnet", startInfo.FileName);
         Assert.Equal("run --project src/Api/Api.csproj", startInfo.Arguments);
@@ -92,26 +92,24 @@ public sealed class ExecutableApplicationProcessRuntimeControllerTests
             [ExecutableApplicationResourceTypeProvider.ClassDefinition],
             [new ExecutableApplicationResourceTypeProvider().TypeDefinition]);
 
-        var attributes = new Dictionary<ResourceAttributeId, string>();
+        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>();
         if (executablePath is not null)
         {
             attributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] =
                 executablePath;
         }
 
-        var configurationValues = new Dictionary<string, JsonElement>();
         if (configuration is not null)
         {
-            configurationValues[ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
-                ResourceDefinitionJson.FromValue(configuration);
+            attributes[ExecutableApplicationResourceTypeProvider.Attributes.Command] =
+                ResourceAttributeValue.FromObject(configuration);
         }
 
         return resolver.Resolve(new ResourceGraphState(
             "api",
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
-            Attributes: attributes,
-            Configuration: configurationValues));
+            Attributes: attributes));
     }
 
     private static ProcessStartInfo CreateStartInfo(

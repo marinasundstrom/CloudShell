@@ -779,13 +779,9 @@ public sealed class ResourceResolverTests
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
             DisplayName: "API",
-            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
-                [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
-                    ResourceDefinitionJson.FromValue(new ExecutableApplicationConfiguration(
-                    "dotnet",
-                    "run",
-                    "./src/Api"))
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
             },
             Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
             {
@@ -801,11 +797,9 @@ public sealed class ResourceResolverTests
         Assert.Equal(ExecutableApplicationResourceTypeProvider.ResourceTypeId, roundTrip.TypeId);
         Assert.Equal(ExecutableApplicationResourceTypeProvider.ProviderId, roundTrip.ProviderId);
 
-        var executable = roundTrip.GetConfiguration<ExecutableApplicationConfiguration>(
-            ExecutableApplicationResourceTypeProvider.ConfigurationSection);
-        Assert.NotNull(executable);
-        Assert.Equal("dotnet", executable.Path);
-        Assert.Equal("./src/Api", executable.WorkingDirectory);
+        Assert.Equal(
+            "dotnet",
+            roundTrip.ResourceAttributeValues[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath].StringValue);
 
         var volumeConsumer = roundTrip.GetCapability<VolumeConsumerCapability>("storage.volumeConsumer");
         Assert.NotNull(volumeConsumer);

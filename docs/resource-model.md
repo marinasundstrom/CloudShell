@@ -78,9 +78,11 @@ serialized projection might look like:
 {
   "name": "acme-api",
   "type": "application.executable",
-  "executable.path": "whatsup.exe",
-  "executable.arguments": "doc",
-  "executable.workingDirectory": ".",
+  "path": "whatsup.exe",
+  "command": {
+    "arguments": "doc",
+    "workingDirectory": "."
+  },
   "custom.data": {
     "example": "complex value"
   }

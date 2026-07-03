@@ -836,7 +836,9 @@ public sealed class ResourceGraphChangeTrackingTests
         public async ValueTask<ResourceGraphSnapshot> GetSnapshotAsync(
             CancellationToken cancellationToken = default)
         {
-            await Task.Yield();
+            await new TaskCompletionSource().Task.WaitAsync(
+                TimeSpan.FromSeconds(30),
+                cancellationToken);
             return new ResourceGraphSnapshot(ResourceGraphVersion.Initial, []);
         }
 

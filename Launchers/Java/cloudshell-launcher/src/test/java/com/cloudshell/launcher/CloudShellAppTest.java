@@ -27,16 +27,20 @@ public final class CloudShellAppTest {
 
         ConfigurationStoreResource settings = app.addConfigurationStore("settings")
             .withDisplayName("Settings")
-            .withEndpoint("http://localhost:5104");
+            .withEndpoint("http://localhost:5104")
+            .withSetting("Sample--Message", "Hello from Java");
 
         SecretsVaultResource secrets = app.addSecretsVault("secrets")
             .withDisplayName("Secrets")
-            .withEndpoint("http://localhost:6104");
+            .withEndpoint("http://localhost:6104")
+            .withSecret("Sample--ApiKey", "java-secret", "v1");
 
         app.addJavaApp("api", "samples/JavaApp/App", "target/app.jar")
             .withDisplayName("Java API")
             .withServiceDiscovery()
             .withEnvironmentVariable("PORT", "5186")
+            .withEnvironmentVariable("Sample__Message", settings.entry("Sample--Message"))
+            .withEnvironmentVariable("Sample__ApiKey", secrets.secret("Sample--ApiKey"))
             .withReference(settings)
             .withReference(secrets)
             .withHttpEndpoint("localhost", 5186, 5186, network)
@@ -49,9 +53,16 @@ public final class CloudShellAppTest {
         assertContains(json, "\"providerId\": \"applications.java-app\"");
         assertContains(json, "\"resourceId\": \"configuration.store:settings\"");
         assertContains(json, "\"providerId\": \"secrets-vault\"");
-        assertContains(json, "\"attributes\": {");
-        assertContains(json, "\"configuration\": {");
-        assertContains(json, "\"secrets\": {");
+        assertContains(json, "\"seed\": {");
+        assertContains(json, "\"entries\": [");
+        assertContains(json, "\"name\": \"Sample--Message\"");
+        assertContains(json, "\"value\": \"Hello from Java\"");
+        assertContains(json, "\"secrets\": [");
+        assertContains(json, "\"name\": \"Sample--ApiKey\"");
+        assertContains(json, "\"value\": \"java-secret\"");
+        assertContains(json, "\"version\": \"v1\"");
+        assertContains(json, "\"configurationEntryRef\": { \"storeResourceId\": \"configuration.store:settings\", \"name\": \"Sample--Message\" }");
+        assertContains(json, "\"secretRef\": { \"vaultResourceId\": \"secrets.vault:secrets\", \"name\": \"Sample--ApiKey\" }");
         assertContains(json, "\"path\": \"/ready\"");
         assertContains(json, "\"path\": \"/live\"");
         assertContains(json, "\"capabilities\": [\"read\", \"stream\"]");

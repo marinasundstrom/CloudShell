@@ -47,6 +47,11 @@ public final class SampleServer {
     }
 
     private static String readConfiguredMessage() {
+        String resolvedValue = System.getenv("Sample__Message");
+        if (resolvedValue != null && !resolvedValue.isBlank()) {
+            return resolvedValue;
+        }
+
         try {
             return ConfigurationStoreClient
                 .tryFromEnvironment(System.getenv("CLOUDSHELL_CONFIGURATION_SERVICE_NAME"))
@@ -65,12 +70,24 @@ public final class SampleServer {
     }
 
     private static boolean readSecretAvailable() {
+        String resolvedValue = System.getenv("Sample__ApiKey");
+        if (resolvedValue != null && !resolvedValue.isBlank()) {
+            return true;
+        }
+
         try {
             return SecretsVaultClient
                 .tryFromEnvironment(System.getenv("CLOUDSHELL_SECRETS_VAULT_NAME"))
                 .flatMap(client -> {
                     try {
-                        return client.getSecret("Sample--Secret");
+                        return client.getSecret("Sample--ApiKey")
+                            .or(() -> {
+                                try {
+                                    return client.getSecret("Sample--Secret");
+                                } catch (Exception exception) {
+                                    return java.util.Optional.empty();
+                                }
+                            });
                     } catch (Exception exception) {
                         return java.util.Optional.empty();
                     }

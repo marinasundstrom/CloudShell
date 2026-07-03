@@ -12,7 +12,6 @@ public sealed record ResourceDefinition(
     string? Version = null,
     IReadOnlyList<ResourceReference>? DependsOn = null,
     ResourceAttributeValueMap? Attributes = null,
-    IReadOnlyDictionary<string, JsonElement>? Configuration = null,
     IReadOnlyDictionary<ResourceCapabilityId, JsonElement>? Capabilities = null,
     IReadOnlyDictionary<ResourceOperationId, JsonElement>? Operations = null,
     IReadOnlyDictionary<string, string>? Metadata = null)
@@ -20,8 +19,6 @@ public sealed record ResourceDefinition(
     private static readonly IReadOnlyList<ResourceReference> EmptyReferences = [];
     private static readonly ResourceAttributeValueMap EmptyAttributeValues =
         new(new Dictionary<ResourceAttributeId, ResourceAttributeValue>());
-    private static readonly IReadOnlyDictionary<string, JsonElement> EmptyConfigurationPayloads =
-        new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
     private static readonly IReadOnlyDictionary<ResourceCapabilityId, JsonElement> EmptyCapabilityPayloads =
         new Dictionary<ResourceCapabilityId, JsonElement>();
     private static readonly IReadOnlyDictionary<ResourceOperationId, JsonElement> EmptyOperationPayloads =
@@ -59,22 +56,12 @@ public sealed record ResourceDefinition(
         ResourceAttributeValueMaps.ToScalars(Attributes);
 
     [JsonIgnore]
-    public IReadOnlyDictionary<string, JsonElement> ConfigurationPayloads => Configuration ?? EmptyConfigurationPayloads;
-
-    [JsonIgnore]
     public IReadOnlyDictionary<ResourceCapabilityId, JsonElement> CapabilityPayloads =>
         Capabilities ?? EmptyCapabilityPayloads;
 
     [JsonIgnore]
     public IReadOnlyDictionary<ResourceOperationId, JsonElement> OperationPayloads =>
         Operations ?? EmptyOperationPayloads;
-
-    public TConfiguration? GetConfiguration<TConfiguration>(
-        string sectionName,
-        JsonSerializerOptions? options = null) =>
-        ConfigurationPayloads.TryGetValue(sectionName, out var payload)
-            ? payload.Deserialize<TConfiguration>(options ?? ResourceDefinitionJson.Options)
-            : default;
 
     public TCapability? GetCapability<TCapability>(
         ResourceCapabilityId capabilityId,

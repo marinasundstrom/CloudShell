@@ -287,14 +287,11 @@ public sealed class ResourceDefinitionGraphValidationPipelineTests
             name,
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             DependsOn: ToReferences(dependsOn),
-            Attributes: new Dictionary<ResourceAttributeId, string>
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
-                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
-            },
-            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
-            {
-                [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
-                    ResourceDefinitionJson.FromValue(new ExecutableApplicationConfiguration("dotnet", "run"))
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet",
+                [ExecutableApplicationResourceTypeProvider.Attributes.Command] =
+                    ResourceAttributeValue.FromObject(new ExecutableApplicationConfiguration("dotnet", "run"))
             },
             Capabilities: mounts is null
                 ? null

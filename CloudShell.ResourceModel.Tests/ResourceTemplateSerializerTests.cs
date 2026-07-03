@@ -310,11 +310,7 @@ resources:
       "resourceId": "configuration.store:typescript-app-settings",
       "providerId": "configuration",
       "displayName": "TypeScript App Settings",
-      "attributes": {
-        "configuration": {
-          "endpoint": "http://localhost:5101/api/configuration/stores/typescript-app-settings/entries"
-        }
-      }
+      "endpoint": "http://localhost:5101/api/configuration/stores/typescript-app-settings/entries"
     },
     {
       "name": "typescript-frontend",
@@ -415,7 +411,7 @@ resources:
             resource.Name == "typescript-app-settings");
         Assert.Equal(
             "http://localhost:5101/api/configuration/stores/typescript-app-settings/entries",
-            settings.ResourceAttributes["configuration.endpoint"]);
+            settings.ResourceAttributes["endpoint"]);
 
         var frontend = Assert.Single(template.Resources, resource =>
             resource.Name == "typescript-frontend");
@@ -450,7 +446,6 @@ resources:
             ResourceTypeId.Create("application.container-app"),
             DependsOn: [],
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>(),
-            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase),
             Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>(),
             Operations: new Dictionary<ResourceOperationId, JsonElement>(),
             Metadata: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase))
@@ -463,13 +458,11 @@ resources:
 
         Assert.DoesNotContain("dependsOn:", yaml);
         Assert.DoesNotContain("attributes:", yaml);
-        Assert.DoesNotContain("configuration:", yaml);
         Assert.DoesNotContain("capabilities:", yaml);
         Assert.DoesNotContain("operations:", yaml);
         Assert.DoesNotContain("metadata:", yaml);
         Assert.DoesNotContain("\"dependsOn\"", json);
         Assert.DoesNotContain("\"attributes\"", json);
-        Assert.DoesNotContain("\"configuration\"", json);
         Assert.DoesNotContain("\"capabilities\"", json);
         Assert.DoesNotContain("\"operations\"", json);
         Assert.DoesNotContain("\"metadata\"", json);

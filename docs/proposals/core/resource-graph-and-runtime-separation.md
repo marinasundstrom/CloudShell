@@ -1298,13 +1298,13 @@ integration details in the runtime section rather than hiding them inside the
 interchange document.
 
 A narrow configuration store built-in provider extends the proof outside the
-old application-provider group. It owns `configuration.store`, configuration
-class defaults, endpoint and entry-count summary attributes, an inspect
+old application-provider group. It owns `configuration.store`, settings
+metadata defaults, endpoint and entry-count summary attributes, an inspect
 operation, a typed projection wrapper, and Resource Manager bridge coverage.
 The inspect operation delegates to a provider-owned configuration-store
 inspector with a no-op POC default. The POC keeps configuration entries out of
 graph attributes and capabilities; actual entries are service/runtime state,
-while `*.entries.count` attributes such as `configuration.entries.count`
+while count attributes such as `entryCount`
 summarize provider-projected counts.
 The existing provider backs the service by starting a local C# project. A
 future provider implementation should be free to back the same graph resource
@@ -1556,7 +1556,7 @@ coverage. The inspect operation delegates to a provider-owned Secrets Vault
 inspector with a no-op POC default. The POC intentionally keeps secret entries
 and values out of graph attributes and capabilities; secret value lifecycle
 behavior remains a provider-owned runtime concern, while count attributes
-such as `secrets.entries.count` summarize provider-projected state.
+such as `secretCount` summarize provider-projected state.
 The existing provider backs the vault by starting a local C# project. A future
 provider implementation should be free to run a container-backed vault service
 behind the same graph resource shape.

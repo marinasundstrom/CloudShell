@@ -8,6 +8,8 @@ It proves the TypeScript declaration shape:
 - TypeScript code declares resources through builder-style APIs.
 - The package emits ResourceTemplate JSON accepted by CloudShell.
 - The sample can hand that template to the current CloudShell CLI.
+- The launcher seeds development Configuration Store entries and Secrets Vault
+  secrets through create-only resource-definition attributes.
 
 The current POC uses `CloudShell.LocalDevelopmentHost` as the .NET process that
 owns the Control Plane and Web UI. The TypeScript file is the declaration
@@ -47,7 +49,12 @@ Apply the TypeScript-authored template to an already-running host:
 After applying the template, open the Web UI and start the TypeScript-declared
 JavaScript app from Resource Manager, or start it from the helper. The helper
 enables dependency startup, so the Configuration Store resource is started
-before the JavaScript app:
+before the JavaScript app. The generated template seeds `Sample--Message` in
+the Configuration Store and `Sample--ApiKey` in the Secrets Vault; those values
+are not emitted by default template export after apply. The sample binds the
+secret to an environment variable only to make the launcher demo visible;
+production workloads should prefer resolving secrets through the Secrets Vault
+client instead of exposing secret values in process environment state:
 
 ```bash
 ./cloudshell.sh open

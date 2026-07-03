@@ -6,9 +6,11 @@
             {
                 "name": "acme-api",
                 "type": "application.executable",
-                "executable.path": "whatsup.exe",
-                "executable.arguments": "doc",
-                "executable.workingDirectory": ".",
+                "path": "whatsup.exe",
+                "command": {
+                    "arguments": "doc",
+                    "workingDirectory": "."
+                },
                 "custom.data": {
                     // Some complex value
                 }

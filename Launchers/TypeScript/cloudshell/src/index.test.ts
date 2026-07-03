@@ -12,7 +12,14 @@ test("builds a resource template with JavaScript app and configuration store", (
   const settings = app
     .addConfigurationStore("typescript-settings")
     .withDisplayName("TypeScript Settings")
-    .withEndpoint("http://localhost:5101");
+    .withEndpoint("http://localhost:5101")
+    .withSetting("Sample--Message", "Hello from TypeScript");
+
+  const secrets = app
+    .addSecretsVault("typescript-secrets")
+    .withDisplayName("TypeScript Secrets")
+    .withEndpoint("http://localhost:6101")
+    .withSecret("Sample--ApiKey", "typescript-secret", "v1");
 
   app
     .addJavaScriptApp("typescript-frontend", "samples/TypeScriptAppHost/App")
@@ -21,11 +28,15 @@ test("builds a resource template with JavaScript app and configuration store", (
     .withScript("dev")
     .withServiceDiscovery()
     .withReference(settings)
+    .withReference(secrets)
     .withEnvironmentVariable("CLOUDSHELL_SETTINGS_ENDPOINT", {
       value: "http://localhost:5101/api/configuration/stores/configuration.store%3Atypescript-settings/entries"
     })
     .withEnvironmentVariable("Sample__Message", {
       configurationEntryRef: settings.entry("Sample--Message")
+    })
+    .withEnvironmentVariable("Sample__ApiKey", {
+      secretRef: secrets.secret("Sample--ApiKey")
     })
     .withHttpEndpoint({
       host: "localhost",
@@ -38,13 +49,29 @@ test("builds a resource template with JavaScript app and configuration store", (
   const template = app.buildTemplate();
 
   assert.equal(template.name, "typescript-hosting-poc");
-  assert.equal(template.resources.length, 3);
+  assert.equal(template.resources.length, 4);
 
   const settingsResource = template.resources.find(resource => resource.name === "typescript-settings")!;
-  assert.deepEqual(settingsResource.attributes, {
-    configuration: {
-      endpoint: "http://localhost:5101"
-    }
+  assert.equal(settingsResource.endpoint, "http://localhost:5101");
+  assert.deepEqual(settingsResource.seed, {
+    entries: [
+      {
+        name: "Sample--Message",
+        value: "Hello from TypeScript"
+      }
+    ]
+  });
+
+  const secretsResource = template.resources.find(resource => resource.name === "typescript-secrets")!;
+  assert.equal(secretsResource.endpoint, "http://localhost:6101");
+  assert.deepEqual(secretsResource.seed, {
+    secrets: [
+      {
+        name: "Sample--ApiKey",
+        value: "typescript-secret",
+        version: "v1"
+      }
+    ]
   });
 
   const network = template.resources.find(resource => resource.type === "cloudshell.network")!;
@@ -73,6 +100,13 @@ test("builds a resource template with JavaScript app and configuration store", (
         addressingMode: "resourceId",
         typeId: "configuration.store",
         providerId: "configuration"
+      },
+      {
+        resourceId: "secrets.vault:typescript-secrets",
+        relationship: "reference",
+        addressingMode: "resourceId",
+        typeId: "secrets.vault",
+        providerId: "secrets-vault"
       }
     ],
     environmentVariables: {
@@ -83,6 +117,12 @@ test("builds a resource template with JavaScript app and configuration store", (
         configurationEntryRef: {
           storeResourceId: "configuration.store:typescript-settings",
           name: "Sample--Message"
+        }
+      },
+      Sample__ApiKey: {
+        secretRef: {
+          vaultResourceId: "secrets.vault:typescript-secrets",
+          name: "Sample--ApiKey"
         }
       }
     },

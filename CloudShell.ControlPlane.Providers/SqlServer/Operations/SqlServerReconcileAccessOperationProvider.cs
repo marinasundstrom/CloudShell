@@ -69,12 +69,12 @@ public sealed class SqlServerReconcileAccessOperation(
 
     public SqlServerAccessReconciliationPlan PlanReconciliation()
     {
-        var configuration = Resource.GetConfiguration<SqlServerConfiguration>(
-            SqlServerResourceTypeProvider.ConfigurationSection);
+        var databases = Resource.Attributes.GetObject<SqlServerDatabaseDefinition[]>(
+            SqlServerResourceTypeProvider.Attributes.Databases);
 
         return new SqlServerAccessReconciliationPlan(
             Resource,
-            configuration?.Databases ?? []);
+            databases ?? []);
     }
 
     public async ValueTask<ResourceOperationExecutionResult> ExecuteAsync(

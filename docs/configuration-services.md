@@ -35,10 +35,16 @@ controlPlane.DefineResources(resources =>
 });
 ```
 
-Configuration entries and secret values are provider/runtime data. They are not
-stored as `ResourceDefinition` graph attributes.
+Configuration Store settings and secret values are provider/runtime data.
+Templates may include create-only seed attributes for local development:
+`seed.entries` on a new Configuration Store and `seed.secrets` on a new
+Secrets Vault. The `seed` hierarchy is reserved for create-time input and is
+not accepted when updating an existing resource. The Control Plane materializes
+those values into provider-owned runtime state after the create commit
+succeeds, then strips the seed attributes from accepted graph state. Normal
+resource-template export does not emit seeded setting entries or secret values.
 
-Each store stores key-value entries:
+Each store stores key-value setting entries:
 
 - `Name`: the setting name.
 - `Value`: the stored value.
@@ -81,6 +87,13 @@ CloudShell.Host/Data/configuration-stores.json
 
 The core CloudShell database still stores only platform metadata such as the
 resource registration and group assignment.
+
+The create-only seed path is intended for development launchers, samples, and
+local environments. Production or on-premise hosts should treat seeded secret
+values as sensitive template input and prefer a permission-protected
+secret-import path when that workflow is added. Entry and secret versioning is
+intentionally limited in this slice; durable version semantics should be
+revisited with the future import/export work.
 
 ## Service Runtime
 

@@ -18,11 +18,8 @@ public sealed class JavaAppEnvironmentReferenceResolver(
     {
         ArgumentNullException.ThrowIfNull(resource);
 
-        var environmentVariables = resource.Attributes
-            .GetObject<Dictionary<string, JavaAppEnvironmentVariableValue>>(
-                JavaAppResourceTypeProvider.Attributes.EnvironmentVariables);
-        if (environmentVariables is null ||
-            environmentVariables.Count == 0)
+        var environmentVariables = ProjectEnvironmentVariableReader.ReadJavaApp(resource.Attributes);
+        if (environmentVariables.Count == 0)
         {
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }

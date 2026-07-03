@@ -13,9 +13,10 @@ public sealed class SecretsVaultResourceTypeProvider :
 
     public static class Attributes
     {
-        public static readonly ResourceAttributeId SecretsKind = "secrets.kind";
-        public static readonly ResourceAttributeId Endpoint = "secrets.endpoint";
-        public static readonly ResourceAttributeId SecretCount = "secrets.entries.count";
+        public static readonly ResourceAttributeId Kind = "kind";
+        public static readonly ResourceAttributeId Endpoint = "endpoint";
+        public static readonly ResourceAttributeId Secrets = "seed.secrets";
+        public static readonly ResourceAttributeId SecretCount = "secretCount";
     }
 
     public static class Operations
@@ -34,11 +35,26 @@ public sealed class SecretsVaultResourceTypeProvider :
         DefaultProviderId: ProviderId,
         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
         {
-            [Attributes.SecretsKind] = new(
+            [Attributes.Kind] = new(
                 DefaultValue: "vault",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.Endpoint] = new(
                 ValueType: ResourceAttributeValueType.String),
+            [Attributes.Secrets] = ResourceAttributeDefinition.Collection(
+                ResourceAttributeValueType.ComplexType,
+                itemShape: new(new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                {
+                    ["name"] = new(
+                        Required: true,
+                        RequiredMessage: "Secret name is required.",
+                        ValueType: ResourceAttributeValueType.String),
+                    ["value"] = new(
+                        Required: true,
+                        RequiredMessage: "Secret value is required.",
+                        ValueType: ResourceAttributeValueType.String),
+                    ["version"] = new(ValueType: ResourceAttributeValueType.String)
+                }),
+                description: "Create-only secrets used to seed a new Secrets Vault resource."),
             [Attributes.SecretCount] = new(
                 DefaultValue: 0,
                 ValueType: ResourceAttributeValueType.Integer,
@@ -89,11 +105,15 @@ public sealed class SecretsVaultResourceTypeProvider :
     {
         var diagnostics = new List<ResourceDefinitionDiagnostic>(changes.Diagnostics);
         diagnostics.AddRange(ValidateExplicitState(changes.ProposedState));
+        ValidateCreateOnlySecrets(changes, diagnostics);
 
         return ValueTask.FromResult(diagnostics.Any(diagnostic =>
             diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error)
                 ? ResourceChangeApplyResult.Rejected(changes, diagnostics)
-                : new ResourceChangeApplyResult(changes, changes.ProposedState, diagnostics));
+                : new ResourceChangeApplyResult(
+                    changes,
+                    StripSeedSecrets(changes.ProposedState),
+                    diagnostics));
     }
 
     public bool CanPlan(Resource resource) =>
@@ -140,7 +160,84 @@ public sealed class SecretsVaultResourceTypeProvider :
             ValidateSecretCount(secretCount, diagnostics);
         }
 
+        if (state.ResourceAttributeValues.ContainsKey(Attributes.Secrets))
+        {
+            ValidateSeedSecrets(state, diagnostics);
+        }
+
         return diagnostics;
+    }
+
+    private static void ValidateCreateOnlySecrets(
+        ResourceChangeSet changes,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (!changes.IsNewResource &&
+            changes.ProposedState.ResourceAttributeValues.ContainsKey(Attributes.Secrets))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                "secrets.vault.secretsSeedUpdateNotAllowed",
+                "Secrets can only be supplied when creating a Secrets Vault resource.",
+                Attributes.Secrets));
+        }
+    }
+
+    private static void ValidateSeedSecrets(
+        ResourceState state,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        var secrets = state.ResourceAttributeValues.GetObject<SecretsVaultSeedSecret[]>(
+            Attributes.Secrets) ?? [];
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var secret in secrets)
+        {
+            if (string.IsNullOrWhiteSpace(secret.Name))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "secrets.vault.seedSecretNameRequired",
+                    "Secret name is required.",
+                    Attributes.Secrets));
+            }
+
+            if (secret.Value is null)
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "secrets.vault.seedSecretValueRequired",
+                    "Secret value is required.",
+                    Attributes.Secrets));
+            }
+
+            if (!string.IsNullOrWhiteSpace(secret.Name) &&
+                !names.Add(secret.Name.Trim()))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "secrets.vault.seedSecretDuplicate",
+                    $"Secret '{secret.Name}' is declared more than once.",
+                    Attributes.Secrets));
+            }
+        }
+    }
+
+    private static ResourceState StripSeedSecrets(
+        ResourceState state)
+    {
+        if (!state.ResourceAttributeValues.ContainsKey(Attributes.Secrets))
+        {
+            return state;
+        }
+
+        var secrets = state.ResourceAttributeValues.GetObject<SecretsVaultSeedSecret[]>(
+            Attributes.Secrets) ?? [];
+        var attributes = state.ResourceAttributeValues
+            .Where(attribute => attribute.Key != Attributes.Secrets)
+            .ToDictionary(attribute => attribute.Key, attribute => attribute.Value);
+        attributes[Attributes.SecretCount] = ResourceAttributeValue.Integer(secrets.Length);
+
+        return state with
+        {
+            Attributes = new ResourceAttributeValueMap(attributes)
+        };
     }
 
     private static void ValidateSecretCount(

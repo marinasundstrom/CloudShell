@@ -40,8 +40,8 @@ public sealed class ExecutableApplicationProcessRuntimeController :
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
 
-        var configuration = resource.GetConfiguration<ExecutableApplicationConfiguration>(
-            ExecutableApplicationResourceTypeProvider.ConfigurationSection);
+        var configuration = resource.Attributes.GetObject<ExecutableApplicationConfiguration>(
+            ExecutableApplicationResourceTypeProvider.Attributes.Command);
         var executablePath = FirstNonEmpty(
             resource.Attributes.GetString(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath),
             configuration?.Path);

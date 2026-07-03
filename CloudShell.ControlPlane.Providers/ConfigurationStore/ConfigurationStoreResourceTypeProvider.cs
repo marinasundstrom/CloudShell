@@ -13,9 +13,10 @@ public sealed class ConfigurationStoreResourceTypeProvider :
 
     public static class Attributes
     {
-        public static readonly ResourceAttributeId ConfigurationKind = "configuration.kind";
-        public static readonly ResourceAttributeId Endpoint = "configuration.endpoint";
-        public static readonly ResourceAttributeId EntryCount = "configuration.entries.count";
+        public static readonly ResourceAttributeId Kind = "kind";
+        public static readonly ResourceAttributeId Endpoint = "endpoint";
+        public static readonly ResourceAttributeId Entries = "seed.entries";
+        public static readonly ResourceAttributeId EntryCount = "entryCount";
     }
 
     public static class Operations
@@ -34,11 +35,25 @@ public sealed class ConfigurationStoreResourceTypeProvider :
         DefaultProviderId: ProviderId,
         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
         {
-            [Attributes.ConfigurationKind] = new(
+            [Attributes.Kind] = new(
                 DefaultValue: "store",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.Endpoint] = new(
                 ValueType: ResourceAttributeValueType.String),
+            [Attributes.Entries] = ResourceAttributeDefinition.Collection(
+                ResourceAttributeValueType.ComplexType,
+                itemShape: new(new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                {
+                    ["name"] = new(
+                        Required: true,
+                        RequiredMessage: "Setting entry name is required.",
+                        ValueType: ResourceAttributeValueType.String),
+                    ["value"] = new(
+                        Required: true,
+                        RequiredMessage: "Setting entry value is required.",
+                        ValueType: ResourceAttributeValueType.String)
+                }),
+                description: "Create-only setting entries used to seed a new Configuration Store resource."),
             [Attributes.EntryCount] = new(
                 DefaultValue: 0,
                 ValueType: ResourceAttributeValueType.Integer,
@@ -89,11 +104,15 @@ public sealed class ConfigurationStoreResourceTypeProvider :
     {
         var diagnostics = new List<ResourceDefinitionDiagnostic>(changes.Diagnostics);
         diagnostics.AddRange(ValidateExplicitState(changes.ProposedState));
+        ValidateCreateOnlyEntries(changes, diagnostics);
 
         return ValueTask.FromResult(diagnostics.Any(diagnostic =>
             diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error)
                 ? ResourceChangeApplyResult.Rejected(changes, diagnostics)
-                : new ResourceChangeApplyResult(changes, changes.ProposedState, diagnostics));
+                : new ResourceChangeApplyResult(
+                    changes,
+                    StripSeedEntries(changes.ProposedState),
+                    diagnostics));
     }
 
     public bool CanPlan(Resource resource) =>
@@ -140,7 +159,84 @@ public sealed class ConfigurationStoreResourceTypeProvider :
             ValidateEntryCount(entryCount, diagnostics);
         }
 
+        if (state.ResourceAttributeValues.ContainsKey(Attributes.Entries))
+        {
+            ValidateSeedEntries(state, diagnostics);
+        }
+
         return diagnostics;
+    }
+
+    private static void ValidateCreateOnlyEntries(
+        ResourceChangeSet changes,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (!changes.IsNewResource &&
+            changes.ProposedState.ResourceAttributeValues.ContainsKey(Attributes.Entries))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                "configuration.store.entriesSeedUpdateNotAllowed",
+                "Setting entries can only be supplied when creating a Configuration Store resource.",
+                Attributes.Entries));
+        }
+    }
+
+    private static void ValidateSeedEntries(
+        ResourceState state,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        var entries = state.ResourceAttributeValues.GetObject<ConfigurationStoreSettingEntry[]>(
+            Attributes.Entries) ?? [];
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var entry in entries)
+        {
+            if (string.IsNullOrWhiteSpace(entry.Name))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "configuration.store.seedEntryNameRequired",
+                    "Configuration Store setting entry name is required.",
+                    Attributes.Entries));
+            }
+
+            if (entry.Value is null)
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "configuration.store.seedEntryValueRequired",
+                    "Configuration Store setting entry value is required.",
+                    Attributes.Entries));
+            }
+
+            if (!string.IsNullOrWhiteSpace(entry.Name) &&
+                !names.Add(entry.Name.Trim()))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "configuration.store.seedEntryDuplicate",
+                    $"Configuration Store setting entry '{entry.Name}' is declared more than once.",
+                    Attributes.Entries));
+            }
+        }
+    }
+
+    private static ResourceState StripSeedEntries(
+        ResourceState state)
+    {
+        if (!state.ResourceAttributeValues.ContainsKey(Attributes.Entries))
+        {
+            return state;
+        }
+
+        var entries = state.ResourceAttributeValues.GetObject<ConfigurationStoreSettingEntry[]>(
+            Attributes.Entries) ?? [];
+        var attributes = state.ResourceAttributeValues
+            .Where(attribute => attribute.Key != Attributes.Entries)
+            .ToDictionary(attribute => attribute.Key, attribute => attribute.Value);
+        attributes[Attributes.EntryCount] = ResourceAttributeValue.Integer(entries.Length);
+
+        return state with
+        {
+            Attributes = new ResourceAttributeValueMap(attributes)
+        };
     }
 
     private static void ValidateEntryCount(
@@ -152,7 +248,7 @@ public sealed class ConfigurationStoreResourceTypeProvider :
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                 "configuration.store.entryCountInvalid",
-                "Configuration entry count must be a non-negative integer.",
+                "Configuration Store setting entry count must be a non-negative integer.",
                 Attributes.EntryCount));
         }
     }

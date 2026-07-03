@@ -4,7 +4,8 @@
 
 - Resource type: `configuration.store`
 - Provider id: `configuration`
-- Purpose: declares a graph-backed configuration store service without storing configuration entry values as ordinary graph attributes.
+- Purpose: declares a graph-backed configuration store service while keeping
+  entry values out of persisted/exported graph state.
 
 ## Ported
 
@@ -23,17 +24,20 @@
   Entry values stay in provider runtime state and sidecar definition files, not
   Resource graph attributes.
 - Manual `ResourceGraphBuilder.AddConfigurationStore(...)` builder
-  for code-first resource and endpoint declaration. Entry values remain
-  provider/runtime data and are not authored as graph attributes.
+  for code-first resource and endpoint declaration, including create-only
+  `seed.entries` attributes for development templates. Seeded
+  entries materialize into provider-owned runtime state and are stripped from
+  accepted graph state before normal template export.
 - SettingsAndSecrets smoke coverage for endpoint projection, inspect execution, authorized entry reads, and API consumption through the graph-backed endpoint.
 - ThirdPartyIdentity Docker smoke coverage for a Keycloak-protected
   graph-backed Configuration Store consumed by a graph-backed ASP.NET Core API.
 
 ## Example ResourceDefinition
 
-This is the interchange shape for a graph-backed Configuration Store resource.
-The graph declares the service boundary and endpoint; configuration entry values
-are provider/runtime data and are not authored as ordinary graph attributes.
+This is the persisted/exported interchange shape for a graph-backed
+Configuration Store resource. Create-only templates may additionally include
+`seed.entries`; accepted graph state and default template export omit
+those seeded values.
 
 ```json
 {
@@ -42,9 +46,26 @@ are provider/runtime data and are not authored as ordinary graph attributes.
   "resourceId": "configuration.store:sample-app",
   "providerId": "configuration",
   "displayName": "Sample App Settings",
-  "attributes": {
-    "configuration.kind": "local",
-    "configuration.endpoint": "http://localhost:5101"
+  "kind": "local",
+  "endpoint": "http://localhost:5101"
+}
+```
+
+Create-only seed example:
+
+```json
+{
+  "name": "sample-app",
+  "typeId": "configuration.store",
+  "providerId": "configuration",
+  "endpoint": "http://localhost:5101",
+  "seed": {
+    "entries": [
+      {
+        "name": "Sample--Message",
+        "value": "Hello from template"
+      }
+    ]
   }
 }
 ```
@@ -56,11 +77,13 @@ samples. The graph path starts the backing service, projects endpoint/count,
 supports inspect, monitoring, health/liveness, built-in authorization, and
 external bearer validation for the Keycloak sample. Runtime entries can be
 managed through Resource Manager when the UI host has access to the provider
-runtime manager. Durable entry storage, log streaming, templates, and full
-registration/update flows remain outside the switch gate.
+runtime manager. Durable entry storage, log streaming, permission-protected
+import/export, entry versioning, and full registration/update flows remain
+outside the switch gate.
 
 ## Remaining
 
 - Durable entry storage.
 - Logs and richer diagnostics.
-- Templates and full UI registration/update flow.
+- Permission-protected entry import/export and versioning.
+- Full UI registration/update flow.

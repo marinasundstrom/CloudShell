@@ -560,7 +560,9 @@ public sealed class ResourceManagerStoreProjectionTests
         Assert.Equal(ExecutableApplicationResourceTypeProvider.ProviderId, resource.Provider);
         Assert.Equal(ResourceClass.Executable, resource.ResourceClass);
         Assert.Equal(["storage:data"], resource.DependsOn);
-        Assert.Equal("dotnet", resource.ResourceAttributes[ResourceAttributeNames.ExecutablePath]);
+        Assert.Equal(
+            "dotnet",
+            resource.ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
         Assert.True(resource.IsDeclaredResource);
         Assert.Contains(resource.ResourceCapabilities, capability =>
             capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
@@ -644,7 +646,9 @@ public sealed class ResourceManagerStoreProjectionTests
         var resource = Assert.Single(store.GetResources());
 
         Assert.Equal("application.executable:api", resource.Id);
-        Assert.Equal("dotnet", resource.ResourceAttributes[ResourceAttributeNames.ExecutablePath]);
+        Assert.Equal(
+            "dotnet",
+            resource.ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
         Assert.True(resource.IsDeclaredResource);
     }
 
@@ -719,7 +723,9 @@ public sealed class ResourceManagerStoreProjectionTests
 
         Assert.Equal("application.executable:api", resource.Id);
         Assert.Equal(ExecutableApplicationResourceTypeProvider.ProviderId, resource.Provider);
-        Assert.Equal("dotnet", resource.ResourceAttributes[ResourceAttributeNames.ExecutablePath]);
+        Assert.Equal(
+            "dotnet",
+            resource.ResourceAttributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath]);
         Assert.Contains(resource.ResourceCapabilities, capability =>
             capability.Id == VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString());
         Assert.Contains(resource.ResourceActions, action =>
@@ -1282,14 +1288,12 @@ public sealed class ResourceManagerStoreProjectionTests
             ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
             DisplayName: "API",
             DependsOn: [DefinitionResourceReference.DependsOnResourceId("storage:data")],
-            Attributes: new Dictionary<DefinitionAttributeId, string>
+            Attributes: new Dictionary<DefinitionAttributeId, CloudShell.ResourceModel.ResourceAttributeValue>
             {
-                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
-            },
-            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
-            {
-                [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
-                    DefinitionJson.FromValue(new ExecutableApplicationConfiguration("dotnet", "run"))
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet",
+                [ExecutableApplicationResourceTypeProvider.Attributes.Command] =
+                    CloudShell.ResourceModel.ResourceAttributeValue.FromObject(
+                        new ExecutableApplicationConfiguration("dotnet", "run"))
             },
             Capabilities: new Dictionary<DefinitionCapabilityId, JsonElement>
             {

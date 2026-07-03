@@ -13,7 +13,6 @@ public sealed record ResourceState(
     string? Version = null,
     IReadOnlyList<ResourceReference>? DependsOn = null,
     ResourceAttributeValueMap? Attributes = null,
-    IReadOnlyDictionary<string, JsonElement>? Configuration = null,
     IReadOnlyDictionary<ResourceCapabilityId, JsonElement>? Capabilities = null,
     IReadOnlyDictionary<ResourceOperationId, JsonElement>? Operations = null,
     IReadOnlyDictionary<string, string>? Metadata = null,
@@ -23,8 +22,6 @@ public sealed record ResourceState(
     private static readonly IReadOnlyList<ResourceReference> EmptyReferences = [];
     private static readonly ResourceAttributeValueMap EmptyAttributeValues =
         new(new Dictionary<ResourceAttributeId, ResourceAttributeValue>());
-    private static readonly IReadOnlyDictionary<string, JsonElement> EmptyConfigurationPayloads =
-        new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
     private static readonly IReadOnlyDictionary<ResourceCapabilityId, JsonElement> EmptyCapabilityPayloads =
         new Dictionary<ResourceCapabilityId, JsonElement>();
     private static readonly IReadOnlyDictionary<ResourceOperationId, JsonElement> EmptyOperationPayloads =
@@ -61,9 +58,6 @@ public sealed record ResourceState(
         ResourceAttributeValueMaps.ToScalars(Attributes);
 
     [JsonIgnore]
-    public IReadOnlyDictionary<string, JsonElement> ConfigurationPayloads => Configuration ?? EmptyConfigurationPayloads;
-
-    [JsonIgnore]
     public IReadOnlyDictionary<ResourceCapabilityId, JsonElement> CapabilityPayloads =>
         Capabilities ?? EmptyCapabilityPayloads;
 
@@ -90,7 +84,6 @@ public sealed record ResourceState(
             definition.Version,
             definition.DependsOn,
             definition.Attributes,
-            definition.Configuration,
             definition.Capabilities,
             definition.Operations,
             definition.Metadata);
@@ -110,7 +103,6 @@ public sealed record ResourceState(
             Version = definition.Version ?? Version,
             DependsOn = definition.DependsOn ?? DependsOn,
             Attributes = Merge(ResourceAttributeValues, definition.Attributes),
-            Configuration = MergePayloads(ConfigurationPayloads, definition.Configuration),
             Capabilities = MergePayloads(CapabilityPayloads, definition.Capabilities),
             Operations = MergePayloads(OperationPayloads, definition.Operations),
             Metadata = Merge(Metadata, definition.Metadata),
@@ -129,17 +121,9 @@ public sealed record ResourceState(
             Version,
             NullIfEmpty(StartupDependencies),
             NullIfEmpty(ResourceAttributeValues),
-            NullIfEmpty(ConfigurationPayloads),
             NullIfEmpty(CapabilityPayloads),
             NullIfEmpty(OperationPayloads),
             NullIfEmpty(Metadata));
-
-    public TConfiguration? GetConfiguration<TConfiguration>(
-        string sectionName,
-        JsonSerializerOptions? options = null) =>
-        ConfigurationPayloads.TryGetValue(sectionName, out var payload)
-            ? payload.Deserialize<TConfiguration>(options ?? ResourceDefinitionJson.Options)
-            : default;
 
     public TCapability? GetCapability<TCapability>(
         ResourceCapabilityId capabilityId,
@@ -318,11 +302,6 @@ public sealed record Resource(
         includePendingChanges
             ? GetPendingChanges().ToDefinition()
             : ToDefinition(State);
-
-    public TConfiguration? GetConfiguration<TConfiguration>(
-        string sectionName,
-        JsonSerializerOptions? options = null) =>
-        State.GetConfiguration<TConfiguration>(sectionName, options);
 
     public TCapability? GetCapability<TCapability>(
         ResourceCapabilityId capabilityId,

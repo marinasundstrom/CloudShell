@@ -67,14 +67,11 @@ public sealed class ResourceDefinitionModelPocTests
             "api",
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
-                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
-            },
-            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
-            {
-                [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
-                    ResourceDefinitionJson.FromValue(new ExecutableApplicationConfiguration("dotnet", "run"))
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet",
+                [ExecutableApplicationResourceTypeProvider.Attributes.Command] =
+                    ResourceAttributeValue.FromObject(new ExecutableApplicationConfiguration("dotnet", "run"))
             },
             Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
             {

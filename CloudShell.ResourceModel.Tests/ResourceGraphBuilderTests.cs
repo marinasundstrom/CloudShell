@@ -140,24 +140,22 @@ public sealed class ResourceGraphBuilderTests
     }
 
     [Fact]
-    public void ResourceGraphBuilder_BuildsConfigurationPayloadFromNativeBuilderApi()
+    public void ResourceGraphBuilder_BuildsConfigurationStoreEntriesAsAttributes()
     {
         var graph = new ResourceGraphBuilder()
             .DefineResources(resources =>
             {
                 resources
-                    .AddNetwork("app")
-                    .WithConfiguration(
-                        "network",
-                        new TestConfiguration("10.0.0.0/24", Enabled: true));
+                    .AddConfigurationStore("settings")
+                    .WithSetting("Api:BaseUrl", "http://localhost:5000");
             });
 
         var definition = Assert.Single(graph.BuildGraph().Resources);
-        var configuration = definition.GetConfiguration<TestConfiguration>("network");
+        var entry = Assert.Single(definition.ResourceAttributeValues.GetObject<ConfigurationStoreSettingEntry[]>(
+            ConfigurationStoreResourceTypeProvider.Attributes.Entries) ?? []);
 
-        Assert.NotNull(configuration);
-        Assert.Equal("10.0.0.0/24", configuration!.AddressPrefix);
-        Assert.True(configuration.Enabled);
+        Assert.Equal("Api:BaseUrl", entry.Name);
+        Assert.Equal("http://localhost:5000", entry.Value);
     }
 
     [Fact]
@@ -784,9 +782,8 @@ public sealed class ResourceGraphBuilderTests
         Assert.NotNull(endpoint.Network);
         Assert.True(endpoint.Network!.TryGetResourceId(out var endpointNetworkId));
         Assert.Equal(hostNetwork.EffectiveResourceId, endpointNetworkId);
-        var sqlConfiguration = sqlServer.GetConfiguration<SqlServerConfiguration>(
-            SqlServerResourceTypeProvider.ConfigurationSection);
-        var databaseConfiguration = Assert.Single(sqlConfiguration!.Databases);
+        var databaseConfiguration = Assert.Single(sqlServer.ResourceAttributeValues.GetObject<SqlServerDatabaseDefinition[]>(
+            SqlServerResourceTypeProvider.Attributes.Databases) ?? []);
         Assert.Equal("appdb", databaseConfiguration.Name);
         Assert.Equal("Application DB", databaseConfiguration.DisplayName);
         Assert.True(databaseConfiguration.EnsureCreated);
@@ -1036,8 +1033,8 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal("application.executable:worker", executable.EffectiveResourceId);
         Assert.Equal("dotnet", executable.ResourceAttributeValues[
             ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath].StringValue);
-        var executableConfiguration = executable.GetConfiguration<ExecutableApplicationConfiguration>(
-            ExecutableApplicationResourceTypeProvider.ConfigurationSection);
+        var executableConfiguration = executable.ResourceAttributeValues.GetObject<ExecutableApplicationConfiguration>(
+            ExecutableApplicationResourceTypeProvider.Attributes.Command);
         Assert.Equal("dotnet", executableConfiguration!.Path);
         Assert.Equal("run --project src/Worker/Worker.csproj", executableConfiguration.Arguments);
         Assert.Equal("src/Worker", executableConfiguration.WorkingDirectory);

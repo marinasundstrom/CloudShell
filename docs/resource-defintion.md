@@ -14,8 +14,10 @@ working structure is maintained in
   "resourceId": "application.executable:acme-api",
   "providerId": "applications.executable",
   "attributes": {
-    "executable.path": "whatsup.exe",
-    "executable.arguments": "doc",
+    "path": "whatsup.exe",
+    "command": {
+      "arguments": "doc"
+    },
     "storage.volumeConsumer": {
       "mounts": [
         {
@@ -41,10 +43,10 @@ working structure is maintained in
     "storage.volumeConsumer": {}
   },
   "attributes": {
-    "executable.workingDirectory": {
+    "command": {
       "defaultValue": ".",
       "required": false,
-      "valueType": "string"
+      "valueType": "complexType"
     }
   },
   "operations": {

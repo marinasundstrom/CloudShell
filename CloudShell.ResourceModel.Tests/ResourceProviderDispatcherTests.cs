@@ -143,14 +143,11 @@ public sealed class ResourceProviderDispatcherTests
             "api",
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             DependsOn: [ResourceReference.DependsOnResourceId(volume.EffectiveResourceId)],
-            Attributes: new Dictionary<ResourceAttributeId, string>
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
-                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
-            },
-            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
-            {
-                [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
-                    ResourceDefinitionJson.FromValue(new ExecutableApplicationConfiguration("dotnet", "run"))
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet",
+                [ExecutableApplicationResourceTypeProvider.Attributes.Command] =
+                    ResourceAttributeValue.FromObject(new ExecutableApplicationConfiguration("dotnet", "run"))
             },
             Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
             {
@@ -168,7 +165,9 @@ public sealed class ResourceProviderDispatcherTests
 
         Assert.False(
             validation.HasErrors,
-            string.Join(Environment.NewLine, validation.Diagnostics.Select(diagnostic => diagnostic.Message)));
+            string.Join(Environment.NewLine, validation.Diagnostics
+                .Concat(validation.Resources.SelectMany(resource => resource.Diagnostics))
+                .Select(diagnostic => diagnostic.Message)));
 
         var projectedGraph = await serviceProvider
             .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
@@ -841,7 +840,7 @@ public sealed class ResourceProviderDispatcherTests
         Assert.False(validation.HasErrors);
         Assert.Equal(ConfigurationStoreResourceTypeProvider.ClassId, validation.Resource.Class.ClassId);
         Assert.Equal("store", validation.Resource.Attributes.GetString(
-            ConfigurationStoreResourceTypeProvider.Attributes.ConfigurationKind));
+            ConfigurationStoreResourceTypeProvider.Attributes.Kind));
         Assert.Equal("http://localhost:5138", validation.Resource.Attributes.GetString(
             ConfigurationStoreResourceTypeProvider.Attributes.Endpoint));
         Assert.Equal("0", validation.Resource.Attributes.GetString(
@@ -1851,7 +1850,7 @@ public sealed class ResourceProviderDispatcherTests
         Assert.False(validation.HasErrors);
         Assert.Equal(SecretsVaultResourceTypeProvider.ClassId, validation.Resource.Class.ClassId);
         Assert.Equal("vault", validation.Resource.Attributes.GetString(
-            SecretsVaultResourceTypeProvider.Attributes.SecretsKind));
+            SecretsVaultResourceTypeProvider.Attributes.Kind));
         Assert.Equal("http://localhost:6138", validation.Resource.Attributes.GetString(
             SecretsVaultResourceTypeProvider.Attributes.Endpoint));
         Assert.Equal("0", validation.Resource.Attributes.GetString(
@@ -2301,15 +2300,12 @@ public sealed class ResourceProviderDispatcherTests
                             Host: "localhost",
                             Port: 14334,
                             Exposure: "Local")
-                    })
-            },
-            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
-            {
-                [SqlServerResourceTypeProvider.ConfigurationSection] =
-                    ResourceDefinitionJson.FromValue(new SqlServerConfiguration(
-                    [
+                    }),
+                [SqlServerResourceTypeProvider.Attributes.Databases] =
+                    ResourceAttributeValue.FromObject(new SqlServerDatabaseDefinition[]
+                    {
                         new("appdb", "Application DB", EnsureCreated: true)
-                    ]))
+                    })
             },
             Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
             {
@@ -2590,11 +2586,7 @@ public sealed class ResourceProviderDispatcherTests
             capabilityProviders: [],
             operationProviders: []);
         var resolved = ResolveExecutable(
-            configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
-            {
-                [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
-                    ResourceDefinitionJson.FromValue(new ExecutableApplicationConfiguration("dotnet", "run"))
-            });
+            configuration: new ExecutableApplicationConfiguration("dotnet", "run"));
 
         var result = await dispatcher.ValidateResourceTypeAsync(
             resolved,
@@ -2611,11 +2603,7 @@ public sealed class ResourceProviderDispatcherTests
             capabilityProviders: [],
             operationProviders: []);
         var resolved = ResolveExecutable(
-            configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
-            {
-                [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
-                    ResourceDefinitionJson.FromValue(new ExecutableApplicationConfiguration("", "run"))
-            });
+            configuration: new ExecutableApplicationConfiguration("", "run"));
 
         var result = await dispatcher.ValidateResourceTypeAsync(
             resolved,
@@ -2623,11 +2611,11 @@ public sealed class ResourceProviderDispatcherTests
 
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal("application.executable.pathRequired", diagnostic.Code);
-        Assert.Equal(ExecutableApplicationResourceTypeProvider.ConfigurationSection, diagnostic.Target);
+        Assert.Equal(ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath, diagnostic.Target);
     }
 
     private static Resource ResolveExecutable(
-        IReadOnlyDictionary<string, JsonElement>? configuration = null,
+        ExecutableApplicationConfiguration? configuration = null,
         IReadOnlyDictionary<ResourceCapabilityId, JsonElement>? capabilities = null)
     {
         var typeProvider = new ExecutableApplicationResourceTypeProvider();
@@ -2639,10 +2627,18 @@ public sealed class ResourceProviderDispatcherTests
                 typeProvider.TypeDefinition
             ]);
 
+        var attributes = configuration is null
+            ? null
+            : new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [ExecutableApplicationResourceTypeProvider.Attributes.Command] =
+                    ResourceAttributeValue.FromObject(configuration)
+            };
+
         return resolver.Resolve(new ResourceDefinition(
             "api",
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
-            Configuration: configuration,
+            Attributes: attributes,
             Capabilities: capabilities));
     }
 

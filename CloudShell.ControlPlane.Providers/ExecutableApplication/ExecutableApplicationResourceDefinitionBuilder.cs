@@ -86,8 +86,8 @@ public sealed class ExecutableApplicationResourceDefinitionBuilder(string name) 
             return;
         }
 
-        SetConfiguration(
-            ExecutableApplicationResourceTypeProvider.ConfigurationSection,
+        SetObjectAttribute(
+            ExecutableApplicationResourceTypeProvider.Attributes.Command,
             new ExecutableApplicationConfiguration(_path, _arguments, _workingDirectory));
     }
 }

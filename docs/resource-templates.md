@@ -10,6 +10,9 @@ envelope, applies each resource definition through the resource graph and the
 owning resource type provider, then lets deployment planning decide whether the
 accepted resource-state change requires runtime materialization.
 
+For built-in type IDs, accepted authoring attributes, and YAML examples, see
+[Built-in resource types](resources/resource-types.md).
+
 ## Template Shape
 
 The preferred authoring format is YAML:
@@ -127,6 +130,42 @@ template and an apply mode:
 
 In all modes, provider validation runs before graph state is committed.
 Runtime reconciliation runs only after accepted state has been committed.
+
+### Seeded Configuration And Secrets
+
+Configuration Store and Secrets Vault resources support create-only seed
+attributes for development templates and launcher samples. YAML is the
+preferred authoring shape:
+
+```yaml
+resources:
+  - type: configuration.store
+    name: settings
+    providerId: configuration
+    endpoint: http://localhost:5101
+    seed:
+      entries:
+        - name: Sample--Message
+          value: Hello from template
+
+  - type: secrets.vault
+    name: secrets
+    providerId: secrets-vault
+    endpoint: http://localhost:6101
+    seed:
+      secrets:
+        - name: Sample--ApiKey
+          value: local-development-secret
+          version: v1
+```
+
+Those values are accepted only when the resource is created. After the create
+commit succeeds, the provider materializes them into runtime-owned state and
+the accepted graph state omits the seed attributes. Applying the same
+attributes to an existing Configuration Store or Secrets Vault is rejected, and
+default resource-template export does not emit seeded entries or secret values.
+Future import/export work should add permission-protected flows for moving
+runtime-owned entries and secrets, including versioning semantics.
 
 The implemented apply surfaces are:
 

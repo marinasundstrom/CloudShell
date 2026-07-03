@@ -949,7 +949,7 @@ public sealed class SampleSmokeTests
         var graphSqlConfigurationHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Configuration.Value)}");
         Assert.Contains("Resource model", graphSqlConfigurationHtml);
-        Assert.Contains("sqlserver.version", graphSqlConfigurationHtml);
+        Assert.Contains("version", graphSqlConfigurationHtml);
         Assert.Contains("Endpoints", graphSqlConfigurationHtml);
         Assert.Contains("Capabilities and operations", graphSqlConfigurationHtml);
 
@@ -1273,10 +1273,10 @@ public sealed class SampleSmokeTests
         Assert.Equal(apiEndpoint, GetPrimaryEndpointAddress(api));
         Assert.Equal(
             "2",
-            settings.GetProperty("attributes").GetProperty("configuration.entries.count").GetString());
+            settings.GetProperty("attributes").GetProperty("entryCount").GetString());
         Assert.Equal(
             "1",
-            secrets.GetProperty("attributes").GetProperty("secrets.entries.count").GetString());
+            secrets.GetProperty("attributes").GetProperty("secretCount").GetString());
 
         await StartGraphResourceIfAvailableAsync(host, settings, "SettingsAndSecrets settings");
         await StartGraphResourceIfAvailableAsync(host, secrets, "SettingsAndSecrets secrets");
@@ -1446,8 +1446,8 @@ public sealed class SampleSmokeTests
         Assert.Equal("oidc", attributes.GetProperty("identity.providerKind").GetString());
         Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
         Assert.Equal("Third-party Identity Settings", settings.GetProperty("displayName").GetString());
-        Assert.Equal("http://localhost:5138", settingsAttributes.GetProperty("configuration.endpoint").GetString());
-        Assert.Equal("1", settingsAttributes.GetProperty("configuration.entries.count").GetString());
+        Assert.Equal("http://localhost:5138", settingsAttributes.GetProperty("endpoint").GetString());
+        Assert.Equal("1", settingsAttributes.GetProperty("entryCount").GetString());
         Assert.Equal("application.aspnet-core-project", api.GetProperty("typeId").GetString());
         Assert.Equal("Keycloak Provisioned API", api.GetProperty("displayName").GetString());
         Assert.EndsWith(

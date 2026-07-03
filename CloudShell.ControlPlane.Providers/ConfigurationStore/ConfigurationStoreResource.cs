@@ -6,7 +6,7 @@ public sealed class ConfigurationStoreResource(
     public Resource Resource { get; } = resource;
 
     public string? ConfigurationKind =>
-        Resource.Attributes.GetString(ConfigurationStoreResourceTypeProvider.Attributes.ConfigurationKind);
+        Resource.Attributes.GetString(ConfigurationStoreResourceTypeProvider.Attributes.Kind);
 
     public string? Endpoint =>
         Resource.Attributes.GetString(ConfigurationStoreResourceTypeProvider.Attributes.Endpoint);

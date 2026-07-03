@@ -14,7 +14,7 @@ public sealed class ResourceRecordTests
 
         Assert.Equal(definition.EffectiveResourceId, record.ResourceId);
         Assert.Equal("application.executable", record.TypeId);
-        Assert.Contains("executable.path", record.Attributes!.Keys);
+        Assert.Contains("path", record.Attributes!.Keys);
         Assert.Contains("storage.volumeConsumer", record.Capabilities!.Keys);
     }
 
@@ -118,14 +118,11 @@ public sealed class ResourceRecordTests
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
             ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
             Version: "7",
-            Attributes: new Dictionary<ResourceAttributeId, string>
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
-                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
-            },
-            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
-            {
-                [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
-                    ResourceDefinitionJson.FromValue(new ExecutableApplicationConfiguration("dotnet", "run"))
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet",
+                [ExecutableApplicationResourceTypeProvider.Attributes.Command] =
+                    ResourceAttributeValue.FromObject(new ExecutableApplicationConfiguration("dotnet", "run"))
             },
             Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
             {

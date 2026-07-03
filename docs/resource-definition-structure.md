@@ -255,7 +255,6 @@ change that can be validated and applied to the graph.
   "version": "1",
   "dependsOn": [],
   "attributes": {},
-  "configuration": {},
   "metadata": {}
 }
 ```

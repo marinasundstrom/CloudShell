@@ -23,7 +23,6 @@ export interface ResourceDefinitionDocument {
   displayName?: string;
   dependsOn?: ResourceReferenceDocument[];
   attributes?: Record<string, unknown>;
-  configuration?: Record<string, unknown>;
   capabilities?: Record<string, unknown>;
   operations?: Record<string, unknown>;
   metadata?: Record<string, string>;
@@ -75,9 +74,25 @@ export interface ConfigurationEntryReference {
   version?: string;
 }
 
+export interface ConfigurationSeedEntry {
+  name: string;
+  value: string;
+}
+
+export interface ConfigurationSettingEntry {
+  name: string;
+  value: string;
+}
+
 export interface SecretReference {
   vaultResourceId: string;
   name: string;
+  version?: string;
+}
+
+export interface SecretSeedValue {
+  name: string;
+  value: string;
   version?: string;
 }
 
@@ -146,6 +161,12 @@ export class CloudShellApp {
 
   public addConfigurationStore(name: string): ConfigurationStoreResourceBuilder {
     const builder = new ConfigurationStoreResourceBuilder(name);
+    this.add(builder);
+    return builder;
+  }
+
+  public addSecretsVault(name: string): SecretsVaultResourceBuilder {
+    const builder = new SecretsVaultResourceBuilder(name);
     this.add(builder);
     return builder;
   }
@@ -247,7 +268,6 @@ export class ResourceBuilder implements ResourceHandle {
   private displayName?: string;
   private readonly dependencies: ResourceReferenceDocument[] = [];
   private readonly attributes: Record<string, unknown> = {};
-  private readonly configuration: Record<string, unknown> = {};
   private readonly capabilities: Record<string, unknown> = {};
   private readonly operations: Record<string, unknown> = {};
   private readonly metadata: Record<string, string> = {};
@@ -290,12 +310,6 @@ export class ResourceBuilder implements ResourceHandle {
     return this;
   }
 
-  public withConfiguration(sectionName: string, value: unknown): this {
-    assertNotBlank(sectionName, "Configuration section name is required.");
-    this.configuration[sectionName.trim()] = value;
-    return this;
-  }
-
   public withCapability(capabilityId: string, value: unknown = {}): this {
     assertNotBlank(capabilityId, "Capability id is required.");
     this.capabilities[capabilityId.trim()] = value;
@@ -322,7 +336,6 @@ export class ResourceBuilder implements ResourceHandle {
       providerId: this.providerId,
       displayName: this.displayName,
       dependsOn: this.dependencies.length === 0 ? undefined : this.dependencies,
-      configuration: isEmpty(this.configuration) ? undefined : this.configuration,
       capabilities: isEmpty(this.capabilities) ? undefined : this.capabilities,
       operations: isEmpty(this.operations) ? undefined : this.operations,
       metadata: isEmpty(this.metadata) ? undefined : this.metadata
@@ -385,12 +398,44 @@ export class NetworkResourceBuilder extends ResourceBuilder {
 }
 
 export class ConfigurationStoreResourceBuilder extends ResourceBuilder {
+  private readonly entries: ConfigurationSettingEntry[] = [];
+
   public constructor(name: string) {
     super(name, "configuration.store", "configuration");
   }
 
   public withEndpoint(endpoint: string): this {
-    return this.withAttribute("configuration.endpoint", endpoint);
+    return this.withAttribute("endpoint", endpoint);
+  }
+
+  public withEntry(name: string, value: string): this {
+    return this.withSetting(name, value);
+  }
+
+  public withSetting(name: string, value: string): this {
+    assertNotBlank(name, "Configuration entry name is required.");
+    this.entries.push({
+      name: name.trim(),
+      value
+    });
+    return this.withAttribute("seed.entries", this.entries);
+  }
+
+  public withEntries(entries: ConfigurationSeedEntry[]): this {
+    return this.withSettings(entries);
+  }
+
+  public withSettings(entries: ConfigurationSettingEntry[]): this {
+    this.entries.splice(0, this.entries.length);
+    for (const entry of entries) {
+      assertNotBlank(entry.name, "Configuration entry name is required.");
+      this.entries.push({
+        name: entry.name.trim(),
+        value: entry.value
+      });
+    }
+
+    return this.withAttribute("seed.entries", this.entries);
   }
 
   public entry(name: string, version?: string): ConfigurationEntryReference {
@@ -400,6 +445,51 @@ export class ConfigurationStoreResourceBuilder extends ResourceBuilder {
       name: name.trim(),
       version: normalizeOptionalString(version)
     }) as ConfigurationEntryReference;
+  }
+}
+
+export class SecretsVaultResourceBuilder extends ResourceBuilder {
+  private readonly secrets: SecretSeedValue[] = [];
+
+  public constructor(name: string) {
+    super(name, "secrets.vault", "secrets-vault");
+  }
+
+  public withEndpoint(endpoint: string): this {
+    return this.withAttribute("endpoint", endpoint);
+  }
+
+  public withSecret(name: string, value: string, version?: string): this {
+    assertNotBlank(name, "Secret name is required.");
+    this.secrets.push(pruneUndefined({
+      name: name.trim(),
+      value,
+      version: normalizeOptionalString(version)
+    }) as SecretSeedValue);
+    return this.withAttribute("seed.secrets", this.secrets);
+  }
+
+  public withSecrets(secrets: SecretSeedValue[]): this {
+    this.secrets.splice(0, this.secrets.length);
+    for (const secret of secrets) {
+      assertNotBlank(secret.name, "Secret name is required.");
+      this.secrets.push(pruneUndefined({
+        name: secret.name.trim(),
+        value: secret.value,
+        version: normalizeOptionalString(secret.version)
+      }) as SecretSeedValue);
+    }
+
+    return this.withAttribute("seed.secrets", this.secrets);
+  }
+
+  public secret(name: string, version?: string): SecretReference {
+    assertNotBlank(name, "Secret name is required.");
+    return pruneUndefined({
+      vaultResourceId: this.effectiveResourceId,
+      name: name.trim(),
+      version: normalizeOptionalString(version)
+    }) as SecretReference;
   }
 }
 
@@ -954,7 +1044,6 @@ const resourceDefinitionProperties = new Set([
   "version",
   "dependson",
   "attributes",
-  "configuration",
   "capabilities",
   "operations",
   "metadata"

@@ -11,16 +11,13 @@ internal static class ContainerizedProjectEnvironmentVariables
         var environment = new List<EnvironmentVariableAssignment>();
         Add(
             environment,
-            resource.Attributes.GetObject<Dictionary<string, JavaScriptAppEnvironmentVariableValue>>(
-                JavaScriptAppResourceTypeProvider.Attributes.EnvironmentVariables));
+            ProjectEnvironmentVariableReader.ReadJavaScriptApp(resource.Attributes));
         Add(
             environment,
-            resource.Attributes.GetObject<Dictionary<string, JavaAppEnvironmentVariableValue>>(
-                JavaAppResourceTypeProvider.Attributes.EnvironmentVariables));
+            ProjectEnvironmentVariableReader.ReadJavaApp(resource.Attributes));
         Add(
             environment,
-            resource.Attributes.GetObject<Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>>(
-                AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables));
+            ProjectEnvironmentVariableReader.ReadAspNetCoreProject(resource.Attributes));
         return environment;
     }
 

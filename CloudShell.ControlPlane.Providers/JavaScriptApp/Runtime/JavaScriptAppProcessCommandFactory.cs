@@ -87,13 +87,7 @@ public sealed class JavaScriptAppProcessCommandFactory
         Resource resource,
         ProcessStartInfo startInfo)
     {
-        var environmentVariables = resource.Attributes
-            .GetObject<Dictionary<string, JavaScriptAppEnvironmentVariableValue>>(
-                JavaScriptAppResourceTypeProvider.Attributes.EnvironmentVariables);
-        if (environmentVariables is null)
-        {
-            return;
-        }
+        var environmentVariables = ProjectEnvironmentVariableReader.ReadJavaScriptApp(resource.Attributes);
 
         foreach (var (name, variable) in environmentVariables)
         {

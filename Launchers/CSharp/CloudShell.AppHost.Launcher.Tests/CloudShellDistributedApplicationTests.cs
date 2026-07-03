@@ -17,11 +17,18 @@ public sealed class CloudShellDistributedApplicationTests
         {
             var settings = resources
                 .AddConfigurationStore("settings")
-                .WithEndpoint("http://localhost:5101");
+                .WithEndpoint("http://localhost:5101")
+                .WithSetting("Sample--Message", "Hello from C#");
+
+            var secrets = resources
+                .AddSecretsVault("secrets")
+                .WithEndpoint("http://localhost:6101")
+                .WithSecret("Sample--ApiKey", "csharp-secret", "v1");
 
             resources
                 .AddJavaScriptApp("frontend", "App")
                 .WithReference(settings)
+                .WithReference(secrets)
                 .WithHttpEndpoint(host: "localhost", port: 5173, targetPort: 5173);
 
             resources
@@ -42,9 +49,26 @@ public sealed class CloudShellDistributedApplicationTests
         Assert.Contains(template.Resources, resource =>
             resource.EffectiveResourceId == "configuration.store:settings");
         Assert.Contains(template.Resources, resource =>
+            resource.EffectiveResourceId == "secrets.vault:secrets");
+        Assert.Contains(template.Resources, resource =>
             resource.EffectiveResourceId == "application.javascript-app:frontend");
         Assert.Contains(template.Resources, resource =>
             resource.EffectiveResourceId == "application.java-app:api");
+
+        var settings = Assert.Single(template.Resources, resource =>
+            resource.EffectiveResourceId == "configuration.store:settings");
+        var entry = Assert.Single(settings.ResourceAttributeValues.GetObject<ConfigurationStoreSettingEntry[]>(
+            ConfigurationStoreResourceTypeProvider.Attributes.Entries)!);
+        Assert.Equal("Sample--Message", entry.Name);
+        Assert.Equal("Hello from C#", entry.Value);
+
+        var secrets = Assert.Single(template.Resources, resource =>
+            resource.EffectiveResourceId == "secrets.vault:secrets");
+        var secret = Assert.Single(secrets.ResourceAttributeValues.GetObject<SecretsVaultSeedSecret[]>(
+            SecretsVaultResourceTypeProvider.Attributes.Secrets)!);
+        Assert.Equal("Sample--ApiKey", secret.Name);
+        Assert.Equal("csharp-secret", secret.Value);
+        Assert.Equal("v1", secret.Version);
     }
 
     [Fact]

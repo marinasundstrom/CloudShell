@@ -223,18 +223,19 @@ public sealed class ResourceDefinitionValidationPipelineTests
         string path,
         VolumeConsumerDefinition? volumeConsumer = null)
     {
-        Dictionary<ResourceAttributeId, ResourceAttributeValue>? attributes = null;
+        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+        {
+            [ExecutableApplicationResourceTypeProvider.Attributes.Command] =
+                ResourceAttributeValue.FromObject(new ExecutableApplicationConfiguration(path, "run"))
+        };
+
         if (!string.IsNullOrWhiteSpace(path))
         {
-            attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = path
-            };
+            attributes[ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = path;
         }
 
         if (volumeConsumer is not null)
         {
-            attributes ??= [];
             attributes[ResourceAttributeId.Create(VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString())] =
                 ResourceAttributeValue.FromObject(volumeConsumer);
         }
@@ -243,12 +244,7 @@ public sealed class ResourceDefinitionValidationPipelineTests
         new(
             "api",
             ExecutableApplicationResourceTypeProvider.ResourceTypeId,
-            Attributes: attributes,
-            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
-            {
-                [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
-                    ResourceDefinitionJson.FromValue(new ExecutableApplicationConfiguration(path, "run"))
-            });
+            Attributes: attributes);
     }
 
 }

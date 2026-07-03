@@ -35,6 +35,14 @@ app.DefineResources(resources =>
         .AddConfigurationStore("csharp-app-settings")
         .WithDisplayName("Settings")
         .WithEndpoint(settingsEndpoint)
+        .WithSetting("Sample--Message", "Hello from C# launcher seed")
+        .WithAutoStart(false);
+
+    var secrets = resources
+        .AddSecretsVault("csharp-app-secrets")
+        .WithDisplayName("Secrets")
+        .WithEndpoint("http://localhost:6103")
+        .WithSecret("Sample--ApiKey", "csharp-launcher-secret", "v1")
         .WithAutoStart(false);
 
     resources
@@ -45,7 +53,9 @@ app.DefineResources(resources =>
         .WithScript("dev")
         .WithServiceDiscovery()
         .WithReference(settings)
+        .WithReference(secrets)
         .DependsOn(settings)
+        .DependsOn(secrets)
         .WithHttpEndpoint(
             host: appEndpoint.Host,
             port: appEndpoint.Port,
@@ -56,6 +66,12 @@ app.DefineResources(resources =>
         .WithEnvironmentVariable(
             "CLOUDSHELL_SETTINGS_ENDPOINT",
             settingsEntriesEndpoint)
+        .WithEnvironmentVariable(
+            "Sample__Message",
+            settings.Entry("Sample--Message"))
+        .WithEnvironmentVariable(
+            "Sample__ApiKey",
+            secrets.Secret("Sample--ApiKey"))
         .WithEnvironmentVariable(
             "OTEL_SERVICE_NAME",
             "csharp-declared-frontend")

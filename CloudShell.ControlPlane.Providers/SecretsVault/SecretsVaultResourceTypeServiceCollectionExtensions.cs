@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -67,6 +68,8 @@ public static class SecretsVaultResourceTypeServiceCollectionExtensions
         services.TryAddSingleton<
             ISecretsVaultRuntimeSecretManager,
             SecretsVaultRuntimeSecretManager>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceModelGraphApplyReconciler, SecretsVaultSeedReconciler>());
         services.TryAddSingleton<SecretsVaultProcessRuntimeController>();
         services.TryAddSingleton<ISecretsVaultRuntimeController>(
             serviceProvider => serviceProvider.GetRequiredService<SecretsVaultProcessRuntimeController>());

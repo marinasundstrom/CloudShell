@@ -23,8 +23,8 @@ public sealed class SqlServerResource(
             SqlServerResourceTypeProvider.Attributes.EndpointRequests) ?? [];
 
     public IReadOnlyList<SqlServerDatabaseDefinition> Databases =>
-        Resource.GetConfiguration<SqlServerConfiguration>(
-            SqlServerResourceTypeProvider.ConfigurationSection)?.Databases ?? [];
+        Resource.Attributes.GetObject<SqlServerDatabaseDefinition[]>(
+            SqlServerResourceTypeProvider.Attributes.Databases) ?? [];
 
     public ValueTask<SqlServerLifecycleOperation?> GetStartOperationAsync(
         CancellationToken cancellationToken = default) =>

@@ -3,17 +3,15 @@ package com.cloudshell.launcher;
 import static com.cloudshell.launcher.JsonSupport.appendReferences;
 import static com.cloudshell.launcher.JsonSupport.json;
 import static com.cloudshell.launcher.JsonSupport.line;
-import static com.cloudshell.launcher.JsonSupport.objectOfValueObjects;
 import static com.cloudshell.launcher.JsonSupport.property;
 
-import com.cloudshell.launcher.JsonSupport.NameValue;
 import java.util.ArrayList;
 import java.util.List;
 
 public final class JavaAppResource extends ResourceBuilder<JavaAppResource> {
     private final String projectPath;
     private final String artifactPath;
-    private final List<NameValue> environment = new ArrayList<>();
+    private final List<EnvironmentVariable> environment = new ArrayList<>();
     private final List<ResourceBuilder<?>> references = new ArrayList<>();
     private final List<HealthCheck> healthChecks = new ArrayList<>();
     private EndpointRequest endpoint;
@@ -37,7 +35,21 @@ public final class JavaAppResource extends ResourceBuilder<JavaAppResource> {
     }
 
     public JavaAppResource withEnvironmentVariable(String name, String value) {
-        environment.add(new NameValue(name, value));
+        environment.add(new EnvironmentVariable(name, valueJson(value)));
+        return this;
+    }
+
+    public JavaAppResource withEnvironmentVariable(
+        String name,
+        ConfigurationStoreResource.ConfigurationEntryReference reference) {
+        environment.add(new EnvironmentVariable(name, configurationEntryReferenceJson(reference)));
+        return this;
+    }
+
+    public JavaAppResource withEnvironmentVariable(
+        String name,
+        SecretsVaultResource.SecretReference reference) {
+        environment.add(new EnvironmentVariable(name, secretReferenceJson(reference)));
         return this;
     }
 
@@ -85,7 +97,7 @@ public final class JavaAppResource extends ResourceBuilder<JavaAppResource> {
             property(builder, indent + 2, "serviceDiscoveryName", json(serviceDiscoveryName), true);
         }
 
-        objectOfValueObjects(builder, indent + 2, "environmentVariables", environment, true);
+        appendEnvironmentVariables(builder, indent + 2, true);
         appendReferences(builder, indent + 2, references, endpoint != null);
         if (endpoint != null) {
             endpoint.appendJson(builder, indent + 2);
@@ -149,6 +161,51 @@ public final class JavaAppResource extends ResourceBuilder<JavaAppResource> {
         line(builder, indent, "}");
     }
 
+    private void appendEnvironmentVariables(StringBuilder builder, int indent, boolean trailingComma) {
+        line(builder, indent, "\"environmentVariables\": {");
+        for (int index = 0; index < environment.size(); index++) {
+            EnvironmentVariable variable = environment.get(index);
+            line(builder, indent + 1, json(variable.name()) + ": " + variable.valueJson()
+                + (index < environment.size() - 1 ? "," : ""));
+        }
+
+        line(builder, indent, "}" + (trailingComma ? "," : ""));
+    }
+
+    private static String valueJson(String value) {
+        return "{ \"value\": " + json(value) + " }";
+    }
+
+    private static String configurationEntryReferenceJson(
+        ConfigurationStoreResource.ConfigurationEntryReference reference) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("{ \"configurationEntryRef\": { ");
+        builder.append("\"storeResourceId\": ").append(json(reference.storeResourceId())).append(", ");
+        builder.append("\"name\": ").append(json(reference.name()));
+        if (reference.version() != null) {
+            builder.append(", \"version\": ").append(json(reference.version()));
+        }
+
+        builder.append(" } }");
+        return builder.toString();
+    }
+
+    private static String secretReferenceJson(SecretsVaultResource.SecretReference reference) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("{ \"secretRef\": { ");
+        builder.append("\"vaultResourceId\": ").append(json(reference.vaultResourceId())).append(", ");
+        builder.append("\"name\": ").append(json(reference.name()));
+        if (reference.version() != null) {
+            builder.append(", \"version\": ").append(json(reference.version()));
+        }
+
+        builder.append(" } }");
+        return builder.toString();
+    }
+
     private record HealthCheck(String name, String type, String path) {
+    }
+
+    private record EnvironmentVariable(String name, String valueJson) {
     }
 }

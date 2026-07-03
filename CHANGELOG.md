@@ -38,6 +38,15 @@ on `git blame --follow`, and then by the broad type of change.
   runtime data and sidecar service definition files without projecting values
   through Resource graph attributes; existing secret values remain masked and
   are preserved unless replaced.
+- Added create-only resource-definition seed attributes for Configuration
+  Store settings (`seed.entries`) and Secrets Vault secrets (`seed.secrets`),
+  removed the fixed `configuration` resource-definition
+  property in favor of ordinary attributes, wired C#, TypeScript, and Java
+  resource builders/launchers to emit grouped template attributes, and updated
+  launcher samples to seed development settings and secrets. Seed values
+  materialize into provider-owned runtime state after create commits, are
+  rejected on update, and are omitted from accepted graph state and default
+  template export.
 - Updated the cross-language local-development proposal and roadmap to
   prioritize NuGet/.NET-tool CLI distribution with a default
   local-development host daemon path before broader launcher and SDK hardening.

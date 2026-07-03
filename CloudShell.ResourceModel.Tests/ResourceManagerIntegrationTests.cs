@@ -40,7 +40,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(ResourceSource.User, projected.Source);
         Assert.Equal(ResourceManagementMode.UserManaged, projected.ManagementMode);
         Assert.Equal(["storage.volume:data"], projected.DependsOn);
-        Assert.Equal("dotnet", projected.ResourceAttributes["executable.path"]);
+        Assert.Equal("dotnet", projected.ResourceAttributes["path"]);
         Assert.Equal(ResourceGraphMembershipKinds.Declared, projected.ResourceGraphMembership);
         Assert.Equal(
             "resource-model",
@@ -171,7 +171,7 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal("application.executable", projected.Kind);
         Assert.Equal(ResourceManagerClass.Executable, projected.ResourceClass);
         Assert.Equal(["storage.volume:data"], projected.DependsOn);
-        Assert.Equal("dotnet", projected.ResourceAttributes["executable.path"]);
+        Assert.Equal("dotnet", projected.ResourceAttributes["path"]);
         Assert.Equal(
             "resource-model",
             projected.ResourceAttributes[ResourceModelResourceManagerAttributeNames.BridgeProviderId]);
@@ -266,7 +266,7 @@ public sealed class ResourceManagerIntegrationTests
         var projected = Assert.Single(provider.GetResources());
 
         Assert.True(projected.HasCapability(ResourceCapabilityIds.EndpointSource));
-        Assert.False(projected.HasCapability(ResourceCapabilityIds.Monitoring));
+        Assert.True(projected.HasCapability(ResourceCapabilityIds.Monitoring));
         Assert.False(projected.HasCapability(ResourceLogSourceCapabilityIds.LogSources.ToString()));
     }
 
@@ -947,7 +947,11 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.Same(resolution.Resource, changes.Resource);
         Assert.Equal(resolution.Resource?.EffectiveResourceId, changes.Resource.EffectiveResourceId);
-        Assert.Single(changes.CapabilityChanges);
+        var attributeChange = Assert.Single(changes.AttributeChanges);
+        Assert.Equal(
+            ResourceAttributeId.Create(VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString()),
+            attributeChange.AttributeId);
+        Assert.Empty(changes.CapabilityChanges);
     }
 
     [Fact]
@@ -1730,6 +1734,125 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceDefinitionTemplateService_SeedsConfigurationEntriesOnlyWhenCreatingStore()
+    {
+        using var directory = new TemporaryDirectory();
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddConfigurationStoreResourceType(options =>
+        {
+            options.DefinitionsDirectory = directory.Path;
+        });
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var apply = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var templates = serviceProvider.GetRequiredService<ResourceDefinitionTemplateService>();
+        var store = new ConfigurationStoreResourceDefinitionBuilder("settings")
+            .WithEndpoint("http://localhost:5138")
+            .WithSetting("Sample--Message", "Hello from template")
+            .Build();
+
+        var create = await apply.ApplyTemplateAsync(
+            new ResourceTemplate("configuration-store", [store]),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 7, 3, 12, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(create.HasErrors, FormatDiagnostics(create.Diagnostics));
+        Assert.True(create.IsCommitted);
+        var entry = Assert.Single(await serviceProvider
+            .GetRequiredService<IConfigurationStoreRuntimeEntryManager>()
+            .ListEntriesAsync(store.EffectiveResourceId));
+        Assert.Equal("Sample--Message", entry.Name);
+        Assert.Equal("Hello from template", entry.Value);
+
+        var committed = Assert.Single(create.Commit.Snapshot!.Resources);
+        Assert.False(committed.ResourceAttributeValues.ContainsKey(
+            ConfigurationStoreResourceTypeProvider.Attributes.Entries));
+        Assert.Equal("1", committed.ResourceAttributes[
+            ConfigurationStoreResourceTypeProvider.Attributes.EntryCount]);
+
+        var export = await templates.ExportTemplateAsync("configuration-store-export");
+        Assert.False(export.HasErrors, FormatDiagnostics(export.Diagnostics));
+        var exportedStore = Assert.Single(export.Template.Resources);
+        Assert.False(exportedStore.ResourceAttributeValues.ContainsKey(
+            ConfigurationStoreResourceTypeProvider.Attributes.Entries));
+        Assert.False(exportedStore.ResourceAttributeValues.ContainsKey(
+            ConfigurationStoreResourceTypeProvider.Attributes.EntryCount));
+
+        var update = await apply.ApplyTemplateAsync(
+            new ResourceTemplate("configuration-store-update", [store]),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 7, 3, 12, 1, 0, TimeSpan.Zero)));
+
+        Assert.True(update.HasErrors);
+        Assert.False(update.IsCommitted);
+        Assert.Contains(update.Diagnostics, diagnostic =>
+            diagnostic.Code == "configuration.store.entriesSeedUpdateNotAllowed");
+    }
+
+    [Fact]
+    public async Task ResourceDefinitionTemplateService_SeedsSecretsOnlyWhenCreatingVault()
+    {
+        using var directory = new TemporaryDirectory();
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddSecretsVaultResourceType(options =>
+        {
+            options.DefinitionsDirectory = directory.Path;
+        });
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var apply = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var templates = serviceProvider.GetRequiredService<ResourceDefinitionTemplateService>();
+        var vault = new SecretsVaultResourceDefinitionBuilder("secrets")
+            .WithEndpoint("http://localhost:6138")
+            .WithSecret("Sample--ApiKey", "secret-from-template", "v1")
+            .Build();
+
+        var create = await apply.ApplyTemplateAsync(
+            new ResourceTemplate("secrets-vault", [vault]),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 7, 3, 12, 5, 0, TimeSpan.Zero)));
+
+        Assert.False(create.HasErrors, FormatDiagnostics(create.Diagnostics));
+        Assert.True(create.IsCommitted);
+        var secret = Assert.Single(await serviceProvider
+            .GetRequiredService<ISecretsVaultRuntimeSecretManager>()
+            .ListSecretsAsync(vault.EffectiveResourceId));
+        Assert.Equal("Sample--ApiKey", secret.Name);
+        Assert.Equal("secret-from-template", secret.Value);
+        Assert.Equal("v1", secret.Version);
+
+        var committed = Assert.Single(create.Commit.Snapshot!.Resources);
+        Assert.False(committed.ResourceAttributeValues.ContainsKey(
+            SecretsVaultResourceTypeProvider.Attributes.Secrets));
+        Assert.Equal("1", committed.ResourceAttributes[
+            SecretsVaultResourceTypeProvider.Attributes.SecretCount]);
+
+        var export = await templates.ExportTemplateAsync("secrets-vault-export");
+        Assert.False(export.HasErrors, FormatDiagnostics(export.Diagnostics));
+        var exportedVault = Assert.Single(export.Template.Resources);
+        Assert.False(exportedVault.ResourceAttributeValues.ContainsKey(
+            SecretsVaultResourceTypeProvider.Attributes.Secrets));
+        Assert.False(exportedVault.ResourceAttributeValues.ContainsKey(
+            SecretsVaultResourceTypeProvider.Attributes.SecretCount));
+
+        var update = await apply.ApplyTemplateAsync(
+            new ResourceTemplate("secrets-vault-update", [vault]),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 7, 3, 12, 6, 0, TimeSpan.Zero)));
+
+        Assert.True(update.HasErrors);
+        Assert.False(update.IsCommitted);
+        Assert.Contains(update.Diagnostics, diagnostic =>
+            diagnostic.Code == "secrets.vault.secretsSeedUpdateNotAllowed");
+    }
+
+    [Fact]
     public async Task ResourceDefinitionTemplateService_AppliesResourceTemplateThroughGraphApply()
     {
         var services = new ServiceCollection();
@@ -2051,6 +2174,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddInMemoryResourceModelGraph();
         services.AddLocalVolumeResourceType();
         services.AddContainerHostResourceType();
+        services.AddNetworkResourceType();
         services.AddSingleton<IContainerApplicationRuntimeHandler>(
             new StaticContainerApplicationRuntimeHandler(ContainerApplicationRuntimeStatus.Running));
         services.AddContainerApplicationResourceType();
@@ -3178,6 +3302,7 @@ public sealed class ResourceManagerIntegrationTests
         var runtimeController = new RecordingAspNetCoreProjectRuntimeController();
         services.AddSingleton<IAspNetCoreProjectRuntimeController>(runtimeController);
         services.AddLocalVolumeResourceType();
+        services.AddNetworkResourceType();
         services.AddAspNetCoreProjectResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
@@ -3672,9 +3797,9 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.Equal(ResourceManagerClass.Configuration, projectedStore.ResourceClass);
         Assert.Equal(ConfigurationStoreResourceTypeProvider.ProviderId, projectedStore.Provider);
-        Assert.Equal("store", projectedStore.ResourceAttributes["configuration.kind"]);
-        Assert.Equal("http://localhost:5138", projectedStore.ResourceAttributes["configuration.endpoint"]);
-        Assert.Equal("0", projectedStore.ResourceAttributes["configuration.entries.count"]);
+        Assert.Equal("store", projectedStore.ResourceAttributes["kind"]);
+        Assert.Equal("http://localhost:5138", projectedStore.ResourceAttributes["endpoint"]);
+        Assert.Equal("0", projectedStore.ResourceAttributes["entryCount"]);
         Assert.Contains(projectedStore.ResourceCapabilities, capability =>
             capability.Id == ResourceCapabilityIds.EndpointSource);
         Assert.Contains(projectedStore.ResourceCapabilities, capability =>
@@ -5024,9 +5149,9 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.Equal(ResourceManagerClass.SecretsVault, projectedVault.ResourceClass);
         Assert.Equal(SecretsVaultResourceTypeProvider.ProviderId, projectedVault.Provider);
-        Assert.Equal("vault", projectedVault.ResourceAttributes["secrets.kind"]);
-        Assert.Equal("http://localhost:6138", projectedVault.ResourceAttributes["secrets.endpoint"]);
-        Assert.Equal("0", projectedVault.ResourceAttributes["secrets.entries.count"]);
+        Assert.Equal("vault", projectedVault.ResourceAttributes["kind"]);
+        Assert.Equal("http://localhost:6138", projectedVault.ResourceAttributes["endpoint"]);
+        Assert.Equal("0", projectedVault.ResourceAttributes["secretCount"]);
         Assert.Contains(projectedVault.ResourceCapabilities, capability =>
             capability.Id == ResourceCapabilityIds.EndpointSource);
         Assert.Contains(projectedVault.ResourceCapabilities, capability =>
@@ -5185,8 +5310,10 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(ResourceManagerClass.Service, projectedSql.ResourceClass);
         Assert.Equal(SqlServerResourceTypeProvider.ProviderId, projectedSql.Provider);
         Assert.Equal(ResourceManagerResourceState.Unknown, projectedSql.State);
-        Assert.Equal("2022", projectedSql.ResourceAttributes["sqlserver.version"]);
-        Assert.Equal([volume.EffectiveResourceId], projectedSql.DependsOn);
+        Assert.Equal("2022", projectedSql.ResourceAttributes["version"]);
+        Assert.Equal(
+            [ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId, volume.EffectiveResourceId],
+            projectedSql.DependsOn);
         Assert.Contains(projectedSql.ResourceActions, action =>
             action.Id == "start" &&
             action.Kind == ResourceActionKind.Start);
@@ -5205,7 +5332,11 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.False(resolution.HasErrors);
         Assert.Equal(
-            [sql.EffectiveResourceId, volume.EffectiveResourceId],
+            [
+                sql.EffectiveResourceId,
+                ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId,
+                volume.EffectiveResourceId
+            ],
             resolution.Resources.Select(resource => resource.EffectiveResourceId));
         var capability = Assert.IsType<VolumeConsumerCapability>(
             resolution.Target!.Capabilities.Get<VolumeConsumerCapability>());
@@ -5277,7 +5408,7 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.False(resolution.HasErrors);
         Assert.Equal(
-            [database.EffectiveResourceId, server.EffectiveResourceId],
+            [database.EffectiveResourceId, server.EffectiveResourceId, "cloudshell.container-host:default"],
             resolution.Resources.Select(resource => resource.EffectiveResourceId));
 
         var procedure = new ResourceProcedureContext(
@@ -5456,18 +5587,15 @@ public sealed class ResourceManagerIntegrationTests
             "application-topology-sql-server",
             SqlServerResourceTypeProvider.ResourceTypeId,
             ProviderId: SqlServerResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, string>
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [SqlServerResourceTypeProvider.Attributes.Version] = "2022",
-                [SqlServerResourceTypeProvider.Attributes.Edition] = "Developer"
-            },
-            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
-            {
-                [SqlServerResourceTypeProvider.ConfigurationSection] =
-                    ResourceDefinitionJson.FromValue(new SqlServerConfiguration(
-                    [
+                [SqlServerResourceTypeProvider.Attributes.Edition] = "Developer",
+                [SqlServerResourceTypeProvider.Attributes.Databases] =
+                    ResourceAttributeValue.FromObject(new SqlServerDatabaseDefinition[]
+                    {
                         new("application_topology", "Application Topology", EnsureCreated: true)
-                    ]))
+                    })
             },
             Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
             {
@@ -6047,14 +6175,11 @@ public sealed class ResourceManagerIntegrationTests
             ProviderId: ExecutableApplicationResourceTypeProvider.ProviderId,
             DisplayName: name.ToUpperInvariant(),
             DependsOn: ToReferences(dependsOn ?? ["storage.volume:data"]),
-            Attributes: new Dictionary<ResourceAttributeId, string>
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
-                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet"
-            },
-            Configuration: new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
-            {
-                [ExecutableApplicationResourceTypeProvider.ConfigurationSection] =
-                    ResourceDefinitionJson.FromValue(new ExecutableApplicationConfiguration("dotnet", "run"))
+                [ExecutableApplicationResourceTypeProvider.Attributes.ExecutablePath] = "dotnet",
+                [ExecutableApplicationResourceTypeProvider.Attributes.Command] =
+                    ResourceAttributeValue.FromObject(new ExecutableApplicationConfiguration("dotnet", "run"))
             },
             Capabilities: includeVolumeConsumer
                 ? new Dictionary<ResourceCapabilityId, JsonElement>
@@ -7442,6 +7567,31 @@ public sealed class ResourceManagerIntegrationTests
             return ResourceProcedureResult.Combine(
                 results,
                 result.Message);
+        }
+    }
+
+    private sealed class TemporaryDirectory : IDisposable
+    {
+        public TemporaryDirectory()
+        {
+            Path = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                $"cloudshell-resource-model-tests-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(Path);
+        }
+
+        public string Path { get; }
+
+        public void Dispose()
+        {
+            try
+            {
+                Directory.Delete(Path, recursive: true);
+            }
+            catch
+            {
+                // Test cleanup should not hide assertion failures.
+            }
         }
     }
 }

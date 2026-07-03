@@ -94,14 +94,12 @@ public final class SecretsVaultClient {
 
     private HttpResponse<String> sendRaw(URI uri) throws IOException, InterruptedException {
         String token = credential.getToken(scopes);
-        if (token == null || token.isBlank()) {
-            throw new IllegalStateException("CloudShell secrets credential returned no access token.");
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(uri).GET();
+        if (token != null && !token.isBlank()) {
+            requestBuilder.header("Authorization", "Bearer " + token.trim());
         }
 
-        HttpRequest request = HttpRequest.newBuilder(uri)
-            .GET()
-            .header("Authorization", "Bearer " + token.trim())
-            .build();
+        HttpRequest request = requestBuilder.build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     }
 

@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -67,6 +68,8 @@ public static class ConfigurationStoreResourceTypeServiceCollectionExtensions
         services.TryAddSingleton<
             IConfigurationStoreRuntimeEntryManager,
             ConfigurationStoreRuntimeEntryManager>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceModelGraphApplyReconciler, ConfigurationStoreSeedReconciler>());
         services.TryAddSingleton<ConfigurationStoreProcessRuntimeController>();
         services.TryAddSingleton<IConfigurationStoreRuntimeController>(
             serviceProvider => serviceProvider.GetRequiredService<ConfigurationStoreProcessRuntimeController>());

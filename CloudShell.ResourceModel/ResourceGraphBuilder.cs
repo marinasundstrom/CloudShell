@@ -34,7 +34,6 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
 {
     private readonly Dictionary<ResourceAttributeId, ResourceAttributeValue> _attributes = [];
     private readonly List<ResourceReference> _dependencies = [];
-    private readonly Dictionary<string, JsonElement> _configuration = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<ResourceCapabilityId, JsonElement> _capabilities = [];
     private readonly Dictionary<ResourceOperationId, JsonElement> _operations = [];
     private string? _resourceId;
@@ -57,8 +56,6 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
 
     protected IReadOnlyList<ResourceReference> Dependencies => _dependencies;
 
-    protected IReadOnlyDictionary<string, JsonElement> Configuration => _configuration;
-
     protected IReadOnlyDictionary<ResourceCapabilityId, JsonElement> Capabilities => _capabilities;
 
     protected IReadOnlyDictionary<ResourceOperationId, JsonElement> Operations => _operations;
@@ -79,17 +76,6 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
     public TBuilder WithDisplayName(string? displayName)
     {
         _displayName = string.IsNullOrWhiteSpace(displayName) ? null : displayName.Trim();
-        return Self;
-    }
-
-    public TBuilder WithConfiguration<TConfiguration>(
-        string sectionName,
-        TConfiguration configuration)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(sectionName);
-        ArgumentNullException.ThrowIfNull(configuration);
-
-        _configuration[sectionName.Trim()] = ResourceDefinitionJson.FromValue(configuration);
         return Self;
     }
 
@@ -157,9 +143,6 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
             Attributes: _attributes.Count == 0
                 ? null
                 : new ResourceAttributeValueMap(_attributes),
-            Configuration: _configuration.Count == 0
-                ? null
-                : new Dictionary<string, JsonElement>(_configuration, StringComparer.OrdinalIgnoreCase),
             Capabilities: _capabilities.Count == 0
                 ? null
                 : new Dictionary<ResourceCapabilityId, JsonElement>(_capabilities),
@@ -245,11 +228,6 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
         _dependencies.RemoveAll(reference => predicate(reference));
         return Self;
     }
-
-    protected TBuilder SetConfiguration<TConfiguration>(
-        string sectionName,
-        TConfiguration configuration)
-        => WithConfiguration(sectionName, configuration);
 
     protected TBuilder SetCapability<TCapability>(
         ResourceCapabilityId capabilityId,

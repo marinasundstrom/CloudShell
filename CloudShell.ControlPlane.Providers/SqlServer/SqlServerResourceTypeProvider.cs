@@ -8,15 +8,15 @@ public sealed class SqlServerResourceTypeProvider :
     public static readonly ResourceClassId ClassId = "service";
     public static readonly ResourceTypeId ResourceTypeId = "application.sql-server";
     public const string ProviderId = "applications.sql-server";
-    public const string ConfigurationSection = "sqlServer";
 
     public static ResourceClassDefinition ClassDefinition { get; } = new(ClassId);
 
     public static class Attributes
     {
-        public static readonly ResourceAttributeId Version = "sqlserver.version";
-        public static readonly ResourceAttributeId Edition = "sqlserver.edition";
-        public static readonly ResourceAttributeId EndpointRequests = "sqlserver.endpointRequests";
+        public static readonly ResourceAttributeId Version = "version";
+        public static readonly ResourceAttributeId Edition = "edition";
+        public static readonly ResourceAttributeId Databases = "databases";
+        public static readonly ResourceAttributeId EndpointRequests = "endpointRequests";
     }
 
     public static class Operations
@@ -44,6 +44,8 @@ public sealed class SqlServerResourceTypeProvider :
             [Attributes.Edition] = new(
                 DefaultValue: "Developer",
                 ValueType: ResourceAttributeValueType.String),
+            [Attributes.Databases] = ResourceAttributeDefinition.Collection(
+                itemType: ResourceAttributeValueType.ComplexType),
             [Attributes.EndpointRequests] = ResourceAttributeDefinition.Collection(
                 itemType: ResourceAttributeValueType.ComplexType,
                 itemShapeId: NetworkingEndpointShapeIds.EndpointRequest)
@@ -70,7 +72,9 @@ public sealed class SqlServerResourceTypeProvider :
     {
         var diagnostics = new List<ResourceDefinitionDiagnostic>();
         ValidateVersion(resource.Attributes.GetString(Attributes.Version), diagnostics);
-        ValidateDatabases(resource.GetConfiguration<SqlServerConfiguration>(ConfigurationSection), diagnostics);
+        ValidateDatabases(
+            resource.Attributes.GetObject<SqlServerDatabaseDefinition[]>(Attributes.Databases),
+            diagnostics);
 
         return ValueTask.FromResult(
             ResourceDefinitionValidationResult.FromDiagnostics(diagnostics));
@@ -92,7 +96,7 @@ public sealed class SqlServerResourceTypeProvider :
         }
 
         ValidateDatabases(
-            changes.ProposedState.GetConfiguration<SqlServerConfiguration>(ConfigurationSection),
+            changes.ProposedState.ResourceAttributeValues.GetObject<SqlServerDatabaseDefinition[]>(Attributes.Databases),
             diagnostics);
 
         return ValueTask.FromResult(diagnostics.Any(diagnostic =>
@@ -139,17 +143,17 @@ public sealed class SqlServerResourceTypeProvider :
     }
 
     private static void ValidateDatabases(
-        SqlServerConfiguration? configuration,
+        IReadOnlyList<SqlServerDatabaseDefinition>? databases,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
-        foreach (var database in configuration?.Databases ?? [])
+        foreach (var database in databases ?? [])
         {
             if (string.IsNullOrWhiteSpace(database.Name))
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                     "application.sqlServer.databaseNameRequired",
                     "SQL Server database name is required.",
-                    ConfigurationSection));
+                    Attributes.Databases));
             }
         }
     }

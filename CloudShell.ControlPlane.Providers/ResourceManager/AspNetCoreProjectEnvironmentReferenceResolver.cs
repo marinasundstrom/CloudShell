@@ -18,11 +18,8 @@ public sealed class AspNetCoreProjectEnvironmentReferenceResolver(
     {
         ArgumentNullException.ThrowIfNull(resource);
 
-        var environmentVariables = resource.Attributes
-            .GetObject<Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>>(
-                AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables);
-        if (environmentVariables is null ||
-            environmentVariables.Count == 0)
+        var environmentVariables = ProjectEnvironmentVariableReader.ReadAspNetCoreProject(resource.Attributes);
+        if (environmentVariables.Count == 0)
         {
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }

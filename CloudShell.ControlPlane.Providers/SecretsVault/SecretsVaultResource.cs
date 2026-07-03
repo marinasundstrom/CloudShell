@@ -6,7 +6,7 @@ public sealed class SecretsVaultResource(
     public Resource Resource { get; } = resource;
 
     public string? SecretsKind =>
-        Resource.Attributes.GetString(SecretsVaultResourceTypeProvider.Attributes.SecretsKind);
+        Resource.Attributes.GetString(SecretsVaultResourceTypeProvider.Attributes.Kind);
 
     public string? Endpoint =>
         Resource.Attributes.GetString(SecretsVaultResourceTypeProvider.Attributes.Endpoint);

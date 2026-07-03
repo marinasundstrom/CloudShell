@@ -522,15 +522,17 @@ such as container image, workload kind, endpoint count, service port count, or
 configuration entry count. Providers must not expose secrets through resource
 attributes.
 
-Attribute values are strings for the MVP. This keeps the API projection,
-generated details UI, programmatic declarations, and provider implementations
-simple and stable. Use invariant formatting for numbers, lower-case strings for
-booleans, and stable non-localized tokens for enum-like values. If a value needs
-structure, lifecycle semantics, validation, or secrecy, it belongs in
-provider-owned configuration or runtime state instead of `Resource.Attributes`.
+Attribute values support scalar values and provider-declared structured
+objects or collections. Keep scalar values invariant and stable: use invariant
+formatting for numbers, lower-case strings for booleans, and stable
+non-localized tokens for enum-like values. If a value carries runtime state,
+version history, or secrecy, it belongs in provider-owned runtime state instead
+of `Resource.Attributes`.
 
-Attribute names use dotted lower-camel segments such as `workload.kind`,
-`container.image`, `container.registry`, and `configuration.entries`. Names in
+Attribute names use lower-camel names for resource-type-native properties,
+such as `endpoint`, `entries`, and `databases`. Dotted lower-camel names such
+as `workload.kind`, `container.image`, and `container.registry` express real
+hierarchy or shared/capability-owned surfaces. Names in
 `ResourceAttributeNames` are reserved for CloudShell-defined meanings. Provider
 or extension-specific attributes should use a stable provider or domain prefix,
 for example `acme.cluster` or `postgres.database`. Do not use display labels as

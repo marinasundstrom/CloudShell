@@ -4,7 +4,8 @@
 
 - Resource type: `secrets.vault`
 - Provider id: `secrets-vault`
-- Purpose: declares a graph-backed Secrets Vault service without storing secret values in the Resource Graph.
+- Purpose: declares a graph-backed Secrets Vault service while keeping secret
+  values out of persisted/exported graph state by default.
 
 ## Ported
 
@@ -21,15 +22,18 @@
   values stay in provider runtime state and sidecar definition files, not
   Resource graph attributes.
 - Manual `ResourceGraphBuilder.AddSecretsVault(...)` builder for
-  code-first resource and endpoint declaration. Secret values remain
-  provider/runtime data and are not authored as graph attributes.
+  code-first resource and endpoint declaration, including create-only
+  `seed.secrets` attributes for development templates. Seeded secrets
+  materialize into provider-owned runtime state and are stripped from accepted
+  graph state before normal template export.
 - SettingsAndSecrets smoke coverage for endpoint projection, inspect execution, authorized secret reads, and API consumption through the graph-backed endpoint.
 
 ## Example ResourceDefinition
 
-This is the interchange shape for a graph-backed Secrets Vault resource. The
-graph declares the service boundary and endpoint; secret values are
-provider/runtime data and must not be stored as ordinary graph attributes.
+This is the persisted/exported interchange shape for a graph-backed Secrets
+Vault resource. Create-only templates may additionally include
+`seed.secrets`; accepted graph state and default template export omit those
+secret values.
 
 ```json
 {
@@ -38,9 +42,27 @@ provider/runtime data and must not be stored as ordinary graph attributes.
   "resourceId": "secrets.vault:sample-app",
   "providerId": "secrets-vault",
   "displayName": "Sample App Secrets",
-  "attributes": {
-    "secrets.kind": "local",
-    "secrets.endpoint": "http://localhost:5102"
+  "kind": "local",
+  "endpoint": "http://localhost:5102"
+}
+```
+
+Create-only seed example:
+
+```json
+{
+  "name": "sample-app",
+  "typeId": "secrets.vault",
+  "providerId": "secrets-vault",
+  "endpoint": "http://localhost:5102",
+  "seed": {
+    "secrets": [
+      {
+        "name": "Sample--ApiKey",
+        "value": "local-development-secret",
+        "version": "v1"
+      }
+    ]
   }
 }
 ```
@@ -50,12 +72,14 @@ provider/runtime data and must not be stored as ordinary graph attributes.
 Ready to integrate for graph-declared Secrets Vault resources in the selected
 samples. The graph path starts the backing service, projects endpoint/count,
 supports inspect, monitoring, health/liveness, and authorized reads without
-placing secret values in graph attributes. Runtime secrets can be managed
+placing secret values in exported graph attributes. Runtime secrets can be managed
 through Resource Manager when the UI host has access to the provider runtime
-manager. Durable secret storage, log streaming, templates, and full
-registration/update flows remain outside the switch gate.
+manager. Durable secret storage, log streaming, permission-protected
+import/export, secret versioning, and full registration/update flows remain
+outside the switch gate.
 
 ## Remaining
 
 - Durable secret storage.
-- Logs, templates, and full UI registration/update flow.
+- Logs, permission-protected secret import/export, and versioning.
+- Full UI registration/update flow.

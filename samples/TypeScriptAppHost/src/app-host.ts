@@ -17,6 +17,8 @@ const settingsServiceEndpoint = "http://localhost:5101";
 const settingsResourceId = "configuration.store:typescript-app-settings";
 const settingsEntriesEndpoint =
   `${settingsServiceEndpoint}/api/configuration/stores/${encodeURIComponent(settingsResourceId)}/entries`;
+const secretsServiceEndpoint = "http://localhost:6101";
+const secretsResourceId = "secrets.vault:typescript-app-secrets";
 
 const app = cloudshell("typescript-hosting-poc", {
   metadata: {
@@ -28,7 +30,14 @@ const app = cloudshell("typescript-hosting-poc", {
 const settings = app
   .addConfigurationStore("typescript-app-settings")
   .withDisplayName("TypeScript App Settings")
-  .withEndpoint(settingsServiceEndpoint);
+  .withEndpoint(settingsServiceEndpoint)
+  .withSetting("Sample--Message", "Hello from TypeScript launcher seed");
+
+const secrets = app
+  .addSecretsVault("typescript-app-secrets")
+  .withDisplayName("TypeScript App Secrets")
+  .withEndpoint(secretsServiceEndpoint)
+  .withSecret("Sample--ApiKey", "typescript-launcher-secret", "v1");
 
 app
   .addJavaScriptApp("typescript-frontend", appRoot)
@@ -37,12 +46,17 @@ app
   .withScript("dev")
   .withServiceDiscovery()
   .withReference(settings)
+  .withReference(secrets)
   .dependsOn(settings)
+  .dependsOn(secrets)
   .withEnvironmentVariable(
     "CLOUDSHELL_SETTINGS_ENDPOINT",
     settingsEntriesEndpoint)
   .withEnvironmentVariable("Sample__Message", {
     configurationEntryRef: settings.entry("Sample--Message")
+  })
+  .withEnvironmentVariable("Sample__ApiKey", {
+    secretRef: secrets.secret("Sample--ApiKey")
   })
   .withHttpEndpoint({
     host: "localhost",

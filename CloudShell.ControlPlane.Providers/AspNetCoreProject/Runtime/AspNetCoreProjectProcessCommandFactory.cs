@@ -128,13 +128,7 @@ public sealed class AspNetCoreProjectProcessCommandFactory
         Resource resource,
         ProcessStartInfo startInfo)
     {
-        var environmentVariables = resource.Attributes
-            .GetObject<Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>>(
-                AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables);
-        if (environmentVariables is null)
-        {
-            return;
-        }
+        var environmentVariables = ProjectEnvironmentVariableReader.ReadAspNetCoreProject(resource.Attributes);
 
         foreach (var (name, variable) in environmentVariables)
         {

@@ -98,13 +98,7 @@ public sealed class JavaAppProcessCommandFactory
         Resource resource,
         ProcessStartInfo startInfo)
     {
-        var environmentVariables = resource.Attributes
-            .GetObject<Dictionary<string, JavaAppEnvironmentVariableValue>>(
-                JavaAppResourceTypeProvider.Attributes.EnvironmentVariables);
-        if (environmentVariables is null)
-        {
-            return;
-        }
+        var environmentVariables = ProjectEnvironmentVariableReader.ReadJavaApp(resource.Attributes);
 
         foreach (var (name, variable) in environmentVariables)
         {

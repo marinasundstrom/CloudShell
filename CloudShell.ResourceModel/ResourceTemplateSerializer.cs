@@ -25,7 +25,6 @@ public static class ResourceTemplateSerializer
             "version",
             "dependsOn",
             "attributes",
-            "configuration",
             "capabilities",
             "operations",
             "metadata"

@@ -12,6 +12,8 @@ const server = http.createServer((request, response) => {
 
   writeJson(response, 200, {
     message: "CloudShell JavaScript app sample",
+    configuredMessage: process.env.Sample__Message ?? "No CloudShell configuration value was loaded.",
+    secretAvailable: Boolean(process.env.Sample__ApiKey),
     serviceName,
     settingsEndpoint,
   });

@@ -62,9 +62,9 @@ runtime integration for the provider.
     }
   ],
   "attributes": {
-    "sqlserver.version": "2022",
-    "sqlserver.edition": "Developer",
-    "sqlserver.endpointRequests": [
+    "version": "2022",
+    "edition": "Developer",
+    "endpointRequests": [
       {
         "name": "tds",
         "protocol": "tcp",

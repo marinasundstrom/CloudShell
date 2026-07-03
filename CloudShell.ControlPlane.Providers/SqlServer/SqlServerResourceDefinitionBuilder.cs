@@ -135,9 +135,9 @@ public sealed class SqlServerResourceDefinitionBuilder(string name) :
             name.Trim(),
             string.IsNullOrWhiteSpace(displayName) ? null : displayName.Trim(),
             ensureCreated));
-        return SetConfiguration(
-            SqlServerResourceTypeProvider.ConfigurationSection,
-            new SqlServerConfiguration(_databases.ToArray()));
+        return SetObjectAttribute(
+            SqlServerResourceTypeProvider.Attributes.Databases,
+            _databases.ToArray());
     }
 
     protected override void OnBeforeBuild()

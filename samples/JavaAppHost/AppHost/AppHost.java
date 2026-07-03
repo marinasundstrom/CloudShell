@@ -70,11 +70,13 @@ public final class AppHost {
 
         ConfigurationStoreResource settings = app.addConfigurationStore("java-launcher-settings")
                 .withDisplayName("Java Launcher Settings")
-                .withEndpoint("http://localhost:5104");
+                .withEndpoint("http://localhost:5104")
+                .withSetting("Sample--Message", "Hello from Java launcher seed");
 
         SecretsVaultResource secrets = app.addSecretsVault("java-launcher-secrets")
                 .withDisplayName("Java Launcher Secrets")
-                .withEndpoint("http://localhost:6104");
+                .withEndpoint("http://localhost:6104")
+                .withSecret("Sample--ApiKey", "java-launcher-secret", "v1");
 
         app.addJavaApp(
                 "java-launcher-api",
@@ -83,14 +85,16 @@ public final class AppHost {
                 .withDisplayName("Java Launcher API")
                 .withServiceDiscovery()
                 .withEnvironmentVariable("PORT", "5186")
-            .withEnvironmentVariable("OTEL_SERVICE_NAME", "java-launcher-api")
-            .withReference(settings)
-            .withReference(secrets)
-            .dependsOn(settings)
-            .dependsOn(secrets)
-            .withHttpEndpoint("localhost", 5186, 5186, hostNetwork)
-            .withHttpHealthCheck("/healthz")
-            .withHttpLivenessCheck("/alive")
+                .withEnvironmentVariable("Sample__Message", settings.entry("Sample--Message"))
+                .withEnvironmentVariable("Sample__ApiKey", secrets.secret("Sample--ApiKey"))
+                .withEnvironmentVariable("OTEL_SERVICE_NAME", "java-launcher-api")
+                .withReference(settings)
+                .withReference(secrets)
+                .dependsOn(settings)
+                .dependsOn(secrets)
+                .withHttpEndpoint("localhost", 5186, 5186, hostNetwork)
+                .withHttpHealthCheck("/healthz")
+                .withHttpLivenessCheck("/alive")
                 .withDefaultConsoleLogSource();
 
         return app;

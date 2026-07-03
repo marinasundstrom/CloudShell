@@ -4,6 +4,8 @@ This sample shows the launcher-style C# hosting pattern. The `AppHost` project
 declares the distributed application with the same Resource Model builders used
 by in-process C# hosts, but it does not reference or compose the Control Plane
 directly.
+The sample also seeds development Configuration Store entries and Secrets Vault
+secrets through create-only resource-definition attributes.
 
 The launcher defaults to `CloudShell.LocalDevelopmentHost`, the stable
 CloudShell local-development host profile. That host starts the Control Plane,
@@ -54,7 +56,13 @@ dotnet run --project ../../CloudShell.Cli/CloudShell.Cli.csproj -- ui open \
 
 The JavaScript app resource is declared but not auto-started. Start it from
 Resource Manager or through the helper. The helper enables dependency startup,
-so the Configuration Store resource is started before the JavaScript app:
+so the Configuration Store and Secrets Vault resources are started before the
+JavaScript app. The generated template seeds `Sample--Message` in the
+Configuration Store and `Sample--ApiKey` in the Secrets Vault; those values are
+not emitted by default template export after apply. The sample binds the secret
+to an environment variable only to make the launcher demo visible; production
+workloads should prefer resolving secrets through the Secrets Vault client
+instead of exposing secret values in process environment state.
 
 ```bash
 ./cloudshell.sh start-app
