@@ -152,9 +152,15 @@ exposes the RabbitMQ management API.
 
 Resource Manager registers RabbitMQ type metadata, AMQP and management endpoint
 descriptors, generated details, Configuration, Environment, Storage,
-Endpoints, Activity, and other standard resource tabs. It does not yet include
-specialized RabbitMQ tabs for queues, exchanges, bindings, users, virtual
-hosts, policies, or cluster state.
+Endpoints, Activity, and other standard resource tabs. It also contributes a
+focused **Broker** tab that summarizes broker state, projected endpoint
+contracts, resolved AMQP and management addresses, access reconciliation
+availability, and a link to the RabbitMQ management UI when the management
+endpoint is mapped.
+
+The Broker tab is intentionally not a RabbitMQ-native administration console.
+It does not manage queues, exchanges, bindings, users, virtual hosts, policies,
+or cluster state.
 
 The management endpoint remains the supported path for broker-native
 configuration until those workflows are deliberately modeled in CloudShell.
@@ -207,7 +213,8 @@ credential material, connection strings, or message payloads.
 
 ## Known Gaps
 
-- No specialized Resource Manager broker configuration UI yet.
+- No specialized Resource Manager broker configuration UI for queues,
+  exchanges, bindings, users, virtual hosts, policies, or cluster state yet.
 - No RabbitMQ-specific workload client package or service-discovery helper yet.
 - No provider-owned projection of queues, exchanges, bindings, virtual hosts,
   users, or policies.

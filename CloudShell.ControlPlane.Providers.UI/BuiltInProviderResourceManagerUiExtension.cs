@@ -6,6 +6,7 @@ using CloudShell.ControlPlane.Providers;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ContainerAppPages = CloudShell.ControlPlane.Providers.UI.ContainerApplication.Pages;
 using ConfigurationPages = CloudShell.ControlPlane.Providers.UI.Configuration.Pages;
+using RabbitMQPages = CloudShell.ControlPlane.Providers.UI.RabbitMQ.Pages;
 using SharedPages = CloudShell.ControlPlane.Providers.UI.Shared.Pages;
 using SqlServerPages = CloudShell.ControlPlane.Providers.UI.SqlServer.Pages;
 using ResourceManagerResourceClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
@@ -489,6 +490,13 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 "Storage",
                 30,
                 groupTitle: ResourceTabGroupTitles.Storage)
+            .AddResourceTab<RabbitMQPages.RabbitMQBroker>(
+                RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
+                new ResourceViewId(ResourceTabGroupIds.Application, "broker"),
+                "Broker",
+                35,
+                groupTitle: "Messaging",
+                icon: "queue")
             .AddResourceTab<SqlServerPages.SqlServerDatabases>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "databases"),
