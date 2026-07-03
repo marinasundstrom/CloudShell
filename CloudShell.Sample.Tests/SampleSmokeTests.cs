@@ -3950,6 +3950,7 @@ public sealed class SampleSmokeTests
         var deadline = DateTimeOffset.UtcNow.Add(timeout);
         Exception? lastException = null;
         string? lastBody = null;
+        string? lastUnfilteredBody = null;
 
         while (DateTimeOffset.UtcNow < deadline)
         {
@@ -3974,9 +3975,20 @@ public sealed class SampleSmokeTests
             await Task.Delay(250);
         }
 
+        try
+        {
+            lastUnfilteredBody = await host.GetStringAsync(
+                "/api/control-plane/v1/metrics?maxPoints=50");
+        }
+        catch (Exception exception) when (exception is HttpRequestException or JsonException)
+        {
+            lastException = exception;
+        }
+
         throw new TimeoutException(
             $"Metrics for resource '{resourceId}' were not ingested within {timeout}." +
-            $"{Environment.NewLine}{lastBody ?? lastException?.Message}");
+            $"{Environment.NewLine}Filtered: {lastBody ?? lastException?.Message}" +
+            $"{Environment.NewLine}Unfiltered: {lastUnfilteredBody ?? lastException?.Message}");
     }
 
     private static async Task<bool> WaitForDockerContainerExistsAsync(string containerName, TimeSpan timeout)

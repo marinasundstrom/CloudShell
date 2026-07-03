@@ -55,6 +55,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Hardened sample smoke cleanup so runtime-scoped RabbitMQ sample containers
   left by interrupted Docker-backed smoke runs are removed by the shared sample
   cleanup fixture.
+- Fixed the ProjectReference launcher sample so trace and metric ingest
+  endpoints derived for child app resources prefer the active
+  `CLOUDSHELL_CONTROL_PLANE_URL`, keeping smoke tests and non-default launcher
+  ports from posting observability data to the sample default endpoint.
 - Added an intent-first resource authoring proposal that scopes a future
   smarter Resource Manager authoring UI for starting apps with AI assistance,
   drafting starter structures and `ResourceTemplate` graphs from high-level
