@@ -2,7 +2,7 @@
 
 > **Disclaimer:** Project is in an early phase. This is not a committed product.
 
-CloudShell is an extensible, self-hosted cloud-portal shell for local development and on-premise environments. It uses Blazor, Fluent UI, and .NET 11 preview, with an operational experience inspired by the .NET Aspire Dashboard.
+CloudShell is a language-neutral, resource-oriented control plane where multiple programming ecosystems project into a shared resource model that can be executed by interchangeable providers. It is an extensible, self-hosted cloud-portal shell for local development and on-premise environments. It uses Blazor, Fluent UI, and .NET 11 preview, with an operational experience inspired by the .NET Aspire Dashboard.
 
 The goal is to make it possible to build your own cloud-platform shell: a place where teams can register resources, group them by project, inspect endpoints and state, and let extensions add focused operational tools. The CloudShell UI and Control Plane are separate application surfaces; shell integrations connect the UI to those services through domain-shaped APIs.
 
