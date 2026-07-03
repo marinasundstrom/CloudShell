@@ -72,6 +72,10 @@ public sealed class SampleSmokeRuntimeCleanupFixture : IAsyncLifetime
                 LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(signalRDefinition, replica));
         }
 
+        await RemoveContainersMatchingAsync(containerName =>
+            containerName.StartsWith("cloudshell-", StringComparison.OrdinalIgnoreCase) &&
+            containerName.EndsWith("-rabbitmq-rabbitmq", StringComparison.OrdinalIgnoreCase));
+
         foreach (var path in Directory.EnumerateFiles(
             Path.GetTempPath(),
             "cloudshell-load-balancer-*.hosts"))
@@ -84,6 +88,65 @@ public sealed class SampleSmokeRuntimeCleanupFixture : IAsyncLifetime
             {
                 // Test cleanup should not hide the original test failure.
             }
+        }
+    }
+
+    private static async Task RemoveContainersMatchingAsync(
+        Func<string, bool> predicate)
+    {
+        var output = new StringBuilder();
+        var startInfo = new ProcessStartInfo("docker")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+        startInfo.ArgumentList.Add("ps");
+        startInfo.ArgumentList.Add("-a");
+        startInfo.ArgumentList.Add("--format");
+        startInfo.ArgumentList.Add("{{.Names}}");
+
+        try
+        {
+            using var process = Process.Start(startInfo);
+            if (process is null)
+            {
+                return;
+            }
+
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            try
+            {
+                await process.WaitForExitAsync().WaitAsync(DockerCleanupTimeout);
+                output.Append(await outputTask);
+                output.Append(await errorTask);
+            }
+            catch (TimeoutException)
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                    await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(1));
+                }
+
+                return;
+            }
+
+            foreach (var containerName in output
+                .ToString()
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(predicate))
+            {
+                await RemoveContainerIfExistsAsync(containerName);
+            }
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or
+            System.ComponentModel.Win32Exception or
+            TimeoutException)
+        {
+            // Docker may be unavailable for non-Docker sample tests.
         }
     }
 

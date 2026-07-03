@@ -45,6 +45,9 @@ on `git blame --follow`, and then by the broad type of change.
   publish, consume, and configure grants can report applied, drifted, not
   applied, failed, or unknown based on observed broker-native virtual-host
   permissions.
+- Hardened sample smoke cleanup so runtime-scoped RabbitMQ sample containers
+  left by interrupted Docker-backed smoke runs are removed by the shared sample
+  cleanup fixture.
 - Added an intent-first resource authoring proposal that scopes a future
   smarter Resource Manager authoring UI for starting apps with AI assistance,
   drafting starter structures and `ResourceTemplate` graphs from high-level
