@@ -1,0 +1,333 @@
+@using CloudShell.Abstractions.Authorization
+@using CloudShell.Abstractions.ControlPlane
+@using Microsoft.Extensions.Options
+@inject IResourceManager ResourceManager
+@inject IOptions<RabbitMQManagementAccessOptions> ManagementAccessOptions
+
+@if (Broker is null)
+{
+    <EmptyState Title="RabbitMQ broker is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
+}
+else if (!BuiltInProviderResourceUiTypes.IsRabbitMQ(Broker.EffectiveTypeId))
+{
+    <EmptyState Title="Broker access is not supported"
+                Message="This resource type does not expose RabbitMQ broker access details." />
+}
+else
+{
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Broker access</h3>
+                <p>@GetAccessSummary()</p>
+            </div>
+            <FluentButton Appearance="Appearance.Neutral"
+                          IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          Disabled="@IsLoading"
+                          OnClick="LoadAsync">
+                @(IsLoading ? "Refreshing" : "Refresh")
+            </FluentButton>
+        </div>
+        <div class="generated-list">
+            <div>
+                <strong>Virtual host</strong>
+                <span>@ResolveVirtualHost()</span>
+            </div>
+            <div>
+                <strong>Managed account prefix</strong>
+                <span>@ResolveManagedUserNamePrefix()</span>
+            </div>
+            <div>
+                <strong>Administrator credential</strong>
+                <span>Provider-owned and hidden from Resource Manager.</span>
+            </div>
+            <div>
+                <strong>Reconcile operation</strong>
+                <span>@GetReconcileAccessStatus()</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Identity mappings</h3>
+                <p>CloudShell grants mapped to RabbitMQ broker-native users and permissions.</p>
+            </div>
+        </div>
+        @if (IsLoading)
+        {
+            <EmptyState Title="Loading broker access"
+                        Message="CloudShell is reading requested grants and provider effectiveness status." />
+        }
+        else if (AccessRows.Count == 0)
+        {
+            <EmptyState Title="No RabbitMQ grants"
+                        Message="No publish, consume, or configure grants have been assigned to this broker." />
+        }
+        else
+        {
+            <ResourceTable AriaLabel="RabbitMQ broker access mappings">
+                <thead>
+                    <tr>
+                        <th>Principal</th>
+                        <th>Broker account</th>
+                        <th>Grant</th>
+                        <th>RabbitMQ permission</th>
+                        <th>Effective status</th>
+                        <th>Provider detail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in AccessRows)
+                    {
+                        <tr>
+                            <td>
+                                <ResourceTableIdentity IconName="@GetPrincipalIcon(row)"
+                                                       IconTitle="@row.PrincipalKind"
+                                                       Title="@row.PrincipalName"
+                                                       Summary="@row.PrincipalSummary" />
+                            </td>
+                            <td>@row.BrokerAccount</td>
+                            <td>@row.GrantLabel</td>
+                            <td>@row.BrokerPermission</td>
+                            <td>@row.EffectiveStatus</td>
+                            <td>@row.Detail</td>
+                        </tr>
+                    }
+                </tbody>
+            </ResourceTable>
+        }
+    </section>
+
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Traceability boundary</h3>
+                <p>RabbitMQ enforces broker-native permissions; CloudShell records the requested identity and reconciliation status.</p>
+            </div>
+        </div>
+        <div class="generated-list">
+            <div>
+                <strong>Requested access</strong>
+                <span>Stored as CloudShell grants on this RabbitMQ resource.</span>
+            </div>
+            <div>
+                <strong>Effective access</strong>
+                <span>Read from RabbitMQ virtual-host permissions when the Management API status provider is available.</span>
+            </div>
+            <div>
+                <strong>Audit trail</strong>
+                <span>Broker activity should be attributed to the mapped RabbitMQ account, then related back to the CloudShell resource identity shown here.</span>
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private Resource? Broker { get; set; }
+    private IReadOnlyList<RabbitMQAccessRow> AccessRows { get; set; } = [];
+    private IReadOnlyDictionary<string, Resource> ResourcesById { get; set; } =
+        new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+    private bool IsLoading { get; set; }
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        if (IsLoading)
+        {
+            return;
+        }
+
+        IsLoading = true;
+        try
+        {
+            Broker = string.IsNullOrWhiteSpace(ResourceId)
+                ? null
+                : await ResourceManager.GetResourceAsync(ResourceId);
+            if (Broker is null ||
+                !BuiltInProviderResourceUiTypes.IsRabbitMQ(Broker.EffectiveTypeId))
+            {
+                AccessRows = [];
+                return;
+            }
+
+            var resources = await ResourceManager.ListResourcesAsync();
+            ResourcesById = resources
+                .Append(Broker)
+                .GroupBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.First(),
+                    StringComparer.OrdinalIgnoreCase);
+            var grants = (await ResourceManager.ListResourcePermissionGrantsAsync(
+                    new ResourcePermissionGrantQuery(TargetResourceId: Broker.Id)))
+                .Where(grant => IsBrokerPermission(grant.Permission))
+                .OrderBy(grant => FormatPrincipalName(grant.Principal), StringComparer.OrdinalIgnoreCase)
+                .ThenBy(grant => grant.Permission, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var statuses = (await ResourceManager.ListResourcePermissionGrantStatusesAsync(
+                    new ResourcePermissionGrantQuery(TargetResourceId: Broker.Id)))
+                .Where(status => IsBrokerPermission(status.Grant.Permission))
+                .ToDictionary(
+                    status => GetPermissionKey(status.Grant.Principal, status.Grant.Permission),
+                    StringComparer.OrdinalIgnoreCase);
+
+            AccessRows = grants
+                .Select(grant => CreateAccessRow(grant, statuses))
+                .ToArray();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private RabbitMQAccessRow CreateAccessRow(
+        ResourcePermissionGrant grant,
+        IReadOnlyDictionary<string, ResourcePermissionGrantStatus> statuses)
+    {
+        statuses.TryGetValue(GetPermissionKey(grant.Principal, grant.Permission), out var status);
+        return new RabbitMQAccessRow(
+            FormatPrincipalName(grant.Principal),
+            FormatPrincipalSummary(grant.Principal),
+            FormatPrincipalKind(grant.Principal),
+            grant.ResourceIdentity is null
+                ? "Not mapped"
+                : DefaultRabbitMQPrincipalCredentialProvider.CreateManagedUserName(
+                    grant.Principal,
+                    ManagementAccessOptions.Value.ManagedUserNamePrefix),
+            FormatPermission(grant.Permission),
+            FormatBrokerPermission(grant.Permission),
+            FormatEffectiveness(status),
+            FormatEffectivenessDetail(grant, status),
+            grant.Principal.Kind);
+    }
+
+    private string GetAccessSummary()
+    {
+        var count = AccessRows.Count;
+        return count == 1
+            ? "1 RabbitMQ broker grant is assigned."
+            : $"{count.ToString(System.Globalization.CultureInfo.InvariantCulture)} RabbitMQ broker grants are assigned.";
+    }
+
+    private string GetReconcileAccessStatus() =>
+        Broker?.HasAction(RabbitMQResourceTypeProvider.Operations.ReconcileAccess.ToString()) == true
+            ? "Available through the CloudShell resource action."
+            : "Not advertised by this broker projection.";
+
+    private string ResolveVirtualHost() =>
+        string.IsNullOrWhiteSpace(ManagementAccessOptions.Value.VirtualHost)
+            ? "/"
+            : ManagementAccessOptions.Value.VirtualHost.Trim();
+
+    private string ResolveManagedUserNamePrefix() =>
+        string.IsNullOrWhiteSpace(ManagementAccessOptions.Value.ManagedUserNamePrefix)
+            ? "cloudshell"
+            : ManagementAccessOptions.Value.ManagedUserNamePrefix.Trim();
+
+    private string FormatPrincipalName(ResourcePrincipalReference principal)
+    {
+        var resource = string.IsNullOrWhiteSpace(principal.SourceResourceId)
+            ? null
+            : ResourcesById.GetValueOrDefault(principal.SourceResourceId);
+        return resource is null
+            ? principal.DisplayName ?? principal.Id
+            : ResourceDisplayLabels.GetQualifiedLabel(resource);
+    }
+
+    private string FormatPrincipalSummary(ResourcePrincipalReference principal) =>
+        principal.Kind == ResourcePrincipalKind.ResourceIdentity
+            ? string.IsNullOrWhiteSpace(principal.SourceIdentityName)
+                ? "Default resource identity"
+                : principal.SourceIdentityName
+            : principal.ProviderId ?? principal.Kind.ToString();
+
+    private static string FormatPrincipalKind(ResourcePrincipalReference principal) =>
+        principal.Kind switch
+        {
+            ResourcePrincipalKind.ResourceIdentity => "Resource identity",
+            ResourcePrincipalKind.User => "User",
+            ResourcePrincipalKind.Group => "Group",
+            ResourcePrincipalKind.ServiceAccount => "Service account",
+            ResourcePrincipalKind.ServicePrincipal => "Service principal",
+            ResourcePrincipalKind.ManagedIdentity => "Managed identity",
+            ResourcePrincipalKind.WorkloadIdentity => "Workload identity",
+            ResourcePrincipalKind.External => "External principal",
+            _ => principal.Kind.ToString()
+        };
+
+    private static string FormatPermission(string permission) =>
+        string.Equals(permission, RabbitMQResourceOperationPermissions.Publish, StringComparison.OrdinalIgnoreCase)
+            ? "Publish"
+            : string.Equals(permission, RabbitMQResourceOperationPermissions.Consume, StringComparison.OrdinalIgnoreCase)
+                ? "Consume"
+                : string.Equals(permission, RabbitMQResourceOperationPermissions.Configure, StringComparison.OrdinalIgnoreCase)
+                    ? "Configure"
+                    : permission;
+
+    private static string FormatBrokerPermission(string permission) =>
+        string.Equals(permission, RabbitMQResourceOperationPermissions.Publish, StringComparison.OrdinalIgnoreCase)
+            ? "write"
+            : string.Equals(permission, RabbitMQResourceOperationPermissions.Consume, StringComparison.OrdinalIgnoreCase)
+                ? "read"
+                : string.Equals(permission, RabbitMQResourceOperationPermissions.Configure, StringComparison.OrdinalIgnoreCase)
+                    ? "configure"
+                    : "n/a";
+
+    private static string FormatEffectiveness(ResourcePermissionGrantStatus? status) =>
+        status?.State switch
+        {
+            ResourcePermissionGrantEffectivenessState.Applied => "Applied",
+            ResourcePermissionGrantEffectivenessState.Pending => "Pending",
+            ResourcePermissionGrantEffectivenessState.Failed => "Failed",
+            ResourcePermissionGrantEffectivenessState.Drifted => "Drifted",
+            ResourcePermissionGrantEffectivenessState.NotApplied => "Not applied",
+            ResourcePermissionGrantEffectivenessState.Unknown => "Unknown",
+            _ => "Unknown"
+        };
+
+    private static string FormatEffectivenessDetail(
+        ResourcePermissionGrant grant,
+        ResourcePermissionGrantStatus? status)
+    {
+        if (grant.ResourceIdentity is null)
+        {
+            return "Only resource identity grants can be materialized as RabbitMQ users.";
+        }
+
+        return string.IsNullOrWhiteSpace(status?.Detail)
+            ? "No provider status detail was reported."
+            : status.Detail;
+    }
+
+    private static string GetPrincipalIcon(RabbitMQAccessRow row) =>
+        row.PrincipalKindValue == ResourcePrincipalKind.ResourceIdentity
+            ? "identity"
+            : "permissions";
+
+    private static bool IsBrokerPermission(string permission) =>
+        string.Equals(permission, RabbitMQResourceOperationPermissions.Publish, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(permission, RabbitMQResourceOperationPermissions.Consume, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(permission, RabbitMQResourceOperationPermissions.Configure, StringComparison.OrdinalIgnoreCase);
+
+    private static string GetPermissionKey(ResourcePrincipalReference principal, string permission) =>
+        $"{principal.ProviderId}\u001f{principal.Kind}\u001f{principal.Id}\u001f{permission}";
+
+    private sealed record RabbitMQAccessRow(
+        string PrincipalName,
+        string PrincipalSummary,
+        string PrincipalKind,
+        string BrokerAccount,
+        string GrantLabel,
+        string BrokerPermission,
+        string EffectiveStatus,
+        string Detail,
+        ResourcePrincipalKind PrincipalKindValue);
+}

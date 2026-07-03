@@ -59,7 +59,7 @@ public sealed class DefaultRabbitMQPrincipalCredentialProvider(
         ArgumentException.ThrowIfNullOrWhiteSpace(targetResourceId);
         ArgumentNullException.ThrowIfNull(principal);
 
-        var userName = CreateUserName(principal, options.ManagedUserNamePrefix);
+        var userName = CreateManagedUserName(principal, options.ManagedUserNamePrefix);
         return new RabbitMQPrincipalCredentials(
             userName,
             CreatePassword(targetResourceId, principal));
@@ -81,7 +81,7 @@ public sealed class DefaultRabbitMQPrincipalCredentialProvider(
             .TrimEnd('=');
     }
 
-    private static string CreateUserName(
+    public static string CreateManagedUserName(
         ResourcePrincipalReference principal,
         string? prefix)
     {

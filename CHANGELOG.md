@@ -45,6 +45,11 @@ on `git blame --follow`, and then by the broad type of change.
   publish, consume, and configure grants can report applied, drifted, not
   applied, failed, or unknown based on observed broker-native virtual-host
   permissions.
+- Added RabbitMQ-specific Access control grant options and a focused Broker
+  access Resource Manager tab that maps CloudShell resource identities to
+  non-secret RabbitMQ broker account names, shows requested publish, consume,
+  and configure grants, and displays provider effective status without
+  exposing broker administrator credentials.
 - Added a focused RabbitMQ Broker Resource Manager tab that summarizes broker
   state, projected AMQP and management endpoints, access reconciliation
   availability, and links to the RabbitMQ management UI without duplicating the
