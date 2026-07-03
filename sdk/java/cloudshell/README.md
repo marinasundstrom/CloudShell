@@ -4,9 +4,9 @@ This experimental Java SDK provides CloudShell service clients for Java
 workloads. The first clients cover Configuration Store and Secrets Vault.
 
 This package is for running Java applications that consume CloudShell-managed
-services. Java ResourceTemplate/app-host builders remain sample-local in
-`samples/JavaAppHost` until CloudShell introduces a separate Java app-host
-authoring package.
+services. Java ResourceTemplate/app-host builders live in the separate
+`Launchers/Java/cloudshell-launcher` package so launcher authoring stays
+separate from runtime service clients.
 
 The clients discover service bindings from the same environment variables used
 by other language integrations:

@@ -5,8 +5,10 @@
 - Status: In progress.
 - Strategy fit: High; local development must work from an installed CLI before
   broader language SDKs become mandatory.
-- Canonical feature docs: [Launchers and app hosts](../../launchers-and-app-hosts.md),
-  [CloudShell CLI](../../cli.md), [Programmatic resources](../../programmatic-resources.md),
+- Canonical feature docs: [Integration story](../../integration-story.md),
+  [Launchers and app hosts](../../launchers-and-app-hosts.md),
+  [CloudShell CLI](../../cli.md),
+  [Programmatic resources](../../programmatic-resources.md),
   [Resource templates](../../resource-templates.md), and
   [SDK clients](../../sdk-clients.md).
 - Remaining action: make `dotnet tool install -g CloudShell.Cli` enough to
@@ -407,7 +409,8 @@ not deployment to another environment.
 
 The current CLI, C# launcher, local host profile, experimental TypeScript
 hosting package, Java app resource, Java service clients, and Java launcher
-sample are documented in [Launchers](../../launchers-and-app-hosts.md),
+sample are summarized in [Integration story](../../integration-story.md) and
+documented in [Launchers](../../launchers-and-app-hosts.md),
 [CloudShell CLI](../../cli.md), [SDK clients](../../sdk-clients.md),
 [JavaScript applications](../../resources/javascript-applications.md), and
 [Java applications](../../resources/java-applications.md).

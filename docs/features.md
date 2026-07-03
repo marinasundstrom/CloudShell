@@ -62,15 +62,15 @@ Use these terms when summarizing feature and proposal state:
 | --- | --- | --- |
 | Product goal and positioning | [Goal](goal.md), [Why CloudShell](why-cloudshell.md), [Roadmap](roadmap.md) | Product intent, MVP focus, and current execution priorities. |
 | Architecture and domain model | [Architecture](architecture.md), [Domain model](domain-model.md), [System design guidelines](system-design-guidelines.md), [Terminology](terminology.md) | Ownership boundaries, Control Plane/WebUI split, domain terms, and design rules. |
-| Hosting | [Hosting model](hosting-model.md), [Launchers](launchers-and-app-hosts.md) | Combined hosts, split hosting, local development hosts, launchers, and host-profile responsibilities. |
-| Control Plane API | [Control Plane API](control-plane-api.md), [SDK clients](sdk-clients.md), [CloudShell CLI](cli.md) | HTTP API shape, remote client behavior, generated/handwritten clients, and CLI apply/host workflows. |
+| Hosting | [Hosting model](hosting-model.md), [Launchers](launchers-and-app-hosts.md), [Integration story](integration-story.md) | Combined hosts, split hosting, local development hosts, launchers, host-profile responsibilities, and cross-language integration expectations. |
+| Control Plane API | [Control Plane API](control-plane-api.md), [SDK clients](sdk-clients.md), [CloudShell CLI](cli.md), [Integration story](integration-story.md) | HTTP API shape, remote client behavior, generated/handwritten clients, runtime service clients, and CLI apply/host workflows. |
 
 ## Resource Model
 
 | Area | Canonical docs | Current scope |
 | --- | --- | --- |
 | Resource model concepts | [Resource model](resource-model.md), [ResourceDefinition structure](resource-definition-structure.md), [Resource model providers](resource-model-providers.md), [Built-in resource types](resources/resource-types.md), [Capabilities](capabilities.md), [Provider-created and runtime-managed resources](runtime-managed-resources.md) | Resource classes, types, definitions, attributes, capabilities, operations, provider contracts, graph resolution, runtime-managed projections, visibility, ownership, and diagnostics. |
-| Resource templates and apply | [Resource templates](resource-templates.md), [Programmatic resources](programmatic-resources.md) | YAML/JSON templates, apply modes, `ResourceGraphBuilder`, `DefineResources(...)`, `DefineInitialTemplate(...)`, launcher apply, and builder-owned authoring. |
+| Resource templates and apply | [Resource templates](resource-templates.md), [Programmatic resources](programmatic-resources.md), [Integration story](integration-story.md) | YAML/JSON templates, apply modes, `ResourceGraphBuilder`, `DefineResources(...)`, `DefineInitialTemplate(...)`, launcher apply, builder-owned authoring, and language-builder parity. |
 | Resource identity and permissions | [Resource identity and permissions](resource-identity-and-permissions.md), [Authentication and authorization](authentication-and-authorization.md) | Built-in and external identity, principals, grants, auth boundaries, and resource access behavior. |
 | Persistence | [Persistence](persistence.md) | EF Core persistence, durable stores, accepted state, and operational data boundaries. |
 

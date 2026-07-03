@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added an integration story feature doc that defines minimum expectations for
+  launchers, Control Plane clients, Configuration Store and Secrets Vault
+  runtime clients, and resource builder API parity across language
+  integrations.
 - Added a top-level `Launchers/` folder for language app-host launcher
   packages, moved the C# launcher and TypeScript launcher package under it,
   and introduced `Launchers/Java/cloudshell-launcher` as an experimental Java
