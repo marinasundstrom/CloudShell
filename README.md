@@ -2,9 +2,19 @@
 
 > **Disclaimer:** Project is in an early phase. This is not a committed product.
 
-CloudShell is a language-neutral, resource-oriented control plane where multiple programming ecosystems project into a shared resource model that can be executed by interchangeable providers. It is an extensible, self-hosted cloud-portal shell for local development and on-premise environments. It uses Blazor, Fluent UI, and .NET 11 preview, with an operational experience inspired by the .NET Aspire Dashboard.
+CloudShell is a language-neutral, resource-oriented control plane for modeling,
+running, inspecting, and operating distributed applications in local and
+self-hosted environments.
 
-The goal is to make it possible to build your own cloud-platform shell: a place where teams can register resources, group them by project, inspect endpoints and state, and let extensions add focused operational tools. The CloudShell UI and Control Plane are separate application surfaces; shell integrations connect the UI to those services through domain-shaped APIs.
+It is for developers building local distributed apps, platform teams building
+self-hosted internal cloud tooling, and extension authors adding resource
+types, providers, UI, diagnostics, or service integrations. CloudShell gives
+those users one shared resource graph across code, Resource Manager, the CLI,
+and the Control Plane API instead of binding the platform to one programming
+language or one public cloud.
+
+The Resource Manager UI is built with Blazor, Fluent UI, and .NET 11 preview,
+with an operational experience inspired by the .NET Aspire Dashboard.
 
 **Resources view:**
 
@@ -18,43 +28,56 @@ The goal is to make it possible to build your own cloud-platform shell: a place 
   <a href="images/runtime-graph.png"><img src="images/runtime-graph.png" width="45%" alt="Runtime graph" /></a>
 </p>
 
-## Why CloudShell?
+## Integration Paths
 
-Modern software is increasingly built as distributed applications consisting of
-multiple services, databases, APIs, containers, and infrastructure resources.
-CloudShell provides a resource-oriented model for describing, managing, and
-operating those systems.
+| Path | Status |
+| --- | --- |
+| C# launchers and resource builders | Most complete authoring path today. |
+| JavaScript/TypeScript launchers | Active work; experimental until default run behavior, packaging, and samples are stable. |
+| Java launchers | Active work; experimental until default run behavior, packaging, and samples are stable. |
+| Control Plane API and remote client | Available for automation, split hosting, and integrations. |
+| Runtime service clients | Configuration, secrets, and SQL client paths exist for workloads that consume CloudShell-managed services. |
 
-CloudShell is designed to feel familiar to developers who use .NET Aspire while
-also introducing concepts commonly found in cloud platforms such as networks,
-endpoints, storage, identities, deployments, and operational workflows.
+## Ways To Use CloudShell
 
-The goal is to make cloud-inspired architecture approachable without requiring a
-public cloud account. Developers can experiment locally, share environments
-with a team, and gradually evolve toward self-hosted or cloud-connected
-infrastructure using the same resource model.
+| Mode | Use when | Status |
+| --- | --- | --- |
+| Resource Manager UI | You want to inspect resources, follow relationships, run actions, and diagnose local environments visually. | Implemented; first major shell experience. |
+| Launcher | You are developing an app and want the CloudShell graph to live with that project. | C# most complete; JavaScript/TypeScript and Java experimental. |
+| CLI | You need automation, resource operations, template apply, local host-name mappings, or scripts/CI workflows. | Implemented; see [CloudShell CLI](docs/cli.md). |
+| Daemon hosting | You want a persistent local CloudShell instance installed on the machine for tools, scripts, users, or launchers to attach to. | Implemented for local Control Plane process reuse. |
+| Custom or split host | You are building an internal platform, provider package, UI extension, or self-hosted environment. | Supported architecture; still stabilizing. |
 
-## Features
+## Application Providers
 
-This repository is an early shell prototype. It currently includes:
+CloudShell includes built-in application providers for the local-development
+resource graph. These are not meant to be a complete deployment platform yet;
+they are the current supported resource types for modeling and running
+application workloads through Resource Manager, launchers, and the Control
+Plane API.
 
-- A Blazor shell with Fluent UI styling and Aspire-like density.
-- Extension registration through the .NET service container.
-- A Resource Manager surface with resource groups, nested resources, endpoints, state, and details.
-- Programmatic Control Plane resource declarations through checked-in `Resources` code.
-- Resource-bound actions for standard lifecycle commands and provider-specific commands.
-- Resource group templates for provider-owned import/export of grouped resources.
-- Configuration service resources for sharing settings and secrets between dependent resources.
-- A Logs section where providers and extensions can expose resource or artifact logs.
-- Aspire-compatible resource observability metadata and OTLP environment injection for local executable, ASP.NET Core project, and container resources.
-- Resource type registration, where extensions provide the UI used to add resources.
-- EF Core persistence for explicitly registered root resources and resource groups.
-- Configurable ASP.NET Core Identity, dashboard-secret, OIDC, or external-scheme authentication.
-- Role, permission, resource-group, and resource-scoped authorization.
-- Host UI localization with a persisted language picker.
-- SQLite or SQL Server persistence selected through configuration.
-- A Docker reference extension that registers a local Docker Engine resource and shows containers as sub-resources.
-- An executable application extension for local dev services, with configurable process lifetime and environment variables.
+| Application type | Resource type | Status |
+| --- | --- | --- |
+| ASP.NET Core project | `application.aspnet-core-project` | Implemented; most complete project-backed app path. |
+| JavaScript/TypeScript app | `application.javascript-app` | Implemented for Node.js/package-manager local apps; framework-specific helpers are future work. |
+| Java/JVM app | `application.java-app` | Implemented for local JVM processes and samples; Java service-client and launcher support remain experimental. |
+| Executable application | `application.executable` | Implemented for generic host-local commands, workers, tools, and emulators. |
+| Container app | `application.container-app` | Implemented for local container workloads; Docker is the first runtime target and orchestration diagnostics are still hardening. |
+| SQL Server | `application.sql-server` and `application.sql-database` | Implemented for local SQL Server in a container with volumes and database children; reusable non-local SQL support is future work. |
+
+## Current Capabilities
+
+- Resource Manager web UI with resource inventory, relationships, actions,
+  endpoints, diagnostics, logs, traces, metrics, monitoring, and activity.
+- ResourceDefinition-backed graph declarations through code, templates, CLI,
+  API, and launcher workflows.
+- Built-in providers for local applications, containers, SQL Server,
+  configuration, secrets, storage, networking, DNS/name mappings, load
+  balancing, identity, logs, traces, and usage.
+- Resource-scoped authorization, configurable authentication, and EF Core
+  persistence with SQLite or SQL Server.
+- Extension points for resource providers, Resource Manager UI, shell views,
+  diagnostics, runtime adapters, and client helpers.
 
 ## Core Concepts
 
@@ -104,7 +127,8 @@ and the Control Plane API.
 
 ## Example
 
-CloudShell resources can be declared programmatically:
+CloudShell resources can be declared from code and then run through the same
+Control Plane model:
 
 ```csharp
 resources
@@ -113,48 +137,10 @@ resources
     .AddVirtualNetwork(...);
 ```
 
-Applications, infrastructure, networking, and operational capabilities are all
-represented through the same resource model.
-
-For normal local development, the simplest host-launcher shape is a small app
-that declares the resources, then asks the CLI to start
-`CloudShell.LocalDevelopmentHost` and apply the generated template:
-
-```csharp
-using CloudShell.AppHost.Launcher;
-using CloudShell.ControlPlane.Providers;
-
-var app = CloudShellDistributedApplication.CreateBuilder("frontend-dev", args);
-
-app.DefineResources(resources =>
-{
-    var settings = resources
-        .AddConfigurationStore("settings")
-        .WithEndpoint("http://localhost:5101");
-
-    resources
-        .AddJavaScriptApp("frontend", "../App")
-        .WithPackageManager("npm")
-        .WithScript("dev")
-        .WithReference(settings)
-        .WithEnvironmentVariable(
-            "CLOUDSHELL_SETTINGS_ENDPOINT",
-            "http://localhost:5101/api/configuration/stores/configuration.store%3Asettings/entries")
-        .WithHttpEndpoint(host: "localhost", port: 5173, targetPort: 5173);
-});
-
-return (await app.RunAsync(new()
-{
-    CliProjectPath = "../../CloudShell.Cli/CloudShell.Cli.csproj",
-    HostProjectPath = "../../CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj",
-    HostUrl = new Uri("http://127.0.0.1:5097"),
-    ControlPlaneUrl = new Uri("http://127.0.0.1:5097")
-})).ExitCode;
-```
-
-Use `CLOUDSHELL_HOST_PROJECT` or `HostProjectPath` to target a custom
-CloudShell host profile only when the Control Plane/UI process itself needs
-additional extensions, authentication, persistence, or host-specific services.
+Applications, infrastructure, networking, and operational capabilities are
+represented through the same resource graph. For full launcher examples, see
+`samples/CSharpAppHost`, `samples/TypeScriptAppHost`, and
+`samples/JavaAppHost`.
 
 ## Projects
 
@@ -241,6 +227,7 @@ Local-development host and launcher samples are also available:
 dotnet build
 dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj --no-restore
 ```
+
 ## Documentation
 
 - [CloudShell goal](docs/goal.md)
@@ -261,4 +248,4 @@ dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj -
 - [Programmatic resources](docs/programmatic-resources.md)
 - [Resource templates](docs/resource-templates.md)
 - [Configuration services](docs/configuration-services.md)
-- [Executable applications](docs/executable-applications.md)
+- [Executable applications](docs/resources/executable-applications.md)
