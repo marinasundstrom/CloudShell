@@ -8,7 +8,13 @@ var backendBaseUrl = builder.Configuration["SignalRBackend:BaseUrl"] ??
 var backendBaseUri = new Uri($"{backendBaseUrl.TrimEnd('/')}/", UriKind.Absolute);
 const string backendProxyPath = "/signalr-backend";
 
-builder.Services.AddHttpClient("SignalRBackendProxy");
+builder.Services
+    .AddHttpClient("SignalRBackendProxy")
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+    {
+        AllowAutoRedirect = false,
+        UseCookies = false
+    });
 
 var app = builder.Build();
 

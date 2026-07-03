@@ -79,6 +79,10 @@ on `git blame --follow`, and then by the broad type of change.
   that sticky cookies affect ordinary HTTP requests as well as SignalR and
   WebSocket setup flows, documented current provider enforcement limits, and
   recommends leaving affinity disabled for stateless replicated services.
+- Shortened the SignalR container app sample's cookie session affinity window
+  to five minutes and made its frontend proxy avoid storing backend affinity
+  cookies, so stickiness covers connection setup and reconnects without
+  turning later site visits into durable replica placement.
 
 ### 2026-07-02
 

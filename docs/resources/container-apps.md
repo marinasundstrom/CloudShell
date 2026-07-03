@@ -404,6 +404,11 @@ REST, page, health, or other HTTP requests sent by that client to the
 container app endpoint. An already-upgraded WebSocket remains on its selected
 replica because the connection is long-lived; affinity controls which replica
 is selected for the HTTP requests that establish or resume that connection.
+For SignalR and similar WebSocket workloads, prefer a short affinity duration
+that covers negotiation, transport fallback, and reconnects instead of using
+sticky routing as durable browser placement. A later site visit should be able
+to create a fresh affinity context unless the workload explicitly needs
+longer-lived replica-local state.
 
 Session affinity is opt-in resource intent, not a default for replicated
 container apps. Leave affinity disabled for stateless HTTP services that can

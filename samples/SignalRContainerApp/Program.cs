@@ -16,6 +16,7 @@ var builder = CloudShellApplication.CreateBuilder(args);
 
 const string sampleImageTag = "20260630.1";
 const string resourceGroupId = "signalr-container-app";
+const int signalRSessionAffinityDurationSeconds = 300;
 
 var hostPort = TryGetConfiguredHostPort(builder.Configuration);
 var apiEndpointPort =
@@ -57,7 +58,9 @@ var cloudShell = builder.AddCloudShellControlPlane(controlPlane =>
             .WithProjectPath(apiProjectPath)
             .WithRuntimeLogSources(LogFormat.JsonConsole)
             .WithReplicas(3)
-            .WithCookieSessionAffinity("CloudShellSignalRReplica", durationSeconds: 3600)
+            .WithCookieSessionAffinity(
+                "CloudShellSignalRReplica",
+                durationSeconds: signalRSessionAffinityDurationSeconds)
             .WithHttpEndpoint(
                 targetPort: 8080,
                 host: "localhost",

@@ -2125,7 +2125,7 @@ public sealed class SampleSmokeTests
         Assert.Equal("3", apiAttributes.GetProperty("container.replicas").GetString());
         Assert.Equal("Cookie", apiAttributes.GetProperty("container.routing.sessionAffinity.mode").GetString());
         Assert.Equal("CloudShellSignalRReplica", apiAttributes.GetProperty("container.routing.sessionAffinity.cookieName").GetString());
-        Assert.Equal("3600", apiAttributes.GetProperty("container.routing.sessionAffinity.durationSeconds").GetString());
+        Assert.Equal("300", apiAttributes.GetProperty("container.routing.sessionAffinity.durationSeconds").GetString());
         var apiObservability = api.GetProperty("observability");
         Assert.True(apiObservability.GetProperty("logs").GetBoolean());
         Assert.True(apiObservability.GetProperty("traces").GetBoolean());

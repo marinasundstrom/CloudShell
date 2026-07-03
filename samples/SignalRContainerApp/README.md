@@ -20,14 +20,17 @@ Traefik ingress container.
 The browser frontend uses the default SignalR negotiation flow through a
 same-origin frontend proxy path. That proxy forwards HTTP and WebSocket
 traffic to the backend container app ingress. The app declares cookie session
-affinity at the container app resource level, and the local Docker runtime
-projects that intent into Traefik sticky routing. Normal HTTP requests that
-carry the affinity cookie are routed back to the selected replica too; SignalR
-uses the same behavior so negotiate, reconnect, fallback transport, and
-WebSocket upgrade requests stay on the same replica.
+affinity at the container app resource level with a five-minute lifetime, and
+the local Docker runtime projects that intent into Traefik sticky routing.
+Normal HTTP requests that carry the affinity cookie are routed back to the
+selected replica too; SignalR uses the same behavior so negotiate, reconnect,
+fallback transport, and WebSocket upgrade requests stay on the same replica.
+After the WebSocket is established, the long-lived connection remains on that
+replica without needing a long-lived browser affinity cookie.
 The sample enables affinity because the replicated backend demonstrates
-real-time, replica-local connection continuity. Stateless container apps should
-normally leave affinity disabled.
+real-time, replica-local connection continuity. It keeps the affinity window
+short so a later site visit can be assigned to a fresh replica. Stateless
+container apps should normally leave affinity disabled.
 
 ## Run
 
