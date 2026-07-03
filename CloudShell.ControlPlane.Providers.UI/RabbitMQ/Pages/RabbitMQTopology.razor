@@ -42,6 +42,33 @@ else
         <section class="blade-section">
             <div class="blade-section-header">
                 <div>
+                    <h3>Virtual host summary</h3>
+                    <p>Observed broker-native topology for @FormatVirtualHost(Topology?.VirtualHost).</p>
+                </div>
+            </div>
+            <div class="generated-list">
+                <div>
+                    <strong>Queues</strong>
+                    <span>@FormatNumber(Topology?.Queues.Count)</span>
+                </div>
+                <div>
+                    <strong>Exchanges</strong>
+                    <span>@FormatNumber(Topology?.Exchanges.Count)</span>
+                </div>
+                <div>
+                    <strong>Bindings</strong>
+                    <span>@FormatNumber(Topology?.Bindings.Count)</span>
+                </div>
+                <div>
+                    <strong>Observed</strong>
+                    <span>@FormatTimestamp(Topology?.ObservedAt)</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="blade-section">
+            <div class="blade-section-header">
+                <div>
                     <h3>Queues</h3>
                     <p>@GetQueueSummary()</p>
                 </div>
@@ -136,6 +163,53 @@ else
                             Message="RabbitMQ did not report exchanges for this virtual host." />
             }
         </section>
+
+        <section class="blade-section">
+            <div class="blade-section-header">
+                <div>
+                    <h3>Bindings</h3>
+                    <p>@GetBindingSummary()</p>
+                </div>
+            </div>
+            @if (Topology?.Bindings.Count > 0)
+            {
+                <ResourceTable AriaLabel="RabbitMQ bindings">
+                    <thead>
+                        <tr>
+                            <th>Source exchange</th>
+                            <th>Destination</th>
+                            <th>Destination type</th>
+                            <th>Routing key</th>
+                            <th>Virtual host</th>
+                            <th>Properties key</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var binding in Topology.Bindings)
+                        {
+                            <tr>
+                                <td>@FormatName(binding.Source)</td>
+                                <td>
+                                    <ResourceTableIdentity IconName="queue"
+                                                           IconTitle="Binding destination"
+                                                           Title="@FormatName(binding.Destination)"
+                                                           Summary="@FormatDestinationSummary(binding)" />
+                                </td>
+                                <td>@FormatNullable(binding.DestinationType)</td>
+                                <td>@FormatRoutingKey(binding.RoutingKey)</td>
+                                <td>@binding.VirtualHost</td>
+                                <td>@FormatNullable(binding.PropertiesKey)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </ResourceTable>
+            }
+            else
+            {
+                <EmptyState Title="No bindings"
+                            Message="RabbitMQ did not report bindings for this virtual host." />
+            }
+        </section>
     }
 }
 
@@ -185,7 +259,7 @@ else
             return $"CloudShell could not read RabbitMQ topology for virtual host {Topology.VirtualHost}.";
         }
 
-        return $"Virtual host {Topology.VirtualHost}: {Topology.Queues.Count.ToString(CultureInfo.InvariantCulture)} queue(s), {Topology.Exchanges.Count.ToString(CultureInfo.InvariantCulture)} exchange(s).";
+        return $"Virtual host {FormatVirtualHost(Topology.VirtualHost)}: {Topology.Queues.Count.ToString(CultureInfo.InvariantCulture)} queue(s), {Topology.Exchanges.Count.ToString(CultureInfo.InvariantCulture)} exchange(s), {Topology.Bindings.Count.ToString(CultureInfo.InvariantCulture)} binding(s).";
     }
 
     private string GetQueueSummary()
@@ -204,8 +278,22 @@ else
             : $"{count.ToString(CultureInfo.InvariantCulture)} exchanges were reported by RabbitMQ.";
     }
 
+    private string GetBindingSummary()
+    {
+        var count = Topology?.Bindings.Count ?? 0;
+        return count == 1
+            ? "1 binding was reported by RabbitMQ."
+            : $"{count.ToString(CultureInfo.InvariantCulture)} bindings were reported by RabbitMQ.";
+    }
+
+    private static string FormatVirtualHost(string? virtualHost) =>
+        string.IsNullOrWhiteSpace(virtualHost) ? "(default)" : virtualHost;
+
     private static string FormatName(string name) =>
         string.IsNullOrEmpty(name) ? "(default)" : name;
+
+    private static string FormatRoutingKey(string routingKey) =>
+        string.IsNullOrEmpty(routingKey) ? "(empty)" : routingKey;
 
     private static string FormatNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "n/a" : value;
@@ -215,4 +303,12 @@ else
 
     private static string FormatBoolean(bool value) =>
         value ? "Yes" : "No";
+
+    private static string FormatTimestamp(DateTimeOffset? value) =>
+        value?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) ?? "n/a";
+
+    private static string FormatDestinationSummary(RabbitMQBindingInfo binding) =>
+        string.IsNullOrWhiteSpace(binding.RoutingKey)
+            ? binding.DestinationType
+            : $"{binding.DestinationType} via {binding.RoutingKey}";
 }

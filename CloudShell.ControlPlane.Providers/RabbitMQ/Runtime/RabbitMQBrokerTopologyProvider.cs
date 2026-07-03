@@ -17,6 +17,7 @@ public sealed record RabbitMQBrokerTopologyResult(
     string VirtualHost,
     IReadOnlyList<RabbitMQQueueInfo> Queues,
     IReadOnlyList<RabbitMQExchangeInfo> Exchanges,
+    IReadOnlyList<RabbitMQBindingInfo> Bindings,
     DateTimeOffset ObservedAt,
     string? ErrorMessage = null)
 {
@@ -25,7 +26,7 @@ public sealed record RabbitMQBrokerTopologyResult(
     public static RabbitMQBrokerTopologyResult Unavailable(
         string virtualHost,
         string errorMessage) =>
-        new(virtualHost, [], [], DateTimeOffset.UtcNow, errorMessage);
+        new(virtualHost, [], [], [], DateTimeOffset.UtcNow, errorMessage);
 }
 
 public sealed record RabbitMQQueueInfo(
@@ -46,6 +47,14 @@ public sealed record RabbitMQExchangeInfo(
     bool Durable,
     bool AutoDelete,
     bool Internal);
+
+public sealed record RabbitMQBindingInfo(
+    string Source,
+    string VirtualHost,
+    string Destination,
+    string DestinationType,
+    string RoutingKey,
+    string PropertiesKey);
 
 public sealed class NoopRabbitMQBrokerTopologyProvider(
     IOptions<RabbitMQManagementAccessOptions>? options = null) :
@@ -107,6 +116,11 @@ public sealed class RabbitMQManagementApiBrokerTopologyProvider(
                 $"api/exchanges/{encodedVirtualHost}?disable_stats=true",
                 "read RabbitMQ exchanges",
                 cancellationToken);
+            var bindings = await ReadAsync<RabbitMQBindingResponse>(
+                client,
+                $"api/bindings/{encodedVirtualHost}",
+                "read RabbitMQ bindings",
+                cancellationToken);
 
             return new RabbitMQBrokerTopologyResult(
                 virtualHost,
@@ -118,6 +132,13 @@ public sealed class RabbitMQManagementApiBrokerTopologyProvider(
                     .Select(exchange => exchange.ToInfo(virtualHost))
                     .OrderBy(exchange => string.IsNullOrEmpty(exchange.Name) ? 0 : 1)
                     .ThenBy(exchange => exchange.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
+                bindings
+                    .Select(binding => binding.ToInfo(virtualHost))
+                    .OrderBy(binding => binding.Source, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(binding => binding.DestinationType, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(binding => binding.Destination, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(binding => binding.RoutingKey, StringComparer.OrdinalIgnoreCase)
                     .ToArray(),
                 DateTimeOffset.UtcNow);
         }
@@ -183,5 +204,23 @@ public sealed class RabbitMQManagementApiBrokerTopologyProvider(
                 Durable,
                 AutoDelete,
                 Internal);
+    }
+
+    private sealed record RabbitMQBindingResponse(
+        [property: JsonPropertyName("source")] string? Source,
+        [property: JsonPropertyName("vhost")] string? VirtualHost,
+        [property: JsonPropertyName("destination")] string? Destination,
+        [property: JsonPropertyName("destination_type")] string? DestinationType,
+        [property: JsonPropertyName("routing_key")] string? RoutingKey,
+        [property: JsonPropertyName("properties_key")] string? PropertiesKey)
+    {
+        public RabbitMQBindingInfo ToInfo(string fallbackVirtualHost) =>
+            new(
+                Source ?? string.Empty,
+                string.IsNullOrWhiteSpace(VirtualHost) ? fallbackVirtualHost : VirtualHost!,
+                Destination ?? string.Empty,
+                string.IsNullOrWhiteSpace(DestinationType) ? "unknown" : DestinationType!,
+                RoutingKey ?? string.Empty,
+                PropertiesKey ?? string.Empty);
     }
 }

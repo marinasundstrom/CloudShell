@@ -52,6 +52,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a RabbitMQ Management API-backed topology reader and read-only
   Resource Manager Topology tab for broker-native queues and exchanges,
   keeping provider-owned credentials behind the RabbitMQ provider boundary.
+- Extended the RabbitMQ Management API-backed topology reader and Resource
+  Manager Topology tab with broker-native bindings so users can inspect
+  exchange-to-queue relationships without creating CloudShell child resources
+  or exposing provider-owned credentials.
 - Hardened sample smoke cleanup so runtime-scoped RabbitMQ sample containers
   left by interrupted Docker-backed smoke runs are removed by the shared sample
   cleanup fixture.

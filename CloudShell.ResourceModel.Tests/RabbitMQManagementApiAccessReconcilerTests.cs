@@ -267,6 +267,23 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
                         """);
                 }
 
+                if (uri.Contains("/api/bindings/", StringComparison.OrdinalIgnoreCase))
+                {
+                    return JsonResponse(
+                        """
+                        [
+                          {
+                            "source": "cloudshell.sample.events",
+                            "vhost": "/",
+                            "destination": "rabbitmq-dotnet-events",
+                            "destination_type": "queue",
+                            "routing_key": "",
+                            "properties_key": "~"
+                          }
+                        ]
+                        """);
+                }
+
                 return JsonResponse(
                     """
                     [
@@ -312,13 +329,24 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
         Assert.Equal("cloudshell.sample.events", topology.Exchanges[1].Name);
         Assert.Equal("fanout", topology.Exchanges[1].Type);
 
-        Assert.Equal(2, handler.Requests.Count);
+        var binding = Assert.Single(topology.Bindings);
+        Assert.Equal("cloudshell.sample.events", binding.Source);
+        Assert.Equal("/", binding.VirtualHost);
+        Assert.Equal("rabbitmq-dotnet-events", binding.Destination);
+        Assert.Equal("queue", binding.DestinationType);
+        Assert.Equal(string.Empty, binding.RoutingKey);
+        Assert.Equal("~", binding.PropertiesKey);
+
+        Assert.Equal(3, handler.Requests.Count);
         Assert.Equal(
             "http://localhost:15672/api/queues/%2F?disable_stats=true",
             handler.Requests[0].Uri);
         Assert.Equal(
             "http://localhost:15672/api/exchanges/%2F?disable_stats=true",
             handler.Requests[1].Uri);
+        Assert.Equal(
+            "http://localhost:15672/api/bindings/%2F",
+            handler.Requests[2].Uri);
         var expectedAuthorization = Convert.ToBase64String(
             Encoding.UTF8.GetBytes("admin:admin-secret"));
         Assert.All(handler.Requests, request =>

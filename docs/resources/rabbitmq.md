@@ -164,11 +164,12 @@ availability, and a link to the RabbitMQ management UI when the management
 endpoint is mapped.
 
 When a RabbitMQ Management API topology provider is registered, Resource
-Manager also contributes a read-only **Topology** tab. It lists queues and
-exchanges reported by the broker for the configured virtual host. The view is
-diagnostic and operational: it shows broker-native names, durability,
-auto-delete/internal flags, queue state, message counts, and consumer counts
-without creating CloudShell child resources for those broker objects.
+Manager also contributes a read-only **Topology** tab. It lists queues,
+exchanges, and bindings reported by the broker for the configured virtual
+host. The view is diagnostic and operational: it shows broker-native names,
+durability, auto-delete/internal flags, queue state, message counts, consumer
+counts, and binding source/destination relationships without creating
+CloudShell child resources for those broker objects.
 
 The Broker and Topology tabs are intentionally not a RabbitMQ-native
 administration console. They do not create, update, or delete queues,
@@ -204,6 +205,23 @@ and vhost permissions:
 The CloudShell `ReconcileAccess` grant authorizes the CloudShell operation and
 is not projected into a RabbitMQ broker permission.
 
+RabbitMQ broker administrator credentials are a provider-owned bootstrap path
+for CloudShell reconciliation and inspection. Hosts may configure those
+credentials, but Resource Manager must not project the administrator username,
+password, connection string, or equivalent secret material through resource
+attributes, generated UI, diagnostics, logs, or templates. Normal users should
+work through CloudShell resource identities, grants, grant status, and
+provider-scoped audit/activity events instead of needing to know the broker
+administrator account.
+
+Traceability comes from reconciling CloudShell identities to broker-native
+accounts and permissions. The RabbitMQ provider can create or update
+broker-owned users for resource-identity principals, then RabbitMQ enforces
+and records activity under those broker accounts. CloudShell records the
+requested principal and grant, reconciliation result, and non-secret effective
+status so operators can relate broker activity back to the CloudShell resource
+identity without exposing the provider administrator credential.
+
 The grant-status provider recognizes RabbitMQ grants. Without a runtime
 inspector it reports broker grants as pending. When the Management API status
 inspector is registered, it reads RabbitMQ virtual-host permissions and reports
@@ -229,8 +247,8 @@ credential material, connection strings, or message payloads.
   updating, or deleting queues, exchanges, bindings, users, virtual hosts,
   policies, or cluster state yet.
 - No RabbitMQ-specific workload client package or service-discovery helper yet.
-- Queues and exchanges are visible through the read-only broker topology tab,
-  but they are not projected as CloudShell child resources and bindings,
+- Queues, exchanges, and bindings are visible through the read-only broker
+  topology tab, but they are not projected as CloudShell child resources and
   virtual hosts, users, and policies are not surfaced yet.
 - RabbitMQ permission grants can be reconciled and inspected through the
   Management API, but no specialized Resource Manager access-control UI has
