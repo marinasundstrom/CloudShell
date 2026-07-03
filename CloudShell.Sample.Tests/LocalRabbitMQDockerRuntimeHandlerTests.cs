@@ -136,6 +136,55 @@ public sealed class LocalRabbitMQDockerRuntimeHandlerTests
     }
 
     [Fact]
+    public async Task ExecuteStart_PersistsManagedBootstrapCredentialsAcrossProviderInstances()
+    {
+        using var fixture = new RabbitMQRuntimeFixture(
+            "application.rabbitmq:rabbitmq",
+            "rabbitmq",
+            amqpPort: 5678,
+            managementPort: 15678,
+            rabbitMqAttributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [RabbitMQResourceTypeProvider.Attributes.UserManaged] = true
+            });
+        var runner = new RecordingRabbitMQDockerCommandRunner();
+        runner.Enqueue(new(1, string.Empty, "No such container"));
+        var provider = new LocalRabbitMQBootstrapCredentialProvider(fixture.HostEnvironment);
+        var handler = fixture.CreateHandlerWithoutMapping(runner, bootstrapCredentials: provider);
+        var resource = await fixture.ResolveRabbitMQAsync();
+
+        var diagnostics = await handler.ExecuteLifecycleAsync(
+            resource,
+            RabbitMQResourceTypeProvider.Operations.Start);
+
+        Assert.Empty(diagnostics);
+        var runCommand = Assert.Single(runner.Commands, command => command.Arguments[0] == "run");
+        var startedUserName = GetEnvironmentValue(runCommand, "RABBITMQ_DEFAULT_USER");
+        var startedPassword = GetEnvironmentValue(runCommand, "RABBITMQ_DEFAULT_PASS");
+        Assert.StartsWith("cloudshell-rabbitmq-", startedUserName, StringComparison.Ordinal);
+        Assert.False(string.IsNullOrWhiteSpace(startedPassword));
+
+        var restartedProvider = new LocalRabbitMQBootstrapCredentialProvider(fixture.HostEnvironment);
+        var managementCredentials = restartedProvider.ResolveManagementCredentials(
+            resource,
+            new ConfigurationBuilder().Build(),
+            new RabbitMQManagementAccessOptions());
+
+        Assert.Equal(startedUserName, managementCredentials.UserName);
+        Assert.Equal(startedPassword, managementCredentials.Password);
+        Assert.True(managementCredentials.IsCloudShellManaged);
+
+        restartedProvider.Forget(resource.EffectiveResourceId);
+        var nextCredentials = new LocalRabbitMQBootstrapCredentialProvider(fixture.HostEnvironment)
+            .ResolveManagementCredentials(
+                resource,
+                new ConfigurationBuilder().Build(),
+                new RabbitMQManagementAccessOptions());
+        Assert.NotEqual(startedUserName, nextCredentials.UserName);
+        Assert.NotEqual(startedPassword, nextCredentials.Password);
+    }
+
+    [Fact]
     public async Task ExecuteStart_ReturnsDiagnosticWhenVolumeConsumerMountsAreMissing()
     {
         using var fixture = new RabbitMQRuntimeFixture(
@@ -212,6 +261,17 @@ public sealed class LocalRabbitMQDockerRuntimeHandlerTests
         Assert.Equal(
             "logs --timestamps --tail 20 cloudshell-rabbitmq",
             command.JoinedArguments);
+    }
+
+    private static string GetEnvironmentValue(
+        RecordedDockerCommand command,
+        string name)
+    {
+        var prefix = $"{name}=";
+        return command.Arguments
+            .Where(argument => argument.StartsWith(prefix, StringComparison.Ordinal))
+            .Select(argument => argument[prefix.Length..])
+            .Single();
     }
 
     private sealed class RabbitMQRuntimeFixture : IDisposable
@@ -366,7 +426,8 @@ public sealed class LocalRabbitMQDockerRuntimeHandlerTests
 
         public LocalRabbitMQDockerRuntimeHandler CreateHandlerWithoutMapping(
             RecordingRabbitMQDockerCommandRunner runner,
-            IReadOnlyDictionary<string, string?>? configuration = null) =>
+            IReadOnlyDictionary<string, string?>? configuration = null,
+            IRabbitMQBootstrapCredentialProvider? bootstrapCredentials = null) =>
             new(
                 runner,
                 serviceProvider.GetRequiredService<IServiceScopeFactory>(),
@@ -375,7 +436,7 @@ public sealed class LocalRabbitMQDockerRuntimeHandlerTests
                     .AddInMemoryCollection(configuration ?? new Dictionary<string, string?>())
                     .Build(),
                 Options.Create(new LocalRabbitMQDockerRuntimeOptions()),
-                new InMemoryRabbitMQBootstrapCredentialProvider());
+                bootstrapCredentials ?? new InMemoryRabbitMQBootstrapCredentialProvider());
 
         public async ValueTask<ResourceModelResource> ResolveRabbitMQAsync()
         {

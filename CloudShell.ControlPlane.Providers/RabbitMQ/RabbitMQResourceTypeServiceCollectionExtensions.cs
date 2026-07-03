@@ -85,7 +85,7 @@ public static class RabbitMQResourceTypeServiceCollectionExtensions
             DefaultRabbitMQPrincipalCredentialProvider>();
         services.TryAddSingleton<
             IRabbitMQBootstrapCredentialProvider,
-            InMemoryRabbitMQBootstrapCredentialProvider>();
+            LocalRabbitMQBootstrapCredentialProvider>();
         services.TryAddScoped<RabbitMQCredentialResolver>();
         services.TryAddSingleton<
             IRabbitMQRuntimeHandler,

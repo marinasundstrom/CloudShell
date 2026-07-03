@@ -25,6 +25,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated the RabbitMQ messaging sample to use CloudShell-managed RabbitMQ
   bootstrap credentials and have both .NET and Java clients request
   RabbitMQ-native credentials through CloudShell before connecting.
+- Persisted local-development RabbitMQ managed bootstrap credentials in
+  provider-owned runtime state so CloudShell can continue using the generated
+  broker administrator account after a host process restart while the container
+  remains running.
 
 ### 2026-07-03
 

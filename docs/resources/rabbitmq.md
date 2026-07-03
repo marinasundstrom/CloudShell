@@ -74,7 +74,11 @@ configuration, not CloudShell Resource Manager identity metadata. Omitting
 `vhost` leaves the RabbitMQ default virtual host (`/`) in effect. Templates can
 set `user.managed: true` to ask the provider to derive CloudShell-owned
 bootstrap credentials for the broker resource; that mode cannot be combined
-with explicit `user.username` or `user.password`.
+with explicit `user.username` or `user.password`. The local development
+runtime stores generated bootstrap credentials in provider-owned local state
+under the host content root so they survive a host process restart while the
+broker container is still running, and removes them when CloudShell stops or
+restarts the managed container.
 
 `samples/RabbitMQMessaging` shows the preferred launcher shape for broker-backed
 applications. A C# AppHost declares the RabbitMQ service resource, a .NET app
@@ -157,7 +161,9 @@ credentials for the running broker instance. Host configuration can still
 provide runtime defaults for hosts that want a shared local setting. Password
 attributes are not projected as generated Resource Manager attributes, logs, or
 diagnostics, and managed bootstrap credentials remain provider-owned runtime
-state.
+state. For the local development host, generated bootstrap credentials are
+stored in a provider-owned file below `Data/cloudshell/rabbitmq` and deleted
+when the RabbitMQ resource is stopped or restarted by CloudShell.
 
 Registering `AddLocalRabbitMQDockerRuntime(...)` also enables the
 RabbitMQ Management API access reconciler and topology reader. The reconciler
