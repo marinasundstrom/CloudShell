@@ -71,7 +71,7 @@ keep only the delta that affects remaining work.
 | 17 | [Orchestrator deployments and environment revisions](deployment/deployments-and-revisions.md) | In progress | High for container app internals; later for public rollout history. | Finish controller/reconciliation boundary for first start, routing rebinding, service tear-down, and cleanup. Keep rich rollout history deferred. |
 | 18 | [UI composition library](core/ui-composition.md) | Current implementation working document | Medium-high; active only where it stabilizes current UI surfaces. | Avoid broadening for MVP. Use it to reduce current shell, Settings, and Resource Manager drift; keep generic library behavior in [UI composition](../ui-composition.md). |
 | 19 | [Resource graph and runtime separation](core/resource-graph-and-runtime-separation.md) | Migration in progress; active migration anchor | High; foundational to templates, graph apply, and orchestration. | Continue ResourceDefinition-based templates, graph-backed provider migration, and retirement of obsolete provider-template paths. |
-| 20 | [Cross-language local development](core/cross-language-local-development.md) | In progress | High; required to keep CloudShell ecosystem-neutral. | Continue launcher/profile, TypeScript/JavaScript, Java, CLI, and SDK hardening as focused slices. Move stable package and sample behavior into launcher, CLI, SDK, and resource specs. |
+| 20 | [Cross-language local development](core/cross-language-local-development.md) | In progress | High; required to keep CloudShell ecosystem-neutral. | Prioritize the installed CLI plus default local-development host daemon path, then keep launcher/profile, TypeScript/JavaScript, Java, and SDK hardening aligned with that boundary. |
 | 21 | [Managed SQL Server resource](resources/managed-sql-server.md) | Partially implemented | Medium-high; valuable after MVP storage, identity, and database access stabilize. | Keep current SQL Server local-development bridge stable. Defer full managed database surface until provider-backed grants, storage, and backup/restore value are clear. |
 
 ## Deferred Strategy Notes
@@ -177,7 +177,10 @@ hardening.
 14. Cross-language local-development hardening through
     [Cross-language local development](core/cross-language-local-development.md)
     only where it keeps the local-development model ecosystem-neutral without
-    distracting from MVP stabilization. External-format import, deployment
+    distracting from MVP stabilization. The first distribution slice is the
+    installed CLI starting or reusing the default local-development host
+    daemon; launcher packages remain optional authoring layers over that same
+    CLI/API path. External-format import, deployment
     projection, IoT provisioning, and edge/device resource management remain
     [future directions](../future/) until a concrete near-term value slice is
     accepted.

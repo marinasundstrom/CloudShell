@@ -2,23 +2,35 @@
 
 ## Status
 
-In progress.
+- Status: In progress.
+- Strategy fit: High; local development must work from an installed CLI before
+  broader language SDKs become mandatory.
+- Canonical feature docs: [Launchers and app hosts](../../launchers-and-app-hosts.md),
+  [CloudShell CLI](../../cli.md), [Programmatic resources](../../programmatic-resources.md),
+  [Resource templates](../../resource-templates.md), and
+  [SDK clients](../../sdk-clients.md).
+- Remaining action: make `dotnet tool install -g CloudShell.Cli` enough to
+  start or reuse the default local-development host daemon, then keep launcher
+  packages aligned with that same host/profile and Control Plane API boundary.
+- Out of scope: full SDK parity across all languages, external-format import,
+  deployment projection, and remote provider package installation.
 
 This proposal tracks the local-development authoring and launch experience for
-CloudShell hosts that are controlled through language-specific hosting
-integrations. C# is the native implementation today, but it should follow the
-same pattern as other integrations: author resource intent through builder
-APIs, exchange the graph through ResourceDefinition-based templates, and let
-the Control Plane own validation, lifecycle, projection, and operations. The
-first additional target is TypeScript/JavaScript because it is the closest
-comparison point to Aspire's TypeScript app-host work, but the model should
-apply to Java, Python, Go, and other ecosystems through the same contracts.
+CloudShell hosts controlled through the CLI and optional language-specific
+launcher integrations. C# is the native implementation today, but it should
+follow the same pattern as other integrations: author resource intent through
+builder APIs where useful, exchange the graph through ResourceDefinition-based
+templates, and let the Control Plane own validation, lifecycle, projection,
+and operations. TypeScript/JavaScript, Java, Python, Go, and other ecosystems
+should use the same contracts rather than reimplementing CloudShell.
+
 The first implementation slices now include the CloudShell CLI,
 `CloudShell.AppHost.Launcher`, `CloudShell.LocalDevelopmentHost`,
 experimental TypeScript/JavaScript hosting packages and samples, Java app
 resources, Java runtime service clients, and Java launcher samples. This
-proposal remains the tracker for remaining SDK hardening, package boundaries,
-generated clients, profile/credential behavior, and future ecosystems.
+proposal remains the tracker for CLI distribution, default local-development
+host packaging, remaining SDK hardening, package boundaries, generated
+clients, profile/credential behavior, and future ecosystems.
 
 ## Problem
 
@@ -66,23 +78,39 @@ case that defines it.
 
 ## Proposed model
 
-Cross-language local development starts with the CloudShell CLI and then grows
-language SDKs around it. The CLI is the common local automation entry point,
-similar in role to Azure CLI: it can manage the local host process, remember
-the active Control Plane endpoint, target local or remote Control Plane hosts,
-perform common resource operations, apply resource templates, configure
-selected local machine development affordances such as hosts-file name
-mappings, and later own login/profile selection for command-line workflows.
-Language SDKs can invoke the CLI or use the same Control Plane API directly,
-but they should not reimplement host/process/profile behavior differently in
-every ecosystem.
+Cross-language local development starts with the installed CloudShell CLI and
+then grows language SDKs around it. The CLI is the common local automation
+entry point, similar in role to Azure CLI: it can manage the local host
+process, remember the active Control Plane endpoint, target local or remote
+Control Plane hosts, perform common resource operations, apply resource
+templates, configure selected local machine development affordances such as
+hosts-file name mappings, and later own login/profile selection for
+command-line workflows. Language SDKs can invoke the CLI or use the same
+Control Plane API directly, but they should not reimplement
+host/process/profile behavior differently in every ecosystem.
+
+The default local-development path should not require a repository checkout,
+custom host project, or launcher package:
+
+```bash
+dotnet tool install -g CloudShell.Cli
+cloudshell control-plane start
+cloudshell template apply ./cloudshell.template.yaml
+cloudshell ui open
+```
+
+The installed CLI should carry or resolve a version-compatible
+`CloudShell.LocalDevelopmentHost` profile and run it as a daemon when the user
+selects the default local host. `--host-project` remains useful for repository
+development and custom host profiles, but it should not be part of the normal
+first-run experience.
 
 The model uses three layers:
 
 | Layer | Owner | Responsibility |
 | --- | --- | --- |
 | Language SDK | TypeScript/JavaScript, Java, or another ecosystem package | Provides fluent graph builders, local command integration, generated API clients, and ergonomic references for that ecosystem. |
-| Host launcher | CloudShell CLI and language-specific launcher package | Starts or selects a known .NET CloudShell host profile, passes graph input and settings, watches readiness, and returns endpoint metadata to the SDK. The default local combined host profile is `CloudShell.LocalDevelopmentHost`; foreground host-runner behavior can be added without changing the graph boundary. |
+| Host launcher | CloudShell CLI and optional language-specific launcher package | Starts or selects a known .NET CloudShell host profile, passes graph input and settings, watches readiness, and returns endpoint metadata to the SDK. The default local combined host profile is `CloudShell.LocalDevelopmentHost`; daemon startup belongs to the CLI, and foreground host-runner behavior can be added without changing the graph boundary. |
 | Control Plane | CloudShell .NET host | Owns resource validation, provider setup, lifecycle actions, persistence, logs, traces, authorization, API projection, and Resource Manager UI. |
 
 The SDK authors resource intent as a `ResourceTemplate` or equivalent
@@ -91,14 +119,14 @@ to a local Control Plane host or applies it to an existing Control Plane through
 the API. Once the host is running, the SDK talks to the Control Plane API for
 status, action execution, logs, and generated endpoint metadata.
 
-The first practical hosting-story tests are a TypeScript package published for
-the Node package manager and a C# launcher package. Both expose an app/graph
-root, resource builders, typed references, endpoint helpers,
-provider-specific extension helpers, and a `run`/`apply` path that launches
-`CloudShell.LocalDevelopmentHost` by default or attaches to a CloudShell host.
-Neither package executes the Control Plane; they build a ResourceTemplate,
-call the CloudShell CLI or Control Plane API, and can then use clients for
-status, logs, endpoints, and operations.
+The first practical distribution test is the installed CLI starting or reusing
+the default local-development host daemon without a source checkout. Launcher
+packages are the authoring convenience layer on top of that same path. A C#,
+TypeScript, Java, or future launcher package can expose an app/graph root,
+resource builders, typed references, endpoint helpers, provider-specific
+extension helpers, and `template`/`apply`/`start`/`run` helpers. It still builds
+a ResourceTemplate, calls the CloudShell CLI or Control Plane API, and uses
+clients for status, logs, endpoints, and operations.
 
 The SDK may offer ecosystem-native helpers:
 
@@ -138,16 +166,40 @@ developer experience needs special treatment.
 
 ## Launch modes
 
+### CLI-installed local daemon
+
+The first supported local-development distribution path is:
+
+1. Install the CloudShell CLI as a .NET global tool from NuGet.
+2. Start or reuse the default local-development host daemon.
+3. Apply a YAML or JSON `ResourceTemplate`.
+4. Inspect resources, execute actions, and open Resource Manager through the
+   CLI.
+
+The CLI-owned daemon state records process ID, Control Plane URL, selected host
+profile identity, selected data directory, and startup time. It must not record
+credentials or secret values. When the CLI starts the packaged default host,
+it forwards the selected URL, data directory, authentication settings, and
+other host settings through the same configuration channels used by custom
+host profiles.
+
+This path is intentionally lower level than launcher authoring. It accepts
+templates generated by hand, CI, a future import tool, or any language SDK. A
+launcher package should be optional for users who only need to start
+CloudShell locally and apply a template.
+
 ### Local combined host
 
-The common local-development mode starts a combined Control Plane and
-CloudShell UI process. The default combined process is
+The common host shape for local development starts a combined Control Plane
+and CloudShell UI process. The default combined process is
 `CloudShell.LocalDevelopmentHost`, which carries the built-in resource types,
-Resource Manager UI integrations, and local runtime adapters. A language SDK:
+Resource Manager UI integrations, and local runtime adapters. The CLI can
+start this profile directly as a daemon. A language SDK or launcher uses the
+same profile when it:
 
 1. Builds a ResourceDefinition graph.
-2. Starts `CloudShell.LocalDevelopmentHost`, or the configured custom
-   CloudShell host profile, through the launcher.
+2. Starts or reuses `CloudShell.LocalDevelopmentHost`, or the configured custom
+   CloudShell host profile, through the CLI/launcher path.
 3. Waits for the Control Plane readiness endpoint.
 4. Applies the graph as transient code-first declarations.
 5. Opens or reports the Resource Manager URL.
@@ -156,6 +208,11 @@ Resource Manager UI integrations, and local runtime adapters. A language SDK:
 The user experiences this as a normal ecosystem command. Custom host profiles
 are only needed when the Control Plane/UI process itself requires extra
 extensions, authentication, persistence, or host-specific services.
+
+The default host profile should be versioned with the CLI distribution. When a
+launcher depends on a newer template capability than the installed host
+understands, the failure should be a clear host/profile compatibility
+diagnostic rather than an obscure provider or API error.
 
 ### Control Plane only
 
@@ -260,12 +317,20 @@ graph stable.
 
 The CloudShell CLI launcher is responsible for process concerns:
 
-- finding or installing the selected CloudShell host profile
+- finding, carrying, or installing the selected CloudShell host profile
 - passing appsettings, environment variables, graph files, and port settings
 - detecting readiness and failure
 - reporting the Control Plane and Resource Manager URLs
 - forwarding shutdown signals
 - preserving logs needed to diagnose host startup failures
+
+For the default local-development path, the CLI should be able to run the
+version-compatible `CloudShell.LocalDevelopmentHost` without requiring
+`--host-project`. Implementation options include bundling the host profile
+with the tool, resolving a companion host-profile artifact, or starting an
+internal host command from the installed tool. The product contract is the
+same in each case: the user installs the CLI, then the CLI can start the
+default local host daemon.
 
 The launcher should not validate provider-specific resource semantics itself.
 It may validate launcher arguments and template envelope shape, then leave
@@ -312,8 +377,12 @@ not deployment to another environment.
 
 ## Open questions
 
-- Which parts of the first `cloudshell` CLI should become stable before
-  language SDKs start depending on them?
+- Should the default local-development host be physically bundled into the
+  `CloudShell.Cli` tool package, resolved as a companion NuGet package, or run
+  through an internal CLI host command?
+- Which parts of the first `cloudshell` CLI daemon, template apply, resource,
+  and UI commands should become stable before language SDKs start depending on
+  them?
 - Should CloudShell add a supported Control Plane-only host profile next to
   `CloudShell.LocalDevelopmentHost`?
 - How should the launcher discover provider packages required by a graph?
@@ -345,22 +414,36 @@ sample are documented in [Launchers](../../launchers-and-app-hosts.md),
 
 Remaining implementation work:
 
-1. Add Control Plane diagnostics for source metadata and missing provider or
+1. Package the CloudShell CLI as a NuGet-distributed .NET global tool with a
+   default local-development host path that does not require a repository
+   checkout or `--host-project`.
+2. Add daemon tests for starting, reusing, stopping, and diagnosing the
+   packaged/default `CloudShell.LocalDevelopmentHost` path, including log
+   capture and version/profile compatibility failures.
+3. Update C#, TypeScript, and Java launcher packages so their default `start`
+   and `run` helpers prefer the installed CLI/default host profile while
+   keeping explicit custom host-profile options.
+4. Add Control Plane diagnostics for source metadata and missing provider or
    runtime adapter capabilities.
-2. Expand TypeScript builders only where current samples prove the need:
+5. Expand TypeScript builders only where current samples prove the need:
    container apps, secrets, SQL Server, richer endpoint references, and remote
    attach helpers.
-3. Decide whether generated Control Plane client bindings are required before
+6. Decide whether generated Control Plane client bindings are required before
    broader SDK hardening.
-4. Define the CLI profile and credential store before persisting token material.
-5. Decide which SDK APIs are stable enough to document as public preview.
+7. Define the CLI profile and credential store before persisting token material.
+8. Decide which SDK APIs are stable enough to document as public preview.
 
 ## Verification
 
 The first implementation should include:
 
+- packaging checks for the .NET global tool and packaged/default local host
+  startup path
+- CLI daemon tests for host startup, readiness failure, reuse, shutdown, and
+  stale state handling
 - unit tests for TypeScript graph emission
-- launcher tests for host process startup, readiness failure, and shutdown
+- launcher tests proving C#, TypeScript, and Java helpers converge on the same
+  CLI/default-host behavior
 - Control Plane contract tests for applying externally authored templates
 - a sample smoke test that runs a TypeScript-authored app graph through the
   supported local-development host

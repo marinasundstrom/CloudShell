@@ -31,6 +31,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Aligned C#, TypeScript, and Java launcher lifecycle verbs so `apply` targets
   an already-running Control Plane, `start` uses daemon startup/reuse, and
   `run` owns a foreground host process for the launcher command lifetime.
+- Updated the cross-language local-development proposal and roadmap to
+  prioritize NuGet/.NET-tool CLI distribution with a default
+  local-development host daemon path before broader launcher and SDK hardening.
 - Clarified container app cookie session affinity documentation so it states
   that sticky cookies affect ordinary HTTP requests as well as SignalR and
   WebSocket setup flows, documented current provider enforcement limits, and

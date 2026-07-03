@@ -48,7 +48,7 @@ app-development loop before broader platform expansion.
 | 3 | App-centric Resource Manager experience | The product value is whether a developer can understand and operate the app from Resource Manager. | Keep endpoints, names, storage, identity, settings/secrets, logs, traces, monitoring, activity, and actions in the app context. |
 | 4 | Readiness and capability reasons | Supported actions should fail early with clear reasons. | Tighten host, credential, route, port, storage, identity, grant, and provider-readiness diagnostics. |
 | 5 | Supported sample reliability | Samples are the current proof that the model works end to end. | Keep smoke coverage green and avoid opening new fronts that do not improve the supported sample path. |
-| 6 | Ecosystem-neutral authoring boundary | CloudShell should not become a C#-only local-development tool. | Harden CLI, launcher/profile, TypeScript/JavaScript, Java, and SDK boundaries without letting language SDKs become parallel Control Planes. |
+| 6 | Ecosystem-neutral authoring boundary | CloudShell should not become a C#-only local-development tool. | Make the installed CLI able to start or reuse the default local-development host daemon, then harden launcher/profile, TypeScript/JavaScript, Java, and SDK boundaries without letting language SDKs become parallel Control Planes. |
 | 7 | UI composition and shell structure | Useful only when it reduces current Resource Manager, Settings, or shell drift. | Pause broad shell-platform work except for regressions, current-surface stabilization, or extraction from proven patterns. |
 
 ## Authoritative Milestones
@@ -694,8 +694,9 @@ listed here before pulling in broader proposal work.
    graph import and code generation, IoT device provisioning, edge/device
    resource management, container application environments, and the initial
    on-premise hosting scenario. Cross-language local-development work remains
-   active only where it hardens the shared ResourceDefinition, CLI, launcher,
-   and SDK boundary. The isolated `CloudShell.ResourceModel` POC can continue
+   active only where it hardens the shared ResourceDefinition, installed CLI,
+   default local-development host daemon, launcher, and SDK boundary. The
+   isolated `CloudShell.ResourceModel` POC can continue
    proving the model, but it should not displace MVP convergence or imply that
    Control Plane persistence, API, or provider migration work has started.
 
