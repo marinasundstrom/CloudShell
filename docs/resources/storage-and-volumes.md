@@ -176,6 +176,13 @@ derives aggregate materialization attributes such as
 `storage.volumeMounts.materializationStatus` so generated diagnostics can warn
 when mounts are partial, inactive, or unknown.
 
+Resource-specific providers can project
+`storage.volumeMounts.requiredTargetPaths` when a resource has meaningful
+persistent data paths but no declared volume mount. Resource Manager surfaces
+that as a warning that data may not be persisted when the resource stops. For
+example, SQL Server projects `/var/opt/mssql` when no data volume is mounted
+there.
+
 Storage and volume resources can also project runtime status with
 `storage.runtimeStatus` and `storage.runtimeStatusReason`.
 

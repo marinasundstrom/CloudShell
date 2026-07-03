@@ -705,6 +705,36 @@ public sealed class ResourceDiagnosticDisplayTests
     }
 
     [Fact]
+    public void GetDiagnostics_WarnsWhenRequiredPersistentVolumeMountIsMissing()
+    {
+        var resource = CreateRequiredVolumeConsumer("/var/opt/mssql");
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(resource);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal(ResourceSignalSeverity.Warning, diagnostic.Severity);
+        Assert.Equal("Persistent storage volume missing", diagnostic.Title);
+        Assert.Equal(
+            "Data will not be persisted unless a volume is mounted at /var/opt/mssql.",
+            diagnostic.Message);
+    }
+
+    [Fact]
+    public void GetDiagnostics_DoesNotWarnWhenRequiredPersistentVolumeMountHasDeclaredMounts()
+    {
+        var resource = CreateRequiredVolumeConsumer(
+            "/var/opt/mssql",
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.VolumeMountCount] = "1"
+            });
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(resource);
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
     public void GetDiagnostics_WarnsWhenStorageRuntimeIsUnavailable()
     {
         var resource = CreateStorage(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -963,6 +993,35 @@ public sealed class ResourceDiagnosticDisplayTests
                 [ResourceAttributeNames.VolumeMountMaterializedCount] = materializedCount.ToString(CultureInfo.InvariantCulture),
                 [ResourceAttributeNames.VolumeMountCount] = mountCount.ToString(CultureInfo.InvariantCulture)
             });
+
+    private static Resource CreateRequiredVolumeConsumer(
+        string requiredTargetPaths,
+        IReadOnlyDictionary<string, string>? additionalAttributes = null)
+    {
+        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.VolumeRequiredMountTargetPaths] = requiredTargetPaths
+        };
+        foreach (var attribute in additionalAttributes ?? new Dictionary<string, string>())
+        {
+            attributes[attribute.Key] = attribute.Value;
+        }
+
+        return new Resource(
+            "application:sql",
+            "SQL",
+            "SQL Server",
+            "Applications",
+            "local",
+            ResourceState.Stopped,
+            [],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: "application.sql-server",
+            ResourceClass: ResourceClass.Service,
+            Attributes: attributes);
+    }
 
     private static Resource CreateStorage(
         IReadOnlyDictionary<string, string>? additionalAttributes = null)

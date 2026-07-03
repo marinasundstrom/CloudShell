@@ -46,6 +46,7 @@ public static class ResourceDiagnosticDisplay
         AddEndpointMappingDiagnostics(resource, relatedResources, diagnostics);
         AddLoadBalancerDiagnostics(resource, relatedResources, diagnostics);
         AddStorageRuntimeDiagnostics(resource, diagnostics);
+        AddRequiredVolumeMountDiagnostics(resource, diagnostics);
         AddVolumeMountMaterializationDiagnostics(resource, diagnostics);
 
         return diagnostics;
@@ -259,6 +260,44 @@ public static class ResourceDiagnosticDisplay
             "Warning",
             "Storage mounts not fully materialized",
             message));
+    }
+
+    private static void AddRequiredVolumeMountDiagnostics(
+        Resource resource,
+        List<ResourceDiagnosticView> diagnostics)
+    {
+        if (!resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.VolumeRequiredMountTargetPaths,
+                out var requiredTargetPaths) ||
+            string.IsNullOrWhiteSpace(requiredTargetPaths) ||
+            GetAttributeInteger(resource, ResourceAttributeNames.VolumeMountCount) is > 0)
+        {
+            return;
+        }
+
+        var targetPaths = requiredTargetPaths
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (targetPaths.Length == 0)
+        {
+            return;
+        }
+
+        diagnostics.Add(new ResourceDiagnosticView(
+            "Warning",
+            "Persistent storage volume missing",
+            FormatRequiredVolumeMountMessage(targetPaths)));
+    }
+
+    private static string FormatRequiredVolumeMountMessage(IReadOnlyList<string> targetPaths)
+    {
+        var targetText = targetPaths.Count == 1
+            ? targetPaths[0]
+            : string.Join(", ", targetPaths);
+
+        return $"Data will not be persisted unless a volume is mounted at {targetText}.";
     }
 
     private static void AddStorageRuntimeDiagnostics(

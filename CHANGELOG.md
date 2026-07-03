@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added Resource Manager diagnostics for resources that declare required
+  persistent volume target paths but do not have a declared volume mount,
+  including the SQL Server data path warning for `/var/opt/mssql`.
 - Added an intent-first resource authoring proposal that scopes a future
   smarter Resource Manager authoring UI for starting apps with AI assistance,
   drafting starter structures and `ResourceTemplate` graphs from high-level

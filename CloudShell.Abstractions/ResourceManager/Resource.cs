@@ -278,6 +278,7 @@ public static class ResourceAttributeNames
     public const string VolumeMountCount = "storage.volumeMounts";
     public const string VolumeMountMaterializedCount = "storage.volumeMounts.materialized";
     public const string VolumeMountMaterializationStatus = "storage.volumeMounts.materializationStatus";
+    public const string VolumeRequiredMountTargetPaths = "storage.volumeMounts.requiredTargetPaths";
     public const string StorageProvider = "storage.provider";
     public const string StorageMedium = "storage.medium";
     public const string StorageLocation = "storage.location";
