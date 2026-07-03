@@ -398,6 +398,54 @@ public sealed class ShellNavigationTests
             items.Single(item => item.Id == ResourcePredefinedViewIds.Logs.Value).Href);
     }
 
+    [Fact]
+    public void ResourceTabLayoutProjection_OrdersMessagingAfterGeneral()
+    {
+        var tabs = new[]
+        {
+            new ResourceTabContribution(
+                ResourcePredefinedViewIds.Overview,
+                "Overview",
+                0,
+                typeof(ParameterizedPage)),
+            new ResourceTabContribution(
+                new ResourceViewId(ResourceTabGroupIds.Messaging, "broker"),
+                "Broker",
+                10,
+                typeof(ParameterizedPage)),
+            new ResourceTabContribution(
+                ResourcePredefinedViewIds.Endpoints,
+                "Endpoints",
+                20,
+                typeof(ParameterizedPage)),
+            new ResourceTabContribution(
+                ResourcePredefinedViewIds.Storage,
+                "Storage",
+                30,
+                typeof(ParameterizedPage)),
+            new ResourceTabContribution(
+                ResourcePredefinedViewIds.Activity,
+                "Activity",
+                40,
+                typeof(ParameterizedPage))
+        };
+
+        var items = ResourceTabLayoutProjection.CreateItems(tabs);
+
+        Assert.Equal(
+            [
+                ResourceTabGroupTitles.General,
+                ResourceTabGroupTitles.Messaging,
+                ResourceTabGroupTitles.Networking,
+                ResourceTabGroupTitles.Storage,
+                ResourceTabGroupTitles.Management
+            ],
+            items
+                .Select(item => item.GroupTitle ?? string.Empty)
+                .Distinct()
+                .ToArray());
+    }
+
     private static ICloudShellNavigator CreateNavigator<TExtension>(
         TestNavigationManager? navigationManager = null)
         where TExtension : class, ICloudShellExtension, new()

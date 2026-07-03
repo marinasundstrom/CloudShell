@@ -53,6 +53,8 @@ on `git blame --follow`, and then by the broad type of change.
   state, projected AMQP and management endpoints, access reconciliation
   availability, and links to the RabbitMQ management UI without duplicating the
   broker-native administration surface.
+- Added a Resource Manager Messaging tab group and placed RabbitMQ Broker and
+  Topology views directly after General, ahead of Networking and Storage.
 - Added a RabbitMQ Management API-backed topology reader and read-only
   Resource Manager Topology tab for broker-native queues and exchanges,
   keeping provider-owned credentials behind the RabbitMQ provider boundary.

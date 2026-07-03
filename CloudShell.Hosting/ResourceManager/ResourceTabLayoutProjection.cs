@@ -60,6 +60,10 @@ internal static class ResourceTabLayoutProjection
     private static int GetGroupOrder(string groupId) =>
         groupId switch
         {
+            ResourceTabGroupIds.Messaging => 10,
+            ResourceTabGroupIds.Networking => 20,
+            ResourceTabGroupIds.Storage => 30,
+            ResourceTabGroupIds.Environment => 40,
             ResourceTabGroupIds.Telemetry => 90,
             ResourceTabGroupIds.Management => 100,
             _ => 0
@@ -72,6 +76,7 @@ internal static class ResourceTabLayoutProjection
             {
                 ResourceTabGroupIds.General => ResourceTabGroupTitles.General,
                 ResourceTabGroupIds.Application => ResourceTabGroupTitles.Application,
+                ResourceTabGroupIds.Messaging => ResourceTabGroupTitles.Messaging,
                 ResourceTabGroupIds.Networking => ResourceTabGroupTitles.Networking,
                 ResourceTabGroupIds.Storage => ResourceTabGroupTitles.Storage,
                 ResourceTabGroupIds.Environment => ResourceTabGroupTitles.Environment,

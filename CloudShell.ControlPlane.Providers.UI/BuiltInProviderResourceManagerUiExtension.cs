@@ -493,17 +493,17 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 groupTitle: ResourceTabGroupTitles.Storage)
             .AddResourceTab<RabbitMQPages.RabbitMQBroker>(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
-                new ResourceViewId(ResourceTabGroupIds.Application, "broker"),
+                new ResourceViewId(ResourceTabGroupIds.Messaging, "broker"),
                 "Broker",
                 35,
-                groupTitle: "Messaging",
+                groupTitle: ResourceTabGroupTitles.Messaging,
                 icon: "queue")
             .AddResourceTab<RabbitMQPages.RabbitMQTopology>(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
-                new ResourceViewId(ResourceTabGroupIds.Application, "topology"),
+                new ResourceViewId(ResourceTabGroupIds.Messaging, "topology"),
                 "Topology",
                 40,
-                groupTitle: "Messaging",
+                groupTitle: ResourceTabGroupTitles.Messaging,
                 icon: "queue")
             .AddResourceTab<SqlServerPages.SqlServerDatabases>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
