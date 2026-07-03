@@ -37,6 +37,10 @@ on `git blame --follow`, and then by the broad type of change.
   `IRabbitMQAccessReconciler`, and pending grant-status reporting for
   RabbitMQ grants until a provider can materialize broker-native users and
   permissions.
+- Added a RabbitMQ Management API-backed access reconciler for local and
+  compatible RabbitMQ runtimes, mapping CloudShell resource-identity publish,
+  consume, and configure grants to broker-native users and virtual-host
+  permissions without projecting credential material through resources.
 - Added an intent-first resource authoring proposal that scopes a future
   smarter Resource Manager authoring UI for starting apps with AI assistance,
   drafting starter structures and `ResourceTemplate` graphs from high-level

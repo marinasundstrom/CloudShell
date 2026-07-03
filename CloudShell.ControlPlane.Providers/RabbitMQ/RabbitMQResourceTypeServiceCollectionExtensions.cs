@@ -77,6 +77,9 @@ public static class RabbitMQResourceTypeServiceCollectionExtensions
             IRabbitMQAccessReconciler,
             NoopRabbitMQAccessReconciler>();
         services.TryAddSingleton<
+            IRabbitMQPrincipalCredentialProvider,
+            DefaultRabbitMQPrincipalCredentialProvider>();
+        services.TryAddSingleton<
             IRabbitMQRuntimeHandler,
             NoopRabbitMQRuntimeHandler>();
 
@@ -100,6 +103,31 @@ public static class RabbitMQResourceTypeServiceCollectionExtensions
         services.Replace(ServiceDescriptor.Singleton<
             IRabbitMQRuntimeHandler,
             LocalRabbitMQDockerRuntimeHandler>());
+        services.AddRabbitMQManagementApiAccessReconciler();
+
+        return services;
+    }
+
+    public static IServiceCollection AddRabbitMQManagementApiAccessReconciler(
+        this IServiceCollection services,
+        Action<RabbitMQManagementAccessOptions>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddHttpClient(RabbitMQManagementApiAccessReconciler.HttpClientName);
+        services.AddOptions<RabbitMQManagementAccessOptions>()
+            .BindConfiguration(RabbitMQManagementAccessOptions.SectionName);
+        if (configure is not null)
+        {
+            services.Configure(configure);
+        }
+
+        services.TryAddSingleton<
+            IRabbitMQPrincipalCredentialProvider,
+            DefaultRabbitMQPrincipalCredentialProvider>();
+        services.Replace(ServiceDescriptor.Singleton<
+            IRabbitMQAccessReconciler,
+            RabbitMQManagementApiAccessReconciler>());
 
         return services;
     }

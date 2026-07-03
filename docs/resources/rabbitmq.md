@@ -140,6 +140,14 @@ configuration. The local runtime reads configured username/password values from
 host configuration when supplied and does not project those values through
 Resource attributes, logs, or templates.
 
+Registering `AddLocalRabbitMQDockerRuntime(...)` also enables the
+RabbitMQ Management API access reconciler. The reconciler uses the resolved
+`management` endpoint and provider-owned administrator credentials to
+materialize CloudShell resource-identity grants as RabbitMQ-native users and
+virtual-host permissions. Hosts can register the same reconciler directly with
+`AddRabbitMQManagementApiAccessReconciler(...)` when a non-Docker runtime
+exposes the RabbitMQ management API.
+
 ## Current Resource Manager UI
 
 Resource Manager registers RabbitMQ type metadata, AMQP and management endpoint
@@ -165,13 +173,24 @@ RabbitMQ exposes a **Reconcile access** resource operation,
 `application.rabbitmq.reconcile-access`, guarded by
 `RabbitMQResourceOperationPermissions.ReconcileAccess`. The operation invokes
 the provider-owned `IRabbitMQAccessReconciler` seam. The default reconciler
-reports an informational diagnostic and does not mutate broker state.
+reports an informational diagnostic and does not mutate broker state. The
+Management API reconciler maps resource-identity grants to broker-native users
+and vhost permissions:
+
+| CloudShell grant | RabbitMQ permission |
+| --- | --- |
+| `Publish` | `write` |
+| `Consume` | `read` |
+| `Configure` | `configure` |
+
+The CloudShell `ReconcileAccess` grant authorizes the CloudShell operation and
+is not projected into a RabbitMQ broker permission.
 
 The current grant-status provider recognizes RabbitMQ grants and reports them
-as pending until a RabbitMQ runtime/provider can inspect effective
+as pending until a RabbitMQ runtime/provider can inspect and report effective
 broker-native state. This keeps requested CloudShell grants visible in
-Resource Manager while avoiding a false claim that RabbitMQ users and
-permissions have already been materialized.
+Resource Manager while avoiding a false claim that status projection has
+observed the broker.
 
 Future RabbitMQ runtime providers should reconcile requested grants into
 RabbitMQ-owned users, virtual-host permissions, credentials, or policy state
@@ -190,8 +209,9 @@ credential material, connection strings, or message payloads.
 - No RabbitMQ-specific workload client package or service-discovery helper yet.
 - No provider-owned projection of queues, exchanges, bindings, virtual hosts,
   users, or policies.
-- RabbitMQ permission grants are modeled and statused as pending, but no local
-  runtime reconciles them into broker-native users or permissions yet.
+- RabbitMQ permission grants can be reconciled through the Management API, but
+  effective grant-status projection still reports pending because broker-native
+  user and permission inspection is not implemented yet.
 - No RabbitMQ-specific audit/event schema beyond standard resource actions and
   reconciliation diagnostics yet.
 - No cluster or non-local RabbitMQ runtime provider yet.
