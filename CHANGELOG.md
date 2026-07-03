@@ -31,6 +31,11 @@ on `git blame --follow`, and then by the broad type of change.
   authoring samples use launchers against `CloudShell.LocalDevelopmentHost`,
   while full C# host samples are reserved for host composition, split hosting,
   host-local extensions, or temporary sample-local runtime seams.
+- Migrated suitable C# sample entry points (`ProjectReference`,
+  `JavaScriptApp`, `JavaApp`, and `GoApp`) from full sample hosts to C#
+  launcher AppHosts that define resource graphs and start/apply against
+  `CloudShell.LocalDevelopmentHost` by runtime configuration, with AppHost
+  `appsettings.json` forwarded as delegated host configuration.
 - Added `application.go-app` as a first-class Go app resource with C#
   ResourceGraph builders, local `go run` or binary-backed process lifecycle
   operations, logs, monitoring, endpoint projection, service-reference binding

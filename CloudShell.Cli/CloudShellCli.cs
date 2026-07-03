@@ -190,6 +190,7 @@ internal static class CloudShellCli
                                     apply.StateDirectory,
                                     apply.HostProject,
                                     apply.DataDirectory,
+                                    apply.HostSettingsPath,
                                     apply.StartUrl,
                                     apply.BearerToken,
                                     apply.NoBuild,

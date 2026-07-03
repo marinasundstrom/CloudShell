@@ -138,6 +138,7 @@ internal static class CommandLineParser
             options.ReadString("--state-dir", DefaultStateDirectory),
             options.ReadOptionalString("--host-project"),
             options.ReadOptionalString("--data-dir"),
+            options.ReadOptionalString("--host-settings"),
             options.ReadUri("--url", DefaultControlPlaneUrl),
             options.ReadOptionalString("--bearer-token") ??
                 Environment.GetEnvironmentVariable("CLOUDSHELL_CONTROL_PLANE_TOKEN"),
@@ -197,6 +198,7 @@ internal static class CommandLineParser
             options.ReadFlag("--start"),
             options.ReadOptionalString("--host-project"),
             options.ReadOptionalString("--data-dir"),
+            options.ReadOptionalString("--host-settings"),
             options.ReadUri("--url", DefaultControlPlaneUrl),
             options.ReadFlag("--no-build"),
             options.ReadInt("--timeout-seconds", DefaultTimeoutSeconds),

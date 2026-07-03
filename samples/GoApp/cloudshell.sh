@@ -4,8 +4,8 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
 
+app_host_project="${CLOUDSHELL_APP_HOST_PROJECT:-$script_dir/AppHost/CloudShell.GoAppHost.csproj}"
 cli_project="${CLOUDSHELL_CLI_PROJECT:-$repo_root/CloudShell.Cli/CloudShell.Cli.csproj}"
-host_project="${CLOUDSHELL_HOST_PROJECT:-$script_dir/Host/CloudShell.GoAppHost.csproj}"
 state_dir="${CLOUDSHELL_STATE_DIR:-$script_dir/.cloudshell}"
 control_plane_url="${CLOUDSHELL_CONTROL_PLANE_URL:-http://127.0.0.1:5099}"
 app_resource_id="${CLOUDSHELL_APP_RESOURCE_ID:-application.go-app:go-api}"
@@ -15,13 +15,16 @@ usage() {
 Usage: ./cloudshell.sh <command> [options]
 
 Commands:
-  run            Run the sample host in the foreground.
+  template       Print the launcher-authored ResourceTemplate YAML.
+  apply          Apply the template to the configured Control Plane.
+  run            Run the local development host in the foreground, apply the
+                 template, and keep the host tied to the launcher lifetime.
   run-no-auth    Run the foreground host with authentication disabled.
-  start          Start or reuse the sample Control Plane daemon.
-  start-no-auth  Start or reuse the daemon with authentication disabled when a new host process is launched.
-  status         Show recorded daemon status.
-  stop           Stop the recorded daemon process.
-  reset          Stop the daemon and remove generated sample state.
+  start          Start or reuse the local development host daemon, then apply the template.
+  start-no-auth  Start or reuse the daemon with authentication disabled
+                 when a new host process is launched, then apply the template.
+  stop           Stop the recorded host process.
+  reset          Stop the recorded host process and remove generated sample state.
   open           Open the configured host URL in the default browser.
   resources      List resources from the configured Control Plane.
   start-app      Start the Go app resource.
@@ -30,11 +33,15 @@ Commands:
 
 Environment:
   CLOUDSHELL_CONTROL_PLANE_URL  Host URL. Default: $control_plane_url
-  CLOUDSHELL_STATE_DIR          Daemon state directory. Default: $state_dir
-  CLOUDSHELL_HOST_PROJECT       Host project path. Default: $host_project
+  CLOUDSHELL_STATE_DIR          Launcher state directory. Default: $state_dir
+  CLOUDSHELL_APP_HOST_PROJECT   Launcher project path. Default: $app_host_project
   CLOUDSHELL_CLI_PROJECT        CLI project path. Default: $cli_project
   CLOUDSHELL_APP_RESOURCE_ID    App resource id. Default: $app_resource_id
 USAGE
+}
+
+run_launcher() {
+  dotnet run --project "$app_host_project" -- "$@"
 }
 
 run_cli() {
@@ -47,30 +54,23 @@ if [[ $# -gt 0 ]]; then
 fi
 
 case "$command" in
+  template)
+    run_launcher "$@"
+    ;;
+  apply)
+    run_launcher --apply "$@"
+    ;;
   run)
-    dotnet run --project "$host_project" -- --urls "$control_plane_url" "$@"
+    run_launcher --run "$@"
     ;;
   run-no-auth)
-    Authentication__Enabled=false dotnet run --project "$host_project" -- --urls "$control_plane_url" "$@"
+    Authentication__Enabled=false run_launcher --run "$@"
     ;;
   start)
-    run_cli control-plane start \
-      --host-project "$host_project" \
-      --url "$control_plane_url" \
-      --state-dir "$state_dir" \
-      "$@"
+    run_launcher --start "$@"
     ;;
   start-no-auth)
-    Authentication__Enabled=false run_cli control-plane start \
-      --host-project "$host_project" \
-      --url "$control_plane_url" \
-      --state-dir "$state_dir" \
-      "$@"
-    ;;
-  status)
-    run_cli control-plane status \
-      --state-dir "$state_dir" \
-      "$@"
+    Authentication__Enabled=false run_launcher --start "$@"
     ;;
   stop)
     run_cli control-plane stop \
@@ -80,7 +80,7 @@ case "$command" in
   reset)
     run_cli control-plane stop \
       --state-dir "$state_dir" || true
-    rm -rf "$state_dir" "$script_dir/Host/Data"
+    rm -rf "$state_dir"
     ;;
   open)
     run_cli ui open \

@@ -1,6 +1,7 @@
 using CloudShell.AppHost.Launcher;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ResourceModel;
+using Microsoft.Extensions.Configuration;
 
 namespace CloudShell.AppHost.Launcher.Tests;
 
@@ -152,6 +153,34 @@ public sealed class CloudShellDistributedApplicationTests
             new Uri("http://127.0.0.1:5200/"));
 
         Assert.Equal("CloudShell UI: http://127.0.0.1:5200", message);
+    }
+
+    [Fact]
+    public void FromArguments_ForwardsAppHostSettingsWithoutOverridingConfiguredDataDirectory()
+    {
+        using var directory = new TemporaryDirectory();
+        var settingsPath = Path.Combine(directory.Path, "appsettings.json");
+        File.WriteAllText(
+            settingsPath,
+            """
+            {
+              "CloudShell": {
+                "DataDirectory": "Data"
+              }
+            }
+            """);
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(directory.Path)
+            .AddJsonFile("appsettings.json")
+            .Build();
+
+        var options = CloudShellHostLauncherOptions.FromArguments(
+            [],
+            directory.Path,
+            configuration);
+
+        Assert.Equal(settingsPath, options.HostSettingsPath);
+        Assert.Null(options.DataDirectory);
     }
 
     [Fact]

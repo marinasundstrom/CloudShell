@@ -82,6 +82,23 @@ example, a launcher project should be able to select SQLite or SQL Server
 persistence for that project through appsettings while the ResourceTemplate
 continues to describe only the resources CloudShell should manage.
 
+For C# launchers, `CloudShellDistributedApplication.CreateBuilder(...)`
+creates a normal .NET configuration view from the AppHost directory:
+`appsettings.json`, `appsettings.{Environment}.json`, environment variables,
+and command-line arguments. The builder exposes that configuration through
+`app.Configuration` for sample-specific graph inputs such as local endpoint
+ports. When the launcher starts a local development host, it forwards the
+AppHost `appsettings.json` through `--host-settings`; the host then loads that
+file into its own `IConfiguration`. Relative host paths such as
+`CloudShell:DataDirectory` resolve relative to the AppHost settings file so
+local state stays with the launcher project.
+
+Settings under `CloudShell:Launcher` configure launcher mechanics such as the
+default Control Plane URL, state directory, environment id, or custom host
+project. Host-owned settings such as `Authentication`, `Persistence`,
+`Identity`, provider runtime settings, and `CloudShell:DataDirectory` stay at
+their normal host configuration paths.
+
 When a language runtime does not naturally use .NET-style configuration, its
 launcher package should still provide an appsettings-compatible input so teams
 can move the same host-profile settings between C#, TypeScript, Java, and

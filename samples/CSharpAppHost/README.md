@@ -8,13 +8,10 @@ The sample also seeds development Configuration Store entries and Secrets Vault
 secrets through create-only resource-definition attributes.
 
 The launcher defaults to `CloudShell.LocalDevelopmentHost`, the stable
-CloudShell local-development host profile. That host starts the Control Plane,
-Web UI, built-in providers, and provider runtime adapters. The launcher app can
-start that host through the CLI, or apply the generated template to an already
-running Control Plane. Set `CLOUDSHELL_HOST_PROJECT` when a sample needs a
-custom host profile, but keep the launcher separate from CloudShell services.
-Generated daemon state and host data default to `.cloudshell/` under this
-sample so databases and local CloudShell files stay with the launcher project.
+CloudShell local-development host profile. Host profile settings live in
+`AppHost/appsettings.json`; the launcher reads them through normal .NET
+configuration and forwards that file to the launched host. The resource graph
+stays in `Program.cs`.
 
 Generate the template:
 
@@ -33,19 +30,19 @@ Run the local-development host in the foreground, apply the declarations, and
 keep the host tied to the launcher command lifetime:
 
 ```bash
-Authentication__Enabled=false ./cloudshell.sh run
+./cloudshell.sh run
 ```
 
 Start or reuse the daemon-style local-development host profile, then apply the
 declarations:
 
 ```bash
-Authentication__Enabled=false \
 dotnet run --project AppHost/CloudShell.CSharpAppHost.csproj -- --start
 ```
 
-Use `CLOUDSHELL_DATA_DIR` to choose a different local CloudShell data
-directory for the launched host.
+Use `AppHost/appsettings.json` to choose host settings such as
+`Authentication`, `CloudShell:DataDirectory`, persistence, or the default
+`CloudShell:Launcher:ControlPlaneUrl`.
 
 Open the Web UI:
 

@@ -185,7 +185,7 @@ public sealed class SampleSmokeTests
         };
         yield return new object[]
         {
-            "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
+            "samples/ProjectReference/AppHost/CloudShell.ProjectReferenceAppHost.csproj",
             resourceHostPaths
         };
         yield return new object[]
@@ -223,10 +223,15 @@ public sealed class SampleSmokeTests
     {
         var port = await GetFreePortAsync();
         await CleanupSwitchReadinessRuntimeArtifactsAsync(projectPath);
-        var host = await SampleProcess.StartAsync(
-            projectPath,
-            port,
-            await CreateSampleHostLaunchEnvironmentAsync(projectPath, port));
+        var host = IsLauncherSampleProject(projectPath)
+            ? await SampleProcess.StartLauncherAsync(
+                projectPath,
+                port,
+                await CreateSampleHostLaunchEnvironmentAsync(projectPath, port))
+            : await SampleProcess.StartAsync(
+                projectPath,
+                port,
+                await CreateSampleHostLaunchEnvironmentAsync(projectPath, port));
 
         try
         {
@@ -514,7 +519,7 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
-    public async Task ProjectReferenceHost_RunsProjectsWithoutOldProviderRecords()
+    public async Task ProjectReferenceLauncher_RunsProjectsWithoutOldProviderRecords()
     {
         var apiPort = await GetFreePortAsync();
         var frontendPort = await GetFreePortAsync();
@@ -522,8 +527,8 @@ public sealed class SampleSmokeTests
         var frontendEndpoint = $"http://127.0.0.1:{frontendPort}";
         const string apiResourceId = "application.aspnet-core-project:project-reference-api";
         const string frontendResourceId = "application.aspnet-core-project:project-reference-frontend";
-        using var host = await SampleProcess.StartAsync(
-            "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
+        using var host = await SampleProcess.StartLauncherAsync(
+            "samples/ProjectReference/AppHost/CloudShell.ProjectReferenceAppHost.csproj",
             await GetFreePortAsync(),
             [
                 ("ProjectReference__ApiEndpoint", apiEndpoint),
@@ -624,29 +629,6 @@ public sealed class SampleSmokeTests
         using var frontendHealthDocument = JsonDocument.Parse(frontendHealthJson);
         AssertGraphHealthRefreshSucceeded(frontendHealthDocument.RootElement, frontendResourceId);
 
-        var applyJson = await host.SendJsonAsync(
-            HttpMethod.Post,
-            $"/project-reference/resource-graph/resources/{Uri.EscapeDataString(apiResourceId)}/environment-variables",
-            """
-            {
-              "name": "RESOURCE_UPDATE_MARKER",
-              "value": "applied"
-            }
-            """);
-        using var applyDocument = JsonDocument.Parse(applyJson);
-        var apply = applyDocument.RootElement;
-        Assert.True(apply.GetProperty("committed").GetBoolean());
-        Assert.False(apply.GetProperty("hasErrors").GetBoolean());
-        Assert.Equal("Committed", apply.GetProperty("status").GetString());
-        Assert.True(apply.GetProperty("resultVersion").GetInt64() >
-            apply.GetProperty("baseVersion").GetInt64());
-        Assert.Contains(
-            apply.GetProperty("diagnostics").EnumerateArray(),
-            diagnostic =>
-                diagnostic.GetProperty("severity").GetString() == "Warning" &&
-                diagnostic.GetProperty("code").GetString() ==
-                    "application.aspNetCoreProject.restartRequired");
-
         var apiDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString(apiResourceId)}/details");
         Assert.Contains("Project Reference API", apiDetailsHtml);
@@ -670,10 +652,10 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
-    public async Task ProjectReferenceHost_HonorsResourceManagerReadOnlySetting()
+    public async Task ProjectReferenceLauncher_HonorsResourceManagerReadOnlySetting()
     {
-        using var host = await SampleProcess.StartAsync(
-            "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
+        using var host = await SampleProcess.StartLauncherAsync(
+            "samples/ProjectReference/AppHost/CloudShell.ProjectReferenceAppHost.csproj",
             await GetFreePortAsync(),
             [
                 ("ResourceManager__ReadOnly", "true")
@@ -3178,6 +3160,9 @@ public sealed class SampleSmokeTests
         return environment;
     }
 
+    private static bool IsLauncherSampleProject(string projectPath) =>
+        projectPath.Contains("/AppHost/", StringComparison.OrdinalIgnoreCase);
+
     private static string GetSwitchReadinessSampleName(string projectPath)
     {
         if (projectPath.Contains("/ApplicationTopology/", StringComparison.OrdinalIgnoreCase))
@@ -4982,11 +4967,16 @@ public sealed class SampleSmokeTests
     {
         private readonly Process process;
         private readonly StringBuilder output = new();
+        private readonly string? cleanupDirectory;
 
-        private SampleProcess(Process process, Uri baseAddress)
+        private SampleProcess(
+            Process process,
+            Uri baseAddress,
+            string? cleanupDirectory = null)
         {
             this.process = process;
             BaseAddress = baseAddress;
+            this.cleanupDirectory = cleanupDirectory;
         }
 
         public Uri BaseAddress { get; }
@@ -5041,6 +5031,156 @@ public sealed class SampleSmokeTests
             sample.Capture(process.StandardOutput);
             sample.Capture(process.StandardError);
             return Task.FromResult(sample);
+        }
+
+        public static async Task<SampleProcess> StartLauncherAsync(
+            string projectPath,
+            int port,
+            IReadOnlyList<(string Key, string Value)>? environment = null)
+        {
+            var root = FindRepositoryRoot();
+            var projectFile = Path.Combine(root, projectPath);
+            var projectDirectory = Path.GetDirectoryName(projectFile) ??
+                throw new InvalidOperationException($"Could not resolve sample project directory for '{projectPath}'.");
+            var stateDirectory = Path.Combine(
+                Path.GetTempPath(),
+                $"cloudshell-sample-{Path.GetFileNameWithoutExtension(projectFile)}-{Guid.NewGuid():N}");
+
+            var baseAddress = new Uri($"http://127.0.0.1:{port}");
+            var startInfo = new ProcessStartInfo("dotnet")
+            {
+                WorkingDirectory = root,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false
+            };
+            startInfo.ArgumentList.Add("run");
+            startInfo.ArgumentList.Add("--no-build");
+            startInfo.ArgumentList.Add("--project");
+            startInfo.ArgumentList.Add(projectFile);
+            startInfo.ArgumentList.Add("--");
+            startInfo.ArgumentList.Add("--run");
+            startInfo.ArgumentList.Add("--no-build");
+            startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
+            startInfo.Environment["CLOUDSHELL_CONTROL_PLANE_URL"] = baseAddress.ToString().TrimEnd('/');
+            startInfo.Environment["CLOUDSHELL_STATE_DIR"] = stateDirectory;
+            startInfo.Environment["CLOUDSHELL_DATA_DIR"] = stateDirectory;
+
+            if (environment is not null)
+            {
+                foreach (var (key, value) in environment)
+                {
+                    startInfo.Environment[key] = value;
+                }
+            }
+
+            var process = Process.Start(startInfo) ??
+                throw new InvalidOperationException($"Could not start sample launcher '{projectPath}'.");
+            var sample = new SampleProcess(process, baseAddress, stateDirectory);
+            sample.Capture(process.StandardOutput);
+            sample.Capture(process.StandardError);
+            try
+            {
+                await sample.WaitForResourcesAsync(
+                    GetLauncherSampleResourceIds(projectPath),
+                    SampleHostLaunchTimeout);
+                return sample;
+            }
+            catch
+            {
+                sample.Dispose();
+                throw;
+            }
+        }
+
+        private async Task WaitForResourcesAsync(
+            IReadOnlyList<string> expectedResourceIds,
+            TimeSpan timeout)
+        {
+            var deadline = DateTimeOffset.UtcNow.Add(timeout);
+            string? lastBody = null;
+            Exception? lastException = null;
+
+            while (DateTimeOffset.UtcNow < deadline)
+            {
+                if (process.HasExited)
+                {
+                    throw new InvalidOperationException(
+                        $"Sample process exited with code {process.ExitCode} before resources were applied.{Environment.NewLine}{GetOutput()}");
+                }
+
+                try
+                {
+                    lastBody = await GetStringAsync("/api/control-plane/v1/resources");
+                    using var document = JsonDocument.Parse(lastBody);
+                    if (document.RootElement.ValueKind == JsonValueKind.Array)
+                    {
+                        var resourceIds = document.RootElement
+                            .EnumerateArray()
+                            .Select(resource => resource.GetProperty("id").GetString())
+                            .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
+                            .Select(resourceId => resourceId!)
+                            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                        if (expectedResourceIds.All(resourceIds.Contains))
+                        {
+                            return;
+                        }
+                    }
+                }
+                catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException or TaskCanceledException or JsonException)
+                {
+                    lastException = exception;
+                }
+
+                await Task.Delay(250);
+            }
+
+            throw new TimeoutException(
+                $"Sample launcher did not apply resources within {timeout}." +
+                $"{Environment.NewLine}{lastBody ?? lastException?.Message}{Environment.NewLine}{GetOutput()}");
+        }
+
+        private static IReadOnlyList<string> GetLauncherSampleResourceIds(string projectPath)
+        {
+            if (projectPath.Contains("/ProjectReference/", StringComparison.OrdinalIgnoreCase))
+            {
+                return
+                [
+                    "application.aspnet-core-project:project-reference-api",
+                    "application.aspnet-core-project:project-reference-frontend"
+                ];
+            }
+
+            if (projectPath.Contains("/JavaScriptApp/", StringComparison.OrdinalIgnoreCase))
+            {
+                return
+                [
+                    "configuration.store:javascript-app-settings",
+                    "application.javascript-app:javascript-frontend"
+                ];
+            }
+
+            if (projectPath.Contains("/JavaApp/", StringComparison.OrdinalIgnoreCase))
+            {
+                return
+                [
+                    "configuration.store:java-app-settings",
+                    "secrets.vault:java-app-secrets",
+                    "application.java-app:java-api"
+                ];
+            }
+
+            if (projectPath.Contains("/GoApp/", StringComparison.OrdinalIgnoreCase))
+            {
+                return
+                [
+                    "configuration.store:go-app-settings",
+                    "secrets.vault:go-app-secrets",
+                    "application.go-app:go-api"
+                ];
+            }
+
+            return [];
         }
 
         public async Task WaitForHttpOkAsync(string path, TimeSpan timeout)
@@ -5377,6 +5517,11 @@ public sealed class SampleSmokeTests
             }
 
             process.Dispose();
+            if (!string.IsNullOrWhiteSpace(cleanupDirectory) &&
+                Directory.Exists(cleanupDirectory))
+            {
+                Directory.Delete(cleanupDirectory, recursive: true);
+            }
         }
 
         public async Task StopAsync(TimeSpan timeout)

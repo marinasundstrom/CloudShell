@@ -4,8 +4,8 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
 
+app_host_project="${CLOUDSHELL_APP_HOST_PROJECT:-$script_dir/AppHost/CloudShell.JavaAppHost.csproj}"
 cli_project="${CLOUDSHELL_CLI_PROJECT:-$repo_root/CloudShell.Cli/CloudShell.Cli.csproj}"
-host_project="${CLOUDSHELL_HOST_PROJECT:-$script_dir/Host/CloudShell.JavaAppHost.csproj}"
 state_dir="${CLOUDSHELL_STATE_DIR:-$script_dir/.cloudshell}"
 control_plane_url="${CLOUDSHELL_CONTROL_PLANE_URL:-http://127.0.0.1:5098}"
 app_resource_id="${CLOUDSHELL_APP_RESOURCE_ID:-application.java-app:java-api}"
@@ -16,14 +16,18 @@ Usage: ./cloudshell.sh <command> [options]
 
 Commands:
   build-app      Compile the Java sample jar.
-  run            Build the Java app and run the sample host in the foreground.
+  template       Print the launcher-authored ResourceTemplate YAML.
+  apply          Apply the template to the configured Control Plane.
+  run            Build the Java app, run the local development host in the
+                 foreground, apply the template, and keep the host tied to the
+                 launcher lifetime.
   run-no-auth    Build the Java app and run the foreground host with authentication disabled.
-  start          Build the Java app and start or reuse the sample Control Plane daemon.
-  start-no-auth  Build the Java app and start or reuse the daemon with authentication disabled
-                 when a new host process is launched.
-  status         Show recorded daemon status.
-  stop           Stop the recorded daemon process.
-  reset          Stop the daemon and remove generated sample state.
+  start          Build the Java app, start or reuse the local development host
+                 daemon, then apply the template.
+  start-no-auth  Build the Java app and start or reuse the daemon with
+                 authentication disabled when a new host process is launched.
+  stop           Stop the recorded host process.
+  reset          Stop the recorded host process and remove generated sample state.
   open           Open the configured host URL in the default browser.
   resources      List resources from the configured Control Plane.
   start-app      Build and start the Java app resource.
@@ -32,11 +36,15 @@ Commands:
 
 Environment:
   CLOUDSHELL_CONTROL_PLANE_URL  Host URL. Default: $control_plane_url
-  CLOUDSHELL_STATE_DIR          Daemon state directory. Default: $state_dir
-  CLOUDSHELL_HOST_PROJECT       Host project path. Default: $host_project
+  CLOUDSHELL_STATE_DIR          Launcher state directory. Default: $state_dir
+  CLOUDSHELL_APP_HOST_PROJECT   Launcher project path. Default: $app_host_project
   CLOUDSHELL_CLI_PROJECT        CLI project path. Default: $cli_project
   CLOUDSHELL_APP_RESOURCE_ID    App resource id. Default: $app_resource_id
 USAGE
+}
+
+run_launcher() {
+  dotnet run --project "$app_host_project" -- "$@"
 }
 
 run_cli() {
@@ -56,34 +64,27 @@ case "$command" in
   build-app)
     "$script_dir/App/build.sh"
     ;;
+  template)
+    run_launcher "$@"
+    ;;
+  apply)
+    run_launcher --apply "$@"
+    ;;
   run)
     build_app
-    dotnet run --project "$host_project" -- --urls "$control_plane_url" "$@"
+    run_launcher --run "$@"
     ;;
   run-no-auth)
     build_app
-    Authentication__Enabled=false dotnet run --project "$host_project" -- --urls "$control_plane_url" "$@"
+    Authentication__Enabled=false run_launcher --run "$@"
     ;;
   start)
     build_app
-    run_cli control-plane start \
-      --host-project "$host_project" \
-      --url "$control_plane_url" \
-      --state-dir "$state_dir" \
-      "$@"
+    run_launcher --start "$@"
     ;;
   start-no-auth)
     build_app
-    Authentication__Enabled=false run_cli control-plane start \
-      --host-project "$host_project" \
-      --url "$control_plane_url" \
-      --state-dir "$state_dir" \
-      "$@"
-    ;;
-  status)
-    run_cli control-plane status \
-      --state-dir "$state_dir" \
-      "$@"
+    Authentication__Enabled=false run_launcher --start "$@"
     ;;
   stop)
     run_cli control-plane stop \
@@ -93,7 +94,7 @@ case "$command" in
   reset)
     run_cli control-plane stop \
       --state-dir "$state_dir" || true
-    rm -rf "$state_dir" "$script_dir/Host/Data" "$script_dir/App/target"
+    rm -rf "$state_dir" "$script_dir/App/target"
     ;;
   open)
     run_cli ui open \

@@ -53,7 +53,7 @@ provider boundaries.
 
 | Sample | Primary scenario | Current Resource model status |
 | --- | --- | --- |
-| `ProjectReference` | ASP.NET Core project-to-project service discovery, logs, health, traces, and ResourceDefinition apply flow. | Switched to the Resource model provider path; old application-provider project records are no longer declared. |
+| `ProjectReference` | ASP.NET Core project-to-project service discovery, logs, health, and traces. | Uses a C# launcher AppHost against `CloudShell.LocalDevelopmentHost`; old application-provider project records are no longer declared. |
 | `SettingsAndSecrets` | Resource model Configuration Store and Secrets Vault consumed by an ASP.NET Core project. | Switched to the Resource model provider path; old application/configuration/secrets provider records are no longer declared. |
 | `ThirdPartyIdentity` | Keycloak-backed identity setup and protected Configuration Store access. | Switched to the Resource model provider path; Keycloak setup and API identity environment remain sample-local runtime seams. |
 | `ApplicationTopology` | Multi-resource app topology across storage, SQL, configuration, secrets, identity, DNS, and project resources. | Switched to the Resource model provider path; SQL Docker, configuration, and secrets runtime behavior now use provider-owned adapters, while the SQL credential endpoint remains sample-local. |
@@ -65,10 +65,17 @@ provider boundaries.
 | `LoadBalancer` | Resource model load-balancer routes and DNS/name mapping. | Uses Resource model definitions with provider-owned graph DNS reconciliation; Traefik route translation remains sample-local until load-balancer runtime integration moves fully into providers. |
 | `SplitHosting` | Remote UI rendering Resource Definitions-backed resources through a separate Control Plane. | Switched to the new projection only; the old direct Resource Manager comparison record and toggle have been removed. |
 
-Samples such as `ProjectReference`, `SettingsAndSecrets`,
-`ApplicationTopology`, `JavaScriptApp`, `JavaApp`, and `GoApp` are candidates
-to migrate to launcher form when their remaining sample-local host seams are
-available through `CloudShell.LocalDevelopmentHost`.
+Samples such as `SettingsAndSecrets`, `ApplicationTopology`,
+`ThirdPartyIdentity`, and the container/network/load-balancer samples should
+migrate to launcher form when their remaining sample-local host seams are
+available through `CloudShell.LocalDevelopmentHost` or through first-class
+template/control-plane APIs.
+
+The `ProjectReference`, `JavaScriptApp`, `JavaApp`, and `GoApp` samples now use
+C# launcher AppHosts because they primarily exercise resource types and
+configuration. Their source projects depend on launcher/resource builder
+packages, while the CloudShell host project is selected at runtime by the
+launcher configuration.
 
 ## Creating a new sample
 

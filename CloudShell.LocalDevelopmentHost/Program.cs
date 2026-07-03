@@ -8,6 +8,7 @@ using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 
 var builder = WebApplication.CreateBuilder(args);
+AddDelegatedHostSettings(builder.Configuration, args);
 
 var repositoryRootPath = Path.GetFullPath("..", builder.Environment.ContentRootPath);
 var configurationStoreServiceProjectPath = Path.Combine(
@@ -66,11 +67,38 @@ static string ResolveCloudShellDataDirectory(
     string contentRootPath)
 {
     var configuredPath = configuration["CloudShell:DataDirectory"];
+    var settingsBasePath = ResolveHostSettingsBasePath(configuration, contentRootPath);
     var path = string.IsNullOrWhiteSpace(configuredPath)
         ? contentRootPath
         : Path.IsPathRooted(configuredPath)
             ? configuredPath
-            : Path.GetFullPath(configuredPath, contentRootPath);
+            : Path.GetFullPath(configuredPath, settingsBasePath);
     Directory.CreateDirectory(path);
     return path;
+}
+
+static string ResolveHostSettingsBasePath(
+    IConfiguration configuration,
+    string contentRootPath)
+{
+    var hostSettingsPath = configuration["CloudShell:HostSettingsPath"];
+    return string.IsNullOrWhiteSpace(hostSettingsPath)
+        ? contentRootPath
+        : Path.GetDirectoryName(Path.GetFullPath(hostSettingsPath)) ?? contentRootPath;
+}
+
+static void AddDelegatedHostSettings(
+    ConfigurationManager configuration,
+    string[] args)
+{
+    var hostSettingsPath = configuration["CloudShell:HostSettingsPath"];
+    if (string.IsNullOrWhiteSpace(hostSettingsPath))
+    {
+        return;
+    }
+
+    configuration
+        .AddJsonFile(Path.GetFullPath(hostSettingsPath), optional: false)
+        .AddEnvironmentVariables()
+        .AddCommandLine(args);
 }

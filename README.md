@@ -219,13 +219,13 @@ Local-development host and launcher samples are also available:
 - `CloudShell.LocalDevelopmentHost`: reusable Control Plane/UI host profile used by launcher-based samples.
 - `samples/CSharpAppHost`: declares a JavaScript app and Configuration Store resource from a C# launcher app, then applies the template through the CLI.
 - `samples/TypeScriptAppHost`: declares the same style of graph from TypeScript using the experimental `@cloudshell/local-development` package.
-- `samples/JavaScriptApp`: runs a Node.js app resource as a local process managed by CloudShell.
-- `samples/JavaApp`: runs a Java app resource as a local JVM process managed by CloudShell.
+- `samples/JavaScriptApp`: declares a Node.js app resource from a C# launcher and runs it as a local process managed by CloudShell.
+- `samples/JavaApp`: declares a Java app resource from a C# launcher and runs it as a local JVM process managed by CloudShell.
 - `samples/JavaAppHost`: declares a Java app, Configuration Store, and Secrets Vault from a Java launcher source file, then applies the template through the CLI.
 - `samples/JavaScriptContainerApp`: wraps a JavaScript app as a Dockerfile-backed container app with replica scaling.
 - `samples/CloudShell.UiExtensionHost`: hosts only the CloudShell UI and a custom UI extension.
 - `samples/CloudShell.ResourceHost`: hosts CloudShell UI and Control Plane together with a sample resource provider.
-- `samples/ProjectReference/Host`: declares two ASP.NET Core project resources where one references the other in an Aspire-style dev loop.
+- `samples/ProjectReference`: declares two ASP.NET Core project resources from a C# launcher where one references the other in an Aspire-style dev loop.
 
 ## Test
 

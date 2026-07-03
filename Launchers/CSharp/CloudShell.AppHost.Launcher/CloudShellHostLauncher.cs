@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using CloudShell.ResourceModel;
+using Microsoft.Extensions.Configuration;
 
 namespace CloudShell.AppHost.Launcher;
 
@@ -31,6 +32,8 @@ public sealed record CloudShellHostLauncherOptions
 
     public Uri? HostUrl { get; init; }
 
+    public string? HostSettingsPath { get; init; }
+
     public bool NoBuild { get; init; }
 
     public int? TimeoutSeconds { get; init; }
@@ -43,6 +46,149 @@ public sealed record CloudShellHostLauncherOptions
     public string? WorkingDirectory { get; init; }
 
     public bool InheritStandardInput { get; init; }
+
+    public static CloudShellHostLauncherOptions FromArguments(
+        string[]? args = null,
+        string? applicationDirectory = null,
+        IConfiguration? configuration = null)
+    {
+        args ??= [];
+
+        var repositoryRoot = TryFindRepositoryRoot(applicationDirectory);
+        var appHostSettingsPath = ReadArgumentValue(args, "--host-settings")
+            ?? Environment.GetEnvironmentVariable("CLOUDSHELL_HOST_SETTINGS")
+            ?? configuration?["CloudShell:Launcher:HostSettingsPath"]
+            ?? TryResolveAppHostSettingsPath(applicationDirectory);
+        var explicitDataDirectory = ReadArgumentValue(args, "--data-dir")
+            ?? Environment.GetEnvironmentVariable("CLOUDSHELL_DATA_DIR")
+            ?? configuration?["CloudShell:Launcher:DataDirectory"];
+        var stateDirectory = ResolvePath(
+            ReadArgumentValue(args, "--state-dir")
+                ?? Environment.GetEnvironmentVariable("CLOUDSHELL_STATE_DIR")
+                ?? configuration?["CloudShell:Launcher:StateDirectory"]
+                ?? Path.Combine(
+                    applicationDirectory is null
+                        ? Environment.CurrentDirectory
+                        : Path.GetFullPath(Path.Combine(applicationDirectory, "..")),
+                    ".cloudshell"),
+            applicationDirectory);
+        var controlPlaneUrl = new Uri(
+            ReadArgumentValue(args, "--control-plane")
+                ?? Environment.GetEnvironmentVariable("CLOUDSHELL_CONTROL_PLANE_URL")
+                ?? configuration?["CloudShell:Launcher:ControlPlaneUrl"]
+                ?? "http://127.0.0.1:5104");
+        var hostUrl = new Uri(
+            ReadArgumentValue(args, "--url")
+                ?? Environment.GetEnvironmentVariable("CLOUDSHELL_HOST_URL")
+                ?? configuration?["CloudShell:Launcher:HostUrl"]
+                ?? controlPlaneUrl.ToString());
+
+        var dataDirectory = explicitDataDirectory is not null
+            ? ResolvePath(explicitDataDirectory, applicationDirectory)
+            : string.IsNullOrWhiteSpace(configuration?["CloudShell:DataDirectory"])
+                ? stateDirectory
+                : null;
+
+        return new()
+        {
+            CliProjectPath = ReadArgumentValue(args, "--cli-project")
+                ?? Environment.GetEnvironmentVariable("CLOUDSHELL_CLI_PROJECT")
+                ?? configuration?["CloudShell:Launcher:CliProject"]
+                ?? TryResolveRepositoryPath(repositoryRoot, "CloudShell.Cli", "CloudShell.Cli.csproj"),
+            TemplatePath = ResolveOptionalPath(ReadArgumentValue(args, "--template-path"), applicationDirectory),
+            EnvironmentId = configuration?["CloudShell:Launcher:EnvironmentId"] ?? "local",
+            ControlPlaneUrl = controlPlaneUrl,
+            StateDirectory = stateDirectory,
+            DataDirectory = dataDirectory,
+            StartHost = HasArgument(args, "--start"),
+            HostProjectPath = ReadArgumentValue(args, "--host-project")
+                ?? Environment.GetEnvironmentVariable("CLOUDSHELL_HOST_PROJECT")
+                ?? configuration?["CloudShell:Launcher:HostProject"]
+                ?? TryResolveRepositoryPath(
+                    repositoryRoot,
+                    "CloudShell.LocalDevelopmentHost",
+                    "CloudShell.LocalDevelopmentHost.csproj"),
+            HostUrl = hostUrl,
+            HostSettingsPath = ResolveOptionalPath(appHostSettingsPath, applicationDirectory),
+            NoBuild = HasArgument(args, "--no-build"),
+            BearerToken = Environment.GetEnvironmentVariable("CLOUDSHELL_CONTROL_PLANE_TOKEN"),
+            WorkingDirectory = repositoryRoot
+                ?? applicationDirectory
+                ?? Environment.CurrentDirectory
+        };
+    }
+
+    internal static bool HasArgument(
+        string[] args,
+        string name) =>
+        args.Any(argument => string.Equals(argument, name, StringComparison.OrdinalIgnoreCase));
+
+    internal static string? ReadArgumentValue(
+        string[] args,
+        string name)
+    {
+        for (var index = 0; index < args.Length - 1; index++)
+        {
+            if (string.Equals(args[index], name, StringComparison.OrdinalIgnoreCase))
+            {
+                return args[index + 1];
+            }
+        }
+
+        return null;
+    }
+
+    private static string? TryResolveRepositoryPath(
+        string? repositoryRoot,
+        params string[] pathParts) =>
+        repositoryRoot is null
+            ? null
+            : Path.Combine([repositoryRoot, .. pathParts]);
+
+    private static string? ResolveOptionalPath(
+        string? path,
+        string? applicationDirectory) =>
+        string.IsNullOrWhiteSpace(path)
+            ? null
+            : ResolvePath(path, applicationDirectory);
+
+    private static string ResolvePath(
+        string path,
+        string? applicationDirectory) =>
+        Path.IsPathRooted(path)
+            ? Path.GetFullPath(path)
+            : Path.GetFullPath(
+                path,
+                applicationDirectory ?? Environment.CurrentDirectory);
+
+    private static string? TryResolveAppHostSettingsPath(string? applicationDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(applicationDirectory))
+        {
+            return null;
+        }
+
+        var candidate = Path.Combine(applicationDirectory, "appsettings.json");
+        return File.Exists(candidate)
+            ? candidate
+            : null;
+    }
+
+    private static string? TryFindRepositoryRoot(string? applicationDirectory)
+    {
+        var directory = new DirectoryInfo(applicationDirectory ?? Environment.CurrentDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "CloudShell.slnx")))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        return null;
+    }
 }
 
 public sealed record CloudShellHostLauncherResult(
@@ -221,6 +367,7 @@ public static class CloudShellHostLauncher
         AddOption(arguments, "--state-dir", options.StateDirectory);
         AddOption(arguments, "--host-project", options.HostProjectPath);
         AddOption(arguments, "--data-dir", options.DataDirectory);
+        AddOption(arguments, "--host-settings", options.HostSettingsPath);
         AddOption(arguments, "--url", FormatUri(options.HostUrl));
         AddOption(arguments, "--timeout-seconds", options.TimeoutSeconds?.ToString());
         AddOption(arguments, "--mode", ToCliMode(options.Mode));
@@ -264,6 +411,7 @@ public static class CloudShellHostLauncher
         arguments.Add("--urls");
         arguments.Add(FormatUri(hostUrl)!);
         AddOption(arguments, "--CloudShell:DataDirectory", options.DataDirectory);
+        AddOption(arguments, "--CloudShell:HostSettingsPath", options.HostSettingsPath);
         return arguments;
     }
 

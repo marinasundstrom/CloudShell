@@ -173,7 +173,8 @@ internal static class ProjectEnvironmentVariableReader
         variableName = path[..markerIndex];
         propertyName = path[(markerIndex + marker.Length)..];
         return !string.IsNullOrWhiteSpace(variableName) &&
-            !string.IsNullOrWhiteSpace(propertyName);
+            (string.Equals(marker, ".value", StringComparison.Ordinal) ||
+                !string.IsNullOrWhiteSpace(propertyName));
     }
 
     private sealed record EnvironmentVariableParts(

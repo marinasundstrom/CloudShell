@@ -29,6 +29,7 @@ internal sealed class ControlPlaneDaemon
         var processId = await StartHostProcessAsync(
             hostProject,
             command.DataDirectory,
+            command.HostSettingsPath,
             command.Url,
             command.NoBuild,
             command.StateDirectory,
@@ -115,6 +116,7 @@ internal sealed class ControlPlaneDaemon
     private static async Task<int> StartHostProcessAsync(
         string hostProject,
         string? dataDirectory,
+        string? hostSettingsPath,
         Uri url,
         bool noBuild,
         string stateDirectory,
@@ -140,6 +142,7 @@ internal sealed class ControlPlaneDaemon
                 targetPath,
                 Path.GetDirectoryName(hostProject) ?? Environment.CurrentDirectory,
                 dataDirectory,
+                hostSettingsPath,
                 url,
                 stateDirectory,
                 cancellationToken);
@@ -149,6 +152,7 @@ internal sealed class ControlPlaneDaemon
             targetPath,
             Path.GetDirectoryName(hostProject) ?? Environment.CurrentDirectory,
             dataDirectory,
+            hostSettingsPath,
             url);
         return process.Id;
     }
@@ -157,6 +161,7 @@ internal sealed class ControlPlaneDaemon
         string targetPath,
         string workingDirectory,
         string? dataDirectory,
+        string? hostSettingsPath,
         Uri url)
     {
         var startInfo = new ProcessStartInfo
@@ -170,6 +175,7 @@ internal sealed class ControlPlaneDaemon
         startInfo.ArgumentList.Add("--urls");
         startInfo.ArgumentList.Add(url.ToString());
         AddDataDirectoryArguments(startInfo.ArgumentList, dataDirectory);
+        AddHostSettingsArguments(startInfo.ArgumentList, hostSettingsPath);
 
         return Process.Start(startInfo) ??
             throw new InvalidOperationException("Failed to start the CloudShell host process.");
@@ -179,6 +185,7 @@ internal sealed class ControlPlaneDaemon
         string targetPath,
         string workingDirectory,
         string? dataDirectory,
+        string? hostSettingsPath,
         Uri url,
         string stateDirectory,
         CancellationToken cancellationToken)
@@ -190,11 +197,8 @@ internal sealed class ControlPlaneDaemon
             "--urls",
             url.ToString()
         };
-        if (!string.IsNullOrWhiteSpace(dataDirectory))
-        {
-            arguments.Add("--CloudShell:DataDirectory");
-            arguments.Add(Path.GetFullPath(dataDirectory));
-        }
+        AddDataDirectoryArguments(arguments, dataDirectory);
+        AddHostSettingsArguments(arguments, hostSettingsPath);
 
         var command = string.Join(
             " ",
@@ -424,7 +428,7 @@ internal sealed class ControlPlaneDaemon
             : Path.GetFullPath(dataDirectory);
 
     private static void AddDataDirectoryArguments(
-        Collection<string> arguments,
+        ICollection<string> arguments,
         string? dataDirectory)
     {
         if (string.IsNullOrWhiteSpace(dataDirectory))
@@ -434,6 +438,19 @@ internal sealed class ControlPlaneDaemon
 
         arguments.Add("--CloudShell:DataDirectory");
         arguments.Add(Path.GetFullPath(dataDirectory));
+    }
+
+    private static void AddHostSettingsArguments(
+        ICollection<string> arguments,
+        string? hostSettingsPath)
+    {
+        if (string.IsNullOrWhiteSpace(hostSettingsPath))
+        {
+            return;
+        }
+
+        arguments.Add("--CloudShell:HostSettingsPath");
+        arguments.Add(Path.GetFullPath(hostSettingsPath));
     }
 
     private static string ShellQuote(string value) =>

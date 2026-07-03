@@ -77,6 +77,12 @@ declarations and should not be copied into `ResourceTemplate` entries. Use
 appsettings-compatible keys for host configuration even when the launcher
 language does not normally use .NET configuration.
 
+For C# launchers, AppHost `appsettings.json` is a first-class convention:
+the launcher reads it through normal .NET configuration, exposes it as
+`app.Configuration`, and forwards it to the local development host as delegated
+host configuration. `CloudShell:Launcher:*` keys are reserved for launcher
+mechanics; host settings keep their normal host paths.
+
 Launchers may call the CloudShell CLI or the Control Plane API directly, but
 they should not validate provider-specific resource semantics. Provider and
 resource validation belongs to the Control Plane and installed provider

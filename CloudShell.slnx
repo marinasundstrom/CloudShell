@@ -54,16 +54,16 @@
     <Project Path="samples/CSharpAppHost/AppHost/CloudShell.CSharpAppHost.csproj" />
   </Folder>
   <Folder Name="/samples/JavaScriptApp/" />
-  <Folder Name="/samples/JavaScriptApp/Host/">
-    <Project Path="samples/JavaScriptApp/Host/CloudShell.JavaScriptAppHost.csproj" />
+  <Folder Name="/samples/JavaScriptApp/AppHost/">
+    <Project Path="samples/JavaScriptApp/AppHost/CloudShell.JavaScriptAppHost.csproj" />
   </Folder>
   <Folder Name="/samples/JavaApp/" />
-  <Folder Name="/samples/JavaApp/Host/">
-    <Project Path="samples/JavaApp/Host/CloudShell.JavaAppHost.csproj" />
+  <Folder Name="/samples/JavaApp/AppHost/">
+    <Project Path="samples/JavaApp/AppHost/CloudShell.JavaAppHost.csproj" />
   </Folder>
   <Folder Name="/samples/GoApp/" />
-  <Folder Name="/samples/GoApp/Host/">
-    <Project Path="samples/GoApp/Host/CloudShell.GoAppHost.csproj" />
+  <Folder Name="/samples/GoApp/AppHost/">
+    <Project Path="samples/GoApp/AppHost/CloudShell.GoAppHost.csproj" />
   </Folder>
   <Folder Name="/samples/GoAppHost/" />
   <Folder Name="/samples/JavaAppHost/" />
@@ -94,8 +94,8 @@
   <Folder Name="/samples/ProjectReference/Frontend/">
     <Project Path="samples/ProjectReference/Frontend/CloudShell.ProjectReferenceFrontend.csproj" />
   </Folder>
-  <Folder Name="/samples/ProjectReference/Host/">
-    <Project Path="samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj" />
+  <Folder Name="/samples/ProjectReference/AppHost/">
+    <Project Path="samples/ProjectReference/AppHost/CloudShell.ProjectReferenceAppHost.csproj" />
   </Folder>
   <Folder Name="/samples/ProjectReference/ServiceDefaults/">
     <Project Path="samples/ProjectReference/ServiceDefaults/CloudShell.ProjectReference.ServiceDefaults.csproj" />

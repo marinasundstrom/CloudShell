@@ -3,23 +3,23 @@
 This sample declares a CloudShell `application.go-app` resource for a small Go
 HTTP API.
 
-CloudShell provider authoring is currently C#-only. The Go workload integrates
-as an application resource through a C# CloudShell host in this sample. Future
-Go launcher support can emit the same resource model through templates or the
-Control Plane API, but it does not change the provider boundary.
+The Go workload integrates as an application resource through a C# launcher
+AppHost. The launcher emits the resource model through a template and starts
+`CloudShell.LocalDevelopmentHost`; the sample no longer defines a CloudShell
+host in source.
 
 The sample includes:
 
-- a C# CloudShell host that declares the Go app resource
+- a C# launcher AppHost that declares the Go app resource
 - a Go HTTP API under `App`
 - Configuration Store and Secrets Vault resources referenced by the Go app
 - Resource Manager support for start, stop, restart, endpoints, logs,
   monitoring, configuration, and environment views
 
-Run the sample host in the foreground:
+Run the launcher-backed sample in the foreground:
 
 ```bash
-samples/GoApp/cloudshell.sh run-no-auth
+samples/GoApp/cloudshell.sh run
 ```
 
 From a second terminal, open the Web UI, list resources, and start the Go app:
