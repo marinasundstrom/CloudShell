@@ -821,6 +821,8 @@ async function runForegroundHost(
       return { command: applyCommand, args: applyCommandArgs, exitCode: applyExitCode };
     }
 
+    console.log(formatHostUrlMessage(hostUrl));
+
     const exitCode = await waitForExit(host);
     return { command: "dotnet", args: hostArgs, exitCode };
   } finally {
@@ -858,6 +860,10 @@ async function waitForReady(
   }
 
   throw new Error(`CloudShell host did not become ready within ${(options.timeoutSeconds ?? 60)} seconds.`);
+}
+
+export function formatHostUrlMessage(hostUrl: string): string {
+  return `CloudShell UI: ${hostUrl.replace(/\/$/, "")}`;
 }
 
 function setDottedValue(

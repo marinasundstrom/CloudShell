@@ -11,6 +11,7 @@ public final class CloudShellAppTest {
         buildsTemplateJson();
         buildsApplyAndStartCommands();
         buildsForegroundRunCommand();
+        formatsHostUrlMessage();
     }
 
     private static void buildsTemplateJson() {
@@ -132,6 +133,12 @@ public final class CloudShellAppTest {
             "http://127.0.0.1:5100",
             "--CloudShell:DataDirectory",
             ".cloudshell"), command.arguments());
+    }
+
+    private static void formatsHostUrlMessage() {
+        assertEquals(
+            "CloudShell UI: http://127.0.0.1:5100",
+            CloudShellLauncher.formatHostUrlMessage("http://127.0.0.1:5100/"));
     }
 
     private static void assertContains(String value, String expected) {

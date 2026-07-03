@@ -65,6 +65,8 @@ public final class CloudShellLauncher {
                     templatePath);
             }
 
+            System.out.println(formatHostUrlMessage(hostUrl));
+
             int hostExitCode = host.waitFor();
             return new CloudShellLauncherResult(
                 hostCommand.name(),
@@ -161,6 +163,10 @@ public final class CloudShellLauncher {
         }
 
         return new Command("dotnet", List.copyOf(arguments));
+    }
+
+    static String formatHostUrlMessage(String hostUrl) {
+        return "CloudShell UI: " + trimTrailingSlash(hostUrl);
     }
 
     private static CloudShellLauncherOptions copyForApplyToForegroundHost(
@@ -266,6 +272,10 @@ public final class CloudShellLauncher {
 
     private static String normalizeBaseUrl(String url) {
         return url.endsWith("/") ? url : url + "/";
+    }
+
+    private static String trimTrailingSlash(String url) {
+        return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
     }
 
     private static String firstNonBlank(String first, String second) {

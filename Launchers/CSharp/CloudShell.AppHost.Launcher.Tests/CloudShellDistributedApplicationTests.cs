@@ -122,6 +122,15 @@ public sealed class CloudShellDistributedApplicationTests
     }
 
     [Fact]
+    public void FormatHostUrlMessage_PrintsUiUrl()
+    {
+        var message = CloudShellHostLauncher.FormatHostUrlMessage(
+            new Uri("http://127.0.0.1:5200/"));
+
+        Assert.Equal("CloudShell UI: http://127.0.0.1:5200", message);
+    }
+
+    [Fact]
     public async Task ApplyAsync_WritesTemplateAndRunsCliProject()
     {
         using var directory = new TemporaryDirectory();

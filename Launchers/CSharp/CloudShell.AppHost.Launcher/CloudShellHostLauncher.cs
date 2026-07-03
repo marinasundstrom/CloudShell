@@ -176,6 +176,8 @@ public static class CloudShellHostLauncher
                 return applyResult;
             }
 
+            Console.WriteLine(FormatHostUrlMessage(hostUrl));
+
             await hostProcess.WaitForExitAsync(cancellationToken);
             return new("dotnet", hostArguments, hostProcess.ExitCode, templatePath);
         }
@@ -263,6 +265,12 @@ public static class CloudShellHostLauncher
         arguments.Add(FormatUri(hostUrl)!);
         AddOption(arguments, "--CloudShell:DataDirectory", options.DataDirectory);
         return arguments;
+    }
+
+    public static string FormatHostUrlMessage(Uri hostUrl)
+    {
+        ArgumentNullException.ThrowIfNull(hostUrl);
+        return $"CloudShell UI: {FormatUri(hostUrl)}";
     }
 
     private static void AddOption(

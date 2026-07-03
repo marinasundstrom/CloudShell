@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cloudshell } from "./index.js";
+import { cloudshell, formatHostUrlMessage } from "./index.js";
 
 test("builds a resource template with JavaScript app and configuration store", () => {
   const app = cloudshell("typescript-hosting-poc", {
@@ -139,6 +139,12 @@ test("rejects duplicate resource ids", () => {
   assert.throws(
     () => app.resource("two", "example.resource", { resourceId: "example:shared" }),
     /already defined/);
+});
+
+test("formats host URL message", () => {
+  assert.equal(
+    formatHostUrlMessage("http://127.0.0.1:5100/"),
+    "CloudShell UI: http://127.0.0.1:5100");
 });
 
 test("builds a Java app resource template", () => {
