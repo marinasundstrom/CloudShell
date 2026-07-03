@@ -99,6 +99,29 @@ project. Host-owned settings such as `Authentication`, `Persistence`,
 `Identity`, provider runtime settings, and `CloudShell:DataDirectory` stay at
 their normal host configuration paths.
 
+`CloudShell.LocalDevelopmentHost` registers the built-in resource identity
+provider as the default local identity provider. Launcher appsettings can add
+local development users under `ResourceIdentity:BuiltIn`; the host exposes
+those users as assignable principals in generated Resource Manager Access
+control views without copying them into the `ResourceTemplate`:
+
+```json
+{
+  "ResourceIdentity": {
+    "BuiltIn": {
+      "ProviderName": "Local Development Identity",
+      "Users": [
+        {
+          "UserName": "alice",
+          "DisplayName": "Alice Local Developer",
+          "Email": "alice@example.test"
+        }
+      ]
+    }
+  }
+}
+```
+
 When a language runtime does not naturally use .NET-style configuration, its
 launcher package should still provide an appsettings-compatible input so teams
 can move the same host-profile settings between C#, TypeScript, Java, and
@@ -108,6 +131,16 @@ file, or a future host-launch option, but the consumer-facing keys should
 remain the host's CloudShell configuration keys.
 
 ## Non-Default Paths
+
+`CloudShell.LocalDevelopmentHost` is the default and recommended host profile
+for application development through launchers. It should carry the common local
+platform capabilities that app developers expect while keeping the launcher
+focused on resource declarations.
+
+Launchers remain host-configurable. A project can target a custom host profile,
+a full production-style host, a split host, or a remote compatible Control
+Plane when it needs different providers, extensions, authentication,
+persistence, or environment-specific services.
 
 The CloudShell CLI, daemon workflows, and sample shell scripts are not the
 normal local launcher experience. They remain useful for advanced automation,

@@ -29,3 +29,9 @@ curl "http://localhost:5282/messages"
 
 The RabbitMQ management UI is available at `http://localhost:15678` with the
 sample credentials `guest` / `guest`.
+
+The AppHost `appsettings.json` also configures two local development identity
+principals, `rabbitmq-operator` and `rabbitmq-reader`, under
+`ResourceIdentity:BuiltIn:Users`. `CloudShell.LocalDevelopmentHost` picks those
+up through delegated host settings and shows them in Resource Manager Access
+control views without putting user accounts in the resource template.

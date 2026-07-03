@@ -7,6 +7,8 @@ namespace CloudShell.ControlPlane.Authentication;
 
 public sealed class InMemoryIdentitySetupOptions
 {
+    public const string SectionName = ResourceIdentityOptions.SectionName + ":BuiltIn";
+
     public const string DefaultProviderId = "identity:built-in";
 
     public string ProviderId { get; set; } = DefaultProviderId;

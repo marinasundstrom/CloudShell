@@ -270,6 +270,13 @@ can model users, login, roles, claims, and access grants without keeping state
 after shutdown. Third-party providers should feed the same principal and grant
 model through their own directory/provisioning integrations.
 
+`CloudShell.LocalDevelopmentHost` registers the built-in provider as the
+default resource identity provider for launcher-based local development.
+Launcher appsettings can define local development principals under
+`ResourceIdentity:BuiltIn:Users`; the built-in provider exposes those users in
+the Access control principal directory even when they are only host
+configuration and not resource-template declarations.
+
 Programmatic declarations can also record permission grants from a principal
 to a target resource. A resource identity is one principal source, exposed by
 the declaring resource through `Principal`; it is separate from the resource's

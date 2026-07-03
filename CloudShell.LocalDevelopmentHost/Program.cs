@@ -1,11 +1,15 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.Providers.UI;
+using CloudShell.ControlPlane.ResourceModel;
 using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 AddDelegatedHostSettings(builder.Configuration, args);
@@ -25,6 +29,7 @@ var cloudShellDataDirectory = ResolveCloudShellDataDirectory(
 
 var cloudShell = builder.AddCloudShellControlPlaneApplication(
     configureBuiltInResourceModelProviders: null);
+AddLocalDevelopmentIdentityProvider(builder, cloudShell);
 
 cloudShell
     .UseConfigurationStoreResourceProvider(runtime =>
@@ -76,6 +81,26 @@ static string ResolveCloudShellDataDirectory(
             : Path.GetFullPath(configuredPath, settingsBasePath);
     Directory.CreateDirectory(path);
     return path;
+}
+
+static void AddLocalDevelopmentIdentityProvider(
+    WebApplicationBuilder builder,
+    IControlPlaneBuilder controlPlane)
+{
+    var identity = new InMemoryIdentitySetupOptions
+    {
+        IsConfigured = true
+    };
+    builder.Configuration
+        .GetSection(InMemoryIdentitySetupOptions.SectionName)
+        .Bind(identity);
+
+    builder.Services.Replace(ServiceDescriptor.Singleton(identity));
+    controlPlane.AddIdentityProvider(
+        identity.ProviderId,
+        identity.ProviderName,
+        ResourceIdentityProviderKind.BuiltIn,
+        useAsDefault: identity.UseAsDefaultProvider);
 }
 
 static string ResolveHostSettingsBasePath(

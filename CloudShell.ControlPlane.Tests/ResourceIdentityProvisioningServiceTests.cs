@@ -5,6 +5,7 @@ using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Identity;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -380,6 +381,58 @@ public sealed class ResourceIdentityProvisioningServiceTests
         Assert.Equal("Built-in local user.", principal.Description);
         Assert.Equal("alice@example.test", principal.PrincipalAttributes["userName"]);
         Assert.False(string.IsNullOrWhiteSpace(principal.PrincipalAttributes["userId"]));
+        Assert.Equal("alice@example.test", principal.PrincipalAttributes["email"]);
+    }
+
+    [Fact]
+    public async Task BuiltInProvisioner_ListsConfiguredInMemoryUserPrincipalsWithoutIdentityStore()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                [$"{InMemoryIdentitySetupOptions.SectionName}:ProviderId"] = "identity:local",
+                [$"{InMemoryIdentitySetupOptions.SectionName}:ProviderName"] = "Local Development Identity",
+                [$"{InMemoryIdentitySetupOptions.SectionName}:Users:0:UserName"] = "Alice",
+                [$"{InMemoryIdentitySetupOptions.SectionName}:Users:0:DisplayName"] = "Alice Local Developer",
+                [$"{InMemoryIdentitySetupOptions.SectionName}:Users:0:Email"] = "alice@example.test"
+            })
+            .Build();
+        var users = new InMemoryIdentitySetupOptions
+        {
+            IsConfigured = true
+        };
+        configuration
+            .GetSection(InMemoryIdentitySetupOptions.SectionName)
+            .Bind(users);
+        var provisioner = new BuiltInResourceIdentityProvisioner(
+            new BuiltInResourceIdentityRegistry(),
+            scopeFactory: null,
+            users);
+        var provider = new ResourceIdentityProviderDefinition(
+            users.ProviderId,
+            users.ProviderName,
+            ResourceIdentityProviderKind.BuiltIn);
+
+        var result = await provisioner.QueryDirectoryAsync(
+            new ResourceIdentityDirectoryRequest(
+                provider,
+                new ResourceIdentityDirectoryQuery(
+                    "alice",
+                    new HashSet<ResourcePrincipalKind>
+                    {
+                        ResourcePrincipalKind.User
+                    })));
+
+        var principal = Assert.Single(result.Principals);
+        Assert.Equal("identity:local", result.ProviderId);
+        Assert.Equal(ResourcePrincipalKind.User, principal.Reference.Kind);
+        Assert.Equal("alice", principal.Reference.Id);
+        Assert.Equal("Alice Local Developer", principal.Reference.DisplayName);
+        Assert.Equal("identity:local", principal.Reference.ProviderId);
+        Assert.Equal("Alice Local Developer", principal.DisplayName);
+        Assert.Equal("Configured built-in local user.", principal.Description);
+        Assert.Equal("Alice", principal.PrincipalAttributes["userName"]);
+        Assert.Equal("alice", principal.PrincipalAttributes["userId"]);
         Assert.Equal("alice@example.test", principal.PrincipalAttributes["email"]);
     }
 
