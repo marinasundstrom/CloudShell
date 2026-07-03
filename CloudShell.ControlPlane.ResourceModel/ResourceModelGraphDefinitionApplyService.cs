@@ -1,12 +1,17 @@
+using CloudShell.Abstractions.ResourceManager;
+
 namespace CloudShell.ControlPlane.ResourceModel;
 
 public sealed class ResourceModelGraphDefinitionApplyService(
     ResourceGraphModel graphModel,
     ResourceDefinitionGraphChangeApplier changeApplier,
-    IEnumerable<IResourceModelGraphApplyReconciler>? reconcilers = null)
+    IEnumerable<IResourceModelGraphApplyReconciler>? reconcilers = null,
+    IEnumerable<ResourceDeclarationStore>? declarationStores = null)
 {
     private readonly IReadOnlyList<IResourceModelGraphApplyReconciler> _reconcilers =
         (reconcilers ?? []).ToArray();
+    private readonly ResourceDeclarationStore? _declarations =
+        declarationStores?.LastOrDefault();
 
     public async ValueTask<ResourceModelGraphDefinitionApplyResult> ApplyDefinitionsAsync(
         IEnumerable<ResourceDefinition> definitions,
@@ -79,11 +84,154 @@ public sealed class ResourceModelGraphDefinitionApplyService(
                 ? commitContext with { EnvironmentId = template.EnvironmentId }
                 : commitContext;
 
-        return await ApplyDefinitionsAsync(
+        var result = await ApplyDefinitionsAsync(
             template.Resources,
             effectiveCommitContext,
             options,
             cancellationToken);
+
+        if (result.IsCommitted)
+        {
+            ApplyTemplateDeclarationMetadata(template);
+        }
+
+        return result;
+    }
+
+    public void ApplyTemplateDeclarationMetadata(ResourceTemplate template)
+    {
+        ArgumentNullException.ThrowIfNull(template);
+
+        if (_declarations is null)
+        {
+            return;
+        }
+
+        foreach (var definition in template.Resources)
+        {
+            var resourceId = definition.EffectiveResourceId;
+            var declarationAttributes = definition.GetDeclarationAttributes();
+            if (_declarations.GetDeclaration(resourceId) is not null)
+            {
+                if (declarationAttributes.Identity is { } identity)
+                {
+                    _declarations.SetIdentity(
+                        resourceId,
+                        CreateIdentityBinding(identity));
+                }
+
+                if (declarationAttributes.ProvisionIdentityOnStartup is { } provision)
+                {
+                    _declarations.SetProvisionIdentityOnStartup(
+                        resourceId,
+                        provision);
+                }
+            }
+
+            foreach (var grant in declarationAttributes.AccessGrantsOrEmpty)
+            {
+                _declarations.AddPermissionGrant(CreatePermissionGrant(resourceId, grant));
+            }
+        }
+    }
+
+    private static ResourceIdentityBinding CreateIdentityBinding(
+        ResourceIdentityBindingAttribute identity)
+    {
+        var kind = ParseIdentityBindingKind(identity.Kind);
+        return kind == ResourceIdentityBindingKind.Required
+            ? ResourceIdentityBinding.RequireIdentity(identity.Scopes, identity.Claims) with
+            {
+                Name = NormalizeOptional(identity.Name),
+                Subject = NormalizeOptional(identity.Subject)
+            }
+            : new ResourceIdentityBinding(
+                identity.ProviderId,
+                NormalizeOptional(identity.Subject),
+                NormalizeList(identity.Scopes),
+                NormalizeDictionary(identity.Claims),
+                kind,
+                NormalizeOptional(identity.Name));
+    }
+
+    private static ResourcePermissionGrant CreatePermissionGrant(
+        string targetResourceId,
+        ResourceAccessGrantAttribute grant) =>
+        new(
+            CreatePrincipalReference(grant.Principal),
+            RequireValue(targetResourceId, nameof(targetResourceId)),
+            RequireValue(grant.Permission, nameof(grant.Permission)));
+
+    private static ResourcePrincipalReference CreatePrincipalReference(
+        ResourcePrincipalReferenceAttribute principal) =>
+        new(
+            ParsePrincipalKind(principal.Kind),
+            RequireValue(principal.Id, nameof(principal.Id)),
+            NormalizeOptional(principal.DisplayName),
+            NormalizeOptional(principal.ProviderId),
+            NormalizeOptional(principal.SourceResourceId),
+            NormalizeOptional(principal.SourceIdentityName));
+
+    private static ResourceIdentityBindingKind ParseIdentityBindingKind(string? kind) =>
+        string.Equals(kind, ResourceIdentityBindingAttributeKinds.Required, StringComparison.OrdinalIgnoreCase)
+            ? ResourceIdentityBindingKind.Required
+            : ResourceIdentityBindingKind.Provider;
+
+    private static ResourcePrincipalKind ParsePrincipalKind(string kind)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
+
+        return NormalizeKind(kind) switch
+        {
+            "resourceidentity" => ResourcePrincipalKind.ResourceIdentity,
+            "user" => ResourcePrincipalKind.User,
+            "group" => ResourcePrincipalKind.Group,
+            "serviceaccount" => ResourcePrincipalKind.ServiceAccount,
+            "serviceprincipal" => ResourcePrincipalKind.ServicePrincipal,
+            "managedidentity" => ResourcePrincipalKind.ManagedIdentity,
+            "workloadidentity" => ResourcePrincipalKind.WorkloadIdentity,
+            "external" => ResourcePrincipalKind.External,
+            _ => Enum.TryParse<ResourcePrincipalKind>(kind, ignoreCase: true, out var parsed)
+                ? parsed
+                : throw new ArgumentException($"Unknown resource principal kind '{kind}'.", nameof(kind))
+        };
+    }
+
+    private static string NormalizeKind(string kind) =>
+        new(kind.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+
+    private static IReadOnlyList<string>? NormalizeList(IReadOnlyList<string>? values) =>
+        values?
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static IReadOnlyDictionary<string, string>? NormalizeDictionary(
+        IReadOnlyDictionary<string, string>? values)
+    {
+        if (values is null || values.Count == 0)
+        {
+            return null;
+        }
+
+        var normalized = values
+            .Where(value => !string.IsNullOrWhiteSpace(value.Key) &&
+                !string.IsNullOrWhiteSpace(value.Value))
+            .ToDictionary(
+                value => value.Key.Trim(),
+                value => value.Value.Trim(),
+                StringComparer.OrdinalIgnoreCase);
+        return normalized.Count == 0 ? null : normalized;
+    }
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string RequireValue(string value, string parameterName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value, parameterName);
+        return value.Trim();
     }
 
     private async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAsync(

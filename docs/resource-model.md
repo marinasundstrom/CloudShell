@@ -814,6 +814,12 @@ Identity metadata is non-secret. Runtime credentials are transferred through
 safe provider mechanisms such as environment variables, token endpoints,
 mounted configuration, or platform-managed identity facilities.
 
+Resource templates encode CloudShell identity intent as resource attributes
+under `identity.*`. These attributes describe the resource's Resource Manager
+identity binding only. Provider-native credentials for backing services such
+as RabbitMQ or SQL Server remain provider-owned configuration or runtime state
+and must not be modeled as CloudShell identity attributes.
+
 Resource permissions and grants are evaluated by the Control Plane. A resource
 identity can act on another resource only when the relevant grant or permission
 exists.

@@ -17,6 +17,17 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added portable resource-template attributes for CloudShell resource identity
+  and access grants. `identity.*` and `access.grants` are now interpreted by
+  the Control Plane template apply path and emitted by the C# resource builder
+  helpers, giving non-C# launchers the same declaration shape without mixing
+  Resource Manager identity metadata with provider-native service
+  credentials.
+- Added RabbitMQ provider-owned `user.*` and `vhost` resource configuration,
+  including local Docker runtime projection, management API virtual-host
+  selection, secret projection filtering for generated Resource Manager
+  attributes, and a RabbitMQMessaging sample update that uses the standard
+  `.WithIdentity(...)` and `.Allow(...)` builder APIs.
 - Added Resource Manager diagnostics for resources that declare required
   persistent volume target paths but do not have a declared volume mount,
   including the SQL Server data path warning for `/var/opt/mssql`.

@@ -59,6 +59,7 @@ var broker = resources
     .AddRabbitMQ("rabbitmq")
     .WithAmqpEndpoint(host: "localhost", port: 5672)
     .WithManagementEndpoint(host: "localhost", port: 15672)
+    .WithVirtualHost("my_vhost")
     .MountVolume(brokerData, RabbitMQResourceDefaults.DataPath);
 ```
 
@@ -66,6 +67,14 @@ The local Docker runtime uses `rabbitmq:3-management` by default so the
 management endpoint is available for simple and advanced broker management.
 Future providers can map the same resource shape to other RabbitMQ runtimes or
 managed broker environments behind the provider boundary.
+
+RabbitMQ `user.*` and `vhost` settings are provider-owned broker
+configuration, not CloudShell Resource Manager identity metadata. Omitting
+`user` leaves the runtime/default image credentials in effect. Omitting
+`vhost` leaves the RabbitMQ default virtual host (`/`) in effect. Templates can
+set `user.managed: true` to ask the provider to derive CloudShell-owned
+bootstrap credentials for the broker resource; that mode cannot be combined
+with explicit `user.username` or `user.password`.
 
 `samples/RabbitMQMessaging` shows the preferred launcher shape for broker-backed
 applications. A C# AppHost declares the RabbitMQ service resource, a .NET app
@@ -90,6 +99,10 @@ resources:
       - resourceId: cloudshell.volume:rabbitmq-data
         typeId: cloudshell.volume
     version: "3"
+    user:
+      username: guest
+      password: guest
+    vhost: my_vhost
     endpointRequests:
       - name: amqp
         protocol: tcp
@@ -136,9 +149,13 @@ host-scoped deterministic container name for launcher-authored RabbitMQ
 resources that do not have explicit runtime mappings.
 
 Credentials for the local Docker bootstrap user are provider-owned runtime
-configuration. The local runtime reads configured username/password values from
-host configuration when supplied and does not project those values through
-Resource attributes, logs, or templates.
+configuration. The local runtime leaves the Docker image defaults in effect
+when no resource or host credential settings are supplied. A RabbitMQ resource
+can declare explicit `user.username` and `user.password`, or declare
+`user.managed: true` to let CloudShell derive provider-owned bootstrap
+credentials. Host configuration can still provide runtime defaults for hosts
+that want a shared local setting. Password-like attributes are not projected as
+generated Resource Manager attributes, logs, or diagnostics.
 
 Registering `AddLocalRabbitMQDockerRuntime(...)` also enables the
 RabbitMQ Management API access reconciler and topology reader. The reconciler
@@ -146,8 +163,8 @@ uses the resolved `management` endpoint and provider-owned administrator
 credentials to materialize CloudShell resource-identity grants as
 RabbitMQ-native users and virtual-host permissions. The topology reader uses
 the same provider-owned credential boundary and reads broker-native queues and
-exchanges for the configured virtual host through the RabbitMQ Management HTTP
-API.
+exchanges for the resource virtual host when `vhost` is declared, otherwise
+the host/default virtual host.
 
 Hosts can register the same management API integration directly with
 `AddRabbitMQManagementApiAccessReconciler(...)` when a non-Docker runtime

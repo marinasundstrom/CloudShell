@@ -293,6 +293,40 @@ var database = resources.Declare("database", "database:app");
 database.Allow(api.Principal, "Database/databases/readWrite/action");
 ```
 
+The same intent is encoded in resource templates as ordinary attributes. This
+is the cross-launcher contract for C#, Java, JavaScript/TypeScript, and future
+resource builders: the subject resource carries `identity.*`, and each target
+resource carries inbound `access.grants`.
+
+```yaml
+resources:
+  - type: application.executable
+    name: api
+    identity:
+      kind: provider
+      providerId: identity:development
+      name: api-service
+
+  - type: application.rabbitmq
+    name: rabbitmq
+    access:
+      grants:
+        - principal:
+            kind: resourceIdentity
+            id: application.executable:api/identities/api-service
+            providerId: identity:development
+            sourceResourceId: application.executable:api
+            sourceIdentityName: api-service
+          permission: CloudShell.Messaging/rabbitMQ/publish/action
+```
+
+Those attributes are Resource Manager declaration metadata. They do not define
+provider-native credentials for RabbitMQ, SQL Server, or any other backing
+service. Providers can use the declared grants to reconcile native users or
+permissions, but the native credential material stays provider-owned and must
+not be exposed through identity attributes, logs, diagnostics, samples, or
+templates.
+
 Use `ResourceAccessPermissions` when the grant represents a resource access
 level instead of a provider-specific operation string:
 

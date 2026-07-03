@@ -246,9 +246,23 @@ public sealed class ResourceGraphBuilderTests
         var declaration = Assert.Single(
             declarations.GetDeclarations(),
             declaration => declaration.ResourceId == "cloudshell.network:app");
+        var graphDefinition = serviceProvider
+            .GetRequiredService<ResourceGraphModel>()
+            .GetSnapshot()
+            .Resources
+            .Select(resource => resource.ToDefinition())
+            .ToArray();
+        var appDefinition = Assert.Single(
+            graphDefinition,
+            resource => resource.EffectiveResourceId == "cloudshell.network:app");
+        var settingsDefinition = Assert.Single(
+            graphDefinition,
+            resource => resource.EffectiveResourceId == "configuration.store:settings");
         var group = Assert.Single(declarations.GetResourceGroups());
         var provider = Assert.Single(declarations.GetIdentityProviders());
         var grant = Assert.Single(declarations.GetPermissionGrants());
+        var identityAttribute = appDefinition.GetIdentityAttribute();
+        var grantAttribute = Assert.Single(settingsDefinition.GetAccessGrantAttributes());
 
         Assert.Equal("group:sample", group.Id);
         Assert.Equal("identity:development", provider.Id);
@@ -260,12 +274,21 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal("client:app", declaration.IdentityBinding?.Subject);
         Assert.Equal(["openid"], declaration.IdentityBinding?.IdentityScopes);
         Assert.True(declaration.ProvisionIdentityOnStartup);
+        Assert.NotNull(identityAttribute);
+        Assert.Equal("identity:development", identityAttribute.ProviderId);
+        Assert.Equal("app", identityAttribute.Name);
+        Assert.Equal("client:app", identityAttribute.Subject);
+        Assert.Equal(["openid"], identityAttribute.Scopes);
+        Assert.True(appDefinition.GetProvisionIdentityOnStartupAttribute());
         Assert.False(declarations.ShouldAutoStart(declaration.ResourceId));
         Assert.False(declarations.ShouldAutoStartAsDependency(declaration.ResourceId));
         Assert.Equal("configuration.store:settings", grant.TargetResourceId);
         Assert.Equal("configuration.entries.read", grant.Permission);
         Assert.Equal(ResourcePrincipalKind.ResourceIdentity, grant.Principal.Kind);
         Assert.Equal("cloudshell.network:api", grant.Principal.SourceResourceId);
+        Assert.Equal("configuration.entries.read", grantAttribute.Permission);
+        Assert.Equal(ResourcePrincipalAttributeKinds.ResourceIdentity, grantAttribute.Principal.Kind);
+        Assert.Equal("cloudshell.network:api", grantAttribute.Principal.SourceResourceId);
     }
 
     [Fact]

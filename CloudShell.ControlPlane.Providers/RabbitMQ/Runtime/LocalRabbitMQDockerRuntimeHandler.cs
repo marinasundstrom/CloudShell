@@ -50,6 +50,10 @@ public sealed class LocalRabbitMQDockerDefinition
     public string Password { get; set; } =
         RabbitMQResourceDefaults.DefaultPassword;
 
+    public string? VirtualHostConfigurationKey { get; set; }
+
+    public string? VirtualHost { get; set; }
+
     public string ContainerImage { get; set; } =
         RabbitMQResourceDefaults.ContainerImage;
 
@@ -142,19 +146,37 @@ public sealed class LocalRabbitMQDockerRuntimeHandler(
             return;
         }
 
+        var startup = RabbitMQResourceConfiguration.ResolveStartupConfiguration(
+            resource,
+            definition,
+            configuration);
         var arguments = new List<string>
         {
             "run",
             "-d",
             "--name",
             definition.ContainerName,
-            "-e",
-            $"RABBITMQ_DEFAULT_USER={ResolveUsername(definition)}",
-            "-e",
-            $"RABBITMQ_DEFAULT_PASS={ResolvePassword(definition)}",
+        };
+
+        if (startup.Credentials is { } credentials)
+        {
+            arguments.Add("-e");
+            arguments.Add($"RABBITMQ_DEFAULT_USER={credentials.UserName}");
+            arguments.Add("-e");
+            arguments.Add($"RABBITMQ_DEFAULT_PASS={credentials.Password}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(startup.VirtualHost))
+        {
+            arguments.Add("-e");
+            arguments.Add($"RABBITMQ_DEFAULT_VHOST={startup.VirtualHost}");
+        }
+
+        arguments.AddRange(
+        [
             "-p",
             $"127.0.0.1:{ResolveEndpointPort(resource, "amqp", "tcp").ToString(CultureInfo.InvariantCulture)}:5672"
-        };
+        ]);
 
         if (TryResolveEndpointPort(resource, "management", "http", out var managementPort))
         {
@@ -314,16 +336,6 @@ public sealed class LocalRabbitMQDockerRuntimeHandler(
             cancellationToken,
             throwOnError: false,
             commandTimeout: definition.RemoveTimeout);
-
-    private string ResolveUsername(LocalRabbitMQDockerDefinition definition) =>
-        definition.UsernameConfigurationKey is { Length: > 0 } key
-            ? configuration[key] ?? definition.Username
-            : definition.Username;
-
-    private string ResolvePassword(LocalRabbitMQDockerDefinition definition) =>
-        definition.PasswordConfigurationKey is { Length: > 0 } key
-            ? configuration[key] ?? definition.Password
-            : definition.Password;
 
     private string ResolvePath(
         string storageLocation,

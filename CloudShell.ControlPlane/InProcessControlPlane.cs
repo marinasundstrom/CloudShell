@@ -1103,6 +1103,7 @@ public sealed class InProcessControlPlane(
                 request.Template.Resources,
                 GetTemplateResourceGroupId(request.Template),
                 cancellationToken);
+            templates.ApplyTemplateDeclarationMetadata(request.Template);
         }
 
         return new ResourceTemplateApplyResult(

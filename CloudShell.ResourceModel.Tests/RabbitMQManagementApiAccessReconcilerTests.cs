@@ -6,6 +6,7 @@ using System.Text.Json;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.ResourceModel;
 using CloudShell.ResourceModel;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
@@ -123,6 +124,93 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
     }
 
     [Fact]
+    public async Task ReconcileAccessAsync_DoesNotProjectMissingBrokerPermissions()
+    {
+        var handler = new RecordingHttpMessageHandler();
+        var reconciler = CreateReconciler(
+            handler,
+            new FixedRabbitMQPrincipalCredentialProvider("cloudshell-api", "broker-secret"));
+        var resource = CreateRabbitMQResource(withManagementEndpoint: true);
+        var principal = ResourcePrincipalReference.ForResourceIdentity(
+            "application.aspnet-core-project:api",
+            "default");
+
+        var diagnostics = await reconciler.ReconcileAccessAsync(
+            resource,
+            [
+                new ResourcePermissionGrant(
+                    principal,
+                    resource.EffectiveResourceId,
+                    RabbitMQResourceOperationPermissions.Publish)
+            ]);
+
+        Assert.DoesNotContain(diagnostics, diagnostic =>
+            diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);
+        var applyPermissions = handler.Requests[1];
+        Assert.Equal(
+            "http://localhost:15672/api/permissions/%2F/cloudshell-api",
+            applyPermissions.Uri);
+        using var permissionsDocument = JsonDocument.Parse(applyPermissions.Body);
+        Assert.Equal(
+            string.Empty,
+            permissionsDocument.RootElement.GetProperty("configure").GetString());
+        Assert.Equal(
+            ".*",
+            permissionsDocument.RootElement.GetProperty("write").GetString());
+        Assert.Equal(
+            string.Empty,
+            permissionsDocument.RootElement.GetProperty("read").GetString());
+    }
+
+    [Fact]
+    public async Task ReconcileAccessAsync_DoesNotCreateBrokerUserWhenNoBrokerGrantsExist()
+    {
+        var handler = new RecordingHttpMessageHandler();
+        var reconciler = CreateReconciler(
+            handler,
+            new FixedRabbitMQPrincipalCredentialProvider("cloudshell-api", "broker-secret"));
+        var resource = CreateRabbitMQResource(withManagementEndpoint: true);
+
+        var diagnostics = await reconciler.ReconcileAccessAsync(
+            resource,
+            []);
+
+        Assert.Contains(diagnostics, diagnostic =>
+            diagnostic.Code == "application.rabbitmq.noBrokerAccessGrants");
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task ReconcileAccessAsync_UsesResourceVirtualHost()
+    {
+        var handler = new RecordingHttpMessageHandler();
+        var reconciler = CreateReconciler(
+            handler,
+            new FixedRabbitMQPrincipalCredentialProvider("cloudshell-api", "broker-secret"));
+        var resource = CreateRabbitMQResource(
+            withManagementEndpoint: true,
+            builder => builder.WithVirtualHost("my_vhost"));
+        var principal = ResourcePrincipalReference.ForResourceIdentity(
+            "application.aspnet-core-project:api",
+            "default");
+
+        var diagnostics = await reconciler.ReconcileAccessAsync(
+            resource,
+            [
+                new ResourcePermissionGrant(
+                    principal,
+                    resource.EffectiveResourceId,
+                    RabbitMQResourceOperationPermissions.Publish)
+            ]);
+
+        Assert.DoesNotContain(diagnostics, diagnostic =>
+            diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error);
+        Assert.Equal(
+            "http://localhost:15672/api/permissions/my_vhost/cloudshell-api",
+            handler.Requests[1].Uri);
+    }
+
+    [Fact]
     public async Task ManagementApiStatusProvider_ReportsAppliedWhenBrokerPermissionExists()
     {
         var handler = new RecordingHttpMessageHandler
@@ -151,6 +239,39 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
         Assert.Equal(
             "http://localhost:15672/api/permissions/%2F/cloudshell-api",
             request.Uri);
+    }
+
+    [Fact]
+    public async Task ManagementApiStatusProvider_UsesResourceVirtualHost()
+    {
+        var handler = new RecordingHttpMessageHandler
+        {
+            OnSend = request => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new RabbitMQObservedPermissions(
+                    Configure: string.Empty,
+                    Write: ".*",
+                    Read: string.Empty))
+            }
+        };
+        var provider = CreateStatusProvider(
+            handler,
+            new FixedRabbitMQPrincipalCredentialProvider("cloudshell-api", "broker-secret"));
+        var resource = CreateResourceManagerRabbitMQResource(
+            withManagementEndpoint: true,
+            attributes: new Dictionary<string, string>
+            {
+                [RabbitMQResourceTypeProvider.Attributes.VirtualHost.ToString()] = "my_vhost"
+            });
+        var grant = CreateGrant(resource, RabbitMQResourceOperationPermissions.Publish);
+
+        var status = await provider.GetStatusAsync(
+            new ResourcePermissionGrantStatusRequest(resource, grant));
+
+        Assert.Equal(ResourcePermissionGrantEffectivenessState.Applied, status.State);
+        Assert.Equal(
+            "http://localhost:15672/api/permissions/my_vhost/cloudshell-api",
+            Assert.Single(handler.Requests).Uri);
     }
 
     [Fact]
@@ -358,6 +479,25 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
     }
 
     [Fact]
+    public async Task ResourceManagerProjection_DoesNotExposeRabbitMQPasswordAttribute()
+    {
+        var resource = CreateRabbitMQResource(
+            withManagementEndpoint: true,
+            builder => builder
+                .WithUser("developer", "local-password")
+                .WithVirtualHost("my_vhost"));
+
+        var projected = ResourceModelResourceManagerMapper.ToResourceManagerResource(resource);
+
+        Assert.True(projected.ResourceAttributes.ContainsKey(
+            RabbitMQResourceTypeProvider.Attributes.UserName.ToString()));
+        Assert.True(projected.ResourceAttributes.ContainsKey(
+            RabbitMQResourceTypeProvider.Attributes.VirtualHost.ToString()));
+        Assert.False(projected.ResourceAttributes.ContainsKey(
+            RabbitMQResourceTypeProvider.Attributes.UserPassword.ToString()));
+    }
+
+    [Fact]
     public async Task ManagementApiTopologyProvider_ReportsUnavailableWhenManagementEndpointIsMissing()
     {
         var handler = new RecordingHttpMessageHandler();
@@ -434,7 +574,8 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
         };
 
     private static ResourceModelResource CreateRabbitMQResource(
-        bool withManagementEndpoint)
+        bool withManagementEndpoint,
+        Action<RabbitMQResourceDefinitionBuilder>? configure = null)
     {
         var graph = new ResourceGraphBuilder();
         var builder = graph
@@ -445,6 +586,8 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
             builder.WithManagementEndpoint(host: "localhost", port: 15672);
         }
 
+        configure?.Invoke(builder);
+
         var definition = graph.BuildGraph().Resources.Single(resource =>
             resource.TypeId == RabbitMQResourceTypeProvider.ResourceTypeId);
         var resolver = new ResourceResolver(
@@ -454,7 +597,8 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
     }
 
     private static ResourceManagerResource CreateResourceManagerRabbitMQResource(
-        bool withManagementEndpoint)
+        bool withManagementEndpoint,
+        IReadOnlyDictionary<string, string>? attributes = null)
     {
         var endpointMappings = withManagementEndpoint
             ?
@@ -483,6 +627,7 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
             DateTimeOffset.UtcNow,
             [],
             TypeId: RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
+            Attributes: attributes,
             EndpointNetworkMappings: endpointMappings);
     }
 

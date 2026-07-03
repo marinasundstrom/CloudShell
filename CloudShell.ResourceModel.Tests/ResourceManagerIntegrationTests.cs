@@ -1546,6 +1546,86 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesIdentityAndAccessGrantAttributesToDeclarations()
+    {
+        var declarations = new ResourceDeclarationStore();
+        var services = new ServiceCollection();
+        services.AddSingleton(declarations);
+        services.AddSingleton<IResourcePermissionGrantReader>(declarations);
+        services.AddInMemoryResourceModelGraph();
+        services.AddExecutableApplicationResourceType();
+        services.AddConfigurationStoreResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var builder = new TestCloudShellBuilder(services);
+
+        declarations.Declare(
+            builder,
+            ResourceModelResourceProvider.DefaultProviderId,
+            "application.executable:api");
+        declarations.Declare(
+            builder,
+            ResourceModelResourceProvider.DefaultProviderId,
+            "configuration.store:settings");
+
+        var template = ResourceTemplateSerializer.DeserializeTemplate("""
+resources:
+  - type: application.executable
+    name: api
+    path: dotnet
+    identity:
+      kind: provider
+      providerId: identity:development
+      name: api-service
+      subject: application.executable:api
+      provisionOnStartup: true
+      scopes:
+      - configuration.read
+      claims:
+        resource: application.executable:api
+  - type: configuration.store
+    name: settings
+    endpoint: http://localhost:5101
+    access:
+      grants:
+      - principal:
+          kind: resourceIdentity
+          id: application.executable:api/identities/api-service
+          providerId: identity:development
+          sourceResourceId: application.executable:api
+          sourceIdentityName: api-service
+        permission: CloudShell.Configuration/stores/entries/read/action
+""");
+
+        var result = await service.ApplyTemplateAsync(
+            template,
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 7, 4, 12, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        var apiDeclaration = declarations.GetDeclaration("application.executable:api");
+        Assert.NotNull(apiDeclaration);
+        Assert.Equal("identity:development", apiDeclaration.IdentityBinding?.ProviderId);
+        Assert.Equal("api-service", apiDeclaration.IdentityBinding?.Name);
+        Assert.Equal("application.executable:api", apiDeclaration.IdentityBinding?.Subject);
+        Assert.Equal(["configuration.read"], apiDeclaration.IdentityBinding?.IdentityScopes);
+        Assert.Equal("application.executable:api", apiDeclaration.IdentityBinding?.IdentityClaims["resource"]);
+        Assert.True(apiDeclaration.ProvisionIdentityOnStartup);
+
+        var grant = Assert.Single(declarations.GetPermissionGrants());
+        Assert.Equal("configuration.store:settings", grant.TargetResourceId);
+        Assert.Equal(ConfigurationStoreResourceOperationPermissions.ReadEntries, grant.Permission);
+        Assert.Equal(ResourcePrincipalKind.ResourceIdentity, grant.Principal.Kind);
+        Assert.Equal("application.executable:api/identities/api-service", grant.Principal.Id);
+        Assert.Equal("identity:development", grant.Principal.ProviderId);
+        Assert.Equal("application.executable:api", grant.Principal.SourceResourceId);
+        Assert.Equal("api-service", grant.Principal.SourceIdentityName);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_HonorsExplicitApplyModes()
     {
         var services = new ServiceCollection();
@@ -7759,6 +7839,11 @@ public sealed class ResourceManagerIntegrationTests
                 results,
                 result.Message);
         }
+    }
+
+    private sealed class TestCloudShellBuilder(IServiceCollection services) : ICloudShellBuilder
+    {
+        public IServiceCollection Services { get; } = services;
     }
 
     private sealed class TemporaryDirectory : IDisposable

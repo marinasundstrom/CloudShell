@@ -18,6 +18,32 @@ public sealed class RabbitMQResourceDefinitionBuilder(string name) :
     public RabbitMQResourceDefinitionBuilder WithManagementUi(bool enabled = true) =>
         SetScalarAttribute(RabbitMQResourceTypeProvider.Attributes.ManagementUi, enabled);
 
+    public RabbitMQResourceDefinitionBuilder WithUser(
+        string username,
+        string password)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(username);
+        ArgumentException.ThrowIfNullOrWhiteSpace(password);
+
+        RemoveAttribute(RabbitMQResourceTypeProvider.Attributes.UserManaged);
+        SetScalarAttribute(RabbitMQResourceTypeProvider.Attributes.UserName, username);
+        return SetScalarAttribute(RabbitMQResourceTypeProvider.Attributes.UserPassword, password);
+    }
+
+    public RabbitMQResourceDefinitionBuilder WithCloudShellManagedUser(bool managed = true)
+    {
+        if (managed)
+        {
+            RemoveAttribute(RabbitMQResourceTypeProvider.Attributes.UserName);
+            RemoveAttribute(RabbitMQResourceTypeProvider.Attributes.UserPassword);
+        }
+
+        return SetScalarAttribute(RabbitMQResourceTypeProvider.Attributes.UserManaged, managed);
+    }
+
+    public RabbitMQResourceDefinitionBuilder WithVirtualHost(string virtualHost) =>
+        SetScalarAttribute(RabbitMQResourceTypeProvider.Attributes.VirtualHost, virtualHost);
+
     public RabbitMQResourceDefinitionBuilder WithDefaultContainerLogSource() =>
         SetObjectAttribute(
             ResourceLogSourceAttributeIds.LogSources,

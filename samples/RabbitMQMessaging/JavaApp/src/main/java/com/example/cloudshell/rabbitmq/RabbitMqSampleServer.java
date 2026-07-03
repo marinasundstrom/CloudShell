@@ -176,6 +176,7 @@ public final class RabbitMqSampleServer {
         int port,
         String username,
         String password,
+        String virtualHost,
         String exchange,
         String queue) {
 
@@ -185,6 +186,7 @@ public final class RabbitMqSampleServer {
                 parsePort(env("RABBITMQ_PORT", "5672"), 5672),
                 env("RABBITMQ_USERNAME", "guest"),
                 env("RABBITMQ_PASSWORD", "guest"),
+                env("RABBITMQ_VHOST", "/"),
                 env("RABBITMQ_EXCHANGE", "cloudshell.sample.events"),
                 env("RABBITMQ_QUEUE", "rabbitmq-java-events"));
         }
@@ -218,6 +220,7 @@ public final class RabbitMqSampleServer {
             factory.setPort(options.port());
             factory.setUsername(options.username());
             factory.setPassword(options.password());
+            factory.setVirtualHost(options.virtualHost());
 
             Exception lastException = null;
             long deadline = System.currentTimeMillis() + 60_000;

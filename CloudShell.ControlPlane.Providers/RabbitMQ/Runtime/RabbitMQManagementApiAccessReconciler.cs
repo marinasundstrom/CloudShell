@@ -26,7 +26,8 @@ public sealed class RabbitMQManagementAccessOptions
     public string Password { get; set; } =
         RabbitMQResourceDefaults.DefaultPassword;
 
-    public string VirtualHost { get; set; } = "/";
+    public string VirtualHost { get; set; } =
+        RabbitMQResourceDefaults.DefaultVirtualHost;
 
     public string ManagedUserNamePrefix { get; set; } = "cloudshell";
 
@@ -170,7 +171,8 @@ public sealed class RabbitMQManagementApiAccessReconciler(
             return diagnostics;
         }
 
-        var plans = CreateUserPlans(resource, grants, diagnostics);
+        var virtualHost = RabbitMQResourceConfiguration.ResolveVirtualHost(resource, options);
+        var plans = CreateUserPlans(resource, grants, virtualHost, diagnostics);
         if (plans.Count == 0)
         {
             diagnostics.Add(new ResourceDefinitionDiagnostic(
@@ -183,7 +185,7 @@ public sealed class RabbitMQManagementApiAccessReconciler(
 
         var client = httpClientFactory.CreateClient(HttpClientName);
         client.BaseAddress = managementUri;
-        client.DefaultRequestHeaders.Authorization = CreateAuthorizationHeader();
+        client.DefaultRequestHeaders.Authorization = CreateAuthorizationHeader(resource);
 
         try
         {
@@ -214,6 +216,7 @@ public sealed class RabbitMQManagementApiAccessReconciler(
     private List<RabbitMQUserPermissionPlan> CreateUserPlans(
         Resource resource,
         IReadOnlyList<ResourcePermissionGrant> grants,
+        string virtualHost,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
         var plans = new Dictionary<ResourcePrincipalReference, RabbitMQUserPermissionPlan>();
@@ -242,7 +245,7 @@ public sealed class RabbitMQManagementApiAccessReconciler(
                 plan = new RabbitMQUserPermissionPlan(
                     grant.Principal,
                     credentials,
-                    options.VirtualHost);
+                    virtualHost);
                 plans.Add(grant.Principal, plan);
             }
 
@@ -252,11 +255,13 @@ public sealed class RabbitMQManagementApiAccessReconciler(
         return plans.Values.ToList();
     }
 
-    private AuthenticationHeaderValue CreateAuthorizationHeader()
+    private AuthenticationHeaderValue CreateAuthorizationHeader(Resource resource)
     {
         return RabbitMQManagementApiHttp.CreateAuthorizationHeader(
-            configuration,
-            options);
+            RabbitMQResourceConfiguration.ResolveManagementCredentials(
+                resource,
+                configuration,
+                options));
     }
 
     private async Task EnsureUserAsync(
@@ -404,12 +409,16 @@ public sealed class RabbitMQManagementApiPermissionGrantEffectivenessProvider(
         var client = httpClientFactory.CreateClient(RabbitMQManagementApiAccessReconciler.HttpClientName);
         client.BaseAddress = managementUri;
         client.DefaultRequestHeaders.Authorization =
-            RabbitMQManagementApiHttp.CreateAuthorizationHeader(configuration, options);
+            RabbitMQManagementApiHttp.CreateAuthorizationHeader(
+                RabbitMQResourceConfiguration.ResolveManagementCredentials(
+                    request.TargetResource,
+                    configuration,
+                    options));
 
         try
         {
             using var response = await client.GetAsync(
-                $"api/permissions/{Uri.EscapeDataString(ResolveVirtualHost())}/{Uri.EscapeDataString(credentials.UserName)}",
+                $"api/permissions/{Uri.EscapeDataString(ResolveVirtualHost(request.TargetResource))}/{Uri.EscapeDataString(credentials.UserName)}",
                 cancellationToken);
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
@@ -452,8 +461,8 @@ public sealed class RabbitMQManagementApiPermissionGrantEffectivenessProvider(
         }
     }
 
-    private string ResolveVirtualHost() =>
-        string.IsNullOrWhiteSpace(options.VirtualHost) ? "/" : options.VirtualHost.Trim();
+    private string ResolveVirtualHost(CloudShell.Abstractions.ResourceManager.Resource resource) =>
+        RabbitMQResourceConfiguration.ResolveVirtualHost(resource, options);
 
     private ResourcePermissionGrantStatus CreateStatus(
         ResourcePermissionGrantStatusRequest request,
@@ -497,15 +506,21 @@ internal static class RabbitMQManagementApiHttp
 {
     public static AuthenticationHeaderValue CreateAuthorizationHeader(
         IConfiguration configuration,
-        RabbitMQManagementAccessOptions options)
+        RabbitMQManagementAccessOptions options) =>
+        CreateAuthorizationHeader(new RabbitMQBootstrapCredentials(
+            DefaultRabbitMQPrincipalCredentialProvider.ResolveManagementUserName(
+                configuration,
+                options),
+            DefaultRabbitMQPrincipalCredentialProvider.ResolveManagementPassword(
+                configuration,
+                options),
+            IsCloudShellManaged: false));
+
+    public static AuthenticationHeaderValue CreateAuthorizationHeader(
+        RabbitMQBootstrapCredentials credentials)
     {
-        var userName = DefaultRabbitMQPrincipalCredentialProvider.ResolveManagementUserName(
-            configuration,
-            options);
-        var password = DefaultRabbitMQPrincipalCredentialProvider.ResolveManagementPassword(
-            configuration,
-            options);
-        var token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{userName}:{password}"));
+        var token = Convert.ToBase64String(Encoding.UTF8.GetBytes(
+            $"{credentials.UserName}:{credentials.Password}"));
         return new AuthenticationHeaderValue("Basic", token);
     }
 

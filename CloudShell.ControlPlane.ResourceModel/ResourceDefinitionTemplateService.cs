@@ -65,6 +65,13 @@ public sealed class ResourceDefinitionTemplateService(
         return new ResourceDefinitionTemplateApplyResult(template, result);
     }
 
+    public void ApplyTemplateDeclarationMetadata(ResourceTemplate template)
+    {
+        ArgumentNullException.ThrowIfNull(template);
+
+        definitionApply.ApplyTemplateDeclarationMetadata(template);
+    }
+
     private static IReadOnlyList<string> NormalizeResourceIds(IReadOnlyList<string>? resourceIds) =>
         resourceIds?
             .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))

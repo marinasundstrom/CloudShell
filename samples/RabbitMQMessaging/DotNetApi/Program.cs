@@ -67,6 +67,7 @@ internal sealed class RabbitMqBroker : IDisposable
             Port = options.Port,
             UserName = options.Username,
             Password = options.Password,
+            VirtualHost = options.VirtualHost,
             DispatchConsumersAsync = false
         };
 
@@ -186,6 +187,7 @@ internal sealed record RabbitMqOptions(
     int Port,
     string Username,
     string Password,
+    string VirtualHost,
     string Exchange,
     string Queue)
 {
@@ -195,6 +197,7 @@ internal sealed record RabbitMqOptions(
             int.TryParse(configuration["RabbitMQ:Port"], out var port) ? port : 5672,
             configuration["RabbitMQ:Username"] ?? "guest",
             configuration["RabbitMQ:Password"] ?? "guest",
+            configuration["RabbitMQ:VirtualHost"] ?? "/",
             configuration["RabbitMQ:Exchange"] ?? "cloudshell.sample.events",
             configuration["RabbitMQ:Queue"] ?? "rabbitmq-dotnet-events");
 }

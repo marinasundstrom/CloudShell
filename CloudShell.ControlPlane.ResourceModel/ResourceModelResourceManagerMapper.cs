@@ -157,12 +157,26 @@ public static class ResourceModelResourceManagerMapper
         JsonSerializer.Serialize(attribute.AttributeValue);
 
     private static bool ShouldProjectResourceManagerAttribute(ResourceAttributeResolution attribute) =>
+        !IsSensitiveResourceManagerAttribute(attribute.Name.ToString()) &&
         attribute.AttributeValue?.Kind is
             ResourceAttributeValueKind.String or
             ResourceAttributeValueKind.Boolean or
             ResourceAttributeValueKind.Integer or
             ResourceAttributeValueKind.Decimal or
             ResourceAttributeValueKind.Object;
+
+    private static bool IsSensitiveResourceManagerAttribute(string name) =>
+        name
+            .Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(IsSensitiveResourceManagerAttributeSegment);
+
+    private static bool IsSensitiveResourceManagerAttributeSegment(string segment) =>
+        string.Equals(segment, "secret", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(segment, "secrets", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(segment, "password", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(segment, "token", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(segment, "apikey", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(segment, "api-key", StringComparison.OrdinalIgnoreCase);
 
     private static void AddDerivedContainerReplicaAttributes(IDictionary<string, string> attributes)
     {

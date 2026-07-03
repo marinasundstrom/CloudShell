@@ -67,11 +67,13 @@ public sealed class NoopRabbitMQBrokerTopologyProvider(
         ResourceManagerResource resource,
         CancellationToken cancellationToken = default) =>
         Task.FromResult(RabbitMQBrokerTopologyResult.Unavailable(
-            ResolveVirtualHost(options),
+            ResolveVirtualHost(resource, options),
             "RabbitMQ broker topology requires a RabbitMQ Management API provider."));
 
-    internal static string ResolveVirtualHost(RabbitMQManagementAccessOptions options) =>
-        string.IsNullOrWhiteSpace(options.VirtualHost) ? "/" : options.VirtualHost.Trim();
+    internal static string ResolveVirtualHost(
+        ResourceManagerResource resource,
+        RabbitMQManagementAccessOptions options) =>
+        RabbitMQResourceConfiguration.ResolveVirtualHost(resource, options);
 }
 
 public sealed class RabbitMQManagementApiBrokerTopologyProvider(
@@ -88,7 +90,7 @@ public sealed class RabbitMQManagementApiBrokerTopologyProvider(
     {
         ArgumentNullException.ThrowIfNull(resource);
 
-        var virtualHost = NoopRabbitMQBrokerTopologyProvider.ResolveVirtualHost(options);
+        var virtualHost = NoopRabbitMQBrokerTopologyProvider.ResolveVirtualHost(resource, options);
         if (!RabbitMQManagementApiHttp.TryGetResourceManagerManagementUri(
                 resource,
                 out var managementUri))
@@ -101,7 +103,11 @@ public sealed class RabbitMQManagementApiBrokerTopologyProvider(
         var client = httpClientFactory.CreateClient(RabbitMQManagementApiAccessReconciler.HttpClientName);
         client.BaseAddress = managementUri;
         client.DefaultRequestHeaders.Authorization =
-            RabbitMQManagementApiHttp.CreateAuthorizationHeader(configuration, options);
+            RabbitMQManagementApiHttp.CreateAuthorizationHeader(
+                RabbitMQResourceConfiguration.ResolveManagementCredentials(
+                    resource,
+                    configuration,
+                    options));
 
         try
         {

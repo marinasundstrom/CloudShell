@@ -14,6 +14,16 @@ public sealed class RabbitMQResource(
             out var enabled) ||
         enabled;
 
+    public string VirtualHost =>
+        Resource.Attributes.GetString(RabbitMQResourceTypeProvider.Attributes.VirtualHost) ??
+        RabbitMQResourceDefaults.DefaultVirtualHost;
+
+    public bool UsesCloudShellManagedUser =>
+        bool.TryParse(
+            Resource.Attributes.GetString(RabbitMQResourceTypeProvider.Attributes.UserManaged),
+            out var managed) &&
+        managed;
+
     public string? ContainerHostResourceId =>
         RabbitMQResourceTypeProvider.TryGetContainerHostResourceId(
             Resource.State,

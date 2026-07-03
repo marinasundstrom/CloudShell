@@ -92,6 +92,47 @@ public sealed class LocalRabbitMQDockerRuntimeHandlerTests
             command => command.JoinedArguments.Contains(
                 $"run -d --name {containerName}",
                 StringComparison.Ordinal));
+        Assert.DoesNotContain(
+            runner.Commands,
+            command => command.JoinedArguments.Contains("RABBITMQ_DEFAULT_USER", StringComparison.Ordinal));
+        Assert.DoesNotContain(
+            runner.Commands,
+            command => command.JoinedArguments.Contains("RABBITMQ_DEFAULT_VHOST", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ExecuteStart_UsesResourceUserAndVirtualHostAttributes()
+    {
+        using var fixture = new RabbitMQRuntimeFixture(
+            "application.rabbitmq:rabbitmq",
+            "rabbitmq",
+            amqpPort: 5677,
+            managementPort: 15677,
+            rabbitMqAttributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [RabbitMQResourceTypeProvider.Attributes.UserName] = "developer",
+                [RabbitMQResourceTypeProvider.Attributes.UserPassword] = "local-password",
+                [RabbitMQResourceTypeProvider.Attributes.VirtualHost] = "my_vhost"
+            });
+        var runner = new RecordingRabbitMQDockerCommandRunner();
+        runner.Enqueue(new(1, string.Empty, "No such container"));
+        var handler = fixture.CreateHandlerWithoutMapping(runner);
+
+        var diagnostics = await handler.ExecuteLifecycleAsync(
+            await fixture.ResolveRabbitMQAsync(),
+            RabbitMQResourceTypeProvider.Operations.Start);
+
+        Assert.Empty(diagnostics);
+        Assert.Contains(
+            runner.Commands,
+            command => command.JoinedArguments.Contains(
+                "-e RABBITMQ_DEFAULT_USER=developer -e RABBITMQ_DEFAULT_PASS=local-password",
+                StringComparison.Ordinal));
+        Assert.Contains(
+            runner.Commands,
+            command => command.JoinedArguments.Contains(
+                "-e RABBITMQ_DEFAULT_VHOST=my_vhost",
+                StringComparison.Ordinal));
     }
 
     [Fact]
@@ -185,7 +226,8 @@ public sealed class LocalRabbitMQDockerRuntimeHandlerTests
             string name,
             int amqpPort,
             int managementPort,
-            JsonElement? volumeConsumerPayload = null)
+            JsonElement? volumeConsumerPayload = null,
+            IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValue>? rabbitMqAttributes = null)
         {
             this.resourceId = resourceId;
             ContentRootPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -230,27 +272,10 @@ public sealed class LocalRabbitMQDockerRuntimeHandlerTests
                         RabbitMQResourceTypeProvider.ResourceTypeId,
                         ResourceId: resourceId,
                         ProviderId: RabbitMQResourceTypeProvider.ProviderId,
-                        Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-                        {
-                            [RabbitMQResourceTypeProvider.Attributes.EndpointRequests] =
-                                ResourceAttributeValue.FromObject(new[]
-                                {
-                                    new NetworkingEndpointRequestValue(
-                                        "amqp",
-                                        "tcp",
-                                        TargetPort: 5672,
-                                        Host: "localhost",
-                                        Port: amqpPort,
-                                        Exposure: "Local"),
-                                    new NetworkingEndpointRequestValue(
-                                        "management",
-                                        "http",
-                                        TargetPort: 15672,
-                                        Host: "localhost",
-                                        Port: managementPort,
-                                        Exposure: "Local")
-                                })
-                        },
+                        Attributes: CreateRabbitMQAttributes(
+                            amqpPort,
+                            managementPort,
+                            rabbitMqAttributes),
                         Capabilities: new Dictionary<ResourceCapabilityId, JsonElement>
                         {
                             [VolumeConsumerCapabilityProvider.CapabilityIdValue] =
@@ -266,6 +291,44 @@ public sealed class LocalRabbitMQDockerRuntimeHandlerTests
                 .AddRabbitMQResourceType()
                 .AddResourceModelGraphServices();
             serviceProvider = services.BuildServiceProvider();
+        }
+
+        private static Dictionary<ResourceAttributeId, ResourceAttributeValue> CreateRabbitMQAttributes(
+            int amqpPort,
+            int managementPort,
+            IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValue>? attributes)
+        {
+            var values = new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [RabbitMQResourceTypeProvider.Attributes.EndpointRequests] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new NetworkingEndpointRequestValue(
+                            "amqp",
+                            "tcp",
+                            TargetPort: 5672,
+                            Host: "localhost",
+                            Port: amqpPort,
+                            Exposure: "Local"),
+                        new NetworkingEndpointRequestValue(
+                            "management",
+                            "http",
+                            TargetPort: 15672,
+                            Host: "localhost",
+                            Port: managementPort,
+                            Exposure: "Local")
+                    })
+            };
+
+            if (attributes is not null)
+            {
+                foreach (var (attributeId, value) in attributes)
+                {
+                    values[attributeId] = value;
+                }
+            }
+
+            return values;
         }
 
         public string ContentRootPath { get; }
