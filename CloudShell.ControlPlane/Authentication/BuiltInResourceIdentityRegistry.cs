@@ -97,7 +97,7 @@ public sealed class BuiltInResourceIdentityRegistry
             ? identity.ResourceId
             : $"{identity.ResourceId}/{identity.Name}";
 
-    private static string ResolveClientSecret(
+    public static string ResolveClientSecret(
         ResourceIdentityProviderDefinition provider,
         string clientId) =>
         provider.ProviderSettings.TryGetValue(ClientSecretSettingName, out var configuredSecret) &&

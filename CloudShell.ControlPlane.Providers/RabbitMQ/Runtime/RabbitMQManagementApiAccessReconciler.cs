@@ -146,7 +146,8 @@ public sealed class RabbitMQManagementApiAccessReconciler(
     IHttpClientFactory httpClientFactory,
     IConfiguration configuration,
     IOptions<RabbitMQManagementAccessOptions> options,
-    IRabbitMQPrincipalCredentialProvider credentialProvider) :
+    IRabbitMQPrincipalCredentialProvider credentialProvider,
+    IRabbitMQBootstrapCredentialProvider bootstrapCredentials) :
     IRabbitMQAccessReconciler
 {
     public const string HttpClientName = "CloudShell.RabbitMQ.Management";
@@ -258,7 +259,7 @@ public sealed class RabbitMQManagementApiAccessReconciler(
     private AuthenticationHeaderValue CreateAuthorizationHeader(Resource resource)
     {
         return RabbitMQManagementApiHttp.CreateAuthorizationHeader(
-            RabbitMQResourceConfiguration.ResolveManagementCredentials(
+            bootstrapCredentials.ResolveManagementCredentials(
                 resource,
                 configuration,
                 options));
@@ -365,7 +366,8 @@ public sealed class RabbitMQManagementApiPermissionGrantEffectivenessProvider(
     IHttpClientFactory httpClientFactory,
     IConfiguration configuration,
     IOptions<RabbitMQManagementAccessOptions> options,
-    IRabbitMQPrincipalCredentialProvider credentialProvider) :
+    IRabbitMQPrincipalCredentialProvider credentialProvider,
+    IRabbitMQBootstrapCredentialProvider bootstrapCredentials) :
     IRabbitMQPermissionGrantEffectivenessProvider
 {
     private readonly RabbitMQManagementAccessOptions options = options.Value;
@@ -410,7 +412,7 @@ public sealed class RabbitMQManagementApiPermissionGrantEffectivenessProvider(
         client.BaseAddress = managementUri;
         client.DefaultRequestHeaders.Authorization =
             RabbitMQManagementApiHttp.CreateAuthorizationHeader(
-                RabbitMQResourceConfiguration.ResolveManagementCredentials(
+                bootstrapCredentials.ResolveManagementCredentials(
                     request.TargetResource,
                     configuration,
                     options));

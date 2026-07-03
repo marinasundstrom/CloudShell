@@ -152,10 +152,12 @@ Credentials for the local Docker bootstrap user are provider-owned runtime
 configuration. The local runtime leaves the Docker image defaults in effect
 when no resource or host credential settings are supplied. A RabbitMQ resource
 can declare explicit `user.username` and `user.password`, or declare
-`user.managed: true` to let CloudShell derive provider-owned bootstrap
-credentials. Host configuration can still provide runtime defaults for hosts
-that want a shared local setting. Password-like attributes are not projected as
-generated Resource Manager attributes, logs, or diagnostics.
+`user.managed: true` to let CloudShell generate provider-owned bootstrap
+credentials for the running broker instance. Host configuration can still
+provide runtime defaults for hosts that want a shared local setting. Password
+attributes are not projected as generated Resource Manager attributes, logs, or
+diagnostics, and managed bootstrap credentials remain provider-owned runtime
+state.
 
 Registering `AddLocalRabbitMQDockerRuntime(...)` also enables the
 RabbitMQ Management API access reconciler and topology reader. The reconciler
@@ -165,6 +167,18 @@ RabbitMQ-native users and virtual-host permissions. The topology reader uses
 the same provider-owned credential boundary and reads broker-native queues and
 exchanges for the resource virtual host when `vhost` is declared, otherwise
 the host/default virtual host.
+
+The RabbitMQ provider exposes a Control Plane credential endpoint at
+`/api/rabbitmq/v1/credentials`. A workload presents its CloudShell resource
+identity token, requests credentials for a target RabbitMQ resource and broker
+permission, and the provider checks the token's resource-permission claims
+against declared RabbitMQ grants. When authorized, CloudShell reconciles the
+matching RabbitMQ-native user and virtual-host permissions if needed, records
+the credential request as a resource event, and returns the username, password,
+and virtual host needed by the native RabbitMQ client. Workloads must treat the
+returned password as issued access material rather than static configuration;
+broker bootstrap credentials remain provider-owned and are not returned through
+this endpoint.
 
 Hosts can register the same management API integration directly with
 `AddRabbitMQManagementApiAccessReconciler(...)` when a non-Docker runtime

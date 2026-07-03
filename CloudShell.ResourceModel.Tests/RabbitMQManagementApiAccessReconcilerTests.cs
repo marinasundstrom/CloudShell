@@ -527,7 +527,8 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
             new SingleHttpClientFactory(new HttpClient(handler)),
             configuration,
             Options.Create(new RabbitMQManagementAccessOptions()),
-            credentialProvider);
+            credentialProvider,
+            new InMemoryRabbitMQBootstrapCredentialProvider());
     }
 
     private static RabbitMQManagementApiPermissionGrantEffectivenessProvider CreateStatusProvider(
@@ -545,7 +546,8 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
             new SingleHttpClientFactory(new HttpClient(handler)),
             configuration,
             Options.Create(new RabbitMQManagementAccessOptions()),
-            credentialProvider);
+            credentialProvider,
+            new InMemoryRabbitMQBootstrapCredentialProvider());
     }
 
     private static RabbitMQManagementApiBrokerTopologyProvider CreateTopologyProvider(
@@ -561,7 +563,8 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
         return new RabbitMQManagementApiBrokerTopologyProvider(
             new SingleHttpClientFactory(new HttpClient(handler)),
             configuration,
-            Options.Create(new RabbitMQManagementAccessOptions()));
+            Options.Create(new RabbitMQManagementAccessOptions()),
+            new InMemoryRabbitMQBootstrapCredentialProvider());
     }
 
     private static HttpResponseMessage JsonResponse(string json) =>

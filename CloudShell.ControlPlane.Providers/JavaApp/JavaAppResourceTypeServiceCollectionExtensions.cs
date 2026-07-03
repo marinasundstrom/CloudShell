@@ -69,6 +69,10 @@ public static class JavaAppResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IJavaAppRuntimeEnvironmentProvider,
+                ProjectResourceIdentityEnvironmentResolver>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IJavaAppRuntimeEnvironmentProvider,
                 JavaAppServiceDiscoveryEnvironmentResolver>());
         services.TryAddSingleton<JavaAppProcessRuntimeController>();
         services.TryAddSingleton<IJavaAppRuntimeController>(

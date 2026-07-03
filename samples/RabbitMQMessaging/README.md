@@ -20,10 +20,11 @@ generated template emits that intent as portable `identity.*` and
 model.
 
 The broker virtual host is RabbitMQ provider configuration declared through
-the RabbitMQ resource and passed to both native clients. RabbitMQ-native users
-and virtual-host permissions remain provider-owned runtime state reconciled by
-the RabbitMQ provider; broker bootstrap credentials are not Resource Manager
-identity metadata.
+the RabbitMQ resource. The sample opts into CloudShell-managed RabbitMQ
+bootstrap credentials and does not pass those credentials to the apps.
+RabbitMQ-native workload users and virtual-host permissions remain
+provider-owned runtime state reconciled by the RabbitMQ provider from
+CloudShell resource-identity grants.
 
 ## Run
 
@@ -42,8 +43,13 @@ curl "http://localhost:5282/messages"
 ```
 
 The RabbitMQ management UI is available at `http://localhost:15678`. The
-sample leaves the RabbitMQ bootstrap user at the local image defaults and
-declares the `cloudshell_sample` virtual host in `AppHost/appsettings.json`.
+sample declares the `cloudshell_sample` virtual host in `AppHost/appsettings.json`.
+`./cloudshell.sh start-apps` starts the broker and then starts both workload
+apps. Each workload uses its CloudShell resource identity token to call the
+RabbitMQ credential endpoint; CloudShell checks the RabbitMQ grants,
+materializes the matching broker-native user if needed, records the request,
+and returns the username, password, and virtual host needed by the native
+RabbitMQ client.
 
 The AppHost `appsettings.json` also configures two local development identity
 principals, `rabbitmq-operator` and `rabbitmq-reader`, under

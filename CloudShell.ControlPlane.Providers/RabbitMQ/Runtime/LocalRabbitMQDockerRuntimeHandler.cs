@@ -65,7 +65,8 @@ public sealed class LocalRabbitMQDockerRuntimeHandler(
     IServiceScopeFactory scopeFactory,
     IHostEnvironment hostEnvironment,
     IConfiguration configuration,
-    IOptions<LocalRabbitMQDockerRuntimeOptions> options) : IRabbitMQRuntimeHandler
+    IOptions<LocalRabbitMQDockerRuntimeOptions> options,
+    IRabbitMQBootstrapCredentialProvider bootstrapCredentials) : IRabbitMQRuntimeHandler
 {
     private const string RuntimeLifecycleFailedDiagnosticCode =
         "application.rabbitmq.localDockerRuntimeLifecycleFailed";
@@ -100,10 +101,12 @@ public sealed class LocalRabbitMQDockerRuntimeHandler(
                     break;
                 case ResourceActionIds.Stop:
                     await RemoveAsync(definition, cancellationToken);
+                    bootstrapCredentials.Forget(resource.EffectiveResourceId);
                     statusByResourceId[resource.EffectiveResourceId] = RabbitMQRuntimeStatus.Stopped;
                     break;
                 case ResourceActionIds.Restart:
                     await RemoveAsync(definition, cancellationToken);
+                    bootstrapCredentials.Forget(resource.EffectiveResourceId);
                     await StartAsync(resource, definition, cancellationToken);
                     statusByResourceId[resource.EffectiveResourceId] = RabbitMQRuntimeStatus.Running;
                     break;
@@ -149,7 +152,8 @@ public sealed class LocalRabbitMQDockerRuntimeHandler(
         var startup = RabbitMQResourceConfiguration.ResolveStartupConfiguration(
             resource,
             definition,
-            configuration);
+            configuration,
+            bootstrapCredentials);
         var arguments = new List<string>
         {
             "run",

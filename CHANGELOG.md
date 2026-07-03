@@ -13,6 +13,19 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-07-04
+
+#### Changed
+
+- Added a RabbitMQ credential endpoint that lets workloads present their
+  CloudShell resource identity token, request access to a target RabbitMQ
+  resource, and receive grant-derived RabbitMQ-native credentials after the
+  provider checks declared broker grants, reconciles access, and records the
+  credential request as a resource event.
+- Updated the RabbitMQ messaging sample to use CloudShell-managed RabbitMQ
+  bootstrap credentials and have both .NET and Java clients request
+  RabbitMQ-native credentials through CloudShell before connecting.
+
 ### 2026-07-03
 
 #### Changed

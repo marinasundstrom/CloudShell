@@ -64,6 +64,7 @@ var app = builder.Build();
 await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellUiAsync();
 app.MapCloudShellControlPlane();
+app.MapCloudShellRabbitMQCredentialApi();
 app.MapCloudShellUi<App>();
 
 app.Run();

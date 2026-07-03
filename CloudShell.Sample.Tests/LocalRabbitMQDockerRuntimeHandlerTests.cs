@@ -360,7 +360,8 @@ public sealed class LocalRabbitMQDockerRuntimeHandlerTests
                 new ConfigurationBuilder()
                     .AddInMemoryCollection(configuration ?? new Dictionary<string, string?>())
                 .Build(),
-                Options.Create(options));
+                Options.Create(options),
+                new InMemoryRabbitMQBootstrapCredentialProvider());
         }
 
         public LocalRabbitMQDockerRuntimeHandler CreateHandlerWithoutMapping(
@@ -373,7 +374,8 @@ public sealed class LocalRabbitMQDockerRuntimeHandlerTests
                 new ConfigurationBuilder()
                     .AddInMemoryCollection(configuration ?? new Dictionary<string, string?>())
                     .Build(),
-                Options.Create(new LocalRabbitMQDockerRuntimeOptions()));
+                Options.Create(new LocalRabbitMQDockerRuntimeOptions()),
+                new InMemoryRabbitMQBootstrapCredentialProvider());
 
         public async ValueTask<ResourceModelResource> ResolveRabbitMQAsync()
         {

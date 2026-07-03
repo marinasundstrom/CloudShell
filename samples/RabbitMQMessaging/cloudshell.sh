@@ -31,6 +31,8 @@ Commands:
   open            Open the configured host URL in the default browser.
   resources       List resources from the configured Control Plane.
   start-broker    Start the RabbitMQ broker resource.
+  reconcile-access
+                  Reconcile CloudShell RabbitMQ grants to broker-native users.
   start-dotnet    Start the .NET app and its dependencies.
   start-java      Build and start the Java app and its dependencies.
   start-apps      Build and start both apps with RabbitMQ as a dependency.
@@ -56,6 +58,18 @@ run_cli() {
 
 build_java() {
   "$script_dir/JavaApp/build.sh" >/dev/null
+}
+
+start_broker() {
+  run_cli resource action execute "$rabbitmq_resource_id" start \
+    --control-plane "$control_plane_url" \
+    "$@"
+}
+
+reconcile_access() {
+  run_cli resource action execute "$rabbitmq_resource_id" application.rabbitmq.reconcile-access \
+    --control-plane "$control_plane_url" \
+    "$@"
 }
 
 command="${1:-help}"
@@ -111,11 +125,13 @@ case "$command" in
       "$@"
     ;;
   start-broker)
-    run_cli resource action execute "$rabbitmq_resource_id" start \
-      --control-plane "$control_plane_url" \
-      "$@"
+    start_broker "$@"
+    ;;
+  reconcile-access)
+    reconcile_access "$@"
     ;;
   start-dotnet)
+    start_broker "$@"
     run_cli resource action execute "$dotnet_resource_id" start \
       --control-plane "$control_plane_url" \
       --start-dependencies \
@@ -123,6 +139,7 @@ case "$command" in
     ;;
   start-java)
     build_java
+    start_broker "$@"
     run_cli resource action execute "$java_resource_id" start \
       --control-plane "$control_plane_url" \
       --start-dependencies \
@@ -130,6 +147,7 @@ case "$command" in
     ;;
   start-apps)
     build_java
+    start_broker "$@"
     run_cli resource action execute "$dotnet_resource_id" start \
       --control-plane "$control_plane_url" \
       --start-dependencies \

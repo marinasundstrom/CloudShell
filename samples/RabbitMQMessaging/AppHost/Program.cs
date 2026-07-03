@@ -14,6 +14,8 @@ var virtualHost = app.Configuration["RabbitMQMessaging:VirtualHost"] ?? "cloudsh
 var rabbitMqPort = ReadPort(app.Configuration["RabbitMQMessaging:RabbitMQPort"], 5678);
 var managementEndpoint = new Uri(app.Configuration["RabbitMQMessaging:ManagementEndpoint"]
     ?? "http://localhost:15678");
+var cloudShellEndpoint = new Uri(app.Configuration["RabbitMQMessaging:CloudShellEndpoint"]
+    ?? "http://127.0.0.1:5112");
 var dotNetEndpoint = new Uri(app.Configuration["RabbitMQMessaging:DotNetEndpoint"]
     ?? "http://localhost:5281");
 var javaEndpoint = new Uri(app.Configuration["RabbitMQMessaging:JavaEndpoint"]
@@ -48,6 +50,7 @@ app.DefineResources(resources =>
         .WithManagementEndpoint(
             host: managementEndpoint.Host,
             port: managementEndpoint.Port)
+        .WithCloudShellManagedUser()
         .WithVirtualHost(virtualHost)
         .MountVolume(brokerData, RabbitMQResourceDefaults.DataPath);
 
@@ -65,9 +68,10 @@ app.DefineResources(resources =>
             port: dotNetEndpoint.Port)
         .WithEnvironmentVariable("RabbitMQ__Host", "localhost")
         .WithEnvironmentVariable("RabbitMQ__Port", rabbitMqPort.ToString())
-        .WithEnvironmentVariable("RabbitMQ__Username", RabbitMQResourceDefaults.DefaultUsername)
-        .WithEnvironmentVariable("RabbitMQ__Password", RabbitMQResourceDefaults.DefaultPassword)
-        .WithEnvironmentVariable("RabbitMQ__VirtualHost", virtualHost)
+        .WithEnvironmentVariable("RabbitMQ__Authentication", "CloudShell")
+        .WithEnvironmentVariable("RabbitMQ__CredentialEndpoint", $"{cloudShellEndpoint.ToString().TrimEnd('/')}/api/rabbitmq/v1/credentials")
+        .WithEnvironmentVariable("RabbitMQ__ResourceName", broker.EffectiveResourceId)
+        .WithEnvironmentVariable("RabbitMQ__CredentialPermission", RabbitMQResourceOperationPermissions.Configure)
         .WithEnvironmentVariable("RabbitMQ__Exchange", exchangeName)
         .WithEnvironmentVariable("RabbitMQ__Queue", "rabbitmq-dotnet-events")
         .WithEnvironmentVariable("OTEL_SERVICE_NAME", "rabbitmq-dotnet")
@@ -94,9 +98,10 @@ app.DefineResources(resources =>
         .WithEnvironmentVariable("PORT", javaEndpoint.Port.ToString())
         .WithEnvironmentVariable("RABBITMQ_HOST", "localhost")
         .WithEnvironmentVariable("RABBITMQ_PORT", rabbitMqPort.ToString())
-        .WithEnvironmentVariable("RABBITMQ_USERNAME", RabbitMQResourceDefaults.DefaultUsername)
-        .WithEnvironmentVariable("RABBITMQ_PASSWORD", RabbitMQResourceDefaults.DefaultPassword)
-        .WithEnvironmentVariable("RABBITMQ_VHOST", virtualHost)
+        .WithEnvironmentVariable("RABBITMQ_AUTHENTICATION", "CloudShell")
+        .WithEnvironmentVariable("RABBITMQ_CREDENTIAL_ENDPOINT", $"{cloudShellEndpoint.ToString().TrimEnd('/')}/api/rabbitmq/v1/credentials")
+        .WithEnvironmentVariable("RABBITMQ_RESOURCE_NAME", broker.EffectiveResourceId)
+        .WithEnvironmentVariable("RABBITMQ_CREDENTIAL_PERMISSION", RabbitMQResourceOperationPermissions.Configure)
         .WithEnvironmentVariable("RABBITMQ_EXCHANGE", exchangeName)
         .WithEnvironmentVariable("RABBITMQ_QUEUE", "rabbitmq-java-events")
         .WithEnvironmentVariable("OTEL_SERVICE_NAME", "rabbitmq-java")

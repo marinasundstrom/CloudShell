@@ -10,8 +10,14 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -179,22 +185,188 @@ public final class RabbitMqSampleServer {
         String virtualHost,
         String exchange,
         String queue) {
+        private static final String CONFIGURE_PERMISSION =
+            "CloudShell.Messaging/rabbitMQ/configure/action";
 
-        static RabbitMqOptions fromEnvironment() {
+        static RabbitMqOptions fromEnvironment() throws Exception {
+            boolean requiresCloudShellCredentials =
+                "CloudShell".equalsIgnoreCase(env("RABBITMQ_AUTHENTICATION", ""));
+            String username = System.getenv("RABBITMQ_USERNAME");
+            String password = System.getenv("RABBITMQ_PASSWORD");
+            String virtualHost = env("RABBITMQ_VHOST", "/");
+            if (requiresCloudShellCredentials) {
+                RabbitMqCredential credentials = resolveCloudShellCredentials();
+                username = credentials.username();
+                password = credentials.password();
+                virtualHost = credentials.virtualHost();
+            }
+
             return new RabbitMqOptions(
                 env("RABBITMQ_HOST", "localhost"),
                 parsePort(env("RABBITMQ_PORT", "5672"), 5672),
-                env("RABBITMQ_USERNAME", "guest"),
-                env("RABBITMQ_PASSWORD", "guest"),
-                env("RABBITMQ_VHOST", "/"),
+                username == null || username.isBlank() ? "guest" : username,
+                password == null || password.isBlank() ? "guest" : password,
+                virtualHost,
                 env("RABBITMQ_EXCHANGE", "cloudshell.sample.events"),
                 env("RABBITMQ_QUEUE", "rabbitmq-java-events"));
+        }
+
+        private static RabbitMqCredential resolveCloudShellCredentials() throws Exception {
+            String endpoint = env("RABBITMQ_CREDENTIAL_ENDPOINT", "");
+            String resourceName = env("RABBITMQ_RESOURCE_NAME", "rabbitmq");
+            String permission = env("RABBITMQ_CREDENTIAL_PERMISSION", CONFIGURE_PERMISSION);
+            if (endpoint.isBlank()) {
+                throw new IllegalStateException(
+                    "RabbitMQ CloudShell authentication requires RABBITMQ_CREDENTIAL_ENDPOINT.");
+            }
+
+            HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .build();
+            Exception lastException = null;
+            long deadline = System.currentTimeMillis() + 60_000;
+            while (System.currentTimeMillis() < deadline) {
+                try {
+                    String token = requestCloudShellToken(client, permission);
+                    String body = "{\"rabbitMQResourceName\":\"" + escapeJson(resourceName) +
+                        "\",\"permission\":\"" + escapeJson(permission) + "\"}";
+                    HttpRequest request = HttpRequest.newBuilder(URI.create(endpoint))
+                        .timeout(Duration.ofSeconds(10))
+                        .header("Authorization", "Bearer " + token)
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(body))
+                        .build();
+                    HttpResponse<String> response = client.send(
+                        request,
+                        HttpResponse.BodyHandlers.ofString());
+                    if (response.statusCode() == 401 || response.statusCode() == 403) {
+                        throw new IllegalStateException(
+                            "CloudShell denied the RabbitMQ credential request: " + response.body());
+                    }
+
+                    if (response.statusCode() < 200 || response.statusCode() > 299) {
+                        lastException = new IllegalStateException(
+                            "CloudShell RabbitMQ credential endpoint returned " +
+                                response.statusCode() + ": " + response.body());
+                        Thread.sleep(2_000);
+                        continue;
+                    }
+
+                    return new RabbitMqCredential(
+                        requireJsonString(response.body(), "username"),
+                        requireJsonString(response.body(), "password"),
+                        requireJsonString(response.body(), "virtualHost"));
+                } catch (IOException | InterruptedException exception) {
+                    lastException = exception;
+                    if (exception instanceof InterruptedException) {
+                        Thread.currentThread().interrupt();
+                        throw exception;
+                    }
+
+                    Thread.sleep(2_000);
+                }
+            }
+
+            throw new IllegalStateException(
+                "CloudShell RabbitMQ credentials could not be resolved.",
+                lastException);
+        }
+
+        private static String requestCloudShellToken(
+                HttpClient client,
+                String permission) throws IOException, InterruptedException {
+            String tokenEndpoint = env("CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT", "");
+            String clientId = env("CLOUDSHELL_IDENTITY_CLIENT_ID", "");
+            String clientSecret = env("CLOUDSHELL_IDENTITY_CLIENT_SECRET", "");
+            if (tokenEndpoint.isBlank() || clientId.isBlank() || clientSecret.isBlank()) {
+                throw new IllegalStateException(
+                    "CloudShell resource identity environment variables are not configured.");
+            }
+
+            String form =
+                "grant_type=client_credentials" +
+                "&client_id=" + urlEncode(clientId) +
+                "&client_secret=" + urlEncode(clientSecret) +
+                "&scope=" + urlEncode(permission);
+            HttpRequest request = HttpRequest.newBuilder(URI.create(tokenEndpoint))
+                .timeout(Duration.ofSeconds(10))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .POST(HttpRequest.BodyPublishers.ofString(form))
+                .build();
+            HttpResponse<String> response = client.send(
+                request,
+                HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() > 299) {
+                throw new IllegalStateException(
+                    "CloudShell identity token endpoint returned " +
+                        response.statusCode() + ": " + response.body());
+            }
+
+            return requireJsonString(response.body(), "access_token");
+        }
+
+        private static String requireJsonString(String json, String name) {
+            String value = readJsonString(json, name);
+            if (value == null || value.isBlank()) {
+                throw new IllegalStateException(
+                    "Expected JSON string property '" + name + "'.");
+            }
+
+            return value;
+        }
+
+        private static String readJsonString(String json, String name) {
+            String pattern = "\"" + name + "\"";
+            int property = json.indexOf(pattern);
+            if (property < 0) {
+                return null;
+            }
+
+            int colon = json.indexOf(':', property + pattern.length());
+            int start = colon < 0 ? -1 : json.indexOf('"', colon + 1);
+            if (start < 0) {
+                return null;
+            }
+
+            StringBuilder value = new StringBuilder();
+            boolean escaped = false;
+            for (int index = start + 1; index < json.length(); index++) {
+                char current = json.charAt(index);
+                if (escaped) {
+                    value.append(current);
+                    escaped = false;
+                    continue;
+                }
+
+                if (current == '\\') {
+                    escaped = true;
+                    continue;
+                }
+
+                if (current == '"') {
+                    return value.toString();
+                }
+
+                value.append(current);
+            }
+
+            return null;
+        }
+
+        private static String urlEncode(String value) {
+            return URLEncoder.encode(value, StandardCharsets.UTF_8);
         }
 
         private static String env(String name, String fallback) {
             String value = System.getenv(name);
             return value == null || value.isBlank() ? fallback : value;
         }
+    }
+
+    private record RabbitMqCredential(
+        String username,
+        String password,
+        String virtualHost) {
     }
 
     private static final class RabbitMqBroker implements AutoCloseable {

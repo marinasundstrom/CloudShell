@@ -1,11 +1,13 @@
 using System.Collections.Concurrent;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using CloudShell.Client.Authentication;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
 var builder = WebApplication.CreateBuilder(args);
-var options = RabbitMqOptions.FromConfiguration(builder.Configuration);
+var options = await RabbitMqOptions.FromConfigurationAsync(builder.Configuration);
 var messages = new MessageStore();
 var broker = await RabbitMqBroker.ConnectAsync(options, messages);
 var app = builder.Build();
@@ -191,13 +193,111 @@ internal sealed record RabbitMqOptions(
     string Exchange,
     string Queue)
 {
-    public static RabbitMqOptions FromConfiguration(IConfiguration configuration) =>
-        new(
+    private const string ConfigurePermission = "CloudShell.Messaging/rabbitMQ/configure/action";
+
+    public static async Task<RabbitMqOptions> FromConfigurationAsync(
+        IConfiguration configuration)
+    {
+        var authentication = configuration["RabbitMQ:Authentication"];
+        var requiresCloudShellCredentials =
+            string.Equals(authentication, "CloudShell", StringComparison.OrdinalIgnoreCase);
+        var username = configuration["RabbitMQ:Username"];
+        var password = configuration["RabbitMQ:Password"];
+        var virtualHost = configuration["RabbitMQ:VirtualHost"];
+
+        if (requiresCloudShellCredentials)
+        {
+            var credentials = await ResolveCloudShellCredentialsAsync(configuration);
+            username = credentials.Username;
+            password = credentials.Password;
+            virtualHost = credentials.VirtualHost;
+        }
+
+        return new(
             configuration["RabbitMQ:Host"] ?? "localhost",
             int.TryParse(configuration["RabbitMQ:Port"], out var port) ? port : 5672,
-            configuration["RabbitMQ:Username"] ?? "guest",
-            configuration["RabbitMQ:Password"] ?? "guest",
-            configuration["RabbitMQ:VirtualHost"] ?? "/",
+            username ?? "guest",
+            password ?? "guest",
+            virtualHost ?? "/",
             configuration["RabbitMQ:Exchange"] ?? "cloudshell.sample.events",
             configuration["RabbitMQ:Queue"] ?? "rabbitmq-dotnet-events");
+    }
+
+    private static async Task<RabbitMqCredentialResponse> ResolveCloudShellCredentialsAsync(
+        IConfiguration configuration)
+    {
+        var endpoint = configuration["RabbitMQ:CredentialEndpoint"];
+        var resourceName = configuration["RabbitMQ:ResourceName"] ?? "rabbitmq";
+        var permission = configuration["RabbitMQ:CredentialPermission"] ?? ConfigurePermission;
+        if (string.IsNullOrWhiteSpace(endpoint) ||
+            !Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri))
+        {
+            throw new InvalidOperationException(
+                "RabbitMQ CloudShell authentication requires RabbitMQ:CredentialEndpoint.");
+        }
+
+        using var httpClient = new HttpClient();
+        var credential = new DefaultCloudShellResourceCredential();
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(60);
+        Exception? lastException = null;
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            try
+            {
+                var token = await credential.GetTokenAsync(
+                    new CloudShellResourceTokenRequest([permission]));
+                using var request = new HttpRequestMessage(HttpMethod.Post, endpointUri)
+                {
+                    Content = JsonContent.Create(new RabbitMqCredentialRequest(
+                        resourceName,
+                        permission))
+                };
+                request.Headers.Authorization = new("Bearer", token.Token);
+                using var response = await httpClient.SendAsync(request);
+                if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or
+                    System.Net.HttpStatusCode.Forbidden)
+                {
+                    var denied = await response.Content.ReadAsStringAsync();
+                    throw new InvalidOperationException(
+                        $"CloudShell denied the RabbitMQ credential request: {denied}");
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    lastException = new InvalidOperationException(
+                        $"CloudShell RabbitMQ credential endpoint returned {(int)response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
+                    await Task.Delay(TimeSpan.FromSeconds(2));
+                    continue;
+                }
+
+                return await response.Content.ReadFromJsonAsync<RabbitMqCredentialResponse>(
+                        MessageJson.Options) ??
+                    throw new InvalidOperationException(
+                        "CloudShell RabbitMQ credential endpoint returned an empty response.");
+            }
+            catch (Exception exception) when (
+                exception is HttpRequestException or
+                    TaskCanceledException or
+                    CloudShellCredentialUnavailableException or
+                    CloudShellAuthenticationException)
+            {
+                lastException = exception;
+                await Task.Delay(TimeSpan.FromSeconds(2));
+            }
+        }
+
+        throw new InvalidOperationException(
+            "CloudShell RabbitMQ credentials could not be resolved.",
+            lastException);
+    }
 }
+
+internal sealed record RabbitMqCredentialRequest(
+    string RabbitMQResourceName,
+    string Permission);
+
+internal sealed record RabbitMqCredentialResponse(
+    string Username,
+    string Password,
+    string VirtualHost,
+    DateTimeOffset? ExpiresOn = null);

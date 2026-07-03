@@ -79,7 +79,8 @@ public sealed class NoopRabbitMQBrokerTopologyProvider(
 public sealed class RabbitMQManagementApiBrokerTopologyProvider(
     IHttpClientFactory httpClientFactory,
     IConfiguration configuration,
-    IOptions<RabbitMQManagementAccessOptions> options) :
+    IOptions<RabbitMQManagementAccessOptions> options,
+    IRabbitMQBootstrapCredentialProvider bootstrapCredentials) :
     IRabbitMQBrokerTopologyProvider
 {
     private readonly RabbitMQManagementAccessOptions options = options.Value;
@@ -104,7 +105,7 @@ public sealed class RabbitMQManagementApiBrokerTopologyProvider(
         client.BaseAddress = managementUri;
         client.DefaultRequestHeaders.Authorization =
             RabbitMQManagementApiHttp.CreateAuthorizationHeader(
-                RabbitMQResourceConfiguration.ResolveManagementCredentials(
+                bootstrapCredentials.ResolveManagementCredentials(
                     resource,
                     configuration,
                     options));
