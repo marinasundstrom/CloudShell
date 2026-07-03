@@ -1,12 +1,16 @@
+using CloudShell.Abstractions.ResourceManager;
+
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class RabbitMQReconcileAccessOperationProvider(
-    IRabbitMQAccessReconciler? accessReconciler = null) :
+    IRabbitMQAccessReconciler? accessReconciler = null,
+    IResourcePermissionGrantReader? grantReader = null) :
     IResourceOperationProvider,
     IResourceOperationProjector
 {
     private readonly IRabbitMQAccessReconciler _accessReconciler =
         accessReconciler ?? new NoopRabbitMQAccessReconciler();
+    private readonly IResourcePermissionGrantReader? _grantReader = grantReader;
 
     public ResourceOperationId OperationId =>
         RabbitMQResourceTypeProvider.Operations.ReconcileAccess;
@@ -41,13 +45,15 @@ public sealed class RabbitMQReconcileAccessOperationProvider(
             new RabbitMQReconcileAccessOperation(
                 context.ExecutionContext ?? new ResourceProjectionExecutionContext(resource),
                 operation,
-                _accessReconciler));
+                _accessReconciler,
+                _grantReader));
 }
 
 public sealed class RabbitMQReconcileAccessOperation(
     ResourceProjectionExecutionContext context,
     ResourceOperationResolution operation,
-    IRabbitMQAccessReconciler accessReconciler) : IResourceOperationExecutorProjection
+    IRabbitMQAccessReconciler accessReconciler,
+    IResourcePermissionGrantReader? grantReader = null) : IResourceOperationExecutorProjection
 {
     public ResourceProjectionExecutionContext Context { get; } = context;
 
@@ -68,7 +74,7 @@ public sealed class RabbitMQReconcileAccessOperation(
         ValueTask.FromResult(IsAvailable);
 
     public RabbitMQAccessReconciliationPlan PlanReconciliation() =>
-        new(Resource);
+        new(Resource, GetTargetedRabbitMQGrants());
 
     public async ValueTask<ResourceOperationExecutionResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
@@ -86,8 +92,10 @@ public sealed class RabbitMQReconcileAccessOperation(
                 ]);
         }
 
+        var plan = PlanReconciliation();
         var diagnostics = await _accessReconciler.ReconcileAccessAsync(
-            Resource,
+            plan.Resource,
+            plan.Grants,
             cancellationToken);
 
         return new ResourceOperationExecutionResult(
@@ -95,7 +103,22 @@ public sealed class RabbitMQReconcileAccessOperation(
             OperationId,
             diagnostics);
     }
+
+    private IReadOnlyList<ResourcePermissionGrant> GetTargetedRabbitMQGrants()
+    {
+        if (grantReader is null)
+        {
+            return [];
+        }
+
+        return grantReader.GetPermissionGrants()
+            .Where(grant =>
+                string.Equals(grant.TargetResourceId, Resource.EffectiveResourceId, StringComparison.OrdinalIgnoreCase) &&
+                RabbitMQPermissionGrantStatusProvider.IsRabbitMQPermission(grant.Permission))
+            .ToArray();
+    }
 }
 
 public sealed record RabbitMQAccessReconciliationPlan(
-    Resource Resource);
+    Resource Resource,
+    IReadOnlyList<ResourcePermissionGrant> Grants);

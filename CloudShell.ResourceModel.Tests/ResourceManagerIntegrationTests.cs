@@ -5375,7 +5375,10 @@ public sealed class ResourceManagerIntegrationTests
     public async Task ResourceModelGraphDefinitionApplyService_AppliesRabbitMQAcrossProviderBoundaries()
     {
         var accessReconciler = new RecordingRabbitMQAccessReconciler();
+        var declarations = new ResourceDeclarationStore();
         var services = new ServiceCollection();
+        services.AddSingleton(declarations);
+        services.AddSingleton<IResourcePermissionGrantReader>(declarations);
         services.AddInMemoryResourceModelGraph();
         services.AddNetworkResourceType();
         services.AddCloudShellVolumeResourceType();
@@ -5471,6 +5474,18 @@ public sealed class ResourceManagerIntegrationTests
         Assert.NotNull(reconcileOperation);
         Assert.True(await reconcileOperation.CanExecuteAsync());
 
+        var grant = new ResourcePermissionGrant(
+            ResourcePrincipalReference.ForResourceIdentity(
+                "application.aspnet-core-project:api",
+                "default"),
+            broker.EffectiveResourceId,
+            RabbitMQResourceOperationPermissions.Publish);
+        declarations.AddPermissionGrant(grant);
+
+        var plan = reconcileOperation.PlanReconciliation();
+        Assert.Equal(broker.EffectiveResourceId, plan.Resource.EffectiveResourceId);
+        Assert.Equal([grant], plan.Grants);
+
         var procedure = new ResourceProcedureContext(
             projectedRabbitMQ,
             null,
@@ -5482,13 +5497,8 @@ public sealed class ResourceManagerIntegrationTests
         await provider.ExecuteActionAsync(procedure, reconcile);
 
         Assert.Equal([broker.EffectiveResourceId], accessReconciler.ReconciledResourceIds);
+        Assert.Equal([grant], Assert.Single(accessReconciler.ReconciledGrants));
 
-        var grant = new ResourcePermissionGrant(
-            ResourcePrincipalReference.ForResourceIdentity(
-                "application.aspnet-core-project:api",
-                "default"),
-            broker.EffectiveResourceId,
-            RabbitMQResourceOperationPermissions.Publish);
         var statusProvider = serviceProvider
             .GetServices<IResourcePermissionGrantStatusProvider>()
             .OfType<RabbitMQPermissionGrantStatusProvider>()
@@ -6945,14 +6955,19 @@ public sealed class ResourceManagerIntegrationTests
         IRabbitMQAccessReconciler
     {
         private readonly List<string> _reconciledResourceIds = [];
+        private readonly List<IReadOnlyList<ResourcePermissionGrant>> _reconciledGrants = [];
 
         public IReadOnlyList<string> ReconciledResourceIds => _reconciledResourceIds;
 
+        public IReadOnlyList<IReadOnlyList<ResourcePermissionGrant>> ReconciledGrants => _reconciledGrants;
+
         public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAccessAsync(
             Resource resource,
+            IReadOnlyList<ResourcePermissionGrant> grants,
             CancellationToken cancellationToken = default)
         {
             _reconciledResourceIds.Add(resource.EffectiveResourceId);
+            _reconciledGrants.Add(grants);
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
