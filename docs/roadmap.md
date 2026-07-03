@@ -43,13 +43,14 @@ app-development loop before broader platform expansion.
 
 | Priority | Focus | Why now | Action |
 | --- | --- | --- | --- |
-| 1 | Resource Model and graph-backed apply convergence | The MVP depends on one ResourceDefinition path for code, UI, templates, and orchestration. | Finish graph-backed provider migration, template apply/export, and retirement of obsolete provider-template paths. |
-| 2 | Container app orchestration and runtime diagnostics | Container apps are the hardest proof of the resource/runtime boundary. | Finish first start, image update, replica-slot reconciliation, routing rebinding, cleanup, and readable failure diagnostics. |
+| 1 | MVP loose-end tie-off | The main capabilities exist, but several exposed paths still read as transitional. | Tie off sample-local seams, deferred runtime adapters, routing reactions, diagnostics, UI consistency, and docs so current behavior feels intentional. |
+| 2 | Supported sample reliability | Application Topology and the switch-readiness samples are the strongest proof that the model works end to end. | Keep smoke coverage green, run the broad proof regularly, and turn only concrete sample confusion into work. |
 | 3 | App-centric Resource Manager experience | The product value is whether a developer can understand and operate the app from Resource Manager. | Keep endpoints, names, storage, identity, settings/secrets, logs, traces, monitoring, activity, and actions in the app context. |
-| 4 | Readiness and capability reasons | Supported actions should fail early with clear reasons. | Tighten host, credential, route, port, storage, identity, grant, and provider-readiness diagnostics. |
-| 5 | Supported sample reliability | Samples are the current proof that the model works end to end. | Keep smoke coverage green and avoid opening new fronts that do not improve the supported sample path. |
-| 6 | Ecosystem-neutral authoring boundary | CloudShell should not become a C#-only local-development tool. | Make the installed CLI able to start or reuse the default local-development host daemon, then harden launcher/profile, TypeScript/JavaScript, Java, and SDK boundaries without letting language SDKs become parallel Control Planes. |
-| 7 | UI composition and shell structure | Useful only when it reduces current Resource Manager, Settings, or shell drift. | Pause broad shell-platform work except for regressions, current-surface stabilization, or extraction from proven patterns. |
+| 4 | Readiness and capability reasons | Supported actions should fail early with clear reasons. | Tighten host, credential, route, port, storage, identity, grant, and provider-readiness diagnostics for paths already exposed. |
+| 5 | Container app orchestration and runtime diagnostics | Container apps are the hardest proof of the resource/runtime boundary. | Consolidate first start, image update, replica-slot reconciliation, routing rebinding, cleanup, and readable failure diagnostics only where current samples expose them. |
+| 6 | ResourceDefinition apply/export convergence | The old provider path has mostly been retired; remaining compatibility should be explicit. | Remove or document remaining obsolete template/runtime bridges where graph-backed providers can round-trip definitions. |
+| 7 | Ecosystem-neutral authoring boundary | CloudShell should not become a C#-only local-development tool, but launchers should not distract from MVP stabilization. | Keep CLI, launcher/profile, TypeScript/JavaScript, Java, and SDK work aligned with the same ResourceDefinition and Control Plane boundary; defer packaging polish that does not improve supported local runs. |
+| 8 | UI composition and shell structure | Useful only when it reduces current Resource Manager, Settings, or shell drift. | Pause broad shell-platform work except for regressions, current-surface stabilization, or extraction from proven patterns. |
 
 ## Authoritative Milestones
 
@@ -302,36 +303,31 @@ surfaces:
 
 ### Current MVP Alignment
 
-The next MVP target is the local app-development loop, not another platform
-front. When choosing work, prefer the slice that most improves a developer's
-ability to run, understand, diagnose, and persist a realistic distributed
-application from Resource Manager.
+The next MVP target is a loose-end tie-off pass for the local app-development
+loop, not another platform front and not a feature-complete portal push. When
+choosing work, prefer the slice that removes a half-baked feeling from a path
+that already exists: the developer can run a realistic distributed app,
+understand it from Resource Manager, diagnose expected failures, and persist
+the graph without needing proposal context.
 
-The immediate planning anchor is the Resource Model POC migration. Supported
-samples should continue moving from the old provider-definition path to
-graph-backed `ResourceDefinition` state and the Resource Manager bridge. The
-goal is not to expose deployments publicly yet; it is to make resource
-definitions the normal create/update/export/apply contract while Resource
-Manager and the orchestrator derive internal deployment work from accepted
-resource state. Container apps are the highest-risk proof because a single
-container app resource controls image, replica slots, endpoints, runtime
-replicas, load-balancer/routing behavior, revision correlation, and cleanup.
-Those concerns should converge on the same deployment-controller path instead
-of remaining split across provider-specific image update, replica update,
-lifecycle, and sample runtime code.
+Most supported samples have already moved to graph-backed
+`ResourceDefinition` state and the old provider projects have been removed
+from active hosts. The remaining work should therefore stop talking about the
+Resource Model POC as if the whole migration is still ahead. Treat it as a
+switch-over hardening pass: remove or clearly label the remaining
+compatibility bridges, replace sample-local seams only where they are visible
+in supported workflows, and keep deferred behavior documented as intentionally
+out of scope instead of leaving users to infer whether it is broken.
 
-After the recent action-readiness and container deployment hardening, including
-the first HTTP readiness gate for container app deployment materialization and
-Deployment/Revisions UI separation for deploying versus inspecting materialized
-states, keep Control Plane feedback and Resource Manager surfacing as core MVP
-quality, but judge that work through the full developer experience rather than
-as an isolated backend checklist. The next urgent MVP slice is to finish
-documenting and then executing the graph-backed provider migration plan:
-resource template apply/export, container app orchestration, load-balancer
-rebinding, provider-owned runtime projection, and the cleanup of old
-provider-template seams. Application Topology remains the broad sample proof,
-but it should prove the graph-backed path rather than keep both provider
-models equally alive.
+Application Topology is the broad proof for this milestone. It should not need
+to prove every future provider capability, but it should not feel stitched
+together from unrelated experiments. SQL credentials, storage and volume
+materialization, Configuration Store and Secrets Vault startup, identity
+grants, local DNS/name mapping, logs, traces, metrics, resource relationships,
+and shutdown cleanup should have clear ownership, readable diagnostics, and
+Resource Manager explanations. Where the implementation remains sample-local,
+the roadmap should either schedule the provider-owned seam or explicitly mark
+the sample-local behavior as accepted for MVP.
 
 Plan and verify MVP work through use cases. The priority use cases are:
 
@@ -350,13 +346,12 @@ Plan and verify MVP work through use cases. The priority use cases are:
 6. Persist the resource graph deliberately and understand what changes from
    transient code-first declarations to durable Control Plane state.
 
-The most urgent near-term slice is Resource Model POC convergence:
-run the graph-backed switch-readiness samples as the standing proof, identify
-where old provider/template/runtime behavior is still required, and close
-those gaps with small provider or Resource Manager bridge changes. Application
-Topology remains the broad end-to-end proof once the graph-backed provider
-path is stable enough to carry the app environment without sample-specific
-compatibility code.
+The most urgent near-term slice is loose-end identification and triage:
+run the graph-backed switch-readiness samples as the standing proof, list the
+sample-local seams and compatibility bridges still required, and decide for
+each one whether to fix it now, document it as an accepted MVP bridge, or move
+it behind a provider-owned adapter. Do not open a new platform capability just
+because a related proposal has more complete long-term design.
 
 The current re-alignment keeps the MVP in stabilization mode. Recent work has
 made the main surfaces credible, so the next useful work is not a new feature
@@ -470,42 +465,58 @@ resources, shell-composition implementation, provider-backed DNS propagation,
 network-level service registries, external deployment projection,
 external-format import/code generation, and initial on-premise hosting.
 
-For the next run, prefer these slices in order:
+For the next run, prefer these loose-end slices in order:
 
-1. Finish Resource Model POC alignment for the supported samples: keep the
-   `ResourceTemplate` envelope ResourceDefinition-based, remove remaining old
-   resource-template serialization dependencies where graph-backed providers
-   can round-trip definitions, and document non-parity rather than preserving
-   compatibility wrappers that no longer match the model.
-2. Refactor container app runtime changes onto the deployment/controller path:
-   image updates, replica-slot changes, first start materialization, scale-in,
-   scale-out, routing rebinding, readiness, retained previous slots, and
-   cleanup should all be planned from accepted resource state before runtime
-   resources change.
-3. Define the load-balancer/routing reaction boundary for replica-group
-   changes. Prefer an orchestrator/controller-owned routing reconciliation
-   hook over container-app-specific imperative remapping code, and keep the
-   Environment Map as a read model over those artifacts.
-4. Run Application Topology as the broad proof and record only concrete sample
-   setup, startup, auth, lifecycle, resource projection, graph apply/export, or
-   smoke-test gaps that prevent repeatable graph-backed local use.
-5. Fix Resource Manager naming and exposure clarity in the app path: user-facing
-   messages should lead with resource names, DNS/name mappings should be
-   convenient anchors where a concrete endpoint can be resolved, and generated
-   details should distinguish reachable addresses from muted source metadata.
-6. Harden lifecycle and provider feedback for the supported local flow:
-   host-scoped shutdown, detached/re-attach behavior, process and Docker command
-   diagnostics, occupied ports, missing hosts, and provider warnings should be
-   visible at the right logging level and surfaced as actionable resource
-   feedback when they affect the UI.
-7. Tighten readiness and failure feedback for the supported start/restart,
-   SQL Server, storage, settings/secrets, identity, DNS/name, and exposure
-   paths that the sample actually exercises.
-8. Keep resource-scoped health, logs, traces, monitoring, activity, and
-   relationship views coherent from the app page before adding broader global
-   views or new shell-platform features.
-9. Update sample documentation where the verified local-development flow
-   depends on explicit startup, auth, logging, Docker, or host prerequisites.
+1. **Inventory the exposed seams.** Run or inspect Application Topology,
+   ReplicatedContainerHealth, ContainerAppDeployment, HostVirtualNetwork,
+   LoadBalancer, ThirdPartyIdentity, SettingsAndSecrets, and SplitHosting.
+   Record only seams that are visible to users, required by smoke coverage, or
+   likely to confuse contributors: sample-local SQL credentials, sample-local
+   DNS/CoreDNS publishing, sample-local Traefik/load-balancer materialization,
+   deferred container-app runtimes, compatibility routes, legacy link shapes,
+   experimental launcher/package labels, and provider README gaps.
+2. **Classify every seam.** Mark each one as fix-now, accepted MVP bridge, or
+   post-MVP deferred. Fix-now items are exposed in the supported local run and
+   make the product feel broken. Accepted MVP bridges are narrow, documented,
+   and covered by tests. Deferred items belong in proposals or future docs, not
+   in the active execution queue.
+3. **Tie off Application Topology first.** Keep the sample as the broad proof
+   for storage-backed SQL, Configuration Store, Secrets Vault, identity grants,
+   project-backed apps, local exposure, DNS/name mapping, logs, traces,
+   metrics, failure responses, and host shutdown cleanup. Replace the
+   sample-local SQL credential endpoint with a provider-owned seam if it is
+   becoming product behavior; otherwise document why it is sample-local for
+   MVP.
+4. **Make container-app runtime behavior coherent where exposed.** Keep rich
+   rollout history, autoscaling, traffic splitting, and public deployment
+   semantics deferred, but do not leave start, stop, restart, image update,
+   replica update, readiness, route rebinding, and cleanup split across
+   incompatible paths for the supported samples. Deferred runtime adapters
+   should be named as migration bridges and should not look like production
+   providers.
+5. **Close routing and name-mapping rough edges.** For the local/default path,
+   DNS/name mappings, load-balancer routes, endpoint mappings, and generated
+   links should lead to concrete reachable endpoints when one exists and
+   explain provider gaps when one does not. Provider-backed DNS propagation and
+   network-level discovery remain out of scope.
+6. **Harden expected-failure diagnostics.** Start/restart, SQL Server,
+   storage/volume mounts, settings/secrets, identity grants, DNS/name mapping,
+   load-balancer routes, occupied ports, missing Docker, and provider command
+   failures should surface stable diagnostics, capability reasons, or
+   ProblemDetails instead of raw provider exceptions.
+7. **Smooth the Resource Manager path.** Use readable resource labels in
+   routine UI, preserve resource IDs in canonical details, keep app-scoped
+   health/logs/traces/monitoring/activity/relationships coherent, and fix
+   inconsistent empty/error/loading/read-only states where current samples
+   expose them. Do not broaden shell composition or add new global workspaces.
+8. **Document intentional incompleteness.** Update provider READMEs, sample
+   READMEs, proposal status, and feature docs so accepted MVP bridges and
+   deferred capabilities are explicit. Avoid language that presents an
+   experimental package, compatibility adapter, or sample-local helper as a
+   finished platform contract.
+9. **Verify the tie-off.** Run targeted tests for each fixed seam, the relevant
+   sample smoke coverage, and `git diff --check`. Docker-dependent smoke tests
+   remain conditional on a healthy local Docker daemon.
 
 ### Immediate Proposal Order
 
@@ -695,12 +706,12 @@ listed here before pulling in broader proposal work.
    resource management, container application environments, and the initial
    on-premise hosting scenario. Cross-language local-development work remains
    active only where it hardens the shared ResourceDefinition, installed CLI,
-   default local-development host daemon, launcher, and SDK boundary. The
-   isolated `CloudShell.ResourceModel` POC can continue
-   proving the model, but it should not displace MVP convergence or imply that
-   Control Plane persistence, API, or provider migration work has started.
+   default local-development host daemon, launcher, and SDK boundary. Further
+   Resource model package experiments should feed back into the active
+   ResourceDefinition apply/export and provider seams without reopening a
+   separate proof-of-concept track.
 
-### Now: MVP Convergence and Resource Manager Reliability
+### Now: MVP Loose-End Tie-Off
 
 - Treat the primary MVP management path as:
   container application -> app endpoint/discovery -> virtual network -> public
