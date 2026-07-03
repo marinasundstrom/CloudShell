@@ -43,7 +43,7 @@ CloudShell's cross-language boundary is the ResourceTemplate, not C# builder
 syntax. Java launchers should expose normal Java classes and fluent methods
 while still emitting the same resource type IDs, attributes, references,
 endpoint requests, and metadata used by C# and TypeScript launchers.
-See [Launchers and app hosts](../launchers-and-app-hosts.md) for the shared
+See [Launchers](../launchers-and-app-hosts.md) for the shared
 terminology and package-boundary guidance.
 
 `samples/JavaAppHost` demonstrates that shape with a Java source-file launcher.

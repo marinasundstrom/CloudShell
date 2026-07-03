@@ -49,13 +49,14 @@ return (await app.RunAsync(new()
 })).ExitCode;
 ```
 
-`CloudShell.AppHost.Launcher` is the preferred C# app-host authoring path for
+`CloudShell.AppHost.Launcher` is the preferred C# launcher authoring path for
 new local-development samples when the application does not need to customize
 CloudShell itself. It reuses `ResourceGraphBuilder`, writes YAML or JSON
-templates, and delegates local host startup or template apply to the CLI. The
-app project references provider builder packages for the resources it declares;
-the launcher package itself does not reference Control Plane services, UI
-hosting, or provider runtime services. Launcher apps should use
+templates, and owns the launcher flow that starts or targets a host and
+applies the graph. The app project references provider builder packages for
+the resources it declares; the launcher package itself does not reference
+Control Plane services, UI hosting, or provider runtime services. Launcher
+apps should use
 `CloudShell.LocalDevelopmentHost` by default. It is the stable local host
 profile that includes the built-in Control Plane, UI, Resource Manager,
 provider presets, and local runtime adapters. Specialized scenarios can still
@@ -186,18 +187,17 @@ other ecosystems if those SDKs are to feel as natural as C#. Hand-authored
 wrappers are acceptable for early POCs, but provider metadata should eventually
 be rich enough to generate the common builder shape and reduce drift between
 language packages.
-See [Launchers and app hosts](launchers-and-app-hosts.md) for the terminology
-split between host profiles, language-specific launchers, and runtime service
-clients.
+See [Launchers](launchers-and-app-hosts.md) for the terminology split between
+host profiles, language-specific launchers, and runtime service clients.
 Language launcher packages live under `Launchers/` so C#, TypeScript, Java,
-and future app-host authoring surfaces are easy to find separately from
-runtime service clients under `sdk/`. The experimental TypeScript launcher
-package under `Launchers/TypeScript/cloudshell` is the first proof point for
-this shape. The experimental Java launcher package under
+and future launcher authoring surfaces are easy to find separately from runtime
+service clients under `sdk/`. The experimental TypeScript launcher package
+under `Launchers/TypeScript/cloudshell` is the first proof point for this
+shape. The experimental Java launcher package under
 `Launchers/Java/cloudshell-launcher` carries the first Java-native builder
 surface. Both emit ResourceTemplate JSON that the current CloudShell CLI can
-apply, while intentionally limiting hand-authored builders until generation
-and provider metadata requirements are clearer.
+apply for advanced automation, while intentionally limiting hand-authored
+builders until generation and provider metadata requirements are clearer.
 For Resource Model provider ports, creating the provider-owned manual builder
 is part of the porting work unless the provider README explicitly records why
 the builder is deferred. The builder is the first code-first authoring surface

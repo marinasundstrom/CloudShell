@@ -185,7 +185,7 @@ See `samples/CSharpAppHost`.
 For local development, the UI and Control Plane can run in the same ASP.NET Core
 process. This remains supported, and it is still useful for simple hosts,
 compatibility, and host-profile implementation. It should not be treated as the
-only C# app-host authoring model.
+only C# launcher authoring model.
 
 ```csharp
 using CloudShell.Hosting;

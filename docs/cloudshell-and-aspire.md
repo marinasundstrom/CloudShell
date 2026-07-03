@@ -52,7 +52,7 @@ Control Plane that can use Aspire-like declarations as one entry point.
 
 CloudShell should also preserve Aspire's ecosystem direction without copying
 its implementation boundary. A developer should be able to use TypeScript or
-JavaScript as the app-host authoring language, start or attach to a .NET
+JavaScript as the launcher authoring language, start or attach to a .NET
 CloudShell host from that workflow, and then use the same Resource Manager and
 Control Plane API as a C# host. The language SDK owns local ergonomics; the
 Resource model and Control Plane remain the shared product boundary.

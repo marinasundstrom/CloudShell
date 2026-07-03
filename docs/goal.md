@@ -98,9 +98,9 @@ cloud-inspired architecture understandable, manageable, and testable in local
 or self-hosted environments, while keeping a path to provider-backed
 implementations. It should also avoid giving the impression that CloudShell is
 only for .NET teams or .NET workloads. The CloudShell core can remain
-C#-based while other languages provide the app-host style entry point that
-defines the graph, configures capabilities, starts the host, and operates the
-same Control Plane through consistent cross-platform tooling.
+C#-based while other languages provide launcher entry points that define the
+graph, configure host startup, start or target the host, and operate the same
+Control Plane through consistent cross-platform tooling.
 
 The platform can learn from existing cloud portals without inheriting their
 legacy boundaries. Familiar placement and affordances are useful, but

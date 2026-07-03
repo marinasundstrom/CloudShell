@@ -279,9 +279,8 @@ remain C#/.NET-based. That is an implementation choice, not the product
 boundary. The platform direction is that the code which bootstraps the host,
 defines the resource graph, and drives the Control Plane does not have to be
 C#. JavaScript, TypeScript, Java, C#, and other ecosystems should be able to
-provide an app-host style authoring experience over the same CloudShell model,
-similar in spirit to cross-language resource authoring in modern developer
-app-host platforms.
+provide launcher authoring experiences over the same CloudShell model, similar
+in spirit to cross-language resource authoring in modern developer platforms.
 
 In that model, a language-specific host authoring layer may produce
 declarations, configuration, launch instructions, or API calls, while a

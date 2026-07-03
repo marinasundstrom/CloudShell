@@ -62,7 +62,7 @@ Use these terms when summarizing feature and proposal state:
 | --- | --- | --- |
 | Product goal and positioning | [Goal](goal.md), [Why CloudShell](why-cloudshell.md), [Roadmap](roadmap.md) | Product intent, MVP focus, and current execution priorities. |
 | Architecture and domain model | [Architecture](architecture.md), [Domain model](domain-model.md), [System design guidelines](system-design-guidelines.md), [Terminology](terminology.md) | Ownership boundaries, Control Plane/WebUI split, domain terms, and design rules. |
-| Hosting | [Hosting model](hosting-model.md), [Launchers and app hosts](launchers-and-app-hosts.md) | Combined hosts, split hosting, local development hosts, launcher apps, and app-host responsibilities. |
+| Hosting | [Hosting model](hosting-model.md), [Launchers](launchers-and-app-hosts.md) | Combined hosts, split hosting, local development hosts, launchers, and host-profile responsibilities. |
 | Control Plane API | [Control Plane API](control-plane-api.md), [SDK clients](sdk-clients.md), [CloudShell CLI](cli.md) | HTTP API shape, remote client behavior, generated/handwritten clients, and CLI apply/host workflows. |
 
 ## Resource Model

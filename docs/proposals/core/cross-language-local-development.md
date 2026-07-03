@@ -24,7 +24,7 @@ generated clients, profile/credential behavior, and future ecosystems.
 
 CloudShell should not require a developer to write C# just to compose and run a
 local distributed application. The core host, Control Plane, and Blazor shell
-can stay .NET-based, but the app-host style entry point should be available to
+can stay .NET-based, but the launcher entry point should be available to
 teams whose application code and tooling live in another ecosystem.
 
 The current programmatic resource API proves the code-first development model
@@ -338,7 +338,7 @@ not deployment to another environment.
 
 The current CLI, C# launcher, local host profile, experimental TypeScript
 hosting package, Java app resource, Java service clients, and Java launcher
-sample are documented in [Launchers and app hosts](../../launchers-and-app-hosts.md),
+sample are documented in [Launchers](../../launchers-and-app-hosts.md),
 [CloudShell CLI](../../cli.md), [SDK clients](../../sdk-clients.md),
 [JavaScript applications](../../resources/javascript-applications.md), and
 [Java applications](../../resources/java-applications.md).

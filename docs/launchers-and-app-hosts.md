@@ -1,20 +1,25 @@
-# Launchers And App Hosts
+# Launchers
 
 CloudShell uses **host profile** for the process that composes CloudShell
 itself: Control Plane, Web UI, provider packages, runtime adapters,
 authentication, persistence, and environment-level services. The built-in local
 development host profile is `CloudShell.LocalDevelopmentHost`.
 
-CloudShell uses **launcher** or **app host launcher** for a language-specific
-authoring program that defines a resource graph, emits a `ResourceTemplate`,
-and asks the CloudShell CLI or Control Plane API to apply that template to a
-host profile. A launcher is not the Control Plane and should not reference
-Control Plane stores, provider runtimes, or UI hosting packages.
+CloudShell uses **Launcher** as the feature name for language-specific
+authoring programs that define a local-development resource graph, emit a
+`ResourceTemplate`, and start or target a CloudShell host profile. A developer
+may experience this as creating a local development host in their preferred
+language, because running the launcher should bring up the local development
+host and apply the declared resources. Architecturally, the launcher is still
+the declaration and startup client. It is not the Control Plane, Web UI, or
+provider runtime host, and it should not reference Control Plane stores,
+provider runtimes, or UI hosting packages.
 
 This naming keeps three responsibilities separate:
 
 - **Host profile**: runs CloudShell and installs providers/runtime adapters.
-- **Launcher**: authors and applies a resource graph for a target environment.
+- **Launcher**: declares resources, configures host startup, and applies the
+  resource graph for a target environment.
 - **Runtime service client**: runs inside an application workload and consumes
   CloudShell-managed services such as Configuration Store or Secrets Vault.
 
@@ -29,7 +34,7 @@ The stable cross-language boundary is the CloudShell Resource model:
 - endpoint requests
 - non-secret attributes
 - metadata
-- CLI apply/start behavior
+- host launch and template apply behavior
 
 Language SDKs should feel natural in their own ecosystem while preserving that
 same model. C# can use extension methods over `ResourceGraphBuilder`.
@@ -37,6 +42,64 @@ TypeScript can use builder objects and object-literal options. Java should use
 normal classes, fluent methods, records where useful, and package boundaries
 that feel ordinary to Java developers. A Java API should not copy C# extension
 method patterns directly.
+
+## Default Developer Experience
+
+The default launcher experience should match the way developers expect local
+distributed app hosts to behave:
+
+1. The developer runs the launcher project using the native command for that
+   ecosystem, such as `dotnet run`, `npm start`, or the Java project runner.
+2. The launcher reads the resource declarations from the project.
+3. The launcher reads the launcher project's host appsettings and combines
+   them with environment variables and explicit launcher options.
+4. The launcher starts the local development host in the foreground with that
+   delegated host configuration.
+5. The launcher waits for the Control Plane to become ready.
+6. The launcher applies the declared ResourceTemplate to that host.
+7. The launcher prints the local CloudShell address.
+8. The local development host remains tied to the launcher process lifetime.
+
+That default run is project-contained. Host configuration, generated
+templates, data directories, process handles, and other local state should
+default under the launcher project or an explicitly configured project-local
+path. Running a launcher project should not mutate or depend on a global
+daemon.
+
+## Configuration Scopes
+
+Launcher integrations must keep three configuration scopes distinct:
+
+| Scope | Purpose | Examples |
+| --- | --- | --- |
+| Launcher code | Declares the resource graph and resource relationships. | Java app, Configuration Store, Secrets Vault, dependencies, endpoint requests, health checks. |
+| Launcher appsettings | Configures the local CloudShell host that will run for this project. | `Persistence`, `Identity:BuiltIn:Persistence`, `Authentication`, provider runtime paths, ports, `CloudShell:DataDirectory`. |
+| ResourceTemplate | Describes the desired CloudShell resources accepted by the Control Plane. | Resource type IDs, provider IDs, resource IDs, non-secret attributes, references, dependencies, endpoints, metadata. |
+
+Launcher appsettings are delegated to the local development host. They are not
+resource declarations and should not be copied into every resource. For
+example, a launcher project should be able to select SQLite or SQL Server
+persistence for that project through appsettings while the ResourceTemplate
+continues to describe only the resources CloudShell should manage.
+
+When a language runtime does not naturally use .NET-style configuration, its
+launcher package should still provide an appsettings-compatible input so teams
+can move the same host-profile settings between C#, TypeScript, Java, and
+future integrations. The launcher may translate that input into command-line
+arguments, environment variables, a copied or temporary host configuration
+file, or a future host-launch option, but the consumer-facing keys should
+remain the host's CloudShell configuration keys.
+
+## Non-Default Paths
+
+The CloudShell CLI, daemon workflows, and sample shell scripts are not the
+normal local launcher experience. They remain useful for advanced automation,
+hosted or remote Control Plane instances, daemon management, CI, diagnostics,
+and repository sample shortcuts. They should not be required when the goal is
+to run a launcher project locally.
+
+`template` or `toJson` is an explicit inspection/export path. It should not be
+the default behavior of a launcher project that a developer runs directly.
 
 ## Current Implementations
 
@@ -47,10 +110,11 @@ folder:
 - `Launchers/TypeScript/cloudshell`
 - `Launchers/Java/cloudshell-launcher`
 
-`CloudShell.AppHost.Launcher` is the current C# launcher/app-host authoring
-package. It reuses Resource Model builders, emits a `ResourceTemplate`, and
-delegates local host startup or template apply to the CloudShell CLI. It does
-not reference Control Plane stores, provider runtimes, or UI hosting packages.
+`CloudShell.AppHost.Launcher` is the current C# launcher authoring package. It
+reuses Resource Model builders, emits a `ResourceTemplate`, and owns the
+developer gesture of starting or targeting a host and applying the graph. It
+does not reference Control Plane stores, provider runtimes, or UI hosting
+packages.
 
 `CloudShell.LocalDevelopmentHost` is the stable built-in local host profile for
 launchers that do not need a custom CloudShell host process. It composes the
@@ -60,11 +124,12 @@ settings. Custom host profiles are reserved for cases where the CloudShell host
 process itself needs extra extensions, authentication, persistence, or
 host-specific services.
 
-The CloudShell CLI is the shared automation boundary for launcher workflows.
-Launchers can use `template apply --start` to start or reuse a local host,
-apply a generated template, pass `--data-dir` for launcher-local CloudShell
-data, and later target an existing Control Plane by URL. See
-[CloudShell CLI](cli.md) for command details.
+The CloudShell CLI is an advanced automation and operations boundary, not the
+normal local launcher experience. It can start or target hosts, apply
+templates, and support hosted or remote Control Plane scenarios, but a
+developer should not need to invoke the CLI or a sample shell script just to
+run a local launcher project. See [CloudShell CLI](cli.md) for command
+details.
 
 Launcher packages and samples should use the same lifecycle vocabulary across
 languages:
@@ -84,6 +149,72 @@ Resource relationships should keep the same meaning in every launcher.
 Service-discovery references and startup dependencies are separate concepts:
 references feed provider-specific binding projection, while dependencies feed
 lifecycle ordering and `--start-dependencies` behavior.
+
+## Launcher Conventions
+
+All language launchers should preserve the same user experience even when the
+declaration API is shaped for the host language:
+
+- Running the launcher project with no explicit verb should follow the default
+  developer experience above.
+- The launcher package should be able to launch the local development host and
+  apply the template itself. It may reuse shared libraries or Control Plane API
+  clients, but it should not require the CloudShell CLI or sample shell scripts
+  for the default local-development path.
+- The launcher should write the local development host address after the host
+  is ready and the template has been applied. The output should make the next
+  action obvious, for example `CloudShell host: http://127.0.0.1:5100`.
+- `run` should remain an explicit spelling for the same foreground behavior so
+  scripts and documentation can be unambiguous.
+- `template` or `toJson` should be an explicit inspection/export path. It
+  should not be the default behavior of a launcher project that a developer
+  runs directly.
+- `apply` should require or infer a target Control Plane URL and should not
+  start a host unless the caller chose a host-starting behavior.
+- `start` can remain an explicit compatibility or automation path for
+  workflows that want to start or reuse a recorded host and return after
+  applying the template, but daemon behavior must not leak into the default
+  project-contained launcher run.
+- Launcher output should distinguish host startup, Control Plane readiness,
+  template apply, and final URL. It should avoid dumping generated templates,
+  access tokens, secrets, or provider-owned sensitive values during the normal
+  `run` path.
+
+The declaration API should also follow these conventions:
+
+- A launcher app declares a resource graph and host-launch options. It does
+  not compose the Control Plane or reference Control Plane stores, provider
+  runtimes, or UI hosting packages.
+- Resource handles should be reusable across declarations so references,
+  dependencies, endpoint mappings, configuration bindings, and secrets
+  bindings can be authored without repeating string IDs.
+- Builder names can follow language norms, but the concepts should be stable:
+  resource type, provider id, resource id, display name, attributes,
+  references, dependencies, endpoints, health/liveness checks, logs, metadata,
+  and lifecycle options.
+- Service-discovery references and startup dependencies must be separately
+  expressible. A helper can offer a combined convenience later, but the model
+  should not make `reference` and `dependsOn` synonyms.
+- ResourceTemplate output from different language launchers should be
+  semantically equivalent for the same graph, even when ordering, formatting,
+  or builder syntax differs.
+
+Current launcher samples still expose explicit template commands for testing
+and inspection. They should converge on the no-argument foreground `run`
+default before the launcher packages are treated as stable. General
+appsettings pass-through from launcher projects into the local development
+host is also a required convention that still needs implementation across the
+launcher packages. The sample `cloudshell.sh` scripts are temporary convenience
+wrappers for repository samples; they should not define the product
+experience. The stable experience is launching the language project that
+declares the resources. How daemon-oriented workflows evolve is separate from
+the launcher default.
+
+Future local-development auth may add a launcher-friendly URL form for simple
+single-user scenarios, such as a loopback-only default token appended to the
+printed URL. That must be opt-in or development-only, short-lived or scoped to
+the local host profile, and must not appear in persisted resources, templates,
+diagnostics, or remote/shared environment output.
 
 The experimental TypeScript launcher package under `Launchers/TypeScript/cloudshell`
 proves the non-C# authoring shape. It has hand-authored builders for the first

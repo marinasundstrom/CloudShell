@@ -11,9 +11,9 @@ link to the decision so the dependency is visible.
 
 ## 2026-07-03
 
-### ADR-20260703-001: Group language app-host launchers under Launchers
+### ADR-20260703-001: Group language launchers under Launchers
 
-Language-specific app-host authoring packages should live under the top-level
+Language-specific launcher packages should live under the top-level
 `Launchers/` folder. Launchers are not runtime service clients; they define a
 ResourceTemplate and apply it to a local, separate, or remote CloudShell host
 profile through the CLI or Control Plane API. Runtime service clients remain
@@ -36,6 +36,33 @@ Control Plane. `start` may start or reuse a daemon-style local host before
 applying the template. `run` owns a foreground host process, applies the
 template after the Control Plane is ready, and keeps the host tied to the
 launcher command lifetime.
+
+Running a launcher project without an explicit verb should converge on the
+foreground `run` behavior. The default developer experience should be a live
+local development host with the launcher template applied, followed by console
+output that includes the local host address. Template emission remains an
+explicit inspection/export command, not the default action for a launcher
+project.
+
+Launchers should be executable programs that can launch the local development
+host and apply their resource template without requiring the CloudShell CLI or
+sample shell scripts for the normal local path. The CLI remains important for
+advanced automation, daemon management, hosted or remote Control Plane
+instances, and operational workflows, but it should not be the primary
+developer gesture for running a launcher project.
+
+The default launcher run is project-contained. It should use project-local host
+configuration, generated templates, data directories, process state, and other
+local artifacts unless the user explicitly configures another location. It
+must not mutate or rely on a global daemon. Daemon behavior can evolve
+separately as an explicit automation or hosting scenario.
+
+Launcher projects should also be able to own host-profile configuration, such
+as persistence, authentication, provider runtime paths, ports, and
+`CloudShell:DataDirectory`, through appsettings-style configuration that is
+delegated to the local development host before it starts. Those settings
+configure the host that accepts the resource template; they are not part of
+the resource template itself.
 
 The consistent behavior matters more than copying syntax. C# can use records
 and async methods, TypeScript can use promises and object-literal options, and
@@ -138,7 +165,7 @@ Related proposal: [Cross-language local development](docs/proposals/core/cross-l
 ### ADR-20260701-003: Start cross-language bootstrapping with a CloudShell CLI
 
 CloudShell should introduce a first-party CLI before building language-specific
-app-host SDKs. The CLI is the stable local automation entry point, similar in
+launcher SDKs. The CLI is the stable local automation entry point, similar in
 role to Azure CLI: it manages CloudShell host processes, discovers or records
 the active Control Plane endpoint, performs common resource operations, applies
 resource templates, configures selected local machine development affordances,
@@ -171,13 +198,13 @@ Related proposal: [Cross-language local development](docs/proposals/core/cross-l
 
 ### ADR-20260701-002: Keep local-development host authoring ecosystem-neutral
 
-CloudShell should not require C# as the only app-host authoring language for
+CloudShell should not require C# as the only launcher authoring language for
 local distributed development. The core host, Control Plane, and default UI can
 remain .NET-based, but TypeScript, JavaScript, Java, Python, and other
 ecosystems should be able to define the resource graph, launch or attach to a
 CloudShell host, and operate the environment through the same Control Plane API.
 
-The stable boundary is the Resource model, not a language-specific app-host
+The stable boundary is the Resource model, not a language-specific launcher
 schema. External language SDKs should emit ResourceDefinition-based templates
 or use equivalent Control Plane API requests, then rely on the .NET Control
 Plane for validation, provider setup, lifecycle actions, persistence,
