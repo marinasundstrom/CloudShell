@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.DependencyInjection;
@@ -106,6 +107,8 @@ public static class RabbitMQResourceTypeServiceCollectionExtensions
         services.Replace(ServiceDescriptor.Singleton<
             IRabbitMQRuntimeHandler,
             LocalRabbitMQDockerRuntimeHandler>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<ILogProvider, LocalRabbitMQDockerRuntimeLogProvider>());
         services.AddRabbitMQManagementApiAccessReconciler();
 
         return services;

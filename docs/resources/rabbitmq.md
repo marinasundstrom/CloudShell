@@ -157,11 +157,11 @@ exposes the RabbitMQ management API.
 
 Resource Manager registers RabbitMQ type metadata, AMQP and management endpoint
 descriptors, generated details, Configuration, Environment, Storage,
-Endpoints, Activity, and other standard resource tabs. It also contributes a
-focused **Broker** tab that summarizes broker state, projected endpoint
-contracts, resolved AMQP and management addresses, access reconciliation
-availability, and a link to the RabbitMQ management UI when the management
-endpoint is mapped.
+Endpoints, Logs, Activity, and other standard resource tabs. It also
+contributes a focused **Broker** tab that summarizes broker state, projected
+endpoint contracts, resolved AMQP and management addresses, access
+reconciliation availability, and a link to the RabbitMQ management UI when the
+management endpoint is mapped.
 
 When a RabbitMQ Management API topology provider is registered, Resource
 Manager also contributes a read-only **Topology** tab. It lists queues,
@@ -186,6 +186,19 @@ managed-user passwords.
 
 The management endpoint remains the supported path for broker-native
 configuration until those workflows are deliberately modeled in CloudShell.
+
+## Logs
+
+RabbitMQ resources declare a default container log source named **Container
+logs**. For the local Docker runtime, CloudShell reads that source from the
+provider-owned RabbitMQ container using the container runtime log command with
+timestamps enabled. The Logs tab shows broker stdout and stderr so operators
+can inspect startup, plugin, persistence, clustering, and broker error output
+without opening the container directly.
+
+Container logs are provider operational output. They complement the
+platform-owned Activity stream, which records CloudShell lifecycle and
+management operations against the resource.
 
 ## Identity, Access, And Audit
 
@@ -259,6 +272,9 @@ credential material, connection strings, or message payloads.
 - Queues, exchanges, and bindings are visible through the read-only broker
   topology tab, but they are not projected as CloudShell child resources and
   virtual hosts, users, and policies are not surfaced yet.
+- The local Docker runtime exposes broker container stdout/stderr through the
+  generic Logs tab. File-based RabbitMQ log paths and broker-native log
+  configuration are not modeled yet.
 - RabbitMQ permission grants can be reconciled and inspected through the
   Management API. Resource Manager shows requested and effective state through
   the generated Access control and Identity tabs; broker-native user

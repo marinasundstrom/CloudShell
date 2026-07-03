@@ -877,12 +877,19 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal(15672, management.Port);
         var volumeConsumer = rabbitMQ.GetCapability<VolumeConsumerDefinition>(
             VolumeConsumerCapabilityProvider.CapabilityIdValue);
+        var logSources = rabbitMQ.GetCapability<ResourceLogSourceDefinitionSet>(
+            ResourceLogSourceCapabilityIds.LogSources);
         Assert.True(rabbitMQ.ResourceAttributeValues.ContainsKey(
             ResourceAttributeId.Create(VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString())));
+        Assert.True(rabbitMQ.ResourceAttributeValues.ContainsKey(
+            ResourceLogSourceAttributeIds.LogSources));
         Assert.Null(rabbitMQ.Capabilities);
         var mount = Assert.Single(volumeConsumer!.Mounts);
         Assert.Equal(volume.EffectiveResourceId, mount.Volume);
         Assert.Equal(RabbitMQResourceDefaults.DataPath, mount.TargetPath);
+        var logSource = Assert.Single(logSources!.Sources ?? []);
+        Assert.Equal("container", logSource.Id);
+        Assert.Equal(ResourceLogSourceDefinitionValues.Container, logSource.Kind);
 
         var result = await serviceProvider
             .GetRequiredService<ResourceModelGraphDefinitionApplyService>()

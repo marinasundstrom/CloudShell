@@ -55,6 +55,9 @@ on `git blame --follow`, and then by the broad type of change.
   broker-native administration surface.
 - Added a Resource Manager Messaging tab group and placed RabbitMQ Broker and
   Topology views directly after General, ahead of Networking and Storage.
+- Added RabbitMQ container log source support so local Docker-backed broker
+  stdout and stderr are available through the generated Resource Manager Logs
+  tab.
 - Added a RabbitMQ Management API-backed topology reader and read-only
   Resource Manager Topology tab for broker-native queues and exchanges,
   keeping provider-owned credentials behind the RabbitMQ provider boundary.

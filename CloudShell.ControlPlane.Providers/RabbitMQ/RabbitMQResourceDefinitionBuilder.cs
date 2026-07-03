@@ -18,6 +18,12 @@ public sealed class RabbitMQResourceDefinitionBuilder(string name) :
     public RabbitMQResourceDefinitionBuilder WithManagementUi(bool enabled = true) =>
         SetScalarAttribute(RabbitMQResourceTypeProvider.Attributes.ManagementUi, enabled);
 
+    public RabbitMQResourceDefinitionBuilder WithDefaultContainerLogSource() =>
+        SetObjectAttribute(
+            ResourceLogSourceAttributeIds.LogSources,
+            new ResourceLogSourceDefinitionSet(
+                [ResourceLogSourceDefinition.DefaultContainerConsole()]));
+
     public RabbitMQResourceDefinitionBuilder AddEndpointRequest(
         string name,
         string protocol,
@@ -152,7 +158,8 @@ public static class RabbitMQResourceDefinitionBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(graph);
 
-        var builder = new RabbitMQResourceDefinitionBuilder(name);
+        var builder = new RabbitMQResourceDefinitionBuilder(name)
+            .WithDefaultContainerLogSource();
         graph.Add(builder);
         return builder;
     }

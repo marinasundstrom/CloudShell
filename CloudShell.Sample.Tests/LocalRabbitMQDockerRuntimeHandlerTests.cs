@@ -1,4 +1,5 @@
 using System.Text.Json;
+using CloudShell.Abstractions.Logs;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
 using CloudShell.ResourceModel;
@@ -7,7 +8,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
+using ResourceManagerDiagnostic = CloudShell.Abstractions.ResourceManager.ResourceModelDiagnostic;
+using ResourceManagerGroup = CloudShell.Abstractions.ResourceManager.ResourceGroup;
+using ResourceManagerProvider = CloudShell.Abstractions.ResourceManager.IResourceProvider;
 using ResourceModelResource = CloudShell.ResourceModel.Resource;
+using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
+using ResourceManagerStore = CloudShell.Abstractions.ResourceManager.IResourceManagerStore;
 
 namespace CloudShell.Sample.Tests;
 
@@ -110,6 +117,61 @@ public sealed class LocalRabbitMQDockerRuntimeHandlerTests
         Assert.DoesNotContain(runner.Commands, command => command.Arguments.FirstOrDefault() == "run");
     }
 
+    [Fact]
+    public async Task LocalDockerLogProvider_ReadsRabbitMQContainerLogs()
+    {
+        using var fixture = new RabbitMQRuntimeFixture(
+            "application.rabbitmq:rabbitmq",
+            "rabbitmq",
+            amqpPort: 5676,
+            managementPort: 15676);
+        var runner = new RecordingRabbitMQDockerCommandRunner();
+        runner.Enqueue(new(
+            0,
+            """
+            2026-07-03T20:30:00.000000000Z RabbitMQ startup complete
+            """,
+            """
+            2026-07-03T20:30:01.000000000Z RabbitMQ warning
+            """));
+        var projectedRabbitMQ = await fixture.ProjectRabbitMQAsync();
+        var store = new TestResourceManagerStore([projectedRabbitMQ]);
+        var options = new LocalRabbitMQDockerRuntimeOptions();
+        options.AddBroker(projectedRabbitMQ.Id, "cloudshell-rabbitmq");
+        var provider = new LocalRabbitMQDockerRuntimeLogProvider(
+            runner,
+            store,
+            new ConfigurationBuilder().Build(),
+            fixture.HostEnvironment,
+            Options.Create(options));
+
+        var source = Assert.Single(provider.GetLogSources());
+        var entries = await provider.ReadLogSourceAsync(source.Id, maxEntries: 20);
+
+        Assert.Equal("Container logs", source.Name);
+        Assert.Equal(ResourceLogSourceKind.Container, source.Kind);
+        Assert.Equal(LogSourceCapabilities.Read | LogSourceCapabilities.Stream, source.Capabilities);
+        Assert.Equal(projectedRabbitMQ.Id, source.ResourceId);
+        Assert.True(provider.CanOpenLogSource(source));
+        Assert.Collection(
+            entries,
+            entry =>
+            {
+                Assert.Equal("RabbitMQ startup complete", entry.Message);
+                Assert.Equal("cloudshell-rabbitmq", entry.Source);
+                Assert.Null(entry.Severity);
+            },
+            entry =>
+            {
+                Assert.Equal("RabbitMQ warning", entry.Message);
+                Assert.Equal("cloudshell-rabbitmq", entry.Source);
+                Assert.Equal("Error", entry.Severity);
+            });
+        var command = Assert.Single(runner.Commands);
+        Assert.Equal(
+            "logs --timestamps --tail 20 cloudshell-rabbitmq",
+            command.JoinedArguments);
+    }
 
     private sealed class RabbitMQRuntimeFixture : IDisposable
     {
@@ -208,6 +270,9 @@ public sealed class LocalRabbitMQDockerRuntimeHandlerTests
 
         public string ContentRootPath { get; }
 
+        public IHostEnvironment HostEnvironment =>
+            serviceProvider.GetRequiredService<IHostEnvironment>();
+
         public LocalRabbitMQDockerRuntimeHandler CreateHandler(
             RecordingRabbitMQDockerCommandRunner runner,
             string containerName,
@@ -253,6 +318,16 @@ public sealed class LocalRabbitMQDockerRuntimeHandlerTests
                 .GetRequiredService<ResourceModelGraphResourceResolver>()
                 .ResolveAsync(resourceId);
             return resolution.Target ?? throw new InvalidOperationException("RabbitMQ was not resolved.");
+        }
+
+        public async ValueTask<ResourceManagerResource> ProjectRabbitMQAsync()
+        {
+            var resource = await ResolveRabbitMQAsync();
+            var provider = new ResourceModelResourceProvider(
+                "resource-model",
+                "Resource model",
+                () => [resource]);
+            return Assert.Single(provider.GetResources());
         }
 
         public void Dispose()
@@ -311,6 +386,30 @@ public sealed class LocalRabbitMQDockerRuntimeHandlerTests
         TimeSpan? CommandTimeout)
     {
         public string JoinedArguments => string.Join(' ', Arguments);
+    }
+
+    private sealed class TestResourceManagerStore(IReadOnlyList<ResourceManagerResource> resources) : ResourceManagerStore
+    {
+        public IReadOnlyList<ResourceManagerProvider> Providers => [];
+
+        public IReadOnlyList<ResourceManagerGroup> GetResourceGroups() => [];
+
+        public IReadOnlyList<ResourceManagerResource> GetAvailableResources() => resources;
+
+        public IReadOnlyList<ResourceManagerResource> GetResources() => resources;
+
+        public IReadOnlyList<ResourceManagerDiagnostic> GetResourceModelDiagnostics() => [];
+
+        public ResourceManagerClass? GetResourceTypeClass(string resourceType) => null;
+
+        public ResourceManagerResource? GetResource(string id) =>
+            resources.FirstOrDefault(resource => string.Equals(resource.Id, id, StringComparison.OrdinalIgnoreCase));
+
+        public IReadOnlyList<ResourceManagerResource> GetChildren(string resourceId) => [];
+
+        public ResourceManagerGroup? GetGroupForResource(string resourceId) => null;
+
+        public bool IsRegistered(string resourceId) => GetResource(resourceId) is not null;
     }
 
     private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment

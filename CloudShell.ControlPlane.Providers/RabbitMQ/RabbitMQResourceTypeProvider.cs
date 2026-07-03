@@ -49,7 +49,12 @@ public sealed class RabbitMQResourceTypeProvider :
         },
         Capabilities:
         [
-            new(VolumeConsumerCapabilityProvider.CapabilityIdValue)
+            new(VolumeConsumerCapabilityProvider.CapabilityIdValue),
+            new(
+                ResourceLogSourceCapabilityIds.LogSources,
+                ResourceDefinitionJson.FromValue(
+                    new ResourceLogSourceDefinitionSet(
+                        [ResourceLogSourceDefinition.DefaultContainerConsole()])))
         ],
         Operations:
         [

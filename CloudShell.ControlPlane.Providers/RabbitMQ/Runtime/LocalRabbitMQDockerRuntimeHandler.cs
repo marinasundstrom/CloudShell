@@ -372,33 +372,66 @@ public sealed class LocalRabbitMQDockerRuntimeHandler(
 
     private bool TryGetDefinition(
         Resource resource,
+        out LocalRabbitMQDockerDefinition definition) =>
+        LocalRabbitMQDockerRuntimeDefinitions.TryGetDefinition(
+            resource.EffectiveResourceId,
+            resource.Name,
+            resource.Type.TypeId.ToString(),
+            options,
+            configuration,
+            hostEnvironment,
+            out definition);
+
+    private sealed record ResolvedRabbitMQVolumeMount(
+        string SourcePath,
+        string TargetPath,
+        bool ReadOnly);
+}
+
+internal static class LocalRabbitMQDockerRuntimeDefinitions
+{
+    public static bool TryGetDefinition(
+        string resourceId,
+        string resourceName,
+        string resourceTypeId,
+        LocalRabbitMQDockerRuntimeOptions options,
+        IConfiguration configuration,
+        IHostEnvironment hostEnvironment,
         out LocalRabbitMQDockerDefinition definition)
     {
-        if (options.Brokers.TryGetValue(resource.EffectiveResourceId, out definition!))
+        if (options.Brokers.TryGetValue(resourceId, out definition!))
         {
             return true;
         }
 
-        if (resource.Type.TypeId != RabbitMQResourceTypeProvider.ResourceTypeId)
+        if (!string.Equals(
+                resourceTypeId,
+                RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
+                StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
         definition = new()
         {
-            ContainerName = ResolveDefaultContainerName(resource)
+            ContainerName = ResolveDefaultContainerName(resourceName, configuration, hostEnvironment)
         };
         return true;
     }
 
-    private string ResolveDefaultContainerName(Resource resource)
+    private static string ResolveDefaultContainerName(
+        string resourceName,
+        IConfiguration configuration,
+        IHostEnvironment hostEnvironment)
     {
-        var scope = ResolveRuntimeNameScope();
-        var resourceName = SanitizeDockerNamePart(resource.Name);
-        return TruncateDockerName($"cloudshell-{scope}-rabbitmq-{resourceName}", maxLength: 63);
+        var scope = ResolveRuntimeNameScope(configuration, hostEnvironment);
+        var sanitizedResourceName = SanitizeDockerNamePart(resourceName);
+        return TruncateDockerName($"cloudshell-{scope}-rabbitmq-{sanitizedResourceName}", maxLength: 63);
     }
 
-    private string ResolveRuntimeNameScope()
+    private static string ResolveRuntimeNameScope(
+        IConfiguration configuration,
+        IHostEnvironment hostEnvironment)
     {
         var configuredScope = configuration["CloudShell:RuntimeNameScope"];
         if (!string.IsNullOrWhiteSpace(configuredScope))
@@ -440,11 +473,6 @@ public sealed class LocalRabbitMQDockerRuntimeHandler(
         var prefixLength = Math.Max(1, maxLength - suffix.Length - 1);
         return $"{name[..prefixLength].TrimEnd('-')}-{suffix}";
     }
-
-    private sealed record ResolvedRabbitMQVolumeMount(
-        string SourcePath,
-        string TargetPath,
-        bool ReadOnly);
 }
 
 public interface ILocalRabbitMQDockerCommandRunner

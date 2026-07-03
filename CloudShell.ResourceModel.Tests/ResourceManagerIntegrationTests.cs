@@ -5446,6 +5446,20 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Contains(projectedRabbitMQ.ResourceEndpointNetworkMappings, mapping =>
             mapping.Target.EndpointName == "management" &&
             mapping.Address == "http://localhost:15672");
+        Assert.Contains(projectedRabbitMQ.ResourceCapabilities, capability =>
+            capability.Id == ResourceLogSourceCapabilityIds.LogSources.ToString());
+        var logSource = Assert.Single(projectedRabbitMQ.ResourceLogSources);
+        Assert.Equal("container", logSource.Id);
+        Assert.Equal("Container logs", logSource.Name);
+        Assert.Equal(ResourceLogSourceKind.Container, logSource.Kind);
+        Assert.Equal(LogFormat.PlainText, logSource.Format);
+        Assert.Equal(
+            LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
+            logSource.Capabilities);
+        Assert.Equal(ResourceLogSourceOrigin.ProviderDefault, logSource.Origin);
+        Assert.Equal(ResourceLogSourcePurpose.Default, logSource.Purpose);
+        Assert.Equal(LogSourceAvailability.ResourceRunning, logSource.Availability);
+        Assert.True(projectedRabbitMQ.SupportsLogSources);
 
         var resolution = await serviceProvider
             .GetRequiredService<ResourceModelGraphResourceResolver>()
