@@ -569,6 +569,10 @@ members remain compatibility aliases.
 | `cloudshell.network` and `cloudshell.virtualNetwork` | `reconcileEndpointMappings` | `NetworkResourceOperationPermissions.ReconcileEndpointMappings` |
 | `cloudshell.loadBalancer` | `applyLoadBalancerConfiguration` | `LoadBalancerResourceOperationPermissions.ApplyConfiguration` |
 | `secrets.vault` and `ResourceClass.SecretsVault` | secret value read | `SecretsVaultResourceOperationPermissions.ReadSecrets` |
+| `application.rabbitmq` | publish to broker | `RabbitMQResourceOperationPermissions.Publish` |
+| `application.rabbitmq` | consume from broker | `RabbitMQResourceOperationPermissions.Consume` |
+| `application.rabbitmq` | configure broker resources | `RabbitMQResourceOperationPermissions.Configure` |
+| `application.rabbitmq` | `application.rabbitmq.reconcile-access` | `RabbitMQResourceOperationPermissions.ReconcileAccess` |
 | Resource identity provisioning service | resource identity provisioning | `ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities` |
 
 When adding a new resource action, document the operation permission in this

@@ -153,23 +153,36 @@ configuration until those workflows are deliberately modeled in CloudShell.
 
 ## Identity, Access, And Audit
 
-The first RabbitMQ implementation does not reconcile CloudShell identities into
-RabbitMQ users, virtual-host permissions, or broker policies. That is a
-deliberate gap, not the intended final contract for a built-in managed service.
+RabbitMQ resources participate in the CloudShell access model. Resource
+identities can receive broker-scoped grants for:
 
-As RabbitMQ becomes more capable, it should follow the same service-resource
-parity expectations as SQL Server and other built-in services:
+- `RabbitMQResourceOperationPermissions.Publish`
+- `RabbitMQResourceOperationPermissions.Consume`
+- `RabbitMQResourceOperationPermissions.Configure`
+- `RabbitMQResourceOperationPermissions.ReconcileAccess`
 
-- resource identities can be granted broker-scoped access through the normal
-  CloudShell access model
-- the provider reconciles requested grants into RabbitMQ-owned users,
-  permissions, credentials, or policy state without projecting secret values
-- Resource Manager distinguishes requested CloudShell grants from effective
-  RabbitMQ state so drift and failed reconciliation are visible
-- lifecycle actions, grant reconciliation, broker configuration operations,
-  and provider failures emit resource-scoped audit/activity events
-- diagnostics and events remain non-secret and avoid dumping broker-native
-  credential material, connection strings, or message payloads
+RabbitMQ exposes a **Reconcile access** resource operation,
+`application.rabbitmq.reconcile-access`, guarded by
+`RabbitMQResourceOperationPermissions.ReconcileAccess`. The operation invokes
+the provider-owned `IRabbitMQAccessReconciler` seam. The default reconciler
+reports an informational diagnostic and does not mutate broker state.
+
+The current grant-status provider recognizes RabbitMQ grants and reports them
+as pending until a RabbitMQ runtime/provider can inspect effective
+broker-native state. This keeps requested CloudShell grants visible in
+Resource Manager while avoiding a false claim that RabbitMQ users and
+permissions have already been materialized.
+
+Future RabbitMQ runtime providers should reconcile requested grants into
+RabbitMQ-owned users, virtual-host permissions, credentials, or policy state
+without projecting secret values. Resource Manager should then distinguish
+requested CloudShell grants from effective RabbitMQ state so drift and failed
+reconciliation are visible.
+
+Lifecycle actions, grant reconciliation, broker configuration operations, and
+provider failures should emit resource-scoped audit/activity events.
+Diagnostics and events must remain non-secret and avoid dumping broker-native
+credential material, connection strings, or message payloads.
 
 ## Known Gaps
 
@@ -177,7 +190,8 @@ parity expectations as SQL Server and other built-in services:
 - No RabbitMQ-specific workload client package or service-discovery helper yet.
 - No provider-owned projection of queues, exchanges, bindings, virtual hosts,
   users, or policies.
-- No RabbitMQ permission reconciliation through CloudShell resource identity
-  yet.
-- No RabbitMQ-specific audit/event schema beyond standard resource actions yet.
+- RabbitMQ permission grants are modeled and statused as pending, but no local
+  runtime reconciles them into broker-native users or permissions yet.
+- No RabbitMQ-specific audit/event schema beyond standard resource actions and
+  reconciliation diagnostics yet.
 - No cluster or non-local RabbitMQ runtime provider yet.

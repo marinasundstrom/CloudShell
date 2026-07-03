@@ -23,6 +23,8 @@ public sealed class RabbitMQResourceTypeProvider :
         public static readonly ResourceOperationId Start = "start";
         public static readonly ResourceOperationId Stop = "stop";
         public static readonly ResourceOperationId Restart = "restart";
+        public static readonly ResourceOperationId ReconcileAccess =
+            "application.rabbitmq.reconcile-access";
     }
 
     public ResourceTypeId TypeId => ResourceTypeId;
@@ -53,7 +55,8 @@ public sealed class RabbitMQResourceTypeProvider :
         [
             new(Operations.Start),
             new(Operations.Stop),
-            new(Operations.Restart)
+            new(Operations.Restart),
+            new(Operations.ReconcileAccess)
         ]);
 
     public bool CanValidate(Resource resource) =>

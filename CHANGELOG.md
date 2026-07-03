@@ -31,6 +31,12 @@ on `git blame --follow`, and then by the broad type of change.
   Resource Manager UI is deferred while the RabbitMQ management endpoint
   remains the supported path for queues, exchanges, bindings, users, virtual
   hosts, and policies; see ADR-20260703-003.
+- Added initial RabbitMQ access-control plumbing with publish, consume,
+  configure, and reconcile permission constants, a
+  `application.rabbitmq.reconcile-access` resource operation,
+  `IRabbitMQAccessReconciler`, and pending grant-status reporting for
+  RabbitMQ grants until a provider can materialize broker-native users and
+  permissions.
 - Added an intent-first resource authoring proposal that scopes a future
   smarter Resource Manager authoring UI for starting apps with AI assistance,
   drafting starter structures and `ResourceTemplate` graphs from high-level

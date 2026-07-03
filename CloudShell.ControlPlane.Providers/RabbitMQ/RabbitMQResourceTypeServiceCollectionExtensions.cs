@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -61,11 +62,20 @@ public static class RabbitMQResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOperationProjector, RabbitMQRestartOperationProvider>());
         services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProvider, RabbitMQReconcileAccessOperationProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOperationProjector, RabbitMQReconcileAccessOperationProvider>());
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, RabbitMQResourceProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourcePermissionGrantStatusProvider, RabbitMQPermissionGrantStatusProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceModelResourceManagerEndpointProjectionProvider, RabbitMQResourceManagerEndpointProjectionProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceModelResourceManagerStateProvider, RabbitMQResourceManagerStateProvider>());
+        services.TryAddSingleton<
+            IRabbitMQAccessReconciler,
+            NoopRabbitMQAccessReconciler>();
         services.TryAddSingleton<
             IRabbitMQRuntimeHandler,
             NoopRabbitMQRuntimeHandler>();

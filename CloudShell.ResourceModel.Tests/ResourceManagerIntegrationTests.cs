@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
@@ -5373,10 +5374,12 @@ public sealed class ResourceManagerIntegrationTests
     [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesRabbitMQAcrossProviderBoundaries()
     {
+        var accessReconciler = new RecordingRabbitMQAccessReconciler();
         var services = new ServiceCollection();
         services.AddInMemoryResourceModelGraph();
         services.AddNetworkResourceType();
         services.AddCloudShellVolumeResourceType();
+        services.AddSingleton<IRabbitMQAccessReconciler>(accessReconciler);
         services.AddRabbitMQResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
@@ -5426,6 +5429,11 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Contains(projectedRabbitMQ.ResourceActions, action =>
             action.Id == "restart" &&
             action.Kind == ResourceActionKind.Restart);
+        var reconcile = Assert.Single(projectedRabbitMQ.ResourceActions, action =>
+            action.Id == RabbitMQResourceTypeProvider.Operations.ReconcileAccess.ToString());
+        Assert.Equal(
+            RabbitMQResourceOperationPermissions.ReconcileAccess,
+            reconcile.RequiredPermission);
         var amqp = Assert.Single(projectedRabbitMQ.Endpoints, endpoint => endpoint.Name == "amqp");
         Assert.Equal("tcp", amqp.Protocol);
         Assert.Equal(5672, amqp.TargetPort);
@@ -5451,6 +5459,46 @@ public sealed class ResourceManagerIntegrationTests
         var capability = Assert.IsType<VolumeConsumerCapability>(
             resolution.Target!.Capabilities.Get<VolumeConsumerCapability>());
         Assert.Equal(volume.EffectiveResourceId, Assert.Single(capability.Mounts).Volume);
+
+        var projection = Assert.IsType<RabbitMQResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target,
+                    new ResourceProjectionContext("local", "developer")));
+        var reconcileOperation = await projection.GetReconcileAccessOperationAsync();
+
+        Assert.NotNull(reconcileOperation);
+        Assert.True(await reconcileOperation.CanExecuteAsync());
+
+        var procedure = new ResourceProcedureContext(
+            projectedRabbitMQ,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, reconcile));
+
+        await provider.ExecuteActionAsync(procedure, reconcile);
+
+        Assert.Equal([broker.EffectiveResourceId], accessReconciler.ReconciledResourceIds);
+
+        var grant = new ResourcePermissionGrant(
+            ResourcePrincipalReference.ForResourceIdentity(
+                "application.aspnet-core-project:api",
+                "default"),
+            broker.EffectiveResourceId,
+            RabbitMQResourceOperationPermissions.Publish);
+        var statusProvider = serviceProvider
+            .GetServices<IResourcePermissionGrantStatusProvider>()
+            .OfType<RabbitMQPermissionGrantStatusProvider>()
+            .Single();
+        var status = await statusProvider.GetStatusAsync(
+            new ResourcePermissionGrantStatusRequest(projectedRabbitMQ, grant));
+
+        Assert.True(statusProvider.CanGetStatus(new ResourcePermissionGrantStatusRequest(projectedRabbitMQ, grant)));
+        Assert.Equal(ResourcePermissionGrantEffectivenessState.Pending, status.State);
+        Assert.Equal(RabbitMQResourceTypeProvider.ProviderId, status.ProviderId);
     }
 
     [Fact]
@@ -6878,6 +6926,23 @@ public sealed class ResourceManagerIntegrationTests
 
     private sealed class RecordingSqlServerAccessReconciler :
         ISqlServerAccessReconciler
+    {
+        private readonly List<string> _reconciledResourceIds = [];
+
+        public IReadOnlyList<string> ReconciledResourceIds => _reconciledResourceIds;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAccessAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default)
+        {
+            _reconciledResourceIds.Add(resource.EffectiveResourceId);
+
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RecordingRabbitMQAccessReconciler :
+        IRabbitMQAccessReconciler
     {
         private readonly List<string> _reconciledResourceIds = [];
 

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
 using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
 using ResourceManagerState = CloudShell.Abstractions.ResourceManager.ResourceState;
@@ -254,6 +255,16 @@ public static class ResourceModelResourceManagerMapper
             ResourceActionIds.Stop => ResourceAction.Stop,
             ResourceActionIds.Pause => ResourceAction.Pause,
             ResourceActionIds.Restart => ResourceAction.Restart,
+            "application.sql-server.reconcile-access" => new ResourceAction(
+                "application.sql-server.reconcile-access",
+                ToDisplayName("application.sql-server.reconcile-access"),
+                Description: "Resolved Resource model operation.",
+                RequiredPermission: DatabaseResourceOperationPermissions.ReconcileAccess),
+            "application.rabbitmq.reconcile-access" => new ResourceAction(
+                "application.rabbitmq.reconcile-access",
+                ToDisplayName("application.rabbitmq.reconcile-access"),
+                Description: "Resolved Resource model operation.",
+                RequiredPermission: RabbitMQResourceOperationPermissions.ReconcileAccess),
             var id => new ResourceAction(
                 id,
                 ToDisplayName(id),

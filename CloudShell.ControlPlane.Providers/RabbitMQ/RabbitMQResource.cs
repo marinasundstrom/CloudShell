@@ -42,6 +42,12 @@ public sealed class RabbitMQResource(
         ValueTask.FromResult(
             Resource.Operations.Get(RabbitMQResourceTypeProvider.Operations.Restart)
                 as RabbitMQLifecycleOperation);
+
+    public ValueTask<RabbitMQReconcileAccessOperation?> GetReconcileAccessOperationAsync(
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(
+            Resource.Operations.Get(RabbitMQResourceTypeProvider.Operations.ReconcileAccess)
+                as RabbitMQReconcileAccessOperation);
 }
 
 public sealed class RabbitMQResourceProjectionProvider : IResourceProjectionProvider
