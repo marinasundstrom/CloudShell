@@ -63,6 +63,10 @@ public static class ConfigurationStoreResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, ConfigurationStoreInspectOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, ConfigurationStoreResourceProjectionProvider>());
+        services.TryAddSingleton<ConfigurationStoreRuntimeOptions>();
+        services.TryAddSingleton<
+            IConfigurationStoreRuntimeEntryManager,
+            ConfigurationStoreRuntimeEntryManager>();
         services.TryAddSingleton<ConfigurationStoreProcessRuntimeController>();
         services.TryAddSingleton<IConfigurationStoreRuntimeController>(
             serviceProvider => serviceProvider.GetRequiredService<ConfigurationStoreProcessRuntimeController>());

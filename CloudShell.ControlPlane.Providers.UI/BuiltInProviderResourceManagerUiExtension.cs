@@ -5,6 +5,7 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Providers;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ContainerAppPages = CloudShell.ControlPlane.Providers.UI.ContainerApplication.Pages;
+using ConfigurationPages = CloudShell.ControlPlane.Providers.UI.Configuration.Pages;
 using SharedPages = CloudShell.ControlPlane.Providers.UI.Shared.Pages;
 using SqlServerPages = CloudShell.ControlPlane.Providers.UI.SqlServer.Pages;
 using ResourceManagerResourceClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
@@ -147,6 +148,22 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 "key",
                 28,
                 resourceClass: ResourceManagerResourceClass.SecretsVault)
+            .AddResourceTab<ConfigurationPages.ConfigurationStoreEntries>(
+                ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(),
+                new ResourceViewId(ResourceTabGroupIds.Entries, "entries"),
+                "Entries",
+                20,
+                showsApplyButton: true,
+                groupTitle: ResourceTabGroupTitles.Entries,
+                icon: "entries")
+            .AddResourceTab<ConfigurationPages.SecretsVaultSecrets>(
+                SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),
+                new ResourceViewId(ResourceTabGroupIds.Secrets, "secrets"),
+                "Secrets",
+                20,
+                showsApplyButton: true,
+                groupTitle: ResourceTabGroupTitles.Secrets,
+                icon: "secrets")
             .AddResourceType<SharedPages.RegisterResource>(
                 IdentityProvisioningResourceTypeProvider.ResourceTypeId.ToString(),
                 "Identity Provisioning",

@@ -899,6 +899,52 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task ConfigurationStoreRuntimeEntryManager_UpdatesProviderOwnedRuntimeEntries()
+    {
+        var definitionsDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"cloudshell-configuration-store-test-{Guid.NewGuid():N}");
+        var services = new ServiceCollection();
+        services.AddConfigurationStoreResourceType(options =>
+        {
+            options.DefinitionsDirectory = definitionsDirectory;
+            options.Entries.Add(new("Sample:Message", "Hello from graph"));
+        });
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var manager = serviceProvider.GetRequiredService<IConfigurationStoreRuntimeEntryManager>();
+        var initial = await manager.ListEntriesAsync("configuration.store:settings");
+
+        Assert.Equal("Sample:Message", Assert.Single(initial).Name);
+
+        await manager.UpdateEntriesAsync(
+            new ProviderRuntimeResourceContext(
+                "configuration.store:settings",
+                "settings",
+                "Settings",
+                "http://localhost:5138"),
+            [new("Sample:Mode", "Development")]);
+
+        var options = serviceProvider.GetRequiredService<ConfigurationStoreRuntimeOptions>();
+        var entry = Assert.Single(options.Entries);
+        Assert.Equal("Sample:Mode", entry.Name);
+        Assert.Equal("Development", entry.Value);
+        Assert.False(entry.IsSecret);
+
+        var definitionsPath = Path.Combine(
+            definitionsDirectory,
+            "configuration.store_settings",
+            "configuration-stores.json");
+        using var document = JsonDocument.Parse(File.ReadAllText(definitionsPath));
+        var store = Assert.Single(document.RootElement.EnumerateArray());
+        Assert.Equal("configuration.store:settings", store.GetProperty("id").GetString());
+        var jsonEntry = Assert.Single(store.GetProperty("entries").EnumerateArray());
+        Assert.Equal("Sample:Mode", jsonEntry.GetProperty("name").GetString());
+        Assert.Equal("Development", jsonEntry.GetProperty("value").GetString());
+        Assert.False(jsonEntry.GetProperty("isSecret").GetBoolean());
+    }
+
+    [Fact]
     public async Task ConfigurationStoreRuntimeInspector_ReportsConfiguredRuntimeEntryCount()
     {
         var options = new ConfigurationStoreRuntimeOptions();
@@ -1855,6 +1901,52 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal("sample-api-key", secret.Name);
         Assert.Equal("secret-value", secret.Value);
         Assert.Equal("v1", secret.Version);
+    }
+
+    [Fact]
+    public async Task SecretsVaultRuntimeSecretManager_UpdatesProviderOwnedRuntimeSecrets()
+    {
+        var definitionsDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"cloudshell-secrets-vault-test-{Guid.NewGuid():N}");
+        var services = new ServiceCollection();
+        services.AddSecretsVaultResourceType(options =>
+        {
+            options.DefinitionsDirectory = definitionsDirectory;
+            options.Secrets.Add(new("sample-api-key", "secret-value", "v1"));
+        });
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var manager = serviceProvider.GetRequiredService<ISecretsVaultRuntimeSecretManager>();
+        var initial = await manager.ListSecretsAsync("secrets.vault:vault");
+
+        Assert.Equal("sample-api-key", Assert.Single(initial).Name);
+
+        await manager.UpdateSecretsAsync(
+            new ProviderRuntimeResourceContext(
+                "secrets.vault:vault",
+                "vault",
+                "Vault",
+                "http://localhost:6138"),
+            [new("new-api-key", "new-secret", "v2")]);
+
+        var options = serviceProvider.GetRequiredService<SecretsVaultRuntimeOptions>();
+        var secret = Assert.Single(options.Secrets);
+        Assert.Equal("new-api-key", secret.Name);
+        Assert.Equal("new-secret", secret.Value);
+        Assert.Equal("v2", secret.Version);
+
+        var definitionsPath = Path.Combine(
+            definitionsDirectory,
+            "secrets.vault_vault",
+            "secrets-vaults.json");
+        using var document = JsonDocument.Parse(File.ReadAllText(definitionsPath));
+        var vault = Assert.Single(document.RootElement.EnumerateArray());
+        Assert.Equal("secrets.vault:vault", vault.GetProperty("id").GetString());
+        var jsonSecret = Assert.Single(vault.GetProperty("secrets").EnumerateArray());
+        Assert.Equal("new-api-key", jsonSecret.GetProperty("name").GetString());
+        Assert.Equal("new-secret", jsonSecret.GetProperty("value").GetString());
+        Assert.Equal("v2", jsonSecret.GetProperty("version").GetString());
     }
 
     [Fact]

@@ -33,6 +33,11 @@ on `git blame --follow`, and then by the broad type of change.
   `run` owns a foreground host process for the launcher command lifetime.
 - Updated foreground launcher runs to print the usable local CloudShell UI URL
   after the host is ready and the template has been applied.
+- Restored Resource Manager management tabs for graph-backed Configuration
+  Store entries and Secrets Vault secrets. The tabs update provider-owned
+  runtime data and sidecar service definition files without projecting values
+  through Resource graph attributes; existing secret values remain masked and
+  are preserved unless replaced.
 - Updated the cross-language local-development proposal and roadmap to
   prioritize NuGet/.NET-tool CLI distribution with a default
   local-development host daemon path before broader launcher and SDK hardening.

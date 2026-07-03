@@ -19,6 +19,9 @@
   service to accept tokens from a non-built-in identity provider.
 - Inspect operation with a runtime-backed inspector that reports configured counts without exposing values.
 - Typed wrapper plus Resource Manager bridge projection and execution.
+- Resource Manager Entries tab for managing provider-owned runtime entries.
+  Entry values stay in provider runtime state and sidecar definition files, not
+  Resource graph attributes.
 - Manual `ResourceGraphBuilder.AddConfigurationStore(...)` builder
   for code-first resource and endpoint declaration. Entry values remain
   provider/runtime data and are not authored as graph attributes.
@@ -51,11 +54,13 @@ are provider/runtime data and are not authored as ordinary graph attributes.
 Ready to integrate for graph-declared configuration stores in the selected
 samples. The graph path starts the backing service, projects endpoint/count,
 supports inspect, monitoring, health/liveness, built-in authorization, and
-external bearer validation for the Keycloak sample. Durable entry storage,
-log streaming, templates, and editable UI remain outside the switch gate.
+external bearer validation for the Keycloak sample. Runtime entries can be
+managed through Resource Manager when the UI host has access to the provider
+runtime manager. Durable entry storage, log streaming, templates, and full
+registration/update flows remain outside the switch gate.
 
 ## Remaining
 
 - Durable entry storage.
 - Logs and richer diagnostics.
-- Templates and UI registration/update flow.
+- Templates and full UI registration/update flow.

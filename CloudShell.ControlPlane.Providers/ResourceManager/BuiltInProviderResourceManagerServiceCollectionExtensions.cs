@@ -183,6 +183,14 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
                 SqlDatabaseResourceManagerProjectionProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerAttributeProvider,
+                ConfigurationStoreResourceManagerAttributeProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerAttributeProvider,
+                SecretsVaultResourceManagerAttributeProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerParentProvider,
                 NameMappingResourceManagerProjectionProvider>());
         services.TryAddEnumerable(

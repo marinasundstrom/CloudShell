@@ -16,6 +16,10 @@
 - Provider-owned runtime secret seed options.
 - Inspect operation with a runtime-backed inspector that reports configured counts without exposing values.
 - Typed wrapper plus Resource Manager bridge projection and execution.
+- Resource Manager Secrets tab for managing provider-owned runtime secrets.
+  Existing values are masked in the UI and preserved unless replaced; secret
+  values stay in provider runtime state and sidecar definition files, not
+  Resource graph attributes.
 - Manual `ResourceGraphBuilder.AddSecretsVault(...)` builder for
   code-first resource and endpoint declaration. Secret values remain
   provider/runtime data and are not authored as graph attributes.
@@ -46,10 +50,12 @@ provider/runtime data and must not be stored as ordinary graph attributes.
 Ready to integrate for graph-declared Secrets Vault resources in the selected
 samples. The graph path starts the backing service, projects endpoint/count,
 supports inspect, monitoring, health/liveness, and authorized reads without
-placing secret values in graph attributes. Durable secret storage, log
-streaming, templates, and editable UI remain outside the switch gate.
+placing secret values in graph attributes. Runtime secrets can be managed
+through Resource Manager when the UI host has access to the provider runtime
+manager. Durable secret storage, log streaming, templates, and full
+registration/update flows remain outside the switch gate.
 
 ## Remaining
 
 - Durable secret storage.
-- Logs, templates, and UI registration/update flow.
+- Logs, templates, and full UI registration/update flow.

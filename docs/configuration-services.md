@@ -59,6 +59,20 @@ application configuration. The Secrets Vault `IConfiguration` client maps
 These naming rules belong to the built-in providers. Other providers or cloud
 deployment targets may apply their own character and length restrictions.
 
+## Resource Manager Management
+
+Graph-backed Configuration Store resources contribute an **Entries** tab in
+Resource Manager when the UI host has access to the provider runtime manager.
+That tab manages provider-owned runtime entries and rewrites the sidecar
+definition file used by the backing Configuration Store service. Entry values
+do not become Resource graph attributes.
+
+Graph-backed Secrets Vault resources contribute a **Secrets** tab under the
+same host/runtime boundary. Existing secret values are masked in the UI and
+are preserved unless a replacement value is entered. Secret values stay in
+provider-owned runtime state and sidecar definition files; Resource Manager
+only projects non-secret metadata such as the secret count.
+
 Provider-owned state is persisted in:
 
 ```text

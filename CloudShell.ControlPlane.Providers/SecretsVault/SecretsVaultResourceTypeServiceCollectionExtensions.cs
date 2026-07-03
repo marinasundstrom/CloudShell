@@ -63,6 +63,10 @@ public static class SecretsVaultResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, SecretsVaultInspectOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, SecretsVaultResourceProjectionProvider>());
+        services.TryAddSingleton<SecretsVaultRuntimeOptions>();
+        services.TryAddSingleton<
+            ISecretsVaultRuntimeSecretManager,
+            SecretsVaultRuntimeSecretManager>();
         services.TryAddSingleton<SecretsVaultProcessRuntimeController>();
         services.TryAddSingleton<ISecretsVaultRuntimeController>(
             serviceProvider => serviceProvider.GetRequiredService<SecretsVaultProcessRuntimeController>());
