@@ -17,6 +17,11 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added an intent-first resource authoring proposal that scopes a future
+  smarter Resource Manager authoring UI for starting apps with AI assistance,
+  drafting starter structures and `ResourceTemplate` graphs from high-level
+  user intent while preserving provider validation, explicit review, safe
+  secret handling, and the normal apply boundary.
 - Added an integration story feature doc that defines minimum expectations for
   launchers, Control Plane clients, Configuration Store and Secrets Vault
   runtime clients, and resource builder API parity across language
