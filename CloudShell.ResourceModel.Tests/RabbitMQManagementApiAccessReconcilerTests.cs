@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using CloudShell.Abstractions.Authorization;
@@ -9,6 +10,8 @@ using CloudShell.ResourceModel;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using ResourceModelResource = CloudShell.ResourceModel.Resource;
+using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource;
+using ResourceManagerResourceState = CloudShell.Abstractions.ResourceManager.ResourceState;
 
 namespace CloudShell.ResourceModel.Tests;
 
@@ -119,6 +122,123 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
         Assert.Empty(handler.Requests);
     }
 
+    [Fact]
+    public async Task ManagementApiStatusProvider_ReportsAppliedWhenBrokerPermissionExists()
+    {
+        var handler = new RecordingHttpMessageHandler
+        {
+            OnSend = request => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new RabbitMQObservedPermissions(
+                    Configure: string.Empty,
+                    Write: ".*",
+                    Read: string.Empty))
+            }
+        };
+        var provider = CreateStatusProvider(
+            handler,
+            new FixedRabbitMQPrincipalCredentialProvider("cloudshell-api", "broker-secret"));
+        var resource = CreateResourceManagerRabbitMQResource(withManagementEndpoint: true);
+        var grant = CreateGrant(resource, RabbitMQResourceOperationPermissions.Publish);
+
+        var status = await provider.GetStatusAsync(
+            new ResourcePermissionGrantStatusRequest(resource, grant));
+
+        Assert.Equal(ResourcePermissionGrantEffectivenessState.Applied, status.State);
+        Assert.Equal(RabbitMQResourceTypeProvider.ProviderId, status.ProviderId);
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Get, request.Method);
+        Assert.Equal(
+            "http://localhost:15672/api/permissions/%2F/cloudshell-api",
+            request.Uri);
+    }
+
+    [Fact]
+    public async Task ManagementApiStatusProvider_ReportsDriftedWhenBrokerPermissionIsMissing()
+    {
+        var handler = new RecordingHttpMessageHandler
+        {
+            OnSend = request => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new RabbitMQObservedPermissions(
+                    Configure: string.Empty,
+                    Write: string.Empty,
+                    Read: ".*"))
+            }
+        };
+        var provider = CreateStatusProvider(
+            handler,
+            new FixedRabbitMQPrincipalCredentialProvider("cloudshell-api", "broker-secret"));
+        var resource = CreateResourceManagerRabbitMQResource(withManagementEndpoint: true);
+        var grant = CreateGrant(resource, RabbitMQResourceOperationPermissions.Publish);
+
+        var status = await provider.GetStatusAsync(
+            new ResourcePermissionGrantStatusRequest(resource, grant));
+
+        Assert.Equal(ResourcePermissionGrantEffectivenessState.Drifted, status.State);
+    }
+
+    [Fact]
+    public async Task ManagementApiStatusProvider_ReportsNotAppliedWhenBrokerPermissionDoesNotExist()
+    {
+        var handler = new RecordingHttpMessageHandler
+        {
+            OnSend = request => new HttpResponseMessage(HttpStatusCode.NotFound)
+        };
+        var provider = CreateStatusProvider(
+            handler,
+            new FixedRabbitMQPrincipalCredentialProvider("cloudshell-api", "broker-secret"));
+        var resource = CreateResourceManagerRabbitMQResource(withManagementEndpoint: true);
+        var grant = CreateGrant(resource, RabbitMQResourceOperationPermissions.Consume);
+
+        var status = await provider.GetStatusAsync(
+            new ResourcePermissionGrantStatusRequest(resource, grant));
+
+        Assert.Equal(ResourcePermissionGrantEffectivenessState.NotApplied, status.State);
+    }
+
+    [Fact]
+    public async Task RabbitMQPermissionGrantStatusProvider_DelegatesBrokerGrantStatusWhenInspectorIsRegistered()
+    {
+        var handler = new RecordingHttpMessageHandler
+        {
+            OnSend = request => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new RabbitMQObservedPermissions(
+                    Configure: string.Empty,
+                    Write: string.Empty,
+                    Read: ".*"))
+            }
+        };
+        var statusProvider = new RabbitMQPermissionGrantStatusProvider(
+            [
+                CreateStatusProvider(
+                    handler,
+                    new FixedRabbitMQPrincipalCredentialProvider("cloudshell-api", "broker-secret"))
+            ]);
+        var resource = CreateResourceManagerRabbitMQResource(withManagementEndpoint: true);
+        var grant = CreateGrant(resource, RabbitMQResourceOperationPermissions.Consume);
+
+        var status = await statusProvider.GetStatusAsync(
+            new ResourcePermissionGrantStatusRequest(resource, grant));
+
+        Assert.Equal(ResourcePermissionGrantEffectivenessState.Applied, status.State);
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task RabbitMQPermissionGrantStatusProvider_ReportsReconcileAccessAsCloudShellApplied()
+    {
+        var statusProvider = new RabbitMQPermissionGrantStatusProvider();
+        var resource = CreateResourceManagerRabbitMQResource(withManagementEndpoint: false);
+        var grant = CreateGrant(resource, RabbitMQResourceOperationPermissions.ReconcileAccess);
+
+        var status = await statusProvider.GetStatusAsync(
+            new ResourcePermissionGrantStatusRequest(resource, grant));
+
+        Assert.Equal(ResourcePermissionGrantEffectivenessState.Applied, status.State);
+    }
+
     private static RabbitMQManagementApiAccessReconciler CreateReconciler(
         RecordingHttpMessageHandler handler,
         IRabbitMQPrincipalCredentialProvider credentialProvider)
@@ -131,6 +251,24 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
             })
             .Build();
         return new RabbitMQManagementApiAccessReconciler(
+            new SingleHttpClientFactory(new HttpClient(handler)),
+            configuration,
+            Options.Create(new RabbitMQManagementAccessOptions()),
+            credentialProvider);
+    }
+
+    private static RabbitMQManagementApiPermissionGrantEffectivenessProvider CreateStatusProvider(
+        RecordingHttpMessageHandler handler,
+        IRabbitMQPrincipalCredentialProvider credentialProvider)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                [RabbitMQResourceDefaults.UsernameConfigurationKey] = "admin",
+                [RabbitMQResourceDefaults.PasswordConfigurationKey] = "admin-secret"
+            })
+            .Build();
+        return new RabbitMQManagementApiPermissionGrantEffectivenessProvider(
             new SingleHttpClientFactory(new HttpClient(handler)),
             configuration,
             Options.Create(new RabbitMQManagementAccessOptions()),
@@ -157,12 +295,55 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
         return resolver.Resolve(definition);
     }
 
+    private static ResourceManagerResource CreateResourceManagerRabbitMQResource(
+        bool withManagementEndpoint)
+    {
+        var endpointMappings = withManagementEndpoint
+            ?
+            [
+                ResourceEndpointNetworkMapping.ForEndpoint(
+                    "application.rabbitmq:rabbitmq",
+                    "management",
+                    "http://localhost:15672")
+            ]
+            : Array.Empty<ResourceEndpointNetworkMapping>();
+        return new ResourceManagerResource(
+            "application.rabbitmq:rabbitmq",
+            "rabbitmq",
+            RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
+            RabbitMQResourceTypeProvider.ProviderId,
+            "local",
+            ResourceManagerResourceState.Unknown,
+            [
+                new ResourceEndpoint(
+                    "management",
+                    "http",
+                    ResourceExposureScope.Local,
+                    15672)
+            ],
+            "1",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
+            EndpointNetworkMappings: endpointMappings);
+    }
+
+    private static ResourcePermissionGrant CreateGrant(
+        ResourceManagerResource resource,
+        string permission) =>
+        new(
+            ResourcePrincipalReference.ForResourceIdentity(
+                "application.aspnet-core-project:api",
+                "default"),
+            resource.Id,
+            permission);
+
     private sealed class FixedRabbitMQPrincipalCredentialProvider(
         string userName,
         string password) : IRabbitMQPrincipalCredentialProvider
     {
         public RabbitMQPrincipalCredentials CreateCredentials(
-            ResourceModelResource resource,
+            string targetResourceId,
             ResourcePrincipalReference principal) =>
             new(userName, password);
     }
@@ -177,6 +358,8 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
     {
         public List<RecordedRequest> Requests { get; } = [];
 
+        public Func<HttpRequestMessage, HttpResponseMessage>? OnSend { get; set; }
+
         protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
@@ -188,7 +371,8 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
                 request.Content is null
                     ? string.Empty
                     : await request.Content.ReadAsStringAsync(cancellationToken)));
-            return new HttpResponseMessage(HttpStatusCode.NoContent);
+            return OnSend?.Invoke(request) ??
+                new HttpResponseMessage(HttpStatusCode.NoContent);
         }
     }
 

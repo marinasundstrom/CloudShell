@@ -41,7 +41,7 @@ public sealed record RabbitMQPrincipalCredentials(
 public interface IRabbitMQPrincipalCredentialProvider
 {
     RabbitMQPrincipalCredentials CreateCredentials(
-        Resource resource,
+        string targetResourceId,
         ResourcePrincipalReference principal);
 }
 
@@ -53,27 +53,27 @@ public sealed class DefaultRabbitMQPrincipalCredentialProvider(
     private readonly RabbitMQManagementAccessOptions options = options.Value;
 
     public RabbitMQPrincipalCredentials CreateCredentials(
-        Resource resource,
+        string targetResourceId,
         ResourcePrincipalReference principal)
     {
-        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentException.ThrowIfNullOrWhiteSpace(targetResourceId);
         ArgumentNullException.ThrowIfNull(principal);
 
         var userName = CreateUserName(principal, options.ManagedUserNamePrefix);
         return new RabbitMQPrincipalCredentials(
             userName,
-            CreatePassword(resource, principal));
+            CreatePassword(targetResourceId, principal));
     }
 
     private string CreatePassword(
-        Resource resource,
+        string targetResourceId,
         ResourcePrincipalReference principal)
     {
         var configuredSalt = configuration[options.ManagedUserPasswordSaltConfigurationKey];
         var salt = !string.IsNullOrWhiteSpace(configuredSalt)
             ? configuredSalt
             : ResolveManagementPassword(configuration, options);
-        var input = $"{salt}|{resource.EffectiveResourceId}|{principal.Id}";
+        var input = $"{salt}|{targetResourceId.Trim()}|{principal.Id}";
         return Convert
             .ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(input)))
             .Replace('+', '-')
@@ -236,7 +236,9 @@ public sealed class RabbitMQManagementApiAccessReconciler(
 
             if (!plans.TryGetValue(grant.Principal, out var plan))
             {
-                var credentials = credentialProvider.CreateCredentials(resource, grant.Principal);
+                var credentials = credentialProvider.CreateCredentials(
+                    resource.EffectiveResourceId,
+                    grant.Principal);
                 plan = new RabbitMQUserPermissionPlan(
                     grant.Principal,
                     credentials,
@@ -252,14 +254,9 @@ public sealed class RabbitMQManagementApiAccessReconciler(
 
     private AuthenticationHeaderValue CreateAuthorizationHeader()
     {
-        var userName = DefaultRabbitMQPrincipalCredentialProvider.ResolveManagementUserName(
+        return RabbitMQManagementApiHttp.CreateAuthorizationHeader(
             configuration,
             options);
-        var password = DefaultRabbitMQPrincipalCredentialProvider.ResolveManagementPassword(
-            configuration,
-            options);
-        var token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{userName}:{password}"));
-        return new AuthenticationHeaderValue("Basic", token);
     }
 
     private async Task EnsureUserAsync(
@@ -271,7 +268,10 @@ public sealed class RabbitMQManagementApiAccessReconciler(
             $"api/users/{Uri.EscapeDataString(plan.Credentials.UserName)}",
             new RabbitMQUserRequest(plan.Credentials.Password, Tags: string.Empty),
             cancellationToken);
-        await EnsureSuccessAsync(response, "create or update RabbitMQ user", cancellationToken);
+        await RabbitMQManagementApiHttp.EnsureSuccessAsync(
+            response,
+            "create or update RabbitMQ user",
+            cancellationToken);
     }
 
     private async Task EnsurePermissionsAsync(
@@ -286,58 +286,19 @@ public sealed class RabbitMQManagementApiAccessReconciler(
                 plan.Write ? ".*" : string.Empty,
                 plan.Read ? ".*" : string.Empty),
             cancellationToken);
-        await EnsureSuccessAsync(response, "apply RabbitMQ permissions", cancellationToken);
-    }
-
-    private static async Task EnsureSuccessAsync(
-        HttpResponseMessage response,
-        string operation,
-        CancellationToken cancellationToken)
-    {
-        if (response.IsSuccessStatusCode)
-        {
-            return;
-        }
-
-        var detail = await response.Content.ReadAsStringAsync(cancellationToken);
-        var message = string.IsNullOrWhiteSpace(detail)
-            ? $"RabbitMQ Management API failed to {operation}: {(int)response.StatusCode} {response.ReasonPhrase}."
-            : $"RabbitMQ Management API failed to {operation}: {(int)response.StatusCode} {response.ReasonPhrase}. {detail}";
-        throw new HttpRequestException(message);
+        await RabbitMQManagementApiHttp.EnsureSuccessAsync(
+            response,
+            "apply RabbitMQ permissions",
+            cancellationToken);
     }
 
     private static bool TryGetManagementUri(
         Resource resource,
-        out Uri managementUri)
-    {
-        var endpoint = resource.Attributes
-            .GetObject<NetworkingEndpointRequestValue[]>(
-                RabbitMQResourceTypeProvider.Attributes.EndpointRequests)?
-            .FirstOrDefault(endpoint =>
-                string.Equals(endpoint.Name, "management", StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(endpoint.Protocol, "http", StringComparison.OrdinalIgnoreCase) &&
-                !string.IsNullOrWhiteSpace(endpoint.Host) &&
-                endpoint.Port is > 0);
-        if (endpoint is not null &&
-            Uri.TryCreate(
-                $"http://{endpoint.Host!.Trim()}:{endpoint.Port!.Value}",
-                UriKind.Absolute,
-                out var endpointUri))
-        {
-            managementUri = endpointUri.AbsoluteUri.EndsWith("/", StringComparison.Ordinal)
-                ? endpointUri
-                : new Uri(endpointUri.AbsoluteUri + "/");
-            return true;
-        }
-
-        managementUri = null!;
-        return false;
-    }
+        out Uri managementUri) =>
+        RabbitMQManagementApiHttp.TryGetResourceModelManagementUri(resource, out managementUri);
 
     private static bool IsBrokerPermission(string permission) =>
-        string.Equals(permission, RabbitMQResourceOperationPermissions.Publish, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(permission, RabbitMQResourceOperationPermissions.Consume, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(permission, RabbitMQResourceOperationPermissions.Configure, StringComparison.OrdinalIgnoreCase);
+        RabbitMQManagementAccessRules.IsBrokerPermission(permission);
 
     private sealed record RabbitMQUserRequest(
         [property: JsonPropertyName("password")] string Password,
@@ -382,4 +343,231 @@ public sealed class RabbitMQManagementApiAccessReconciler(
             }
         }
     }
+}
+
+public interface IRabbitMQPermissionGrantEffectivenessProvider
+{
+    string ProviderId { get; }
+
+    bool CanGetStatus(ResourcePermissionGrantStatusRequest request);
+
+    Task<ResourcePermissionGrantStatus> GetStatusAsync(
+        ResourcePermissionGrantStatusRequest request,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class RabbitMQManagementApiPermissionGrantEffectivenessProvider(
+    IHttpClientFactory httpClientFactory,
+    IConfiguration configuration,
+    IOptions<RabbitMQManagementAccessOptions> options,
+    IRabbitMQPrincipalCredentialProvider credentialProvider) :
+    IRabbitMQPermissionGrantEffectivenessProvider
+{
+    private readonly RabbitMQManagementAccessOptions options = options.Value;
+
+    public string ProviderId => RabbitMQResourceTypeProvider.ProviderId;
+
+    public bool CanGetStatus(ResourcePermissionGrantStatusRequest request) =>
+        string.Equals(
+            request.TargetResource.EffectiveTypeId,
+            RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
+            StringComparison.OrdinalIgnoreCase) &&
+        RabbitMQManagementAccessRules.IsBrokerPermission(request.Grant.Permission);
+
+    public async Task<ResourcePermissionGrantStatus> GetStatusAsync(
+        ResourcePermissionGrantStatusRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request.Grant.ResourceIdentity is null)
+        {
+            return CreateStatus(
+                request,
+                ResourcePermissionGrantEffectivenessState.NotApplied,
+                "RabbitMQ broker permissions can only be materialized for resource identity grants.");
+        }
+
+        if (!RabbitMQManagementApiHttp.TryGetResourceManagerManagementUri(
+                request.TargetResource,
+                out var managementUri))
+        {
+            return CreateStatus(
+                request,
+                ResourcePermissionGrantEffectivenessState.Unknown,
+                "RabbitMQ broker permission status requires a resolved management endpoint.");
+        }
+
+        var credentials = credentialProvider.CreateCredentials(
+            request.TargetResource.Id,
+            request.Grant.Principal);
+        var client = httpClientFactory.CreateClient(RabbitMQManagementApiAccessReconciler.HttpClientName);
+        client.BaseAddress = managementUri;
+        client.DefaultRequestHeaders.Authorization =
+            RabbitMQManagementApiHttp.CreateAuthorizationHeader(configuration, options);
+
+        try
+        {
+            using var response = await client.GetAsync(
+                $"api/permissions/{Uri.EscapeDataString(ResolveVirtualHost())}/{Uri.EscapeDataString(credentials.UserName)}",
+                cancellationToken);
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return CreateStatus(
+                    request,
+                    ResourcePermissionGrantEffectivenessState.NotApplied,
+                    $"RabbitMQ user '{credentials.UserName}' does not have broker-native permissions for this virtual host.");
+            }
+
+            await RabbitMQManagementApiHttp.EnsureSuccessAsync(
+                response,
+                "read RabbitMQ permissions",
+                cancellationToken);
+            var permissions = await response.Content.ReadFromJsonAsync<RabbitMQObservedPermissions>(
+                cancellationToken);
+            if (permissions is null)
+            {
+                return CreateStatus(
+                    request,
+                    ResourcePermissionGrantEffectivenessState.Unknown,
+                    "RabbitMQ Management API returned an empty permission response.");
+            }
+
+            return RabbitMQManagementAccessRules.HasPermission(permissions, request.Grant.Permission)
+                ? CreateStatus(
+                    request,
+                    ResourcePermissionGrantEffectivenessState.Applied,
+                    "RabbitMQ broker-native permissions match the requested CloudShell grant.")
+                : CreateStatus(
+                    request,
+                    ResourcePermissionGrantEffectivenessState.Drifted,
+                    "RabbitMQ broker-native permissions do not include the requested CloudShell grant.");
+        }
+        catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException)
+        {
+            return CreateStatus(
+                request,
+                ResourcePermissionGrantEffectivenessState.Failed,
+                exception.Message);
+        }
+    }
+
+    private string ResolveVirtualHost() =>
+        string.IsNullOrWhiteSpace(options.VirtualHost) ? "/" : options.VirtualHost.Trim();
+
+    private ResourcePermissionGrantStatus CreateStatus(
+        ResourcePermissionGrantStatusRequest request,
+        ResourcePermissionGrantEffectivenessState state,
+        string detail) =>
+        new(
+            request.Grant,
+            state,
+            detail,
+            ProviderId,
+            DateTimeOffset.UtcNow);
+}
+
+public sealed record RabbitMQObservedPermissions(
+    [property: JsonPropertyName("configure")] string? Configure = null,
+    [property: JsonPropertyName("write")] string? Write = null,
+    [property: JsonPropertyName("read")] string? Read = null);
+
+internal static class RabbitMQManagementAccessRules
+{
+    public static bool IsBrokerPermission(string permission) =>
+        string.Equals(permission, RabbitMQResourceOperationPermissions.Publish, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(permission, RabbitMQResourceOperationPermissions.Consume, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(permission, RabbitMQResourceOperationPermissions.Configure, StringComparison.OrdinalIgnoreCase);
+
+    public static bool HasPermission(
+        RabbitMQObservedPermissions permissions,
+        string grantPermission) =>
+        string.Equals(grantPermission, RabbitMQResourceOperationPermissions.Configure, StringComparison.OrdinalIgnoreCase)
+            ? HasPermissionExpression(permissions.Configure)
+            : string.Equals(grantPermission, RabbitMQResourceOperationPermissions.Publish, StringComparison.OrdinalIgnoreCase)
+                ? HasPermissionExpression(permissions.Write)
+                : string.Equals(grantPermission, RabbitMQResourceOperationPermissions.Consume, StringComparison.OrdinalIgnoreCase) &&
+                    HasPermissionExpression(permissions.Read);
+
+    private static bool HasPermissionExpression(string? expression) =>
+        !string.IsNullOrWhiteSpace(expression);
+}
+
+internal static class RabbitMQManagementApiHttp
+{
+    public static AuthenticationHeaderValue CreateAuthorizationHeader(
+        IConfiguration configuration,
+        RabbitMQManagementAccessOptions options)
+    {
+        var userName = DefaultRabbitMQPrincipalCredentialProvider.ResolveManagementUserName(
+            configuration,
+            options);
+        var password = DefaultRabbitMQPrincipalCredentialProvider.ResolveManagementPassword(
+            configuration,
+            options);
+        var token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{userName}:{password}"));
+        return new AuthenticationHeaderValue("Basic", token);
+    }
+
+    public static async Task EnsureSuccessAsync(
+        HttpResponseMessage response,
+        string operation,
+        CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var detail = await response.Content.ReadAsStringAsync(cancellationToken);
+        var message = string.IsNullOrWhiteSpace(detail)
+            ? $"RabbitMQ Management API failed to {operation}: {(int)response.StatusCode} {response.ReasonPhrase}."
+            : $"RabbitMQ Management API failed to {operation}: {(int)response.StatusCode} {response.ReasonPhrase}. {detail}";
+        throw new HttpRequestException(message);
+    }
+
+    public static bool TryGetResourceModelManagementUri(
+        Resource resource,
+        out Uri managementUri)
+    {
+        var endpoint = resource.Attributes
+            .GetObject<NetworkingEndpointRequestValue[]>(
+                RabbitMQResourceTypeProvider.Attributes.EndpointRequests)?
+            .FirstOrDefault(endpoint =>
+                string.Equals(endpoint.Name, "management", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(endpoint.Protocol, "http", StringComparison.OrdinalIgnoreCase) &&
+                !string.IsNullOrWhiteSpace(endpoint.Host) &&
+                endpoint.Port is > 0);
+        if (endpoint is not null &&
+            Uri.TryCreate(
+                $"http://{endpoint.Host!.Trim()}:{endpoint.Port!.Value}",
+                UriKind.Absolute,
+                out var endpointUri))
+        {
+            managementUri = EnsureTrailingSlash(endpointUri);
+            return true;
+        }
+
+        managementUri = null!;
+        return false;
+    }
+
+    public static bool TryGetResourceManagerManagementUri(
+        CloudShell.Abstractions.ResourceManager.Resource resource,
+        out Uri managementUri)
+    {
+        if (resource.TryGetResolvedEndpointUri("management", out var endpointUri))
+        {
+            managementUri = EnsureTrailingSlash(endpointUri);
+            return true;
+        }
+
+        managementUri = null!;
+        return false;
+    }
+
+    private static Uri EnsureTrailingSlash(Uri uri) =>
+        uri.AbsoluteUri.EndsWith("/", StringComparison.Ordinal)
+            ? uri
+            : new Uri(uri.AbsoluteUri + "/");
 }

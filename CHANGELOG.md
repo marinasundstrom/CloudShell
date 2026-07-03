@@ -41,6 +41,10 @@ on `git blame --follow`, and then by the broad type of change.
   compatible RabbitMQ runtimes, mapping CloudShell resource-identity publish,
   consume, and configure grants to broker-native users and virtual-host
   permissions without projecting credential material through resources.
+- Added RabbitMQ Management API-backed grant-status inspection so reconciled
+  publish, consume, and configure grants can report applied, drifted, not
+  applied, failed, or unknown based on observed broker-native virtual-host
+  permissions.
 - Added an intent-first resource authoring proposal that scopes a future
   smarter Resource Manager authoring UI for starting apps with AI assistance,
   drafting starter structures and `ResourceTemplate` graphs from high-level

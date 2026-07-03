@@ -186,17 +186,19 @@ and vhost permissions:
 The CloudShell `ReconcileAccess` grant authorizes the CloudShell operation and
 is not projected into a RabbitMQ broker permission.
 
-The current grant-status provider recognizes RabbitMQ grants and reports them
-as pending until a RabbitMQ runtime/provider can inspect and report effective
-broker-native state. This keeps requested CloudShell grants visible in
-Resource Manager while avoiding a false claim that status projection has
-observed the broker.
+The grant-status provider recognizes RabbitMQ grants. Without a runtime
+inspector it reports broker grants as pending. When the Management API status
+inspector is registered, it reads RabbitMQ virtual-host permissions and reports
+broker grants as applied, drifted, not applied, failed, or unknown based on
+observed broker-native state. `ReconcileAccess` is reported as a CloudShell
+operation grant because it is enforced by CloudShell authorization rather than
+RabbitMQ broker permissions.
 
 Future RabbitMQ runtime providers should reconcile requested grants into
 RabbitMQ-owned users, virtual-host permissions, credentials, or policy state
-without projecting secret values. Resource Manager should then distinguish
-requested CloudShell grants from effective RabbitMQ state so drift and failed
-reconciliation are visible.
+without projecting secret values. Runtime providers should also report
+effective broker-native state so Resource Manager can distinguish requested
+CloudShell grants from applied, missing, failed, or drifted broker state.
 
 Lifecycle actions, grant reconciliation, broker configuration operations, and
 provider failures should emit resource-scoped audit/activity events.
@@ -209,9 +211,9 @@ credential material, connection strings, or message payloads.
 - No RabbitMQ-specific workload client package or service-discovery helper yet.
 - No provider-owned projection of queues, exchanges, bindings, virtual hosts,
   users, or policies.
-- RabbitMQ permission grants can be reconciled through the Management API, but
-  effective grant-status projection still reports pending because broker-native
-  user and permission inspection is not implemented yet.
+- RabbitMQ permission grants can be reconciled and inspected through the
+  Management API, but no specialized Resource Manager access-control UI has
+  been added yet.
 - No RabbitMQ-specific audit/event schema beyond standard resource actions and
   reconciliation diagnostics yet.
 - No cluster or non-local RabbitMQ runtime provider yet.

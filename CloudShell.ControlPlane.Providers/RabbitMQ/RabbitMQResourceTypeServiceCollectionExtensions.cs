@@ -125,6 +125,8 @@ public static class RabbitMQResourceTypeServiceCollectionExtensions
         services.TryAddSingleton<
             IRabbitMQPrincipalCredentialProvider,
             DefaultRabbitMQPrincipalCredentialProvider>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IRabbitMQPermissionGrantEffectivenessProvider, RabbitMQManagementApiPermissionGrantEffectivenessProvider>());
         services.Replace(ServiceDescriptor.Singleton<
             IRabbitMQAccessReconciler,
             RabbitMQManagementApiAccessReconciler>());
