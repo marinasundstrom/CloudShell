@@ -611,7 +611,11 @@ listed here before pulling in broader proposal work.
    need a host configuration and data-root handoff so a development launcher
    can place CloudShell databases, data files, and provider-owned local state
    next to the launcher project instead of implicitly resolving everything from
-   the built-in host profile content root.
+   the built-in host profile content root. Track file-based C# launcher support
+   as a future extension of the same convention: a single C# launcher source
+   file should be able to declare the graph, read an adjacent
+   `appsettings.json` as delegated host configuration, and default to the
+   known local development host without requiring a project-backed AppHost.
 8. Stateful application foundation: continue the storage and volume-mapping
    path now that `cloudshell.storage`, `cloudshell.volume`, `AddVolume(...)`,
    and container app volume mounts exist. Runtime materialization diagnostics

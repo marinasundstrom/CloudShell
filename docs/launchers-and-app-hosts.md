@@ -228,6 +228,31 @@ experience. The stable experience is launching the language project that
 declares the resources. How daemon-oriented workflows evolve is separate from
 the launcher default.
 
+### Future: File-Based C# Launchers
+
+.NET file-based app support may allow a C# launcher to be authored as a single
+source file instead of a project-backed AppHost. The target developer gesture
+would be a small launcher file that declares the resource graph and runs
+directly through the .NET CLI, with an optional `appsettings.json` beside the
+file for the delegated host profile.
+
+This scenario should preserve the same C# launcher contract:
+
+- the C# file declares resources through the same Resource model builders
+- `appsettings.json` beside the file configures the launched host profile
+- `CloudShell:Launcher:*` settings still configure launcher mechanics
+- generated templates, state, and default data roots stay beside the launcher
+  file unless explicitly configured elsewhere
+- the launcher discovers or defaults to `CloudShell.LocalDevelopmentHost`
+  without source-referencing that host
+
+The implementation question is source location discovery. Project-backed
+launchers can use the AppHost project directory as the configuration and state
+root. File-based launchers need an equivalent source-file directory convention,
+preferably from .NET-provided file-based app metadata if available, with an
+explicit override as a fallback. This is tracked as future launcher work; it
+should not introduce a separate host composition model.
+
 Future local-development auth may add a launcher-friendly URL form for simple
 single-user scenarios, such as a loopback-only default token appended to the
 printed URL. That must be opt-in or development-only, short-lived or scoped to
