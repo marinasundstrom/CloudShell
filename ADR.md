@@ -68,6 +68,36 @@ The consistent behavior matters more than copying syntax. C# can use records
 and async methods, TypeScript can use promises and object-literal options, and
 Java can use fluent option classes and ordinary methods.
 
+### ADR-20260703-003: Model RabbitMQ as a managed broker resource before broker-native UI
+
+RabbitMQ should be modeled as a managed service resource, `application.rabbitmq`,
+instead of as a generic container application. The first local-development
+provider may use the `rabbitmq:3-management` container image behind the
+provider boundary, but the projected CloudShell resource is the broker
+service: identity, AMQP and management endpoints, lifecycle actions, optional
+storage attachment, generated details, and Control Plane API projection.
+
+RabbitMQ-native state such as virtual hosts, users, permissions, queues,
+exchanges, bindings, policies, federation, shovel, and cluster settings should
+remain broker/provider-owned until CloudShell deliberately models a portable
+subset. Resource Manager should initially expose generated details and a
+management endpoint rather than attempting to recreate the full RabbitMQ
+management experience. Specialized broker configuration UI can be added later
+for CloudShell-owned workflows as the resource model becomes more complex.
+
+Credentials for the local bootstrap user are provider-owned runtime
+configuration and must not be projected through resource attributes, templates,
+logs, diagnostics, or generated UI.
+
+Built-in service resources such as RabbitMQ and SQL Server should mature
+toward the same parity expectations as other managed environment services:
+resource identity support, explicit grants and permission reconciliation,
+auditable resource actions and provider operations, safe diagnostic/resource
+events, and generated UI that distinguishes requested access from effective
+provider state. Those concerns are intentionally deferred from the first
+RabbitMQ implementation slice, but they are part of the resource's required
+management story rather than optional polish.
+
 ## 2026-07-02
 
 ### ADR-20260702-003: Scope implicit local Docker container-app materialization by host instance

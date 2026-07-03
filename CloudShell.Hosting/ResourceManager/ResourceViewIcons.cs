@@ -34,6 +34,7 @@ internal static class ResourceViewIcons
             "entries" => new Icons.Regular.Size20.DocumentBulletList(),
             "secrets" => new Icons.Regular.Size20.KeyMultiple(),
             "database-item" or "databases" => new Icons.Regular.Size20.Database(),
+            "queue" or "broker" => new Icons.Regular.Size20.DataHistogram(),
             _ => CloudShell.Components.ResourceTypeIcons.FromName(normalized)
         };
     }

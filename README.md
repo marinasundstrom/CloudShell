@@ -66,6 +66,7 @@ Plane API.
 | Executable application | `application.executable` | Implemented for generic host-local commands, workers, tools, and emulators. |
 | Container app | `application.container-app` | Implemented for local container workloads; Docker is the first runtime target and orchestration diagnostics are still hardening. |
 | SQL Server | `application.sql-server` and `application.sql-database` | Implemented for local SQL Server in a container with volumes and database children; reusable non-local SQL support is future work. |
+| RabbitMQ | `application.rabbitmq` | Implemented for local RabbitMQ in a container with AMQP and management endpoints; specialized broker management UI is future work. |
 
 ## Current Capabilities
 
@@ -73,7 +74,7 @@ Plane API.
   endpoints, diagnostics, logs, traces, metrics, monitoring, and activity.
 - ResourceDefinition-backed graph declarations through code, templates, CLI,
   API, and launcher workflows.
-- Built-in providers for local applications, containers, SQL Server,
+- Built-in providers for local applications, containers, SQL Server, RabbitMQ,
   configuration, secrets, storage, networking, DNS/name mappings, load
   balancing, identity, logs, traces, and usage.
 - Resource-scoped authorization, configurable authentication, and EF Core

@@ -113,7 +113,7 @@ internal sealed class ResourceAttributeValueMapJsonConverter :
         {
             var value = property.Value.Deserialize<ResourceAttributeValue>(options) ??
                 throw new JsonException($"Could not deserialize resource attribute '{property.Name}'.");
-            FlattenAttributeValue([property.Name], value, attributes);
+            FlattenAttributeValue(SplitAttributePath(property.Name), value, attributes);
         }
 
         return new ResourceAttributeValueMap(attributes);
@@ -152,6 +152,14 @@ internal sealed class ResourceAttributeValueMapJsonConverter :
         {
             FlattenAttributeValue([.. path, name], childValue, attributes);
         }
+    }
+
+    private static IReadOnlyList<string> SplitAttributePath(string name)
+    {
+        var segments = name.Split(
+            '.',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return segments.Length == 0 ? [name] : segments;
     }
 
     private static bool ShouldTreatAsAttributeValue(

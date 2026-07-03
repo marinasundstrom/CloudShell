@@ -43,6 +43,7 @@ cloudShell
             cloudShellDataDirectory,
             "secrets-vault-definitions");
     });
+builder.Services.AddLocalRabbitMQDockerRuntime();
 
 builder.AddCloudShellUi(ui =>
 {

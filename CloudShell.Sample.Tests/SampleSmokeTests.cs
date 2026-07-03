@@ -190,6 +190,11 @@ public sealed class SampleSmokeTests
         };
         yield return new object[]
         {
+            "samples/RabbitMQMessaging/AppHost/CloudShell.RabbitMQMessagingAppHost.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
             "samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj",
             resourceHostPaths
         };
@@ -3128,6 +3133,13 @@ public sealed class SampleSmokeTests
             environment.Add(("ProjectReference__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("ProjectReference__ApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
         }
+        else if (sampleName == "RabbitMQMessaging")
+        {
+            environment.Add(("RabbitMQMessaging__DotNetEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("RabbitMQMessaging__JavaEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("RabbitMQMessaging__RabbitMQPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+            environment.Add(("RabbitMQMessaging__ManagementEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+        }
         else if (sampleName == "ReplicatedContainerHealth")
         {
             environment.Add(("ReplicatedContainerHealth__ApiPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
@@ -3193,6 +3205,11 @@ public sealed class SampleSmokeTests
         if (projectPath.Contains("/ProjectReference/", StringComparison.OrdinalIgnoreCase))
         {
             return "ProjectReference";
+        }
+
+        if (projectPath.Contains("/RabbitMQMessaging/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "RabbitMQMessaging";
         }
 
         if (projectPath.Contains("/ReplicatedContainerHealth/", StringComparison.OrdinalIgnoreCase))
@@ -3271,6 +3288,12 @@ public sealed class SampleSmokeTests
             [
                 "application:project-reference-api",
                 "application:project-reference-frontend"
+            ],
+            "RabbitMQMessaging" =>
+            [
+                "application:rabbitmq",
+                "application:rabbitmq-dotnet",
+                "application:rabbitmq-java"
             ],
             "ReplicatedContainerHealth" =>
             [
@@ -5167,6 +5190,17 @@ public sealed class SampleSmokeTests
                     "configuration.store:java-app-settings",
                     "secrets.vault:java-app-secrets",
                     "application.java-app:java-api"
+                ];
+            }
+
+            if (projectPath.Contains("/RabbitMQMessaging/", StringComparison.OrdinalIgnoreCase))
+            {
+                return
+                [
+                    "cloudshell.volume:rabbitmq-messaging-data",
+                    "application.rabbitmq:rabbitmq",
+                    "application.aspnet-core-project:rabbitmq-dotnet",
+                    "application.java-app:rabbitmq-java"
                 ];
             }
 

@@ -2848,6 +2848,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddDockerHostResourceType();
         services.AddContainerApplicationResourceType();
         services.AddSqlServerResourceType();
+        services.AddRabbitMQResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
@@ -2860,6 +2861,9 @@ public sealed class ResourceManagerIntegrationTests
             .WithImage("example/api:1.0");
         var sqlServer = graph
             .AddSqlServer("sql")
+            .UseContainerHost(host, DockerHostResourceTypeProvider.ResourceTypeId);
+        var rabbitMQ = graph
+            .AddRabbitMQ("rabbitmq")
             .UseContainerHost(host, DockerHostResourceTypeProvider.ResourceTypeId);
 
         var result = await service.ApplyTemplateAsync(
@@ -2881,16 +2885,21 @@ public sealed class ResourceManagerIntegrationTests
             resource.Id == container.EffectiveResourceId);
         var projectedSqlServer = Assert.Single(projectedResources, resource =>
             resource.Id == sqlServer.EffectiveResourceId);
+        var projectedRabbitMQ = Assert.Single(projectedResources, resource =>
+            resource.Id == rabbitMQ.EffectiveResourceId);
 
         Assert.Equal([host.EffectiveResourceId], projectedContainer.DependsOn);
         Assert.Equal([host.EffectiveResourceId], projectedSqlServer.DependsOn);
+        Assert.Equal([host.EffectiveResourceId], projectedRabbitMQ.DependsOn);
 
         var resolver = serviceProvider.GetRequiredService<ResourceModelGraphResourceResolver>();
         var containerResolution = await resolver.ResolveAsync(container.EffectiveResourceId);
         var sqlResolution = await resolver.ResolveAsync(sqlServer.EffectiveResourceId);
+        var rabbitMQResolution = await resolver.ResolveAsync(rabbitMQ.EffectiveResourceId);
 
         Assert.False(containerResolution.HasErrors, FormatDiagnostics(containerResolution.Diagnostics));
         Assert.False(sqlResolution.HasErrors, FormatDiagnostics(sqlResolution.Diagnostics));
+        Assert.False(rabbitMQResolution.HasErrors, FormatDiagnostics(rabbitMQResolution.Diagnostics));
 
         var projectionResolver = serviceProvider.GetRequiredService<ResourceProjectionResolver>();
         var containerProjection = Assert.IsType<ContainerApplicationResource>(
@@ -2901,9 +2910,14 @@ public sealed class ResourceManagerIntegrationTests
             await projectionResolver.GetResourceProjectionAsync(
                 sqlResolution.Target!,
                 new ResourceProjectionContext("local", "developer")));
+        var rabbitMQProjection = Assert.IsType<RabbitMQResource>(
+            await projectionResolver.GetResourceProjectionAsync(
+                rabbitMQResolution.Target!,
+                new ResourceProjectionContext("local", "developer")));
 
         Assert.Equal(host.EffectiveResourceId, containerProjection.ContainerHostResourceId);
         Assert.Equal(host.EffectiveResourceId, sqlProjection.ContainerHostResourceId);
+        Assert.Equal(host.EffectiveResourceId, rabbitMQProjection.ContainerHostResourceId);
     }
 
     [Fact]
@@ -5354,6 +5368,89 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.Equal("Executed Application Sql Server Reconcile Access for sql.", procedureResult.Message);
         Assert.Equal([sql.EffectiveResourceId], accessReconciler.ReconciledResourceIds);
+    }
+
+    [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesRabbitMQAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddNetworkResourceType();
+        services.AddCloudShellVolumeResourceType();
+        services.AddRabbitMQResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceGraphBuilder();
+        var volume = graph.AddVolume(
+            "rabbitmq-data",
+            path: "./Data/storage/rabbitmq");
+        var broker = graph
+            .AddRabbitMQ("rabbitmq")
+            .WithVersion("3")
+            .WithAmqpEndpoint(host: "localhost", port: 5672)
+            .WithManagementEndpoint(host: "localhost", port: 15672)
+            .MountVolume(volume, RabbitMQResourceDefaults.DataPath);
+
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("rabbitmq-app", environmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 7, 3, 12, 15, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedRabbitMQ = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == broker.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Service, projectedRabbitMQ.ResourceClass);
+        Assert.Equal(RabbitMQResourceTypeProvider.ProviderId, projectedRabbitMQ.Provider);
+        Assert.Equal(ResourceManagerResourceState.Unknown, projectedRabbitMQ.State);
+        Assert.Equal("3", projectedRabbitMQ.ResourceAttributes["version"]);
+        Assert.Equal(
+            [ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId, volume.EffectiveResourceId],
+            projectedRabbitMQ.DependsOn);
+        Assert.Contains(projectedRabbitMQ.ResourceActions, action =>
+            action.Id == "start" &&
+            action.Kind == ResourceActionKind.Start);
+        Assert.Contains(projectedRabbitMQ.ResourceActions, action =>
+            action.Id == "stop" &&
+            action.Kind == ResourceActionKind.Stop);
+        Assert.Contains(projectedRabbitMQ.ResourceActions, action =>
+            action.Id == "restart" &&
+            action.Kind == ResourceActionKind.Restart);
+        var amqp = Assert.Single(projectedRabbitMQ.Endpoints, endpoint => endpoint.Name == "amqp");
+        Assert.Equal("tcp", amqp.Protocol);
+        Assert.Equal(5672, amqp.TargetPort);
+        var management = Assert.Single(projectedRabbitMQ.Endpoints, endpoint => endpoint.Name == "management");
+        Assert.Equal("http", management.Protocol);
+        Assert.Equal(15672, management.TargetPort);
+        Assert.Contains(projectedRabbitMQ.ResourceEndpointNetworkMappings, mapping =>
+            mapping.Target.EndpointName == "management" &&
+            mapping.Address == "http://localhost:15672");
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveWithDependenciesAsync(broker.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        Assert.Equal(
+            [
+                broker.EffectiveResourceId,
+                ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId,
+                volume.EffectiveResourceId
+            ],
+            resolution.Resources.Select(resource => resource.EffectiveResourceId));
+        var capability = Assert.IsType<VolumeConsumerCapability>(
+            resolution.Target!.Capabilities.Get<VolumeConsumerCapability>());
+        Assert.Equal(volume.EffectiveResourceId, Assert.Single(capability.Mounts).Volume);
     }
 
     [Fact]

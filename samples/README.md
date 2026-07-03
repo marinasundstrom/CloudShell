@@ -37,6 +37,7 @@ target `CloudShell.LocalDevelopmentHost`.
 | `TypeScriptAppHost` | TypeScript launcher authoring and template apply. | Experimental launcher sample. |
 | `JavaAppHost` | Java launcher authoring and template apply. | Experimental launcher sample. |
 | `GoAppHost` | Go launcher authoring and template apply. | Experimental launcher sample. |
+| `RabbitMQMessaging` | C# launcher authoring for a RabbitMQ broker with .NET and Java app resources exchanging fan-out events. | Preferred broker-backed app topology sample. |
 
 ## Host composition samples
 
@@ -54,6 +55,7 @@ provider boundaries.
 | Sample | Primary scenario | Current Resource model status |
 | --- | --- | --- |
 | `ProjectReference` | ASP.NET Core project-to-project service discovery, logs, health, and traces. | Uses a C# launcher AppHost against `CloudShell.LocalDevelopmentHost`; old application-provider project records are no longer declared. |
+| `RabbitMQMessaging` | RabbitMQ broker-backed communication between .NET and Java app resources. | Uses a C# launcher AppHost against `CloudShell.LocalDevelopmentHost`; the shared local host owns RabbitMQ Docker materialization while the workload apps use their native RabbitMQ clients. |
 | `SettingsAndSecrets` | Resource model Configuration Store and Secrets Vault consumed by an ASP.NET Core project. | Switched to the Resource model provider path; old application/configuration/secrets provider records are no longer declared. |
 | `ThirdPartyIdentity` | Keycloak-backed identity setup and protected Configuration Store access. | Switched to the Resource model provider path; Keycloak setup and API identity environment remain sample-local runtime seams. |
 | `ApplicationTopology` | Multi-resource app topology across storage, SQL, configuration, secrets, identity, DNS, and project resources. | Switched to the Resource model provider path; SQL Docker, configuration, and secrets runtime behavior now use provider-owned adapters, while the SQL credential endpoint remains sample-local. |

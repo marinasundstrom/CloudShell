@@ -53,6 +53,7 @@ state and omitted from accepted graph state and normal exports.
 | `application.container-app` | `container` | `applications.container-app` | User-authored deployable container app. |
 | `application.sql-server` | `service` | `applications.sql-server` | User-authored local-development SQL Server. |
 | `application.sql-database` | `service` | `applications.sql-database` | User-authored SQL database child/resource. |
+| `application.rabbitmq` | `service` | `applications.rabbitmq` | User-authored local-development RabbitMQ broker. |
 | `cloudshell.service` | `service` | `cloudshell.service` | Optional logical service facade. |
 | `configuration.store` | `configuration` | `configuration` | User-authored configuration service. |
 | `configuration.host` | `configuration` | `host-configuration` | Usually host/provider-authored configuration source. |
@@ -181,6 +182,51 @@ resources:
 
 Use this pattern when the database should be inspectable, grantable, or
 reconciled separately from the SQL Server runtime.
+
+### RabbitMQ With Management UI And Durable Storage
+
+RabbitMQ is a service resource. The broker owns AMQP connectivity and the
+management endpoint, while the volume owns durable local broker state.
+
+```yaml
+resources:
+  - type: cloudshell.volume
+    name: rabbitmq-data
+    storage:
+      volume:
+        medium: FileSystem
+        accessMode: ReadWriteOnce
+        persistent: true
+
+  - type: application.rabbitmq
+    name: rabbitmq
+    dependsOn:
+      - resourceId: cloudshell.volume:rabbitmq-data
+        typeId: cloudshell.volume
+    version: "3"
+    endpointRequests:
+      - name: amqp
+        protocol: tcp
+        targetPort: 5672
+        port: 5672
+        exposure: Local
+      - name: management
+        protocol: http
+        targetPort: 15672
+        port: 15672
+        exposure: Local
+    storage:
+      volume:
+        mounts:
+          - volume: cloudshell.volume:rabbitmq-data
+            targetPath: /var/lib/rabbitmq
+```
+
+Use this pattern when applications need a local message broker. Resource
+Manager shows the broker as a managed service and links the management
+endpoint; RabbitMQ-native queues, exchanges, bindings, users, virtual hosts,
+and policies remain in the RabbitMQ management UI until CloudShell adds
+specialized broker configuration tabs.
 
 ### Application Exposure With Load Balancer And DNS Name Mapping
 
@@ -585,6 +631,45 @@ resources:
     database:
       name: app
       ensureCreated: true
+```
+
+### `application.rabbitmq`
+
+Use for a local-development RabbitMQ broker service, typically materialized
+through a container host.
+
+Required authoring:
+
+- `version` defaults to `3` and must not be empty
+
+Common optional attributes:
+
+- `rabbitmq.managementUi`
+- `endpointRequests`
+- `storage.volume.mounts`
+- `dependsOn` for an explicit `cloudshell.container-host` or `docker.host`
+
+```yaml
+resources:
+  - type: application.rabbitmq
+    name: rabbitmq
+    dependsOn:
+      - resourceId: cloudshell.container-host:default
+        typeId: cloudshell.container-host
+    version: "3"
+    rabbitmq:
+      managementUi: true
+    endpointRequests:
+      - name: amqp
+        protocol: tcp
+        targetPort: 5672
+        port: 5672
+        exposure: Local
+      - name: management
+        protocol: http
+        targetPort: 15672
+        port: 15672
+        exposure: Local
 ```
 
 ### `cloudshell.service`

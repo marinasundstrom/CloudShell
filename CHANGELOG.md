@@ -20,6 +20,17 @@ on `git blame --follow`, and then by the broad type of change.
 - Added Resource Manager diagnostics for resources that declare required
   persistent volume target paths but do not have a declared volume mount,
   including the SQL Server data path warning for `/var/opt/mssql`.
+- Added `application.rabbitmq` as a managed RabbitMQ broker service resource
+  with ResourceDefinition builders, AMQP and management endpoint projection,
+  optional volume mounting at `/var/lib/rabbitmq`, standard lifecycle actions,
+  generated Resource Manager UI registration, and an opt-in local Docker
+  runtime adapter using `rabbitmq:3-management`. `CloudShell.LocalDevelopmentHost`
+  registers the runtime for launcher-authored resources, and
+  `samples/RabbitMQMessaging` demonstrates .NET and Java app resources
+  exchanging fan-out events through the broker. Specialized broker-native
+  Resource Manager UI is deferred while the RabbitMQ management endpoint
+  remains the supported path for queues, exchanges, bindings, users, virtual
+  hosts, and policies; see ADR-20260703-003.
 - Added an intent-first resource authoring proposal that scopes a future
   smarter Resource Manager authoring UI for starting apps with AI assistance,
   drafting starter structures and `ResourceTemplate` graphs from high-level

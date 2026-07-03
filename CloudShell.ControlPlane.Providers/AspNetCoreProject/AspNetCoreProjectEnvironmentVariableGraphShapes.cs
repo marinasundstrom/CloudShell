@@ -76,6 +76,8 @@ public static class AspNetCoreProjectShapes
 }
 
 public sealed record AspNetCoreProjectEnvironmentVariableValue(
+    [property: System.Text.Json.Serialization.JsonConverter(
+        typeof(ApplicationEnvironmentVariableValueJsonConverter))]
     string? Value = null,
     ResourceConfigurationEntryReference? ConfigurationEntryRef = null,
     ResourceSecretReference? SecretRef = null);

@@ -100,6 +100,13 @@
   <Folder Name="/samples/ProjectReference/ServiceDefaults/">
     <Project Path="samples/ProjectReference/ServiceDefaults/CloudShell.ProjectReference.ServiceDefaults.csproj" />
   </Folder>
+  <Folder Name="/samples/RabbitMQMessaging/" />
+  <Folder Name="/samples/RabbitMQMessaging/AppHost/">
+    <Project Path="samples/RabbitMQMessaging/AppHost/CloudShell.RabbitMQMessagingAppHost.csproj" />
+  </Folder>
+  <Folder Name="/samples/RabbitMQMessaging/DotNetApi/">
+    <Project Path="samples/RabbitMQMessaging/DotNetApi/CloudShell.RabbitMQMessaging.DotNetApi.csproj" />
+  </Folder>
   <Folder Name="/samples/ResourceIdentityCredential/">
     <Project Path="samples/ResourceIdentityCredential/CloudShell.ResourceIdentityCredential.csproj" />
   </Folder>

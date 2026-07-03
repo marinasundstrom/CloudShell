@@ -12,7 +12,8 @@ internal static class BuiltInProviderResourceUiTypes
         IsJavaApp(resourceType) ||
         IsGoApp(resourceType) ||
         IsContainerApplication(resourceType) ||
-        IsSqlServer(resourceType);
+        IsSqlServer(resourceType) ||
+        IsRabbitMQ(resourceType);
 
     public static bool IsExecutableApplication(string? resourceType) =>
         string.Equals(
@@ -48,6 +49,12 @@ internal static class BuiltInProviderResourceUiTypes
         string.Equals(
             resourceType,
             SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
+            StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsRabbitMQ(string? resourceType) =>
+        string.Equals(
+            resourceType,
+            RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
             StringComparison.OrdinalIgnoreCase);
 
     public static bool IsSqlDatabase(string? resourceType) =>
