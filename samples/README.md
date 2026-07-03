@@ -1,6 +1,48 @@
 # Samples
 
-This directory contains sample projects used to verify and demonstrate different CloudShell scenarios.
+This directory contains sample projects used to verify and demonstrate
+different CloudShell scenarios.
+
+## Sample authoring policy
+
+New application and resource-authoring samples should use a launcher whenever
+the sample is proving ordinary user authoring. The sample app host should
+declare a `ResourceTemplate`, then run or target `CloudShell.LocalDevelopmentHost`
+through the launcher/CLI path. It should not define a full CloudShell Control
+Plane host just to declare resources.
+
+Use a custom C# host sample only when the point of the sample is host
+composition or host-owned behavior, such as:
+
+- building a Control Plane or UI host
+- demonstrating split hosting
+- registering a UI extension, Resource Manager UI extension, provider, or
+  runtime adapter that is not installed in `CloudShell.LocalDevelopmentHost`
+- proving a sample-local runtime seam that has not moved behind a provider
+  package yet
+
+When a full host remains necessary, the sample README should say why. Once the
+required provider/runtime behavior is installed in the local development host
+profile, move the sample to a launcher shape.
+
+## Launcher samples
+
+These samples are the preferred proof path for language-specific app
+authoring. They declare resources outside the CloudShell host process and
+target `CloudShell.LocalDevelopmentHost`.
+
+| Sample | Primary scenario | Status |
+| --- | --- | --- |
+| `CSharpAppHost` | C# launcher authoring with Resource Model builders. | Preferred C# app-authoring sample. |
+| `TypeScriptAppHost` | TypeScript launcher authoring and template apply. | Experimental launcher sample. |
+| `JavaAppHost` | Java launcher authoring and template apply. | Experimental launcher sample. |
+| `GoAppHost` | Go launcher authoring and template apply. | Experimental launcher sample. |
+
+## Host composition samples
+
+These samples intentionally define CloudShell hosts because the host itself, a
+split-hosting topology, or sample-local host registration is part of what they
+prove.
 
 ## Supported sample status
 
@@ -22,6 +64,11 @@ provider boundaries.
 | `HostVirtualNetwork` | Host-local virtual network endpoint mapping. | Switched to the new projection only; endpoint mapping now uses the provider-owned graph endpoint-mapping reconciler and the Control Plane local host-network provisioner, while CoreDNS file publishing remains sample-local. |
 | `LoadBalancer` | Resource model load-balancer routes and DNS/name mapping. | Uses Resource model definitions with provider-owned graph DNS reconciliation; Traefik route translation remains sample-local until load-balancer runtime integration moves fully into providers. |
 | `SplitHosting` | Remote UI rendering Resource Definitions-backed resources through a separate Control Plane. | Switched to the new projection only; the old direct Resource Manager comparison record and toggle have been removed. |
+
+Samples such as `ProjectReference`, `SettingsAndSecrets`,
+`ApplicationTopology`, `JavaScriptApp`, `JavaApp`, and `GoApp` are candidates
+to migrate to launcher form when their remaining sample-local host seams are
+available through `CloudShell.LocalDevelopmentHost`.
 
 ## Creating a new sample
 

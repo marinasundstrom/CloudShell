@@ -9,6 +9,7 @@
     <Project Path="Launchers/CSharp/CloudShell.AppHost.Launcher/CloudShell.AppHost.Launcher.csproj" />
     <Project Path="Launchers/CSharp/CloudShell.AppHost.Launcher.Tests/CloudShell.AppHost.Launcher.Tests.csproj" />
   </Folder>
+  <Folder Name="/Launchers/Go/" />
   <Folder Name="/Launchers/Java/" />
   <Folder Name="/Launchers/TypeScript/" />
   <Folder Name="/samples/" />
@@ -64,6 +65,7 @@
   <Folder Name="/samples/GoApp/Host/">
     <Project Path="samples/GoApp/Host/CloudShell.GoAppHost.csproj" />
   </Folder>
+  <Folder Name="/samples/GoAppHost/" />
   <Folder Name="/samples/JavaAppHost/" />
   <Folder Name="/samples/JavaScriptContainerApp/" />
   <Folder Name="/samples/JavaScriptContainerApp/Host/">

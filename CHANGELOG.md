@@ -21,6 +21,16 @@ on `git blame --follow`, and then by the broad type of change.
   launchers, Control Plane clients, Configuration Store and Secrets Vault
   runtime clients, and resource builder API parity across language
   integrations.
+- Added initial Go launcher support under `Launchers/Go/cloudshell` with
+  hand-authored ResourceTemplate builders for Go apps, Configuration Store,
+  Secrets Vault, and host networks; template/apply/start/run helpers; package
+  tests; and a `samples/GoAppHost` launcher sample that targets the local
+  development host. This is Go launcher support only; provider authoring
+  remains C#-only.
+- Clarified sample authoring guidance so ordinary application/resource
+  authoring samples use launchers against `CloudShell.LocalDevelopmentHost`,
+  while full C# host samples are reserved for host composition, split hosting,
+  host-local extensions, or temporary sample-local runtime seams.
 - Added `application.go-app` as a first-class Go app resource with C#
   ResourceGraph builders, local `go run` or binary-backed process lifecycle
   operations, logs, monitoring, endpoint projection, service-reference binding

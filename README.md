@@ -35,6 +35,7 @@ with an operational experience inspired by the .NET Aspire Dashboard.
 | C# launchers and resource builders | Most complete authoring path today. |
 | JavaScript/TypeScript launchers | Active work; experimental until default run behavior, packaging, and samples are stable. |
 | Java launchers | Active work; experimental until default run behavior, packaging, and samples are stable. |
+| Go launchers | Experimental initial ResourceTemplate builder and local host launcher sample. |
 | Control Plane API and remote client | Available for automation, split hosting, and integrations. |
 | Runtime service clients | Configuration, secrets, and SQL client paths exist for workloads that consume CloudShell-managed services. |
 
@@ -61,7 +62,7 @@ Plane API.
 | ASP.NET Core project | `application.aspnet-core-project` | Implemented; most complete project-backed app path. |
 | JavaScript/TypeScript app | `application.javascript-app` | Implemented for Node.js/package-manager local apps; framework-specific helpers are future work. |
 | Java/JVM app | `application.java-app` | Implemented for local JVM processes and samples; Java service-client and launcher support remain experimental. |
-| Go app | `application.go-app` | Implemented for local Go services through the C# provider model; Go launcher support is future work. |
+| Go app | `application.go-app` | Implemented for local Go services through the C# provider model; Go launcher support is experimental. |
 | Executable application | `application.executable` | Implemented for generic host-local commands, workers, tools, and emulators. |
 | Container app | `application.container-app` | Implemented for local container workloads; Docker is the first runtime target and orchestration diagnostics are still hardening. |
 | SQL Server | `application.sql-server` and `application.sql-database` | Implemented for local SQL Server in a container with volumes and database children; reusable non-local SQL support is future work. |

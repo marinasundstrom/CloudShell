@@ -18,6 +18,7 @@ Current launcher packages:
 - `CSharp/CloudShell.AppHost.Launcher`
 - `TypeScript/cloudshell`
 - `Java/cloudshell-launcher`
+- `Go/cloudshell`
 
 ## Default Run Contract
 

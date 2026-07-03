@@ -6,9 +6,9 @@ the CloudShell local development resource graph. These resources project as
 
 CloudShell provider authoring is currently C#-only. The built-in Go app
 provider is implemented in C#, and Go workloads integrate as managed
-application resources. Future Go launchers or SDK clients can emit templates
-or call the Control Plane API, but provider implementation remains a C#
-extension boundary for now.
+application resources. The experimental Go launcher under
+`Launchers/Go/cloudshell` can emit templates or call the Control Plane API,
+but provider implementation remains a C# extension boundary for now.
 
 For shared application-provider behavior, see
 [Application resources](application-resources.md). For related resource types,
@@ -60,25 +60,34 @@ The projection changes the Resource Manager resource to
 `project.path`, `go.command`, `go.packagePath`, `go.binaryPath`, and
 `go.arguments`.
 
-## Sample
+## Samples
 
-The `samples/GoApp` sample declares:
+The preferred Go authoring sample is `samples/GoAppHost`. It uses a Go
+launcher program to declare:
 
 - an `application.go-app` API rooted at `samples/GoApp/App`
 - Configuration Store and Secrets Vault resources referenced by the Go app
 - endpoint, health, logs, monitoring, and environment projection through
   Resource Manager
 
-Run the app host in a foreground terminal:
+Run the launcher-owned local development host in a foreground terminal:
 
 ```bash
-samples/GoApp/cloudshell.sh run-no-auth
+samples/GoAppHost/cloudshell.sh run-no-auth
 ```
 
 From a second terminal, open the Web UI, list resources, and start the Go app:
 
 ```bash
-samples/GoApp/cloudshell.sh open
-samples/GoApp/cloudshell.sh resources
-samples/GoApp/cloudshell.sh start-app
+samples/GoAppHost/cloudshell.sh open
+samples/GoAppHost/cloudshell.sh resources
+samples/GoAppHost/cloudshell.sh start-app
 ```
+
+This is Go resource authoring and host launch support, not a Go provider
+implementation. It targets `CloudShell.LocalDevelopmentHost` rather than
+defining a custom CloudShell host.
+
+The older `samples/GoApp` full-host sample exists only for provider/host
+composition coverage while the Go provider path is being proven. It should not
+be used as the default Go app authoring example.
