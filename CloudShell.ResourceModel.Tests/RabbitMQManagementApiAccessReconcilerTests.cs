@@ -239,6 +239,111 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
         Assert.Equal(ResourcePermissionGrantEffectivenessState.Applied, status.State);
     }
 
+    [Fact]
+    public async Task ManagementApiTopologyProvider_ReadsQueuesAndExchanges()
+    {
+        var handler = new RecordingHttpMessageHandler
+        {
+            OnSend = request =>
+            {
+                var uri = request.RequestUri?.AbsoluteUri ?? string.Empty;
+                if (uri.Contains("/api/queues/", StringComparison.OrdinalIgnoreCase))
+                {
+                    return JsonResponse(
+                        """
+                        [
+                          {
+                            "name": "rabbitmq-dotnet-events",
+                            "vhost": "/",
+                            "durable": true,
+                            "auto_delete": false,
+                            "exclusive": false,
+                            "state": "running",
+                            "messages": 3,
+                            "consumers": 1,
+                            "type": "classic"
+                          }
+                        ]
+                        """);
+                }
+
+                return JsonResponse(
+                    """
+                    [
+                      {
+                        "name": "",
+                        "vhost": "/",
+                        "type": "direct",
+                        "durable": true,
+                        "auto_delete": false,
+                        "internal": false
+                      },
+                      {
+                        "name": "cloudshell.sample.events",
+                        "vhost": "/",
+                        "type": "fanout",
+                        "durable": true,
+                        "auto_delete": false,
+                        "internal": false
+                      }
+                    ]
+                    """);
+            }
+        };
+        var provider = CreateTopologyProvider(handler);
+        var resource = CreateResourceManagerRabbitMQResource(withManagementEndpoint: true);
+
+        var topology = await provider.GetTopologyAsync(resource);
+
+        Assert.True(topology.Succeeded, topology.ErrorMessage);
+        Assert.Equal("/", topology.VirtualHost);
+        var queue = Assert.Single(topology.Queues);
+        Assert.Equal("rabbitmq-dotnet-events", queue.Name);
+        Assert.Equal("classic", queue.Type);
+        Assert.Equal("running", queue.State);
+        Assert.Equal(3, queue.Messages);
+        Assert.Equal(1, queue.Consumers);
+        Assert.True(queue.Durable);
+        Assert.False(queue.AutoDelete);
+        Assert.False(queue.Exclusive);
+
+        Assert.Equal(2, topology.Exchanges.Count);
+        Assert.Equal(string.Empty, topology.Exchanges[0].Name);
+        Assert.Equal("cloudshell.sample.events", topology.Exchanges[1].Name);
+        Assert.Equal("fanout", topology.Exchanges[1].Type);
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(
+            "http://localhost:15672/api/queues/%2F?disable_stats=true",
+            handler.Requests[0].Uri);
+        Assert.Equal(
+            "http://localhost:15672/api/exchanges/%2F?disable_stats=true",
+            handler.Requests[1].Uri);
+        var expectedAuthorization = Convert.ToBase64String(
+            Encoding.UTF8.GetBytes("admin:admin-secret"));
+        Assert.All(handler.Requests, request =>
+        {
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Equal("Basic", request.Authorization?.Scheme);
+            Assert.Equal(expectedAuthorization, request.Authorization?.Parameter);
+        });
+    }
+
+    [Fact]
+    public async Task ManagementApiTopologyProvider_ReportsUnavailableWhenManagementEndpointIsMissing()
+    {
+        var handler = new RecordingHttpMessageHandler();
+        var provider = CreateTopologyProvider(handler);
+        var resource = CreateResourceManagerRabbitMQResource(withManagementEndpoint: false);
+
+        var topology = await provider.GetTopologyAsync(resource);
+
+        Assert.False(topology.Succeeded);
+        Assert.Equal("/", topology.VirtualHost);
+        Assert.Contains("resolved management endpoint", topology.ErrorMessage);
+        Assert.Empty(handler.Requests);
+    }
+
     private static RabbitMQManagementApiAccessReconciler CreateReconciler(
         RecordingHttpMessageHandler handler,
         IRabbitMQPrincipalCredentialProvider credentialProvider)
@@ -274,6 +379,31 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
             Options.Create(new RabbitMQManagementAccessOptions()),
             credentialProvider);
     }
+
+    private static RabbitMQManagementApiBrokerTopologyProvider CreateTopologyProvider(
+        RecordingHttpMessageHandler handler)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                [RabbitMQResourceDefaults.UsernameConfigurationKey] = "admin",
+                [RabbitMQResourceDefaults.PasswordConfigurationKey] = "admin-secret"
+            })
+            .Build();
+        return new RabbitMQManagementApiBrokerTopologyProvider(
+            new SingleHttpClientFactory(new HttpClient(handler)),
+            configuration,
+            Options.Create(new RabbitMQManagementAccessOptions()));
+    }
+
+    private static HttpResponseMessage JsonResponse(string json) =>
+        new(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                json,
+                Encoding.UTF8,
+                "application/json")
+        };
 
     private static ResourceModelResource CreateRabbitMQResource(
         bool withManagementEndpoint)

@@ -141,10 +141,15 @@ host configuration when supplied and does not project those values through
 Resource attributes, logs, or templates.
 
 Registering `AddLocalRabbitMQDockerRuntime(...)` also enables the
-RabbitMQ Management API access reconciler. The reconciler uses the resolved
-`management` endpoint and provider-owned administrator credentials to
-materialize CloudShell resource-identity grants as RabbitMQ-native users and
-virtual-host permissions. Hosts can register the same reconciler directly with
+RabbitMQ Management API access reconciler and topology reader. The reconciler
+uses the resolved `management` endpoint and provider-owned administrator
+credentials to materialize CloudShell resource-identity grants as
+RabbitMQ-native users and virtual-host permissions. The topology reader uses
+the same provider-owned credential boundary and reads broker-native queues and
+exchanges for the configured virtual host through the RabbitMQ Management HTTP
+API.
+
+Hosts can register the same management API integration directly with
 `AddRabbitMQManagementApiAccessReconciler(...)` when a non-Docker runtime
 exposes the RabbitMQ management API.
 
@@ -158,9 +163,16 @@ contracts, resolved AMQP and management addresses, access reconciliation
 availability, and a link to the RabbitMQ management UI when the management
 endpoint is mapped.
 
-The Broker tab is intentionally not a RabbitMQ-native administration console.
-It does not manage queues, exchanges, bindings, users, virtual hosts, policies,
-or cluster state.
+When a RabbitMQ Management API topology provider is registered, Resource
+Manager also contributes a read-only **Topology** tab. It lists queues and
+exchanges reported by the broker for the configured virtual host. The view is
+diagnostic and operational: it shows broker-native names, durability,
+auto-delete/internal flags, queue state, message counts, and consumer counts
+without creating CloudShell child resources for those broker objects.
+
+The Broker and Topology tabs are intentionally not a RabbitMQ-native
+administration console. They do not create, update, or delete queues,
+exchanges, bindings, users, virtual hosts, policies, or cluster state.
 
 The management endpoint remains the supported path for broker-native
 configuration until those workflows are deliberately modeled in CloudShell.
@@ -213,11 +225,13 @@ credential material, connection strings, or message payloads.
 
 ## Known Gaps
 
-- No specialized Resource Manager broker configuration UI for queues,
-  exchanges, bindings, users, virtual hosts, policies, or cluster state yet.
+- No specialized Resource Manager broker configuration UI for creating,
+  updating, or deleting queues, exchanges, bindings, users, virtual hosts,
+  policies, or cluster state yet.
 - No RabbitMQ-specific workload client package or service-discovery helper yet.
-- No provider-owned projection of queues, exchanges, bindings, virtual hosts,
-  users, or policies.
+- Queues and exchanges are visible through the read-only broker topology tab,
+  but they are not projected as CloudShell child resources and bindings,
+  virtual hosts, users, and policies are not surfaced yet.
 - RabbitMQ permission grants can be reconciled and inspected through the
   Management API, but no specialized Resource Manager access-control UI has
   been added yet.

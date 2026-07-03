@@ -1,0 +1,218 @@
+@using System.Globalization
+@inject IResourceManager ResourceManager
+@inject IRabbitMQBrokerTopologyProvider TopologyProvider
+
+@if (Broker is null)
+{
+    <EmptyState Title="RabbitMQ broker is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
+}
+else if (!BuiltInProviderResourceUiTypes.IsRabbitMQ(Broker.EffectiveTypeId))
+{
+    <EmptyState Title="Topology is not supported"
+                Message="This resource type does not expose RabbitMQ topology." />
+}
+else
+{
+    <div class="blade-section-header">
+        <div>
+            <h3>Topology</h3>
+            <p>@GetTopologySummary()</p>
+        </div>
+        <FluentButton Appearance="Appearance.Neutral"
+                      IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                      Disabled="@IsLoading"
+                      OnClick="RefreshTopologyAsync">
+            @(IsLoading ? "Refreshing" : "Refresh")
+        </FluentButton>
+    </div>
+
+    @if (IsLoading)
+    {
+        <EmptyState Title="Loading topology"
+                    Message="CloudShell is reading RabbitMQ queues and exchanges." />
+    }
+    else if (Topology?.Succeeded == false)
+    {
+        <EmptyState Title="Topology is unavailable"
+                    Message="@Topology.ErrorMessage" />
+    }
+    else
+    {
+        <section class="blade-section">
+            <div class="blade-section-header">
+                <div>
+                    <h3>Queues</h3>
+                    <p>@GetQueueSummary()</p>
+                </div>
+            </div>
+            @if (Topology?.Queues.Count > 0)
+            {
+                <ResourceTable AriaLabel="RabbitMQ queues">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>State</th>
+                            <th>Messages</th>
+                            <th>Consumers</th>
+                            <th>Durable</th>
+                            <th>Auto delete</th>
+                            <th>Exclusive</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var queue in Topology.Queues)
+                        {
+                            <tr>
+                                <td>
+                                    <ResourceTableIdentity IconName="queue"
+                                                           IconTitle="Queue"
+                                                           Title="@FormatName(queue.Name)"
+                                                           Summary="@queue.VirtualHost" />
+                                </td>
+                                <td>@FormatNullable(queue.Type)</td>
+                                <td>@FormatNullable(queue.State)</td>
+                                <td>@FormatNumber(queue.Messages)</td>
+                                <td>@FormatNumber(queue.Consumers)</td>
+                                <td>@FormatBoolean(queue.Durable)</td>
+                                <td>@FormatBoolean(queue.AutoDelete)</td>
+                                <td>@FormatBoolean(queue.Exclusive)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </ResourceTable>
+            }
+            else
+            {
+                <EmptyState Title="No queues"
+                            Message="RabbitMQ did not report queues for this virtual host." />
+            }
+        </section>
+
+        <section class="blade-section">
+            <div class="blade-section-header">
+                <div>
+                    <h3>Exchanges</h3>
+                    <p>@GetExchangeSummary()</p>
+                </div>
+            </div>
+            @if (Topology?.Exchanges.Count > 0)
+            {
+                <ResourceTable AriaLabel="RabbitMQ exchanges">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Durable</th>
+                            <th>Auto delete</th>
+                            <th>Internal</th>
+                            <th>Virtual host</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var exchange in Topology.Exchanges)
+                        {
+                            <tr>
+                                <td>
+                                    <ResourceTableIdentity IconName="queue"
+                                                           IconTitle="Exchange"
+                                                           Title="@FormatName(exchange.Name)"
+                                                           Summary="@exchange.VirtualHost" />
+                                </td>
+                                <td>@exchange.Type</td>
+                                <td>@FormatBoolean(exchange.Durable)</td>
+                                <td>@FormatBoolean(exchange.AutoDelete)</td>
+                                <td>@FormatBoolean(exchange.Internal)</td>
+                                <td>@exchange.VirtualHost</td>
+                            </tr>
+                        }
+                    </tbody>
+                </ResourceTable>
+            }
+            else
+            {
+                <EmptyState Title="No exchanges"
+                            Message="RabbitMQ did not report exchanges for this virtual host." />
+            }
+        </section>
+    }
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private Resource? Broker { get; set; }
+    private RabbitMQBrokerTopologyResult? Topology { get; set; }
+    private bool IsLoading { get; set; }
+
+    protected override Task OnParametersSetAsync() => RefreshTopologyAsync();
+
+    private async Task RefreshTopologyAsync()
+    {
+        if (IsLoading)
+        {
+            return;
+        }
+
+        IsLoading = true;
+        try
+        {
+            Broker = string.IsNullOrWhiteSpace(ResourceId)
+                ? null
+                : await ResourceManager.GetResourceAsync(ResourceId);
+            Topology = Broker is null ||
+                !BuiltInProviderResourceUiTypes.IsRabbitMQ(Broker.EffectiveTypeId)
+                    ? null
+                    : await TopologyProvider.GetTopologyAsync(Broker);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private string GetTopologySummary()
+    {
+        if (Topology is null)
+        {
+            return "Read-only RabbitMQ queues and exchanges from the broker management API.";
+        }
+
+        if (!Topology.Succeeded)
+        {
+            return $"CloudShell could not read RabbitMQ topology for virtual host {Topology.VirtualHost}.";
+        }
+
+        return $"Virtual host {Topology.VirtualHost}: {Topology.Queues.Count.ToString(CultureInfo.InvariantCulture)} queue(s), {Topology.Exchanges.Count.ToString(CultureInfo.InvariantCulture)} exchange(s).";
+    }
+
+    private string GetQueueSummary()
+    {
+        var count = Topology?.Queues.Count ?? 0;
+        return count == 1
+            ? "1 queue was reported by RabbitMQ."
+            : $"{count.ToString(CultureInfo.InvariantCulture)} queues were reported by RabbitMQ.";
+    }
+
+    private string GetExchangeSummary()
+    {
+        var count = Topology?.Exchanges.Count ?? 0;
+        return count == 1
+            ? "1 exchange was reported by RabbitMQ."
+            : $"{count.ToString(CultureInfo.InvariantCulture)} exchanges were reported by RabbitMQ.";
+    }
+
+    private static string FormatName(string name) =>
+        string.IsNullOrEmpty(name) ? "(default)" : name;
+
+    private static string FormatNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "n/a" : value;
+
+    private static string FormatNumber(int? value) =>
+        value?.ToString(CultureInfo.InvariantCulture) ?? "n/a";
+
+    private static string FormatBoolean(bool value) =>
+        value ? "Yes" : "No";
+}

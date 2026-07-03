@@ -36,6 +36,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
     {
         builder.Services.TryAddScoped<IResourceDeploymentManager, EmptyResourceDeploymentManager>();
         builder.Services.TryAddScoped<IResourceReplicaSlotStateManager, EmptyResourceReplicaSlotStateManager>();
+        builder.Services.TryAddSingleton<IRabbitMQBrokerTopologyProvider, NoopRabbitMQBrokerTopologyProvider>();
 
         builder
             .AddResourceType<SharedPages.RegisterApplicationResource>(
@@ -495,6 +496,13 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 new ResourceViewId(ResourceTabGroupIds.Application, "broker"),
                 "Broker",
                 35,
+                groupTitle: "Messaging",
+                icon: "queue")
+            .AddResourceTab<RabbitMQPages.RabbitMQTopology>(
+                RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
+                new ResourceViewId(ResourceTabGroupIds.Application, "topology"),
+                "Topology",
+                40,
                 groupTitle: "Messaging",
                 icon: "queue")
             .AddResourceTab<SqlServerPages.SqlServerDatabases>(

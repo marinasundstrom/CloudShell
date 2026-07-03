@@ -223,10 +223,11 @@ resources:
 ```
 
 Use this pattern when applications need a local message broker. Resource
-Manager shows the broker as a managed service and links the management
-endpoint; RabbitMQ-native queues, exchanges, bindings, users, virtual hosts,
-and policies remain in the RabbitMQ management UI until CloudShell adds
-specialized broker configuration tabs.
+Manager shows the broker as a managed service, links the management endpoint,
+and can list broker-native queues and exchanges through the Management API.
+RabbitMQ-native creation and editing workflows for queues, exchanges,
+bindings, users, virtual hosts, and policies remain future specialized broker
+configuration work.
 
 ### Application Exposure With Load Balancer And DNS Name Mapping
 

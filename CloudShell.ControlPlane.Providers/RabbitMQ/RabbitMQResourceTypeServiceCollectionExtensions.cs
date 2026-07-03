@@ -77,6 +77,9 @@ public static class RabbitMQResourceTypeServiceCollectionExtensions
             IRabbitMQAccessReconciler,
             NoopRabbitMQAccessReconciler>();
         services.TryAddSingleton<
+            IRabbitMQBrokerTopologyProvider,
+            NoopRabbitMQBrokerTopologyProvider>();
+        services.TryAddSingleton<
             IRabbitMQPrincipalCredentialProvider,
             DefaultRabbitMQPrincipalCredentialProvider>();
         services.TryAddSingleton<
@@ -130,6 +133,9 @@ public static class RabbitMQResourceTypeServiceCollectionExtensions
         services.Replace(ServiceDescriptor.Singleton<
             IRabbitMQAccessReconciler,
             RabbitMQManagementApiAccessReconciler>());
+        services.Replace(ServiceDescriptor.Singleton<
+            IRabbitMQBrokerTopologyProvider,
+            RabbitMQManagementApiBrokerTopologyProvider>());
 
         return services;
     }

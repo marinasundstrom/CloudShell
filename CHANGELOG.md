@@ -49,6 +49,9 @@ on `git blame --follow`, and then by the broad type of change.
   state, projected AMQP and management endpoints, access reconciliation
   availability, and links to the RabbitMQ management UI without duplicating the
   broker-native administration surface.
+- Added a RabbitMQ Management API-backed topology reader and read-only
+  Resource Manager Topology tab for broker-native queues and exchanges,
+  keeping provider-owned credentials behind the RabbitMQ provider boundary.
 - Hardened sample smoke cleanup so runtime-scoped RabbitMQ sample containers
   left by interrupted Docker-backed smoke runs are removed by the shared sample
   cleanup fixture.
