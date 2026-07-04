@@ -21,6 +21,10 @@ var configurationStoreServiceProjectPath = Path.Combine(
     repositoryRootPath,
     "CloudShell.ConfigurationStoreService",
     "CloudShell.ConfigurationStoreService.csproj");
+var secretsVaultServiceProjectPath = Path.Combine(
+    repositoryRootPath,
+    "CloudShell.SecretsVaultService",
+    "CloudShell.SecretsVaultService.csproj");
 var identityIssuer = builder.Configuration["Authentication:BuiltInAuthority:Issuer"] ??
     "http://localhost";
 var identityAudience = builder.Configuration["Authentication:BuiltInAuthority:Audience"] ??
@@ -29,6 +33,8 @@ var identitySigningKeyPem = builder.Configuration["Authentication:BuiltInAuthori
     CreateDevelopmentSigningKeyPem();
 var registryEndpoint = builder.Configuration["Samples:DeviceRegistry:RegistryEndpoint"] ??
     "http://localhost:7150";
+var secretsEndpoint = builder.Configuration["Samples:DeviceRegistry:SecretsEndpoint"] ??
+    "http://localhost:7151";
 var configurationEndpoint = builder.Configuration["Samples:DeviceRegistry:ConfigurationEndpoint"] ??
     "http://localhost:7152";
 
@@ -56,6 +62,7 @@ var cloudShell = builder.AddCloudShellControlPlaneApplication(
             var vault = resources
                 .AddSecretsVault("factory")
                 .WithDisplayName("Factory Trust Vault")
+                .WithEndpoint(secretsEndpoint)
                 .WithSeed(seed => seed.Certificate(
                     "factory-ca",
                     "local-development-factory-ca"));
@@ -86,6 +93,17 @@ cloudShell
         runtime.ServiceAuthenticationAudience = identityAudience;
         runtime.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
         runtime.Entries.Add(new("Device:Mode", "factory-online"));
+    })
+    .UseSecretsVaultResourceProvider(runtime =>
+    {
+        runtime.ServiceProjectPath = secretsVaultServiceProjectPath;
+        runtime.ServiceWorkingDirectory = repositoryRootPath;
+        runtime.ServiceAuthenticationIssuer = identityIssuer;
+        runtime.ServiceAuthenticationAudience = identityAudience;
+        runtime.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
+        runtime.Certificates.Add(new(
+            "factory-ca",
+            "local-development-factory-ca"));
     })
     .UseDeviceRegistryResourceProvider(runtime =>
     {
