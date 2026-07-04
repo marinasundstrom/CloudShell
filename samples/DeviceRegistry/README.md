@@ -16,6 +16,10 @@ resource from CloudShell, then run the device app independently with
 principal credentials. The device app is intentionally not a CloudShell
 resource; it represents software running on the enrolled device.
 
+The launcher declares a group enrollment profile that grants matching devices
+read access to the Configuration Store entry. The registry expands that profile
+into permissions for the device identity created during enrollment.
+
 The generic device client sends basic device properties during enrollment,
 including platform, operating system, architecture, framework description,
 machine name, and processor count. Specialized clients can add more properties

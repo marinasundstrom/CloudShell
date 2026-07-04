@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
@@ -199,6 +200,46 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal("acme", claim.Value);
         Assert.True(dependency.TryGetDependsOnResourceId(out var dependencyResourceId));
         Assert.Equal("secrets.vault:vault", dependencyResourceId);
+    }
+
+    [Fact]
+    public void ResourceGraphBuilder_BuildsDeviceRegistryEnrollmentProfileAsProvisioningPolicy()
+    {
+        var graph = new ResourceGraphBuilder()
+            .DefineResources(resources =>
+            {
+                var settings = resources.AddConfigurationStore("device-settings");
+
+                resources
+                    .AddDeviceRegistry("devices")
+                    .UseEnrollmentProfile(profile =>
+                    {
+                        profile
+                            .AsIndividualEnrollment("device/test-pc")
+                            .RequireClaim("manufacturer", "acme")
+                            .GrantAccess(
+                                settings,
+                                ConfigurationStoreResourceOperationPermissions.ReadEntries);
+                    });
+            });
+
+        var definition = Assert.Single(
+            graph.BuildGraph().Resources,
+            resource => resource.TypeId == DeviceRegistryResourceTypeProvider.ResourceTypeId);
+        var profile = Assert.Single(definition.ResourceAttributeValues
+            .GetObject<DeviceEnrollmentProfile[]>(
+                DeviceRegistryResourceTypeProvider.Attributes.EnrollmentProfiles) ?? []);
+        var subject = Assert.Single(profile.Policy.Subjects);
+        var claim = Assert.Single(profile.Policy.RequiredClaims);
+        var grant = Assert.Single(profile.PermissionGrants);
+
+        Assert.Equal("default", profile.Name);
+        Assert.Equal(DeviceEnrollmentProfileKinds.Individual, profile.Kind);
+        Assert.Equal("device/test-pc", subject);
+        Assert.Equal("manufacturer", claim.Name);
+        Assert.Equal("acme", claim.Value);
+        Assert.Equal("configuration.store:device-settings", grant.TargetResourceId);
+        Assert.Equal(ConfigurationStoreResourceOperationPermissions.ReadEntries, grant.Permission);
     }
 
     [Fact]

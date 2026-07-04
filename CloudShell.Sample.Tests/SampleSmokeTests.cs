@@ -1401,8 +1401,6 @@ public sealed class SampleSmokeTests
         var deviceAppEndpoint = $"http://127.0.0.1:{deviceAppPort}";
         const string registryResourceId = "iot.device-registry:devices";
         const string configurationResourceId = "configuration.store:device-settings";
-        var subject = CreateCurrentDeviceSubject();
-        var deviceId = CreateDeviceId(registryResourceId, subject);
         var signingKeyPem = CreateDevelopmentSigningKeyPem();
         var configurationDefinitionsPath = Path.Combine(directory, "configuration-stores.json");
         var registryDefinitionsPath = Path.Combine(directory, "device-registries.json");
@@ -1447,21 +1445,31 @@ public sealed class SampleSmokeTests
                                 }
                             }
                         },
-                        permissionGrants = new[]
+                        enrollmentProfiles = new[]
                         {
                             new
                             {
-                                principal = new
+                                name = "default",
+                                policy = new
                                 {
-                                    kind = (int)ResourcePrincipalKind.DeviceIdentity,
-                                    id = $"{registryResourceId}/devices/{deviceId}",
-                                    displayName = subject,
-                                    providerId = "built-in",
-                                    sourceResourceId = registryResourceId,
-                                    sourceIdentityName = deviceId
+                                    subjectPrefixes = new[] { "device/" },
+                                    requiredClaims = new[]
+                                    {
+                                        new
+                                        {
+                                            name = "manufacturer",
+                                            value = "cloudshell"
+                                        }
+                                    }
                                 },
-                                targetResourceId = configurationResourceId,
-                                permission = ConfigurationStoreResourceOperationPermissions.ReadEntries
+                                permissionGrants = new[]
+                                {
+                                    new
+                                    {
+                                        targetResourceId = configurationResourceId,
+                                        permission = ConfigurationStoreResourceOperationPermissions.ReadEntries
+                                    }
+                                }
                             }
                         }
                     }

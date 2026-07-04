@@ -112,16 +112,57 @@ public sealed class DeviceRegistryProcessRuntimeController(
                     .GetObject<DeviceEnrollmentRequiredClaim[]>(
                         DeviceRegistryResourceTypeProvider.Attributes.RequiredClaims) ?? []
             },
-            permissionGrants = _options.PermissionGrants
+            enrollmentProfiles = GetEnrollmentProfiles(resource),
+            permissionGrants = GetLegacyPermissionGrants(resource)
+                .ToArray(),
+            healthChecks = Array.Empty<object>()
+        };
+
+    private IReadOnlyList<DeviceEnrollmentProfile> GetEnrollmentProfiles(Resource resource)
+    {
+        var profiles = resource.Attributes.GetObject<DeviceEnrollmentProfile[]>(
+            DeviceRegistryResourceTypeProvider.Attributes.EnrollmentProfiles);
+        if (profiles is { Length: > 0 })
+        {
+            return profiles;
+        }
+
+        var legacyGrants = GetLegacyPermissionGrants(resource)
+            .Select(grant => new DeviceEnrollmentPermissionGrant(
+                grant.TargetResourceId,
+                grant.Permission))
+            .ToArray();
+        if (legacyGrants.Length == 0)
+        {
+            return [];
+        }
+
+        return
+        [
+            new()
+            {
+                Name = "default",
+                Kind = DeviceEnrollmentProfileKinds.Group,
+                Policy = new()
+                {
+                    SubjectPrefixes = resource.Attributes.GetObject<string[]>(
+                        DeviceRegistryResourceTypeProvider.Attributes.AllowedSubjectPrefixes) ?? [],
+                    RequiredClaims = resource.Attributes.GetObject<DeviceEnrollmentRequiredClaim[]>(
+                        DeviceRegistryResourceTypeProvider.Attributes.RequiredClaims) ?? []
+                },
+                PermissionGrants = legacyGrants
+            }
+        ];
+    }
+
+    private IEnumerable<ResourcePermissionGrant> GetLegacyPermissionGrants(Resource resource) =>
+        _options.PermissionGrants
                 .Where(grant =>
                     grant.Principal.Kind == ResourcePrincipalKind.DeviceIdentity &&
                     string.Equals(
                         grant.Principal.SourceResourceId,
                         resource.EffectiveResourceId,
-                        StringComparison.OrdinalIgnoreCase))
-                .ToArray(),
-            healthChecks = Array.Empty<object>()
-        };
+                        StringComparison.OrdinalIgnoreCase));
 
     private static IReadOnlyDictionary<string, string> CreateEnvironmentVariables(
         DeviceRegistryRuntimeOptions options)

@@ -45,10 +45,23 @@ on the vault resource. The registry can then be started through its lifecycle
 actions, using the same host-local process runtime pattern as Configuration
 Store and Secrets Vault.
 
-Enrollment policy is the MVP gate for provisioning. Future enrollment templates
-should also describe the resource access grants assigned to the enrolled
-device principal, making enrollment the durable source for what services a
-device can access after provisioning.
+Enrollment policy is the MVP gate for provisioning. Enrollment profiles extend
+that policy with resource access grants assigned to the enrolled device
+principal, making enrollment the durable source for what services a device can
+access after provisioning.
+
+Enrollment profiles are intentionally close to Azure IoT DPS enrollment
+language while staying CloudShell-specific:
+
+- An `individual` profile targets one exact device subject and is the path for
+  per-device provisioning.
+- A `group` profile targets devices that match subject prefixes and required
+  claims, sharing the same provisioning outcome.
+
+The current profile outcome is a set of CloudShell resource permission grants
+for the resulting `deviceIdentity`. Future slices can add richer attestation,
+initial configuration, and UI controls for individual and group enrollments
+without changing the device identity contract.
 
 ## Device Identity
 
@@ -109,7 +122,8 @@ store with a stronger database while keeping the resource model stable.
 - Enrolled devices are not projected as resources yet.
 - Device revocation, credential rotation, device groups, per-application
   identities, and provider-backed identity systems are future work.
-- Enrollment templates for device permission grants are future work; the MVP
-  carries registry-scoped permission grants through the runtime definition.
+- Enrollment profiles are the first provisioning policy shape; richer matching,
+  profile selection diagnostics, individual/group enrollment management, and
+  profile-specific UI are future work.
 - Device inventory UI is read-only; remove/revoke actions are not implemented
   yet.

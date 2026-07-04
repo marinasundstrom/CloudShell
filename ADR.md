@@ -27,9 +27,12 @@ The Device Registry service owns a separate device database for enrolled
 device metadata. Device identities are provisioned into the built-in identity
 provider boundary for now so devices can obtain CloudShell-compatible client
 credentials and later access selected services through normal resource
-permission grants. The enrollment model should evolve into the provisioning
-template for device identities: it decides which devices may enroll and which
-resource access grants the resulting device principal receives. Projecting
+permission grants. The enrollment profile is the provisioning policy for
+device identities: it decides which devices may enroll and which resource
+access grants the resulting device principal receives. Profiles distinguish
+individual enrollment from group enrollment so CloudShell can later expose
+per-device and criteria-based enrollment management without changing the
+device principal contract. Projecting
 enrolled devices as CloudShell resources, resolving factory certificates for
 proof validation, device revocation, rotation, per-application identities, and
 provider-backed identity systems remain future work.

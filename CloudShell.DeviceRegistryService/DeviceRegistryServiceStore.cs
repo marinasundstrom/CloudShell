@@ -82,7 +82,7 @@ public sealed class DeviceRegistryServiceStore(
 
         var claims = NormalizeClaims(request.Claims);
         var properties = NormalizeProperties(request.Properties);
-        var policyFailure = ValidatePolicy(registry.EnrollmentPolicy, normalizedSubject, claims);
+        var profile = ResolveEnrollmentProfile(registry, normalizedSubject, claims, out var policyFailure);
         if (policyFailure is not null)
         {
             return DeviceEnrollmentResult.Rejected(policyFailure);
@@ -127,11 +127,12 @@ public sealed class DeviceRegistryServiceStore(
             }
 
             WriteDevices(devices);
+            var principal = CreatePrincipal(record);
             identities.Register(
                 _identityProvider,
                 new ResourceIdentityProvisioningEntry(identity, binding),
-                registry.PermissionGrants,
-                CreatePrincipal(record));
+                CreatePermissionGrants(registry, profile, principal),
+                principal);
 
             return DeviceEnrollmentResult.Enrolled(
                 record,
@@ -155,7 +156,12 @@ public sealed class DeviceRegistryServiceStore(
         identities.Register(
             _identityProvider,
             new ResourceIdentityProvisioningEntry(identity, binding),
-            registry?.PermissionGrants ?? [],
+            CreatePermissionGrants(
+                registry,
+                registry is null
+                    ? null
+                    : ResolveEnrollmentProfile(registry, device.Subject, device.Claims, out _),
+                CreatePrincipal(device)),
             CreatePrincipal(device));
     }
 
@@ -200,12 +206,82 @@ public sealed class DeviceRegistryServiceStore(
         JsonSerializer.Serialize(stream, devices, SerializerOptions);
     }
 
+    private static DeviceEnrollmentProfile? ResolveEnrollmentProfile(
+        DeviceRegistryDefinition registry,
+        string subject,
+        IReadOnlyDictionary<string, string> claims,
+        out string? failure)
+    {
+        foreach (var profile in GetEnrollmentProfiles(registry))
+        {
+            var profileFailure = ValidatePolicy(profile.Policy, subject, claims);
+            if (profileFailure is null)
+            {
+                failure = null;
+                return profile;
+            }
+        }
+
+        failure = "Device enrollment did not match an enrollment profile.";
+        return null;
+    }
+
+    private static IReadOnlyList<DeviceEnrollmentProfile> GetEnrollmentProfiles(
+        DeviceRegistryDefinition registry) =>
+        registry.EnrollmentProfiles.Count > 0
+            ? registry.EnrollmentProfiles
+            :
+            [
+                new()
+                {
+                    Name = "default",
+                    Kind = DeviceEnrollmentProfileKinds.Group,
+                    Policy = registry.EnrollmentPolicy,
+                    PermissionGrants = registry.PermissionGrants
+                        .Select(grant => new DeviceEnrollmentPermissionGrant(
+                            grant.TargetResourceId,
+                            grant.Permission))
+                        .ToArray()
+                }
+            ];
+
+    private static IReadOnlyList<ResourcePermissionGrant> CreatePermissionGrants(
+        DeviceRegistryDefinition? registry,
+        DeviceEnrollmentProfile? profile,
+        ResourcePrincipalReference principal)
+    {
+        if (registry is null)
+        {
+            return [];
+        }
+
+        var grants = new List<ResourcePermissionGrant>();
+        grants.AddRange(registry.PermissionGrants);
+        if (profile is not null)
+        {
+            grants.AddRange(profile.PermissionGrants.Select(grant =>
+                new ResourcePermissionGrant(
+                    principal,
+                    grant.TargetResourceId,
+                    grant.Permission)));
+        }
+
+        return grants
+            .GroupBy(
+                grant => $"{grant.Principal.Kind}\u001f{grant.Principal.Id}\u001f{grant.TargetResourceId}\u001f{grant.Permission}",
+                StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToArray();
+    }
+
     private static string? ValidatePolicy(
         DeviceRegistryEnrollmentPolicy policy,
         string subject,
         IReadOnlyDictionary<string, string> claims)
     {
-        if (policy.SubjectPrefixes.Count > 0 &&
+        if ((policy.Subjects.Count > 0 || policy.SubjectPrefixes.Count > 0) &&
+            !policy.Subjects.Any(allowed =>
+                string.Equals(subject, allowed, StringComparison.OrdinalIgnoreCase)) &&
             !policy.SubjectPrefixes.Any(prefix =>
                 subject.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
         {

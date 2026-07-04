@@ -18,6 +18,7 @@ public sealed class DeviceRegistryResourceTypeProvider :
         public static readonly ResourceAttributeId TrustedCertificates = "trust.certificates";
         public static readonly ResourceAttributeId AllowedSubjectPrefixes = "enrollmentPolicy.subjectPrefixes";
         public static readonly ResourceAttributeId RequiredClaims = "enrollmentPolicy.requiredClaims";
+        public static readonly ResourceAttributeId EnrollmentProfiles = "enrollment.profiles";
         public static readonly ResourceAttributeId EnrolledDeviceCount = "enrolledDeviceCount";
     }
 
@@ -72,6 +73,31 @@ public sealed class DeviceRegistryResourceTypeProvider :
                         ValueType: ResourceAttributeValueType.String)
                 }),
                 description: "Claims that must be present on enrollment requests."),
+            [Attributes.EnrollmentProfiles] = ResourceAttributeDefinition.Collection(
+                ResourceAttributeValueType.ComplexType,
+                itemShape: new(new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                {
+                    ["name"] = new(
+                        Required: true,
+                        RequiredMessage: "Enrollment profile name is required.",
+                        ValueType: ResourceAttributeValueType.String),
+                    ["kind"] = new(ValueType: ResourceAttributeValueType.String),
+                    ["policy"] = new(ValueType: ResourceAttributeValueType.ComplexType),
+                    ["permissionGrants"] = ResourceAttributeDefinition.Collection(
+                        ResourceAttributeValueType.ComplexType,
+                        itemShape: new(new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                        {
+                            ["targetResourceId"] = new(
+                                Required: true,
+                                RequiredMessage: "Enrollment profile permission target resource ID is required.",
+                                ValueType: ResourceAttributeValueType.String),
+                            ["permission"] = new(
+                                Required: true,
+                                RequiredMessage: "Enrollment profile permission is required.",
+                                ValueType: ResourceAttributeValueType.String)
+                        }))
+                }),
+                description: "Enrollment profiles that provision device identity access grants."),
             [Attributes.EnrolledDeviceCount] = new(
                 DefaultValue: 0,
                 ValueType: ResourceAttributeValueType.Integer,
@@ -188,6 +214,11 @@ public sealed class DeviceRegistryResourceTypeProvider :
         if (state.ResourceAttributeValues.ContainsKey(Attributes.RequiredClaims))
         {
             ValidateRequiredClaims(state, diagnostics);
+        }
+
+        if (state.ResourceAttributeValues.ContainsKey(Attributes.EnrollmentProfiles))
+        {
+            ValidateEnrollmentProfiles(state, diagnostics);
         }
 
         return diagnostics;
@@ -324,6 +355,162 @@ public sealed class DeviceRegistryResourceTypeProvider :
                 "iot.deviceRegistry.enrolledDeviceCountInvalid",
                 "Device Registry enrolled device count must be a non-negative integer.",
                 Attributes.EnrolledDeviceCount));
+        }
+    }
+
+    private static void ValidateEnrollmentProfiles(
+        ResourceState state,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        var profiles = state.ResourceAttributeValues.GetObject<DeviceEnrollmentProfile[]>(
+            Attributes.EnrollmentProfiles) ?? [];
+        var profileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var profile in profiles)
+        {
+            if (string.IsNullOrWhiteSpace(profile.Name))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "iot.deviceRegistry.enrollmentProfileNameRequired",
+                    "Enrollment profile name is required.",
+                    Attributes.EnrollmentProfiles));
+            }
+            else if (!profileNames.Add(profile.Name.Trim()))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "iot.deviceRegistry.enrollmentProfileDuplicate",
+                    $"Enrollment profile '{profile.Name}' is declared more than once.",
+                    Attributes.EnrollmentProfiles));
+            }
+
+            ValidateEnrollmentProfilePolicy(profile, diagnostics);
+            ValidateEnrollmentProfileGrants(profile, diagnostics);
+        }
+    }
+
+    private static void ValidateEnrollmentProfilePolicy(
+        DeviceEnrollmentProfile profile,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (!string.IsNullOrWhiteSpace(profile.Kind) &&
+            !string.Equals(profile.Kind, DeviceEnrollmentProfileKinds.Group, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(profile.Kind, DeviceEnrollmentProfileKinds.Individual, StringComparison.OrdinalIgnoreCase))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                "iot.deviceRegistry.enrollmentProfileKindInvalid",
+                $"Enrollment profile kind '{profile.Kind}' is not supported.",
+                Attributes.EnrollmentProfiles));
+        }
+
+        if (string.Equals(profile.Kind, DeviceEnrollmentProfileKinds.Individual, StringComparison.OrdinalIgnoreCase) &&
+            profile.Policy.Subjects.Count != 1)
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                "iot.deviceRegistry.individualEnrollmentSubjectRequired",
+                "Individual enrollment profiles must declare exactly one device subject.",
+                Attributes.EnrollmentProfiles));
+        }
+
+        var subjects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var subject in profile.Policy.Subjects)
+        {
+            if (string.IsNullOrWhiteSpace(subject))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "iot.deviceRegistry.enrollmentProfileSubjectRequired",
+                    "Enrollment profile subjects cannot be empty.",
+                    Attributes.EnrollmentProfiles));
+            }
+            else if (!subjects.Add(subject.Trim()))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "iot.deviceRegistry.enrollmentProfileSubjectDuplicate",
+                    $"Enrollment profile subject '{subject}' is declared more than once.",
+                    Attributes.EnrollmentProfiles));
+            }
+        }
+
+        var prefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var prefix in profile.Policy.SubjectPrefixes)
+        {
+            if (string.IsNullOrWhiteSpace(prefix))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "iot.deviceRegistry.enrollmentProfileSubjectPrefixRequired",
+                    "Enrollment profile subject prefixes cannot be empty.",
+                    Attributes.EnrollmentProfiles));
+            }
+            else if (!prefixes.Add(prefix.Trim()))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "iot.deviceRegistry.enrollmentProfileSubjectPrefixDuplicate",
+                    $"Enrollment profile subject prefix '{prefix}' is declared more than once.",
+                    Attributes.EnrollmentProfiles));
+            }
+        }
+
+        var claims = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var claim in profile.Policy.RequiredClaims)
+        {
+            if (string.IsNullOrWhiteSpace(claim.Name))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "iot.deviceRegistry.enrollmentProfileRequiredClaimNameRequired",
+                    "Enrollment profile required claim name is required.",
+                    Attributes.EnrollmentProfiles));
+            }
+
+            if (string.IsNullOrWhiteSpace(claim.Value))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "iot.deviceRegistry.enrollmentProfileRequiredClaimValueRequired",
+                    "Enrollment profile required claim value is required.",
+                    Attributes.EnrollmentProfiles));
+            }
+
+            if (!string.IsNullOrWhiteSpace(claim.Name) &&
+                !claims.Add(claim.Name.Trim()))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "iot.deviceRegistry.enrollmentProfileRequiredClaimDuplicate",
+                    $"Enrollment profile required claim '{claim.Name}' is declared more than once.",
+                    Attributes.EnrollmentProfiles));
+            }
+        }
+    }
+
+    private static void ValidateEnrollmentProfileGrants(
+        DeviceEnrollmentProfile profile,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        var grants = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var grant in profile.PermissionGrants)
+        {
+            if (string.IsNullOrWhiteSpace(grant.TargetResourceId))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "iot.deviceRegistry.enrollmentProfilePermissionTargetRequired",
+                    "Enrollment profile permission target resource ID is required.",
+                    Attributes.EnrollmentProfiles));
+            }
+
+            if (string.IsNullOrWhiteSpace(grant.Permission))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "iot.deviceRegistry.enrollmentProfilePermissionRequired",
+                    "Enrollment profile permission is required.",
+                    Attributes.EnrollmentProfiles));
+            }
+
+            if (!string.IsNullOrWhiteSpace(grant.TargetResourceId) &&
+                !string.IsNullOrWhiteSpace(grant.Permission) &&
+                !grants.Add($"{grant.TargetResourceId.Trim()}\u001f{grant.Permission.Trim()}"))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "iot.deviceRegistry.enrollmentProfilePermissionDuplicate",
+                    $"Enrollment profile permission '{grant.Permission}' for resource '{grant.TargetResourceId}' is declared more than once.",
+                    Attributes.EnrollmentProfiles));
+            }
         }
     }
 

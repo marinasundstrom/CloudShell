@@ -10,6 +10,8 @@ public sealed record DeviceRegistryDefinition
 
     public DeviceRegistryEnrollmentPolicy EnrollmentPolicy { get; init; } = new();
 
+    public IReadOnlyList<DeviceEnrollmentProfile> EnrollmentProfiles { get; init; } = [];
+
     public IReadOnlyList<ResourcePermissionGrant> PermissionGrants { get; init; } = [];
 }
 
@@ -20,6 +22,8 @@ public sealed record DeviceRegistryTrustedCertificate(
 
 public sealed record DeviceRegistryEnrollmentPolicy
 {
+    public IReadOnlyList<string> Subjects { get; init; } = [];
+
     public IReadOnlyList<string> SubjectPrefixes { get; init; } = [];
 
     public IReadOnlyList<DeviceRegistryRequiredClaim> RequiredClaims { get; init; } = [];
@@ -28,6 +32,27 @@ public sealed record DeviceRegistryEnrollmentPolicy
 public sealed record DeviceRegistryRequiredClaim(
     string Name,
     string Value);
+
+public sealed record DeviceEnrollmentProfile
+{
+    public string Name { get; init; } = "default";
+
+    public string Kind { get; init; } = DeviceEnrollmentProfileKinds.Group;
+
+    public DeviceRegistryEnrollmentPolicy Policy { get; init; } = new();
+
+    public IReadOnlyList<DeviceEnrollmentPermissionGrant> PermissionGrants { get; init; } = [];
+}
+
+public static class DeviceEnrollmentProfileKinds
+{
+    public const string Individual = "individual";
+    public const string Group = "group";
+}
+
+public sealed record DeviceEnrollmentPermissionGrant(
+    string TargetResourceId,
+    string Permission);
 
 public sealed record DeviceRecord(
     string Id,

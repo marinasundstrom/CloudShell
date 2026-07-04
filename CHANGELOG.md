@@ -26,7 +26,9 @@ on `git blame --follow`, and then by the broad type of change.
   client and sample app that enrolls the current machine, reports basic
   platform/runtime properties, and reads Configuration Store settings with the
   issued device identity. Added a Resource Manager Devices tab for enrolled
-  device identity metadata, claims, and reported properties; see
+  device identity metadata, claims, and reported properties. Enrollment
+  profiles now distinguish individual and group enrollment intent and carry
+  the target resource permissions provisioned for matching devices; see
   ADR-20260704-002.
 - Added typed Secrets Vault certificate support for future TLS/HTTPS flows:
   `CertificateReference` and resolver contracts, create-only
