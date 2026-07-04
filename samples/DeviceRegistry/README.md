@@ -23,6 +23,11 @@ Run the CloudShell launcher:
 dotnet run --project samples/DeviceRegistry/CloudShell.DeviceRegistry.csproj
 ```
 
+The sample does not ship with a predefined login. On first launch, open
+`http://localhost:5000/account/setup` or follow the setup link from the sign-in
+page and create the local administrator account. Use that account for the
+CloudShell UI.
+
 Then run the device app independently:
 
 ```bash

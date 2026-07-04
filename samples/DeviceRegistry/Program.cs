@@ -40,6 +40,7 @@ var configurationEndpoint = builder.Configuration["Samples:DeviceRegistry:Config
 
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 {
+    ["Authentication:AllowLocalSetup"] = "true",
     ["Authentication:BuiltInAuthority:Enabled"] = "true",
     ["Authentication:BuiltInAuthority:Issuer"] = identityIssuer,
     ["Authentication:BuiltInAuthority:Audience"] = identityAudience,
