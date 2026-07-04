@@ -11,6 +11,11 @@ Both apps publish JSON events to a fan-out exchange. Each app has its own queue
 bound to that exchange, so a message published by either app is delivered to
 both app queues.
 
+The sample also emits CloudShell trace spans for HTTP publish requests,
+RabbitMQ publish operations, and RabbitMQ consume operations. Trace context is
+propagated through RabbitMQ message headers, so Resource Manager can show the
+publisher and both consumers as part of the same trace.
+
 The AppHost also uses the standard resource builder identity APIs:
 `.WithIdentity(...)`, `.ProvisionIdentityOnStartup()`, and `.Allow(...)`. The
 two application resources receive CloudShell identities, and the broker grants
@@ -53,6 +58,10 @@ calling the RabbitMQ credential endpoint itself. CloudShell checks the
 RabbitMQ grants, materializes the matching broker-native user if needed,
 records the request, and returns the username, password, and virtual host
 needed by each native RabbitMQ client.
+
+After publishing messages, open the Resource Manager **Traces** view for the
+.NET or Java resource to inspect the correlated HTTP, publish, and consume
+spans.
 
 The AppHost `appsettings.json` also configures two local development identity
 principals, `rabbitmq-operator` and `rabbitmq-reader`, under

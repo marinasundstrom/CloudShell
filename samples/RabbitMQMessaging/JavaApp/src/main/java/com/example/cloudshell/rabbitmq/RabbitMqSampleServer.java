@@ -20,8 +20,12 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.security.SecureRandom;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -31,8 +35,9 @@ public final class RabbitMqSampleServer {
 
     public static void main(String[] args) throws Exception {
         RabbitMqOptions options = RabbitMqOptions.fromEnvironment();
+        TraceSupport traces = TraceSupport.fromEnvironment();
         MessageStore messages = new MessageStore();
-        RabbitMqBroker broker = RabbitMqBroker.connect(options, messages);
+        RabbitMqBroker broker = RabbitMqBroker.connect(options, messages, traces);
         int port = parsePort(System.getenv().getOrDefault("PORT", "5282"), 5282);
 
         HttpServer server = HttpServer.create(new InetSocketAddress("localhost", port), 0);
@@ -47,13 +52,17 @@ public final class RabbitMqSampleServer {
         server.createContext("/alive", exchange -> writeText(exchange, 200, "alive"));
         server.createContext("/messages", exchange -> writeJson(exchange, 200, messages.toJson()));
         server.createContext("/publish", exchange -> {
-            String message = readMessage(exchange);
-            MessageEnvelope envelope = broker.publish(
-                message == null || message.isBlank()
-                    ? "Hello from the Java RabbitMQ sample."
-                    : message,
-                readQuery(exchange).getOrDefault("subject", "sample.event"));
-            writeJson(exchange, 202, envelope.toJson());
+            try (TraceSupport.Span span = traces.startHttpServerSpan(exchange)) {
+                String message = readMessage(exchange);
+                MessageEnvelope envelope = broker.publish(
+                    message == null || message.isBlank()
+                        ? "Hello from the Java RabbitMQ sample."
+                        : message,
+                    readQuery(exchange).getOrDefault("subject", "sample.event"),
+                    span.context());
+                span.attribute("http.status_code", "202");
+                writeJson(exchange, 202, envelope.toJson());
+            }
         });
         server.start();
         System.out.printf("RabbitMQ Java sample listening on http://localhost:%d%n", port);
@@ -168,6 +177,236 @@ public final class RabbitMqSampleServer {
             return Integer.parseInt(value);
         } catch (NumberFormatException exception) {
             return fallback;
+        }
+    }
+
+    private static final class TraceSupport {
+        private static final SecureRandom RANDOM = new SecureRandom();
+        private final HttpClient client;
+        private final URI endpoint;
+        private final String resourceId;
+        private final String serviceName;
+
+        private TraceSupport(
+                HttpClient client,
+                URI endpoint,
+                String resourceId,
+                String serviceName) {
+            this.client = client;
+            this.endpoint = endpoint;
+            this.resourceId = resourceId;
+            this.serviceName = serviceName;
+        }
+
+        static TraceSupport fromEnvironment() {
+            String endpointValue = System.getenv("CLOUDSHELL_TRACE_INGEST_ENDPOINT");
+            URI endpoint = endpointValue == null || endpointValue.isBlank()
+                ? null
+                : URI.create(endpointValue);
+            String serviceName = firstNonEmpty(
+                System.getenv("OTEL_SERVICE_NAME"),
+                "rabbitmq-java");
+            String resourceId = firstNonEmpty(
+                System.getenv("CLOUDSHELL_RESOURCE_ID"),
+                serviceName);
+            return new TraceSupport(
+                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build(),
+                endpoint,
+                resourceId,
+                serviceName);
+        }
+
+        Span startHttpServerSpan(HttpExchange exchange) {
+            TraceContext parent = TraceContext.parse(
+                exchange.getRequestHeaders().getFirst("traceparent"));
+            Span span = startSpan(
+                exchange.getRequestMethod().toUpperCase() + " " + exchange.getRequestURI().getPath(),
+                "Server",
+                parent);
+            span.attribute("http.method", exchange.getRequestMethod());
+            span.attribute("http.route", exchange.getRequestURI().getPath());
+            return span;
+        }
+
+        Span startSpan(String name, String kind, TraceContext parent) {
+            TraceContext context = parent == null
+                ? new TraceContext(randomHex(16), randomHex(8), null)
+                : new TraceContext(parent.traceId(), randomHex(8), parent.spanId());
+            return new Span(this, context, name, kind);
+        }
+
+        void inject(TraceContext context, Map<String, Object> headers) {
+            headers.put("traceparent", context.toTraceParent());
+        }
+
+        TraceContext extract(Map<String, Object> headers) {
+            if (headers == null) {
+                return null;
+            }
+
+            Object value = headers.get("traceparent");
+            if (value instanceof byte[] bytes) {
+                return TraceContext.parse(new String(bytes, StandardCharsets.UTF_8));
+            }
+
+            return value == null ? null : TraceContext.parse(value.toString());
+        }
+
+        private void export(Span span) {
+            if (endpoint == null) {
+                return;
+            }
+
+            String body = "{\"spans\":[" + span.toJson(resourceId, serviceName) + "]}";
+            HttpRequest request = HttpRequest.newBuilder(endpoint)
+                .timeout(Duration.ofSeconds(10))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+            client.sendAsync(request, HttpResponse.BodyHandlers.discarding());
+        }
+
+        private static String firstNonEmpty(String value, String fallback) {
+            return value == null || value.isBlank() ? fallback : value.trim();
+        }
+
+        private static String randomHex(int bytes) {
+            byte[] buffer = new byte[bytes];
+            RANDOM.nextBytes(buffer);
+            StringBuilder text = new StringBuilder(bytes * 2);
+            for (byte item : buffer) {
+                text.append(String.format("%02x", item & 0xff));
+            }
+
+            return text.toString();
+        }
+
+        record TraceContext(String traceId, String spanId, String parentSpanId) {
+            static TraceContext parse(String traceparent) {
+                if (traceparent == null || traceparent.isBlank()) {
+                    return null;
+                }
+
+                String[] parts = traceparent.split("-");
+                if (parts.length < 4 ||
+                    parts[1].length() != 32 ||
+                    parts[2].length() != 16) {
+                    return null;
+                }
+
+                return new TraceContext(parts[1], parts[2], null);
+            }
+
+            String toTraceParent() {
+                return "00-" + traceId + "-" + spanId + "-01";
+            }
+        }
+
+        static final class Span implements AutoCloseable {
+            private final TraceSupport traces;
+            private final TraceContext context;
+            private final String name;
+            private final String kind;
+            private final Instant start = Instant.now();
+            private final Map<String, String> attributes = new LinkedHashMap<>();
+            private String status = "Unset";
+
+            Span(
+                    TraceSupport traces,
+                    TraceContext context,
+                    String name,
+                    String kind) {
+                this.traces = traces;
+                this.context = context;
+                this.name = name;
+                this.kind = kind;
+            }
+
+            TraceContext context() {
+                return context;
+            }
+
+            void attribute(String name, String value) {
+                if (name != null && !name.isBlank() && value != null) {
+                    attributes.put(name, value);
+                }
+            }
+
+            void error(Exception exception) {
+                status = "Error";
+                attribute("exception.type", exception.getClass().getName());
+                attribute("exception.message", exception.getMessage());
+            }
+
+            @Override
+            public void close() {
+                traces.export(this);
+            }
+
+            String toJson(String resourceId, String serviceName) {
+                Duration duration = Duration.between(start, Instant.now());
+                return """
+                    {
+                      "traceId": "%s",
+                      "spanId": "%s",
+                      "parentSpanId": %s,
+                      "name": "%s",
+                      "resourceId": "%s",
+                      "serviceName": "%s",
+                      "kind": "%s",
+                      "status": "%s",
+                      "startTime": "%s",
+                      "duration": "%s",
+                      "attributes": %s
+                    }
+                    """.formatted(
+                        escapeJson(context.traceId()),
+                        escapeJson(context.spanId()),
+                        context.parentSpanId() == null
+                            ? "null"
+                            : "\"" + escapeJson(context.parentSpanId()) + "\"",
+                        escapeJson(name),
+                        escapeJson(resourceId),
+                        escapeJson(serviceName),
+                        escapeJson(kind),
+                        escapeJson(status),
+                        start.toString(),
+                        formatDuration(duration),
+                        attributesToJson(attributes));
+            }
+
+            private static String attributesToJson(Map<String, String> values) {
+                if (values.isEmpty()) {
+                    return "{}";
+                }
+
+                List<String> items = new ArrayList<>();
+                for (Map.Entry<String, String> entry : values.entrySet()) {
+                    items.add("\"" + escapeJson(entry.getKey()) + "\":\"" +
+                        escapeJson(entry.getValue()) + "\"");
+                }
+
+                return "{" + String.join(",", items) + "}";
+            }
+
+            private static String formatDuration(Duration duration) {
+                long ticks = Math.max(0, duration.toNanos() / 100);
+                long days = ticks / 864_000_000_000L;
+                ticks %= 864_000_000_000L;
+                long hours = ticks / 36_000_000_000L;
+                ticks %= 36_000_000_000L;
+                long minutes = ticks / 600_000_000L;
+                ticks %= 600_000_000L;
+                long seconds = ticks / 10_000_000L;
+                long fraction = ticks % 10_000_000L;
+                String time = String.format(
+                    "%02d:%02d:%02d.%07d",
+                    hours,
+                    minutes,
+                    seconds,
+                    fraction);
+                return days > 0 ? days + "." + time : time;
+            }
         }
     }
 
@@ -371,14 +610,17 @@ public final class RabbitMqSampleServer {
 
     private static final class RabbitMqBroker implements AutoCloseable {
         private final RabbitMqOptions options;
+        private final TraceSupport traces;
         private final Connection connection;
         private final Channel publishChannel;
         private final Channel consumeChannel;
 
         private RabbitMqBroker(
                 RabbitMqOptions options,
+                TraceSupport traces,
                 Connection connection) throws IOException {
             this.options = options;
+            this.traces = traces;
             this.connection = connection;
             this.publishChannel = connection.createChannel();
             this.consumeChannel = connection.createChannel();
@@ -386,7 +628,8 @@ public final class RabbitMqSampleServer {
 
         static RabbitMqBroker connect(
                 RabbitMqOptions options,
-                MessageStore messages) throws Exception {
+                MessageStore messages,
+                TraceSupport traces) throws Exception {
             ConnectionFactory factory = new ConnectionFactory();
             factory.setHost(options.host());
             factory.setPort(options.port());
@@ -399,7 +642,7 @@ public final class RabbitMqSampleServer {
             while (System.currentTimeMillis() < deadline) {
                 try {
                     Connection connection = factory.newConnection("cloudshell-rabbitmq-java-sample");
-                    RabbitMqBroker broker = new RabbitMqBroker(options, connection);
+                    RabbitMqBroker broker = new RabbitMqBroker(options, traces, connection);
                     broker.configureTopology();
                     broker.startConsumer(messages);
                     return broker;
@@ -414,18 +657,37 @@ public final class RabbitMqSampleServer {
                 lastException);
         }
 
-        synchronized MessageEnvelope publish(String message, String subject) throws IOException {
+        synchronized MessageEnvelope publish(
+                String message,
+                String subject,
+                TraceSupport.TraceContext parentContext) throws IOException {
             MessageEnvelope envelope = new MessageEnvelope(
                 UUID.randomUUID().toString().replace("-", ""),
                 "java",
                 subject == null || subject.isBlank() ? "sample.event" : subject,
                 message,
                 Instant.now().toString());
-            publishChannel.basicPublish(
-                options.exchange(),
-                "",
-                null,
-                envelope.toJson().getBytes(StandardCharsets.UTF_8));
+            try (TraceSupport.Span span = traces.startSpan(
+                    "rabbitmq publish",
+                    "Producer",
+                    parentContext)) {
+                span.attribute("messaging.system", "rabbitmq");
+                span.attribute("messaging.operation", "publish");
+                span.attribute("messaging.destination.name", options.exchange());
+                span.attribute("messaging.message.id", envelope.id());
+                span.attribute("messaging.message.conversation_id", envelope.subject());
+
+                Map<String, Object> headers = new HashMap<>();
+                traces.inject(span.context(), headers);
+                publishChannel.basicPublish(
+                    options.exchange(),
+                    "",
+                    new com.rabbitmq.client.AMQP.BasicProperties.Builder()
+                        .headers(headers)
+                        .build(),
+                    envelope.toJson().getBytes(StandardCharsets.UTF_8));
+            }
+
             return envelope;
         }
 
@@ -438,8 +700,23 @@ public final class RabbitMqSampleServer {
 
         private void startConsumer(MessageStore messages) throws IOException {
             DeliverCallback deliver = (consumerTag, delivery) -> {
-                String body = new String(delivery.getBody(), StandardCharsets.UTF_8);
-                messages.add(MessageEnvelope.fromJson(body));
+                Map<String, Object> headers = delivery.getProperties() == null
+                    ? Collections.emptyMap()
+                    : delivery.getProperties().getHeaders();
+                try (TraceSupport.Span span = traces.startSpan(
+                        "rabbitmq consume",
+                        "Consumer",
+                        traces.extract(headers))) {
+                    String body = new String(delivery.getBody(), StandardCharsets.UTF_8);
+                    MessageEnvelope envelope = MessageEnvelope.fromJson(body);
+                    span.attribute("messaging.system", "rabbitmq");
+                    span.attribute("messaging.operation", "consume");
+                    span.attribute("messaging.destination.name", options.queue());
+                    span.attribute("messaging.message.id", envelope.id());
+                    span.attribute("messaging.message.conversation_id", envelope.subject());
+                    span.attribute("messaging.message.origin", envelope.origin());
+                    messages.add(envelope);
+                }
             };
             consumeChannel.basicConsume(options.queue(), true, deliver, consumerTag -> { });
         }

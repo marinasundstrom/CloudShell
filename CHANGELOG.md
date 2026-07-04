@@ -47,6 +47,10 @@ on `git blame --follow`, and then by the broad type of change.
   `CloudShell.RabbitMQ.Client` instead of hand-coding the RabbitMQ credential
   endpoint exchange; the Java workload continues to exercise the direct
   token-and-endpoint protocol.
+- Added RabbitMQ messaging sample trace integration for both the C# and Java
+  workloads, including HTTP publish spans, RabbitMQ publish/consume spans, and
+  RabbitMQ `traceparent` propagation so CloudShell can show correlated traces
+  across both apps.
 
 ### 2026-07-03
 

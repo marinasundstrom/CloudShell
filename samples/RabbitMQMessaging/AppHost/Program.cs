@@ -16,6 +16,8 @@ var managementEndpoint = new Uri(app.Configuration["RabbitMQMessaging:Management
     ?? "http://localhost:15678");
 var cloudShellEndpoint = new Uri(app.Configuration["RabbitMQMessaging:CloudShellEndpoint"]
     ?? "http://127.0.0.1:5112");
+var traceIngestEndpoint = app.Configuration["Observability:TraceIngestEndpoint"]
+    ?? $"{cloudShellEndpoint.ToString().TrimEnd('/')}/api/control-plane/v1/traces/ingest";
 var dotNetEndpoint = new Uri(app.Configuration["RabbitMQMessaging:DotNetEndpoint"]
     ?? "http://localhost:5281");
 var javaEndpoint = new Uri(app.Configuration["RabbitMQMessaging:JavaEndpoint"]
@@ -74,6 +76,7 @@ app.DefineResources(resources =>
         .WithEnvironmentVariable("RabbitMQ__CredentialPermission", RabbitMQResourceOperationPermissions.Configure)
         .WithEnvironmentVariable("RabbitMQ__Exchange", exchangeName)
         .WithEnvironmentVariable("RabbitMQ__Queue", "rabbitmq-dotnet-events")
+        .WithEnvironmentVariable("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint)
         .WithEnvironmentVariable("OTEL_SERVICE_NAME", "rabbitmq-dotnet")
         .WithHttpHealthCheck(
             "/healthz",
@@ -104,6 +107,7 @@ app.DefineResources(resources =>
         .WithEnvironmentVariable("RABBITMQ_CREDENTIAL_PERMISSION", RabbitMQResourceOperationPermissions.Configure)
         .WithEnvironmentVariable("RABBITMQ_EXCHANGE", exchangeName)
         .WithEnvironmentVariable("RABBITMQ_QUEUE", "rabbitmq-java-events")
+        .WithEnvironmentVariable("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint)
         .WithEnvironmentVariable("OTEL_SERVICE_NAME", "rabbitmq-java")
         .WithHttpHealthCheck(
             "/healthz",
