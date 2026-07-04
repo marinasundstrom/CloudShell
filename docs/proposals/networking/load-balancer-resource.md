@@ -362,8 +362,10 @@ mappings.
   which runtime facts should remain provider-owned attributes?
 - Which provider-owned runtime containers should be projected as child
   resources, and which should remain internal provider state?
-- How should TLS be represented: entrypoint-level, route-level, certificate
-  resource reference, or provider-owned configuration?
+- Should future TLS options remain entrypoint-level, move some policy to
+  route-level, or split issuer/renewal behavior into provider-owned
+  configuration? The first implementation uses entrypoint-level Secrets Vault
+  certificate references.
 - Should DNS hostnames such as `app.local` become resource references to a DNS
   provider later?
 - How should route conflicts be reported when two load balancers claim the same
@@ -397,7 +399,8 @@ mappings.
   target resources/endpoints. File-config apply is in place; managed container
   mode now uses load-balancer Start/Stop and Delete cleanup rather than
   starting as a side effect of Apply.
-- Add end-to-end validation for TLS and richer backend target resolution before
-  the design is considered production-ready. In-resource route-shape,
-  duplicate route-match, duplicate entrypoint, and host-port conflict
-  validation already exist for load-balancer setup.
+- Add richer backend target resolution and TLS lifecycle coverage before the
+  design is considered production-ready. In-resource route-shape, duplicate
+  route-match, duplicate entrypoint, host-port conflict, and HTTPS certificate
+  reference validation already exist for load-balancer setup, and Traefik can
+  materialize vault-backed PEM certificates for HTTPS entrypoints.

@@ -84,6 +84,12 @@ public final class CloudShellApp {
         return resource;
     }
 
+    public LoadBalancerResource addLoadBalancer(String name) {
+        LoadBalancerResource resource = new LoadBalancerResource(name);
+        resources.add(resource);
+        return resource;
+    }
+
     public String toJson() {
         StringBuilder builder = new StringBuilder();
         line(builder, 0, "{");

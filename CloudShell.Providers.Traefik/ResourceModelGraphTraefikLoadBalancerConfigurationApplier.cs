@@ -10,16 +10,37 @@ using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource
 namespace CloudShell.Providers.Traefik;
 
 public sealed class ResourceModelGraphTraefikLoadBalancerConfigurationApplier(
-    TraefikLoadBalancerProvider provider) : ILoadBalancerConfigurationApplier
+    TraefikLoadBalancerProvider provider,
+    IEnumerable<ICertificateReferenceResolver>? certificateResolvers = null) : ILoadBalancerConfigurationApplier
 {
+    private readonly IReadOnlyList<ICertificateReferenceResolver> _certificateResolvers =
+        certificateResolvers?.ToArray() ?? [];
+
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ApplyConfigurationAsync(
         ResourceModelResource resource,
         ResourceProjectionExecutionContext context,
         CancellationToken cancellationToken = default)
     {
-        var result = await provider.ApplyAsync(
-            CreateProviderContext(resource, context),
-            cancellationToken);
+        LoadBalancerProviderContext providerContext;
+        try
+        {
+            providerContext = await CreateProviderContextAsync(
+                resource,
+                context,
+                cancellationToken);
+        }
+        catch (ResourceSettingResolutionException exception)
+        {
+            return
+            [
+                ResourceDefinitionDiagnostic.Error(
+                    "network.loadBalancer.certificateResolutionFailed",
+                    exception.Message,
+                    resource.EffectiveResourceId)
+            ];
+        }
+
+        var result = await provider.ApplyAsync(providerContext, cancellationToken);
 
         return
         [
@@ -31,22 +52,91 @@ public sealed class ResourceModelGraphTraefikLoadBalancerConfigurationApplier(
         ];
     }
 
-    private static LoadBalancerProviderContext CreateProviderContext(
+    private async ValueTask<LoadBalancerProviderContext> CreateProviderContextAsync(
         ResourceModelResource resource,
-        ResourceProjectionExecutionContext context)
+        ResourceProjectionExecutionContext context,
+        CancellationToken cancellationToken)
     {
         var definition = CreateDefinition(resource);
         var hostResource = ResolveHostResource(resource, context);
         var routes = definition.LoadBalancerRoutes
             .Select(route => ResolveRoute(resource, context, route))
             .ToArray();
+        var certificates = await ResolveCertificatesAsync(
+            definition,
+            cancellationToken);
 
         return new(
             ToResourceManagerResource(resource),
             definition,
             hostResource,
             routes,
-            new GraphLoadBalancerResourceManagerStore(context.Resources.Select(ToResourceManagerResource).ToArray()));
+            new GraphLoadBalancerResourceManagerStore(context.Resources.Select(ToResourceManagerResource).ToArray()),
+            certificates);
+    }
+
+    private async ValueTask<IReadOnlyList<LoadBalancerResolvedCertificate>> ResolveCertificatesAsync(
+        LoadBalancerResourceDefinition definition,
+        CancellationToken cancellationToken)
+    {
+        var certificates = new List<LoadBalancerResolvedCertificate>();
+        foreach (var entrypoint in definition.LoadBalancerEntrypoints)
+        {
+            if (entrypoint.Certificate is null)
+            {
+                continue;
+            }
+
+            var certificate = await ResolveCertificateAsync(
+                entrypoint.Name,
+                entrypoint.Certificate,
+                definition.Id,
+                cancellationToken);
+            certificates.Add(certificate);
+        }
+
+        return certificates;
+    }
+
+    private async ValueTask<LoadBalancerResolvedCertificate> ResolveCertificateAsync(
+        string entrypointName,
+        CertificateReference reference,
+        string loadBalancerResourceId,
+        CancellationToken cancellationToken)
+    {
+        var errors = new List<string>();
+        var context = new ResourceSettingResolutionContext(
+            loadBalancerResourceId,
+            Operation: LoadBalancerResourceTypeProvider.Operations.ApplyConfiguration.ToString());
+        foreach (var resolver in _certificateResolvers)
+        {
+            var result = await resolver.ResolveCertificateAsync(
+                reference,
+                context,
+                cancellationToken);
+            if (result.IsResolved)
+            {
+                return new LoadBalancerResolvedCertificate(
+                    entrypointName,
+                    reference,
+                    result.Value ?? string.Empty,
+                    result.ContentType,
+                    result.Thumbprint,
+                    result.Subject,
+                    result.NotBefore,
+                    result.Expires);
+            }
+
+            if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+            {
+                errors.Add(result.ErrorMessage);
+            }
+        }
+
+        var message = errors.Count == 0
+            ? $"No vault provider can resolve certificate '{reference.CertificateName}' from '{reference.VaultResourceId}'."
+            : string.Join(" ", errors);
+        throw new ResourceSettingResolutionException(entrypointName, "certificate", message);
     }
 
     private static LoadBalancerResourceDefinition CreateDefinition(ResourceModelResource resource)

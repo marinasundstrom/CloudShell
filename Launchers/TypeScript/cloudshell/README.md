@@ -21,9 +21,11 @@ const settings = app
 
 const secrets = app
   .addSecretsVault("orders-secrets")
-  .withSeed(seed => seed.secret("Orders--ApiKey", "local-development-secret"));
+  .withSeed(seed => seed
+    .secret("Orders--ApiKey", "local-development-secret")
+    .certificate("OrdersTls", "local-development-pem", undefined, "application/x-pem-file"));
 
-app
+const web = app
   .addJavaScriptApp("orders-web", "src/web")
   .withHttpEndpoint({ port: 5173, targetPort: 5173, host: "localhost" })
   .withReference(settings)
@@ -37,6 +39,12 @@ app
   .withEnvironmentVariable("Orders__ApiKey", {
     secretRef: secrets.secret("Orders--ApiKey")
   });
+
+app
+  .addLoadBalancer("edge")
+  .withProvider("traefik")
+  .exposeHttps(secrets.certificate("OrdersTls"))
+  .mapHost("orders.local", web, { port: 5173, entrypoint: "https" });
 
 console.log(app.toJson());
 ```

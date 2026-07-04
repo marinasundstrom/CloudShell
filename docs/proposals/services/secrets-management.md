@@ -370,6 +370,7 @@ app settings for non-secret values and vault-backed references for secrets.
   referenced values.
 - Decide how secret and certificate references should be versioned, rotated,
   and refreshed for already-running resources.
-- Add provider-specific TLS/HTTPS certificate materialization and future
-  issuer/renewal flows.
+- Extend TLS/HTTPS certificate materialization beyond the current Traefik PEM
+  load-balancer path, including future issuer/renewal flows and broader PFX
+  handling.
 - Add a separate secrets client/provider for in-process secret loading.

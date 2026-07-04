@@ -117,6 +117,12 @@ func (a *App) AddSecretsVault(name string) *SecretsVaultResource {
 	return resource
 }
 
+func (a *App) AddLoadBalancer(name string) *LoadBalancerResource {
+	resource := NewLoadBalancerResource(name)
+	a.Add(resource)
+	return resource
+}
+
 func (a *App) AddGoApp(name string, projectPath string) *GoAppResource {
 	resource := NewGoAppResource(name, projectPath)
 	a.Add(resource)

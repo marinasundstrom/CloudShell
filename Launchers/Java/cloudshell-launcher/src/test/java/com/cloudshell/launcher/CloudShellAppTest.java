@@ -37,7 +37,7 @@ public final class CloudShellAppTest {
                 .secret("Sample--ApiKey", "java-secret", "v1")
                 .certificate("ApiTls", "java-certificate", "v1", "application/x-pem-file"));
 
-        app.addJavaMavenApp("api", "samples/JavaApp/App", "target/app.jar", "clean package -DskipTests")
+        JavaAppResource api = app.addJavaMavenApp("api", "samples/JavaApp/App", "target/app.jar", "clean package -DskipTests")
             .withDisplayName("Java API")
             .withServiceDiscovery()
             .withEnvironmentVariable("PORT", "5186")
@@ -49,6 +49,13 @@ public final class CloudShellAppTest {
             .withHttpHealthCheck("/ready")
             .withHttpLivenessCheck("/live")
             .withDefaultConsoleLogSource();
+
+        app.addLoadBalancer("edge")
+            .withDisplayName("Edge")
+            .withProvider("traefik")
+            .useHost(network)
+            .exposeHttps(secrets.certificate("ApiTls"), 4443)
+            .mapHost("api.local", api, 5186, "https");
 
         String json = app.toJson();
         assertContains(json, "\"type\": \"application.java-app\"");
@@ -74,6 +81,19 @@ public final class CloudShellAppTest {
         assertContains(json, "\"path\": \"/ready\"");
         assertContains(json, "\"path\": \"/live\"");
         assertContains(json, "\"capabilities\": [\"read\", \"stream\"]");
+        assertContains(json, "\"type\": \"cloudshell.loadBalancer\"");
+        assertContains(json, "\"providerId\": \"cloudshell.load-balancer\"");
+        assertContains(json, "\"loadBalancer\": {");
+        assertContains(json, "\"provider\": \"traefik\"");
+        assertContains(json, "\"hostResourceId\": \"network:host\"");
+        assertContains(json, "\"entrypointDefinitions\": [");
+        assertContains(json, "\"certificateRef\": {");
+        assertContains(json, "\"vaultResourceId\": \"secrets.vault:secrets\"");
+        assertContains(json, "\"routeDefinitions\": [");
+        assertContains(json, "\"entrypointName\": \"https\"");
+        assertContains(json, "\"host\": \"api.local\"");
+        assertContains(json, "\"resourceId\": \"application.java-app:api\"");
+        assertContains(json, "\"relationship\": \"reference\"");
 
         app.addJavaApp("worker", "samples/JavaApp/App", "target/worker.jar")
             .dependsOn(settings)

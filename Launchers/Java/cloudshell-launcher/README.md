@@ -16,6 +16,7 @@ The first supported surface is intentionally small:
 - `JavaAppResource`
 - `ConfigurationStoreResource`
 - `SecretsVaultResource`
+- `LoadBalancerResource`
 - `CloudShellLauncherOptions`
 - `CloudShellApp.apply(...)`
 - `CloudShellApp.start(...)`
@@ -47,11 +48,18 @@ ConfigurationStoreResource settings = app.addConfigurationStore("settings")
     .withSeed(seed -> seed.setting("Sample--Message", "Hello from Java"));
 
 SecretsVaultResource secrets = app.addSecretsVault("secrets")
-    .withSeed(seed -> seed.secret("Sample--ApiKey", "local-development-secret"));
+    .withSeed(seed -> seed
+        .secret("Sample--ApiKey", "local-development-secret")
+        .certificate("ApiTls", "local-development-pem", null, "application/x-pem-file"));
 
-app.addJavaApp("api", "src/main/java", "target/api.jar")
+JavaAppResource api = app.addJavaApp("api", "src/main/java", "target/api.jar")
     .withEnvironmentVariable("Sample__Message", settings.setting("Sample--Message"))
     .withEnvironmentVariable("Sample__ApiKey", secrets.secret("Sample--ApiKey"));
+
+app.addLoadBalancer("edge")
+    .withProvider("traefik")
+    .exposeHttps(secrets.certificate("ApiTls"))
+    .mapHost("api.local", api, 8080, "https");
 ```
 
 ```java

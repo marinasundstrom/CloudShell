@@ -90,8 +90,11 @@ subject, validity dates, and private-key presence.
 
 Load balancer HTTPS entrypoints can reference a Secrets Vault certificate
 through a typed certificate reference. The load balancer resource stores only
-the vault resource ID, certificate name, and optional version; provider-specific
-TLS materialization and renewal flows remain future work.
+the vault resource ID, certificate name, and optional version. The Traefik load
+balancer provider can resolve PEM certificates from the vault and write
+provider-owned certificate/key files for HTTPS entrypoints. Issuer/renewal
+flows, PFX materialization, and provider-specific TLS handling beyond Traefik
+remain future work.
 
 Provider-owned state is persisted in:
 

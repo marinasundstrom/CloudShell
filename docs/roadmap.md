@@ -1336,11 +1336,11 @@ listed here before pulling in broader proposal work.
   requested replicas from load, capacity, schedule, or provider signals, but it
   should remain separate from recovery policy, which reacts to liveness and
   lifecycle failure.
-- Defer backend pools, provider-materialized TLS binding beyond certificate
-  references, traffic splitting, advanced service exposure, DNS/name mapping,
-  external deployment projection, and container application environments until
-  host, routing, identity, runtime ownership, and deployment decisions are
-  stable.
+- Defer backend pools, provider-materialized TLS binding beyond the current
+  Traefik PEM certificate path, traffic splitting, advanced service exposure,
+  DNS/name mapping, external deployment projection, and container application
+  environments until host, routing, identity, runtime ownership, and deployment
+  decisions are stable.
 - Prepare the first post-MVP on-premise hosting scenario once the MVP release
   path is stable. That scenario should combine provider-backed networking,
   virtual networks, ingress/public endpoint mapping, DNS/name mapping,
@@ -1404,7 +1404,7 @@ The following work should stay out of the MVP unless a release-gating sample
 forces a smaller slice:
 
 - Autoscaling, traffic splitting, backend pools, provider-materialized TLS
-  binding beyond certificate references, rollout history,
+  binding beyond the current Traefik PEM certificate path, rollout history,
   restore-to-revision-state behavior, state merge from revisions, and
   first-class deployment resources.
 - Provider-backed network-level service discovery and public DNS propagation.

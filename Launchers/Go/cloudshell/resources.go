@@ -394,3 +394,256 @@ func (r *SecretsVaultResource) build() map[string]any {
 
 	return document
 }
+
+type LoadBalancerResource struct {
+	baseResource
+	provider     string
+	hostResource string
+	entrypoints  []LoadBalancerEntrypointValue
+	routes       []LoadBalancerRouteValue
+}
+
+type LoadBalancerEntrypointValue struct {
+	Name           string                `json:"name"`
+	Protocol       string                `json:"protocol"`
+	Port           int                   `json:"port"`
+	Exposure       string                `json:"exposure"`
+	CertificateRef *CertificateReference `json:"certificateRef,omitempty"`
+}
+
+type LoadBalancerRouteValue struct {
+	ID             string                       `json:"id"`
+	Name           string                       `json:"name"`
+	Kind           string                       `json:"kind"`
+	EntrypointName string                       `json:"entrypointName"`
+	Match          LoadBalancerRouteMatchValue  `json:"match"`
+	Target         LoadBalancerRouteTargetValue `json:"target"`
+}
+
+type LoadBalancerRouteMatchValue struct {
+	Host       string `json:"host,omitempty"`
+	PathPrefix string `json:"pathPrefix,omitempty"`
+	Port       int    `json:"port,omitempty"`
+}
+
+type LoadBalancerRouteTargetValue struct {
+	Resource     ResourceReference `json:"resource"`
+	EndpointName string            `json:"endpointName,omitempty"`
+	Port         int               `json:"port,omitempty"`
+}
+
+func NewLoadBalancerResource(name string) *LoadBalancerResource {
+	return &LoadBalancerResource{
+		baseResource: newBaseResource(name, "cloudshell.loadBalancer", "cloudshell.load-balancer"),
+	}
+}
+
+func (r *LoadBalancerResource) WithResourceID(resourceID string) *LoadBalancerResource {
+	r.withResourceID(resourceID)
+	return r
+}
+
+func (r *LoadBalancerResource) WithDisplayName(displayName string) *LoadBalancerResource {
+	r.withDisplayName(displayName)
+	return r
+}
+
+func (r *LoadBalancerResource) WithProvider(provider string) *LoadBalancerResource {
+	r.provider = requireNotBlank(provider, "load balancer provider")
+	return r
+}
+
+func (r *LoadBalancerResource) UseHost(host ResourceHandle) *LoadBalancerResource {
+	if host == nil {
+		panic("load balancer host resource is required")
+	}
+
+	r.hostResource = host.ResourceID()
+	r.dependsOnResource(host)
+	return r
+}
+
+func (r *LoadBalancerResource) ExposeHTTP(port ...int) *LoadBalancerResource {
+	return r.addEntrypoint("http", "Http", firstInt(port, 80), "Public", nil)
+}
+
+func (r *LoadBalancerResource) ExposeHTTPS(certificate CertificateReference, port ...int) *LoadBalancerResource {
+	return r.addEntrypoint("https", "Https", firstInt(port, 443), "Public", &certificate)
+}
+
+func (r *LoadBalancerResource) ExposeTCP(port int) *LoadBalancerResource {
+	name := fmt.Sprintf("tcp-%d", port)
+	return r.addEntrypoint(name, "Tcp", port, "Public", nil)
+}
+
+func (r *LoadBalancerResource) MapHost(host string, target ResourceHandle, port int, entrypoint ...string) *LoadBalancerResource {
+	return r.addRoute(
+		"Http",
+		"",
+		fmt.Sprintf("%s to %s:%d", host, target.ResourceID(), port),
+		firstString(entrypoint, "http"),
+		LoadBalancerRouteMatchValue{Host: requireNotBlank(host, "route host")},
+		r.createTarget(target, "", port),
+		target)
+}
+
+func (r *LoadBalancerResource) MapPath(host string, pathPrefix string, target ResourceHandle, port int, entrypoint ...string) *LoadBalancerResource {
+	return r.addRoute(
+		"Http",
+		"",
+		fmt.Sprintf("%s%s to %s:%d", host, pathPrefix, target.ResourceID(), port),
+		firstString(entrypoint, "http"),
+		LoadBalancerRouteMatchValue{
+			Host:       requireNotBlank(host, "route host"),
+			PathPrefix: requireNotBlank(pathPrefix, "route path prefix"),
+		},
+		r.createTarget(target, "", port),
+		target)
+}
+
+func (r *LoadBalancerResource) MapTCP(port int, target ResourceHandle, targetPort int) *LoadBalancerResource {
+	return r.addRoute(
+		"Tcp",
+		"",
+		fmt.Sprintf("tcp %d to %s:%d", port, target.ResourceID(), targetPort),
+		fmt.Sprintf("tcp-%d", port),
+		LoadBalancerRouteMatchValue{Port: port},
+		r.createTarget(target, "", targetPort),
+		target)
+}
+
+func (r *LoadBalancerResource) addEntrypoint(
+	name string,
+	protocol string,
+	port int,
+	exposure string,
+	certificate *CertificateReference) *LoadBalancerResource {
+	name = requireNotBlank(name, "load balancer entrypoint name")
+	for index, entrypoint := range r.entrypoints {
+		if strings.EqualFold(entrypoint.Name, name) {
+			r.entrypoints = append(r.entrypoints[:index], r.entrypoints[index+1:]...)
+			break
+		}
+	}
+
+	r.entrypoints = append(r.entrypoints, LoadBalancerEntrypointValue{
+		Name:           name,
+		Protocol:       protocol,
+		Port:           port,
+		Exposure:       exposure,
+		CertificateRef: certificate,
+	})
+	return r
+}
+
+func (r *LoadBalancerResource) addRoute(
+	kind string,
+	id string,
+	name string,
+	entrypoint string,
+	match LoadBalancerRouteMatchValue,
+	target LoadBalancerRouteTargetValue,
+	targetResource ResourceHandle) *LoadBalancerResource {
+	if id == "" {
+		id = r.createRouteID(kind, match, targetResource, target)
+	}
+
+	for index, route := range r.routes {
+		if strings.EqualFold(route.ID, id) {
+			r.routes = append(r.routes[:index], r.routes[index+1:]...)
+			break
+		}
+	}
+
+	r.routes = append(r.routes, LoadBalancerRouteValue{
+		ID:             id,
+		Name:           name,
+		Kind:           kind,
+		EntrypointName: requireNotBlank(entrypoint, "route entrypoint"),
+		Match:          match,
+		Target:         target,
+	})
+	r.dependsOnResource(targetResource)
+	return r
+}
+
+func (r *LoadBalancerResource) createTarget(
+	target ResourceHandle,
+	endpointName string,
+	port int) LoadBalancerRouteTargetValue {
+	if target == nil {
+		panic("load balancer target resource is required")
+	}
+
+	return LoadBalancerRouteTargetValue{
+		Resource:     reference(target, RelationshipReference),
+		EndpointName: strings.TrimSpace(endpointName),
+		Port:         port,
+	}
+}
+
+func (r *LoadBalancerResource) createRouteID(
+	kind string,
+	match LoadBalancerRouteMatchValue,
+	targetResource ResourceHandle,
+	target LoadBalancerRouteTargetValue) string {
+	source := strings.Trim(strings.ReplaceAll(match.Host+"-"+match.PathPrefix, "/", "-"), "-")
+	if strings.EqualFold(kind, "Tcp") {
+		source = fmt.Sprintf("tcp-%d", match.Port)
+	}
+	if source == "" {
+		source = "route"
+	}
+
+	targetPart := target.EndpointName
+	if targetPart == "" && target.Port > 0 {
+		targetPart = fmt.Sprintf("%d", target.Port)
+	}
+	if targetPart == "" {
+		targetPart = "target"
+	}
+
+	return fmt.Sprintf("%s:route:%s:%s:%s", r.ResourceID(), source, targetResource.ResourceID(), targetPart)
+}
+
+func (r *LoadBalancerResource) setApp(app *App) {
+	r.baseResource.setApp(app)
+}
+
+func (r *LoadBalancerResource) build() map[string]any {
+	document := r.commonDocument()
+	loadBalancer := map[string]any{}
+	if r.provider != "" {
+		loadBalancer["provider"] = r.provider
+	}
+	if r.hostResource != "" {
+		loadBalancer["hostResourceId"] = r.hostResource
+	}
+	if len(r.entrypoints) > 0 {
+		loadBalancer["entrypointDefinitions"] = r.entrypoints
+	}
+	if len(r.routes) > 0 {
+		loadBalancer["routeDefinitions"] = r.routes
+	}
+	if len(loadBalancer) > 0 {
+		document["loadBalancer"] = loadBalancer
+	}
+
+	return document
+}
+
+func firstInt(values []int, fallback int) int {
+	if len(values) == 0 {
+		return fallback
+	}
+
+	return values[0]
+}
+
+func firstString(values []string, fallback string) string {
+	if len(values) == 0 || strings.TrimSpace(values[0]) == "" {
+		return fallback
+	}
+
+	return strings.TrimSpace(values[0])
+}

@@ -35,6 +35,13 @@ on `git blame --follow`, and then by the broad type of change.
   `WithSeed(seed => seed.Secret(...).Certificate(...))` for Secrets Vault
   values. Configuration Store references now use `Setting(...)` in builder
   APIs while the ResourceDefinition wire attribute remains `seed.entries`.
+- Added Traefik load-balancer HTTPS certificate materialization: Resource
+  Manager resolves HTTPS entrypoint `certificateRef` values through the
+  protected Secrets Vault runtime, Traefik writes provider-owned PEM
+  certificate/key files and references them from dynamic configuration, delete
+  cleanup removes generated certificate files, TypeScript/Go/Java launchers can
+  declare certificate-backed load-balancer entrypoints, and
+  `samples/CertificateLoadBalancer` verifies the end-to-end graph path.
 - Added a RabbitMQ credential endpoint that lets workloads present their
   CloudShell resource identity token, request access to a target RabbitMQ
   resource, and receive grant-derived RabbitMQ-native credentials after the

@@ -174,6 +174,11 @@ used on HTTPS entrypoints and that the referenced vault exists with the Secrets
 Vault resource type. Certificate payloads remain in the vault; load balancer
 resources store only the reference metadata.
 
+C#, TypeScript, Go, and Java launchers expose the same authoring convention:
+declare a Secrets Vault certificate with the vault seed builder, retrieve it
+with the vault's `Certificate(...)`/`certificate(...)` reference helper, and
+pass that reference to the load balancer HTTPS entrypoint builder.
+
 Resource action capabilities evaluate the same provider context used by apply
 and lifecycle execution. If the selected provider, host resource, route target,
 target endpoint, or route match cannot be resolved cleanly, Resource Manager
@@ -211,8 +216,17 @@ The provider supports:
 
 - HTTP routers using `Host(...)` and `PathPrefix(...)`
 - TCP routers using `HostSNI(...)`
+- HTTPS routers using vault-backed PEM certificates on HTTPS entrypoints
 - HTTP services with target URLs
 - TCP services with target addresses
+
+When an HTTPS entrypoint has a certificate reference, Resource Manager resolves
+the certificate through the protected Secrets Vault runtime before invoking the
+Traefik provider. The provider writes provider-owned `.crt` and `.key` files
+under the configured dynamic configuration directory and references those files
+from Traefik dynamic configuration. Certificate payloads are not copied into
+the load balancer resource, logs, or diagnostics, and delete cleanup removes
+the generated certificate files with the load balancer configuration.
 
 The standalone Traefik load-balancer provider does not currently consume
 container app session-affinity intent when it writes route configuration.
@@ -260,6 +274,15 @@ curl --resolve app.local:80:127.0.0.1 http://app.local/
 curl --resolve api.local:80:127.0.0.1 http://api.local/v1/get
 ```
 
+The `samples/CertificateLoadBalancer` project focuses on certificate
+consumption. It declares a Secrets Vault with a self-signed development PEM
+certificate, exposes a Traefik HTTPS entrypoint with that certificate
+reference, and routes `secure.cloudshell.local` to an Nginx container app.
+
+```bash
+dotnet run --project samples/CertificateLoadBalancer/CloudShell.CertificateLoadBalancer.csproj
+```
+
 ## Current Limits
 
 The current implementation focuses on the stable resource contract, Traefik
@@ -270,7 +293,7 @@ not yet provide:
 - editing multiple load-balancer routes after creation
 - full structured validation diagnostics before applying routes
 - provider-managed runtime probes and richer host diagnostics
-- provider-specific TLS certificate materialization in Traefik or other
-  providers
+- TLS issuer/renewal flows, PFX materialization, and TLS certificate
+  materialization in providers other than Traefik
 - weighted backend pools, traffic splitting, provider-observed replica health,
   or dynamic backend membership beyond the current requested replica count

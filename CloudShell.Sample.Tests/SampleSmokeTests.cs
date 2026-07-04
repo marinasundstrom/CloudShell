@@ -3154,6 +3154,71 @@ public sealed class SampleSmokeTests
         Assert.Contains("127.0.0.1 api.cloudshell.local", hostsFile);
     }
 
+    [Fact]
+    public async Task CertificateLoadBalancerSample_AppliesHttpsCertificateFromVault()
+    {
+        var root = SampleProcess.FindRepositoryRoot();
+        var dataDirectory = Path.Combine(root, "samples", "CertificateLoadBalancer", "Data");
+        if (Directory.Exists(dataDirectory))
+        {
+            Directory.Delete(dataDirectory, recursive: true);
+        }
+
+        using var host = await SampleProcess.StartAsync(
+            "samples/CertificateLoadBalancer/CloudShell.CertificateLoadBalancer.csproj",
+            await GetFreePortAsync(),
+            [
+                ("CLOUDSHELL_CERTIFICATE_LOADBALANCER_SKIP_TRAEFIK_RUNTIME", "true")
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var loadBalancer = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "cloudshell.loadBalancer:public");
+        var vault = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "secrets.vault:edge-certificates");
+        Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application.container-app:web");
+        Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "cloudshell.nameMapping:secure-cloudshell-local");
+
+        var vaultAttributes = vault.GetProperty("attributes");
+        var loadBalancerAttributes = loadBalancer.GetProperty("attributes");
+        Assert.Equal("1", vaultAttributes.GetProperty("certificateCount").GetString());
+        Assert.Equal("1", loadBalancerAttributes.GetProperty("loadBalancer.routes").GetString());
+        Assert.Equal("1", loadBalancerAttributes.GetProperty("loadBalancer.routes.http").GetString());
+
+        var applyAction = loadBalancer
+            .GetProperty("resourceActions")
+            .GetProperty("applyLoadBalancerConfiguration");
+        var applyHref = applyAction.GetProperty("href").GetString() ??
+            throw new InvalidOperationException("The load balancer apply action did not include an href.");
+        var applyJson = await host.SendAsync(HttpMethod.Post, applyHref);
+        using var applyDocument = JsonDocument.Parse(applyJson);
+        Assert.Contains(
+            "Applied Traefik configuration for 1 route(s)",
+            applyDocument.RootElement.GetProperty("message").GetString());
+
+        var configPath = Path.Combine(dataDirectory, "traefik", "cloudshell-loadbalancer-public.dynamic.yml");
+        var certificatePath = Path.Combine(dataDirectory, "traefik", "certificates", "cloudshell-loadbalancer-public-https.crt");
+        var keyPath = Path.Combine(dataDirectory, "traefik", "certificates", "cloudshell-loadbalancer-public-https.key");
+        var config = await File.ReadAllTextAsync(configPath);
+        var certificate = await File.ReadAllTextAsync(certificatePath);
+        var key = await File.ReadAllTextAsync(keyPath);
+        Assert.Contains("entryPoints: [\"https\"]", config);
+        Assert.Contains("Host(`secure.cloudshell.local`)", config);
+        Assert.Contains("tls: {}", config);
+        Assert.Contains($"certFile: \"{certificatePath}\"", config);
+        Assert.Contains($"keyFile: \"{keyPath}\"", config);
+        Assert.Contains("BEGIN CERTIFICATE", certificate);
+        Assert.DoesNotContain("BEGIN PRIVATE KEY", certificate);
+        Assert.Contains("BEGIN PRIVATE KEY", key);
+        Assert.DoesNotContain("BEGIN CERTIFICATE", key);
+    }
+
     private static async Task<IReadOnlyList<(string Key, string Value)>> CreateSampleHostLaunchEnvironmentAsync(
         string projectPath,
         int hostPort)

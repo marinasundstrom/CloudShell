@@ -12,7 +12,25 @@ The initial package includes builders for:
 - Go app resources
 - Configuration Store resources
 - Secrets Vault resources
+- Load Balancer resources
 - Host network resources
+
+Secrets Vault certificates can be passed directly to HTTPS load-balancer
+entrypoints:
+
+```go
+secrets := app.AddSecretsVault("secrets").
+	WithSeed(func(seed *cloudshell.SecretsVaultSeed) {
+		seed.Certificate("ApiTls", localDevelopmentPem, "application/x-pem-file")
+	})
+
+api := app.AddGoApp("api", "src/api")
+
+app.AddLoadBalancer("edge").
+	WithProvider("traefik").
+	ExposeHTTPS(secrets.Certificate("ApiTls")).
+	MapHost("api.local", api, 8080, "https")
+```
 
 It exposes the standard launcher verbs:
 

@@ -28,6 +28,9 @@
   <Folder Name="/samples/CloudShell.UiExtensionHost/">
     <Project Path="samples/CloudShell.UiExtensionHost/CloudShell.UiExtensionHost.csproj" />
   </Folder>
+  <Folder Name="/samples/CertificateLoadBalancer/">
+    <Project Path="samples/CertificateLoadBalancer/CloudShell.CertificateLoadBalancer.csproj" />
+  </Folder>
   <Folder Name="/samples/ContainerAppDeployment/">
     <Project Path="samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj" />
   </Folder>

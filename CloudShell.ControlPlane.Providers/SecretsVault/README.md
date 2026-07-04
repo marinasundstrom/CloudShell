@@ -92,14 +92,17 @@ placing secret or certificate values in exported graph attributes. Runtime
 secrets and certificates can be managed through Resource Manager when the UI
 host has access to the provider runtime manager. Load balancer HTTPS
 entrypoints can reference vault certificates without copying certificate
-material into the load balancer resource. Durable secret storage, log
-streaming, permission-protected import/export, versioning, provider-specific
-TLS materialization, and full registration/update flows remain outside the
-switch gate.
+material into the load balancer resource, and the Traefik load-balancer
+provider can materialize PEM certificate/key files from those references for
+HTTPS entrypoints. Durable secret storage, log streaming,
+permission-protected import/export, versioning, issuer/renewal flows, broader
+PFX handling, and full registration/update flows remain outside the switch
+gate.
 
 ## Remaining
 
 - Durable secret storage.
-- Provider-specific TLS/HTTPS certificate materialization and renewal flows.
+- TLS/HTTPS certificate issuer and renewal flows, PFX materialization, and
+  certificate materialization in providers beyond Traefik.
 - Logs, permission-protected secret/certificate import/export, and versioning.
 - Full UI registration/update flow.

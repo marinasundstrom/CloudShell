@@ -9,6 +9,8 @@ public sealed class TraefikLoadBalancerProvider(TraefikProviderOptions options) 
     ILoadBalancerProvider,
     ILoadBalancerRuntimeProvider
 {
+    private const string RuntimeCertificateDirectory = "/etc/traefik/certificates";
+
     public string ProviderName => "traefik";
 
     public bool CanApply(LoadBalancerProviderContext context) =>
@@ -35,7 +37,10 @@ public sealed class TraefikLoadBalancerProvider(TraefikProviderOptions options) 
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var path = await WriteDynamicConfigurationAsync(context, cancellationToken);
+        var path = await WriteDynamicConfigurationAsync(
+            context,
+            useRuntimeContainerPaths: true,
+            cancellationToken);
         await StartRuntimeContainerAsync(
             context,
             Path.GetFullPath(path),
@@ -69,16 +74,31 @@ public sealed class TraefikLoadBalancerProvider(TraefikProviderOptions options) 
             File.Delete(path);
         }
 
+        DeleteCertificateFiles(context.Definition.Id);
+
         return ResourceProcedureResult.Completed(
             $"Deleted Traefik runtime container '{CreateContainerName(context.Definition.Id)}' and dynamic configuration.");
     }
 
     private async Task<string> WriteDynamicConfigurationAsync(
         LoadBalancerProviderContext context,
+        CancellationToken cancellationToken) =>
+        await WriteDynamicConfigurationAsync(
+            context,
+            useRuntimeContainerPaths: false,
+            cancellationToken);
+
+    private async Task<string> WriteDynamicConfigurationAsync(
+        LoadBalancerProviderContext context,
+        bool useRuntimeContainerPaths,
         CancellationToken cancellationToken)
     {
-        var configuration = TraefikDynamicConfigurationWriter.Write(context);
         Directory.CreateDirectory(options.DynamicConfigurationDirectory);
+        var certificateFiles = await WriteCertificateFilesAsync(
+            context,
+            useRuntimeContainerPaths,
+            cancellationToken);
+        var configuration = TraefikDynamicConfigurationWriter.Write(context, certificateFiles);
         var path = CreateDynamicConfigurationPath(context.Definition.Id);
         await File.WriteAllTextAsync(path, configuration, Encoding.UTF8, cancellationToken);
         return path;
@@ -118,6 +138,12 @@ public sealed class TraefikLoadBalancerProvider(TraefikProviderOptions options) 
 
         arguments.Add("-v");
         arguments.Add($"{dynamicConfigurationPath}:/etc/traefik/dynamic.yml:ro");
+        if (context.ResolvedCertificates.Count > 0)
+        {
+            arguments.Add("-v");
+            arguments.Add($"{CreateCertificateDirectory()}:{RuntimeCertificateDirectory}:ro");
+        }
+
         arguments.Add(options.RuntimeContainerImage);
         arguments.Add("--providers.file.filename=/etc/traefik/dynamic.yml");
         arguments.Add("--providers.file.watch=true");
@@ -206,6 +232,129 @@ public sealed class TraefikLoadBalancerProvider(TraefikProviderOptions options) 
         Path.Combine(
             options.DynamicConfigurationDirectory,
             $"{CreateFileName(resourceId)}.dynamic.yml");
+
+    private async Task<IReadOnlyDictionary<string, TraefikCertificateFile>> WriteCertificateFilesAsync(
+        LoadBalancerProviderContext context,
+        bool useRuntimeContainerPaths,
+        CancellationToken cancellationToken)
+    {
+        if (context.ResolvedCertificates.Count == 0)
+        {
+            return new Dictionary<string, TraefikCertificateFile>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var directory = CreateCertificateDirectory();
+        Directory.CreateDirectory(directory);
+
+        var files = new Dictionary<string, TraefikCertificateFile>(StringComparer.OrdinalIgnoreCase);
+        foreach (var certificate in context.ResolvedCertificates)
+        {
+            var pem = SplitPemCertificate(certificate);
+            var fileName = CreateCertificateFileName(
+                context.Definition.Id,
+                certificate.EntrypointName);
+            var certificatePath = Path.Combine(directory, $"{fileName}.crt");
+            var keyPath = Path.Combine(directory, $"{fileName}.key");
+            await File.WriteAllTextAsync(certificatePath, pem.Certificate, Encoding.UTF8, cancellationToken);
+            await File.WriteAllTextAsync(keyPath, pem.PrivateKey, Encoding.UTF8, cancellationToken);
+
+            var traefikCertificatePath = useRuntimeContainerPaths
+                ? $"{RuntimeCertificateDirectory}/{Path.GetFileName(certificatePath)}"
+                : Path.GetFullPath(certificatePath);
+            var traefikKeyPath = useRuntimeContainerPaths
+                ? $"{RuntimeCertificateDirectory}/{Path.GetFileName(keyPath)}"
+                : Path.GetFullPath(keyPath);
+            files[certificate.EntrypointName] = new TraefikCertificateFile(
+                certificate.EntrypointName,
+                traefikCertificatePath,
+                traefikKeyPath);
+        }
+
+        return files;
+    }
+
+    private string CreateCertificateDirectory() =>
+        Path.Combine(options.DynamicConfigurationDirectory, "certificates");
+
+    private void DeleteCertificateFiles(string resourceId)
+    {
+        var directory = CreateCertificateDirectory();
+        if (!Directory.Exists(directory))
+        {
+            return;
+        }
+
+        var filePrefix = $"{CreateFileName(resourceId)}-";
+        foreach (var file in Directory.EnumerateFiles(directory, $"{filePrefix}*.*"))
+        {
+            File.Delete(file);
+        }
+    }
+
+    private static (string Certificate, string PrivateKey) SplitPemCertificate(
+        LoadBalancerResolvedCertificate certificate)
+    {
+        var certificates = ExtractPemBlocks(certificate.Value, "CERTIFICATE").ToArray();
+        var privateKeys = ExtractPrivateKeyPemBlocks(certificate.Value).ToArray();
+        if (certificates.Length == 0 || privateKeys.Length == 0)
+        {
+            throw new InvalidOperationException(
+                $"Certificate '{certificate.Reference.CertificateName}' for load balancer entrypoint '{certificate.EntrypointName}' must contain PEM certificate and private-key blocks before Traefik can materialize TLS.");
+        }
+
+        return (
+            string.Join(Environment.NewLine, certificates) + Environment.NewLine,
+            privateKeys[0] + Environment.NewLine);
+    }
+
+    private static IEnumerable<string> ExtractPrivateKeyPemBlocks(string value)
+    {
+        foreach (var label in new[]
+        {
+            "PRIVATE KEY",
+            "RSA PRIVATE KEY",
+            "EC PRIVATE KEY",
+            "ENCRYPTED PRIVATE KEY"
+        })
+        {
+            foreach (var block in ExtractPemBlocks(value, label))
+            {
+                yield return block;
+            }
+        }
+    }
+
+    private static IEnumerable<string> ExtractPemBlocks(
+        string value,
+        string label)
+    {
+        var begin = $"-----BEGIN {label}-----";
+        var end = $"-----END {label}-----";
+        var startIndex = 0;
+        while (startIndex < value.Length)
+        {
+            var beginIndex = value.IndexOf(begin, startIndex, StringComparison.Ordinal);
+            if (beginIndex < 0)
+            {
+                yield break;
+            }
+
+            var endIndex = value.IndexOf(end, beginIndex, StringComparison.Ordinal);
+            if (endIndex < 0)
+            {
+                yield break;
+            }
+
+            var blockEnd = endIndex + end.Length;
+            yield return value[beginIndex..blockEnd].Trim();
+            startIndex = blockEnd;
+        }
+    }
+
+    private static string CreateCertificateFileName(
+        string resourceId,
+        string entrypointName) =>
+        $"{CreateFileName(resourceId)}-{CreateFileName(entrypointName)}";
 
     private static string CreateFileName(string resourceId)
     {

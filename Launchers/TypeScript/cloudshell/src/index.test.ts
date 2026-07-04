@@ -23,7 +23,7 @@ test("builds a resource template with JavaScript app and configuration store", (
       .secret("Sample--ApiKey", "typescript-secret", "v1")
       .certificate("ApiTls", "typescript-certificate", "v1", "application/x-pem-file"));
 
-  app
+  const frontendResource = app
     .addJavaScriptApp("typescript-frontend", "samples/TypeScriptAppHost/App")
     .withDisplayName("TypeScript Frontend")
     .withPackageManager("npm")
@@ -48,10 +48,19 @@ test("builds a resource template with JavaScript app and configuration store", (
     .withHttpHealthCheck("/healthz", { endpointName: "http" })
     .withHttpLivenessCheck("/alive", { endpointName: "http" });
 
+  const defaultNetwork = app.getDefaultNetwork();
+  app
+    .addLoadBalancer("edge")
+    .withDisplayName("Edge")
+    .withProvider("traefik")
+    .useHost(defaultNetwork)
+    .exposeHttps(secrets.certificate("ApiTls"), { port: 4443 })
+    .mapHost("frontend.local", frontendResource, { port: 5173, entrypoint: "https" });
+
   const template = app.buildTemplate();
 
   assert.equal(template.name, "typescript-hosting-poc");
-  assert.equal(template.resources.length, 4);
+  assert.equal(template.resources.length, 5);
 
   const settingsResource = template.resources.find(resource => resource.name === "typescript-settings")!;
   assert.equal(settingsResource.endpoint, "http://localhost:5101");
@@ -176,6 +185,47 @@ test("builds a resource template with JavaScript app and configuration store", (
             path: "/alive",
             endpointName: "http"
           }
+        }
+      }
+    ]
+  });
+
+  const loadBalancer = template.resources.find(resource => resource.name === "edge")!;
+  assert.equal(loadBalancer.type, "cloudshell.loadBalancer");
+  assert.equal(loadBalancer.providerId, "cloudshell.load-balancer");
+  assert.deepEqual(loadBalancer.loadBalancer, {
+    provider: "traefik",
+    hostResourceId: "network:host",
+    entrypointDefinitions: [
+      {
+        name: "https",
+        protocol: "Https",
+        port: 4443,
+        exposure: "Public",
+        certificateRef: {
+          vaultResourceId: "secrets.vault:typescript-secrets",
+          name: "ApiTls"
+        }
+      }
+    ],
+    routeDefinitions: [
+      {
+        id: "cloudshell.loadBalancer:edge:route:frontend.local:application.javascript-app:typescript-frontend:5173",
+        name: "frontend.local to application.javascript-app:typescript-frontend",
+        kind: "Http",
+        entrypointName: "https",
+        match: {
+          host: "frontend.local"
+        },
+        target: {
+          resource: {
+            resourceId: "application.javascript-app:typescript-frontend",
+            relationship: "reference",
+            addressingMode: "resourceId",
+            typeId: "application.javascript-app",
+            providerId: "applications.javascript-app"
+          },
+          port: 5173
         }
       }
     ]

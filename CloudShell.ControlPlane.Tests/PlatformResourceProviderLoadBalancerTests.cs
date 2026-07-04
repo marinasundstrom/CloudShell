@@ -140,6 +140,88 @@ public sealed class PlatformResourceProviderLoadBalancerTests
     }
 
     [Fact]
+    public async Task TraefikProvider_MaterializesResolvedHttpsCertificate()
+    {
+        var outputDirectory = CreateTempDirectory();
+        var provider = new TraefikLoadBalancerProvider(new TraefikProviderOptions
+        {
+            DynamicConfigurationDirectory = outputDirectory
+        });
+        var definition = new LoadBalancerResourceDefinition(
+            "load-balancer:public",
+            "Public",
+            "traefik",
+            Entrypoints:
+            [
+                new(
+                    "https",
+                    ResourceEndpointProtocol.Https,
+                    443,
+                    Certificate: new CertificateReference(
+                        "secrets-vault:edge",
+                        "EdgeTls"))
+            ],
+            Routes:
+            [
+                new(
+                    "web",
+                    "Web",
+                    LoadBalancerRouteKind.Http,
+                    "https",
+                    new LoadBalancerRouteMatch("app.local", "/"),
+                    new LoadBalancerRouteTarget("application:web", Port: 80))
+            ]);
+        var loadBalancer = CreateResource("load-balancer:public", "Public", []);
+        var web = CreateResource("application:web", "Web", []);
+        var context = new LoadBalancerProviderContext(
+            loadBalancer,
+            definition,
+            HostResource: null,
+            Routes:
+            [
+                new(
+                    definition.LoadBalancerRoutes.Single(),
+                    web,
+                    TargetEndpoint: null)
+            ],
+            ResourceManager: new TestResourceManagerStore([loadBalancer, web]),
+            Certificates:
+            [
+                new(
+                    "https",
+                    new CertificateReference("secrets-vault:edge", "EdgeTls"),
+                    """
+                    -----BEGIN PRIVATE KEY-----
+                    private-key
+                    -----END PRIVATE KEY-----
+                    -----BEGIN CERTIFICATE-----
+                    certificate
+                    -----END CERTIFICATE-----
+                    """,
+                    ContentType: "application/x-pem-file")
+            ]);
+
+        var result = await provider.ApplyAsync(context);
+
+        var configPath = Path.Combine(outputDirectory, "load-balancer-public.dynamic.yml");
+        var certificatePath = Path.Combine(outputDirectory, "certificates", "load-balancer-public-https.crt");
+        var keyPath = Path.Combine(outputDirectory, "certificates", "load-balancer-public-https.key");
+        var config = await File.ReadAllTextAsync(configPath);
+        var certificate = await File.ReadAllTextAsync(certificatePath);
+        var key = await File.ReadAllTextAsync(keyPath);
+        Assert.Contains("Applied Traefik configuration for 1 route(s)", result.Message);
+        Assert.Contains("entryPoints: [\"https\"]", config);
+        Assert.Contains("tls: {}", config);
+        Assert.Contains("tls:", config);
+        Assert.Contains($"certFile: \"{certificatePath}\"", config);
+        Assert.Contains($"keyFile: \"{keyPath}\"", config);
+        Assert.Contains("BEGIN CERTIFICATE", certificate);
+        Assert.DoesNotContain("BEGIN PRIVATE KEY", certificate);
+        Assert.Contains("BEGIN PRIVATE KEY", key);
+        Assert.DoesNotContain("BEGIN CERTIFICATE", key);
+    }
+
+    [Fact]
     public async Task ExecuteActionAsync_UsesRuntimeReplicaAliasesWhenPresent()
     {
         var store = CreatePlatformStore();

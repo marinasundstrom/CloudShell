@@ -254,12 +254,27 @@ public sealed record LoadBalancerRouteResolution(
     public IReadOnlyList<LoadBalancerBackendTarget> ResolvedBackends => Backends ?? [];
 }
 
+public sealed record LoadBalancerResolvedCertificate(
+    string EntrypointName,
+    CertificateReference Reference,
+    string Value,
+    string? ContentType = null,
+    string? Thumbprint = null,
+    string? Subject = null,
+    DateTimeOffset? NotBefore = null,
+    DateTimeOffset? Expires = null);
+
 public sealed record LoadBalancerProviderContext(
     Resource LoadBalancerResource,
     LoadBalancerResourceDefinition Definition,
     Resource? HostResource,
     IReadOnlyList<LoadBalancerRouteResolution> Routes,
-    IResourceManagerStore ResourceManager);
+    IResourceManagerStore ResourceManager,
+    IReadOnlyList<LoadBalancerResolvedCertificate>? Certificates = null)
+{
+    public IReadOnlyList<LoadBalancerResolvedCertificate> ResolvedCertificates =>
+        Certificates ?? [];
+}
 
 public sealed record DnsZoneResourceDefinition(
     string Id,

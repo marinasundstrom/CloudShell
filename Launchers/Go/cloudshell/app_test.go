@@ -32,7 +32,7 @@ func TestBuildsGoAppTemplate(t *testing.T) {
 				Certificate("ApiTls", "go-certificate", "application/x-pem-file", "v1")
 		})
 
-	app.AddGoApp("api", "samples/GoApp/App").
+	api := app.AddGoApp("api", "samples/GoApp/App").
 		WithDisplayName("Go API").
 		WithServiceDiscovery().
 		WithEnvironmentVariable("PORT", "5186").
@@ -46,6 +46,13 @@ func TestBuildsGoAppTemplate(t *testing.T) {
 		WithHttpHealthCheck("/ready").
 		WithHttpLivenessCheck("/live").
 		WithDefaultConsoleLogSource()
+
+	app.AddLoadBalancer("edge").
+		WithDisplayName("Edge").
+		WithProvider("traefik").
+		UseHost(network).
+		ExposeHTTPS(secrets.Certificate("ApiTls"), 4443).
+		MapHost("api.local", api, 5186, "https")
 
 	jsonValue, err := app.ToJSON()
 	if err != nil {
@@ -76,6 +83,17 @@ func TestBuildsGoAppTemplate(t *testing.T) {
 	}
 	if goResource == nil {
 		t.Fatal("Go app resource was not emitted")
+	}
+
+	var loadBalancerResource map[string]any
+	for _, resource := range template.Resources {
+		if resource["name"] == "edge" {
+			loadBalancerResource = resource
+			break
+		}
+	}
+	if loadBalancerResource == nil {
+		t.Fatal("Load balancer resource was not emitted")
 	}
 
 	var secretsResource map[string]any
@@ -125,6 +143,39 @@ func TestBuildsGoAppTemplate(t *testing.T) {
 	if len(sources) != 1 {
 		t.Fatalf("expected one log source, got %d", len(sources))
 	}
+
+	assertEqual(t, "cloudshell.loadBalancer", loadBalancerResource["type"])
+	assertEqual(t, "cloudshell.load-balancer", loadBalancerResource["providerId"])
+	loadBalancer := loadBalancerResource["loadBalancer"].(map[string]any)
+	assertEqual(t, "traefik", loadBalancer["provider"])
+	assertEqual(t, "network:host", loadBalancer["hostResourceId"])
+
+	entrypoints := loadBalancer["entrypointDefinitions"].([]any)
+	if len(entrypoints) != 1 {
+		t.Fatalf("expected one load balancer entrypoint, got %d", len(entrypoints))
+	}
+	entrypoint := entrypoints[0].(map[string]any)
+	assertEqual(t, "https", entrypoint["name"])
+	assertEqual(t, "Https", entrypoint["protocol"])
+	assertEqual(t, float64(4443), entrypoint["port"])
+	certificateRef := entrypoint["certificateRef"].(map[string]any)
+	assertEqual(t, "secrets.vault:secrets", certificateRef["vaultResourceId"])
+	assertEqual(t, "ApiTls", certificateRef["name"])
+
+	routes := loadBalancer["routeDefinitions"].([]any)
+	if len(routes) != 1 {
+		t.Fatalf("expected one load balancer route, got %d", len(routes))
+	}
+	route := routes[0].(map[string]any)
+	assertEqual(t, "Http", route["kind"])
+	assertEqual(t, "https", route["entrypointName"])
+	match := route["match"].(map[string]any)
+	assertEqual(t, "api.local", match["host"])
+	target := route["target"].(map[string]any)
+	assertEqual(t, float64(5186), target["port"])
+	targetResource := target["resource"].(map[string]any)
+	assertEqual(t, "application.go-app:api", targetResource["resourceId"])
+	assertEqual(t, "reference", targetResource["relationship"])
 }
 
 func TestBuildsGoAppAsContainerAppTemplate(t *testing.T) {

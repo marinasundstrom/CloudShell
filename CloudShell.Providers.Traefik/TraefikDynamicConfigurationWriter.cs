@@ -6,10 +6,14 @@ namespace CloudShell.Providers.Traefik;
 
 public static class TraefikDynamicConfigurationWriter
 {
-    public static string Write(LoadBalancerProviderContext context)
+    public static string Write(
+        LoadBalancerProviderContext context,
+        IReadOnlyDictionary<string, TraefikCertificateFile>? certificateFiles = null)
     {
         ArgumentNullException.ThrowIfNull(context);
 
+        certificateFiles ??= new Dictionary<string, TraefikCertificateFile>(
+            StringComparer.OrdinalIgnoreCase);
         var httpRoutes = context.Routes
             .Where(route => route.Route.Kind == LoadBalancerRouteKind.Http)
             .ToArray();
@@ -20,7 +24,7 @@ public static class TraefikDynamicConfigurationWriter
 
         if (httpRoutes.Length > 0)
         {
-            WriteHttp(builder, httpRoutes);
+            WriteHttp(builder, context.Definition, httpRoutes, certificateFiles);
         }
 
         if (tcpRoutes.Length > 0)
@@ -33,12 +37,24 @@ public static class TraefikDynamicConfigurationWriter
             WriteTcp(builder, tcpRoutes);
         }
 
+        if (certificateFiles.Count > 0)
+        {
+            if (builder.Length > 0)
+            {
+                builder.AppendLine();
+            }
+
+            WriteTls(builder, certificateFiles.Values.DistinctBy(file => file.CertificateFile));
+        }
+
         return builder.ToString();
     }
 
     private static void WriteHttp(
         StringBuilder builder,
-        IReadOnlyList<LoadBalancerRouteResolution> routes)
+        LoadBalancerResourceDefinition definition,
+        IReadOnlyList<LoadBalancerRouteResolution> routes,
+        IReadOnlyDictionary<string, TraefikCertificateFile> certificateFiles)
     {
         builder.AppendLine("http:");
         builder.AppendLine("  routers:");
@@ -46,10 +62,16 @@ public static class TraefikDynamicConfigurationWriter
         {
             var route = resolution.Route;
             var routeId = CreateTraefikId(route.Id);
+            var entrypoint = definition.LoadBalancerEntrypoints.FirstOrDefault(entrypoint =>
+                string.Equals(entrypoint.Name, route.EntrypointName, StringComparison.OrdinalIgnoreCase));
             builder.AppendLine(CultureInfo.InvariantCulture, $"    {routeId}:");
             builder.AppendLine(CultureInfo.InvariantCulture, $"      entryPoints: [{Quote(route.EntrypointName)}]");
             builder.AppendLine(CultureInfo.InvariantCulture, $"      rule: {Quote(CreateHttpRule(route.Match))}");
             builder.AppendLine(CultureInfo.InvariantCulture, $"      service: {Quote(routeId)}");
+            if (entrypoint?.Protocol == ResourceEndpointProtocol.Https)
+            {
+                builder.AppendLine("      tls: {}");
+            }
         }
 
         builder.AppendLine("  services:");
@@ -71,6 +93,19 @@ public static class TraefikDynamicConfigurationWriter
             {
                 builder.AppendLine(CultureInfo.InvariantCulture, $"          - url: {Quote(CreateHttpTarget(resolution))}");
             }
+        }
+    }
+
+    private static void WriteTls(
+        StringBuilder builder,
+        IEnumerable<TraefikCertificateFile> certificateFiles)
+    {
+        builder.AppendLine("tls:");
+        builder.AppendLine("  certificates:");
+        foreach (var certificateFile in certificateFiles)
+        {
+            builder.AppendLine(CultureInfo.InvariantCulture, $"    - certFile: {Quote(certificateFile.CertificateFile)}");
+            builder.AppendLine(CultureInfo.InvariantCulture, $"      keyFile: {Quote(certificateFile.KeyFile)}");
         }
     }
 
@@ -220,3 +255,8 @@ public static class TraefikDynamicConfigurationWriter
     private static string Quote(string value) =>
         $"\"{value.Replace("\"", "\\\"", StringComparison.Ordinal)}\"";
 }
+
+public sealed record TraefikCertificateFile(
+    string EntrypointName,
+    string CertificateFile,
+    string KeyFile);

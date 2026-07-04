@@ -113,6 +113,31 @@ export interface CertificateSeedValue {
   contentType?: string;
 }
 
+export interface LoadBalancerEntrypointValue {
+  name: string;
+  protocol: string;
+  port: number;
+  exposure: string;
+  certificateRef?: CertificateReference;
+}
+
+export interface LoadBalancerRouteValue {
+  id: string;
+  name: string;
+  kind: string;
+  entrypointName: string;
+  match: {
+    host?: string;
+    pathPrefix?: string;
+    port?: number;
+  };
+  target: {
+    resource: ResourceReferenceDocument;
+    endpointName?: string;
+    port?: number;
+  };
+}
+
 export interface ApplyOptions {
   cliProject?: string;
   cloudshellCommand?: string;
@@ -184,6 +209,12 @@ export class CloudShellApp {
 
   public addSecretsVault(name: string): SecretsVaultResourceBuilder {
     const builder = new SecretsVaultResourceBuilder(name);
+    this.add(builder);
+    return builder;
+  }
+
+  public addLoadBalancer(name: string): LoadBalancerResourceBuilder {
+    const builder = new LoadBalancerResourceBuilder(name);
     this.add(builder);
     return builder;
   }
@@ -609,6 +640,166 @@ export class SecretsVaultSeedBuilder {
       contentType: normalizeOptionalString(contentType)
     }) as CertificateSeedValue);
     return this;
+  }
+}
+
+export class LoadBalancerResourceBuilder extends ResourceBuilder {
+  private readonly entrypoints: LoadBalancerEntrypointValue[] = [];
+  private readonly routes: LoadBalancerRouteValue[] = [];
+
+  public constructor(name: string) {
+    super(name, "cloudshell.loadBalancer", "cloudshell.load-balancer");
+  }
+
+  public withProvider(provider: string): this {
+    return this.withAttribute("loadBalancer.provider", provider);
+  }
+
+  public useHost(host: ResourceHandle | string): this {
+    const hostResourceId = typeof host === "string" ? host : host.effectiveResourceId;
+    this.withAttribute("loadBalancer.hostResourceId", hostResourceId);
+    return this.dependsOn(host);
+  }
+
+  public exposeHttp(options: { port?: number; name?: string; exposure?: string } = {}): this {
+    return this.addEntrypoint(options.name ?? "http", "Http", options.port ?? 80, options.exposure ?? "Public");
+  }
+
+  public exposeHttps(
+    certificate?: CertificateReference,
+    options: { port?: number; name?: string; exposure?: string } = {}): this {
+    return this.addEntrypoint(
+      options.name ?? "https",
+      "Https",
+      options.port ?? 443,
+      options.exposure ?? "Public",
+      certificate);
+  }
+
+  public exposeTcp(
+    port: number,
+    options: { name?: string; exposure?: string } = {}): this {
+    return this.addEntrypoint(options.name ?? `tcp-${port}`, "Tcp", port, options.exposure ?? "Public");
+  }
+
+  public mapHost(
+    host: string,
+    target: ResourceHandle,
+    options: { endpoint?: string; port?: number; id?: string; entrypoint?: string } = {}): this {
+    return this.addRoute(
+      "Http",
+      options.id,
+      `${host} to ${target.effectiveResourceId}`,
+      options.entrypoint ?? "http",
+      { host },
+      this.createTarget(target, options.endpoint, options.port),
+      target);
+  }
+
+  public mapPath(
+    host: string,
+    pathPrefix: string,
+    target: ResourceHandle,
+    options: { endpoint?: string; port?: number; id?: string; entrypoint?: string } = {}): this {
+    return this.addRoute(
+      "Http",
+      options.id,
+      `${host}${pathPrefix} to ${target.effectiveResourceId}`,
+      options.entrypoint ?? "http",
+      { host, pathPrefix },
+      this.createTarget(target, options.endpoint, options.port),
+      target);
+  }
+
+  public mapTcp(
+    port: number,
+    target: ResourceHandle,
+    options: { endpoint?: string; targetPort?: number; id?: string; entrypoint?: string } = {}): this {
+    return this.addRoute(
+      "Tcp",
+      options.id,
+      `tcp ${port} to ${target.effectiveResourceId}`,
+      options.entrypoint ?? `tcp-${port}`,
+      { port },
+      this.createTarget(target, options.endpoint, options.targetPort),
+      target);
+  }
+
+  private addEntrypoint(
+    name: string,
+    protocol: string,
+    port: number,
+    exposure: string,
+    certificate?: CertificateReference): this {
+    assertNotBlank(name, "Load balancer entrypoint name is required.");
+    const normalizedName = name.trim();
+    const existing = this.entrypoints.findIndex(entrypoint =>
+      entrypoint.name.toLowerCase() === normalizedName.toLowerCase());
+    if (existing >= 0) {
+      this.entrypoints.splice(existing, 1);
+    }
+
+    this.entrypoints.push(pruneUndefined({
+      name: normalizedName,
+      protocol,
+      port,
+      exposure,
+      certificateRef: certificate
+    }) as LoadBalancerEntrypointValue);
+    return this.withAttribute("loadBalancer.entrypointDefinitions", this.entrypoints);
+  }
+
+  private addRoute(
+    kind: string,
+    id: string | undefined,
+    name: string,
+    entrypoint: string,
+    match: LoadBalancerRouteValue["match"],
+    target: LoadBalancerRouteValue["target"],
+    targetResource: ResourceHandle): this {
+    const routeId = normalizeOptionalString(id) ?? this.createRouteId(kind, match, targetResource, target);
+    const existing = this.routes.findIndex(route =>
+      route.id.toLowerCase() === routeId.toLowerCase());
+    if (existing >= 0) {
+      this.routes.splice(existing, 1);
+    }
+
+    this.routes.push(pruneUndefined({
+      id: routeId,
+      name,
+      kind,
+      entrypointName: entrypoint,
+      match,
+      target
+    }) as LoadBalancerRouteValue);
+    this.dependsOn(targetResource);
+    return this.withAttribute("loadBalancer.routeDefinitions", this.routes);
+  }
+
+  private createTarget(
+    target: ResourceHandle,
+    endpointName?: string,
+    port?: number): LoadBalancerRouteValue["target"] {
+    return pruneUndefined({
+      resource: this.reference(target),
+      endpointName: normalizeOptionalString(endpointName),
+      port
+    }) as LoadBalancerRouteValue["target"];
+  }
+
+  private createRouteId(
+    kind: string,
+    match: LoadBalancerRouteValue["match"],
+    targetResource: ResourceHandle,
+    target: LoadBalancerRouteValue["target"]): string {
+    const source = kind.toLowerCase() === "tcp"
+      ? `tcp-${match.port}`
+      : [match.host, match.pathPrefix]
+          .filter(value => value && value.trim().length > 0)
+          .map(value => value!.trim().replaceAll("/", "-").replace(/^-+|-+$/g, ""))
+          .join("-");
+    const targetPart = target.endpointName ?? target.port?.toString() ?? "target";
+    return `${this.effectiveResourceId}:route:${source}:${targetResource.effectiveResourceId}:${targetPart}`;
   }
 }
 
