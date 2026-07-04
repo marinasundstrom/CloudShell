@@ -135,7 +135,7 @@ public sealed class ResourceModelGraphDefinitionApplyService(
         }
     }
 
-    private static ResourceIdentityBinding CreateIdentityBinding(
+    public static ResourceIdentityBinding CreateIdentityBinding(
         ResourceIdentityBindingAttribute identity)
     {
         var kind = ParseIdentityBindingKind(identity.Kind);

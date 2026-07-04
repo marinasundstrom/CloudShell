@@ -9,10 +9,12 @@ using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
+using System.Security.Cryptography;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 AddDelegatedHostSettings(builder.Configuration, args);
+AddLocalDevelopmentAuthenticationDefaults(builder.Configuration);
 
 var repositoryRootPath = Path.GetFullPath("..", builder.Environment.ContentRootPath);
 var configurationStoreServiceProjectPath = Path.Combine(
@@ -102,6 +104,109 @@ static void AddLocalDevelopmentIdentityProvider(
         identity.ProviderName,
         ResourceIdentityProviderKind.BuiltIn,
         useAsDefault: identity.UseAsDefaultProvider);
+}
+
+static void AddLocalDevelopmentAuthenticationDefaults(
+    ConfigurationManager configuration)
+{
+    var defaults = new Dictionary<string, string?>();
+    var configuredAuthorityEnabled =
+        configuration["Authentication:BuiltInAuthority:Enabled"];
+    var authorityEnabled = string.IsNullOrWhiteSpace(configuredAuthorityEnabled) ||
+        bool.TryParse(configuredAuthorityEnabled, out var parsedAuthorityEnabled) &&
+        parsedAuthorityEnabled;
+
+    if (string.IsNullOrWhiteSpace(configuredAuthorityEnabled))
+    {
+        defaults["Authentication:BuiltInAuthority:Enabled"] = "true";
+    }
+
+    if (!authorityEnabled)
+    {
+        if (defaults.Count > 0)
+        {
+            configuration.AddInMemoryCollection(defaults);
+        }
+
+        return;
+    }
+
+    var endpoint = ResolveLocalDevelopmentControlPlaneEndpoint(configuration);
+    if (string.IsNullOrWhiteSpace(configuration["Authentication:BuiltInAuthority:Issuer"]))
+    {
+        defaults["Authentication:BuiltInAuthority:Issuer"] = endpoint;
+    }
+
+    if (string.IsNullOrWhiteSpace(configuration["CloudShell:ControlPlane:BaseAddress"]))
+    {
+        defaults["CloudShell:ControlPlane:BaseAddress"] = endpoint;
+    }
+
+    if (string.IsNullOrWhiteSpace(configuration["Authentication:BuiltInAuthority:SigningKeyPem"]))
+    {
+        defaults["Authentication:BuiltInAuthority:SigningKeyPem"] =
+            CreateDevelopmentSigningKeyPem();
+    }
+
+    if (defaults.Count > 0)
+    {
+        configuration.AddInMemoryCollection(defaults);
+    }
+}
+
+static string ResolveLocalDevelopmentControlPlaneEndpoint(
+    IConfiguration configuration)
+{
+    var configuredEndpoint =
+        configuration["CloudShell:Launcher:ControlPlaneUrl"] ??
+        configuration["CloudShell:ControlPlane:BaseAddress"] ??
+        configuration["CloudShell:PublicEndpoint"];
+    if (!string.IsNullOrWhiteSpace(configuredEndpoint))
+    {
+        return configuredEndpoint.Trim().TrimEnd('/');
+    }
+
+    var urlsEndpoint = FirstHttpEndpoint(configuration["urls"]);
+    if (urlsEndpoint is not null)
+    {
+        return urlsEndpoint;
+    }
+
+    var aspNetCoreUrlsEndpoint = FirstHttpEndpoint(
+        Environment.GetEnvironmentVariable("ASPNETCORE_URLS"));
+    if (aspNetCoreUrlsEndpoint is not null)
+    {
+        return aspNetCoreUrlsEndpoint;
+    }
+
+    return "http://127.0.0.1:5112";
+}
+
+static string CreateDevelopmentSigningKeyPem()
+{
+    using var rsa = RSA.Create(2048);
+    return rsa.ExportRSAPrivateKeyPem();
+}
+
+static string? FirstHttpEndpoint(string? value)
+{
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        return null;
+    }
+
+    foreach (var candidate in value.Split(
+                 ';',
+                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+    {
+        if (Uri.TryCreate(candidate, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            return candidate.Trim().TrimEnd('/');
+        }
+    }
+
+    return null;
 }
 
 static string ResolveHostSettingsBasePath(

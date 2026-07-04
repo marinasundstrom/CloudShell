@@ -29,6 +29,10 @@ on `git blame --follow`, and then by the broad type of change.
   provider-owned runtime state so CloudShell can continue using the generated
   broker administrator account after a host process restart while the container
   remains running.
+- Enabled the local development host to provide the built-in resource identity
+  authority by default, preserve template-authored identity metadata on
+  resource registrations, and provision `identity.provisionOnStartup`
+  identities when templates are applied after host startup.
 
 ### 2026-07-03
 

@@ -1974,18 +1974,26 @@ resources:
     public async Task ResourceDefinitionRegistrationService_AppliesSingleResourceDefinitionAndRegistersIt()
     {
         var resourceManager = new RecordingResourceManager();
+        var registrationStore = new RecordingResourceRegistrationStore();
         var services = new ServiceCollection();
         services.AddSingleton<IResourceManager>(resourceManager);
+        services.AddSingleton<IResourceRegistrationStore>(registrationStore);
         services.AddInMemoryResourceModelGraph();
         services.AddExecutableApplicationResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<IResourceDefinitionRegistrationService>();
+        var resource = new ExecutableApplicationResourceDefinitionBuilder("api")
+            .WithDisplayName("API")
+            .WithExecutablePath("dotnet")
+            .Build()
+            .WithDeclarationAttributes(
+                new ResourceIdentityBindingAttribute(
+                    "identity:built-in",
+                    Name: "api-service"));
 
         var result = await service.RegisterAsync(
-            new ExecutableApplicationResourceDefinitionBuilder("api")
-                .WithDisplayName("API")
-                .WithExecutablePath("dotnet"),
+            new FixedResourceDefinitionBuilder(resource),
             resourceGroupId: "apps",
             new ResourceGraphCommitContext(
                 EnvironmentId: "local",
@@ -2007,6 +2015,10 @@ resources:
         Assert.Equal(ResourceModelResourceProvider.DefaultProviderId, registration.ProviderId);
         Assert.Equal(result.ResourceId, registration.ResourceId);
         Assert.Equal("apps", registration.ResourceGroupId);
+        var persistedIdentity = registrationStore.GetRegistration(result.ResourceId)?.IdentityBinding;
+        Assert.NotNull(persistedIdentity);
+        Assert.Equal("identity:built-in", persistedIdentity.ProviderId);
+        Assert.Equal("api-service", persistedIdentity.Name);
     }
 
     [Fact]
@@ -6648,6 +6660,34 @@ resources:
             };
             return Task.CompletedTask;
         }
+
+        public Task SetIdentityAsync(
+            string resourceId,
+            ResourceIdentityBinding? identity,
+            CancellationToken cancellationToken = default)
+        {
+            var existing = GetRegistration(resourceId) ??
+                new ResourceRegistration(resourceId, "resource-model", null, DateTimeOffset.UtcNow, []);
+            _registrations[resourceId] = existing with
+            {
+                Identity = identity
+            };
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FixedResourceDefinitionBuilder(ResourceDefinition definition) :
+        IResourceDefinitionBuilder
+    {
+        public string Name => definition.Name;
+
+        public ResourceTypeId ResourceTypeId => definition.TypeId;
+
+        public string? ResourceProviderId => definition.ProviderId;
+
+        public string EffectiveResourceId => definition.EffectiveResourceId;
+
+        public ResourceDefinition Build() => definition;
     }
 
     private sealed class RecordingExecutableApplicationRuntimeController :

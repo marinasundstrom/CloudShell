@@ -19,16 +19,17 @@ public sealed class ProjectResourceIdentityEnvironmentResolver(
     {
         ArgumentNullException.ThrowIfNull(resource);
 
-        if (declarations is null ||
-            !IsSupportedProjectResource(resource) ||
-            declarations.GetDeclaration(resource.EffectiveResourceId)?.IdentityBinding is not { } binding)
+        if (!IsSupportedProjectResource(resource) ||
+            GetIdentityBinding(resource) is not { } binding)
         {
             return ValueTask.FromResult<IReadOnlyDictionary<string, string>>(
                 new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
         }
 
-        var providerCatalog = declarations.CreateIdentityProviderCatalog(
-            identityProviders ?? new ResourceIdentityProviderCatalog());
+        var providerCatalog = declarations?.CreateIdentityProviderCatalog(
+                identityProviders ?? new ResourceIdentityProviderCatalog()) ??
+            identityProviders ??
+            new ResourceIdentityProviderCatalog();
         var resolution = providerCatalog.Resolve(binding);
         if (resolution.Provider is null)
         {
@@ -69,4 +70,52 @@ public sealed class ProjectResourceIdentityEnvironmentResolver(
     private static bool IsSupportedProjectResource(Resource resource) =>
         resource.Type.TypeId == AspNetCoreProjectResourceTypeProvider.ResourceTypeId ||
         resource.Type.TypeId == JavaAppResourceTypeProvider.ResourceTypeId;
+
+    private ResourceIdentityBinding? GetIdentityBinding(Resource resource)
+    {
+        if (declarations?.GetDeclaration(resource.EffectiveResourceId)?.IdentityBinding is { } binding)
+        {
+            return binding;
+        }
+
+        return resource.State.ToDefinition().GetIdentityAttribute() is { } attribute
+            ? ToIdentityBinding(attribute)
+            : null;
+    }
+
+    private static ResourceIdentityBinding? ToIdentityBinding(
+        ResourceIdentityBindingAttribute attribute)
+    {
+        if (string.Equals(
+                attribute.Kind,
+                ResourceIdentityBindingAttributeKinds.Provider,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return string.IsNullOrWhiteSpace(attribute.ProviderId)
+                ? null
+                : new ResourceIdentityBinding(
+                    attribute.ProviderId,
+                    attribute.Subject,
+                    attribute.Scopes,
+                    attribute.Claims,
+                    ResourceIdentityBindingKind.Provider,
+                    attribute.Name);
+        }
+
+        if (string.Equals(
+                attribute.Kind,
+                ResourceIdentityBindingAttributeKinds.Required,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return new ResourceIdentityBinding(
+                attribute.ProviderId,
+                attribute.Subject,
+                attribute.Scopes,
+                attribute.Claims,
+                ResourceIdentityBindingKind.Required,
+                attribute.Name);
+        }
+
+        return null;
+    }
 }

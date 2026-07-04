@@ -40,6 +40,24 @@ public sealed class ProjectResourceIdentityEnvironmentResolverTests
     }
 
     [Fact]
+    public async Task ResolveAsync_DerivesIdentityEnvironmentFromResourceAttributes()
+    {
+        var resolver = CreateResolver(declarations: null);
+        var resource = CreateAspNetCoreProject(
+            "api",
+            new ResourceIdentityBindingAttribute(
+                "identity:built-in",
+                Name: "api"));
+
+        var variables = await resolver.ResolveAsync(resource);
+
+        Assert.Equal("https://identity.example.test/token", variables["CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT"]);
+        Assert.Equal("application.aspnet-core-project:api/api", variables["CLOUDSHELL_IDENTITY_CLIENT_ID"]);
+        Assert.Equal("secret-application.aspnet-core-project:api/api", variables["CLOUDSHELL_IDENTITY_CLIENT_SECRET"]);
+        Assert.Equal("ControlPlane.Access", variables["CLOUDSHELL_IDENTITY_SCOPE"]);
+    }
+
+    [Fact]
     public async Task ResolveAsync_ReturnsEmptyWhenResourceHasNoIdentityDeclaration()
     {
         var resolver = CreateResolver(new ResourceDeclarationStore());
@@ -51,7 +69,7 @@ public sealed class ProjectResourceIdentityEnvironmentResolverTests
     }
 
     private static ProjectResourceIdentityEnvironmentResolver CreateResolver(
-        ResourceDeclarationStore declarations) =>
+        ResourceDeclarationStore? declarations) =>
         new(
             [new FixedResourceIdentityCredentialEnvironmentProvider()],
             new ResourceIdentityProviderCatalog(
@@ -74,12 +92,14 @@ public sealed class ProjectResourceIdentityEnvironmentResolverTests
         return declarations;
     }
 
-    private static ResourceModelResource CreateAspNetCoreProject(string name)
+    private static ResourceModelResource CreateAspNetCoreProject(
+        string name,
+        ResourceIdentityBindingAttribute? identity = null)
     {
         var resolver = new ResourceResolver(
             [AspNetCoreProjectResourceTypeProvider.ClassDefinition],
             [new AspNetCoreProjectResourceTypeProvider().TypeDefinition]);
-        return resolver.Resolve(new ResourceModelState(
+        var definition = new ResourceDefinition(
             name,
             AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
             ResourceId: $"application.aspnet-core-project:{name}",
@@ -87,7 +107,13 @@ public sealed class ProjectResourceIdentityEnvironmentResolverTests
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] = "src/Api/Api.csproj"
-            }));
+            });
+        if (identity is not null)
+        {
+            definition = definition.WithDeclarationAttributes(identity);
+        }
+
+        return resolver.Resolve(ResourceModelState.FromDefinition(definition));
     }
 
     private static ResourceModelResource CreateJavaApp(string name)
