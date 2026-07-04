@@ -1,0 +1,360 @@
+@using System.Globalization
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IResourceManager ResourceManager
+@inject IRabbitMQBrokerDashboardProvider DashboardProvider
+@inject IJSRuntime JS
+
+@if (Broker is null)
+{
+    <EmptyState Title="RabbitMQ broker is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
+}
+else if (!BuiltInProviderResourceUiTypes.IsRabbitMQ(Broker.EffectiveTypeId))
+{
+    <EmptyState Title="Dashboard is not supported"
+                Message="This resource type does not expose RabbitMQ dashboard data." />
+}
+else
+{
+    <div class="blade-section-header">
+        <div>
+            <h3>Dashboard</h3>
+            <p>@GetDashboardSummary()</p>
+        </div>
+        <FluentButton Appearance="Appearance.Neutral"
+                      IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                      Disabled="@IsLoading"
+                      OnClick="RefreshDashboardAsync">
+            @(IsLoading ? "Refreshing" : "Refresh")
+        </FluentButton>
+    </div>
+
+    @if (IsLoading)
+    {
+        <EmptyState Title="Loading dashboard"
+                    Message="CloudShell is reading RabbitMQ broker counters." />
+    }
+    else if (Dashboard?.Succeeded == false)
+    {
+        <EmptyState Title="Dashboard is unavailable"
+                    Message="@Dashboard.ErrorMessage" />
+    }
+    else
+    {
+        <section class="blade-section">
+            <div class="blade-section-header">
+                <div>
+                    <h3>Broker summary</h3>
+                    <p>Observed broker-native counters for @FormatVirtualHost(Dashboard?.VirtualHost).</p>
+                </div>
+            </div>
+            <div class="generated-list rabbitmq-dashboard-metrics">
+                <div>
+                    <strong>Ready messages</strong>
+                    <span>@FormatNumber(Dashboard?.Totals.MessagesReady)</span>
+                </div>
+                <div>
+                    <strong>Unacknowledged</strong>
+                    <span>@FormatNumber(Dashboard?.Totals.MessagesUnacknowledged)</span>
+                </div>
+                <div>
+                    <strong>Total messages</strong>
+                    <span>@FormatNumber(Dashboard?.Totals.Messages)</span>
+                </div>
+                <div>
+                    <strong>Consumers</strong>
+                    <span>@FormatNumber(Dashboard?.Totals.Consumers)</span>
+                </div>
+                <div>
+                    <strong>Queues</strong>
+                    <span>@FormatNumber(Dashboard?.Totals.Queues)</span>
+                </div>
+                <div>
+                    <strong>Exchanges</strong>
+                    <span>@FormatNumber(Dashboard?.Totals.Exchanges)</span>
+                </div>
+                <div>
+                    <strong>Connections</strong>
+                    <span>@FormatNumber(Dashboard?.Totals.Connections)</span>
+                </div>
+                <div>
+                    <strong>Channels</strong>
+                    <span>@FormatNumber(Dashboard?.Totals.Channels)</span>
+                </div>
+                <div>
+                    <strong>Publish rate</strong>
+                    <span>@FormatRate(Dashboard?.Totals.PublishRate)</span>
+                </div>
+                <div>
+                    <strong>Deliver/Get rate</strong>
+                    <span>@FormatRate(Dashboard?.Totals.DeliverGetRate)</span>
+                </div>
+                <div>
+                    <strong>Ack rate</strong>
+                    <span>@FormatRate(Dashboard?.Totals.AckRate)</span>
+                </div>
+                <div>
+                    <strong>Observed</strong>
+                    <span>@FormatTimestamp(Dashboard?.ObservedAt)</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="blade-section">
+            <div class="blade-section-header">
+                <div>
+                    <h3>Throughput</h3>
+                    <p>Recent broker message rates from RabbitMQ management samples.</p>
+                </div>
+            </div>
+            @if (Dashboard?.Throughput.Count > 0)
+            {
+                <div class="rabbitmq-dashboard-chart-shell">
+                    <div @ref="ThroughputChartElement"
+                         class="rabbitmq-dashboard-chart rabbitmq-throughput-chart"
+                         role="img"
+                         aria-label="RabbitMQ throughput chart"></div>
+                </div>
+            }
+            else
+            {
+                <EmptyState Title="No throughput samples"
+                            Message="RabbitMQ did not report recent message-rate samples for this broker." />
+            }
+        </section>
+
+        <section class="blade-section">
+            <div class="blade-section-header">
+                <div>
+                    <h3>Queue depth</h3>
+                    <p>@GetQueueDepthSummary()</p>
+                </div>
+            </div>
+            @if (Dashboard?.Queues.Count > 0)
+            {
+                <div class="rabbitmq-dashboard-chart-shell">
+                    <div @ref="QueueChartElement"
+                         class="rabbitmq-dashboard-chart"
+                         role="img"
+                         aria-label="RabbitMQ queue depth chart"></div>
+                </div>
+            }
+            else
+            {
+                <EmptyState Title="No queue load"
+                            Message="RabbitMQ did not report queue depth for this virtual host." />
+            }
+        </section>
+
+        <section class="blade-section">
+            <div class="blade-section-header">
+                <div>
+                    <h3>Queues</h3>
+                    <p>Per-queue depth, consumers, and broker-reported rates.</p>
+                </div>
+            </div>
+            @if (Dashboard?.Queues.Count > 0)
+            {
+                <ResourceTable AriaLabel="RabbitMQ dashboard queues">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>State</th>
+                            <th>Total</th>
+                            <th>Ready</th>
+                            <th>Unacknowledged</th>
+                            <th>Consumers</th>
+                            <th>Publish/s</th>
+                            <th>Deliver/Get/s</th>
+                            <th>Ack/s</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var queue in Dashboard.Queues)
+                        {
+                            <tr>
+                                <td>
+                                    <ResourceTableIdentity IconName="queue"
+                                                           IconTitle="Queue"
+                                                           Title="@FormatName(queue.Name)"
+                                                           Summary="@queue.VirtualHost" />
+                                </td>
+                                <td>@FormatNullable(queue.State)</td>
+                                <td>@FormatNumber(queue.Messages)</td>
+                                <td>@FormatNumber(queue.MessagesReady)</td>
+                                <td>@FormatNumber(queue.MessagesUnacknowledged)</td>
+                                <td>@FormatNumber(queue.Consumers)</td>
+                                <td>@FormatRate(queue.IncomingRate)</td>
+                                <td>@FormatRate(queue.DeliverGetRate)</td>
+                                <td>@FormatRate(queue.AckRate)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </ResourceTable>
+            }
+            else
+            {
+                <EmptyState Title="No queues"
+                            Message="RabbitMQ did not report queues for this virtual host." />
+            }
+        </section>
+    }
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private Resource? Broker { get; set; }
+    private RabbitMQBrokerDashboardResult? Dashboard { get; set; }
+    private bool IsLoading { get; set; }
+    private ElementReference QueueChartElement { get; set; }
+    private ElementReference ThroughputChartElement { get; set; }
+    private IJSObjectReference? Module { get; set; }
+
+    protected override Task OnParametersSetAsync() => RefreshDashboardAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Module = await JS.InvokeAsync<IJSObjectReference>(
+                "import",
+                "./_content/CloudShell.ControlPlane.Providers.UI/rabbitmq-dashboard.js");
+        }
+
+        await RenderChartAsync();
+    }
+
+    private async Task RefreshDashboardAsync()
+    {
+        if (IsLoading)
+        {
+            return;
+        }
+
+        IsLoading = true;
+        try
+        {
+            Broker = string.IsNullOrWhiteSpace(ResourceId)
+                ? null
+                : await ResourceManager.GetResourceAsync(ResourceId);
+            Dashboard = Broker is null ||
+                !BuiltInProviderResourceUiTypes.IsRabbitMQ(Broker.EffectiveTypeId)
+                    ? null
+                    : await DashboardProvider.GetDashboardAsync(Broker);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task RenderChartAsync()
+    {
+        if (Module is null || Dashboard?.Succeeded != true)
+        {
+            return;
+        }
+
+        if (Dashboard.Throughput.Count > 0)
+        {
+            await Module.InvokeVoidAsync(
+                "renderRabbitMQThroughput",
+                ThroughputChartElement,
+                GetThroughputChartData());
+        }
+
+        if (Dashboard.Queues.Count == 0)
+        {
+            return;
+        }
+
+        await Module.InvokeVoidAsync(
+            "renderRabbitMQQueueDepth",
+            QueueChartElement,
+            GetQueueChartData());
+    }
+
+    private object[] GetThroughputChartData() =>
+        Dashboard?.Throughput
+            .Select(sample => new
+            {
+                timestamp = sample.Timestamp.ToUnixTimeMilliseconds(),
+                publish = sample.PublishRate,
+                deliverGet = sample.DeliverGetRate,
+                ack = sample.AckRate
+            })
+            .ToArray<object>() ??
+        [];
+
+    private object[] GetQueueChartData() =>
+        Dashboard?.Queues
+            .Take(12)
+            .Select(queue => new
+            {
+                name = FormatName(queue.Name),
+                ready = queue.MessagesReady ?? 0,
+                unacknowledged = queue.MessagesUnacknowledged ?? 0,
+                consumers = queue.Consumers ?? 0
+            })
+            .ToArray<object>() ??
+        [];
+
+    private string GetDashboardSummary()
+    {
+        if (Dashboard is null)
+        {
+            return "Read-only RabbitMQ broker counters from the management API.";
+        }
+
+        if (!Dashboard.Succeeded)
+        {
+            return $"CloudShell could not read RabbitMQ dashboard data for virtual host {Dashboard.VirtualHost}.";
+        }
+
+        return $"Showing queue depth and broker counters for virtual host {FormatVirtualHost(Dashboard.VirtualHost)}.";
+    }
+
+    private string GetQueueDepthSummary()
+    {
+        if (Dashboard?.Queues.Count > 12)
+        {
+            return $"Top 12 queues by depth out of {Dashboard.Queues.Count.ToString("N0", CultureInfo.CurrentCulture)} queues.";
+        }
+
+        return "Ready and unacknowledged messages by queue.";
+    }
+
+    private static string FormatVirtualHost(string? virtualHost) =>
+        string.IsNullOrWhiteSpace(virtualHost) ? "<default>" : virtualHost!;
+
+    private static string FormatName(string? name) =>
+        string.IsNullOrWhiteSpace(name) ? "<default>" : name!;
+
+    private static string FormatNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "-" : value!;
+
+    private static string FormatNumber(int? value) =>
+        value.HasValue ? value.Value.ToString("N0", CultureInfo.CurrentCulture) : "-";
+
+    private static string FormatNumber(long? value) =>
+        value.HasValue ? value.Value.ToString("N0", CultureInfo.CurrentCulture) : "-";
+
+    private static string FormatRate(double? value) =>
+        value.HasValue ? $"{value.Value.ToString("N2", CultureInfo.CurrentCulture)}/s" : "-";
+
+    private static string FormatTimestamp(DateTimeOffset? value) =>
+        value.HasValue ? value.Value.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture) : "-";
+
+    public async ValueTask DisposeAsync()
+    {
+        if (Module is not null)
+        {
+            await Module.InvokeVoidAsync("disposeRabbitMQChart", QueueChartElement);
+            await Module.InvokeVoidAsync("disposeRabbitMQChart", ThroughputChartElement);
+            await Module.DisposeAsync();
+        }
+    }
+}

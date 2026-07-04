@@ -81,6 +81,9 @@ public static class RabbitMQResourceTypeServiceCollectionExtensions
             IRabbitMQBrokerTopologyProvider,
             NoopRabbitMQBrokerTopologyProvider>();
         services.TryAddSingleton<
+            IRabbitMQBrokerDashboardProvider,
+            NoopRabbitMQBrokerDashboardProvider>();
+        services.TryAddSingleton<
             IRabbitMQPrincipalCredentialProvider,
             DefaultRabbitMQPrincipalCredentialProvider>();
         services.TryAddSingleton<
@@ -143,6 +146,9 @@ public static class RabbitMQResourceTypeServiceCollectionExtensions
         services.Replace(ServiceDescriptor.Singleton<
             IRabbitMQBrokerTopologyProvider,
             RabbitMQManagementApiBrokerTopologyProvider>());
+        services.Replace(ServiceDescriptor.Singleton<
+            IRabbitMQBrokerDashboardProvider,
+            RabbitMQManagementApiBrokerDashboardProvider>());
 
         return services;
     }

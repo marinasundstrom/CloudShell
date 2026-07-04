@@ -33,6 +33,11 @@ on `git blame --follow`, and then by the broad type of change.
   authority by default, preserve template-authored identity metadata on
   resource registrations, and provision `identity.provisionOnStartup`
   identities when templates are applied after host startup.
+- Added a RabbitMQ Resource Manager Dashboard tab backed by the RabbitMQ
+  Management HTTP API, including broker overview counters, RabbitMQ-style
+  publish/deliver/ack throughput charts from message-rate samples, queue-depth
+  visualization, and per-queue counters without routing the view through the
+  shared telemetry surfaces.
 
 ### 2026-07-03
 

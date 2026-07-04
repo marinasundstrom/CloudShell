@@ -512,6 +512,165 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
         Assert.Empty(handler.Requests);
     }
 
+    [Fact]
+    public async Task ManagementApiDashboardProvider_ReadsOverviewAndQueueCounters()
+    {
+        var handler = new RecordingHttpMessageHandler
+        {
+            OnSend = request =>
+            {
+                var uri = request.RequestUri?.AbsoluteUri ?? string.Empty;
+                if (uri.Contains("/api/overview", StringComparison.OrdinalIgnoreCase))
+                {
+                    return JsonResponse(
+                        """
+                        {
+                          "queue_totals": {
+                            "messages": 13,
+                            "messages_ready": 11,
+                            "messages_unacknowledged": 2
+                          },
+                          "object_totals": {
+                            "channels": 3,
+                            "connections": 2,
+                            "consumers": 4,
+                            "exchanges": 9,
+                            "queues": 2
+                          },
+                          "message_stats": {
+                            "publish_details": {
+                              "rate": 5.5,
+                              "samples": [
+                                { "sample": 100, "timestamp": 1659366700000 },
+                                { "sample": 120, "timestamp": 1659366710000 },
+                                { "sample": 155, "timestamp": 1659366720000 }
+                              ]
+                            },
+                            "deliver_get_details": {
+                              "rate": 4.25,
+                              "samples": [
+                                { "sample": 70, "timestamp": 1659366700000 },
+                                { "sample": 86, "timestamp": 1659366710000 },
+                                { "sample": 110, "timestamp": 1659366720000 }
+                              ]
+                            },
+                            "ack_details": {
+                              "rate": 3.75,
+                              "samples": [
+                                { "sample": 40, "timestamp": 1659366700000 },
+                                { "sample": 50, "timestamp": 1659366710000 },
+                                { "sample": 67, "timestamp": 1659366720000 }
+                              ]
+                            }
+                          }
+                        }
+                        """);
+                }
+
+                return JsonResponse(
+                    """
+                    [
+                      {
+                        "name": "slow-consumer",
+                        "vhost": "/",
+                        "state": "running",
+                        "messages": 10,
+                        "messages_ready": 8,
+                        "messages_unacknowledged": 2,
+                        "consumers": 1,
+                        "message_stats": {
+                          "publish_details": { "rate": 2.5 },
+                          "deliver_get_details": { "rate": 1.5 },
+                          "ack_details": { "rate": 1.25 }
+                        }
+                      },
+                      {
+                        "name": "fast-consumer",
+                        "vhost": "/",
+                        "state": "running",
+                        "messages": 3,
+                        "messages_ready": 3,
+                        "messages_unacknowledged": 0,
+                        "consumers": 3,
+                        "message_stats": {
+                          "publish_details": { "rate": 3.0 },
+                          "deliver_get_details": { "rate": 2.75 },
+                          "ack_details": { "rate": 2.5 }
+                        }
+                      }
+                    ]
+                    """);
+            }
+        };
+        var provider = CreateDashboardProvider(handler);
+        var resource = CreateResourceManagerRabbitMQResource(withManagementEndpoint: true);
+
+        var dashboard = await provider.GetDashboardAsync(resource);
+
+        Assert.True(dashboard.Succeeded, dashboard.ErrorMessage);
+        Assert.Equal("/", dashboard.VirtualHost);
+        Assert.Equal(2, dashboard.Totals.Queues);
+        Assert.Equal(9, dashboard.Totals.Exchanges);
+        Assert.Equal(2, dashboard.Totals.Connections);
+        Assert.Equal(3, dashboard.Totals.Channels);
+        Assert.Equal(4, dashboard.Totals.Consumers);
+        Assert.Equal(13, dashboard.Totals.Messages);
+        Assert.Equal(11, dashboard.Totals.MessagesReady);
+        Assert.Equal(2, dashboard.Totals.MessagesUnacknowledged);
+        Assert.Equal(5.5, dashboard.Totals.PublishRate);
+        Assert.Equal(4.25, dashboard.Totals.DeliverGetRate);
+        Assert.Equal(3.75, dashboard.Totals.AckRate);
+
+        Assert.Equal(2, dashboard.Queues.Count);
+        Assert.Equal("slow-consumer", dashboard.Queues[0].Name);
+        Assert.Equal(10, dashboard.Queues[0].Messages);
+        Assert.Equal(8, dashboard.Queues[0].MessagesReady);
+        Assert.Equal(2, dashboard.Queues[0].MessagesUnacknowledged);
+        Assert.Equal(1, dashboard.Queues[0].Consumers);
+        Assert.Equal(2.5, dashboard.Queues[0].IncomingRate);
+        Assert.Equal(1.5, dashboard.Queues[0].DeliverGetRate);
+        Assert.Equal(1.25, dashboard.Queues[0].AckRate);
+        Assert.Equal(2, dashboard.Throughput.Count);
+        Assert.Equal(DateTimeOffset.FromUnixTimeMilliseconds(1659366710000), dashboard.Throughput[0].Timestamp);
+        Assert.Equal(2, dashboard.Throughput[0].PublishRate.GetValueOrDefault(), precision: 3);
+        Assert.Equal(1.6, dashboard.Throughput[0].DeliverGetRate.GetValueOrDefault(), precision: 3);
+        Assert.Equal(1, dashboard.Throughput[0].AckRate.GetValueOrDefault(), precision: 3);
+        Assert.Equal(3.5, dashboard.Throughput[1].PublishRate.GetValueOrDefault(), precision: 3);
+        Assert.Equal(2.4, dashboard.Throughput[1].DeliverGetRate.GetValueOrDefault(), precision: 3);
+        Assert.Equal(1.7, dashboard.Throughput[1].AckRate.GetValueOrDefault(), precision: 3);
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(
+            "http://localhost:15672/api/overview?msg_rates_age=300&msg_rates_incr=10",
+            handler.Requests[0].Uri);
+        Assert.Equal(
+            "http://localhost:15672/api/queues/%2F",
+            handler.Requests[1].Uri);
+        var expectedAuthorization = Convert.ToBase64String(
+            Encoding.UTF8.GetBytes("admin:admin-secret"));
+        Assert.All(handler.Requests, request =>
+        {
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Assert.Equal("Basic", request.Authorization?.Scheme);
+            Assert.Equal(expectedAuthorization, request.Authorization?.Parameter);
+        });
+    }
+
+    [Fact]
+    public async Task ManagementApiDashboardProvider_ReportsUnavailableWhenManagementEndpointIsMissing()
+    {
+        var handler = new RecordingHttpMessageHandler();
+        var provider = CreateDashboardProvider(handler);
+        var resource = CreateResourceManagerRabbitMQResource(withManagementEndpoint: false);
+
+        var dashboard = await provider.GetDashboardAsync(resource);
+
+        Assert.False(dashboard.Succeeded);
+        Assert.Equal("/", dashboard.VirtualHost);
+        Assert.Contains("resolved management endpoint", dashboard.ErrorMessage);
+        Assert.Empty(handler.Requests);
+    }
+
     private static RabbitMQManagementApiAccessReconciler CreateReconciler(
         RecordingHttpMessageHandler handler,
         IRabbitMQPrincipalCredentialProvider credentialProvider)
@@ -561,6 +720,23 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
             })
             .Build();
         return new RabbitMQManagementApiBrokerTopologyProvider(
+            new SingleHttpClientFactory(new HttpClient(handler)),
+            configuration,
+            Options.Create(new RabbitMQManagementAccessOptions()),
+            new InMemoryRabbitMQBootstrapCredentialProvider());
+    }
+
+    private static RabbitMQManagementApiBrokerDashboardProvider CreateDashboardProvider(
+        RecordingHttpMessageHandler handler)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                [RabbitMQResourceDefaults.UsernameConfigurationKey] = "admin",
+                [RabbitMQResourceDefaults.PasswordConfigurationKey] = "admin-secret"
+            })
+            .Build();
+        return new RabbitMQManagementApiBrokerDashboardProvider(
             new SingleHttpClientFactory(new HttpClient(handler)),
             configuration,
             Options.Create(new RabbitMQManagementAccessOptions()),

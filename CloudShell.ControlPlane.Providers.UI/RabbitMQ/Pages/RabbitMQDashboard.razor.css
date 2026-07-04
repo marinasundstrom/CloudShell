@@ -1,0 +1,96 @@
+.rabbitmq-dashboard-metrics {
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+}
+
+.rabbitmq-dashboard-metrics strong {
+    color: var(--cloudshell-text);
+    font-size: .78rem;
+    font-weight: 600;
+}
+
+.rabbitmq-dashboard-metrics span {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.rabbitmq-dashboard-chart-shell {
+    min-width: 0;
+    padding: .65rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
+.rabbitmq-dashboard-chart {
+    min-height: 18rem;
+    width: 100%;
+}
+
+.rabbitmq-dashboard-chart ::deep(svg) {
+    display: block;
+    width: 100%;
+    min-height: 18rem;
+}
+
+.rabbitmq-dashboard-chart ::deep(.axis text),
+.rabbitmq-dashboard-chart ::deep(.queue-label),
+.rabbitmq-dashboard-chart ::deep(.queue-value),
+.rabbitmq-dashboard-chart ::deep(.legend-label) {
+    fill: var(--cloudshell-text-muted);
+    font-family: var(--body-font);
+    font-size: .72rem;
+}
+
+.rabbitmq-dashboard-chart ::deep(.queue-label) {
+    fill: var(--cloudshell-text);
+    font-weight: 600;
+}
+
+.rabbitmq-dashboard-chart ::deep(.queue-ready) {
+    fill: var(--cloudshell-accent-fill-rest);
+}
+
+.rabbitmq-dashboard-chart ::deep(.queue-unacknowledged) {
+    fill: #c77412;
+}
+
+.rabbitmq-dashboard-chart ::deep(.queue-track) {
+    fill: var(--cloudshell-surface);
+    stroke: var(--cloudshell-divider);
+}
+
+.rabbitmq-dashboard-chart ::deep(.axis line),
+.rabbitmq-dashboard-chart ::deep(.axis path) {
+    stroke: var(--cloudshell-divider);
+}
+
+.rabbitmq-dashboard-chart ::deep(.legend-swatch.ready) {
+    fill: var(--cloudshell-accent-fill-rest);
+}
+
+.rabbitmq-dashboard-chart ::deep(.legend-swatch.unacknowledged) {
+    fill: #c77412;
+}
+
+.rabbitmq-dashboard-chart ::deep(.throughput-publish) {
+    stroke: var(--cloudshell-accent-fill-rest);
+    fill: var(--cloudshell-accent-fill-rest);
+}
+
+.rabbitmq-dashboard-chart ::deep(.throughput-deliver) {
+    stroke: #0f7b6c;
+    fill: #0f7b6c;
+}
+
+.rabbitmq-dashboard-chart ::deep(.throughput-ack) {
+    stroke: #c77412;
+    fill: #c77412;
+}
+
+.rabbitmq-dashboard-chart ::deep(.legend-line) {
+    stroke-width: 3;
+}
+
+.rabbitmq-dashboard-chart ::deep(.throughput-line) {
+    fill: none;
+}
