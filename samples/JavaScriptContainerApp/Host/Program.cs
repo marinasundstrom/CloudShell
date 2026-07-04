@@ -23,7 +23,7 @@ var appEndpoint = builder.Configuration["JavaScriptContainerApp:Endpoint"]
 var settingsServiceEndpoint = builder.Configuration["JavaScriptContainerApp:SettingsEndpoint"]
     ?? "http://localhost:5102";
 var settingsResourceId = "configuration.store:javascript-container-app-settings";
-var settingsEntriesEndpoint =
+var settingsApiEndpoint =
     $"{settingsServiceEndpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(settingsResourceId)}/entries";
 var appEndpointUri = new Uri(appEndpoint);
 
@@ -65,7 +65,7 @@ var cloudShell = builder.AddCloudShellControlPlaneApplication(
                     "8080")
                 .WithEnvironmentVariable(
                     "CLOUDSHELL_SETTINGS_ENDPOINT",
-                    settingsEntriesEndpoint)
+                    settingsApiEndpoint)
                 .WithEnvironmentVariable(
                     "OTEL_SERVICE_NAME",
                     "javascript-container-frontend")

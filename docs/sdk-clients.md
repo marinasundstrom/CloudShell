@@ -21,7 +21,7 @@ request/response contracts.
   contracts.
 - `CloudShell.Configuration.Client`: Configuration Store SDK client. It
   references `CloudShell.Client`, not the full Control Plane abstractions, and
-  owns the Microsoft `IConfiguration` integration for configuration entries.
+  owns the Microsoft `IConfiguration` integration for configuration settings.
 - `sdk/typescript/configuration-client`: experimental TypeScript
   Configuration Store client. It is separate from the TypeScript hosting
   package and is used by Node.js applications at runtime to call a
@@ -72,7 +72,7 @@ app.MapGet("/configuration", async (
     CancellationToken cancellationToken) =>
 {
     var configuration = clients.CreateConfigurationStoreClient();
-    return await configuration.GetEntriesAsync(cancellationToken);
+    return await configuration.GetSettingsAsync(cancellationToken);
 });
 
 sealed class CloudShellServiceClients(CloudShellResourceCredential credential)
@@ -176,7 +176,7 @@ using CloudShell.Configuration.Client;
 
 var credential = new DefaultCloudShellResourceCredential();
 var configuration = ConfigurationStoreClient.FromEnvironment(credential);
-var entries = await configuration.GetEntriesAsync();
+var settings = await configuration.GetSettingsAsync();
 ```
 
 Applications that configure Configuration Store endpoint discovery use
@@ -189,7 +189,7 @@ CLOUDSHELL_CONFIGURATION_<RESOURCE_ID>_STORE_ID
 CLOUDSHELL_CONFIGURATION_<RESOURCE_ID>_ENDPOINT
 ```
 
-The endpoint points at the protected entries collection. The client requests a
+The endpoint points at the protected settings collection. The client requests a
 resource identity token and sends it as a bearer token on each service call.
 CloudShell can set these variables through the current application-level
 service discovery mapping when the store is referenced; callers may also set
@@ -207,9 +207,9 @@ builder.Configuration.AddCloudShellConfigurationStore(options =>
 ```
 
 Provider diagnostics are exposed under `CloudShell:ConfigurationStore:*`,
-including `Status`, `Detail`, `Source`, `LoadedKeys`, and `SecretKeys`.
-By default, `--` in entry names maps to the .NET configuration `:`
-delimiter, so a stored entry named `Orders--Api--BaseUrl` is available through
+including `Status`, `Detail`, `Source`, and `LoadedKeys`.
+By default, `--` in setting names maps to the .NET configuration `:`
+delimiter, so a stored setting named `Orders--Api--BaseUrl` is available through
 `Configuration["Orders:Api:BaseUrl"]`.
 
 The experimental TypeScript client follows the same service boundary for
@@ -225,13 +225,13 @@ const configuration = ConfigurationStoreClient.fromEnvironment({
   credential: new StaticTokenCredential(process.env.CLOUDSHELL_TOKEN ?? "")
 });
 
-const entries = await configuration.getEntries();
+const settings = await configuration.getSettings();
 const values = await configuration.toObject();
 ```
 
 This client reads the injected
 `CLOUDSHELL_CONFIGURATION_<SERVICE_NAME>_ENDPOINT` variables, sends
-`Authorization: Bearer ...`, and can map `--` in entry names to `:` keys. It
+`Authorization: Bearer ...`, and can map `--` in setting names to `:` keys. It
 does not declare resources or launch hosts; that remains the responsibility of
 the TypeScript hosting package and the CloudShell CLI.
 
@@ -249,8 +249,8 @@ ConfigurationStoreClient configuration =
     ConfigurationStoreClient.fromEnvironment();
 
 String message = configuration
-    .getEntry("Sample--Message")
-    .map(entry -> entry.value())
+    .getSetting("Sample--Message")
+    .map(setting -> setting.value())
     .orElse("Default message");
 ```
 

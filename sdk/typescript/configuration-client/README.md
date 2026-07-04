@@ -3,7 +3,7 @@
 This package is an experimental TypeScript client for the CloudShell
 Configuration Store service. It is separate from the TypeScript hosting POC:
 the hosting package declares resources, while this package is used by a running
-application to read configuration entries from a Configuration Store endpoint.
+application to read configuration settings from a Configuration Store endpoint.
 
 ```ts
 import {
@@ -17,8 +17,8 @@ const client = new ConfigurationStoreClient(
     credential: new StaticTokenCredential(process.env.CLOUDSHELL_TOKEN ?? "")
   });
 
-const entries = await client.getEntries();
-const mode = await client.getEntry("Sample:Mode");
+const settings = await client.getSettings();
+const mode = await client.getSetting("Sample:Mode");
 ```
 
 The client can also discover the first injected endpoint from environment
@@ -44,8 +44,8 @@ CLOUDSHELL_TOKEN
 ```
 
 Each service call sends the acquired token as `Authorization: Bearer ...`.
-`getEntries()` reads the full entries collection, `getEntry(name)` reads a
-single entry, and `toObject()` maps portable `--` setting names to `:` keys for
+`getSettings()` reads the full settings collection, `getSetting(name)` reads a
+single setting, and `toObject()` maps portable `--` setting names to `:` keys for
 configuration-style lookup.
 
 Run the package tests:

@@ -97,7 +97,7 @@ setup, credential materialization, and protected configuration access.
 The Configuration Store can run with Keycloak `Authentication:ServiceBearer`
 settings, and the API can start through the ASP.NET Core project runtime,
 receive API identity credentials from `identity:keycloak`, and read the
-protected configuration entry. The ASP.NET Core runtime also has a sample-local
+protected configuration setting. The ASP.NET Core runtime also has a sample-local
 environment adapter that resolves the API identity declaration from Resource
 Manager and delegates credential environment creation to the existing Keycloak
 integration.
@@ -176,6 +176,6 @@ The sample smoke tests can start Keycloak with Docker Compose, run the
 CloudShell host, verify that `cloudshell.identity-provisioning:keycloak` is projected as
 the resource boundary, execute provider setup, start the dependent
 Configuration Store/API resources, and assert the API can read protected
-configuration entries with a Keycloak-issued token. The Docker-backed path also
+configuration settings with a Keycloak-issued token. The Docker-backed path also
 verifies the generated Keycloak Docker Compose project is removed during test
 cleanup, including compose-managed containers and networks.

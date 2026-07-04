@@ -20,7 +20,7 @@
   service to accept tokens from a non-built-in identity provider.
 - Inspect operation with a runtime-backed inspector that reports configured counts without exposing values.
 - Typed wrapper plus Resource Manager bridge projection and execution.
-- Resource Manager Entries tab for managing provider-owned runtime settings.
+- Resource Manager Settings tab for managing provider-owned runtime settings.
   Setting values stay in provider runtime state and sidecar definition files, not
   Resource graph attributes.
 - Manual `ResourceGraphBuilder.AddConfigurationStore(...)` builder
@@ -28,7 +28,7 @@
   `seed.entries` attributes for development templates. Seeded
   settings materialize into provider-owned runtime state and are stripped from
   accepted graph state before normal template export.
-- SettingsAndSecrets smoke coverage for endpoint projection, inspect execution, authorized entry reads, and API consumption through the graph-backed endpoint.
+- SettingsAndSecrets smoke coverage for endpoint projection, inspect execution, authorized setting reads, and API consumption through the graph-backed endpoint.
 - ThirdPartyIdentity Docker smoke coverage for a Keycloak-protected
   graph-backed Configuration Store consumed by a graph-backed ASP.NET Core API.
 

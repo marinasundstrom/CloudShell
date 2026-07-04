@@ -34,13 +34,13 @@ public sealed class ConfigurationStoreResourceManagerEndpointProjectionProvider 
                 ResourceEndpointNetworkMapping.ForEndpoint(
                     resource.EffectiveResourceId,
                     "entries",
-                    ToEntriesEndpoint(endpoint, resource.EffectiveResourceId),
+                    ToSettingsEndpoint(endpoint, resource.EffectiveResourceId),
                     ResourceExposureScope.Local,
                     sourceEndpointName: "entries")
             ]);
     }
 
-    private static string ToEntriesEndpoint(
+    private static string ToSettingsEndpoint(
         string endpoint,
         string resourceId) =>
         $"{endpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(resourceId)}/entries";

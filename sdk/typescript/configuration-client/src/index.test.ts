@@ -5,7 +5,7 @@ import {
   StaticTokenCredential
 } from "./index.js";
 
-test("sends bearer token and reads entries", async () => {
+test("sends bearer token and reads settings", async () => {
   const requests: Request[] = [];
   const client = new ConfigurationStoreClient(
     "http://localhost/api/configuration/stores/configuration%3Aapp/entries",
@@ -14,20 +14,20 @@ test("sends bearer token and reads entries", async () => {
       fetch: async (request, init) => {
         requests.push(request instanceof Request ? request : new Request(request, init));
         return Response.json([
-          { name: "Sample:Message", value: "Hello", isSecret: false }
+          { name: "Sample:Message", value: "Hello" }
         ]);
       }
     });
 
-  const entries = await client.getEntries();
+  const settings = await client.getSettings();
 
-  assert.equal(entries.length, 1);
-  assert.equal(entries[0]!.name, "Sample:Message");
-  assert.equal(entries[0]!.value, "Hello");
+  assert.equal(settings.length, 1);
+  assert.equal(settings[0]!.name, "Sample:Message");
+  assert.equal(settings[0]!.value, "Hello");
   assert.equal(requests[0]!.headers.get("authorization"), "Bearer configuration-token");
 });
 
-test("builds entry endpoint and preserves query string", async () => {
+test("builds setting endpoint and preserves query string", async () => {
   const requestedUrls: string[] = [];
   const client = new ConfigurationStoreClient(
     "http://localhost/api/configuration/entries?resourceId=configuration%3Aapp",
@@ -37,21 +37,20 @@ test("builds entry endpoint and preserves query string", async () => {
         requestedUrls.push(request.toString());
         return Response.json({
           name: "Sample:Mode",
-          value: "Development",
-          isSecret: false
+          value: "Development"
         });
       }
     });
 
-  const entry = await client.getEntry("Sample:Mode");
+  const setting = await client.getSetting("Sample:Mode");
 
-  assert.equal(entry?.value, "Development");
+  assert.equal(setting?.value, "Development");
   assert.equal(
     requestedUrls[0],
     "http://localhost/api/configuration/entries/Sample%3AMode?resourceId=configuration%3Aapp");
 });
 
-test("returns undefined for missing entry", async () => {
+test("returns undefined for missing setting", async () => {
   const client = new ConfigurationStoreClient(
     "http://localhost/api/configuration/stores/configuration%3Aapp/entries",
     {
@@ -59,7 +58,7 @@ test("returns undefined for missing entry", async () => {
       fetch: async () => new Response("", { status: 404 })
     });
 
-  assert.equal(await client.getEntry("Missing"), undefined);
+  assert.equal(await client.getSetting("Missing"), undefined);
 });
 
 test("discovers endpoint from environment by service name", () => {
@@ -72,7 +71,7 @@ test("discovers endpoint from environment by service name", () => {
     }
   });
 
-  assert.equal(client.entriesEndpoint.toString(), "http://localhost/app-settings");
+  assert.equal(client.settingsEndpoint.toString(), "http://localhost/app-settings");
 });
 
 test("maps portable hierarchy separator to configuration keys", async () => {
@@ -81,7 +80,7 @@ test("maps portable hierarchy separator to configuration keys", async () => {
     {
       credential: "configuration-token",
       fetch: async () => Response.json([
-        { name: "Orders--Api--BaseUrl", value: "http://localhost:5080", isSecret: false }
+        { name: "Orders--Api--BaseUrl", value: "http://localhost:5080" }
       ])
     });
 

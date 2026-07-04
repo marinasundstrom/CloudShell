@@ -16,21 +16,21 @@ import java.util.Properties;
 public final class ConfigurationStoreClient {
     public static final String DEFAULT_SCOPE = "ControlPlane.Access";
 
-    private final URI entriesEndpoint;
+    private final URI settingsEndpoint;
     private final CloudShellTokenCredential credential;
     private final String[] scopes;
     private final HttpClient httpClient;
 
-    public ConfigurationStoreClient(URI entriesEndpoint) {
-        this(entriesEndpoint, new EnvironmentTokenCredential(), new String[] { DEFAULT_SCOPE }, HttpClient.newHttpClient());
+    public ConfigurationStoreClient(URI settingsEndpoint) {
+        this(settingsEndpoint, new EnvironmentTokenCredential(), new String[] { DEFAULT_SCOPE }, HttpClient.newHttpClient());
     }
 
     public ConfigurationStoreClient(
-        URI entriesEndpoint,
+        URI settingsEndpoint,
         CloudShellTokenCredential credential,
         String[] scopes,
         HttpClient httpClient) {
-        this.entriesEndpoint = entriesEndpoint;
+        this.settingsEndpoint = settingsEndpoint;
         this.credential = credential;
         this.scopes = scopes == null || scopes.length == 0 ? new String[] { DEFAULT_SCOPE } : scopes;
         this.httpClient = httpClient;
@@ -47,41 +47,39 @@ public final class ConfigurationStoreClient {
             .map(ConfigurationStoreClient::new);
     }
 
-    public List<CloudShellConfigurationEntry> getEntries()
+    public List<CloudShellConfigurationSetting> getSettings()
             throws IOException, InterruptedException {
-        String body = send(entriesEndpoint);
+        String body = send(settingsEndpoint);
         return CloudShellJson.objects(body).stream()
-            .map(object -> new CloudShellConfigurationEntry(
+            .map(object -> new CloudShellConfigurationSetting(
                 CloudShellJson.stringProperty(object, "name"),
-                CloudShellJson.stringProperty(object, "value"),
-                CloudShellJson.booleanProperty(object, "isSecret")))
+                CloudShellJson.stringProperty(object, "value")))
             .toList();
     }
 
-    public Optional<CloudShellConfigurationEntry> getEntry(String name)
+    public Optional<CloudShellConfigurationSetting> getSetting(String name)
             throws IOException, InterruptedException {
-        HttpResponse<String> response = sendRaw(buildEntryEndpoint(name));
+        HttpResponse<String> response = sendRaw(buildSettingEndpoint(name));
         if (response.statusCode() == 404) {
             return Optional.empty();
         }
 
         ensureSuccess(response);
         String body = response.body();
-        return Optional.of(new CloudShellConfigurationEntry(
+        return Optional.of(new CloudShellConfigurationSetting(
             CloudShellJson.stringProperty(body, "name"),
-            CloudShellJson.stringProperty(body, "value"),
-            CloudShellJson.booleanProperty(body, "isSecret")));
+            CloudShellJson.stringProperty(body, "value")));
     }
 
     public Map<String, String> toMap(boolean mapPortableHierarchySeparator)
             throws IOException, InterruptedException {
         Map<String, String> values = new LinkedHashMap<>();
-        for (CloudShellConfigurationEntry entry : getEntries()) {
+        for (CloudShellConfigurationSetting setting : getSettings()) {
             values.put(
                 mapPortableHierarchySeparator
-                    ? entry.name().replace("--", ".")
-                    : entry.name(),
-                entry.value());
+                    ? setting.name().replace("--", ".")
+                    : setting.name(),
+                setting.value());
         }
 
         return values;
@@ -94,13 +92,13 @@ public final class ConfigurationStoreClient {
         return properties;
     }
 
-    public URI buildEntryEndpoint(String name) {
+    public URI buildSettingEndpoint(String name) {
         if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("Configuration entry name is required.");
+            throw new IllegalArgumentException("Configuration setting name is required.");
         }
 
-        String path = entriesEndpoint.getPath().replaceAll("/+$", "");
-        return entriesEndpoint.resolve(path + "/" + urlEncode(name));
+        String path = settingsEndpoint.getPath().replaceAll("/+$", "");
+        return settingsEndpoint.resolve(path + "/" + urlEncode(name));
     }
 
     private String send(URI uri) throws IOException, InterruptedException {

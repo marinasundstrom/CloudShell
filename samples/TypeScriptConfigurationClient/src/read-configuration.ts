@@ -12,12 +12,12 @@ const client = ConfigurationStoreClient.fromEnvironment({
   credential: new StaticTokenCredential(token ?? "")
 });
 
-const entries = await client.getEntries();
+const settings = await client.getSettings();
 const configuration = await client.toObject();
 
 console.log(JSON.stringify({
-  endpoint: client.entriesEndpoint.toString(),
-  entryCount: entries.length,
+  endpoint: client.settingsEndpoint.toString(),
+  settingCount: settings.length,
   keys: Object.keys(configuration).sort(),
   configuration
 }, null, 2));

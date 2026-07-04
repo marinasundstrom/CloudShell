@@ -79,8 +79,7 @@ public sealed class ConfigurationStoreRuntimeEntryManager(
                 entries = entries.Select(entry => new
                 {
                     entry.Name,
-                    entry.Value,
-                    entry.IsSecret
+                    entry.Value
                 }).ToArray(),
                 healthChecks = Array.Empty<object>()
             }

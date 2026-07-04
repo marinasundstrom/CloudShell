@@ -13,11 +13,11 @@ namespace CloudShell.Client.Tests;
 public sealed class CloudShellServiceClientTests
 {
     [Fact]
-    public async Task ConfigurationStoreClient_SendsBearerTokenAndReadsEntries()
+    public async Task ConfigurationStoreClient_SendsBearerTokenAndReadsSettings()
     {
         var handler = new RecordingHandler("""
             [
-              { "name": "Sample:Message", "value": "Hello", "isSecret": false }
+              { "name": "Sample:Message", "value": "Hello" }
             ]
             """);
         var credential = new RecordingCredential("configuration-token");
@@ -27,30 +27,30 @@ public sealed class CloudShellServiceClientTests
             new HttpClient(handler),
             ["ControlPlane.Access"]);
 
-        var entries = await client.GetEntriesAsync();
+        var settings = await client.GetSettingsAsync();
 
-        var entry = Assert.Single(entries);
-        Assert.Equal("Sample:Message", entry.Name);
-        Assert.Equal("Hello", entry.Value);
+        var setting = Assert.Single(settings);
+        Assert.Equal("Sample:Message", setting.Name);
+        Assert.Equal("Hello", setting.Value);
         Assert.Equal("Bearer", handler.Requests[0].Headers.Authorization?.Scheme);
         Assert.Equal("configuration-token", handler.Requests[0].Headers.Authorization?.Parameter);
         Assert.Equal(["ControlPlane.Access"], credential.RequestedScopes);
     }
 
     [Fact]
-    public async Task ConfigurationStoreClient_BuildsEntryEndpoint()
+    public async Task ConfigurationStoreClient_BuildsSettingEndpoint()
     {
         var handler = new RecordingHandler("""
-            { "name": "Sample:Mode", "value": "Development", "isSecret": false }
+            { "name": "Sample:Mode", "value": "Development" }
             """);
         var client = new ConfigurationStoreClient(
             new Uri("http://localhost/api/configuration/entries?resourceId=configuration%3Aapp"),
             new RecordingCredential("configuration-token"),
             new HttpClient(handler));
 
-        var entry = await client.GetEntryAsync("Sample:Mode");
+        var setting = await client.GetSettingAsync("Sample:Mode");
 
-        Assert.Equal("Development", entry?.Value);
+        Assert.Equal("Development", setting?.Value);
         Assert.Equal(
             "http://localhost/api/configuration/entries/Sample%3AMode?resourceId=configuration%3Aapp",
             handler.Requests[0].RequestUri?.ToString());
@@ -270,12 +270,12 @@ public sealed class CloudShellServiceClientTests
     }
 
     [Fact]
-    public void AddCloudShellConfigurationStore_LoadsEntriesIntoConfiguration()
+    public void AddCloudShellConfigurationStore_LoadsSettingsIntoConfiguration()
     {
         using var server = LoopbackServer.Start("""
             [
-              { "name": "Sample:Message", "value": "Hello", "isSecret": false },
-              { "name": "Orders--Api--BaseUrl", "value": "http://localhost:5080", "isSecret": false }
+              { "name": "Sample:Message", "value": "Hello" },
+              { "name": "Orders--Api--BaseUrl", "value": "http://localhost:5080" }
             ]
             """);
 

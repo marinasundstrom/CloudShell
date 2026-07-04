@@ -928,7 +928,6 @@ public sealed class ResourceProviderDispatcherTests
         var entry = Assert.Single(options.Entries);
         Assert.Equal("Sample:Mode", entry.Name);
         Assert.Equal("Development", entry.Value);
-        Assert.False(entry.IsSecret);
 
         var definitionsPath = Path.Combine(
             definitionsDirectory,
@@ -940,7 +939,6 @@ public sealed class ResourceProviderDispatcherTests
         var jsonEntry = Assert.Single(store.GetProperty("entries").EnumerateArray());
         Assert.Equal("Sample:Mode", jsonEntry.GetProperty("name").GetString());
         Assert.Equal("Development", jsonEntry.GetProperty("value").GetString());
-        Assert.False(jsonEntry.GetProperty("isSecret").GetBoolean());
     }
 
     [Fact]

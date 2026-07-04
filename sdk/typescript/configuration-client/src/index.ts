@@ -1,9 +1,8 @@
 export const defaultConfigurationScope = "ControlPlane.Access";
 
-export interface CloudShellConfigurationEntry {
+export interface CloudShellConfigurationSetting {
   name: string;
   value: string;
-  isSecret?: boolean;
 }
 
 export interface AccessToken {
@@ -63,7 +62,7 @@ export class ConfigurationStoreClient {
   private readonly fetchImpl: typeof fetch;
 
   public constructor(
-    public readonly entriesEndpoint: string | URL,
+    public readonly settingsEndpoint: string | URL,
     options: ConfigurationStoreClientOptions = {}) {
     this.credential = options.credential ?? new EnvironmentTokenCredential();
     this.scopes = options.scopes ?? [defaultConfigurationScope];
@@ -90,38 +89,38 @@ export class ConfigurationStoreClient {
       : undefined;
   }
 
-  public async getEntries(): Promise<CloudShellConfigurationEntry[]> {
-    const response = await this.send(new URL(this.entriesEndpoint));
-    return await response.json() as CloudShellConfigurationEntry[];
+  public async getSettings(): Promise<CloudShellConfigurationSetting[]> {
+    const response = await this.send(new URL(this.settingsEndpoint));
+    return await response.json() as CloudShellConfigurationSetting[];
   }
 
-  public async getEntry(name: string): Promise<CloudShellConfigurationEntry | undefined> {
-    assertNotBlank(name, "Configuration entry name is required.");
+  public async getSetting(name: string): Promise<CloudShellConfigurationSetting | undefined> {
+    assertNotBlank(name, "Configuration setting name is required.");
 
-    const response = await this.send(this.buildEntryEndpoint(name));
+    const response = await this.send(this.buildSettingEndpoint(name));
     if (response.status === 404) {
       return undefined;
     }
 
-    return await response.json() as CloudShellConfigurationEntry;
+    return await response.json() as CloudShellConfigurationSetting;
   }
 
-  public buildEntryEndpoint(name: string): URL {
-    assertNotBlank(name, "Configuration entry name is required.");
+  public buildSettingEndpoint(name: string): URL {
+    assertNotBlank(name, "Configuration setting name is required.");
 
-    const endpoint = new URL(this.entriesEndpoint);
+    const endpoint = new URL(this.settingsEndpoint);
     endpoint.pathname = `${endpoint.pathname.replace(/\/+$/, "")}/${encodeURIComponent(name)}`;
     return endpoint;
   }
 
   public async toObject(
     options: { mapPortableHierarchySeparator?: boolean } = {}): Promise<Record<string, string>> {
-    const entries = await this.getEntries();
+    const settings = await this.getSettings();
     const result: Record<string, string> = {};
-    for (const entry of entries) {
+    for (const setting of settings) {
       result[options.mapPortableHierarchySeparator === false
-        ? entry.name
-        : entry.name.replaceAll("--", ":")] = entry.value;
+        ? setting.name
+        : setting.name.replaceAll("--", ":")] = setting.value;
     }
 
     return result;

@@ -141,7 +141,7 @@ cloudShell
         runtime.ServiceAuthenticationIssuer = identityIssuer;
         runtime.ServiceAuthenticationAudience = identityAudience;
         runtime.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
-        runtime.Entries.Add(new("Sample:Message", "Hello from a configuration entry"));
+        runtime.Entries.Add(new("Sample:Message", "Hello from a configuration setting"));
         runtime.Entries.Add(new("Sample:Mode", "Development"));
     })
     .UseSecretsVaultResourceProvider(runtime =>

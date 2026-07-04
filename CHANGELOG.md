@@ -13,6 +13,17 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-07-05
+
+#### Changed
+
+- Renamed Configuration Store runtime client terminology from entries to
+  settings across the C#, TypeScript, and Java clients, client-facing samples,
+  Resource Manager labels, and SDK documentation while preserving the existing
+  protected service route and resource attribute shape. Configuration Store
+  settings are now plain name/value data without an `isSecret` marker;
+  sensitive values belong in Secrets Vault.
+
 ### 2026-07-04
 
 #### Changed

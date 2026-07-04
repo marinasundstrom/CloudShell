@@ -12,7 +12,7 @@ the sample is demonstrating host composition or a host-local extension point.
 The launcher declares a Go app plus Configuration Store and Secrets Vault
 references so the running Go process can consume the same service-binding
 variables as other language integrations. It also seeds development
-Configuration Store entries and Secrets Vault secrets through create-only
+Configuration Store settings and Secrets Vault secrets through create-only
 resource-definition attributes.
 
 The Go launcher package is intentionally separate from runtime service

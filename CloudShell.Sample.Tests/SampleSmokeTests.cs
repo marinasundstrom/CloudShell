@@ -1358,10 +1358,10 @@ public sealed class SampleSmokeTests
             "connected",
             configurationDocument.RootElement.GetProperty("status").GetString());
         Assert.Contains(
-            configurationDocument.RootElement.GetProperty("entries").EnumerateArray(),
-            entry =>
-                entry.GetProperty("name").GetString() == "Sample:Message" &&
-                entry.GetProperty("value").GetString() == "Hello from a configuration entry");
+            configurationDocument.RootElement.GetProperty("settings").EnumerateArray(),
+            setting =>
+                setting.GetProperty("name").GetString() == "Sample:Message" &&
+                setting.GetProperty("value").GetString() == "Hello from a configuration setting");
 
         var secretJson = await host.GetAbsoluteStringAsync(
             $"{apiEndpoint.TrimEnd('/')}/secrets/sample-api-key");
@@ -1425,8 +1425,7 @@ public sealed class SampleSmokeTests
                             new
                             {
                                 name = "Device:Mode",
-                                value = "factory-online",
-                                isSecret = false
+                                value = "factory-online"
                             }
                         }
                     }
@@ -1518,7 +1517,7 @@ public sealed class SampleSmokeTests
                 ("CLOUDSHELL_DEVICE_REGISTRY_RESOURCE_ID", registryResourceId),
                 ("CLOUDSHELL_CONFIGURATION_STORE_ENDPOINT", configurationEndpoint),
                 ("CLOUDSHELL_CONFIGURATION_STORE_RESOURCE_ID", configurationResourceId),
-                ("CLOUDSHELL_CONFIGURATION_ENTRY_NAME", "Device:Mode"),
+                ("CLOUDSHELL_CONFIGURATION_SETTING_NAME", "Device:Mode"),
                 ("DEVICE_MANUFACTURER", "cloudshell")
             ]);
         await deviceApp.WaitForHttpOkAsync("/health", StartupTimeout);
@@ -1545,7 +1544,7 @@ public sealed class SampleSmokeTests
             .Deserialize<DeviceMetadataResponse>(
                 new JsonSerializerOptions(JsonSerializerDefaults.Web)) ??
             throw new JsonException("Device Registry sample returned no heartbeat response.");
-        var configurationEntry = enrollmentDocument.RootElement.GetProperty("configuration");
+        var configurationSetting = enrollmentDocument.RootElement.GetProperty("configuration");
 
         Assert.Equal("iot.device-registry:devices", enrollment.RegistryId);
         Assert.StartsWith("device/", enrollment.Subject);
@@ -1573,9 +1572,8 @@ public sealed class SampleSmokeTests
         Assert.NotNull(heartbeat.LastSeenAt);
         Assert.Equal("sample-app", heartbeat.LastSeenSource);
         Assert.Equal("device-app", heartbeat.Properties["sample.app"]);
-        Assert.Equal("Device:Mode", configurationEntry.GetProperty("name").GetString());
-        Assert.Equal("factory-online", configurationEntry.GetProperty("value").GetString());
-        Assert.False(configurationEntry.GetProperty("isSecret").GetBoolean());
+        Assert.Equal("Device:Mode", configurationSetting.GetProperty("name").GetString());
+        Assert.Equal("factory-online", configurationSetting.GetProperty("value").GetString());
 
         using var tokenClient = new HttpClient
         {
@@ -1969,10 +1967,10 @@ public sealed class SampleSmokeTests
         Assert.Equal("connected", configurationRoot.GetProperty("status").GetString());
         Assert.Equal("keycloak-provisioned-api", configurationRoot.GetProperty("clientId").GetString());
         Assert.Contains(
-            configurationRoot.GetProperty("entries").EnumerateArray(),
-            entry =>
-                entry.GetProperty("name").GetString() == "Sample:Message" &&
-                entry.GetProperty("value").GetString() == "Hello from a Keycloak-provisioned resource identity");
+            configurationRoot.GetProperty("settings").EnumerateArray(),
+            setting =>
+                setting.GetProperty("name").GetString() == "Sample:Message" &&
+                setting.GetProperty("value").GetString() == "Hello from a Keycloak-provisioned resource identity");
 
         keycloakStack.Dispose();
         Assert.True(

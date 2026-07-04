@@ -57,12 +57,12 @@ public final class SampleServer {
                 .tryFromEnvironment(System.getenv("CLOUDSHELL_CONFIGURATION_SERVICE_NAME"))
                 .flatMap(client -> {
                     try {
-                        return client.getEntry("Sample--Message");
+                        return client.getSetting("Sample--Message");
                     } catch (Exception exception) {
                         return java.util.Optional.empty();
                     }
                 })
-                .map(entry -> entry.value())
+                .map(setting -> setting.value())
                 .orElse("No CloudShell configuration value was loaded.");
         } catch (Exception exception) {
             return "No CloudShell configuration value was loaded.";

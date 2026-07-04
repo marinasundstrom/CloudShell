@@ -104,8 +104,8 @@ static IResult GetEntry(
         : Results.Ok(ToResponse(entry));
 }
 
-static ConfigurationEntryResponse ToResponse(ConfigurationEntry entry) =>
-    new(entry.Name, entry.Value, entry.IsSecret);
+static ConfigurationSettingResponse ToResponse(ConfigurationEntry entry) =>
+    new(entry.Name, entry.Value);
 
 static bool IsAuthorized(
     ConfigurationStoreDefinition configurationStore,

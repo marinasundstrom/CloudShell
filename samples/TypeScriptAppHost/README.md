@@ -8,7 +8,7 @@ It proves the TypeScript declaration shape:
 - TypeScript code declares resources through builder-style APIs.
 - The package emits ResourceTemplate JSON accepted by CloudShell.
 - The sample can hand that template to the current CloudShell CLI.
-- The launcher seeds development Configuration Store entries and Secrets Vault
+- The launcher seeds development Configuration Store settings and Secrets Vault
   secrets through create-only resource-definition attributes.
 
 The current POC uses `CloudShell.LocalDevelopmentHost` as the .NET process that

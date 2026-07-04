@@ -9,10 +9,8 @@ public sealed record ConfigurationStoreDefinition
 
 public sealed record ConfigurationEntry(
     string Name,
-    string Value,
-    bool IsSecret = false);
+    string Value);
 
-public sealed record ConfigurationEntryResponse(
+public sealed record ConfigurationSettingResponse(
     string Name,
-    string Value,
-    bool IsSecret);
+    string Value);

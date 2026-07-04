@@ -12,7 +12,7 @@ var appEndpoint = new Uri(app.Configuration["JavaScriptApp:Endpoint"]
 var settingsServiceEndpoint = app.Configuration["JavaScriptApp:SettingsEndpoint"]
     ?? "http://localhost:5101";
 var settingsResourceId = "configuration.store:javascript-app-settings";
-var settingsEntriesEndpoint =
+var settingsApiEndpoint =
     $"{settingsServiceEndpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(settingsResourceId)}/entries";
 
 app.DefineResources(resources =>
@@ -39,7 +39,7 @@ app.DefineResources(resources =>
             appEndpoint.Port.ToString())
         .WithEnvironmentVariable(
             "CLOUDSHELL_SETTINGS_ENDPOINT",
-            settingsEntriesEndpoint)
+            settingsApiEndpoint)
         .WithEnvironmentVariable(
             "OTEL_SERVICE_NAME",
             "javascript-frontend")

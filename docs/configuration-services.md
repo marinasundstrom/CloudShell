@@ -2,7 +2,7 @@
 
 CloudShell includes a configuration provider that contributes `configuration.store`
 resources. Each resource is a separate local configuration store with its own
-entries, endpoint, resource identity metadata, and resource group assignment.
+settings, endpoint, resource identity metadata, and resource group assignment.
 Each store owns the runtime process that serves its HTTP API; it does not
 register that process as a separate application resource.
 
@@ -53,14 +53,12 @@ Each store stores key-value settings:
 
 - `Name`: the setting name.
 - `Value`: the stored value.
-- `Secret`: legacy sensitive-entry marker. New authoring should prefer
-  Secrets Vault references for credentials and other secret values.
 
 The built-in Configuration Store accepts broad App Configuration-style setting
 names. Empty names, `%`, `.`, `..`, and control characters are rejected. Both
 `Orders:Api:BaseUrl` and the portable `Orders--Api--BaseUrl` hierarchy form
 are accepted; the CloudShell `IConfiguration` client maps `--` to `:` when it
-loads entries.
+loads settings.
 
 Secrets Vault uses Key Vault-style secret names: 1-127 ASCII letters, digits,
 and hyphens. Use names such as `Orders--Api--ClientSecret` for hierarchical
@@ -72,7 +70,7 @@ deployment targets may apply their own character and length restrictions.
 
 ## Resource Manager Management
 
-Graph-backed Configuration Store resources contribute an **Entries** tab in
+Graph-backed Configuration Store resources contribute a **Settings** tab in
 Resource Manager when the UI host has access to the provider runtime manager.
 That tab manages provider-owned runtime settings and rewrites the sidecar
 definition file used by the backing Configuration Store service. Setting values
@@ -255,7 +253,7 @@ See [SDK clients](sdk-clients.md) for package boundaries and client usage.
 The experimental TypeScript package under
 `sdk/typescript/configuration-client` mirrors the same direct client shape for
 Node.js applications: it discovers injected Configuration Store endpoints,
-sends bearer tokens, reads all entries or a single entry, and can map portable
+sends bearer tokens, reads all settings or a single setting, and can map portable
 `--` setting names to `:` configuration keys.
 The `samples/TypeScriptConfigurationClient` sample shows the same flow from a
 Node.js application by setting
@@ -313,14 +311,14 @@ builder.Configuration.AddCloudShellConfigurationStore(options =>
 });
 ```
 
-Loaded entries are available through normal `IConfiguration` lookup:
+Loaded settings are available through normal `IConfiguration` lookup:
 
 ```csharp
 var value = builder.Configuration["SampleMessage"];
 ```
 
 Provider diagnostics are exposed under `CloudShell:ConfigurationStore:*`,
-including `Status`, `Detail`, `Source`, `LoadedKeys`, and `SecretKeys`. The
+including `Status`, `Detail`, `Source`, and `LoadedKeys`. The
 provider does not throw when the service is unavailable; it records
 unavailable status so the application can continue running and log the state.
 
@@ -353,7 +351,8 @@ http://localhost:5127/configuration
 ```
 
 The sample returns the provider status and loaded keys from `IConfiguration`.
-Secret values are masked in the response.
+Secrets are read through the separate Secrets Vault client and masked in that
+response.
 
 See [Programmatic resources](programmatic-resources.md) for the declaration and
 persistence model.
@@ -361,6 +360,6 @@ persistence model.
 ## Templates
 
 Configuration services support resource group templates. Export includes
-non-secret entry values. Secret entries are exported as placeholders with an
-empty value so templates do not leak secrets by default. Import creates a new
+setting values because Configuration Store settings are not secret material.
+Secrets should be stored in Secrets Vault resources. Import creates a new
 configuration service and generates a fresh access token.

@@ -3,7 +3,7 @@
 
 @if (EntryManager is null)
 {
-    <EmptyState Title="Entry management unavailable"
+    <EmptyState Title="Setting management unavailable"
                 Message="This UI host does not have access to the Configuration Store runtime manager." />
 }
 else if (Resource is null)
@@ -16,8 +16,8 @@ else
     <section class="blade-section">
         <div class="blade-section-header">
             <div>
-                <h3>Entries</h3>
-                <p>@GetEntrySummary()</p>
+                <h3>Settings</h3>
+                <p>@GetSettingSummary()</p>
             </div>
         </div>
 
@@ -30,23 +30,23 @@ else
             <Actions>
                 <FluentButton Appearance="Appearance.Neutral"
                               IconStart="new Icons.Regular.Size20.Add()"
-                              OnClick="AddEntry">
-                    Add entry
+                              OnClick="AddSetting">
+                    Add setting
                 </FluentButton>
             </Actions>
             <ChildContent>
                 @foreach (var entry in Entries)
                 {
                     <div class="environment-row configuration-entry-row configuration-entry-runtime-row">
-                        <FluentTextField AriaLabel="Configuration entry name"
+                        <FluentTextField AriaLabel="Configuration setting name"
                                          Placeholder="Name"
                                          @bind-Value="entry.Name" />
-                        <FluentTextField AriaLabel="Configuration entry value"
+                        <FluentTextField AriaLabel="Configuration setting value"
                                          Placeholder="Value"
                                          @bind-Value="entry.Value" />
                         <FluentButton Appearance="Appearance.Neutral"
                                       IconStart="new Icons.Regular.Size20.Delete()"
-                                      OnClick="() => RemoveEntry(entry)">
+                                      OnClick="() => RemoveSetting(entry)">
                             Remove
                         </FluentButton>
                     </div>
@@ -104,21 +104,21 @@ else
         }
     }
 
-    private string GetEntrySummary()
+    private string GetSettingSummary()
     {
         var count = Entries.Count(entry => !string.IsNullOrWhiteSpace(entry.Name));
         return count == 1
-            ? "1 runtime entry is configured for this store."
-            : $"{count} runtime entries are configured for this store.";
+            ? "1 runtime setting is configured for this store."
+            : $"{count} runtime settings are configured for this store.";
     }
 
-    private void AddEntry()
+    private void AddSetting()
     {
         Entries.Add(new());
         ErrorMessage = null;
     }
 
-    private void RemoveEntry(EntryInput entry)
+    private void RemoveSetting(EntryInput entry)
     {
         Entries.Remove(entry);
         if (Entries.Count == 0)
@@ -133,13 +133,13 @@ else
     {
         if (EntryManager is null || Resource is null)
         {
-            return ResourceProcedureResult.Completed("Configuration Store entry management is unavailable.");
+            return ResourceProcedureResult.Completed("Configuration Store setting management is unavailable.");
         }
 
         var entries = BuildEntries();
         if (entries is null)
         {
-            return ResourceProcedureResult.Completed(ErrorMessage ?? "Configuration Store entries were not updated.");
+            return ResourceProcedureResult.Completed(ErrorMessage ?? "Configuration Store settings were not updated.");
         }
 
         await EntryManager.UpdateEntriesAsync(
@@ -147,7 +147,7 @@ else
             entries,
             cancellationToken);
         ErrorMessage = null;
-        return ResourceProcedureResult.Completed("Configuration Store entries updated.");
+        return ResourceProcedureResult.Completed("Configuration Store settings updated.");
     }
 
     private IReadOnlyList<ConfigurationStoreRuntimeEntry>? BuildEntries()
@@ -165,7 +165,7 @@ else
             ?.Key;
         if (!string.IsNullOrWhiteSpace(duplicate))
         {
-            ErrorMessage = $"Configuration entry '{duplicate}' is defined more than once.";
+            ErrorMessage = $"Configuration setting '{duplicate}' is defined more than once.";
             return null;
         }
 

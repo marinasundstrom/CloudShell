@@ -122,7 +122,7 @@ public sealed class AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
             return;
         }
 
-        var entriesEndpoint =
+        var settingsEndpoint =
             $"{baseEndpoint.ToString().TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(resource.EffectiveResourceId)}/entries";
         variables.TryAdd("CLOUDSHELL_CONFIGURATION_SERVICE_NAME", resource.Name);
         foreach (var segment in ResolveCloudShellClientEnvironmentSegments(resource))
@@ -130,7 +130,7 @@ public sealed class AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
             variables[$"CLOUDSHELL_CONFIGURATION_{segment}_STORE_ID"] =
                 resource.EffectiveResourceId;
             variables[$"CLOUDSHELL_CONFIGURATION_{segment}_ENDPOINT"] =
-                entriesEndpoint;
+                settingsEndpoint;
         }
     }
 

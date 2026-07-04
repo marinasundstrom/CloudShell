@@ -14,8 +14,8 @@ var configurationEndpoint = builder.Configuration["ConfigurationStore:Endpoint"]
 var configurationResourceId = builder.Configuration["ConfigurationStore:ResourceId"] ??
     Environment.GetEnvironmentVariable("CLOUDSHELL_CONFIGURATION_STORE_RESOURCE_ID") ??
     "configuration.store:device-settings";
-var configurationEntryName = builder.Configuration["ConfigurationStore:EntryName"] ??
-    Environment.GetEnvironmentVariable("CLOUDSHELL_CONFIGURATION_ENTRY_NAME") ??
+var configurationSettingName = builder.Configuration["ConfigurationStore:SettingName"] ??
+    Environment.GetEnvironmentVariable("CLOUDSHELL_CONFIGURATION_SETTING_NAME") ??
     "Device:Mode";
 var manufacturer = builder.Configuration["Device:Manufacturer"] ??
     Environment.GetEnvironmentVariable("DEVICE_MANUFACTURER") ??
@@ -52,7 +52,7 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
         },
         cancellationToken: cancellationToken);
 
-    CloudShellConfigurationEntry? configuration = null;
+    CloudShellConfigurationSetting? configuration = null;
     DeviceMetadataResponse? heartbeat = null;
     if (!string.IsNullOrWhiteSpace(configurationEndpoint))
     {
@@ -82,12 +82,12 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
             },
             tokenHttpClient);
         var configurationClient = new ConfigurationStoreClient(
-            BuildConfigurationEntriesEndpoint(configurationEndpoint, configurationResourceId),
+            BuildConfigurationSettingsEndpoint(configurationEndpoint, configurationResourceId),
             credential,
             configurationHttpClient,
             [ConfigurationStoreClient.DefaultScope]);
-        configuration = await configurationClient.GetEntryAsync(
-            configurationEntryName,
+        configuration = await configurationClient.GetSettingAsync(
+            configurationSettingName,
             cancellationToken);
     }
 
@@ -101,7 +101,7 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
 
 app.Run();
 
-static Uri BuildConfigurationEntriesEndpoint(
+static Uri BuildConfigurationSettingsEndpoint(
     string configurationEndpoint,
     string configurationResourceId) =>
     new($"{configurationEndpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(configurationResourceId)}/entries");

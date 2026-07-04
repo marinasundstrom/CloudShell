@@ -26,30 +26,30 @@ public sealed class ConfigurationStoreClient
     private readonly IReadOnlyList<string> scopes;
 
     public ConfigurationStoreClient(
-        Uri entriesEndpoint,
+        Uri settingsEndpoint,
         CloudShellResourceCredential credential,
         IEnumerable<string>? scopes = null)
-        : this(entriesEndpoint, credential, new HttpClient(), scopes)
+        : this(settingsEndpoint, credential, new HttpClient(), scopes)
     {
     }
 
     public ConfigurationStoreClient(
-        Uri entriesEndpoint,
+        Uri settingsEndpoint,
         CloudShellResourceCredential credential,
         HttpClient httpClient,
         IEnumerable<string>? scopes = null)
     {
-        ArgumentNullException.ThrowIfNull(entriesEndpoint);
+        ArgumentNullException.ThrowIfNull(settingsEndpoint);
         ArgumentNullException.ThrowIfNull(credential);
         ArgumentNullException.ThrowIfNull(httpClient);
 
-        EntriesEndpoint = entriesEndpoint;
+        SettingsEndpoint = settingsEndpoint;
         this.credential = credential;
         this.httpClient = httpClient;
         this.scopes = (scopes ?? [DefaultScope]).ToArray();
     }
 
-    public Uri EntriesEndpoint { get; }
+    public Uri SettingsEndpoint { get; }
 
     public static ConfigurationStoreClient FromEnvironment(
         CloudShellResourceCredential? credential = null,
@@ -73,21 +73,21 @@ public sealed class ConfigurationStoreClient
                 scopes);
     }
 
-    public async Task<IReadOnlyList<CloudShellConfigurationEntry>> GetEntriesAsync(
+    public async Task<IReadOnlyList<CloudShellConfigurationSetting>> GetSettingsAsync(
         CancellationToken cancellationToken = default)
     {
         using var request = await CreateRequestAsync(
             HttpMethod.Get,
-            EntriesEndpoint,
+            SettingsEndpoint,
             cancellationToken);
         using var response = await httpClient.SendAsync(request, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return await response.Content.ReadFromJsonAsync<IReadOnlyList<CloudShellConfigurationEntry>>(
+        return await response.Content.ReadFromJsonAsync<IReadOnlyList<CloudShellConfigurationSetting>>(
             SerializerOptions,
             cancellationToken) ?? [];
     }
 
-    public async Task<CloudShellConfigurationEntry?> GetEntryAsync(
+    public async Task<CloudShellConfigurationSetting?> GetSettingAsync(
         string name,
         CancellationToken cancellationToken = default)
     {
@@ -95,7 +95,7 @@ public sealed class ConfigurationStoreClient
 
         using var request = await CreateRequestAsync(
             HttpMethod.Get,
-            BuildEntryEndpoint(name),
+            BuildSettingEndpoint(name),
             cancellationToken);
         using var response = await httpClient.SendAsync(request, cancellationToken);
         if (response.StatusCode == HttpStatusCode.NotFound)
@@ -104,7 +104,7 @@ public sealed class ConfigurationStoreClient
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return await response.Content.ReadFromJsonAsync<CloudShellConfigurationEntry>(
+        return await response.Content.ReadFromJsonAsync<CloudShellConfigurationSetting>(
             SerializerOptions,
             cancellationToken);
     }
@@ -128,9 +128,9 @@ public sealed class ConfigurationStoreClient
         return request;
     }
 
-    private Uri BuildEntryEndpoint(string name)
+    private Uri BuildSettingEndpoint(string name)
     {
-        var builder = new UriBuilder(EntriesEndpoint);
+        var builder = new UriBuilder(SettingsEndpoint);
         var path = builder.Path.TrimEnd('/');
         builder.Path = $"{path}/{Uri.EscapeDataString(name)}";
         return builder.Uri;

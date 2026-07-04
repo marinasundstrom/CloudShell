@@ -193,10 +193,10 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
             .AddResourceTab<ConfigurationPages.ConfigurationStoreEntries>(
                 ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Entries, "entries"),
-                "Entries",
+                "Settings",
                 20,
                 showsApplyButton: true,
-                groupTitle: ResourceTabGroupTitles.Entries,
+                groupTitle: "Settings",
                 icon: "entries")
             .AddResourceTab<ConfigurationPages.SecretsVaultSecrets>(
                 SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),

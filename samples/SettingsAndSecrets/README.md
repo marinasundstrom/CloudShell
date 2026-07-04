@@ -60,7 +60,7 @@ their own identities unless they later call another resource or provider.
 The sample declares Resource model Configuration Store and Secrets Vault
 resources. These resources project endpoint and `*.entries.count`
 summary attributes through the Resource Manager bridge, but the actual
-configuration entries, secrets, grants, and backing services remain owned by
+configuration settings, secrets, grants, and backing services remain owned by
 the provider-owned runtime integrations. The runtime integrations currently
 start local C# service projects; a future provider implementation can back the
 same resource shapes with containers.

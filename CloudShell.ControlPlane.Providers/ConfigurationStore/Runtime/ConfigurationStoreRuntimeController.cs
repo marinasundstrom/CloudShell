@@ -37,8 +37,7 @@ public sealed class ConfigurationStoreRuntimeOptions
 
 public sealed record ConfigurationStoreRuntimeEntry(
     string Name,
-    string Value,
-    bool IsSecret = false);
+    string Value);
 
 public interface IConfigurationStoreRuntimeController
 {
@@ -118,8 +117,7 @@ public sealed class ConfigurationStoreProcessRuntimeController(
             entries = _options.Entries.Select(entry => new
             {
                 entry.Name,
-                entry.Value,
-                entry.IsSecret
+                entry.Value
             }).ToArray(),
             healthChecks = Array.Empty<object>()
         };
