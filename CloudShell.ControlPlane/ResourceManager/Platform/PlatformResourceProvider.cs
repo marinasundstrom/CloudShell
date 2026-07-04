@@ -2438,6 +2438,7 @@ public sealed class PlatformResourceProvider(
                     endpoints.Count.ToString(CultureInfo.InvariantCulture)
             },
             Capabilities: CreateLoadBalancerCapabilities(definition),
+            LoadBalancerEntrypoints: definition.LoadBalancerEntrypoints,
             LoadBalancerRoutes: definition.LoadBalancerRoutes,
             EndpointNetworkMappings: CreateLoadBalancerEndpointMappings(definition),
             DisplayName: definition.Name);

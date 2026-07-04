@@ -1,6 +1,7 @@
 @using System.Globalization
 @using System.Text.Json
 @inject IResourceManager ResourceManager
+@inject IEnumerable<ICertificateReferenceCatalog> CertificateCatalogs
 @inject NavigationManager Navigation
 
 @if (LoadBalancer is null)
@@ -56,6 +57,21 @@ else
                             </div>
                         }
                     </div>
+                }
+
+                @if (HasHttpsEntrypoint())
+                {
+                    <label for="load-balancer-update-https-certificate">HTTPS certificate</label>
+                    <FluentSelect TOption="string"
+                                  Id="load-balancer-update-https-certificate"
+                                  @bind-Value="SelectedHttpsCertificateKey"
+                                  Appearance="Appearance.Outline">
+                        <FluentOption TOption="string" Value="">No certificate</FluentOption>
+                        @foreach (var certificate in GetCertificateCandidates())
+                        {
+                            <FluentOption TOption="string" Value="@certificate.Key">@certificate.Label</FluentOption>
+                        }
+                    </FluentSelect>
                 }
             </ResourceEditorSection>
 
@@ -184,6 +200,7 @@ else
     private string Provider { get; set; } = "traefik";
     private string SelectedHostResourceId { get; set; } = string.Empty;
     private string SelectedGroupId { get; set; } = string.Empty;
+    private string SelectedHttpsCertificateKey { get; set; } = string.Empty;
     private string selectedRouteId = string.Empty;
     private string SelectedRouteId
     {
@@ -204,6 +221,7 @@ else
     private string TargetEndpointName { get; set; } = string.Empty;
     private int? TargetPort { get; set; }
     private string? ErrorMessage { get; set; }
+    private IReadOnlyList<CertificateOption> CertificateOptions { get; set; } = [];
 
     private bool IsHttpRoute =>
         string.Equals(RouteKind, "http", StringComparison.OrdinalIgnoreCase);
@@ -229,6 +247,9 @@ else
             SelectedHostResourceId = NormalizeHostResourceId(
                 GetAttribute(ResourceAttributeNames.LoadBalancerHostResourceId, string.Empty));
             SelectedGroupId = ResourceGroup?.Id ?? string.Empty;
+            CertificateOptions = IncludeProjectedCertificateOptions(
+                await LoadCertificateOptionsAsync());
+            SelectedHttpsCertificateKey = GetExistingHttpsCertificateKey() ?? string.Empty;
 
             var requestedTargetResourceId = GetRequestedTargetResourceId();
             if (!string.IsNullOrWhiteSpace(requestedTargetResourceId))
@@ -302,13 +323,14 @@ else
     }
 
     private IReadOnlyList<LoadBalancerEntrypoint> BuildEntrypoints() =>
-        LoadBalancer?.Endpoints
-            .Select(endpoint => new LoadBalancerEntrypoint(
-                endpoint.Name,
-                ParseEndpointProtocol(endpoint.Protocol),
-                Math.Max(1, endpoint.TargetPort ?? 1),
-                endpoint.Exposure))
-            .ToArray() ?? [];
+        GetLoadBalancerEntrypoints()
+            .Select(entrypoint => entrypoint.Protocol == ResourceEndpointProtocol.Https
+                ? entrypoint with
+                {
+                    Certificate = ResolveSelectedCertificateReference(SelectedHttpsCertificateKey)
+                }
+                : entrypoint)
+            .ToArray();
 
     private LoadBalancerRoute? BuildRoute()
     {
@@ -410,14 +432,14 @@ else
             .FirstOrDefault(resource => string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase))
             ?.Endpoints ?? [];
 
-    private IReadOnlyList<ResourceEndpoint> GetRouteEntrypoints() =>
-        LoadBalancer?.Endpoints
-            .Where(endpoint =>
+    private IReadOnlyList<LoadBalancerEntrypoint> GetRouteEntrypoints() =>
+        GetLoadBalancerEntrypoints()
+            .Where(entrypoint =>
                 IsHttpRoute
-                    ? IsHttpEntrypoint(endpoint)
-                    : IsTcpEntrypoint(endpoint))
-            .OrderBy(endpoint => endpoint.Name, StringComparer.OrdinalIgnoreCase)
-            .ToArray() ?? [];
+                    ? IsHttpEntrypoint(entrypoint)
+                    : IsTcpEntrypoint(entrypoint))
+            .OrderBy(entrypoint => entrypoint.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
     private void PopulateRouteFieldsFromRequest(string targetResourceId)
     {
@@ -521,8 +543,8 @@ else
             : fallback;
 
     private int ResolveEntrypointPort(string entrypointName) =>
-        LoadBalancer?.Endpoints.FirstOrDefault(endpoint =>
-            string.Equals(endpoint.Name, entrypointName, StringComparison.OrdinalIgnoreCase))?.TargetPort ?? 1;
+        GetLoadBalancerEntrypoints().FirstOrDefault(entrypoint =>
+            string.Equals(entrypoint.Name, entrypointName, StringComparison.OrdinalIgnoreCase))?.Port ?? 1;
 
     private static string NormalizeHostResourceId(string value) =>
         string.Equals(value, "default", StringComparison.OrdinalIgnoreCase)
@@ -546,6 +568,12 @@ else
     private static bool IsTcpEntrypoint(ResourceEndpoint endpoint) =>
         string.Equals(endpoint.Protocol, "tcp", StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsHttpEntrypoint(LoadBalancerEntrypoint entrypoint) =>
+        entrypoint.Protocol is ResourceEndpointProtocol.Http or ResourceEndpointProtocol.Https;
+
+    private static bool IsTcpEntrypoint(LoadBalancerEntrypoint entrypoint) =>
+        entrypoint.Protocol == ResourceEndpointProtocol.Tcp;
+
     private static ResourceEndpointProtocol ParseEndpointProtocol(string protocol) =>
         Enum.TryParse<ResourceEndpointProtocol>(protocol, ignoreCase: true, out var parsed)
             ? parsed
@@ -563,6 +591,95 @@ else
     {
         var port = endpoint.TargetPort?.ToString(CultureInfo.InvariantCulture) ?? "unspecified";
         return $"{endpoint.Protocol}:{port}";
+    }
+
+    private IReadOnlyList<LoadBalancerEntrypoint> GetLoadBalancerEntrypoints() =>
+        LoadBalancer?.ResourceLoadBalancerEntrypoints.Count > 0
+            ? LoadBalancer.ResourceLoadBalancerEntrypoints
+            : LoadBalancer?.Endpoints
+                .Select(endpoint => new LoadBalancerEntrypoint(
+                    endpoint.Name,
+                    ParseEndpointProtocol(endpoint.Protocol),
+                    Math.Max(1, endpoint.TargetPort ?? 1),
+                    endpoint.Exposure))
+                .ToArray() ?? [];
+
+    private bool HasHttpsEntrypoint() =>
+        GetLoadBalancerEntrypoints()
+            .Any(entrypoint => entrypoint.Protocol == ResourceEndpointProtocol.Https);
+
+    private IReadOnlyList<CertificateOption> GetCertificateCandidates() =>
+        CertificateOptions
+            .Where(IsCertificateInLoadBalancerGroup)
+            .ToArray();
+
+    private bool IsCertificateInLoadBalancerGroup(CertificateOption certificate)
+    {
+        if (!Resources.Any(resource => string.Equals(resource.Id, certificate.VaultResourceId, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        var loadBalancerGroup = LoadBalancer is null
+            ? null
+            : ResourceManagerUiAccess.GetResourceGroup(ResourceGroupsByResourceId, LoadBalancer.Id);
+        var group = ResourceManagerUiAccess.GetResourceGroup(ResourceGroupsByResourceId, certificate.VaultResourceId);
+        return loadBalancerGroup is null
+            ? group is null
+            : string.Equals(group?.Id, loadBalancerGroup.Id, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private CertificateReference? ResolveSelectedCertificateReference(string key) =>
+        GetCertificateCandidates()
+            .FirstOrDefault(certificate => string.Equals(certificate.Key, key, StringComparison.Ordinal))
+            ?.ToReference();
+
+    private string? GetExistingHttpsCertificateKey() =>
+        GetLoadBalancerEntrypoints()
+            .Where(entrypoint => entrypoint.Protocol == ResourceEndpointProtocol.Https)
+            .Select(entrypoint => entrypoint.Certificate)
+            .FirstOrDefault(certificate => certificate is not null) is { } certificate
+                ? CertificateOption.CreateKey(
+                    certificate.VaultResourceId,
+                    certificate.CertificateName,
+                    certificate.Version)
+                : null;
+
+    private async Task<IReadOnlyList<CertificateOption>> LoadCertificateOptionsAsync()
+    {
+        var options = new List<CertificateOption>();
+        foreach (var catalog in CertificateCatalogs)
+        {
+            var certificates = await catalog.ListCertificatesAsync(Resources);
+            options.AddRange(certificates.Select(CertificateOption.FromDescriptor));
+        }
+
+        return options
+            .GroupBy(option => option.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .OrderBy(option => option.Label, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private IReadOnlyList<CertificateOption> IncludeProjectedCertificateOptions(
+        IReadOnlyList<CertificateOption> options)
+    {
+        var merged = options.ToDictionary(option => option.Key, StringComparer.OrdinalIgnoreCase);
+        foreach (var certificate in GetLoadBalancerEntrypoints()
+                     .Select(entrypoint => entrypoint.Certificate)
+                     .Where(certificate => certificate is not null)
+                     .Cast<CertificateReference>())
+        {
+            var key = CertificateOption.CreateKey(
+                certificate.VaultResourceId,
+                certificate.CertificateName,
+                certificate.Version);
+            merged.TryAdd(key, CertificateOption.FromReference(certificate));
+        }
+
+        return merged.Values
+            .OrderBy(option => option.Label, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     private string FormatRoute(LoadBalancerRoute route) =>
@@ -611,5 +728,59 @@ else
             .Select(character => char.IsLetterOrDigit(character) ? character : '-')
             .ToArray())
             .Trim('-');
+    }
+
+    private sealed record CertificateOption(
+        string Key,
+        string Label,
+        string VaultResourceId,
+        string Name,
+        string? Version)
+    {
+        public CertificateReference ToReference() =>
+            new(VaultResourceId, Name, Version);
+
+        public static CertificateOption FromDescriptor(CertificateReferenceDescriptor descriptor)
+        {
+            var label = $"{ResourceDisplayLabels.GetName(descriptor.VaultResourceId)} / {descriptor.Name}";
+            if (!string.IsNullOrWhiteSpace(descriptor.Version))
+            {
+                label += $" ({descriptor.Version})";
+            }
+
+            if (!string.IsNullOrWhiteSpace(descriptor.Subject))
+            {
+                label += $" - {descriptor.Subject}";
+            }
+
+            return new(
+                CreateKey(descriptor.VaultResourceId, descriptor.Name, descriptor.Version),
+                label,
+                descriptor.VaultResourceId,
+                descriptor.Name,
+                descriptor.Version);
+        }
+
+        public static CertificateOption FromReference(CertificateReference reference)
+        {
+            var label = $"{ResourceDisplayLabels.GetName(reference.VaultResourceId)} / {reference.CertificateName}";
+            if (!string.IsNullOrWhiteSpace(reference.Version))
+            {
+                label += $" ({reference.Version})";
+            }
+
+            return new(
+                CreateKey(reference.VaultResourceId, reference.CertificateName, reference.Version),
+                label,
+                reference.VaultResourceId,
+                reference.CertificateName,
+                reference.Version);
+        }
+
+        public static string CreateKey(
+            string vaultResourceId,
+            string name,
+            string? version) =>
+            $"{vaultResourceId}|{name}|{version}";
     }
 }

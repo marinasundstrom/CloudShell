@@ -40,7 +40,21 @@ public sealed class ResourceModelGraphTraefikLoadBalancerConfigurationApplier(
             ];
         }
 
-        var result = await provider.ApplyAsync(providerContext, cancellationToken);
+        ResourceProcedureResult result;
+        try
+        {
+            result = await provider.ApplyAsync(providerContext, cancellationToken);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return
+            [
+                ResourceDefinitionDiagnostic.Error(
+                    "network.loadBalancer.traefikConfigurationFailed",
+                    exception.Message,
+                    resource.EffectiveResourceId)
+            ];
+        }
 
         return
         [

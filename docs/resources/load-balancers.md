@@ -159,6 +159,11 @@ deep link:
 The first UI registration slice supports the Traefik provider, optional
 container-host selection, HTTP/HTTPS/TCP entrypoints, and initial HTTP or TCP
 routes to an existing resource endpoint or raw target port.
+When HTTPS is enabled, the add and update views can bind the HTTPS entrypoint
+to a certificate from a graph-backed Secrets Vault in the same resource group.
+Resource Manager lists certificate metadata only and writes the typed
+`certificateRef` back to the load-balancer entrypoint; certificate payloads
+stay in provider-owned vault state.
 
 The apply action validates the route targets and delegates to the selected
 `ILoadBalancerProvider`.
@@ -186,15 +191,16 @@ can show the reason before the action is invoked.
 
 ## API Projection
 
-Load balancer routes are part of the normal resource response:
+Load balancer entrypoints and routes are part of the normal resource response:
 
 ```http
 GET /api/control-plane/v1/resources/load-balancer%3Apublic
 ```
 
-The response includes `loadBalancerRoutes` and normal hypermedia
-`resourceActions`. Applying provider configuration uses the advertised resource
-action URL:
+The response includes `loadBalancerEntrypoints`, including HTTPS
+`certificate` reference metadata when present, `loadBalancerRoutes`, and normal
+hypermedia `resourceActions`. Applying provider configuration uses the
+advertised resource action URL:
 
 ```http
 POST /api/control-plane/v1/resources/load-balancer%3Apublic/actions/applyLoadBalancerConfiguration
@@ -218,6 +224,12 @@ The provider supports:
 - TCP routers using `HostSNI(...)`
 - HTTPS routers using vault-backed PEM certificates on HTTPS entrypoints
 - HTTP services with target URLs
+
+Traefik certificate materialization currently requires PEM content containing
+certificate and private-key blocks. PFX/P12 certificates may be stored in the
+vault, but applying a Traefik-backed load balancer with a PFX/P12 certificate
+returns a resource diagnostic until provider-specific PFX materialization is
+implemented.
 - TCP services with target addresses
 
 When an HTTPS entrypoint has a certificate reference, Resource Manager resolves

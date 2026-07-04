@@ -294,6 +294,12 @@ public sealed class TraefikLoadBalancerProvider(TraefikProviderOptions options) 
     private static (string Certificate, string PrivateKey) SplitPemCertificate(
         LoadBalancerResolvedCertificate certificate)
     {
+        if (IsPfxCertificate(certificate.ContentType))
+        {
+            throw new InvalidOperationException(
+                $"Certificate '{certificate.Reference.CertificateName}' for load balancer entrypoint '{certificate.EntrypointName}' uses PFX/P12 content. Traefik certificate materialization currently supports PEM certificate and private-key blocks.");
+        }
+
         var certificates = ExtractPemBlocks(certificate.Value, "CERTIFICATE").ToArray();
         var privateKeys = ExtractPrivateKeyPemBlocks(certificate.Value).ToArray();
         if (certificates.Length == 0 || privateKeys.Length == 0)
@@ -306,6 +312,11 @@ public sealed class TraefikLoadBalancerProvider(TraefikProviderOptions options) 
             string.Join(Environment.NewLine, certificates) + Environment.NewLine,
             privateKeys[0] + Environment.NewLine);
     }
+
+    private static bool IsPfxCertificate(string? contentType) =>
+        !string.IsNullOrWhiteSpace(contentType) &&
+        (contentType.Contains("pkcs12", StringComparison.OrdinalIgnoreCase) ||
+            contentType.Contains("pfx", StringComparison.OrdinalIgnoreCase));
 
     private static IEnumerable<string> ExtractPrivateKeyPemBlocks(string value)
     {

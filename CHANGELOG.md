@@ -42,6 +42,12 @@ on `git blame --follow`, and then by the broad type of change.
   cleanup removes generated certificate files, TypeScript/Go/Java launchers can
   declare certificate-backed load-balancer entrypoints, and
   `samples/CertificateLoadBalancer` verifies the end-to-end graph path.
+- Added Resource Manager load-balancer certificate selection and entrypoint
+  projection: load-balancer resources now expose `loadBalancerEntrypoints`
+  through the Control Plane API/client so HTTPS `certificateRef` metadata is
+  preserved in the edit view, the add/update forms can choose same-group
+  Secrets Vault certificates, and Traefik PFX/P12 materialization failures are
+  reported as resource diagnostics instead of leaking provider exceptions.
 - Added a RabbitMQ credential endpoint that lets workloads present their
   CloudShell resource identity token, request access to a target RabbitMQ
   resource, and receive grant-derived RabbitMQ-native credentials after the

@@ -68,12 +68,33 @@ public sealed class LoadBalancerResourceManagerEndpointProjectionProvider :
             EndpointNetworkMappings: entrypoints
                 .Select(entrypoint => ToEndpointNetworkMapping(resource, entrypoint))
                 .ToArray(),
+            LoadBalancerEntrypoints: entrypoints
+                .Select(ToLoadBalancerEntrypoint)
+                .ToArray(),
             LoadBalancerRoutes: routes
                 .Select(ToLoadBalancerRoute)
                 .Where(route => route is not null)
                 .Cast<LoadBalancerRoute>()
                 .ToArray());
     }
+
+    private static LoadBalancerEntrypoint ToLoadBalancerEntrypoint(
+        LoadBalancerEntrypointValue entrypoint) =>
+        new(
+            entrypoint.Name,
+            ParseProtocol(entrypoint.Protocol),
+            entrypoint.Port,
+            ParseExposure(entrypoint.Exposure),
+            ToCertificateReference(entrypoint.CertificateRef));
+
+    private static CertificateReference? ToCertificateReference(
+        LoadBalancerCertificateReferenceValue? value) =>
+        value is null
+            ? null
+            : new CertificateReference(
+                value.VaultResourceId,
+                value.Name,
+                string.IsNullOrWhiteSpace(value.Version) ? null : value.Version);
 
     private static ResourceEndpoint ToEndpoint(LoadBalancerEntrypointValue entrypoint)
     {

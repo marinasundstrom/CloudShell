@@ -40,6 +40,7 @@ public sealed record ResourceModelResourceManagerEndpointProjection(
     IReadOnlyList<ResourceEndpoint>? Endpoints = null,
     IReadOnlyList<ResourceEndpointMappingDefinition>? EndpointMappings = null,
     IReadOnlyList<ResourceEndpointNetworkMapping>? EndpointNetworkMappings = null,
+    IReadOnlyList<LoadBalancerEntrypoint>? LoadBalancerEntrypoints = null,
     IReadOnlyList<LoadBalancerRoute>? LoadBalancerRoutes = null)
 {
     public static ResourceModelResourceManagerEndpointProjection Empty { get; } = new();
@@ -51,6 +52,9 @@ public sealed record ResourceModelResourceManagerEndpointProjection(
 
     public IReadOnlyList<ResourceEndpointNetworkMapping> ResourceEndpointNetworkMappings =>
         EndpointNetworkMappings ?? [];
+
+    public IReadOnlyList<LoadBalancerEntrypoint> ResourceLoadBalancerEntrypoints =>
+        LoadBalancerEntrypoints ?? [];
 
     public IReadOnlyList<LoadBalancerRoute> ResourceLoadBalancerRoutes =>
         LoadBalancerRoutes ?? [];
@@ -105,6 +109,7 @@ public static class ResourceModelResourceManagerMapper
             ParentResourceId: ToResourceManagerParentResourceId(resource, options),
             EndpointMappings: endpointProjection.ResourceEndpointMappings,
             EndpointNetworkMappings: endpointProjection.ResourceEndpointNetworkMappings,
+            LoadBalancerEntrypoints: endpointProjection.ResourceLoadBalancerEntrypoints,
             LoadBalancerRoutes: endpointProjection.ResourceLoadBalancerRoutes,
             LogSources: logSources);
     }

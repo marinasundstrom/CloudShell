@@ -222,6 +222,107 @@ public sealed class PlatformResourceProviderLoadBalancerTests
     }
 
     [Fact]
+    public async Task TraefikProvider_RejectsPfxCertificateMaterialization()
+    {
+        var provider = new TraefikLoadBalancerProvider(new TraefikProviderOptions
+        {
+            DynamicConfigurationDirectory = CreateTempDirectory()
+        });
+        var definition = new LoadBalancerResourceDefinition(
+            "load-balancer:public",
+            "Public",
+            "traefik",
+            Entrypoints:
+            [
+                new(
+                    "https",
+                    ResourceEndpointProtocol.Https,
+                    443,
+                    Certificate: new CertificateReference("secrets-vault:edge", "EdgeTls"))
+            ],
+            Routes:
+            [
+                new(
+                    "web",
+                    "Web",
+                    LoadBalancerRouteKind.Http,
+                    "https",
+                    new LoadBalancerRouteMatch("app.local"),
+                    new LoadBalancerRouteTarget("application:web", Port: 80))
+            ]);
+        var loadBalancer = CreateResource("load-balancer:public", "Public", []);
+        var web = CreateResource("application:web", "Web", []);
+        var context = new LoadBalancerProviderContext(
+            loadBalancer,
+            definition,
+            HostResource: null,
+            Routes:
+            [
+                new(
+                    definition.LoadBalancerRoutes.Single(),
+                    web,
+                    TargetEndpoint: null)
+            ],
+            ResourceManager: new TestResourceManagerStore([loadBalancer, web]),
+            Certificates:
+            [
+                new(
+                    "https",
+                    new CertificateReference("secrets-vault:edge", "EdgeTls"),
+                    "pfx-bytes",
+                    ContentType: "application/x-pkcs12")
+            ]);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.ApplyAsync(context));
+
+        Assert.Contains("PFX/P12", exception.Message);
+        Assert.Contains("PEM certificate and private-key blocks", exception.Message);
+    }
+
+    [Fact]
+    public async Task SetupLoadBalancerAsync_ProjectsEntrypointCertificateReference()
+    {
+        var store = CreatePlatformStore();
+        var provider = new PlatformResourceProvider(store, new PlatformResourceOptions());
+        var definition = CreateRuntimeLoadBalancerDefinition() with
+        {
+            Entrypoints =
+            [
+                new(
+                    "https",
+                    ResourceEndpointProtocol.Https,
+                    443,
+                    Certificate: new CertificateReference(
+                        "secrets.vault:edge",
+                        "EdgeTls"))
+            ],
+            Routes =
+            [
+                new LoadBalancerRoute(
+                    "web-app",
+                    "Web app",
+                    LoadBalancerRouteKind.Http,
+                    "https",
+                    new LoadBalancerRouteMatch("app.local", "/"),
+                    new LoadBalancerRouteTarget("application:web", "http"))
+            ]
+        };
+
+        await provider.SetupLoadBalancerAsync(
+            definition,
+            null,
+            new TestResourceRegistrationStore([]));
+
+        var loadBalancer = provider.GetResources().Single(resource => resource.Id == definition.Id);
+        var entrypoint = Assert.Single(loadBalancer.ResourceLoadBalancerEntrypoints);
+        Assert.Equal("https", entrypoint.Name);
+        Assert.Equal(ResourceEndpointProtocol.Https, entrypoint.Protocol);
+        Assert.Equal("secrets.vault:edge", entrypoint.Certificate?.VaultResourceId);
+        Assert.Equal("EdgeTls", entrypoint.Certificate?.CertificateName);
+    }
+
+    [Fact]
     public async Task ExecuteActionAsync_UsesRuntimeReplicaAliasesWhenPresent()
     {
         var store = CreatePlatformStore();

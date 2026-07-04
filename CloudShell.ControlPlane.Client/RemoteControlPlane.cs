@@ -1032,6 +1032,7 @@ file sealed record ResourceResponse(
     IReadOnlyList<ResourceCapabilityResponse>? Capabilities,
     IReadOnlyList<ResourceEndpointMappingResponse>? EndpointMappings,
     IReadOnlyList<ResourceEndpointNetworkMappingResponse>? EndpointNetworkMappings,
+    IReadOnlyList<LoadBalancerEntrypointResponse>? LoadBalancerEntrypoints,
     IReadOnlyList<LoadBalancerRouteResponse>? LoadBalancerRoutes,
     ResourceIdentityBindingResponse? Identity,
     IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions,
@@ -1134,6 +1135,18 @@ file sealed record LoadBalancerRouteResponse(
     string EntrypointName,
     LoadBalancerRouteMatchResponse Match,
     LoadBalancerRouteTargetResponse Target);
+
+file sealed record LoadBalancerEntrypointResponse(
+    string Name,
+    ResourceEndpointProtocol Protocol,
+    int Port,
+    ResourceExposureScope Exposure,
+    CertificateReferenceResponse? Certificate);
+
+file sealed record CertificateReferenceResponse(
+    string VaultResourceId,
+    string CertificateName,
+    string? Version);
 
 file sealed record LoadBalancerRouteMatchResponse(
     string? Host,
@@ -1443,6 +1456,9 @@ file static class RemoteControlPlaneMapper
             EndpointNetworkMappings: response.GetEndpointNetworkMappingResponses()
                 .Select(mapping => mapping.ToResourceEndpointNetworkMapping())
                 .ToArray(),
+            LoadBalancerEntrypoints: response.GetLoadBalancerEntrypointResponses()
+                .Select(entrypoint => entrypoint.ToLoadBalancerEntrypoint())
+                .ToArray(),
             LoadBalancerRoutes: response.GetLoadBalancerRouteResponses()
                 .Select(route => route.ToLoadBalancerRoute())
                 .ToArray(),
@@ -1576,6 +1592,17 @@ file static class RemoteControlPlaneMapper
             response.EntrypointName,
             response.Match.ToLoadBalancerRouteMatch(),
             response.Target.ToLoadBalancerRouteTarget());
+
+    public static LoadBalancerEntrypoint ToLoadBalancerEntrypoint(this LoadBalancerEntrypointResponse response) =>
+        new(
+            response.Name,
+            response.Protocol,
+            response.Port,
+            response.Exposure,
+            response.Certificate?.ToCertificateReference());
+
+    public static CertificateReference ToCertificateReference(this CertificateReferenceResponse response) =>
+        new(response.VaultResourceId, response.CertificateName, response.Version);
 
     public static LoadBalancerRouteMatch ToLoadBalancerRouteMatch(
         this LoadBalancerRouteMatchResponse response) =>
@@ -1741,6 +1768,10 @@ file static class RemoteControlPlaneMapper
     private static IReadOnlyCollection<LoadBalancerRouteResponse> GetLoadBalancerRouteResponses(
         this ResourceResponse response) =>
         response.LoadBalancerRoutes?.ToArray() ?? [];
+
+    private static IReadOnlyCollection<LoadBalancerEntrypointResponse> GetLoadBalancerEntrypointResponses(
+        this ResourceResponse response) =>
+        response.LoadBalancerEntrypoints?.ToArray() ?? [];
 
     public static ResourceGroup ToResourceGroup(this ResourceGroupResponse response) =>
         new(response.Id, response.Name, response.Description, response.ResourceIds);

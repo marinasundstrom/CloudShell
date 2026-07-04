@@ -25,6 +25,7 @@ public sealed record Resource(
     IReadOnlyList<ResourceCapability>? Capabilities = null,
     IReadOnlyList<ResourceEndpointMappingDefinition>? EndpointMappings = null,
     IReadOnlyList<ResourceEndpointNetworkMapping>? EndpointNetworkMappings = null,
+    IReadOnlyList<LoadBalancerEntrypoint>? LoadBalancerEntrypoints = null,
     IReadOnlyList<LoadBalancerRoute>? LoadBalancerRoutes = null,
     ResourceIdentityBinding? Identity = null,
     ResourceSource Source = ResourceSource.User,
@@ -87,6 +88,9 @@ public sealed record Resource(
 
     public IReadOnlyList<ResourceEndpointNetworkMapping> ResourceEndpointNetworkMappings =>
         EndpointNetworkMappings ?? [];
+
+    public IReadOnlyList<LoadBalancerEntrypoint> ResourceLoadBalancerEntrypoints =>
+        LoadBalancerEntrypoints ?? [];
 
     public ResourceEndpointNetworkMapping? GetEndpointNetworkMapping(string endpointName) =>
         ResourceEndpointNetworkMappings.FirstOrDefault(mapping => mapping.MatchesEndpoint(endpointName));

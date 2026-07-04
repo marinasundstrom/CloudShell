@@ -31,6 +31,7 @@ public sealed record ResourceResponse(
     IReadOnlyList<ResourceCapabilityResponse> Capabilities,
     IReadOnlyList<ResourceEndpointMappingResponse> EndpointMappings,
     IReadOnlyList<ResourceEndpointNetworkMappingResponse> EndpointNetworkMappings,
+    IReadOnlyList<LoadBalancerEntrypointResponse> LoadBalancerEntrypoints,
     IReadOnlyList<LoadBalancerRouteResponse> LoadBalancerRoutes,
     ResourceIdentityBindingResponse? Identity,
     IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions,
@@ -133,6 +134,18 @@ public sealed record LoadBalancerRouteResponse(
     string EntrypointName,
     LoadBalancerRouteMatchResponse Match,
     LoadBalancerRouteTargetResponse Target);
+
+public sealed record LoadBalancerEntrypointResponse(
+    string Name,
+    ResourceEndpointProtocol Protocol,
+    int Port,
+    ResourceExposureScope Exposure,
+    CertificateReferenceResponse? Certificate);
+
+public sealed record CertificateReferenceResponse(
+    string VaultResourceId,
+    string CertificateName,
+    string? Version);
 
 public sealed record LoadBalancerRouteMatchResponse(
     string? Host,
@@ -440,6 +453,7 @@ internal static class CloudShellControlPlaneDtoMapper
             resource.ResourceCapabilities.Select(ToResponse).ToArray(),
             resource.ResourceEndpointMappings.Select(ToResponse).ToArray(),
             resource.ResourceEndpointNetworkMappings.Select(ToResponse).ToArray(),
+            resource.ResourceLoadBalancerEntrypoints.Select(ToResponse).ToArray(),
             resource.ResourceLoadBalancerRoutes.Select(ToResponse).ToArray(),
             resource.IdentityBinding?.ToResponse(),
             CreateResourceActionDictionary(resource),
@@ -557,6 +571,20 @@ internal static class CloudShellControlPlaneDtoMapper
             route.EntrypointName,
             route.Match.ToResponse(),
             route.Target.ToResponse());
+
+    public static LoadBalancerEntrypointResponse ToResponse(this LoadBalancerEntrypoint entrypoint) =>
+        new(
+            entrypoint.Name,
+            entrypoint.Protocol,
+            entrypoint.Port,
+            entrypoint.Exposure,
+            entrypoint.Certificate?.ToResponse());
+
+    public static CertificateReferenceResponse ToResponse(this CertificateReference certificate) =>
+        new(
+            certificate.VaultResourceId,
+            certificate.CertificateName,
+            certificate.Version);
 
     public static LoadBalancerRouteMatchResponse ToResponse(this LoadBalancerRouteMatch match) =>
         new(match.Host, match.PathPrefix, match.Port);

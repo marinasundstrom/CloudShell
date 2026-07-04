@@ -1,5 +1,6 @@
 @using System.Text.Json
 @inject IResourceManager ResourceManager
+@inject IEnumerable<ICertificateReferenceCatalog> CertificateCatalogs
 @inject NavigationManager Navigation
 
 <div class="type-registration">
@@ -49,6 +50,18 @@
             {
                 <label for="load-balancer-https-port">HTTPS port</label>
                 <FluentNumberField TValue="int" Id="load-balancer-https-port" Min="1" @bind-Value="HttpsPort" />
+
+                <label for="load-balancer-https-certificate">HTTPS certificate</label>
+                <FluentSelect TOption="string"
+                              Id="load-balancer-https-certificate"
+                              @bind-Value="SelectedHttpsCertificateKey"
+                              Appearance="Appearance.Outline">
+                    <FluentOption TOption="string" Value="">No certificate</FluentOption>
+                    @foreach (var certificate in GetCertificateCandidates())
+                    {
+                        <FluentOption TOption="string" Value="@certificate.Key">@certificate.Label</FluentOption>
+                    }
+                </FluentSelect>
             }
 
             <FluentCheckbox @bind-Value="ExposeTcp">
@@ -173,6 +186,7 @@
     private int HttpPort { get; set; } = 80;
     private bool ExposeHttps { get; set; } = true;
     private int HttpsPort { get; set; } = 443;
+    private string SelectedHttpsCertificateKey { get; set; } = string.Empty;
     private bool ExposeTcp { get; set; }
     private int TcpPort { get; set; } = 5432;
     private bool CreateHttpRoute { get; set; } = true;
@@ -188,6 +202,7 @@
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
     private IReadOnlyList<Resource> Resources { get; set; } = [];
+    private IReadOnlyList<CertificateOption> CertificateOptions { get; set; } = [];
     private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
         ResourceManagerUiAccess.EmptyGroupLookup;
 
@@ -230,6 +245,12 @@
             HttpTargetEndpointName = targetEndpointName;
         }
 
+        CertificateOptions = await LoadCertificateOptionsAsync();
+        var certificateCandidates = GetCertificateCandidates();
+        SelectedHttpsCertificateKey = certificateCandidates.Count == 1
+            ? certificateCandidates[0].Key
+            : string.Empty;
+
         if (!string.IsNullOrWhiteSpace(requestedTargetResourceId) &&
             Resources.FirstOrDefault(resource => string.Equals(resource.Id, requestedTargetResourceId, StringComparison.OrdinalIgnoreCase)) is { } requestedTarget)
         {
@@ -270,9 +291,27 @@
             .FirstOrDefault(resource => string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase))
             ?.Endpoints ?? [];
 
+    private IReadOnlyList<CertificateOption> GetCertificateCandidates() =>
+        CertificateOptions
+            .Where(IsCertificateInSelectedGroup)
+            .ToArray();
+
     private bool IsInSelectedGroup(Resource resource)
     {
         var group = ResourceManagerUiAccess.GetResourceGroup(ResourceGroupsByResourceId, resource.Id);
+        return string.IsNullOrWhiteSpace(SelectedGroupId)
+            ? group is null
+            : string.Equals(group?.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsCertificateInSelectedGroup(CertificateOption certificate)
+    {
+        if (!Resources.Any(resource => string.Equals(resource.Id, certificate.VaultResourceId, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        var group = ResourceManagerUiAccess.GetResourceGroup(ResourceGroupsByResourceId, certificate.VaultResourceId);
         return string.IsNullOrWhiteSpace(SelectedGroupId)
             ? group is null
             : string.Equals(group?.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase);
@@ -375,7 +414,11 @@
 
         if (ExposeHttps)
         {
-            entrypoints.Add(new LoadBalancerEntrypoint("https", ResourceEndpointProtocol.Https, Math.Max(1, HttpsPort)));
+            entrypoints.Add(new LoadBalancerEntrypoint(
+                "https",
+                ResourceEndpointProtocol.Https,
+                Math.Max(1, HttpsPort),
+                Certificate: ResolveSelectedCertificateReference(SelectedHttpsCertificateKey)));
         }
 
         if (ExposeTcp || CreateTcpRoute)
@@ -472,6 +515,27 @@
 
     private string GetTcpEntrypointName() => $"tcp-{Math.Max(1, TcpPort)}";
 
+    private CertificateReference? ResolveSelectedCertificateReference(string key) =>
+        GetCertificateCandidates()
+            .FirstOrDefault(certificate => string.Equals(certificate.Key, key, StringComparison.Ordinal))
+            ?.ToReference();
+
+    private async Task<IReadOnlyList<CertificateOption>> LoadCertificateOptionsAsync()
+    {
+        var options = new List<CertificateOption>();
+        foreach (var catalog in CertificateCatalogs)
+        {
+            var certificates = await catalog.ListCertificatesAsync(Resources);
+            options.AddRange(certificates.Select(CertificateOption.FromDescriptor));
+        }
+
+        return options
+            .GroupBy(option => option.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .OrderBy(option => option.Label, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     private static string CreateRouteId(params string?[] parts)
     {
         var value = string.Join(
@@ -483,5 +547,43 @@
             .Select(character => char.IsLetterOrDigit(character) ? character : '-')
             .ToArray())
             .Trim('-');
+    }
+
+    private sealed record CertificateOption(
+        string Key,
+        string Label,
+        string VaultResourceId,
+        string Name,
+        string? Version)
+    {
+        public CertificateReference ToReference() =>
+            new(VaultResourceId, Name, Version);
+
+        public static CertificateOption FromDescriptor(CertificateReferenceDescriptor descriptor)
+        {
+            var label = $"{ResourceDisplayLabels.GetName(descriptor.VaultResourceId)} / {descriptor.Name}";
+            if (!string.IsNullOrWhiteSpace(descriptor.Version))
+            {
+                label += $" ({descriptor.Version})";
+            }
+
+            if (!string.IsNullOrWhiteSpace(descriptor.Subject))
+            {
+                label += $" - {descriptor.Subject}";
+            }
+
+            return new(
+                CreateKey(descriptor.VaultResourceId, descriptor.Name, descriptor.Version),
+                label,
+                descriptor.VaultResourceId,
+                descriptor.Name,
+                descriptor.Version);
+        }
+
+        public static string CreateKey(
+            string vaultResourceId,
+            string name,
+            string? version) =>
+            $"{vaultResourceId}|{name}|{version}";
     }
 }
