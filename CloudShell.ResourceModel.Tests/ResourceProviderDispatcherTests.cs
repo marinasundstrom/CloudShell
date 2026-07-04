@@ -2036,6 +2036,52 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task SecretsVaultRuntimeSecretManager_AssignsSecretVersionsAndKeepsChangedPayloadHistory()
+    {
+        var definitionsDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"cloudshell-secrets-vault-test-{Guid.NewGuid():N}");
+        var services = new ServiceCollection();
+        services.AddSecretsVaultResourceType(options =>
+        {
+            options.DefinitionsDirectory = definitionsDirectory;
+        });
+        using var serviceProvider = services.BuildServiceProvider();
+        var context = new ProviderRuntimeResourceContext(
+            "secrets.vault:vault",
+            "vault",
+            "Vault",
+            "http://localhost:6138");
+        var manager = serviceProvider.GetRequiredService<ISecretsVaultRuntimeSecretManager>();
+
+        await manager.UpdateSecretsAsync(
+            context,
+            [new("api-key", "secret-v1")]);
+        var firstVersion = Assert.Single(await manager.ListSecretsAsync("secrets.vault:vault")).Version;
+        await manager.UpdateSecretsAsync(
+            context,
+            [new("api-key", "secret-v2", firstVersion)]);
+
+        Assert.False(string.IsNullOrWhiteSpace(firstVersion));
+        var versions = (await manager.ListSecretsAsync("secrets.vault:vault"))
+            .OrderBy(secret => secret.Value, StringComparer.Ordinal)
+            .ToArray();
+        Assert.Equal(2, versions.Length);
+        Assert.Equal("secret-v1", versions[0].Value);
+        Assert.Equal(firstVersion, versions[0].Version);
+        Assert.Equal("secret-v2", versions[1].Value);
+        Assert.NotEqual(firstVersion, versions[1].Version);
+
+        var definitionsPath = Path.Combine(
+            definitionsDirectory,
+            "secrets.vault_vault",
+            "secrets-vaults.json");
+        using var document = JsonDocument.Parse(File.ReadAllText(definitionsPath));
+        var vault = Assert.Single(document.RootElement.EnumerateArray());
+        Assert.Equal(2, vault.GetProperty("secrets").EnumerateArray().Count());
+    }
+
+    [Fact]
     public async Task SecretsVaultRuntimeSecretManager_UpdatesProviderOwnedRuntimeCertificates()
     {
         var definitionsDirectory = Path.Combine(
@@ -2088,6 +2134,63 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal("application/x-pem-file", jsonCertificate.GetProperty("contentType").GetString());
         Assert.Equal("ABC123", jsonCertificate.GetProperty("thumbprint").GetString());
         Assert.True(jsonCertificate.GetProperty("hasPrivateKey").GetBoolean());
+    }
+
+    [Fact]
+    public async Task SecretsVaultRuntimeSecretManager_AssignsCertificateVersionsAndKeepsChangedPayloadHistory()
+    {
+        var definitionsDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"cloudshell-secrets-vault-test-{Guid.NewGuid():N}");
+        var services = new ServiceCollection();
+        services.AddSecretsVaultResourceType(options =>
+        {
+            options.DefinitionsDirectory = definitionsDirectory;
+        });
+        using var serviceProvider = services.BuildServiceProvider();
+        var context = new ProviderRuntimeResourceContext(
+            "secrets.vault:vault",
+            "vault",
+            "Vault",
+            "http://localhost:6138");
+        var manager = serviceProvider.GetRequiredService<ISecretsVaultRuntimeSecretManager>();
+
+        await manager.UpdateCertificatesAsync(
+            context,
+            [new(
+                "api-tls",
+                "certificate-v1",
+                ContentType: "application/x-pem-file",
+                Thumbprint: "V1")]);
+        var firstVersion = Assert.Single(
+            await manager.ListCertificatesAsync("secrets.vault:vault")).Version;
+        await manager.UpdateCertificatesAsync(
+            context,
+            [new(
+                "api-tls",
+                "certificate-v2",
+                firstVersion,
+                "application/x-pem-file",
+                "V2")]);
+
+        Assert.False(string.IsNullOrWhiteSpace(firstVersion));
+        var versions = (await manager.ListCertificatesAsync("secrets.vault:vault"))
+            .OrderBy(certificate => certificate.Value, StringComparer.Ordinal)
+            .ToArray();
+        Assert.Equal(2, versions.Length);
+        Assert.Equal("certificate-v1", versions[0].Value);
+        Assert.Equal(firstVersion, versions[0].Version);
+        Assert.Equal("certificate-v2", versions[1].Value);
+        Assert.Equal("V2", versions[1].Thumbprint);
+        Assert.NotEqual(firstVersion, versions[1].Version);
+
+        var definitionsPath = Path.Combine(
+            definitionsDirectory,
+            "secrets.vault_vault",
+            "secrets-vaults.json");
+        using var document = JsonDocument.Parse(File.ReadAllText(definitionsPath));
+        var vault = Assert.Single(document.RootElement.EnumerateArray());
+        Assert.Equal(2, vault.GetProperty("certificates").EnumerateArray().Count());
     }
 
     [Fact]

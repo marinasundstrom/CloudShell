@@ -236,7 +236,7 @@ public sealed class SecretsVaultResourceTypeProvider :
     {
         var secrets = state.ResourceAttributeValues.GetObject<SecretsVaultSeedSecret[]>(
             Attributes.Secrets) ?? [];
-        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var secret in secrets)
         {
@@ -257,11 +257,11 @@ public sealed class SecretsVaultResourceTypeProvider :
             }
 
             if (!string.IsNullOrWhiteSpace(secret.Name) &&
-                !names.Add(secret.Name.Trim()))
+                !keys.Add(CreateSeedKey(secret.Name, secret.Version)))
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                     "secrets.vault.seedSecretDuplicate",
-                    $"Secret '{secret.Name}' is declared more than once.",
+                    CreateDuplicateMessage("Secret", secret.Name, secret.Version),
                     Attributes.Secrets));
             }
         }
@@ -300,7 +300,7 @@ public sealed class SecretsVaultResourceTypeProvider :
     {
         var certificates = state.ResourceAttributeValues.GetObject<SecretsVaultSeedCertificate[]>(
             Attributes.Certificates) ?? [];
-        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var certificate in certificates)
         {
@@ -321,15 +321,26 @@ public sealed class SecretsVaultResourceTypeProvider :
             }
 
             if (!string.IsNullOrWhiteSpace(certificate.Name) &&
-                !names.Add(certificate.Name.Trim()))
+                !keys.Add(CreateSeedKey(certificate.Name, certificate.Version)))
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                     "secrets.vault.seedCertificateDuplicate",
-                    $"Certificate '{certificate.Name}' is declared more than once.",
+                    CreateDuplicateMessage("Certificate", certificate.Name, certificate.Version),
                     Attributes.Certificates));
             }
         }
     }
+
+    private static string CreateSeedKey(string name, string? version) =>
+        $"{name.Trim()}\u001f{(string.IsNullOrWhiteSpace(version) ? string.Empty : version.Trim())}";
+
+    private static string CreateDuplicateMessage(
+        string artifactKind,
+        string name,
+        string? version) =>
+        string.IsNullOrWhiteSpace(version)
+            ? $"{artifactKind} '{name}' is declared more than once."
+            : $"{artifactKind} '{name}' version '{version}' is declared more than once.";
 
     private static void ValidateSecretCount(
         string? secretCount,

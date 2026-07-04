@@ -1891,6 +1891,7 @@ resources:
             .WithEndpoint("http://localhost:6138")
             .WithSeed(seed => seed
                 .Secret("Sample--ApiKey", "secret-from-template", "v1")
+                .Secret("Sample--ApiKey", "rotated-secret-from-template", "v2")
                 .Certificate(
                     new SecretsVaultSeedCertificate(
                         "ApiTls",
@@ -1898,6 +1899,15 @@ resources:
                         "v1",
                         "application/x-pem-file",
                         "ABC123",
+                        "CN=api.local",
+                        HasPrivateKey: true))
+                .Certificate(
+                    new SecretsVaultSeedCertificate(
+                        "ApiTls",
+                        "rotated-certificate-from-template",
+                        "v2",
+                        "application/x-pem-file",
+                        "DEF456",
                         "CN=api.local",
                         HasPrivateKey: true)))
             .Build();
@@ -1910,29 +1920,43 @@ resources:
 
         Assert.False(create.HasErrors, FormatDiagnostics(create.Diagnostics));
         Assert.True(create.IsCommitted);
-        var secret = Assert.Single(await serviceProvider
+        var secrets = await serviceProvider
             .GetRequiredService<ISecretsVaultRuntimeSecretManager>()
-            .ListSecretsAsync(vault.EffectiveResourceId));
-        Assert.Equal("Sample--ApiKey", secret.Name);
-        Assert.Equal("secret-from-template", secret.Value);
-        Assert.Equal("v1", secret.Version);
-        var certificate = Assert.Single(await serviceProvider
+            .ListSecretsAsync(vault.EffectiveResourceId);
+        Assert.Equal(2, secrets.Count);
+        Assert.Contains(secrets, secret =>
+            secret.Name == "Sample--ApiKey" &&
+            secret.Value == "secret-from-template" &&
+            secret.Version == "v1");
+        Assert.Contains(secrets, secret =>
+            secret.Name == "Sample--ApiKey" &&
+            secret.Value == "rotated-secret-from-template" &&
+            secret.Version == "v2");
+        var certificates = await serviceProvider
             .GetRequiredService<ISecretsVaultRuntimeSecretManager>()
-            .ListCertificatesAsync(vault.EffectiveResourceId));
-        Assert.Equal("ApiTls", certificate.Name);
-        Assert.Equal("certificate-from-template", certificate.Value);
-        Assert.Equal("v1", certificate.Version);
-        Assert.Equal("application/x-pem-file", certificate.ContentType);
-        Assert.Equal("ABC123", certificate.Thumbprint);
+            .ListCertificatesAsync(vault.EffectiveResourceId);
+        Assert.Equal(2, certificates.Count);
+        Assert.Contains(certificates, certificate =>
+            certificate.Name == "ApiTls" &&
+            certificate.Value == "certificate-from-template" &&
+            certificate.Version == "v1" &&
+            certificate.ContentType == "application/x-pem-file" &&
+            certificate.Thumbprint == "ABC123");
+        Assert.Contains(certificates, certificate =>
+            certificate.Name == "ApiTls" &&
+            certificate.Value == "rotated-certificate-from-template" &&
+            certificate.Version == "v2" &&
+            certificate.ContentType == "application/x-pem-file" &&
+            certificate.Thumbprint == "DEF456");
 
         var committed = Assert.Single(create.Commit.Snapshot!.Resources);
         Assert.False(committed.ResourceAttributeValues.ContainsKey(
             SecretsVaultResourceTypeProvider.Attributes.Secrets));
         Assert.False(committed.ResourceAttributeValues.ContainsKey(
             SecretsVaultResourceTypeProvider.Attributes.Certificates));
-        Assert.Equal("1", committed.ResourceAttributes[
+        Assert.Equal("2", committed.ResourceAttributes[
             SecretsVaultResourceTypeProvider.Attributes.SecretCount]);
-        Assert.Equal("1", committed.ResourceAttributes[
+        Assert.Equal("2", committed.ResourceAttributes[
             SecretsVaultResourceTypeProvider.Attributes.CertificateCount]);
 
         var export = await templates.ExportTemplateAsync("secrets-vault-export");

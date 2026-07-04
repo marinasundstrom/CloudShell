@@ -109,11 +109,14 @@ The create-only seed path is intended for development launchers, samples, and
 local environments. Production or on-premise hosts should treat seeded secret
 values as sensitive template input and prefer a permission-protected
 secret-import path when that workflow is added. Secrets Vault secret and
-certificate entries can carry a `Version` and references may request a specific
-version. When a reference omits the version, the runtime resolves the last
-matching entry for that name. Durable history, retention, activation state,
-automatic version creation, and import/export semantics remain future vault
-work. Configuration Store setting versioning is not supported yet.
+certificate entries carry a `Version`, and references may request a specific
+version. If a runtime write omits the version, CloudShell generates one. If a
+write changes the payload for an existing version, the previous payload is kept
+and the changed payload is stored as a new generated version. When a reference
+omits the version, the runtime resolves the last matching entry for that name.
+Durable retention policy, activation/disabled state, soft-delete, and
+import/export semantics remain future vault work. Configuration Store setting
+versioning is not supported yet.
 
 ## Service Runtime
 

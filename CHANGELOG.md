@@ -52,6 +52,10 @@ on `git blame --follow`, and then by the broad type of change.
   references. Specific versions now resolve against runtime vault entries, and
   references without a version use the last matching entry for the requested
   name, matching the protected Secrets Vault service read behavior.
+- Added automatic Secrets Vault runtime version creation for secret and
+  certificate writes. Unversioned writes receive generated version IDs, and
+  changing the payload of an existing version preserves the previous payload
+  while storing the replacement under a new generated version.
 - Added a RabbitMQ credential endpoint that lets workloads present their
   CloudShell resource identity token, request access to a target RabbitMQ
   resource, and receive grant-derived RabbitMQ-native credentials after the
