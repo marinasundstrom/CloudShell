@@ -241,8 +241,9 @@ func (r *ConfigurationStoreResource) build() map[string]any {
 
 type SecretsVaultResource struct {
 	baseResource
-	endpoint string
-	secrets  []SecretSeedValue
+	endpoint     string
+	secrets      []SecretSeedValue
+	certificates []CertificateSeedValue
 }
 
 type SecretSeedValue struct {
@@ -252,6 +253,19 @@ type SecretSeedValue struct {
 }
 
 type SecretReference struct {
+	VaultResourceID string `json:"vaultResourceId"`
+	Name            string `json:"name"`
+	Version         string `json:"version,omitempty"`
+}
+
+type CertificateSeedValue struct {
+	Name        string `json:"name"`
+	Value       string `json:"value"`
+	Version     string `json:"version,omitempty"`
+	ContentType string `json:"contentType,omitempty"`
+}
+
+type CertificateReference struct {
 	VaultResourceID string `json:"vaultResourceId"`
 	Name            string `json:"name"`
 	Version         string `json:"version,omitempty"`
@@ -291,10 +305,49 @@ func (r *SecretsVaultResource) WithSecret(name string, value string, version ...
 	return r
 }
 
+func (r *SecretsVaultResource) WithCertificate(name string, value string, version ...string) *SecretsVaultResource {
+	certificate := CertificateSeedValue{
+		Name:  requireNotBlank(name, "certificate name"),
+		Value: value,
+	}
+	if len(version) > 0 {
+		certificate.Version = version[0]
+	}
+
+	r.certificates = append(r.certificates, certificate)
+	return r
+}
+
+func (r *SecretsVaultResource) WithCertificateContentType(name string, value string, contentType string, version ...string) *SecretsVaultResource {
+	certificate := CertificateSeedValue{
+		Name:        requireNotBlank(name, "certificate name"),
+		Value:       value,
+		ContentType: contentType,
+	}
+	if len(version) > 0 {
+		certificate.Version = version[0]
+	}
+
+	r.certificates = append(r.certificates, certificate)
+	return r
+}
+
 func (r *SecretsVaultResource) Secret(name string, version ...string) SecretReference {
 	reference := SecretReference{
 		VaultResourceID: r.ResourceID(),
 		Name:            requireNotBlank(name, "secret name"),
+	}
+	if len(version) > 0 {
+		reference.Version = version[0]
+	}
+
+	return reference
+}
+
+func (r *SecretsVaultResource) Certificate(name string, version ...string) CertificateReference {
+	reference := CertificateReference{
+		VaultResourceID: r.ResourceID(),
+		Name:            requireNotBlank(name, "certificate name"),
 	}
 	if len(version) > 0 {
 		reference.Version = version[0]
@@ -313,10 +366,15 @@ func (r *SecretsVaultResource) build() map[string]any {
 		document["endpoint"] = r.endpoint
 	}
 
-	if len(r.secrets) > 0 {
-		document["seed"] = map[string]any{
-			"secrets": r.secrets,
+	if len(r.secrets) > 0 || len(r.certificates) > 0 {
+		seed := map[string]any{}
+		if len(r.secrets) > 0 {
+			seed["secrets"] = r.secrets
 		}
+		if len(r.certificates) > 0 {
+			seed["certificates"] = r.certificates
+		}
+		document["seed"] = seed
 	}
 
 	return document

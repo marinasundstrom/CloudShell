@@ -18,6 +18,13 @@ public sealed class SecretsVaultResource(
                 ? secretCount
                 : 0;
 
+    public int CertificateCount =>
+        int.TryParse(
+            Resource.Attributes.GetString(SecretsVaultResourceTypeProvider.Attributes.CertificateCount),
+            out var certificateCount)
+                ? certificateCount
+                : 0;
+
     public ValueTask<SecretsVaultInspectOperation?> GetInspectOperationAsync(
         CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(

@@ -31,7 +31,9 @@ public sealed class SecretsVaultResourceManagerAttributeProvider(
             ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 [SecretsVaultResourceTypeProvider.Attributes.SecretCount.ToString()] =
-                    _options.Secrets.Count.ToString(CultureInfo.InvariantCulture)
+                    _options.Secrets.Count.ToString(CultureInfo.InvariantCulture),
+                [SecretsVaultResourceTypeProvider.Attributes.CertificateCount.ToString()] =
+                    _options.Certificates.Count.ToString(CultureInfo.InvariantCulture)
             }
             : null;
 }

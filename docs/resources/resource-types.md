@@ -750,15 +750,18 @@ resources:
 ### `secrets.vault`
 
 Use for a Secrets Vault service. Seed secrets are create-only and are not
-retained as accepted graph state or emitted by default export.
+retained as accepted graph state or emitted by default export. Seed
+certificates follow the same rule: certificate payloads are materialized into
+provider-owned vault state and stripped before graph state is accepted.
 
 Common optional attributes:
 
 - `kind`
 - `endpoint`
 - `seed.secrets`
+- `seed.certificates`
 
-Do not author `secretCount`; it is provider-managed.
+Do not author `secretCount` or `certificateCount`; they are provider-managed.
 
 ```yaml
 resources:
@@ -770,6 +773,11 @@ resources:
         - name: App--ApiKey
           value: local-development-secret
           version: v1
+      certificates:
+        - name: AppTls
+          value: local-development-pem-or-pfx
+          version: v1
+          contentType: application/x-pem-file
 ```
 
 ### `cloudshell.identity-provisioning`

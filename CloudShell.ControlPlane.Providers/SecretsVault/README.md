@@ -9,7 +9,8 @@
 
 ## Ported
 
-- Secrets Vault class/type defaults, endpoint attribute, and read-only secret-count summary attribute.
+- Secrets Vault class/type defaults, endpoint attribute, and read-only
+  secret-count/certificate-count summary attributes.
 - Health and liveness declarations for the `/healthz` endpoint.
 - Start, stop, and restart operations backed by a provider-local process controller that runs the existing service web app.
 - Type-level runtime monitoring support, with Resource Manager process metric
@@ -21,19 +22,24 @@
   Existing values are masked in the UI and preserved unless replaced; secret
   values stay in provider runtime state and sidecar definition files, not
   Resource graph attributes.
+- Certificate references, create-only `seed.certificates` values, protected
+  service reads, and provider-owned runtime certificate storage. Certificate
+  payloads follow the same redaction/export rules as secret values while
+  retaining certificate-specific references and metadata for future TLS
+  bindings.
 - Manual `ResourceGraphBuilder.AddSecretsVault(...)` builder for
   code-first resource and endpoint declaration, including create-only
-  `seed.secrets` attributes for development templates. Seeded secrets
-  materialize into provider-owned runtime state and are stripped from accepted
-  graph state before normal template export.
+  `seed.secrets` and `seed.certificates` attributes for development templates.
+  Seeded secrets and certificates materialize into provider-owned runtime state
+  and are stripped from accepted graph state before normal template export.
 - SettingsAndSecrets smoke coverage for endpoint projection, inspect execution, authorized secret reads, and API consumption through the graph-backed endpoint.
 
 ## Example ResourceDefinition
 
 This is the persisted/exported interchange shape for a graph-backed Secrets
 Vault resource. Create-only templates may additionally include
-`seed.secrets`; accepted graph state and default template export omit those
-secret values.
+`seed.secrets` and `seed.certificates`; accepted graph state and default
+template export omit those sensitive values.
 
 ```json
 {
@@ -62,6 +68,14 @@ Create-only seed example:
         "value": "local-development-secret",
         "version": "v1"
       }
+    ],
+    "certificates": [
+      {
+        "name": "ApiTls",
+        "value": "local-development-pem-or-pfx",
+        "version": "v1",
+        "contentType": "application/x-pem-file"
+      }
     ]
   }
 }
@@ -72,14 +86,16 @@ Create-only seed example:
 Ready to integrate for graph-declared Secrets Vault resources in the selected
 samples. The graph path starts the backing service, projects endpoint/count,
 supports inspect, monitoring, health/liveness, and authorized reads without
-placing secret values in exported graph attributes. Runtime secrets can be managed
-through Resource Manager when the UI host has access to the provider runtime
-manager. Durable secret storage, log streaming, permission-protected
-import/export, secret versioning, and full registration/update flows remain
-outside the switch gate.
+placing secret or certificate values in exported graph attributes. Runtime
+secrets can be managed through Resource Manager when the UI host has access to
+the provider runtime manager. Runtime certificates currently use seed/API
+paths only; certificate management UI and TLS binding UI are deferred. Durable
+secret storage, log streaming, permission-protected import/export, versioning,
+and full registration/update flows remain outside the switch gate.
 
 ## Remaining
 
 - Durable secret storage.
-- Logs, permission-protected secret import/export, and versioning.
+- Certificate management UI and TLS/HTTPS binding consumers.
+- Logs, permission-protected secret/certificate import/export, and versioning.
 - Full UI registration/update flow.

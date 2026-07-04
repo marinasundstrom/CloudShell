@@ -1890,6 +1890,15 @@ resources:
         var vault = new SecretsVaultResourceDefinitionBuilder("secrets")
             .WithEndpoint("http://localhost:6138")
             .WithSecret("Sample--ApiKey", "secret-from-template", "v1")
+            .WithCertificate(
+                new SecretsVaultSeedCertificate(
+                    "ApiTls",
+                    "certificate-from-template",
+                    "v1",
+                    "application/x-pem-file",
+                    "ABC123",
+                    "CN=api.local",
+                    HasPrivateKey: true))
             .Build();
 
         var create = await apply.ApplyTemplateAsync(
@@ -1906,12 +1915,24 @@ resources:
         Assert.Equal("Sample--ApiKey", secret.Name);
         Assert.Equal("secret-from-template", secret.Value);
         Assert.Equal("v1", secret.Version);
+        var certificate = Assert.Single(await serviceProvider
+            .GetRequiredService<ISecretsVaultRuntimeSecretManager>()
+            .ListCertificatesAsync(vault.EffectiveResourceId));
+        Assert.Equal("ApiTls", certificate.Name);
+        Assert.Equal("certificate-from-template", certificate.Value);
+        Assert.Equal("v1", certificate.Version);
+        Assert.Equal("application/x-pem-file", certificate.ContentType);
+        Assert.Equal("ABC123", certificate.Thumbprint);
 
         var committed = Assert.Single(create.Commit.Snapshot!.Resources);
         Assert.False(committed.ResourceAttributeValues.ContainsKey(
             SecretsVaultResourceTypeProvider.Attributes.Secrets));
+        Assert.False(committed.ResourceAttributeValues.ContainsKey(
+            SecretsVaultResourceTypeProvider.Attributes.Certificates));
         Assert.Equal("1", committed.ResourceAttributes[
             SecretsVaultResourceTypeProvider.Attributes.SecretCount]);
+        Assert.Equal("1", committed.ResourceAttributes[
+            SecretsVaultResourceTypeProvider.Attributes.CertificateCount]);
 
         var export = await templates.ExportTemplateAsync("secrets-vault-export");
         Assert.False(export.HasErrors, FormatDiagnostics(export.Diagnostics));
@@ -1919,7 +1940,11 @@ resources:
         Assert.False(exportedVault.ResourceAttributeValues.ContainsKey(
             SecretsVaultResourceTypeProvider.Attributes.Secrets));
         Assert.False(exportedVault.ResourceAttributeValues.ContainsKey(
+            SecretsVaultResourceTypeProvider.Attributes.Certificates));
+        Assert.False(exportedVault.ResourceAttributeValues.ContainsKey(
             SecretsVaultResourceTypeProvider.Attributes.SecretCount));
+        Assert.False(exportedVault.ResourceAttributeValues.ContainsKey(
+            SecretsVaultResourceTypeProvider.Attributes.CertificateCount));
 
         var update = await apply.ApplyTemplateAsync(
             new ResourceTemplate("secrets-vault-update", [vault]),
@@ -1931,6 +1956,8 @@ resources:
         Assert.False(update.IsCommitted);
         Assert.Contains(update.Diagnostics, diagnostic =>
             diagnostic.Code == "secrets.vault.secretsSeedUpdateNotAllowed");
+        Assert.Contains(update.Diagnostics, diagnostic =>
+            diagnostic.Code == "secrets.vault.certificatesSeedUpdateNotAllowed");
     }
 
     [Fact]

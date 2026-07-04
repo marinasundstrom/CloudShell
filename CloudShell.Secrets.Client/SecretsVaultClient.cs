@@ -110,6 +110,43 @@ public sealed class SecretsVaultClient
             cancellationToken);
     }
 
+    public async Task<IReadOnlyList<CertificateProperties>> GetCertificatesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        using var request = await CreateRequestAsync(
+            HttpMethod.Get,
+            BuildCertificatesEndpoint(),
+            cancellationToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<IReadOnlyList<CertificateProperties>>(
+            SerializerOptions,
+            cancellationToken) ?? [];
+    }
+
+    public async Task<CertificateValue?> GetCertificateAsync(
+        string name,
+        string? version = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        using var request = await CreateRequestAsync(
+            HttpMethod.Get,
+            BuildCertificateEndpoint(name, version),
+            cancellationToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<CertificateValue>(
+            SerializerOptions,
+            cancellationToken);
+    }
+
     private async Task<HttpRequestMessage> CreateRequestAsync(
         HttpMethod method,
         Uri uri,
@@ -132,6 +169,30 @@ public sealed class SecretsVaultClient
     private Uri BuildSecretEndpoint(string name, string? version)
     {
         var builder = new UriBuilder(SecretsEndpoint);
+        var path = builder.Path.TrimEnd('/');
+        builder.Path = $"{path}/{Uri.EscapeDataString(name)}";
+        if (!string.IsNullOrWhiteSpace(version))
+        {
+            builder.Query = $"version={Uri.EscapeDataString(version)}";
+        }
+
+        return builder.Uri;
+    }
+
+    private Uri BuildCertificatesEndpoint()
+    {
+        var builder = new UriBuilder(SecretsEndpoint);
+        var path = builder.Path.TrimEnd('/');
+        builder.Path = path.EndsWith("/secrets", StringComparison.OrdinalIgnoreCase)
+            ? $"{path[..^"/secrets".Length]}/certificates"
+            : $"{path}/certificates";
+        builder.Query = string.Empty;
+        return builder.Uri;
+    }
+
+    private Uri BuildCertificateEndpoint(string name, string? version)
+    {
+        var builder = new UriBuilder(BuildCertificatesEndpoint());
         var path = builder.Path.TrimEnd('/');
         builder.Path = $"{path}/{Uri.EscapeDataString(name)}";
         if (!string.IsNullOrWhiteSpace(version))
@@ -218,3 +279,24 @@ public sealed record SecretValue(
     string Name,
     string Value,
     string? Version);
+
+public sealed record CertificateProperties(
+    string Name,
+    string? Version,
+    string? ContentType,
+    string? Thumbprint,
+    string? Subject,
+    DateTimeOffset? NotBefore,
+    DateTimeOffset? Expires,
+    bool? HasPrivateKey);
+
+public sealed record CertificateValue(
+    string Name,
+    string Value,
+    string? Version,
+    string? ContentType,
+    string? Thumbprint,
+    string? Subject,
+    DateTimeOffset? NotBefore,
+    DateTimeOffset? Expires,
+    bool? HasPrivateKey);

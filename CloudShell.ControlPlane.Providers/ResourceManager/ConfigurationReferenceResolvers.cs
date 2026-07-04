@@ -32,7 +32,8 @@ public sealed class ConfigurationStoreRuntimeEntryReferenceResolver(
 
 public sealed class SecretsVaultRuntimeSecretReferenceResolver(
     SecretsVaultRuntimeOptions? options = null) :
-    ISecretReferenceResolver
+    ISecretReferenceResolver,
+    ICertificateReferenceResolver
 {
     private readonly SecretsVaultRuntimeOptions _options =
         options ?? new SecretsVaultRuntimeOptions();
@@ -56,5 +57,32 @@ public sealed class SecretsVaultRuntimeSecretReferenceResolver(
             ? ResourceSettingResolutionResult.Failed(
                 $"Secret '{reference.SecretName}' from '{reference.VaultResourceId}' was not found.")
             : ResourceSettingResolutionResult.Resolved(secret.Value));
+    }
+
+    public ValueTask<CertificateResolutionResult> ResolveCertificateAsync(
+        CertificateReference reference,
+        ResourceSettingResolutionContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+
+        if (!string.IsNullOrWhiteSpace(reference.Version))
+        {
+            return ValueTask.FromResult(CertificateResolutionResult.Failed(
+                $"Certificate '{reference.CertificateName}' from '{reference.VaultResourceId}' requested version '{reference.Version}', but versioned certificates are not supported by the graph runtime resolver."));
+        }
+
+        var certificate = _options.Certificates.FirstOrDefault(certificate =>
+            string.Equals(certificate.Name, reference.CertificateName, StringComparison.OrdinalIgnoreCase));
+        return ValueTask.FromResult(certificate is null
+            ? CertificateResolutionResult.Failed(
+                $"Certificate '{reference.CertificateName}' from '{reference.VaultResourceId}' was not found.")
+            : CertificateResolutionResult.Resolved(
+                certificate.Value,
+                certificate.ContentType,
+                certificate.Thumbprint,
+                certificate.Subject,
+                certificate.NotBefore,
+                certificate.Expires));
     }
 }

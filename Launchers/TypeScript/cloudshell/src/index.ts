@@ -99,10 +99,23 @@ export interface SecretReference {
   version?: string;
 }
 
+export interface CertificateReference {
+  vaultResourceId: string;
+  name: string;
+  version?: string;
+}
+
 export interface SecretSeedValue {
   name: string;
   value: string;
   version?: string;
+}
+
+export interface CertificateSeedValue {
+  name: string;
+  value: string;
+  version?: string;
+  contentType?: string;
 }
 
 export interface ApplyOptions {
@@ -526,6 +539,7 @@ export class ConfigurationStoreResourceBuilder extends ResourceBuilder {
 
 export class SecretsVaultResourceBuilder extends ResourceBuilder {
   private readonly secrets: SecretSeedValue[] = [];
+  private readonly certificates: CertificateSeedValue[] = [];
 
   public constructor(name: string) {
     super(name, "secrets.vault", "secrets-vault");
@@ -559,6 +573,32 @@ export class SecretsVaultResourceBuilder extends ResourceBuilder {
     return this.withAttribute("seed.secrets", this.secrets);
   }
 
+  public withCertificate(name: string, value: string, version?: string, contentType?: string): this {
+    assertNotBlank(name, "Certificate name is required.");
+    this.certificates.push(pruneUndefined({
+      name: name.trim(),
+      value,
+      version: normalizeOptionalString(version),
+      contentType: normalizeOptionalString(contentType)
+    }) as CertificateSeedValue);
+    return this.withAttribute("seed.certificates", this.certificates);
+  }
+
+  public withCertificates(certificates: CertificateSeedValue[]): this {
+    this.certificates.splice(0, this.certificates.length);
+    for (const certificate of certificates) {
+      assertNotBlank(certificate.name, "Certificate name is required.");
+      this.certificates.push(pruneUndefined({
+        name: certificate.name.trim(),
+        value: certificate.value,
+        version: normalizeOptionalString(certificate.version),
+        contentType: normalizeOptionalString(certificate.contentType)
+      }) as CertificateSeedValue);
+    }
+
+    return this.withAttribute("seed.certificates", this.certificates);
+  }
+
   public secret(name: string, version?: string): SecretReference {
     assertNotBlank(name, "Secret name is required.");
     return pruneUndefined({
@@ -566,6 +606,15 @@ export class SecretsVaultResourceBuilder extends ResourceBuilder {
       name: name.trim(),
       version: normalizeOptionalString(version)
     }) as SecretReference;
+  }
+
+  public certificate(name: string, version?: string): CertificateReference {
+    assertNotBlank(name, "Certificate name is required.");
+    return pruneUndefined({
+      vaultResourceId: this.effectiveResourceId,
+      name: name.trim(),
+      version: normalizeOptionalString(version)
+    }) as CertificateReference;
   }
 }
 

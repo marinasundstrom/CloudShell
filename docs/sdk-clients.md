@@ -269,6 +269,7 @@ using CloudShell.Secrets.Client;
 var credential = new DefaultCloudShellResourceCredential();
 var vault = SecretsVaultClient.FromEnvironment(credential);
 var secret = await vault.GetSecretAsync("sample-api-key");
+var certificate = await vault.GetCertificateAsync("api-tls");
 ```
 
 Applications that configure Secrets Vault endpoint discovery use variables
@@ -281,9 +282,10 @@ CLOUDSHELL_SECRETS_<RESOURCE_ID>_VAULT_ID
 CLOUDSHELL_SECRETS_<RESOURCE_ID>_ENDPOINT
 ```
 
-The endpoint points at the protected vault secrets collection. The client
-requests a resource identity token and sends it as a bearer token on each
-service call.
+The endpoint points at the protected vault secrets collection. Certificate
+methods derive the sibling protected certificates collection from the same
+vault endpoint. The client requests a resource identity token and sends it as a
+bearer token on each service call.
 CloudShell can set these variables through the current application-level
 service discovery mapping when the vault is referenced; callers may also set
 them explicitly.
@@ -304,6 +306,12 @@ names maps to the .NET configuration `:` delimiter, matching the Azure Key
 Vault-style convention. Provider diagnostics are exposed under
 `CloudShell:SecretsVault:*`, including `Status`, `Detail`, `Source`, and
 `LoadedKeys`.
+
+Certificates are not loaded into application configuration by default. Use
+`GetCertificatesAsync()` for non-secret certificate metadata and
+`GetCertificateAsync(...)` when a workload or provider needs protected
+certificate material for a certificate-specific scenario such as a future TLS
+binding.
 
 The Java SDK also includes a `SecretsVaultClient`:
 

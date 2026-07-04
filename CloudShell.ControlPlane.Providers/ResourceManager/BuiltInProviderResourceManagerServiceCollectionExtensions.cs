@@ -235,6 +235,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
                 SecretsVaultRuntimeSecretReferenceResolver>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
+                ICertificateReferenceResolver,
+                SecretsVaultRuntimeSecretReferenceResolver>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
                 IResourceMonitoringProvider,
                 AspNetCoreProjectResourceManagerMonitoringProvider>());
         services.TryAddEnumerable(

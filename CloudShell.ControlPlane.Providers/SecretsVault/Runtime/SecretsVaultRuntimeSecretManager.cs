@@ -8,9 +8,18 @@ public interface ISecretsVaultRuntimeSecretManager
         string resourceId,
         CancellationToken cancellationToken = default);
 
+    ValueTask<IReadOnlyList<SecretsVaultRuntimeCertificate>> ListCertificatesAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default);
+
     ValueTask UpdateSecretsAsync(
         ProviderRuntimeResourceContext resource,
         IReadOnlyList<SecretsVaultRuntimeSecret> secrets,
+        CancellationToken cancellationToken = default);
+
+    ValueTask UpdateCertificatesAsync(
+        ProviderRuntimeResourceContext resource,
+        IReadOnlyList<SecretsVaultRuntimeCertificate> certificates,
         CancellationToken cancellationToken = default);
 }
 
@@ -38,6 +47,23 @@ public sealed class SecretsVaultRuntimeSecretManager(
         }
     }
 
+    public ValueTask<IReadOnlyList<SecretsVaultRuntimeCertificate>> ListCertificatesAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            return ValueTask.FromResult<IReadOnlyList<SecretsVaultRuntimeCertificate>>(
+                _options.Certificates
+                    .OrderBy(certificate => certificate.Name, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(certificate => certificate.Version, StringComparer.OrdinalIgnoreCase)
+                    .ToArray());
+        }
+    }
+
     public ValueTask UpdateSecretsAsync(
         ProviderRuntimeResourceContext resource,
         IReadOnlyList<SecretsVaultRuntimeSecret> secrets,
@@ -55,7 +81,36 @@ public sealed class SecretsVaultRuntimeSecretManager(
                 _options.Secrets.Add(secret);
             }
 
-            WriteDefinition(resource, _options.Secrets.ToArray());
+            WriteDefinition(
+                resource,
+                _options.Secrets.ToArray(),
+                _options.Certificates.ToArray());
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask UpdateCertificatesAsync(
+        ProviderRuntimeResourceContext resource,
+        IReadOnlyList<SecretsVaultRuntimeCertificate> certificates,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentNullException.ThrowIfNull(certificates);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            _options.Certificates.Clear();
+            foreach (var certificate in certificates)
+            {
+                _options.Certificates.Add(certificate);
+            }
+
+            WriteDefinition(
+                resource,
+                _options.Secrets.ToArray(),
+                _options.Certificates.ToArray());
         }
 
         return ValueTask.CompletedTask;
@@ -63,7 +118,8 @@ public sealed class SecretsVaultRuntimeSecretManager(
 
     private void WriteDefinition(
         ProviderRuntimeResourceContext resource,
-        IReadOnlyList<SecretsVaultRuntimeSecret> secrets)
+        IReadOnlyList<SecretsVaultRuntimeSecret> secrets,
+        IReadOnlyList<SecretsVaultRuntimeCertificate> certificates)
     {
         var directory = Path.Combine(_options.DefinitionsDirectory, SanitizeFileName(resource.ResourceId));
         Directory.CreateDirectory(directory);
@@ -82,6 +138,18 @@ public sealed class SecretsVaultRuntimeSecretManager(
                     secret.Name,
                     secret.Value,
                     secret.Version
+                }).ToArray(),
+                certificates = certificates.Select(certificate => new
+                {
+                    certificate.Name,
+                    certificate.Value,
+                    certificate.Version,
+                    certificate.ContentType,
+                    certificate.Thumbprint,
+                    certificate.Subject,
+                    certificate.NotBefore,
+                    certificate.Expires,
+                    certificate.HasPrivateKey
                 }).ToArray(),
                 healthChecks = Array.Empty<object>()
             }

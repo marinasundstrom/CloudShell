@@ -16,6 +16,8 @@ public sealed class SecretsVaultRuntimeOptions
 
     public IList<SecretsVaultRuntimeSecret> Secrets { get; } = [];
 
+    public IList<SecretsVaultRuntimeCertificate> Certificates { get; } = [];
+
     public string? ServiceAuthenticationIssuer { get; set; }
 
     public string? ServiceAuthenticationAudience { get; set; }
@@ -27,6 +29,17 @@ public sealed record SecretsVaultRuntimeSecret(
     string Name,
     string Value,
     string? Version = null);
+
+public sealed record SecretsVaultRuntimeCertificate(
+    string Name,
+    string Value,
+    string? Version = null,
+    string? ContentType = null,
+    string? Thumbprint = null,
+    string? Subject = null,
+    DateTimeOffset? NotBefore = null,
+    DateTimeOffset? Expires = null,
+    bool? HasPrivateKey = null);
 
 public interface ISecretsVaultRuntimeController
 {
@@ -108,6 +121,18 @@ public sealed class SecretsVaultProcessRuntimeController(
                 secret.Name,
                 secret.Value,
                 secret.Version
+            }).ToArray(),
+            certificates = _options.Certificates.Select(certificate => new
+            {
+                certificate.Name,
+                certificate.Value,
+                certificate.Version,
+                certificate.ContentType,
+                certificate.Thumbprint,
+                certificate.Subject,
+                certificate.NotBefore,
+                certificate.Expires,
+                certificate.HasPrivateKey
             }).ToArray(),
             healthChecks = Array.Empty<object>()
         };

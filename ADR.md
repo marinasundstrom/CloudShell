@@ -9,6 +9,31 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-07-04
+
+### ADR-20260704-001: Model certificates as typed vault-backed references
+
+Certificates should be modeled as typed references to provider-owned vault
+data, not as generic string secrets in resource declarations. A
+`CertificateReference` identifies the vault resource, certificate name, and
+optional version. The built-in Secrets Vault may store the sensitive
+certificate payload beside other secret material, but resource declarations,
+resource projections, templates, logs, and generated UI must preserve the
+certificate-specific reference shape and must not expose the payload.
+
+This follows the useful part of Azure Key Vault's split between certificates
+and sensitive backing material without copying Azure's object model wholesale.
+CloudShell keeps the portable domain concept at the resource boundary:
+resources that expect TLS or certificate input should ask for
+`CertificateReference`, while vault providers own storage, metadata,
+resolution, and future rotation or issuance behavior.
+
+The first implementation supports create-only certificate seed values on
+`secrets.vault`, protected certificate reads through the Secrets Vault service,
+safe certificate metadata, and cross-language launcher authoring. TLS listener
+bindings, ACME/issuer workflows, certificate renewal, revocation, and
+provider-native non-exportable key handles remain future work.
+
 ## 2026-07-03
 
 ### ADR-20260703-001: Group language launchers under Launchers

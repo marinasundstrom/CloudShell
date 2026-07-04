@@ -25,7 +25,8 @@ func TestBuildsGoAppTemplate(t *testing.T) {
 	secrets := app.AddSecretsVault("secrets").
 		WithDisplayName("Secrets").
 		WithEndpoint("http://localhost:6105").
-		WithSecret("Sample--ApiKey", "go-secret", "v1")
+		WithSecret("Sample--ApiKey", "go-secret", "v1").
+		WithCertificateContentType("ApiTls", "go-certificate", "application/x-pem-file", "v1")
 
 	app.AddGoApp("api", "samples/GoApp/App").
 		WithDisplayName("Go API").
@@ -72,6 +73,28 @@ func TestBuildsGoAppTemplate(t *testing.T) {
 	if goResource == nil {
 		t.Fatal("Go app resource was not emitted")
 	}
+
+	var secretsResource map[string]any
+	for _, resource := range template.Resources {
+		if resource["name"] == "secrets" {
+			secretsResource = resource
+			break
+		}
+	}
+	if secretsResource == nil {
+		t.Fatal("Secrets Vault resource was not emitted")
+	}
+
+	seed := secretsResource["seed"].(map[string]any)
+	certificates := seed["certificates"].([]any)
+	if len(certificates) != 1 {
+		t.Fatalf("expected one certificate seed, got %d", len(certificates))
+	}
+	certificate := certificates[0].(map[string]any)
+	assertEqual(t, "ApiTls", certificate["name"])
+	assertEqual(t, "go-certificate", certificate["value"])
+	assertEqual(t, "v1", certificate["version"])
+	assertEqual(t, "application/x-pem-file", certificate["contentType"])
 
 	assertEqual(t, "application.go-app", goResource["type"])
 	assertEqual(t, "applications.go-app", goResource["providerId"])

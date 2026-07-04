@@ -67,6 +67,15 @@ public static class ResourceSettingDisplay
             reference.Version);
     }
 
+    public static string Format(CertificateReference reference)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+
+        return AppendVersion(
+            $"@CloudShell.Certificate(vaultResourceId={reference.VaultResourceId}; certificateName={reference.CertificateName}",
+            reference.Version);
+    }
+
     public static bool IsSensitiveLiteralName(string? name)
     {
         if (string.IsNullOrWhiteSpace(name))

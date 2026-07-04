@@ -15,6 +15,9 @@ and Secrets Vault support for compatibility.
 Use separate configuration services when different projects or resource groups
 need different non-secret settings. Secrets should be modeled as
 `secrets.vault` references so settings and credentials remain separate.
+Certificates are also vault-backed sensitive values, but resources should use
+typed `CertificateReference` values instead of generic secret references when a
+certificate is expected, such as future TLS/HTTPS bindings.
 
 ## Resource Model
 
@@ -35,14 +38,16 @@ controlPlane.DefineResources(resources =>
 });
 ```
 
-Configuration Store settings and secret values are provider/runtime data.
+Configuration Store settings, secret values, and certificate payloads are
+provider/runtime data.
 Templates may include create-only seed attributes for local development:
-`seed.entries` on a new Configuration Store and `seed.secrets` on a new
-Secrets Vault. The `seed` hierarchy is reserved for create-time input and is
-not accepted when updating an existing resource. The Control Plane materializes
-those values into provider-owned runtime state after the create commit
-succeeds, then strips the seed attributes from accepted graph state. Normal
-resource-template export does not emit seeded setting entries or secret values.
+`seed.entries` on a new Configuration Store, and `seed.secrets` or
+`seed.certificates` on a new Secrets Vault. The `seed` hierarchy is reserved
+for create-time input and is not accepted when updating an existing resource.
+The Control Plane materializes those values into provider-owned runtime state
+after the create commit succeeds, then strips the seed attributes from accepted
+graph state. Normal resource-template export does not emit seeded setting
+entries, secret values, or certificate payloads.
 
 Each store stores key-value setting entries:
 
@@ -77,7 +82,12 @@ Graph-backed Secrets Vault resources contribute a **Secrets** tab under the
 same host/runtime boundary. Existing secret values are masked in the UI and
 are preserved unless a replacement value is entered. Secret values stay in
 provider-owned runtime state and sidecar definition files; Resource Manager
-only projects non-secret metadata such as the secret count.
+only projects non-secret metadata such as the secret count. Certificate
+payloads follow the same provider-owned storage rule. The first certificate
+slice exposes typed references, protected service reads, create-only seed
+values, and non-secret metadata such as content type, thumbprint, subject,
+validity dates, private-key presence, and certificate count; certificate
+management UI and TLS binding UI are future work.
 
 Provider-owned state is persisted in:
 
@@ -249,7 +259,9 @@ CLOUDSHELL_SECRETS_<RESOURCE_ID>_ENDPOINT
 
 The endpoint points at the protected vault secrets collection. Use the
 public-preview `SecretsVaultClient` from `CloudShell.Secrets.Client` for direct
-Secrets Vault service calls. See [SDK clients](sdk-clients.md).
+Secrets Vault service calls. The same client can read certificate metadata and
+certificate values from the sibling protected certificate collection. See
+[SDK clients](sdk-clients.md).
 
 In this model, the caller owns a resource identity, obtains authentication evidence through
 the selected identity provider, and the protected service validates that

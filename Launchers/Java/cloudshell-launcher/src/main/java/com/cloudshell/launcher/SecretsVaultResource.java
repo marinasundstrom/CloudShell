@@ -10,6 +10,7 @@ import java.util.List;
 public final class SecretsVaultResource extends ResourceBuilder<SecretsVaultResource> {
     private String endpoint;
     private final List<SecretSeedValue> secrets = new ArrayList<>();
+    private final List<CertificateSeedValue> certificates = new ArrayList<>();
 
     SecretsVaultResource(String name) {
         super(name, "secrets.vault", "secrets-vault");
@@ -35,6 +36,25 @@ public final class SecretsVaultResource extends ResourceBuilder<SecretsVaultReso
         return this;
     }
 
+    public SecretsVaultResource withCertificate(String name, String value) {
+        return withCertificate(name, value, null, null);
+    }
+
+    public SecretsVaultResource withCertificate(String name, String value, String version) {
+        return withCertificate(name, value, version, null);
+    }
+
+    public SecretsVaultResource withCertificate(String name, String value, String version, String contentType) {
+        certificates.add(new CertificateSeedValue(name, value, version, contentType));
+        return this;
+    }
+
+    public SecretsVaultResource withCertificates(List<CertificateSeedValue> certificates) {
+        this.certificates.clear();
+        this.certificates.addAll(certificates);
+        return this;
+    }
+
     public SecretReference secret(String name) {
         return secret(name, null);
     }
@@ -43,15 +63,30 @@ public final class SecretsVaultResource extends ResourceBuilder<SecretsVaultReso
         return new SecretReference(resourceId(), name, version);
     }
 
+    public CertificateReference certificate(String name) {
+        return certificate(name, null);
+    }
+
+    public CertificateReference certificate(String name, String version) {
+        return new CertificateReference(resourceId(), name, version);
+    }
+
     @Override
     String toJson(int indent) {
         StringBuilder builder = new StringBuilder();
         line(builder, indent, "{");
         appendCommon(builder, indent + 1);
-        property(builder, indent + 1, "endpoint", json(endpoint), !secrets.isEmpty());
-        if (!secrets.isEmpty()) {
+        boolean hasSeed = !secrets.isEmpty() || !certificates.isEmpty();
+        property(builder, indent + 1, "endpoint", json(endpoint), hasSeed);
+        if (hasSeed) {
             line(builder, indent + 1, "\"seed\": {");
-            appendSecrets(builder, indent + 2);
+            if (!secrets.isEmpty()) {
+                appendSecrets(builder, indent + 2, !certificates.isEmpty());
+            }
+
+            if (!certificates.isEmpty()) {
+                appendCertificates(builder, indent + 2);
+            }
             line(builder, indent + 1, "}");
         }
 
@@ -59,7 +94,7 @@ public final class SecretsVaultResource extends ResourceBuilder<SecretsVaultReso
         return builder.toString();
     }
 
-    private void appendSecrets(StringBuilder builder, int indent) {
+    private void appendSecrets(StringBuilder builder, int indent, boolean trailingComma) {
         line(builder, indent, "\"secrets\": [");
         for (int index = 0; index < secrets.size(); index++) {
             SecretSeedValue secret = secrets.get(index);
@@ -71,6 +106,28 @@ public final class SecretsVaultResource extends ResourceBuilder<SecretsVaultReso
             }
 
             line(builder, indent + 1, "}" + (index < secrets.size() - 1 ? "," : ""));
+        }
+
+        line(builder, indent, "]" + (trailingComma ? "," : ""));
+    }
+
+    private void appendCertificates(StringBuilder builder, int indent) {
+        line(builder, indent, "\"certificates\": [");
+        for (int index = 0; index < certificates.size(); index++) {
+            CertificateSeedValue certificate = certificates.get(index);
+            line(builder, indent + 1, "{");
+            property(builder, indent + 2, "name", json(certificate.name()), true);
+            property(builder, indent + 2, "value", json(certificate.value()),
+                certificate.version() != null || certificate.contentType() != null);
+            if (certificate.version() != null) {
+                property(builder, indent + 2, "version", json(certificate.version()), certificate.contentType() != null);
+            }
+
+            if (certificate.contentType() != null) {
+                property(builder, indent + 2, "contentType", json(certificate.contentType()), false);
+            }
+
+            line(builder, indent + 1, "}" + (index < certificates.size() - 1 ? "," : ""));
         }
 
         line(builder, indent, "]");
@@ -85,5 +142,11 @@ public final class SecretsVaultResource extends ResourceBuilder<SecretsVaultReso
     }
 
     public record SecretReference(String vaultResourceId, String name, String version) {
+    }
+
+    public record CertificateSeedValue(String name, String value, String version, String contentType) {
+    }
+
+    public record CertificateReference(String vaultResourceId, String name, String version) {
     }
 }

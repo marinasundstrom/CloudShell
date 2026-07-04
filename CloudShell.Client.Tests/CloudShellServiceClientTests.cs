@@ -98,6 +98,66 @@ public sealed class CloudShellServiceClientTests
     }
 
     [Fact]
+    public async Task SecretsVaultClient_ReadsCertificate()
+    {
+        var handler = new RecordingHandler("""
+            {
+              "name": "api-tls",
+              "value": "-----BEGIN CERTIFICATE-----",
+              "version": "v1",
+              "contentType": "application/x-pem-file",
+              "thumbprint": "ABC123",
+              "subject": "CN=api.local",
+              "hasPrivateKey": true
+            }
+            """);
+        var client = new SecretsVaultClient(
+            new Uri("http://localhost/api/secrets/vaults/secrets-vault%3Aapp/secrets"),
+            new RecordingCredential("secrets-token"),
+            new HttpClient(handler));
+
+        var certificate = await client.GetCertificateAsync("api-tls", version: "v1");
+
+        Assert.Equal("-----BEGIN CERTIFICATE-----", certificate?.Value);
+        Assert.Equal("application/x-pem-file", certificate?.ContentType);
+        Assert.True(certificate?.HasPrivateKey);
+        Assert.Equal(
+            "http://localhost/api/secrets/vaults/secrets-vault%3Aapp/certificates/api-tls?version=v1",
+            handler.Requests[0].RequestUri?.ToString());
+    }
+
+    [Fact]
+    public async Task SecretsVaultClient_ReadsCertificateMetadata()
+    {
+        var handler = new RecordingHandler("""
+            [
+              {
+                "name": "api-tls",
+                "version": "v1",
+                "contentType": "application/x-pem-file",
+                "thumbprint": "ABC123",
+                "subject": "CN=api.local",
+                "hasPrivateKey": true
+              }
+            ]
+            """);
+        var client = new SecretsVaultClient(
+            new Uri("http://localhost/api/secrets/vaults/secrets-vault%3Aapp/secrets"),
+            new RecordingCredential("secrets-token"),
+            new HttpClient(handler));
+
+        var certificates = await client.GetCertificatesAsync();
+
+        var certificate = Assert.Single(certificates);
+        Assert.Equal("api-tls", certificate.Name);
+        Assert.Equal("v1", certificate.Version);
+        Assert.Equal("ABC123", certificate.Thumbprint);
+        Assert.Equal(
+            "http://localhost/api/secrets/vaults/secrets-vault%3Aapp/certificates",
+            handler.Requests[0].RequestUri?.ToString());
+    }
+
+    [Fact]
     public void AddCloudShellConfigurationStore_LoadsEntriesIntoConfiguration()
     {
         using var server = LoopbackServer.Start("""

@@ -1855,6 +1855,8 @@ public sealed class ResourceProviderDispatcherTests
             SecretsVaultResourceTypeProvider.Attributes.Endpoint));
         Assert.Equal("0", validation.Resource.Attributes.GetString(
             SecretsVaultResourceTypeProvider.Attributes.SecretCount));
+        Assert.Equal("0", validation.Resource.Attributes.GetString(
+            SecretsVaultResourceTypeProvider.Attributes.CertificateCount));
         Assert.True(validation.Resource.Operations.Has(
             SecretsVaultResourceTypeProvider.Operations.Inspect));
 
@@ -1873,6 +1875,7 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal("vault", projection.SecretsKind);
         Assert.Equal("http://localhost:6138", projection.Endpoint);
         Assert.Equal(0, projection.SecretCount);
+        Assert.Equal(0, projection.CertificateCount);
         var inspect = await projection.GetInspectOperationAsync();
 
         Assert.NotNull(inspect);
@@ -1889,6 +1892,14 @@ public sealed class ResourceProviderDispatcherTests
             options.ServiceProjectPath = "services/secrets-vault.csproj";
             options.ServiceWorkingDirectory = "/repo";
             options.Secrets.Add(new("sample-api-key", "secret-value", "v1"));
+            options.Certificates.Add(new(
+                "api-tls",
+                "certificate-value",
+                "v1",
+                "application/x-pem-file",
+                "ABC123",
+                "CN=api.local",
+                HasPrivateKey: true));
         });
         using var serviceProvider = services.BuildServiceProvider();
 
@@ -1900,6 +1911,11 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal("sample-api-key", secret.Name);
         Assert.Equal("secret-value", secret.Value);
         Assert.Equal("v1", secret.Version);
+        var certificate = Assert.Single(options.Certificates);
+        Assert.Equal("api-tls", certificate.Name);
+        Assert.Equal("certificate-value", certificate.Value);
+        Assert.Equal("application/x-pem-file", certificate.ContentType);
+        Assert.True(certificate.HasPrivateKey);
     }
 
     [Fact]
@@ -1949,10 +1965,90 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task SecretsVaultRuntimeSecretManager_UpdatesProviderOwnedRuntimeCertificates()
+    {
+        var definitionsDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"cloudshell-secrets-vault-test-{Guid.NewGuid():N}");
+        var services = new ServiceCollection();
+        services.AddSecretsVaultResourceType(options =>
+        {
+            options.DefinitionsDirectory = definitionsDirectory;
+            options.Secrets.Add(new("sample-api-key", "secret-value", "v1"));
+        });
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var manager = serviceProvider.GetRequiredService<ISecretsVaultRuntimeSecretManager>();
+        await manager.UpdateCertificatesAsync(
+            new ProviderRuntimeResourceContext(
+                "secrets.vault:vault",
+                "vault",
+                "Vault",
+                "http://localhost:6138"),
+            [new(
+                "api-tls",
+                "certificate-value",
+                "v1",
+                "application/x-pem-file",
+                "ABC123",
+                "CN=api.local",
+                HasPrivateKey: true)]);
+
+        var options = serviceProvider.GetRequiredService<SecretsVaultRuntimeOptions>();
+        Assert.Equal("sample-api-key", Assert.Single(options.Secrets).Name);
+        var certificate = Assert.Single(options.Certificates);
+        Assert.Equal("api-tls", certificate.Name);
+        Assert.Equal("certificate-value", certificate.Value);
+        Assert.Equal("application/x-pem-file", certificate.ContentType);
+        Assert.True(certificate.HasPrivateKey);
+
+        var definitionsPath = Path.Combine(
+            definitionsDirectory,
+            "secrets.vault_vault",
+            "secrets-vaults.json");
+        using var document = JsonDocument.Parse(File.ReadAllText(definitionsPath));
+        var vault = Assert.Single(document.RootElement.EnumerateArray());
+        var jsonSecret = Assert.Single(vault.GetProperty("secrets").EnumerateArray());
+        Assert.Equal("sample-api-key", jsonSecret.GetProperty("name").GetString());
+        var jsonCertificate = Assert.Single(vault.GetProperty("certificates").EnumerateArray());
+        Assert.Equal("api-tls", jsonCertificate.GetProperty("name").GetString());
+        Assert.Equal("certificate-value", jsonCertificate.GetProperty("value").GetString());
+        Assert.Equal("v1", jsonCertificate.GetProperty("version").GetString());
+        Assert.Equal("application/x-pem-file", jsonCertificate.GetProperty("contentType").GetString());
+        Assert.Equal("ABC123", jsonCertificate.GetProperty("thumbprint").GetString());
+        Assert.True(jsonCertificate.GetProperty("hasPrivateKey").GetBoolean());
+    }
+
+    [Fact]
+    public async Task SecretsVaultRuntimeSecretReferenceResolver_ResolvesCertificates()
+    {
+        var options = new SecretsVaultRuntimeOptions();
+        options.Certificates.Add(new(
+            "api-tls",
+            "certificate-value",
+            ContentType: "application/x-pem-file",
+            Thumbprint: "ABC123",
+            Subject: "CN=api.local",
+            HasPrivateKey: true));
+        var resolver = new SecretsVaultRuntimeSecretReferenceResolver(options);
+
+        var result = await resolver.ResolveCertificateAsync(
+            new CertificateReference("secrets.vault:vault", "api-tls"),
+            new ResourceSettingResolutionContext("application:api"));
+
+        Assert.True(result.IsResolved);
+        Assert.Equal("certificate-value", result.Value);
+        Assert.Equal("application/x-pem-file", result.ContentType);
+        Assert.Equal("ABC123", result.Thumbprint);
+        Assert.Equal("CN=api.local", result.Subject);
+    }
+
+    [Fact]
     public async Task SecretsVaultRuntimeInspector_ReportsConfiguredRuntimeSecretCount()
     {
         var options = new SecretsVaultRuntimeOptions();
         options.Secrets.Add(new("sample-api-key", "secret-value"));
+        options.Certificates.Add(new("api-tls", "certificate-value"));
         var resource = new ResourceResolver(
             [SecretsVaultResourceTypeProvider.ClassDefinition],
             [new SecretsVaultResourceTypeProvider().TypeDefinition])
@@ -1968,7 +2064,9 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal("secrets.vault.inspect.runtimeSecrets", diagnostic.Code);
         Assert.Equal(resource.EffectiveResourceId, diagnostic.Target);
         Assert.Contains("1 configured secret", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("1 configured certificate", diagnostic.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("secret-value", diagnostic.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("certificate-value", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

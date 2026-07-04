@@ -16,7 +16,9 @@ public sealed class SecretsVaultResourceTypeProvider :
         public static readonly ResourceAttributeId Kind = "kind";
         public static readonly ResourceAttributeId Endpoint = "endpoint";
         public static readonly ResourceAttributeId Secrets = "seed.secrets";
+        public static readonly ResourceAttributeId Certificates = "seed.certificates";
         public static readonly ResourceAttributeId SecretCount = "secretCount";
+        public static readonly ResourceAttributeId CertificateCount = "certificateCount";
     }
 
     public static class Operations
@@ -55,7 +57,33 @@ public sealed class SecretsVaultResourceTypeProvider :
                     ["version"] = new(ValueType: ResourceAttributeValueType.String)
                 }),
                 description: "Create-only secrets used to seed a new Secrets Vault resource."),
+            [Attributes.Certificates] = ResourceAttributeDefinition.Collection(
+                ResourceAttributeValueType.ComplexType,
+                itemShape: new(new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+                {
+                    ["name"] = new(
+                        Required: true,
+                        RequiredMessage: "Certificate name is required.",
+                        ValueType: ResourceAttributeValueType.String),
+                    ["value"] = new(
+                        Required: true,
+                        RequiredMessage: "Certificate value is required.",
+                        ValueType: ResourceAttributeValueType.String),
+                    ["version"] = new(ValueType: ResourceAttributeValueType.String),
+                    ["contentType"] = new(ValueType: ResourceAttributeValueType.String),
+                    ["thumbprint"] = new(ValueType: ResourceAttributeValueType.String),
+                    ["subject"] = new(ValueType: ResourceAttributeValueType.String),
+                    ["notBefore"] = new(ValueType: ResourceAttributeValueType.String),
+                    ["expires"] = new(ValueType: ResourceAttributeValueType.String),
+                    ["hasPrivateKey"] = new(ValueType: ResourceAttributeValueType.Boolean)
+                }),
+                description: "Create-only certificates used to seed a new Secrets Vault resource."),
             [Attributes.SecretCount] = new(
+                DefaultValue: 0,
+                ValueType: ResourceAttributeValueType.Integer,
+                ReadOnly: true,
+                Mutability: ResourceAttributeMutability.ProviderManaged),
+            [Attributes.CertificateCount] = new(
                 DefaultValue: 0,
                 ValueType: ResourceAttributeValueType.Integer,
                 ReadOnly: true,
@@ -147,6 +175,9 @@ public sealed class SecretsVaultResourceTypeProvider :
         ValidateSecretCount(
             resource.Attributes.GetString(Attributes.SecretCount),
             diagnostics);
+        ValidateCertificateCount(
+            resource.Attributes.GetString(Attributes.CertificateCount),
+            diagnostics);
         return diagnostics;
     }
 
@@ -165,6 +196,11 @@ public sealed class SecretsVaultResourceTypeProvider :
             ValidateSeedSecrets(state, diagnostics);
         }
 
+        if (state.ResourceAttributeValues.ContainsKey(Attributes.Certificates))
+        {
+            ValidateSeedCertificates(state, diagnostics);
+        }
+
         return diagnostics;
     }
 
@@ -173,12 +209,24 @@ public sealed class SecretsVaultResourceTypeProvider :
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
         if (!changes.IsNewResource &&
-            changes.ProposedState.ResourceAttributeValues.ContainsKey(Attributes.Secrets))
+            (changes.ProposedState.ResourceAttributeValues.ContainsKey(Attributes.Secrets) ||
+             changes.ProposedState.ResourceAttributeValues.ContainsKey(Attributes.Certificates)))
         {
-            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                "secrets.vault.secretsSeedUpdateNotAllowed",
-                "Secrets can only be supplied when creating a Secrets Vault resource.",
-                Attributes.Secrets));
+            if (changes.ProposedState.ResourceAttributeValues.ContainsKey(Attributes.Secrets))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "secrets.vault.secretsSeedUpdateNotAllowed",
+                    "Secrets can only be supplied when creating a Secrets Vault resource.",
+                    Attributes.Secrets));
+            }
+
+            if (changes.ProposedState.ResourceAttributeValues.ContainsKey(Attributes.Certificates))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "secrets.vault.certificatesSeedUpdateNotAllowed",
+                    "Certificates can only be supplied when creating a Secrets Vault resource.",
+                    Attributes.Certificates));
+            }
         }
     }
 
@@ -222,22 +270,65 @@ public sealed class SecretsVaultResourceTypeProvider :
     private static ResourceState StripSeedSecrets(
         ResourceState state)
     {
-        if (!state.ResourceAttributeValues.ContainsKey(Attributes.Secrets))
+        if (!state.ResourceAttributeValues.ContainsKey(Attributes.Secrets) &&
+            !state.ResourceAttributeValues.ContainsKey(Attributes.Certificates))
         {
             return state;
         }
 
         var secrets = state.ResourceAttributeValues.GetObject<SecretsVaultSeedSecret[]>(
             Attributes.Secrets) ?? [];
+        var certificates = state.ResourceAttributeValues.GetObject<SecretsVaultSeedCertificate[]>(
+            Attributes.Certificates) ?? [];
         var attributes = state.ResourceAttributeValues
-            .Where(attribute => attribute.Key != Attributes.Secrets)
+            .Where(attribute =>
+                attribute.Key != Attributes.Secrets &&
+                attribute.Key != Attributes.Certificates)
             .ToDictionary(attribute => attribute.Key, attribute => attribute.Value);
         attributes[Attributes.SecretCount] = ResourceAttributeValue.Integer(secrets.Length);
+        attributes[Attributes.CertificateCount] = ResourceAttributeValue.Integer(certificates.Length);
 
         return state with
         {
             Attributes = new ResourceAttributeValueMap(attributes)
         };
+    }
+
+    private static void ValidateSeedCertificates(
+        ResourceState state,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        var certificates = state.ResourceAttributeValues.GetObject<SecretsVaultSeedCertificate[]>(
+            Attributes.Certificates) ?? [];
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var certificate in certificates)
+        {
+            if (string.IsNullOrWhiteSpace(certificate.Name))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "secrets.vault.seedCertificateNameRequired",
+                    "Certificate name is required.",
+                    Attributes.Certificates));
+            }
+
+            if (certificate.Value is null)
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "secrets.vault.seedCertificateValueRequired",
+                    "Certificate value is required.",
+                    Attributes.Certificates));
+            }
+
+            if (!string.IsNullOrWhiteSpace(certificate.Name) &&
+                !names.Add(certificate.Name.Trim()))
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "secrets.vault.seedCertificateDuplicate",
+                    $"Certificate '{certificate.Name}' is declared more than once.",
+                    Attributes.Certificates));
+            }
+        }
     }
 
     private static void ValidateSecretCount(
@@ -251,6 +342,20 @@ public sealed class SecretsVaultResourceTypeProvider :
                 "secrets.vault.secretCountInvalid",
                 "Secrets Vault secret count must be a non-negative integer.",
                 Attributes.SecretCount));
+        }
+    }
+
+    private static void ValidateCertificateCount(
+        string? certificateCount,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (!string.IsNullOrWhiteSpace(certificateCount) &&
+            (!int.TryParse(certificateCount, out var count) || count < 0))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                "secrets.vault.certificateCountInvalid",
+                "Secrets Vault certificate count must be a non-negative integer.",
+                Attributes.CertificateCount));
         }
     }
 }

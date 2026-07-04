@@ -19,7 +19,8 @@ test("builds a resource template with JavaScript app and configuration store", (
     .addSecretsVault("typescript-secrets")
     .withDisplayName("TypeScript Secrets")
     .withEndpoint("http://localhost:6101")
-    .withSecret("Sample--ApiKey", "typescript-secret", "v1");
+    .withSecret("Sample--ApiKey", "typescript-secret", "v1")
+    .withCertificate("ApiTls", "typescript-certificate", "v1", "application/x-pem-file");
 
   app
     .addJavaScriptApp("typescript-frontend", "samples/TypeScriptAppHost/App")
@@ -70,6 +71,14 @@ test("builds a resource template with JavaScript app and configuration store", (
         name: "Sample--ApiKey",
         value: "typescript-secret",
         version: "v1"
+      }
+    ],
+    certificates: [
+      {
+        name: "ApiTls",
+        value: "typescript-certificate",
+        version: "v1",
+        contentType: "application/x-pem-file"
       }
     ]
   });

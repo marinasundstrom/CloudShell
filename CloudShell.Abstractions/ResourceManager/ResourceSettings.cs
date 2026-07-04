@@ -30,6 +30,11 @@ public sealed record SecretReference(
     string SecretName,
     string? Version = null);
 
+public sealed record CertificateReference(
+    string VaultResourceId,
+    string CertificateName,
+    string? Version = null);
+
 public interface IResourceAppSettingConfigurationProvider
 {
     bool CanConfigureAppSettings(Resource resource);
@@ -90,6 +95,38 @@ public interface ISecretReferenceResolver
 {
     ValueTask<ResourceSettingResolutionResult> ResolveSecretAsync(
         SecretReference reference,
+        ResourceSettingResolutionContext context,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed record CertificateResolutionResult(
+    string? Value,
+    string? ContentType = null,
+    string? Thumbprint = null,
+    string? Subject = null,
+    DateTimeOffset? NotBefore = null,
+    DateTimeOffset? Expires = null,
+    string? ErrorMessage = null)
+{
+    public bool IsResolved => ErrorMessage is null;
+
+    public static CertificateResolutionResult Resolved(
+        string value,
+        string? contentType = null,
+        string? thumbprint = null,
+        string? subject = null,
+        DateTimeOffset? notBefore = null,
+        DateTimeOffset? expires = null) =>
+        new(value, contentType, thumbprint, subject, notBefore, expires);
+
+    public static CertificateResolutionResult Failed(string errorMessage) =>
+        new(null, ErrorMessage: errorMessage);
+}
+
+public interface ICertificateReferenceResolver
+{
+    ValueTask<CertificateResolutionResult> ResolveCertificateAsync(
+        CertificateReference reference,
         ResourceSettingResolutionContext context,
         CancellationToken cancellationToken = default);
 }

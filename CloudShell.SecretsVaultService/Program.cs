@@ -39,6 +39,14 @@ api.MapGet("/vaults/{vaultId}/secrets/{name}", GetSecret)
     .WithName("CloudShellSecretsVaultService_GetSecret")
     .AllowAnonymous();
 
+api.MapGet("/vaults/{vaultId}/certificates", ListCertificates)
+    .WithName("CloudShellSecretsVaultService_ListCertificates")
+    .AllowAnonymous();
+
+api.MapGet("/vaults/{vaultId}/certificates/{name}", GetCertificate)
+    .WithName("CloudShellSecretsVaultService_GetCertificate")
+    .AllowAnonymous();
+
 app.Run();
 
 static IResult GetSecretByQuery(
@@ -71,6 +79,34 @@ static IResult ListSecrets(
         secret.Version)).ToArray());
 }
 
+static IResult ListCertificates(
+    string vaultId,
+    HttpRequest request,
+    SecretsVaultServiceStore store)
+{
+    var vault = store.GetVault(vaultId);
+    if (!HasBearerToken(request))
+    {
+        return Unauthorized();
+    }
+
+    if (vault is null ||
+        !IsAuthorized(vault, request))
+    {
+        return NotFound();
+    }
+
+    return Results.Ok(vault.Certificates.Select(certificate => new CertificateMetadataResponse(
+        certificate.Name,
+        certificate.Version,
+        certificate.ContentType,
+        certificate.Thumbprint,
+        certificate.Subject,
+        certificate.NotBefore,
+        certificate.Expires,
+        certificate.HasPrivateKey)).ToArray());
+}
+
 static IResult GetSecret(
     string vaultId,
     string name,
@@ -100,6 +136,46 @@ static IResult GetSecret(
     return secret is null
         ? NotFound()
         : Results.Ok(new SecretValueResponse(secret.Name, secret.Value, secret.Version));
+}
+
+static IResult GetCertificate(
+    string vaultId,
+    string name,
+    string? version,
+    HttpRequest request,
+    SecretsVaultServiceStore store)
+{
+    var vault = store.GetVault(vaultId);
+    if (!HasBearerToken(request))
+    {
+        return Unauthorized();
+    }
+
+    if (vault is null ||
+        !IsAuthorized(vault, request))
+    {
+        return NotFound();
+    }
+
+    var candidates = vault.Certificates
+        .Where(certificate => string.Equals(certificate.Name, name, StringComparison.OrdinalIgnoreCase))
+        .Where(certificate => string.IsNullOrWhiteSpace(version) ||
+            string.Equals(certificate.Version, version, StringComparison.OrdinalIgnoreCase))
+        .ToArray();
+    var certificate = candidates.LastOrDefault();
+
+    return certificate is null
+        ? NotFound()
+        : Results.Ok(new CertificateValueResponse(
+            certificate.Name,
+            certificate.Value,
+            certificate.Version,
+            certificate.ContentType,
+            certificate.Thumbprint,
+            certificate.Subject,
+            certificate.NotBefore,
+            certificate.Expires,
+            certificate.HasPrivateKey));
 }
 
 static bool IsAuthorized(
@@ -138,3 +214,24 @@ public sealed record SecretValueResponse(
     string Name,
     string Value,
     string? Version);
+
+public sealed record CertificateMetadataResponse(
+    string Name,
+    string? Version,
+    string? ContentType,
+    string? Thumbprint,
+    string? Subject,
+    DateTimeOffset? NotBefore,
+    DateTimeOffset? Expires,
+    bool? HasPrivateKey);
+
+public sealed record CertificateValueResponse(
+    string Name,
+    string Value,
+    string? Version,
+    string? ContentType,
+    string? Thumbprint,
+    string? Subject,
+    DateTimeOffset? NotBefore,
+    DateTimeOffset? Expires,
+    bool? HasPrivateKey);

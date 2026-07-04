@@ -33,7 +33,8 @@ public final class CloudShellAppTest {
         SecretsVaultResource secrets = app.addSecretsVault("secrets")
             .withDisplayName("Secrets")
             .withEndpoint("http://localhost:6104")
-            .withSecret("Sample--ApiKey", "java-secret", "v1");
+            .withSecret("Sample--ApiKey", "java-secret", "v1")
+            .withCertificate("ApiTls", "java-certificate", "v1", "application/x-pem-file");
 
         app.addJavaMavenApp("api", "samples/JavaApp/App", "target/app.jar", "clean package -DskipTests")
             .withDisplayName("Java API")
@@ -63,6 +64,10 @@ public final class CloudShellAppTest {
         assertContains(json, "\"name\": \"Sample--ApiKey\"");
         assertContains(json, "\"value\": \"java-secret\"");
         assertContains(json, "\"version\": \"v1\"");
+        assertContains(json, "\"certificates\": [");
+        assertContains(json, "\"name\": \"ApiTls\"");
+        assertContains(json, "\"value\": \"java-certificate\"");
+        assertContains(json, "\"contentType\": \"application/x-pem-file\"");
         assertContains(json, "\"configurationEntryRef\": { \"storeResourceId\": \"configuration.store:settings\", \"name\": \"Sample--Message\" }");
         assertContains(json, "\"secretRef\": { \"vaultResourceId\": \"secrets.vault:secrets\", \"name\": \"Sample--ApiKey\" }");
         assertContains(json, "\"path\": \"/ready\"");

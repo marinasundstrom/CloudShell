@@ -34,7 +34,7 @@ public sealed class SecretsVaultRuntimeInspector(
             new(
                 ResourceDefinitionDiagnosticSeverity.Information,
                 "secrets.vault.inspect.runtimeSecrets",
-                $"Secrets Vault runtime has {_options.Secrets.Count} configured secret{(_options.Secrets.Count == 1 ? string.Empty : "s")} for '{resource.EffectiveResourceId}'.",
+                $"Secrets Vault runtime has {_options.Secrets.Count} configured secret{(_options.Secrets.Count == 1 ? string.Empty : "s")} and {_options.Certificates.Count} configured certificate{(_options.Certificates.Count == 1 ? string.Empty : "s")} for '{resource.EffectiveResourceId}'.",
                 resource.EffectiveResourceId)
         ]);
     }

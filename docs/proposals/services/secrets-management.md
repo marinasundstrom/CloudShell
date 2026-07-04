@@ -10,12 +10,12 @@ focused on broader assignment UI coverage, in-process secret loading, rotation
 semantics, and alignment with the identity and permissions foundation for
 service-to-service access.
 
-This proposal covers configuration references, secret references, and
-Secrets Vault integration. CloudShell should provide the resource model,
-resolver contracts, UI wiring, redaction, and template behavior needed to pass
-settings and secrets safely. Configuration providers own configuration-entry
-storage. Secrets providers own secret storage, retrieval, versioning, and
-rotation behavior.
+This proposal covers configuration references, secret references, certificate
+references, and Secrets Vault integration. CloudShell should provide the
+resource model, resolver contracts, UI wiring, redaction, and template behavior
+needed to pass settings, secrets, and certificates safely. Configuration
+providers own configuration-entry storage. Secrets providers own secret and
+certificate storage, retrieval, versioning, and rotation behavior.
 
 This proposal intentionally leaves resource identity rules to the separate
 [identity and access proposal](../core/identity-and-access.md).
@@ -42,6 +42,8 @@ This blocks scenarios such as:
 ## Goals
 
 - Introduce a secret-reference abstraction for resources.
+- Introduce a certificate-reference abstraction for resources that need
+  certificate-specific inputs such as future TLS/HTTPS bindings.
 - Keep app settings separate from secrets. App settings are non-secret
   configuration values; secret references are non-secret pointers to
   provider-owned secret values.
@@ -150,6 +152,25 @@ Secret references may be stored in provider-owned resource configuration,
 projected in templates, and shown in UI as references. They must not be
 resolved into secret values for resource projection, generated details, API
 responses, logs, or template export.
+
+### Certificate references
+
+A certificate reference is a non-secret pointer to provider-owned certificate
+data:
+
+```csharp
+public sealed record CertificateReference(
+    string VaultResourceId,
+    string CertificateName,
+    string? Version = null);
+```
+
+Resources should use `CertificateReference` whenever a certificate is expected
+instead of overloading `SecretReference`. The built-in Secrets Vault stores the
+sensitive certificate payload behind the same provider-owned runtime boundary
+as secret values, but the resource declaration keeps certificate-specific
+metadata and validation available for TLS bindings, identity providers, remote
+hosts, and future issuer or rotation workflows.
 
 ### Secret-backed settings and environment variables
 
@@ -351,6 +372,8 @@ app settings for non-secret values and vault-backed references for secrets.
   missing configuration or Secrets Vault target resources and missing
   identity read grants before dispatch, without resolving or displaying
   referenced values.
-- Decide how secret references should be versioned, rotated, and refreshed for
-  already-running resources.
+- Decide how secret and certificate references should be versioned, rotated,
+  and refreshed for already-running resources.
+- Add certificate management UI, TLS/HTTPS binding consumers, and future
+  issuer/renewal flows.
 - Add a separate secrets client/provider for in-process secret loading.

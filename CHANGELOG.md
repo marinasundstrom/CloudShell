@@ -17,6 +17,13 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added typed Secrets Vault certificate support for future TLS/HTTPS flows:
+  `CertificateReference` and resolver contracts, create-only
+  `seed.certificates` resource-template input, provider-owned runtime
+  certificate storage, protected vault certificate service/client reads,
+  cross-language launcher authoring helpers, safe certificate counts/metadata,
+  and export stripping so certificate payloads do not become accepted graph
+  state; see ADR-20260704-001.
 - Added a RabbitMQ credential endpoint that lets workloads present their
   CloudShell resource identity token, request access to a target RabbitMQ
   resource, and receive grant-derived RabbitMQ-native credentials after the
