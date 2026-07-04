@@ -82,12 +82,19 @@ var postgres = resources
     .WithEnvironment("POSTGRES_PASSWORD", "cloudshell")
     .WithEnvironment("POSTGRES_DB", "cloudshell");
 
+var certificates = resources
+    .AddSecretsVault("edge-certificates")
+    .WithCertificate(
+        "EdgeTls",
+        "local-development-pem-or-pfx",
+        contentType: "application/x-pem-file");
+
 var lb = resources
     .AddLoadBalancer("public")
     .UseProvider("traefik")
     .UseContainerHost(dockerHost)
     .ExposeHttp(80)
-    .ExposeHttps(443)
+    .ExposeHttps(certificates.Certificate("EdgeTls"), 443)
     .ExposeTcp(5432);
 
 lb.MapHost("app.local", webApp, port: 80);
@@ -161,6 +168,11 @@ entrypoint names and route IDs must be unique after normalization, routes must
 reference a declared entrypoint, HTTP routes must use HTTP/HTTPS entrypoints,
 TCP routes must use TCP entrypoints, and exact duplicate route matches on the
 same entrypoint are rejected.
+HTTPS entrypoints can declare a `certificateRef` that points at a
+`secrets.vault` certificate. Validation ensures certificate references are only
+used on HTTPS entrypoints and that the referenced vault exists with the Secrets
+Vault resource type. Certificate payloads remain in the vault; load balancer
+resources store only the reference metadata.
 
 Resource action capabilities evaluate the same provider context used by apply
 and lifecycle execution. If the selected provider, host resource, route target,
@@ -258,6 +270,7 @@ not yet provide:
 - editing multiple load-balancer routes after creation
 - full structured validation diagnostics before applying routes
 - provider-managed runtime probes and richer host diagnostics
-- TLS certificate resources or certificate binding
+- provider-specific TLS certificate materialization in Traefik or other
+  providers
 - weighted backend pools, traffic splitting, provider-observed replica health,
   or dynamic backend membership beyond the current requested replica count

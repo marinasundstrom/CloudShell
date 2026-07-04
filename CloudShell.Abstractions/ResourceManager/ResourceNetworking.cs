@@ -217,7 +217,8 @@ public sealed record LoadBalancerEntrypoint(
     string Name,
     ResourceEndpointProtocol Protocol,
     int Port,
-    ResourceExposureScope Exposure = ResourceExposureScope.Public);
+    ResourceExposureScope Exposure = ResourceExposureScope.Public,
+    CertificateReference? Certificate = null);
 
 public sealed record LoadBalancerRoute(
     string Id,

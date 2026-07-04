@@ -142,7 +142,7 @@ public static class ResourceModelResourceManagerMapper
         {
             foreach (var attribute in projectedAttributes)
             {
-                attributes.TryAdd(attribute.Key, attribute.Value);
+                attributes[attribute.Key] = attribute.Value;
             }
         }
 

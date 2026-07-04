@@ -73,7 +73,17 @@ public sealed class ResourceModelGraphTraefikLoadBalancerConfigurationApplier(
             value.Name,
             ParseEnum(value.Protocol, ResourceEndpointProtocol.Http),
             value.Port,
-            ParseEnum(value.Exposure, ResourceExposureScope.Public));
+            ParseEnum(value.Exposure, ResourceExposureScope.Public),
+            ToCertificateReference(value.CertificateRef));
+
+    private static CertificateReference? ToCertificateReference(
+        LoadBalancerCertificateReferenceValue? value) =>
+        value is null
+            ? null
+            : new CertificateReference(
+                value.VaultResourceId,
+                value.Name,
+                string.IsNullOrWhiteSpace(value.Version) ? null : value.Version);
 
     private static LoadBalancerRoute ToResourceManagerRoute(
         LoadBalancerRouteValue value)

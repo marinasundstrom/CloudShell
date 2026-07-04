@@ -197,6 +197,14 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.Secrets,
                 icon: "secrets")
+            .AddResourceTab<ConfigurationPages.SecretsVaultCertificates>(
+                SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),
+                new ResourceViewId(ResourceTabGroupIds.Secrets, "certificates"),
+                "Certificates",
+                30,
+                showsApplyButton: true,
+                groupTitle: ResourceTabGroupTitles.Secrets,
+                icon: "certificates")
             .AddResourceType<SharedPages.RegisterResource>(
                 IdentityProvisioningResourceTypeProvider.ResourceTypeId.ToString(),
                 "Identity Provisioning",

@@ -72,6 +72,25 @@ public sealed class LoadBalancerResourceDefinitionBuilder(string name) :
         string exposure = "Public") =>
         AddEntrypoint(name, "Https", port, exposure);
 
+    public LoadBalancerResourceDefinitionBuilder ExposeHttps(
+        ResourceCertificateReference certificate,
+        int port = 443,
+        string name = "https",
+        string exposure = "Public")
+    {
+        ArgumentNullException.ThrowIfNull(certificate);
+
+        return AddEntrypoint(
+            name,
+            "Https",
+            port,
+            exposure,
+            new LoadBalancerCertificateReferenceValue(
+                certificate.VaultResourceId,
+                certificate.Name,
+                certificate.Version));
+    }
+
     public LoadBalancerResourceDefinitionBuilder ExposeTcp(
         int port,
         string? name = null,
@@ -228,7 +247,8 @@ public sealed class LoadBalancerResourceDefinitionBuilder(string name) :
         string name,
         string protocol,
         int port,
-        string exposure)
+        string exposure,
+        LoadBalancerCertificateReferenceValue? certificate = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
@@ -239,11 +259,11 @@ public sealed class LoadBalancerResourceDefinitionBuilder(string name) :
             normalizedName,
             protocol,
             port,
-            exposure));
+            exposure,
+            certificate));
         SetObjectAttribute(
             LoadBalancerResourceTypeProvider.Attributes.Entrypoints,
             _entrypoints);
-        WithEntrypointCount(_entrypoints.Count);
         return this;
     }
 
@@ -274,11 +294,6 @@ public sealed class LoadBalancerResourceDefinitionBuilder(string name) :
         SetObjectAttribute(
             LoadBalancerResourceTypeProvider.Attributes.Routes,
             _routes);
-        WithRouteCount(_routes.Count);
-        WithHttpRouteCount(_routes.Count(route =>
-            string.Equals(route.Kind, "Http", StringComparison.OrdinalIgnoreCase)));
-        WithTcpRouteCount(_routes.Count(route =>
-            string.Equals(route.Kind, "Tcp", StringComparison.OrdinalIgnoreCase)));
 
         return AddBackendTarget(targetResource);
     }

@@ -17,7 +17,7 @@ need different non-secret settings. Secrets should be modeled as
 `secrets.vault` references so settings and credentials remain separate.
 Certificates are also vault-backed sensitive values, but resources should use
 typed `CertificateReference` values instead of generic secret references when a
-certificate is expected, such as future TLS/HTTPS bindings.
+certificate is expected, such as load balancer HTTPS bindings.
 
 ## Resource Model
 
@@ -78,16 +78,20 @@ That tab manages provider-owned runtime entries and rewrites the sidecar
 definition file used by the backing Configuration Store service. Entry values
 do not become Resource graph attributes.
 
-Graph-backed Secrets Vault resources contribute a **Secrets** tab under the
-same host/runtime boundary. Existing secret values are masked in the UI and
-are preserved unless a replacement value is entered. Secret values stay in
+Graph-backed Secrets Vault resources contribute **Secrets** and
+**Certificates** tabs under the same host/runtime boundary. Existing secret and
+certificate values are masked in the UI and preserved unless a replacement
+value is entered. Certificate values can be pasted, uploaded as PEM or PFX/P12
+content, or generated as a self-signed development certificate from the
+Certificates tab. Secret values and certificate payloads stay in
 provider-owned runtime state and sidecar definition files; Resource Manager
-only projects non-secret metadata such as the secret count. Certificate
-payloads follow the same provider-owned storage rule. The first certificate
-slice exposes typed references, protected service reads, create-only seed
-values, and non-secret metadata such as content type, thumbprint, subject,
-validity dates, private-key presence, and certificate count; certificate
-management UI and TLS binding UI are future work.
+only projects non-secret metadata such as counts, content type, thumbprint,
+subject, validity dates, and private-key presence.
+
+Load balancer HTTPS entrypoints can reference a Secrets Vault certificate
+through a typed certificate reference. The load balancer resource stores only
+the vault resource ID, certificate name, and optional version; provider-specific
+TLS materialization and renewal flows remain future work.
 
 Provider-owned state is persisted in:
 

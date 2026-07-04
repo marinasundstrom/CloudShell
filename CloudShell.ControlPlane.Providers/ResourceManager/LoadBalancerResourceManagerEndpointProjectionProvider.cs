@@ -1,7 +1,47 @@
+using System.Globalization;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceModel;
 
 namespace CloudShell.ControlPlane.Providers;
+
+public sealed class LoadBalancerResourceManagerAttributeProvider :
+    IResourceModelResourceManagerAttributeProvider
+{
+    public IReadOnlyDictionary<string, string>? GetAttributes(Resource resource)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+
+        if (resource.Type.TypeId != LoadBalancerResourceTypeProvider.ResourceTypeId)
+        {
+            return null;
+        }
+
+        var entrypoints = resource.State.ResourceAttributeValues
+            .GetObject<LoadBalancerEntrypointValue[]>(
+                LoadBalancerResourceTypeProvider.Attributes.Entrypoints) ?? [];
+        var routes = resource.State.ResourceAttributeValues
+            .GetObject<LoadBalancerRouteValue[]>(
+                LoadBalancerResourceTypeProvider.Attributes.Routes) ?? [];
+
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [LoadBalancerResourceTypeProvider.Attributes.EntrypointCount.ToString()] =
+                entrypoints.Length.ToString(CultureInfo.InvariantCulture),
+            [LoadBalancerResourceTypeProvider.Attributes.RouteCount.ToString()] =
+                routes.Length.ToString(CultureInfo.InvariantCulture),
+            [LoadBalancerResourceTypeProvider.Attributes.HttpRouteCount.ToString()] =
+                routes.Count(route =>
+                    string.Equals(route.Kind, "Http", StringComparison.OrdinalIgnoreCase))
+                    .ToString(CultureInfo.InvariantCulture),
+            [LoadBalancerResourceTypeProvider.Attributes.TcpRouteCount.ToString()] =
+                routes.Count(route =>
+                    string.Equals(route.Kind, "Tcp", StringComparison.OrdinalIgnoreCase))
+                    .ToString(CultureInfo.InvariantCulture),
+            [LoadBalancerResourceTypeProvider.Attributes.EndpointCount.ToString()] =
+                entrypoints.Length.ToString(CultureInfo.InvariantCulture)
+        };
+    }
+}
 
 public sealed class LoadBalancerResourceManagerEndpointProjectionProvider :
     IResourceModelResourceManagerEndpointProjectionProvider

@@ -13,6 +13,9 @@ public static class LoadBalancerShapeIds
 
     public static readonly ResourceAttributeValueShapeId RouteTarget =
         "loadBalancer.route.target";
+
+    public static readonly ResourceAttributeValueShapeId CertificateReference =
+        "loadBalancer.certificateReference";
 }
 
 public sealed class LoadBalancerShapeProvider : IResourceAttributeValueShapeProvider
@@ -33,9 +36,22 @@ public static class LoadBalancerShapes
                     Required: true,
                     RequiredMessage: "Load balancer entrypoint port is required.",
                     ValueType: ResourceAttributeValueType.Integer),
-                ["exposure"] = new(ValueType: ResourceAttributeValueType.String)
+                ["exposure"] = new(ValueType: ResourceAttributeValueType.String),
+                ["certificateRef"] = new(
+                    ValueType: ResourceAttributeValueType.ComplexType,
+                    ValueShapeId: LoadBalancerShapeIds.CertificateReference)
             }),
         "Load balancer frontend entrypoint shape.");
+
+    public static ResourceAttributeValueShapeDefinition CertificateReference { get; } = new(
+        new(
+            new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
+            {
+                ["vaultResourceId"] = RequiredString("Certificate vault resource id is required."),
+                ["name"] = RequiredString("Certificate name is required."),
+                ["version"] = new(ValueType: ResourceAttributeValueType.String)
+            }),
+        "Load balancer certificate reference shape.");
 
     public static ResourceAttributeValueShapeDefinition RouteMatch { get; } = new(
         new(
@@ -85,6 +101,7 @@ public static class LoadBalancerShapes
         new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
         {
             [LoadBalancerShapeIds.Entrypoint] = Entrypoint,
+            [LoadBalancerShapeIds.CertificateReference] = CertificateReference,
             [LoadBalancerShapeIds.Route] = Route,
             [LoadBalancerShapeIds.RouteMatch] = RouteMatch,
             [LoadBalancerShapeIds.RouteTarget] = RouteTarget
@@ -101,7 +118,13 @@ public sealed record LoadBalancerEntrypointValue(
     string Name,
     string Protocol,
     int Port,
-    string? Exposure = null);
+    string? Exposure = null,
+    LoadBalancerCertificateReferenceValue? CertificateRef = null);
+
+public sealed record LoadBalancerCertificateReferenceValue(
+    string VaultResourceId,
+    string Name,
+    string? Version = null);
 
 public sealed record LoadBalancerRouteValue(
     string Id,

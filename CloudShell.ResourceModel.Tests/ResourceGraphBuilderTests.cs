@@ -1748,11 +1748,18 @@ public sealed class ResourceGraphBuilderTests
         services.AddContainerHostResourceType();
         services.AddContainerApplicationResourceType();
         services.AddLoadBalancerResourceType();
+        services.AddSecretsVaultResourceType();
         services.AddHostConfigurationSourceResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
         var graph = new ResourceGraphBuilder();
         var host = graph.AddDockerHost("engine");
+        var certificates = graph
+            .AddSecretsVault("edge-certificates")
+            .WithCertificate(
+                "EdgeTls",
+                "local-development-certificate",
+                contentType: "application/x-pem-file");
         var target = graph
             .AddContainerApplication("api")
             .WithImage("example/api:1.0");
@@ -1760,6 +1767,7 @@ public sealed class ResourceGraphBuilderTests
         graph
             .AddLoadBalancer("edge")
             .UseHost(host)
+            .ExposeHttps(certificates.Certificate("EdgeTls"))
             .AddBackendTarget(target, ContainerApplicationResourceTypeProvider.ResourceTypeId)
             .WithProvider("traefik");
         graph
@@ -1768,7 +1776,7 @@ public sealed class ResourceGraphBuilderTests
 
         var template = graph.BuildTemplate("infrastructure", environmentId: "local");
 
-        Assert.Equal(5, template.Resources.Count);
+        Assert.Equal(6, template.Resources.Count);
         Assert.Contains(template.Resources, resource =>
             resource.EffectiveResourceId == ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId);
         var loadBalancer = Assert.Single(template.Resources, resource =>
@@ -1778,6 +1786,12 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal("cloudshell.loadBalancer:edge", loadBalancer.EffectiveResourceId);
         Assert.Equal("traefik", loadBalancer.ResourceAttributeValues[
             LoadBalancerResourceTypeProvider.Attributes.Provider].StringValue);
+        var entrypoint = Assert.Single(loadBalancer.ResourceAttributeValues[
+                LoadBalancerResourceTypeProvider.Attributes.Entrypoints]
+            .ToObject<LoadBalancerEntrypointValue[]>()!);
+        Assert.Equal("https", entrypoint.Name);
+        Assert.Equal("secrets.vault:edge-certificates", entrypoint.CertificateRef?.VaultResourceId);
+        Assert.Equal("EdgeTls", entrypoint.CertificateRef?.Name);
         Assert.Equal(host.EffectiveResourceId, loadBalancer.ResourceAttributeValues[
             LoadBalancerResourceTypeProvider.Attributes.HostResourceId].StringValue);
         Assert.Equal(

@@ -24,6 +24,11 @@ on `git blame --follow`, and then by the broad type of change.
   cross-language launcher authoring helpers, safe certificate counts/metadata,
   and export stripping so certificate payloads do not become accepted graph
   state; see ADR-20260704-001.
+- Added Resource Manager certificate management for graph-backed Secrets Vault
+  resources, including upload/paste support, one-click self-signed development
+  certificate generation, masked preservation of existing values, and load
+  balancer HTTPS entrypoint certificate references that validate the target
+  vault without projecting certificate material through the load balancer.
 - Added a RabbitMQ credential endpoint that lets workloads present their
   CloudShell resource identity token, request access to a target RabbitMQ
   resource, and receive grant-derived RabbitMQ-native credentials after the

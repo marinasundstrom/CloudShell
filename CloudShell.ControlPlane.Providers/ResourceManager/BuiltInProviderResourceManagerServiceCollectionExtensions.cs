@@ -207,6 +207,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
                 SecretsVaultResourceManagerAttributeProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerAttributeProvider,
+                LoadBalancerResourceManagerAttributeProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerParentProvider,
                 NameMappingResourceManagerProjectionProvider>());
         services.TryAddEnumerable(

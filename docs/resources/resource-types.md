@@ -753,6 +753,9 @@ Use for a Secrets Vault service. Seed secrets are create-only and are not
 retained as accepted graph state or emitted by default export. Seed
 certificates follow the same rule: certificate payloads are materialized into
 provider-owned vault state and stripped before graph state is accepted.
+Runtime certificates can also be uploaded, pasted, or generated from the
+Secrets Vault Certificates tab when the UI host has access to the provider
+runtime manager.
 
 Common optional attributes:
 
@@ -1106,6 +1109,9 @@ resources:
 ### `cloudshell.loadBalancer`
 
 Use for a load balancer resource with frontend entrypoints and backend routes.
+HTTPS entrypoints can include a `certificateRef` that points at a
+`secrets.vault` certificate by vault resource ID, certificate name, and
+optional version. The certificate payload remains in the vault.
 
 Common optional attributes:
 
@@ -1131,15 +1137,18 @@ resources:
       provider: logical
       hostResourceId: docker.host:local
       entrypointDefinitions:
-        - name: http
-          protocol: Http
-          port: 80
+        - name: https
+          protocol: Https
+          port: 443
           exposure: Public
+          certificateRef:
+            vaultResourceId: secrets.vault:secrets
+            name: AppTls
       routeDefinitions:
         - id: public-api
           name: Public API
           kind: Http
-          entrypointName: http
+          entrypointName: https
           match:
             host: api.local.test
           target:

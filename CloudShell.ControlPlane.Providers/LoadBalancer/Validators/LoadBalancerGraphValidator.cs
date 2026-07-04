@@ -91,6 +91,11 @@ public sealed class LoadBalancerGraphValidator : IResourceDefinitionGraphValidat
                 group => group.First(),
                 StringComparer.OrdinalIgnoreCase);
 
+        foreach (var entrypoint in entrypoints)
+        {
+            ValidateEntrypointCertificate(resource, context, entrypoint, diagnostics);
+        }
+
         foreach (var route in routes)
         {
             ValidateRouteTarget(resource, context, route, diagnostics);
@@ -177,6 +182,66 @@ public sealed class LoadBalancerGraphValidator : IResourceDefinitionGraphValidat
         }
 
         ValidateRouteTargetEndpoint(resource, target, route, diagnostics);
+    }
+
+    private static void ValidateEntrypointCertificate(
+        Resource resource,
+        ResourceDefinitionGraphValidationContext context,
+        LoadBalancerEntrypointValue entrypoint,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (entrypoint.CertificateRef is null)
+        {
+            return;
+        }
+
+        if (!Enum.TryParse<ResourceEndpointProtocol>(
+                entrypoint.Protocol.Trim(),
+                ignoreCase: true,
+                out var protocol) ||
+            protocol != ResourceEndpointProtocol.Https)
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.AttributeValueInvalid,
+                $"Load balancer '{resource.EffectiveResourceId}' entrypoint '{entrypoint.Name}' declares a certificate reference but uses protocol '{entrypoint.Protocol}'. Certificates are only valid for HTTPS entrypoints.",
+                resource.EffectiveResourceId));
+        }
+
+        var certificate = entrypoint.CertificateRef;
+        if (string.IsNullOrWhiteSpace(certificate.VaultResourceId))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.ResourceReferenceMissing,
+                $"Load balancer '{resource.EffectiveResourceId}' entrypoint '{entrypoint.Name}' certificate reference must include a vault resource id.",
+                resource.EffectiveResourceId));
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(certificate.Name))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.AttributeValueInvalid,
+                $"Load balancer '{resource.EffectiveResourceId}' entrypoint '{entrypoint.Name}' certificate reference must include a certificate name.",
+                resource.EffectiveResourceId));
+        }
+
+        var vault = context.FindResource(certificate.VaultResourceId.Trim());
+        if (vault is null)
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.ResourceReferenceMissing,
+                $"Load balancer '{resource.EffectiveResourceId}' entrypoint '{entrypoint.Name}' references missing certificate vault '{certificate.VaultResourceId}'.",
+                resource.EffectiveResourceId));
+            return;
+        }
+
+        if (vault.Type.TypeId != SecretsVaultResourceTypeProvider.ResourceTypeId)
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                ResourceDefinitionDiagnosticCodes.ResourceReferenceTypeMismatch,
+                $"Load balancer '{resource.EffectiveResourceId}' entrypoint '{entrypoint.Name}' references resource '{vault.EffectiveResourceId}' with type '{vault.Type.TypeId}', expected '{SecretsVaultResourceTypeProvider.ResourceTypeId}'.",
+                resource.EffectiveResourceId));
+        }
     }
 
     private static void ValidateRouteTargetEndpoint(

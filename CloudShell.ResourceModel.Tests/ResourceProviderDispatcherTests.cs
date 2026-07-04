@@ -1128,6 +1128,77 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddLoadBalancerResourceType_RejectsInvalidCertificateEntrypointReferences()
+    {
+        var services = new ServiceCollection();
+        services.AddLoadBalancerResourceType();
+        services.AddSecretsVaultResourceType();
+        services.AddConfigurationStoreResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var vault = new ResourceDefinition(
+            "edge-certificates",
+            SecretsVaultResourceTypeProvider.ResourceTypeId);
+        var wrongType = new ResourceDefinition(
+            "settings",
+            ConfigurationStoreResourceTypeProvider.ResourceTypeId);
+        var definition = new ResourceDefinition(
+            "edge",
+            LoadBalancerResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [LoadBalancerResourceTypeProvider.Attributes.Entrypoints] =
+                    ResourceAttributeValue.FromObject(new[]
+                    {
+                        new LoadBalancerEntrypointValue(
+                            "web",
+                            ResourceEndpointProtocol.Http.ToString(),
+                            8080,
+                            CertificateRef: new LoadBalancerCertificateReferenceValue(
+                                vault.EffectiveResourceId,
+                                "EdgeTls")),
+                        new LoadBalancerEntrypointValue(
+                            "https",
+                            ResourceEndpointProtocol.Https.ToString(),
+                            8443,
+                            CertificateRef: new LoadBalancerCertificateReferenceValue(
+                                wrongType.EffectiveResourceId,
+                                "Wrong")),
+                        new LoadBalancerEntrypointValue(
+                            "missing",
+                            ResourceEndpointProtocol.Https.ToString(),
+                            9443,
+                            CertificateRef: new LoadBalancerCertificateReferenceValue(
+                                "secrets.vault:missing",
+                                "Missing"))
+                    })
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphValidationPipeline>()
+            .ValidateAsync(
+                new ResourceDefinitionGraph([vault, wrongType, definition]),
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.True(validation.HasErrors);
+        Assert.Contains(validation.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.AttributeValueInvalid &&
+            diagnostic.Message.Contains(
+                "Certificates are only valid for HTTPS entrypoints",
+                StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(validation.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceReferenceTypeMismatch &&
+            diagnostic.Message.Contains(
+                $"expected '{SecretsVaultResourceTypeProvider.ResourceTypeId}'",
+                StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(validation.Diagnostics, diagnostic =>
+            diagnostic.Code == ResourceDefinitionDiagnosticCodes.ResourceReferenceMissing &&
+            diagnostic.Message.Contains(
+                "references missing certificate vault",
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task AddLoadBalancerResourceType_RejectsRoutesWithMissingTargetResources()
     {
         var services = new ServiceCollection();

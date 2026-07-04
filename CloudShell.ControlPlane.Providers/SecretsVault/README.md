@@ -25,8 +25,10 @@
 - Certificate references, create-only `seed.certificates` values, protected
   service reads, and provider-owned runtime certificate storage. Certificate
   payloads follow the same redaction/export rules as secret values while
-  retaining certificate-specific references and metadata for future TLS
-  bindings.
+  retaining certificate-specific references and metadata for TLS bindings.
+- Resource Manager Certificates tab for uploading, pasting, removing, and
+  generating provider-owned runtime certificates. Existing values are masked in
+  the UI and preserved unless replaced.
 - Manual `ResourceGraphBuilder.AddSecretsVault(...)` builder for
   code-first resource and endpoint declaration, including create-only
   `seed.secrets` and `seed.certificates` attributes for development templates.
@@ -87,15 +89,17 @@ Ready to integrate for graph-declared Secrets Vault resources in the selected
 samples. The graph path starts the backing service, projects endpoint/count,
 supports inspect, monitoring, health/liveness, and authorized reads without
 placing secret or certificate values in exported graph attributes. Runtime
-secrets can be managed through Resource Manager when the UI host has access to
-the provider runtime manager. Runtime certificates currently use seed/API
-paths only; certificate management UI and TLS binding UI are deferred. Durable
-secret storage, log streaming, permission-protected import/export, versioning,
-and full registration/update flows remain outside the switch gate.
+secrets and certificates can be managed through Resource Manager when the UI
+host has access to the provider runtime manager. Load balancer HTTPS
+entrypoints can reference vault certificates without copying certificate
+material into the load balancer resource. Durable secret storage, log
+streaming, permission-protected import/export, versioning, provider-specific
+TLS materialization, and full registration/update flows remain outside the
+switch gate.
 
 ## Remaining
 
 - Durable secret storage.
-- Certificate management UI and TLS/HTTPS binding consumers.
+- Provider-specific TLS/HTTPS certificate materialization and renewal flows.
 - Logs, permission-protected secret/certificate import/export, and versioning.
 - Full UI registration/update flow.

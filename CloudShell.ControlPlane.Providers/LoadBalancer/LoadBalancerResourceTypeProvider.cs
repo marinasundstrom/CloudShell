@@ -121,7 +121,7 @@ public sealed class LoadBalancerResourceTypeProvider :
         return ValueTask.FromResult(diagnostics.Any(diagnostic =>
             diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error)
                 ? ResourceChangeApplyResult.Rejected(changes, diagnostics)
-                : new ResourceChangeApplyResult(changes, changes.ProposedState, diagnostics));
+                : new ResourceChangeApplyResult(changes, DeriveProviderManagedState(changes.ProposedState), diagnostics));
     }
 
     public bool CanPlan(Resource resource) =>
@@ -173,6 +173,29 @@ public sealed class LoadBalancerResourceTypeProvider :
             Attributes.EndpointCount,
             diagnostics);
         return diagnostics;
+    }
+
+    private static ResourceState DeriveProviderManagedState(ResourceState state)
+    {
+        var entrypoints = state.ResourceAttributeValues
+            .GetObject<LoadBalancerEntrypointValue[]>(
+                Attributes.Entrypoints) ?? [];
+        var routes = state.ResourceAttributeValues
+            .GetObject<LoadBalancerRouteValue[]>(
+                Attributes.Routes) ?? [];
+        var attributes = state.ResourceAttributeValues.ToDictionary();
+        attributes[Attributes.EntrypointCount] = ResourceAttributeValue.Integer(entrypoints.Length);
+        attributes[Attributes.RouteCount] = ResourceAttributeValue.Integer(routes.Length);
+        attributes[Attributes.HttpRouteCount] = ResourceAttributeValue.Integer(routes.Count(route =>
+            string.Equals(route.Kind, "Http", StringComparison.OrdinalIgnoreCase)));
+        attributes[Attributes.TcpRouteCount] = ResourceAttributeValue.Integer(routes.Count(route =>
+            string.Equals(route.Kind, "Tcp", StringComparison.OrdinalIgnoreCase)));
+        attributes[Attributes.EndpointCount] = ResourceAttributeValue.Integer(entrypoints.Length);
+
+        return state with
+        {
+            Attributes = new ResourceAttributeValueMap(attributes)
+        };
     }
 
     private static IReadOnlyList<ResourceDefinitionDiagnostic> ValidateExplicitState(

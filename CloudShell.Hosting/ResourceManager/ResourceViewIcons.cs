@@ -33,6 +33,7 @@ internal static class ResourceViewIcons
             "scaling" or "scale" => new Icons.Regular.Size20.ChartMultiple(),
             "entries" => new Icons.Regular.Size20.DocumentBulletList(),
             "secrets" => new Icons.Regular.Size20.KeyMultiple(),
+            "certificates" or "certificate" => new Icons.Regular.Size20.Certificate(),
             "database-item" or "databases" => new Icons.Regular.Size20.Database(),
             "queue" or "broker" => new Icons.Regular.Size20.DataHistogram(),
             _ => CloudShell.Components.ResourceTypeIcons.FromName(normalized)

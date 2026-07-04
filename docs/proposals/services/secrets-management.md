@@ -5,10 +5,11 @@
 In progress.
 
 The first built-in Secrets Vault slice, resource-assignment path, template
-export behavior, and Resource Manager vault UI are in place. Remaining work is
-focused on broader assignment UI coverage, in-process secret loading, rotation
-semantics, and alignment with the identity and permissions foundation for
-service-to-service access.
+export behavior, Resource Manager vault UI, certificate management UI, and the
+first load-balancer certificate-reference consumer are in place. Remaining
+work is focused on broader assignment UI coverage, in-process secret loading,
+rotation semantics, provider-specific TLS materialization, and alignment with
+the identity and permissions foundation for service-to-service access.
 
 This proposal covers configuration references, secret references, certificate
 references, and Secrets Vault integration. CloudShell should provide the
@@ -374,6 +375,6 @@ app settings for non-secret values and vault-backed references for secrets.
   referenced values.
 - Decide how secret and certificate references should be versioned, rotated,
   and refreshed for already-running resources.
-- Add certificate management UI, TLS/HTTPS binding consumers, and future
+- Add provider-specific TLS/HTTPS certificate materialization and future
   issuer/renewal flows.
 - Add a separate secrets client/provider for in-process secret loading.
