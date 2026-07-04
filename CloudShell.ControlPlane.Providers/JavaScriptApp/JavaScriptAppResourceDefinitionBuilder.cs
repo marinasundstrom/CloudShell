@@ -31,7 +31,7 @@ public sealed class JavaScriptAppResourceDefinitionBuilder(string name) :
     public JavaScriptAppResourceDefinitionBuilder WithServiceDiscoveryName(string name) =>
         SetScalarAttribute(JavaScriptAppResourceTypeProvider.Attributes.ServiceDiscoveryName, name);
 
-    public JavaScriptAppResourceDefinitionBuilder AsContainer(
+    public JavaScriptAppResourceDefinitionBuilder AsContainerApp(
         string? image = null,
         string? registry = null,
         string? tag = null,

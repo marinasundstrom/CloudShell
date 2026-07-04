@@ -136,6 +136,37 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     }
 
     [Fact]
+    public async Task RuntimeBridge_StartBuildsJavaProjectBeforeDockerBuildForContainerApp()
+    {
+        var commandRunner = new RecordingCommandRunner();
+        var bridge = CreateRuntimeBridge(
+            commandRunner,
+            CreateConfiguration(replicaCleanupLimit: 1),
+            options: new LocalDockerContainerApplicationRuntimeOptions());
+        var resource = await CreateGraphAppResourceAsync(
+            name: "api",
+            resourceId: "application.container-app:api",
+            replicas: 1,
+            containerBuildContext: "src/api",
+            javaProjectPath: "src/api",
+            javaBuildTool: JavaAppBuildTools.Maven,
+            javaBuildArguments: "clean package -DskipTests");
+
+        var diagnostics = await bridge.ExecuteLifecycleAsync(
+            resource,
+            ContainerApplicationResourceTypeProvider.Operations.Start);
+
+        Assert.Empty(diagnostics);
+        Assert.True(commandRunner.Commands.Count >= 2);
+        Assert.Equal("mvn", commandRunner.Commands[0].FileName);
+        Assert.Equal(["clean", "package", "-DskipTests"], commandRunner.Commands[0].Arguments);
+        Assert.Equal("src/api", commandRunner.Commands[0].WorkingDirectory);
+        Assert.Equal("docker", commandRunner.Commands[1].FileName);
+        Assert.Equal("build", commandRunner.Commands[1].Arguments[0]);
+        Assert.Contains("src/api", commandRunner.Commands[1].Arguments);
+    }
+
+    [Fact]
     public async Task RuntimeBridge_DefaultConfigurationScopesDockerNamesByHostInstance()
     {
         var firstBridge = CreateRuntimeBridge(
@@ -1002,7 +1033,11 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         bool includeHealthChecks = false,
         bool includeCookieSessionAffinity = false,
         IReadOnlyList<NetworkingEndpointRequestValue>? endpointRequests = null,
-        string? projectPath = null)
+        string? projectPath = null,
+        string? containerBuildContext = null,
+        string? javaProjectPath = null,
+        string? javaBuildTool = null,
+        string? javaBuildArguments = null)
     {
         var operationProviders = CreateContainerApplicationOperationProviders();
         var pipeline = new ResourceDefinitionValidationPipeline(
@@ -1048,6 +1083,27 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
         if (!string.IsNullOrWhiteSpace(projectPath))
         {
             attributes[ResourceAttributeId.Create(ResourceAttributeNames.ProjectPath)] = projectPath;
+        }
+
+        if (!string.IsNullOrWhiteSpace(containerBuildContext))
+        {
+            attributes[ContainerApplicationResourceTypeProvider.Attributes.ContainerBuildContext] =
+                containerBuildContext;
+        }
+
+        if (!string.IsNullOrWhiteSpace(javaProjectPath))
+        {
+            attributes[JavaAppResourceTypeProvider.Attributes.ProjectPath] = javaProjectPath;
+        }
+
+        if (!string.IsNullOrWhiteSpace(javaBuildTool))
+        {
+            attributes[JavaAppResourceTypeProvider.Attributes.BuildTool] = javaBuildTool;
+        }
+
+        if (!string.IsNullOrWhiteSpace(javaBuildArguments))
+        {
+            attributes[JavaAppResourceTypeProvider.Attributes.BuildArguments] = javaBuildArguments;
         }
 
         var result = await pipeline.ValidateAsync(
@@ -1607,25 +1663,28 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
             string fileName,
             IReadOnlyList<string> arguments,
             bool throwOnError = true,
-            TimeSpan? timeout = null) =>
-            RunCore(fileName, arguments, throwOnError);
+            TimeSpan? timeout = null,
+            string? workingDirectory = null) =>
+            RunCore(fileName, arguments, throwOnError, workingDirectory);
 
         public Task<LocalContainerApplicationCommandResult> RunAsync(
             string fileName,
             IReadOnlyList<string> arguments,
             CancellationToken cancellationToken,
             bool throwOnError = true,
-            TimeSpan? timeout = null)
+            TimeSpan? timeout = null,
+            string? workingDirectory = null)
         {
-            return Task.FromResult(RunCore(fileName, arguments, throwOnError));
+            return Task.FromResult(RunCore(fileName, arguments, throwOnError, workingDirectory));
         }
 
         private LocalContainerApplicationCommandResult RunCore(
             string fileName,
             IReadOnlyList<string> arguments,
-            bool throwOnError)
+            bool throwOnError,
+            string? workingDirectory)
         {
-            Commands.Add(new(fileName, arguments.ToArray(), throwOnError));
+            Commands.Add(new(fileName, arguments.ToArray(), throwOnError, workingDirectory));
             var result = _results.Count == 0
                 ? new LocalContainerApplicationCommandResult(0, string.Empty, string.Empty)
                 : _results.Dequeue();
@@ -1641,5 +1700,6 @@ public sealed class ReplicatedContainerHealthContainerAppRuntimeHandlerTests
     private sealed record RecordingCommand(
         string FileName,
         IReadOnlyList<string> Arguments,
-        bool ThrowOnError);
+        bool ThrowOnError,
+        string? WorkingDirectory);
 }

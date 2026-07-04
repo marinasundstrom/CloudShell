@@ -46,6 +46,32 @@ public final class CloudShellApp {
         return resource;
     }
 
+    public JavaAppResource addJavaMavenApp(String name, String projectPath, String artifactPath) {
+        return addJavaMavenApp(name, projectPath, artifactPath, "package");
+    }
+
+    public JavaAppResource addJavaMavenApp(
+            String name,
+            String projectPath,
+            String artifactPath,
+            String buildArguments) {
+        return addJavaApp(name, projectPath, artifactPath)
+            .withMavenBuild(buildArguments);
+    }
+
+    public JavaAppResource addJavaGradleApp(String name, String projectPath, String artifactPath) {
+        return addJavaGradleApp(name, projectPath, artifactPath, "build");
+    }
+
+    public JavaAppResource addJavaGradleApp(
+            String name,
+            String projectPath,
+            String artifactPath,
+            String buildArguments) {
+        return addJavaApp(name, projectPath, artifactPath)
+            .withGradleBuild(buildArguments);
+    }
+
     public ConfigurationStoreResource addConfigurationStore(String name) {
         ConfigurationStoreResource resource = new ConfigurationStoreResource(name);
         resources.add(resource);

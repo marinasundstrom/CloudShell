@@ -55,7 +55,7 @@ of leaving the hosted process blocked on the watch prompt. Pass
 arguments. CloudShell appends those arguments after the hidden `dotnet` runner
 arguments.
 
-Use `AsContainer(...)` when the project should be modeled as a container app
+Use `AsContainerApp(...)` when the project should be modeled as a container app
 instead of a process-backed ASP.NET Core project:
 
 ```csharp
@@ -64,11 +64,11 @@ resources
         "example-web-api",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
     .WithDisplayName("Example Web API")
-    .AsContainer(registry: "registry.local:5000")
+    .AsContainerApp(registry: "registry.local:5000")
     .WithContainerHost("docker:dev");
 ```
 
-`AsContainer(...)` converts the projected resource to
+`AsContainerApp(...)` converts the projected resource to
 `application.container-app` while keeping the project path in the workload
 descriptor. When no Dockerfile is supplied, the default local runner publishes
 the project through the .NET SDK container publisher

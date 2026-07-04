@@ -9,14 +9,16 @@ public interface ILocalContainerApplicationCommandRunner
         string fileName,
         IReadOnlyList<string> arguments,
         bool throwOnError = true,
-        TimeSpan? timeout = null);
+        TimeSpan? timeout = null,
+        string? workingDirectory = null);
 
     Task<LocalContainerApplicationCommandResult> RunAsync(
         string fileName,
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken,
         bool throwOnError = true,
-        TimeSpan? timeout = null);
+        TimeSpan? timeout = null,
+        string? workingDirectory = null);
 }
 
 public sealed record LocalContainerApplicationCommandResult(
@@ -34,8 +36,9 @@ public sealed class ProcessLocalContainerApplicationCommandRunner :
         string fileName,
         IReadOnlyList<string> arguments,
         bool throwOnError = true,
-        TimeSpan? timeout = null) =>
-        RunAsync(fileName, arguments, CancellationToken.None, throwOnError, timeout)
+        TimeSpan? timeout = null,
+        string? workingDirectory = null) =>
+        RunAsync(fileName, arguments, CancellationToken.None, throwOnError, timeout, workingDirectory)
             .ConfigureAwait(false)
             .GetAwaiter()
             .GetResult();
@@ -45,7 +48,8 @@ public sealed class ProcessLocalContainerApplicationCommandRunner :
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken,
         bool throwOnError = true,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        string? workingDirectory = null)
     {
         var startInfo = new ProcessStartInfo(fileName)
         {
@@ -53,6 +57,11 @@ public sealed class ProcessLocalContainerApplicationCommandRunner :
             RedirectStandardOutput = true,
             UseShellExecute = false
         };
+        if (!string.IsNullOrWhiteSpace(workingDirectory))
+        {
+            startInfo.WorkingDirectory = workingDirectory;
+        }
+
         foreach (var argument in arguments)
         {
             startInfo.ArgumentList.Add(argument);

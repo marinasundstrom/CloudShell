@@ -554,7 +554,7 @@ resources
         "example-web-api",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
     .WithDisplayName("Example Web API")
-    .AsContainer()
+    .AsContainerApp()
     .WithReference(configuration)
     .WithReference(redis)
     .DependsOn(redis);
@@ -784,7 +784,7 @@ that configured default as an implicit container-host resource in the realized
 environment model. `UseContainerHost(...)` can register an explicit configured
 host when the app should target a non-default host.
 
-`AsContainer(...)` is the project-to-container hook for app resources. It
+`AsContainerApp(...)` is the project-to-container hook for app resources. It
 converts the projected resource to an `application.container-app` while
 preserving project metadata in the workload descriptor. The provider for the
 authored app owns the packaging strategy. ASP.NET Core can use the .NET SDK

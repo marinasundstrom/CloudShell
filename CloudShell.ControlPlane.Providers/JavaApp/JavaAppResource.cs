@@ -13,6 +13,14 @@ public sealed class JavaAppResource(
         Resource.Attributes.GetString(
             JavaAppResourceTypeProvider.Attributes.Command);
 
+    public string? BuildTool =>
+        Resource.Attributes.GetString(
+            JavaAppResourceTypeProvider.Attributes.BuildTool);
+
+    public string? BuildArguments =>
+        Resource.Attributes.GetString(
+            JavaAppResourceTypeProvider.Attributes.BuildArguments);
+
     public string? ArtifactPath =>
         Resource.Attributes.GetString(
             JavaAppResourceTypeProvider.Attributes.ArtifactPath);

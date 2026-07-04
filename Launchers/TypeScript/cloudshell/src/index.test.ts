@@ -236,3 +236,60 @@ test("builds a Java app resource template", () => {
     ]
   });
 });
+
+test("builds Java Maven app as a container app", () => {
+  const app = cloudshell("java-container-hosting-poc");
+
+  app
+    .addJavaMavenApp(
+      "java-api",
+      "samples/JavaApp/App",
+      "target/cloudshell-java-app-sample.jar",
+      "clean package -DskipTests")
+    .withHttpEndpoint({
+      host: "localhost",
+      port: 5185,
+      targetPort: 8080
+    })
+    .asContainerApp({
+      tag: "dev",
+      dockerfile: "Dockerfile"
+    });
+
+  const template = app.buildTemplate();
+  const java = template.resources.find(resource => resource.name === "java-api")!;
+
+  assert.equal(java.type, "application.container-app");
+  assert.equal(java.providerId, "applications.container-app");
+  assert.equal(java.resourceId, "application.container-app:java-api");
+  assert.deepEqual(java.java, {
+    command: "java",
+    artifactPath: "target/cloudshell-java-app-sample.jar",
+    buildTool: "maven",
+    buildArguments: "clean package -DskipTests"
+  });
+  assert.deepEqual(java.container, {
+    image: "cloudshell-java-java-api:dev",
+    replicas: 1,
+    buildContext: "samples/JavaApp/App",
+    dockerfile: "Dockerfile",
+    endpointRequests: [
+      {
+        name: "http",
+        protocol: "http",
+        targetPort: 8080,
+        host: "localhost",
+        port: 5185,
+        exposure: "Local",
+        network: {
+          resourceId: "network:host",
+          relationship: "reference",
+          addressingMode: "resourceId",
+          typeId: "cloudshell.network",
+          providerId: "cloudshell.network"
+        }
+      }
+    ]
+  });
+  assert.equal((java.project as { endpointRequests?: unknown }).endpointRequests, undefined);
+});

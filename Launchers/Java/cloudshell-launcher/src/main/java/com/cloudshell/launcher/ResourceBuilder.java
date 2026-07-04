@@ -9,8 +9,8 @@ import java.util.List;
 
 public abstract class ResourceBuilder<T extends ResourceBuilder<T>> {
     private final String name;
-    private final String type;
-    private final String providerId;
+    private String type;
+    private String providerId;
     private final List<ResourceReferenceValue> dependencies = new ArrayList<>();
     private String resourceId;
     private String displayName;
@@ -65,6 +65,15 @@ public abstract class ResourceBuilder<T extends ResourceBuilder<T>> {
     abstract String toJson(int indent);
 
     protected abstract T self();
+
+    protected final void projectAsContainerApp() {
+        String previousDefaultResourceId = type + ":" + name;
+        type = "application.container-app";
+        providerId = "applications.container-app";
+        if (resourceId == null || resourceId.equalsIgnoreCase(previousDefaultResourceId)) {
+            resourceId = type + ":" + name;
+        }
+    }
 
     protected final void appendCommon(StringBuilder builder, int indent) {
         property(builder, indent, "name", json(name), true);

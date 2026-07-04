@@ -35,7 +35,7 @@ public final class CloudShellAppTest {
             .withEndpoint("http://localhost:6104")
             .withSecret("Sample--ApiKey", "java-secret", "v1");
 
-        app.addJavaApp("api", "samples/JavaApp/App", "target/app.jar")
+        app.addJavaMavenApp("api", "samples/JavaApp/App", "target/app.jar", "clean package -DskipTests")
             .withDisplayName("Java API")
             .withServiceDiscovery()
             .withEnvironmentVariable("PORT", "5186")
@@ -51,6 +51,8 @@ public final class CloudShellAppTest {
         String json = app.toJson();
         assertContains(json, "\"type\": \"application.java-app\"");
         assertContains(json, "\"providerId\": \"applications.java-app\"");
+        assertContains(json, "\"buildTool\": \"maven\"");
+        assertContains(json, "\"buildArguments\": \"clean package -DskipTests\"");
         assertContains(json, "\"resourceId\": \"configuration.store:settings\"");
         assertContains(json, "\"providerId\": \"secrets-vault\"");
         assertContains(json, "\"seed\": {");
@@ -70,11 +72,32 @@ public final class CloudShellAppTest {
         app.addJavaApp("worker", "samples/JavaApp/App", "target/worker.jar")
             .dependsOn(settings)
             .dependsOn("secrets.vault:external");
+        app.addJavaGradleApp("gradle-worker", "samples/JavaApp/App", "build/libs/worker.jar");
 
         String dependencyJson = app.toJson();
         assertContains(dependencyJson, "\"dependsOn\": [");
         assertContains(dependencyJson, "\"relationship\": \"dependsOn\"");
         assertContains(dependencyJson, "\"resourceId\": \"secrets.vault:external\"");
+        assertContains(dependencyJson, "\"buildTool\": \"gradle\"");
+        assertContains(dependencyJson, "\"buildArguments\": \"build\"");
+
+        CloudShellApp containerApp = CloudShellApp.create("java-container-test");
+        NetworkResource containerNetwork = containerApp.addNetwork("host")
+            .withResourceId("network:host")
+            .withNetworkKind("Host");
+        containerApp.addJavaMavenApp("api", "samples/JavaApp/App", "target/app.jar", "clean package")
+            .withHttpEndpoint("localhost", 5185, 8080, containerNetwork)
+            .asContainerApp("dev", "Dockerfile");
+        String containerJson = containerApp.toJson();
+        assertContains(containerJson, "\"type\": \"application.container-app\"");
+        assertContains(containerJson, "\"providerId\": \"applications.container-app\"");
+        assertContains(containerJson, "\"resourceId\": \"application.container-app:api\"");
+        assertContains(containerJson, "\"buildTool\": \"maven\"");
+        assertContains(containerJson, "\"buildArguments\": \"clean package\"");
+        assertContains(containerJson, "\"container\": {");
+        assertContains(containerJson, "\"image\": \"cloudshell-java-api:dev\"");
+        assertContains(containerJson, "\"buildContext\": \"samples/JavaApp/App\"");
+        assertContains(containerJson, "\"dockerfile\": \"Dockerfile\"");
     }
 
     private static void buildsApplyAndStartCommands() {

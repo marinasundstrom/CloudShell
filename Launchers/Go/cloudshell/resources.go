@@ -77,6 +77,15 @@ func (r *baseResource) dependsOnResourceID(resourceID string) {
 	})
 }
 
+func (r *baseResource) projectAsContainerApp() {
+	previousDefaultResourceID := r.typeID + ":" + r.name
+	r.typeID = "application.container-app"
+	r.providerID = "applications.container-app"
+	if r.resourceID == "" || strings.EqualFold(r.resourceID, previousDefaultResourceID) {
+		r.resourceID = r.typeID + ":" + r.name
+	}
+}
+
 func (r *baseResource) commonDocument() map[string]any {
 	document := map[string]any{
 		"name":       r.name,

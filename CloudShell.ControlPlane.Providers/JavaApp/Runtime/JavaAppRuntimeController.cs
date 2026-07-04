@@ -210,6 +210,16 @@ public sealed class JavaAppProcessRuntimeController(
             _ => new BoundedRuntimeOutputBuffer());
         output.Clear();
 
+        var buildDiagnostics = await BuildProjectAsync(
+            resource,
+            fullProjectPath,
+            output,
+            cancellationToken);
+        if (buildDiagnostics.Count > 0)
+        {
+            return buildDiagnostics;
+        }
+
         var derivedEnvironmentVariables =
             await ResolveRuntimeEnvironmentVariablesAsync(resource, cancellationToken);
         var startInfo = _commands.CreateStartInfo(
@@ -260,6 +270,70 @@ public sealed class JavaAppProcessRuntimeController(
                 DisposeProcess(previous);
                 return process;
             });
+
+        return [];
+    }
+
+    private async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> BuildProjectAsync(
+        Resource resource,
+        string fullProjectPath,
+        BoundedRuntimeOutputBuffer output,
+        CancellationToken cancellationToken)
+    {
+        var startInfo = _commands.CreateBuildStartInfo(resource, fullProjectPath);
+        if (startInfo is null)
+        {
+            return [];
+        }
+
+        using var process = new Process
+        {
+            StartInfo = startInfo,
+            EnableRaisingEvents = true
+        };
+        process.OutputDataReceived += (_, data) =>
+            AppendOutput(output, data.Data, "build", "Information");
+        process.ErrorDataReceived += (_, data) =>
+            AppendOutput(output, data.Data, "build", "Error");
+
+        try
+        {
+            if (!process.Start())
+            {
+                return
+                [
+                    ResourceDefinitionDiagnostic.Error(
+                        "application.javaApp.buildStartFailed",
+                        $"Java app build for '{resource.EffectiveResourceId}' did not start.",
+                        resource.EffectiveResourceId)
+                ];
+            }
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return
+            [
+                ResourceDefinitionDiagnostic.Error(
+                    "application.javaApp.buildStartFailed",
+                    $"Java app build for '{resource.EffectiveResourceId}' did not start. {exception.Message}",
+                    resource.EffectiveResourceId)
+            ];
+        }
+
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+        await process.WaitForExitAsync(cancellationToken);
+
+        if (process.ExitCode != 0)
+        {
+            return
+            [
+                ResourceDefinitionDiagnostic.Error(
+                    "application.javaApp.buildFailed",
+                    $"Java app project '{fullProjectPath}' failed to build before starting '{resource.Name}'.",
+                    resource.EffectiveResourceId)
+            ];
+        }
 
         return [];
     }

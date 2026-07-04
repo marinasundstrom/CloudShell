@@ -51,6 +51,16 @@ on `git blame --follow`, and then by the broad type of change.
   workloads, including HTTP publish spans, RabbitMQ publish/consume spans, and
   RabbitMQ `traceparent` propagation so CloudShell can show correlated traces
   across both apps.
+- Added Maven and Gradle build-on-start support to `application.java-app`
+  resources as provider-owned Java app behavior, including
+  `AddJavaMavenApp(...)` and `AddJavaGradleApp(...)` C# builder shorthands,
+  Java launcher template emission, build output capture, Java build execution
+  before Docker image creation for `AsContainerApp(...)` projections, and
+  failed-build diagnostics that prevent the JVM process from starting.
+- Added `AsContainerApp(...)` as the preferred C# project-to-container builder
+  method for JavaScript, Java, and Go app resources, removed the older
+  `AsContainer(...)` methods, and updated in-repo samples, tests, and
+  documentation to use the more descriptive name.
 
 ### 2026-07-03
 

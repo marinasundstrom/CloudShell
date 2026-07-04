@@ -60,6 +60,15 @@ export interface EndpointRequestOptions {
   network?: ResourceHandle | string;
 }
 
+export interface ContainerAppOptions {
+  image?: string;
+  registry?: string;
+  tag?: string;
+  buildContext?: string;
+  dockerfile?: string;
+  replicas?: number;
+}
+
 export type EnvironmentVariableValue =
   | string
   | {
@@ -197,6 +206,24 @@ export class CloudShellApp {
     return builder;
   }
 
+  public addJavaMavenApp(
+    name: string,
+    projectPath: string,
+    artifactPath: string,
+    buildArguments: string = "package"): JavaAppResourceBuilder {
+    return this.addJavaApp(name, projectPath, artifactPath)
+      .withMavenBuild(buildArguments);
+  }
+
+  public addJavaGradleApp(
+    name: string,
+    projectPath: string,
+    artifactPath: string,
+    buildArguments: string = "build"): JavaAppResourceBuilder {
+    return this.addJavaApp(name, projectPath, artifactPath)
+      .withGradleBuild(buildArguments);
+  }
+
   public getDefaultNetwork(): NetworkResourceBuilder {
     const existing = this.resources.find(resource =>
       resource.effectiveResourceId.toLowerCase() === "network:host");
@@ -266,6 +293,8 @@ export class ResourceBuilder implements ResourceHandle {
   private graph?: CloudShellApp;
   private resourceId?: string;
   private displayName?: string;
+  private typeId: string;
+  private providerIdValue?: string;
   private readonly dependencies: ResourceReferenceDocument[] = [];
   private readonly attributes: Record<string, unknown> = {};
   private readonly capabilities: Record<string, unknown> = {};
@@ -274,10 +303,20 @@ export class ResourceBuilder implements ResourceHandle {
 
   public constructor(
     public readonly name: string,
-    public readonly type: string,
-    public readonly providerId?: string) {
+    type: string,
+    providerId?: string) {
     assertNotBlank(name, "Resource name is required.");
     assertNotBlank(type, "Resource type is required.");
+    this.typeId = type.trim();
+    this.providerIdValue = normalizeOptionalString(providerId);
+  }
+
+  public get type(): string {
+    return this.typeId;
+  }
+
+  public get providerId(): string | undefined {
+    return this.providerIdValue;
   }
 
   public get effectiveResourceId(): string {
@@ -370,6 +409,43 @@ export class ResourceBuilder implements ResourceHandle {
 
   protected defaultNetworkReference(): ResourceReferenceDocument | undefined {
     return this.graph?.getDefaultNetwork().asReference();
+  }
+
+  protected projectAsContainerApp(
+    image: string,
+    options: ContainerAppOptions = {},
+    sourceEndpointAttribute?: string,
+    endpointRequests: unknown[] = []): this {
+    const previousDefaultResourceId = `${this.typeId}:${this.name}`;
+    this.typeId = "application.container-app";
+    this.providerIdValue = "applications.container-app";
+    if (!this.resourceId || this.resourceId.toLowerCase() === previousDefaultResourceId.toLowerCase()) {
+      this.resourceId = `${this.typeId}:${this.name}`;
+    }
+
+    this.withAttribute("container.image", options.image ?? image);
+    this.withAttribute("container.replicas", options.replicas ?? 1);
+    if (options.registry) {
+      this.withAttribute("container.registry", options.registry);
+    }
+
+    if (options.buildContext) {
+      this.withAttribute("container.buildContext", options.buildContext);
+    }
+
+    if (options.dockerfile) {
+      this.withAttribute("container.dockerfile", options.dockerfile);
+    }
+
+    if (sourceEndpointAttribute) {
+      deleteDottedValue(this.attributes, sourceEndpointAttribute);
+    }
+
+    if (endpointRequests.length > 0) {
+      this.withAttribute("container.endpointRequests", endpointRequests);
+    }
+
+    return this;
   }
 }
 
@@ -498,12 +574,14 @@ export class JavaScriptAppResourceBuilder extends ResourceBuilder {
   private readonly environmentVariables: Record<string, unknown> = {};
   private readonly references: ResourceReferenceDocument[] = [];
   private readonly healthChecks: unknown[] = [];
+  private projectPath?: string;
 
   public constructor(name: string) {
     super(name, "application.javascript-app", "applications.javascript-app");
   }
 
   public withProjectPath(projectPath: string): this {
+    this.projectPath = projectPath;
     return this.withAttribute("project.path", projectPath);
   }
 
@@ -525,6 +603,17 @@ export class JavaScriptAppResourceBuilder extends ResourceBuilder {
 
   public withServiceDiscovery(name: string = this.name): this {
     return this.withAttribute("project.serviceDiscoveryName", name);
+  }
+
+  public asContainerApp(options: ContainerAppOptions = {}): this {
+    return this.projectAsContainerApp(
+      options.image ?? createDefaultContainerImage("javascript", this.name, options.tag),
+      {
+        ...options,
+        buildContext: options.buildContext ?? this.projectPath
+      },
+      "project.endpointRequests",
+      this.endpointRequests);
   }
 
   public withDefaultConsoleLogSource(format: "plainText" | "jsonConsole" = "plainText"): this {
@@ -631,12 +720,14 @@ export class JavaAppResourceBuilder extends ResourceBuilder {
   private readonly environmentVariables: Record<string, unknown> = {};
   private readonly references: ResourceReferenceDocument[] = [];
   private readonly healthChecks: unknown[] = [];
+  private projectPath?: string;
 
   public constructor(name: string) {
     super(name, "application.java-app", "applications.java-app");
   }
 
   public withProjectPath(projectPath: string): this {
+    this.projectPath = projectPath;
     return this.withAttribute("project.path", projectPath);
   }
 
@@ -664,8 +755,31 @@ export class JavaAppResourceBuilder extends ResourceBuilder {
     return this.withAttribute("java.arguments", args);
   }
 
+  public withMavenBuild(args: string = "package"): this {
+    return this
+      .withAttribute("java.buildTool", "maven")
+      .withAttribute("java.buildArguments", args);
+  }
+
+  public withGradleBuild(args: string = "build"): this {
+    return this
+      .withAttribute("java.buildTool", "gradle")
+      .withAttribute("java.buildArguments", args);
+  }
+
   public withServiceDiscovery(name: string = this.name): this {
     return this.withAttribute("project.serviceDiscoveryName", name);
+  }
+
+  public asContainerApp(options: ContainerAppOptions = {}): this {
+    return this.projectAsContainerApp(
+      options.image ?? createDefaultContainerImage("java", this.name, options.tag),
+      {
+        ...options,
+        buildContext: options.buildContext ?? this.projectPath
+      },
+      "project.endpointRequests",
+      this.endpointRequests);
   }
 
   public withDefaultConsoleLogSource(format: "plainText" | "jsonConsole" = "plainText"): this {
@@ -980,6 +1094,27 @@ function setDottedValue(
   current[segments[segments.length - 1]!] = value;
 }
 
+function deleteDottedValue(
+  target: Record<string, unknown>,
+  path: string): void {
+  const segments = path.split(".").map(segment => segment.trim()).filter(Boolean);
+  if (segments.length === 0) {
+    return;
+  }
+
+  let current = target;
+  for (let index = 0; index < segments.length - 1; index++) {
+    const child = current[segments[index]!];
+    if (!isRecord(child)) {
+      return;
+    }
+
+    current = child;
+  }
+
+  delete current[segments[segments.length - 1]!];
+}
+
 function mergeResourceAttributes(
   definition: ResourceDefinitionDocument,
   attributes: Record<string, unknown>): void {
@@ -1026,6 +1161,18 @@ function isEmpty(value: Record<string, unknown>): boolean {
 
 function normalizeOptionalString(value: string | undefined): string | undefined {
   return value && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function createDefaultContainerImage(
+  language: string,
+  name: string,
+  tag?: string): string {
+  const normalizedName = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "-")
+    .replace(/^-+|-+$/g, "") || "app";
+  return `cloudshell-${language}-${normalizedName}:${normalizeOptionalString(tag) ?? "dev"}`;
 }
 
 function assertNotBlank(value: string, message: string): void {

@@ -16,6 +16,14 @@ public final class JavaAppResource extends ResourceBuilder<JavaAppResource> {
     private final List<HealthCheck> healthChecks = new ArrayList<>();
     private EndpointRequest endpoint;
     private String serviceDiscoveryName;
+    private String buildTool;
+    private String buildArguments;
+    private boolean containerApp;
+    private String containerImage;
+    private String containerRegistry;
+    private String containerBuildContext;
+    private String containerDockerfile;
+    private int containerReplicas = 1;
     private boolean consoleLogs;
 
     JavaAppResource(String name, String projectPath, String artifactPath) {
@@ -31,6 +39,55 @@ public final class JavaAppResource extends ResourceBuilder<JavaAppResource> {
 
     public JavaAppResource withServiceDiscoveryName(String serviceDiscoveryName) {
         this.serviceDiscoveryName = serviceDiscoveryName;
+        return this;
+    }
+
+    public JavaAppResource withMavenBuild() {
+        return withMavenBuild("package");
+    }
+
+    public JavaAppResource withMavenBuild(String arguments) {
+        buildTool = "maven";
+        buildArguments = arguments;
+        return this;
+    }
+
+    public JavaAppResource withGradleBuild() {
+        return withGradleBuild("build");
+    }
+
+    public JavaAppResource withGradleBuild(String arguments) {
+        buildTool = "gradle";
+        buildArguments = arguments;
+        return this;
+    }
+
+    public JavaAppResource asContainerApp() {
+        return asContainerApp(null, null, null, null, null, 1);
+    }
+
+    public JavaAppResource asContainerApp(String tag, String dockerfile) {
+        return asContainerApp(null, null, tag, null, dockerfile, 1);
+    }
+
+    public JavaAppResource asContainerApp(
+        String image,
+        String registry,
+        String tag,
+        String buildContext,
+        String dockerfile,
+        int replicas) {
+        projectAsContainerApp();
+        containerApp = true;
+        containerImage = image == null || image.isBlank()
+            ? createDefaultContainerImage(tag)
+            : image;
+        containerRegistry = registry;
+        containerBuildContext = buildContext == null || buildContext.isBlank()
+            ? projectPath
+            : buildContext;
+        containerDockerfile = dockerfile;
+        containerReplicas = replicas <= 0 ? 1 : replicas;
         return this;
     }
 
@@ -89,7 +146,15 @@ public final class JavaAppResource extends ResourceBuilder<JavaAppResource> {
         appendCommon(builder, indent + 1);
         line(builder, indent + 1, "\"java\": {");
         property(builder, indent + 2, "command", json("java"), true);
-        property(builder, indent + 2, "artifactPath", json(artifactPath), false);
+        property(builder, indent + 2, "artifactPath", json(artifactPath), buildTool != null);
+        if (buildTool != null) {
+            property(builder, indent + 2, "buildTool", json(buildTool), buildArguments != null);
+        }
+
+        if (buildArguments != null) {
+            property(builder, indent + 2, "buildArguments", json(buildArguments), false);
+        }
+
         line(builder, indent + 1, "},");
         line(builder, indent + 1, "\"project\": {");
         property(builder, indent + 2, "path", json(projectPath), true);
@@ -98,12 +163,16 @@ public final class JavaAppResource extends ResourceBuilder<JavaAppResource> {
         }
 
         appendEnvironmentVariables(builder, indent + 2, true);
-        appendReferences(builder, indent + 2, references, endpoint != null);
-        if (endpoint != null) {
+        appendReferences(builder, indent + 2, references, !containerApp && endpoint != null);
+        if (!containerApp && endpoint != null) {
             endpoint.appendJson(builder, indent + 2);
         }
 
-        line(builder, indent + 1, "}" + (!healthChecks.isEmpty() || consoleLogs ? "," : ""));
+        line(builder, indent + 1, "}" + (containerApp || !healthChecks.isEmpty() || consoleLogs ? "," : ""));
+        if (containerApp) {
+            appendContainer(builder, indent + 1, !healthChecks.isEmpty() || consoleLogs);
+        }
+
         if (!healthChecks.isEmpty()) {
             appendHealth(builder, indent + 1, consoleLogs);
         }
@@ -119,6 +188,42 @@ public final class JavaAppResource extends ResourceBuilder<JavaAppResource> {
     @Override
     protected JavaAppResource self() {
         return this;
+    }
+
+    private void appendContainer(StringBuilder builder, int indent, boolean trailingComma) {
+        line(builder, indent, "\"container\": {");
+        property(builder, indent + 1, "image", json(containerImage), true);
+        property(builder, indent + 1, "replicas", Integer.toString(containerReplicas), containerRegistry != null || containerBuildContext != null || containerDockerfile != null || endpoint != null);
+        if (containerRegistry != null) {
+            property(builder, indent + 1, "registry", json(containerRegistry), containerBuildContext != null || containerDockerfile != null || endpoint != null);
+        }
+
+        if (containerBuildContext != null) {
+            property(builder, indent + 1, "buildContext", json(containerBuildContext), containerDockerfile != null || endpoint != null);
+        }
+
+        if (containerDockerfile != null) {
+            property(builder, indent + 1, "dockerfile", json(containerDockerfile), endpoint != null);
+        }
+
+        if (endpoint != null) {
+            endpoint.appendJson(builder, indent + 1);
+        }
+
+        line(builder, indent, "}" + (trailingComma ? "," : ""));
+    }
+
+    private String createDefaultContainerImage(String tag) {
+        String normalized = name()
+            .trim()
+            .toLowerCase()
+            .replaceAll("[^a-z0-9]", "-")
+            .replaceAll("^-+|-+$", "");
+        if (normalized.isBlank()) {
+            normalized = "app";
+        }
+
+        return "cloudshell-java-" + normalized + ":" + (tag == null || tag.isBlank() ? "dev" : tag.trim());
     }
 
     private void appendHealth(StringBuilder builder, int indent, boolean trailingComma) {

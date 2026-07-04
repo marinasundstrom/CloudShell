@@ -129,7 +129,7 @@ public sealed class ResourceGraphBuilderTests
         graph.AddContainerApplication("frontend");
         graph
             .AddJavaScriptApp("frontend", "src/frontend")
-            .AsContainer(dockerfile: "Dockerfile");
+            .AsContainerApp(dockerfile: "Dockerfile");
 
         var exception = Assert.Throws<InvalidOperationException>(() => graph.BuildGraph());
 
@@ -1336,7 +1336,7 @@ public sealed class ResourceGraphBuilderTests
                 port: 5173,
                 targetPort: 8080,
                 host: "localhost")
-            .AsContainer(tag: "dev", dockerfile: "Dockerfile")
+            .AsContainerApp(tag: "dev", dockerfile: "Dockerfile")
             .WithReplicas(3);
 
         var template = graph.BuildTemplate("javascript-container-app", environmentId: "local");
@@ -1393,7 +1393,7 @@ public sealed class ResourceGraphBuilderTests
         var app = graph
             .AddJavaScriptApp("frontend", "src/frontend")
             .WithReplicas(3)
-            .AsContainer(tag: "dev", dockerfile: "Dockerfile");
+            .AsContainerApp(tag: "dev", dockerfile: "Dockerfile");
 
         var template = graph.BuildTemplate("javascript-container-app", environmentId: "local");
 
@@ -1419,7 +1419,7 @@ public sealed class ResourceGraphBuilderTests
             .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/entries");
 
         graph
-            .AddJavaApp("api", "src/api", "target/app.jar")
+            .AddJavaMavenApp("api", "src/api", "target/app.jar", "clean package -DskipTests")
             .WithJvmArguments("-Xmx256m")
             .WithArguments("--spring.profiles.active=dev")
             .WithServiceDiscovery()
@@ -1445,6 +1445,10 @@ public sealed class ResourceGraphBuilderTests
             JavaAppResourceTypeProvider.Attributes.Command].StringValue);
         Assert.Equal("target/app.jar", app.ResourceAttributeValues[
             JavaAppResourceTypeProvider.Attributes.ArtifactPath].StringValue);
+        Assert.Equal(JavaAppBuildTools.Maven, app.ResourceAttributeValues[
+            JavaAppResourceTypeProvider.Attributes.BuildTool].StringValue);
+        Assert.Equal("clean package -DskipTests", app.ResourceAttributeValues[
+            JavaAppResourceTypeProvider.Attributes.BuildArguments].StringValue);
         Assert.Equal("-Xmx256m", app.ResourceAttributeValues[
             JavaAppResourceTypeProvider.Attributes.JvmArguments].StringValue);
         Assert.Equal("--spring.profiles.active=dev", app.ResourceAttributeValues[
@@ -1488,17 +1492,35 @@ public sealed class ResourceGraphBuilderTests
     }
 
     [Fact]
+    public void ResourceGraphBuilder_BuildsJavaGradleAppDefinition()
+    {
+        var graph = new ResourceGraphBuilder();
+
+        graph.AddJavaGradleApp("worker", "src/worker", "build/libs/worker.jar");
+
+        var template = graph.BuildTemplate("java-gradle-app", environmentId: "local");
+
+        var app = Assert.Single(template.Resources, resource =>
+            resource.TypeId == JavaAppResourceTypeProvider.ResourceTypeId);
+        Assert.Equal("application.java-app:worker", app.EffectiveResourceId);
+        Assert.Equal(JavaAppBuildTools.Gradle, app.ResourceAttributeValues[
+            JavaAppResourceTypeProvider.Attributes.BuildTool].StringValue);
+        Assert.Equal("build", app.ResourceAttributeValues[
+            JavaAppResourceTypeProvider.Attributes.BuildArguments].StringValue);
+    }
+
+    [Fact]
     public void ResourceGraphBuilder_BuildsJavaAppAsContainerDefinition()
     {
         var graph = new ResourceGraphBuilder();
 
         var app = graph
-            .AddJavaApp("api", "src/api", "target/app.jar")
+            .AddJavaMavenApp("api", "src/api", "target/app.jar", "clean package")
             .WithHttpEndpoint(
                 port: 5185,
                 targetPort: 8080,
                 host: "localhost")
-            .AsContainer(tag: "dev", dockerfile: "Dockerfile")
+            .AsContainerApp(tag: "dev", dockerfile: "Dockerfile")
             .WithReplicas(2);
 
         var template = graph.BuildTemplate("java-container-app", environmentId: "local");
@@ -1519,6 +1541,10 @@ public sealed class ResourceGraphBuilderTests
             JavaAppResourceTypeProvider.Attributes.Command].StringValue);
         Assert.Equal("target/app.jar", appDefinition.ResourceAttributeValues[
             JavaAppResourceTypeProvider.Attributes.ArtifactPath].StringValue);
+        Assert.Equal(JavaAppBuildTools.Maven, appDefinition.ResourceAttributeValues[
+            JavaAppResourceTypeProvider.Attributes.BuildTool].StringValue);
+        Assert.Equal("clean package", appDefinition.ResourceAttributeValues[
+            JavaAppResourceTypeProvider.Attributes.BuildArguments].StringValue);
         Assert.Equal("cloudshell-java-api:dev", appDefinition.ResourceAttributeValues[
             ContainerApplicationResourceTypeProvider.Attributes.ContainerImage].StringValue);
         Assert.Equal("src/api", appDefinition.ResourceAttributeValues[

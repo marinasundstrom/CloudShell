@@ -3243,7 +3243,7 @@ resources:
 
         var app = graph
             .AddJavaScriptApp("frontend", "samples/JavaScriptApp/App")
-            .AsContainer(tag: "dev", dockerfile: "Dockerfile")
+            .AsContainerApp(tag: "dev", dockerfile: "Dockerfile")
             .WithReplicas(3)
             .WithHttpEndpoint(
                 host: "localhost",

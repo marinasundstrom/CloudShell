@@ -59,7 +59,7 @@ This is intentionally different from `resources.AddDocker().AddContainer(...)`,
 which creates a Docker container sub-resource parented under a Docker resource.
 
 Project-like application resources can be converted into container apps with
-`AsContainer(...)`. The app provider owns how the application becomes a
+`AsContainerApp(...)`. The app provider owns how the application becomes a
 container image. ASP.NET Core can use the .NET SDK container publisher when no
 Dockerfile is supplied; JavaScript uses a project build context and normally a
 Dockerfile supplied by the app:
@@ -70,7 +70,7 @@ resources
         "application:api",
         "API",
         "src/API/API.csproj")
-    .AsContainer()
+    .AsContainerApp()
     .WithContainerHost("docker:dev");
 ```
 
@@ -78,13 +78,13 @@ The converted resource projects as `application.container-app`, but its
 workload descriptor retains `ProjectPath`. The default local runner uses that
 shape to build the container image with the .NET SDK when no Dockerfile is
 supplied, or with the project's Dockerfile when one is specified. Use
-`AsContainer(tag: "...")` when the generated image reference should use a
+`AsContainerApp(tag: "...")` when the generated image reference should use a
 stable tag.
 
 ```csharp
 resources
     .AddJavaScriptApp("frontend", "src/frontend")
-    .AsContainer(tag: "dev", dockerfile: "Dockerfile")
+    .AsContainerApp(tag: "dev", dockerfile: "Dockerfile")
     .WithReplicas(3);
 ```
 

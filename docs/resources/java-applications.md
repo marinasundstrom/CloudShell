@@ -26,8 +26,43 @@ resources
 
 The default local runtime starts `java -jar <artifactPath>`. `java.command`,
 `java.jvmArguments`, `java.arguments`, `java.mainClass`, and `java.classPath`
-let launchers describe other JVM process shapes without making Maven or Gradle
-a CloudShell resource-model concept.
+let launchers describe other JVM process shapes.
+
+Java app resources can also declare a provider-owned project build that runs
+before Start or Restart launches the JVM process. Use `AddJavaMavenApp(...)`
+or `AddJavaGradleApp(...)` from C# builders, or the matching Java launcher
+methods `addJavaMavenApp(...)` and `addJavaGradleApp(...)`, when the artifact
+should be refreshed at resource start:
+
+```csharp
+resources
+    .AddJavaMavenApp("api", "src/api", "target/api.jar", "clean package -DskipTests")
+    .WithHttpEndpoint(port: 5185, targetPort: 5185, host: "localhost");
+```
+
+The lower-level `.WithMavenBuild(...)` and `.WithGradleBuild(...)` helpers are
+available when code has already started from `AddJavaApp(...)`.
+
+When Maven build is enabled, the local runtime runs `mvnw` from the project
+directory when present and falls back to `mvn`; the default Maven arguments
+are `package`. When Gradle build is enabled, the runtime runs `gradlew` when
+present and falls back to `gradle`; the default Gradle arguments are `build`.
+Build stdout and stderr are captured in the resource log buffer with the
+`build` stream. If the build fails, CloudShell returns a
+`application.javaApp.buildFailed` diagnostic and does not start the JVM
+process.
+
+Use `AsContainerApp(...)` when a Java app should be authored as a Java project
+but run as a container app. Maven or Gradle build-on-start settings remain on
+the projected container app, so the local Docker runtime runs the Java build
+first and then builds the container image from the configured build context:
+
+```csharp
+resources
+    .AddJavaMavenApp("api", "src/api", "target/api.jar", "clean package")
+    .AsContainerApp(tag: "dev", dockerfile: "Dockerfile")
+    .WithHttpEndpoint(port: 5185, targetPort: 8080, host: "localhost");
+```
 
 When a Java app references Configuration Store or Secrets Vault resources, the
 provider derives `CLOUDSHELL_CONFIGURATION_*` and `CLOUDSHELL_SECRETS_*`

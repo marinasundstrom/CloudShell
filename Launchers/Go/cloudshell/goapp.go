@@ -1,5 +1,7 @@
 package cloudshell
 
+import "strings"
+
 type EnvironmentVariableValue struct {
 	Value                 string                       `json:"value,omitempty"`
 	ConfigurationEntryRef *ConfigurationEntryReference `json:"configurationEntryRef,omitempty"`
@@ -32,19 +34,34 @@ type HTTPProbe struct {
 	EndpointName string `json:"endpointName,omitempty"`
 }
 
+type ContainerAppOptions struct {
+	Image        string
+	Registry     string
+	Tag          string
+	BuildContext string
+	Dockerfile   string
+	Replicas     int
+}
+
 type GoAppResource struct {
 	baseResource
-	projectPath          string
-	command              string
-	packagePath          string
-	binaryPath           string
-	arguments            string
-	serviceDiscoveryName string
-	environment          map[string]EnvironmentVariableValue
-	references           []ResourceReference
-	endpoints            []EndpointRequest
-	healthChecks         []HealthCheck
-	consoleLogs          bool
+	projectPath           string
+	command               string
+	packagePath           string
+	binaryPath            string
+	arguments             string
+	serviceDiscoveryName  string
+	environment           map[string]EnvironmentVariableValue
+	references            []ResourceReference
+	endpoints             []EndpointRequest
+	healthChecks          []HealthCheck
+	containerApp          bool
+	containerImage        string
+	containerRegistry     string
+	containerBuildContext string
+	containerDockerfile   string
+	containerReplicas     int
+	consoleLogs           bool
 }
 
 func NewGoAppResource(name string, projectPath string) *GoAppResource {
@@ -104,6 +121,32 @@ func (r *GoAppResource) WithServiceDiscovery() *GoAppResource {
 
 func (r *GoAppResource) WithServiceDiscoveryName(name string) *GoAppResource {
 	r.serviceDiscoveryName = requireNotBlank(name, "service discovery name")
+	return r
+}
+
+func (r *GoAppResource) AsContainerApp(options ContainerAppOptions) *GoAppResource {
+	r.projectAsContainerApp()
+	r.containerApp = true
+	if options.Image != "" {
+		r.containerImage = options.Image
+	} else {
+		r.containerImage = defaultContainerImage("go", r.Name(), options.Tag)
+	}
+
+	r.containerRegistry = options.Registry
+	if options.BuildContext != "" {
+		r.containerBuildContext = options.BuildContext
+	} else {
+		r.containerBuildContext = r.projectPath
+	}
+
+	r.containerDockerfile = options.Dockerfile
+	if options.Replicas > 0 {
+		r.containerReplicas = options.Replicas
+	} else {
+		r.containerReplicas = 1
+	}
+
 	return r
 }
 
@@ -202,7 +245,13 @@ func (r *GoAppResource) build() map[string]any {
 	}
 
 	if len(r.endpoints) > 0 {
-		project["endpointRequests"] = r.endpoints
+		if r.containerApp {
+			document["container"] = r.containerDocument()
+		} else {
+			project["endpointRequests"] = r.endpoints
+		}
+	} else if r.containerApp {
+		document["container"] = r.containerDocument()
 	}
 
 	document["project"] = project
@@ -231,6 +280,53 @@ func (r *GoAppResource) build() map[string]any {
 	}
 
 	return document
+}
+
+func (r *GoAppResource) containerDocument() map[string]any {
+	container := map[string]any{
+		"image":    r.containerImage,
+		"replicas": r.containerReplicas,
+	}
+	if r.containerRegistry != "" {
+		container["registry"] = r.containerRegistry
+	}
+
+	if r.containerBuildContext != "" {
+		container["buildContext"] = r.containerBuildContext
+	}
+
+	if r.containerDockerfile != "" {
+		container["dockerfile"] = r.containerDockerfile
+	}
+
+	if len(r.endpoints) > 0 {
+		container["endpointRequests"] = r.endpoints
+	}
+
+	return container
+}
+
+func defaultContainerImage(language string, name string, tag string) string {
+	normalized := strings.Trim(strings.Map(func(character rune) rune {
+		if character >= 'a' && character <= 'z' || character >= '0' && character <= '9' {
+			return character
+		}
+
+		if character >= 'A' && character <= 'Z' {
+			return character + ('a' - 'A')
+		}
+
+		return '-'
+	}, name), "-")
+	if normalized == "" {
+		normalized = "app"
+	}
+
+	if tag == "" {
+		tag = "dev"
+	}
+
+	return "cloudshell-" + language + "-" + normalized + ":" + tag
 }
 
 func httpCheck(name string, checkType string, path string) HealthCheck {

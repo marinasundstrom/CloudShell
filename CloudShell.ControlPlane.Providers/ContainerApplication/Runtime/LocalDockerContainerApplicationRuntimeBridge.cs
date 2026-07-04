@@ -493,6 +493,8 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
         string image,
         CancellationToken cancellationToken)
     {
+        await BuildJavaProjectAsync(resource, cancellationToken);
+
         var buildContext = resource.Attributes.GetString(
             ContainerApplicationResourceTypeProvider.Attributes.ContainerBuildContext);
         if (!string.IsNullOrWhiteSpace(buildContext))
@@ -541,15 +543,43 @@ public sealed class LocalDockerContainerApplicationRuntimeBridge(
             cancellationToken);
 
         string ResolvePath(string path) =>
-            Path.IsPathRooted(path) || hostEnvironment is null
-                ? path
-                : Path.Combine(hostEnvironment.ContentRootPath, path);
+            ResolveHostPath(path);
 
         string ResolveDockerfilePath(string dockerfile, string context) =>
             Path.IsPathRooted(dockerfile)
                 ? dockerfile
                 : Path.Combine(ResolvePath(context), dockerfile);
     }
+
+    private async Task BuildJavaProjectAsync(
+        GraphResource resource,
+        CancellationToken cancellationToken)
+    {
+        var projectPath = resource.Attributes.GetString(
+            JavaAppResourceTypeProvider.Attributes.ProjectPath);
+        if (string.IsNullOrWhiteSpace(projectPath))
+        {
+            return;
+        }
+
+        var startInfo = new JavaAppProcessCommandFactory()
+            .CreateBuildStartInfo(resource, ResolveHostPath(projectPath));
+        if (startInfo is null)
+        {
+            return;
+        }
+
+        await commandRunner.RunAsync(
+            startInfo.FileName,
+            startInfo.ArgumentList.ToArray(),
+            cancellationToken,
+            workingDirectory: startInfo.WorkingDirectory);
+    }
+
+    private string ResolveHostPath(string path) =>
+        Path.IsPathRooted(path) || hostEnvironment is null
+            ? path
+            : Path.Combine(hostEnvironment.ContentRootPath, path);
 
     private async Task RemoveAsync(
         LocalDockerContainerApplicationRuntimeDefinition definition,

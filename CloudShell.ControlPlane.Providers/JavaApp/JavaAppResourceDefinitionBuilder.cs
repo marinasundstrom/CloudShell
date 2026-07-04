@@ -19,6 +19,18 @@ public sealed class JavaAppResourceDefinitionBuilder(string name) :
     public JavaAppResourceDefinitionBuilder WithCommand(string command) =>
         SetScalarAttribute(JavaAppResourceTypeProvider.Attributes.Command, command);
 
+    public JavaAppResourceDefinitionBuilder WithBuildTool(string buildTool) =>
+        SetScalarAttribute(JavaAppResourceTypeProvider.Attributes.BuildTool, buildTool);
+
+    public JavaAppResourceDefinitionBuilder WithBuildArguments(string arguments) =>
+        SetScalarAttribute(JavaAppResourceTypeProvider.Attributes.BuildArguments, arguments);
+
+    public JavaAppResourceDefinitionBuilder WithMavenBuild(string arguments = "package") =>
+        WithBuildTool(JavaAppBuildTools.Maven).WithBuildArguments(arguments);
+
+    public JavaAppResourceDefinitionBuilder WithGradleBuild(string arguments = "build") =>
+        WithBuildTool(JavaAppBuildTools.Gradle).WithBuildArguments(arguments);
+
     public JavaAppResourceDefinitionBuilder WithArtifactPath(string artifactPath) =>
         SetScalarAttribute(JavaAppResourceTypeProvider.Attributes.ArtifactPath, artifactPath);
 
@@ -37,7 +49,7 @@ public sealed class JavaAppResourceDefinitionBuilder(string name) :
     public JavaAppResourceDefinitionBuilder WithServiceDiscoveryName(string name) =>
         SetScalarAttribute(JavaAppResourceTypeProvider.Attributes.ServiceDiscoveryName, name);
 
-    public JavaAppResourceDefinitionBuilder AsContainer(
+    public JavaAppResourceDefinitionBuilder AsContainerApp(
         string? image = null,
         string? registry = null,
         string? tag = null,
@@ -341,6 +353,34 @@ public static class JavaAppResourceDefinitionBuilderExtensions
             .WithDefaultConsoleLogSource();
         graph.Add(builder);
         return builder;
+    }
+
+    public static JavaAppResourceDefinitionBuilder AddJavaMavenApp(
+        this ResourceGraphBuilder graph,
+        string name,
+        string projectPath,
+        string artifactPath,
+        string buildArguments = "package")
+    {
+        ArgumentNullException.ThrowIfNull(graph);
+
+        return graph
+            .AddJavaApp(name, projectPath, artifactPath)
+            .WithMavenBuild(buildArguments);
+    }
+
+    public static JavaAppResourceDefinitionBuilder AddJavaGradleApp(
+        this ResourceGraphBuilder graph,
+        string name,
+        string projectPath,
+        string artifactPath,
+        string buildArguments = "build")
+    {
+        ArgumentNullException.ThrowIfNull(graph);
+
+        return graph
+            .AddJavaApp(name, projectPath, artifactPath)
+            .WithGradleBuild(buildArguments);
     }
 
     private static int? ToMilliseconds(TimeSpan? value) =>

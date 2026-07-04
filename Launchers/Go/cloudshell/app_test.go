@@ -100,6 +100,57 @@ func TestBuildsGoAppTemplate(t *testing.T) {
 	}
 }
 
+func TestBuildsGoAppAsContainerAppTemplate(t *testing.T) {
+	app := NewApp("go-container-test")
+	network := app.AddNetwork("host").WithResourceID("network:host")
+
+	app.AddGoApp("api", "samples/GoApp/App").
+		WithHttpEndpoint("localhost", 5187, 8080, network).
+		AsContainerApp(ContainerAppOptions{
+			Tag:        "dev",
+			Dockerfile: "Dockerfile",
+		})
+
+	jsonValue, err := app.ToJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var template ResourceTemplate
+	if err := json.Unmarshal([]byte(jsonValue), &template); err != nil {
+		t.Fatal(err)
+	}
+
+	var resource map[string]any
+	for _, candidate := range template.Resources {
+		if candidate["name"] == "api" {
+			resource = candidate
+			break
+		}
+	}
+	if resource == nil {
+		t.Fatal("Go container app resource was not emitted")
+	}
+
+	assertEqual(t, "application.container-app", resource["type"])
+	assertEqual(t, "applications.container-app", resource["providerId"])
+	assertEqual(t, "application.container-app:api", resource["resourceId"])
+	assertNestedEqual(t, "container.image", "cloudshell-go-api:dev", resource, "container", "image")
+	assertNestedEqual(t, "container.buildContext", "samples/GoApp/App", resource, "container", "buildContext")
+	assertNestedEqual(t, "container.dockerfile", "Dockerfile", resource, "container", "dockerfile")
+
+	container := resource["container"].(map[string]any)
+	endpoints := container["endpointRequests"].([]any)
+	if len(endpoints) != 1 {
+		t.Fatalf("expected one container endpoint request, got %d", len(endpoints))
+	}
+
+	project := resource["project"].(map[string]any)
+	if _, ok := project["endpointRequests"]; ok {
+		t.Fatal("expected endpoint requests to move from project to container")
+	}
+}
+
 func TestRejectsDuplicateResourceIDs(t *testing.T) {
 	app := NewApp("duplicates")
 	app.AddNetwork("one").WithResourceID("network:shared")

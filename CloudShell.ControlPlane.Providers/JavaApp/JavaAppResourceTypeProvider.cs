@@ -15,6 +15,8 @@ public sealed class JavaAppResourceTypeProvider :
     {
         public static readonly ResourceAttributeId ProjectPath = "project.path";
         public static readonly ResourceAttributeId Command = "java.command";
+        public static readonly ResourceAttributeId BuildTool = "java.buildTool";
+        public static readonly ResourceAttributeId BuildArguments = "java.buildArguments";
         public static readonly ResourceAttributeId ArtifactPath = "java.artifactPath";
         public static readonly ResourceAttributeId MainClass = "java.mainClass";
         public static readonly ResourceAttributeId ClassPath = "java.classPath";
@@ -47,6 +49,12 @@ public sealed class JavaAppResourceTypeProvider :
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.Command] = new(
                 DefaultValue: "java",
+                ValueType: ResourceAttributeValueType.String),
+            [Attributes.BuildTool] = new(
+                Description: "Optional Java project build tool to run before starting the app. Supported values are 'maven' and 'gradle'.",
+                ValueType: ResourceAttributeValueType.String),
+            [Attributes.BuildArguments] = new(
+                Description: "Optional build-tool arguments. Defaults to 'package' for Maven and 'build' for Gradle.",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.ArtifactPath] = new(
                 ValueType: ResourceAttributeValueType.String),
@@ -101,6 +109,9 @@ public sealed class JavaAppResourceTypeProvider :
             resource.Attributes.GetString(Attributes.ArtifactPath),
             resource.Attributes.GetString(Attributes.MainClass),
             diagnostics);
+        ValidateBuildTool(
+            resource.Attributes.GetString(Attributes.BuildTool),
+            diagnostics);
 
         return ValueTask.FromResult(
             ResourceDefinitionValidationResult.FromDiagnostics(diagnostics));
@@ -121,6 +132,9 @@ public sealed class JavaAppResourceTypeProvider :
         ValidateLaunchTarget(
             changes.ProposedState.ResourceAttributes.GetValueOrDefault(Attributes.ArtifactPath),
             changes.ProposedState.ResourceAttributes.GetValueOrDefault(Attributes.MainClass),
+            diagnostics);
+        ValidateBuildTool(
+            changes.ProposedState.ResourceAttributes.GetValueOrDefault(Attributes.BuildTool),
             diagnostics);
 
         return ValueTask.FromResult(diagnostics.Any(diagnostic =>
@@ -180,4 +194,30 @@ public sealed class JavaAppResourceTypeProvider :
                 Attributes.ArtifactPath));
         }
     }
+
+    private static void ValidateBuildTool(
+        string? buildTool,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (string.IsNullOrWhiteSpace(buildTool) ||
+            JavaAppBuildTools.IsSupported(buildTool))
+        {
+            return;
+        }
+
+        diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+            "application.javaApp.buildToolUnsupported",
+            "Java app build tool must be 'maven' or 'gradle'.",
+            Attributes.BuildTool));
+    }
+}
+
+public static class JavaAppBuildTools
+{
+    public const string Maven = "maven";
+    public const string Gradle = "gradle";
+
+    public static bool IsSupported(string buildTool) =>
+        string.Equals(buildTool.Trim(), Maven, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(buildTool.Trim(), Gradle, StringComparison.OrdinalIgnoreCase);
 }

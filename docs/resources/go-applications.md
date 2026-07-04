@@ -45,13 +45,13 @@ Resource model patterns as other application resources. The default local
 runtime tracks process state and exposes process logs and metrics through
 Resource Manager.
 
-Use `AsContainer(...)` when a Go app should be authored as a Go project but run
+Use `AsContainerApp(...)` when a Go app should be authored as a Go project but run
 as a scalable container app:
 
 ```csharp
 resources
     .AddGoApp("api", "src/api", packagePath: "./cmd/api")
-    .AsContainer(tag: "dev", dockerfile: "Dockerfile")
+    .AsContainerApp(tag: "dev", dockerfile: "Dockerfile")
     .WithReplicas(3);
 ```
 

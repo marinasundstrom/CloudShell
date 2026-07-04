@@ -47,7 +47,7 @@ var cloudShell = builder.AddCloudShellControlPlaneApplication(
 
             resources
                 .AddJavaScriptApp("javascript-container-frontend", appPath)
-                .AsContainer(tag: "dev", dockerfile: "Dockerfile")
+                .AsContainerApp(tag: "dev", dockerfile: "Dockerfile")
                 .WithDisplayName("JavaScript Container Frontend")
                 .WithResourceGroup(group)
                 .WithAutoStart(false)

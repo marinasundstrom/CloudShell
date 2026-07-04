@@ -1,9 +1,13 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class JavaAppProcessCommandFactory
 {
+    private const string MavenDefaultArguments = "package";
+    private const string GradleDefaultArguments = "build";
+
     public ProcessStartInfo CreateStartInfo(
         Resource resource,
         string fullProjectPath,
@@ -75,6 +79,49 @@ public sealed class JavaAppProcessCommandFactory
         return startInfo;
     }
 
+    public ProcessStartInfo? CreateBuildStartInfo(
+        Resource resource,
+        string fullProjectPath)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fullProjectPath);
+
+        var buildTool = resource.Attributes.GetString(
+            JavaAppResourceTypeProvider.Attributes.BuildTool);
+        if (string.IsNullOrWhiteSpace(buildTool))
+        {
+            return null;
+        }
+
+        var trimmedBuildTool = buildTool.Trim();
+        if (!JavaAppBuildTools.IsSupported(trimmedBuildTool))
+        {
+            return null;
+        }
+
+        var startInfo = new ProcessStartInfo(
+            ResolveBuildCommand(trimmedBuildTool, fullProjectPath))
+        {
+            WorkingDirectory = fullProjectPath,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+
+        var arguments = resource.Attributes.GetString(
+            JavaAppResourceTypeProvider.Attributes.BuildArguments);
+        arguments = string.IsNullOrWhiteSpace(arguments)
+            ? DefaultBuildArguments(trimmedBuildTool)
+            : arguments;
+        foreach (var argument in SplitArguments(arguments))
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        return startInfo;
+    }
+
     private static void ApplyEndpointEnvironmentVariables(
         Resource resource,
         ProcessStartInfo startInfo)
@@ -140,6 +187,48 @@ public sealed class JavaAppProcessCommandFactory
             ? []
             : arguments
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static string ResolveBuildCommand(
+        string buildTool,
+        string fullProjectPath)
+    {
+        if (string.Equals(buildTool, JavaAppBuildTools.Maven, StringComparison.OrdinalIgnoreCase))
+        {
+            return ResolveWrapperOrCommand(
+                fullProjectPath,
+                windowsWrapper: "mvnw.cmd",
+                unixWrapper: "mvnw",
+                command: "mvn");
+        }
+
+        return ResolveWrapperOrCommand(
+            fullProjectPath,
+            windowsWrapper: "gradlew.bat",
+            unixWrapper: "gradlew",
+            command: "gradle");
+    }
+
+    private static string ResolveWrapperOrCommand(
+        string fullProjectPath,
+        string windowsWrapper,
+        string unixWrapper,
+        string command)
+    {
+        var wrapper = Path.Combine(
+            fullProjectPath,
+            RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? windowsWrapper
+                : unixWrapper);
+
+        return File.Exists(wrapper)
+            ? wrapper
+            : command;
+    }
+
+    private static string DefaultBuildArguments(string buildTool) =>
+        string.Equals(buildTool, JavaAppBuildTools.Maven, StringComparison.OrdinalIgnoreCase)
+            ? MavenDefaultArguments
+            : GradleDefaultArguments;
 }
 
 public static class JavaAppEnvironmentNames

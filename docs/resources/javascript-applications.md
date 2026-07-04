@@ -47,13 +47,13 @@ runtime starts the declared package-manager script from the project directory,
 tracks process state, and exposes process logs and metrics through Resource
 Manager.
 
-Use `AsContainer(...)` when a JavaScript app should be authored as a JavaScript
+Use `AsContainerApp(...)` when a JavaScript app should be authored as a JavaScript
 project but run as a scalable container app:
 
 ```csharp
 resources
     .AddJavaScriptApp("frontend", "src/frontend")
-    .AsContainer(tag: "dev", dockerfile: "Dockerfile")
+    .AsContainerApp(tag: "dev", dockerfile: "Dockerfile")
     .WithReplicas(3)
     .WithHttpEndpoint(port: 5173, targetPort: 8080);
 ```

@@ -31,7 +31,7 @@ public sealed class GoAppResourceDefinitionBuilder(string name) :
     public GoAppResourceDefinitionBuilder WithServiceDiscoveryName(string name) =>
         SetScalarAttribute(GoAppResourceTypeProvider.Attributes.ServiceDiscoveryName, name);
 
-    public GoAppResourceDefinitionBuilder AsContainer(
+    public GoAppResourceDefinitionBuilder AsContainerApp(
         string? image = null,
         string? registry = null,
         string? tag = null,
