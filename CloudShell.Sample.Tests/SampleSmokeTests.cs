@@ -255,6 +255,11 @@ public sealed class SampleSmokeTests
         };
         yield return new object[]
         {
+            "samples/DeviceRegistry/AppHost/CloudShell.DeviceRegistryAppHost.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
             "samples/RabbitMQMessaging/AppHost/CloudShell.RabbitMQMessagingAppHost.csproj",
             resourceHostPaths
         };

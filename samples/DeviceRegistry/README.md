@@ -2,14 +2,14 @@
 
 This sample has two apps:
 
-- `CloudShell.DeviceRegistry` is the CloudShell launcher that declares the
-  trust vault and Device Registry resources.
+- `AppHost/CloudShell.DeviceRegistryAppHost` is the CloudShell launcher that
+  declares the trust vault, Device Registry, and device configuration resources.
 - `DeviceApp/CloudShell.DeviceRegistry.DeviceApp` is a separate app that
   enrolls the current machine through `DeviceRegistryClient`.
 
 The registry enrollment policy accepts subjects under `device/` and requires
-the `manufacturer=cloudshell` enrollment claim. The launcher starts three
-local service resources by default:
+the `manufacturer=cloudshell` enrollment claim. The launcher targets
+`CloudShell.LocalDevelopmentHost` and declares three local service resources:
 
 | Resource | Default endpoint |
 | --- | --- |
@@ -20,32 +20,40 @@ local service resources by default:
 Run the CloudShell launcher:
 
 ```bash
-dotnet run --project samples/DeviceRegistry/CloudShell.DeviceRegistry.csproj
+cd samples/DeviceRegistry
+./cloudshell.sh run
 ```
 
-The sample does not ship with a predefined login. On first launch, open
-`http://localhost:5000/account/setup` or follow the setup link from the sign-in
-page and create the local administrator account. Use that account for the
-CloudShell UI.
+The launcher host configuration lives in `AppHost/appsettings.json`. It uses an
+in-memory built-in identity user for local development:
+
+| Field | Value |
+| --- | --- |
+| Email | `device-admin@example.test` |
+| Password | `CloudShell123!` |
+
+Authentication is disabled by default so template apply and the device flow can
+run without an initial sign-in. Enable authentication in `AppHost/appsettings.json`
+when you want to exercise the UI login path with the seeded user.
+
+After the template is applied, start the service resources from a second
+terminal:
+
+```bash
+./cloudshell.sh start-services
+```
 
 Then run the device app independently:
 
 ```bash
-dotnet run --project samples/DeviceRegistry/DeviceApp/CloudShell.DeviceRegistry.DeviceApp.csproj \
-  --urls http://localhost:7153 \
-  --DeviceRegistry:Endpoint http://localhost:7150 \
-  --DeviceRegistry:ResourceId iot.device-registry:devices \
-  --ConfigurationStore:Endpoint http://localhost:7152 \
-  --ConfigurationStore:ResourceId configuration.store:device-settings \
-  --ConfigurationStore:EntryName Device:Mode \
-  --Device:Manufacturer cloudshell
+./cloudshell.sh run-device
 ```
 
 Call the device app to enroll the current machine and read configuration with
 the issued device identity:
 
 ```bash
-curl -X POST http://localhost:7153/enroll-current-device
+./cloudshell.sh enroll
 ```
 
 The device app is intentionally not a CloudShell resource; it represents
