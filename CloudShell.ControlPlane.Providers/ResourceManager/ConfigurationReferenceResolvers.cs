@@ -44,18 +44,16 @@ public sealed class SecretsVaultRuntimeSecretReferenceResolver(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(reference);
+        cancellationToken.ThrowIfCancellationRequested();
 
-        if (!string.IsNullOrWhiteSpace(reference.Version))
-        {
-            return ValueTask.FromResult(ResourceSettingResolutionResult.Failed(
-                $"Secret '{reference.SecretName}' from '{reference.VaultResourceId}' requested version '{reference.Version}', but versioned secrets are not supported by the graph runtime resolver."));
-        }
-
-        var secret = _options.Secrets.FirstOrDefault(secret =>
-            string.Equals(secret.Name, reference.SecretName, StringComparison.OrdinalIgnoreCase));
+        var secret = _options.Secrets
+            .Where(secret => string.Equals(secret.Name, reference.SecretName, StringComparison.OrdinalIgnoreCase))
+            .Where(secret => string.IsNullOrWhiteSpace(reference.Version) ||
+                string.Equals(secret.Version, reference.Version, StringComparison.OrdinalIgnoreCase))
+            .LastOrDefault();
         return ValueTask.FromResult(secret is null
             ? ResourceSettingResolutionResult.Failed(
-                $"Secret '{reference.SecretName}' from '{reference.VaultResourceId}' was not found.")
+                CreateMissingSecretMessage(reference))
             : ResourceSettingResolutionResult.Resolved(secret.Value));
     }
 
@@ -65,18 +63,19 @@ public sealed class SecretsVaultRuntimeSecretReferenceResolver(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(reference);
+        cancellationToken.ThrowIfCancellationRequested();
 
-        if (!string.IsNullOrWhiteSpace(reference.Version))
-        {
-            return ValueTask.FromResult(CertificateResolutionResult.Failed(
-                $"Certificate '{reference.CertificateName}' from '{reference.VaultResourceId}' requested version '{reference.Version}', but versioned certificates are not supported by the graph runtime resolver."));
-        }
-
-        var certificate = _options.Certificates.FirstOrDefault(certificate =>
-            string.Equals(certificate.Name, reference.CertificateName, StringComparison.OrdinalIgnoreCase));
+        var certificate = _options.Certificates
+            .Where(certificate => string.Equals(
+                certificate.Name,
+                reference.CertificateName,
+                StringComparison.OrdinalIgnoreCase))
+            .Where(certificate => string.IsNullOrWhiteSpace(reference.Version) ||
+                string.Equals(certificate.Version, reference.Version, StringComparison.OrdinalIgnoreCase))
+            .LastOrDefault();
         return ValueTask.FromResult(certificate is null
             ? CertificateResolutionResult.Failed(
-                $"Certificate '{reference.CertificateName}' from '{reference.VaultResourceId}' was not found.")
+                CreateMissingCertificateMessage(reference))
             : CertificateResolutionResult.Resolved(
                 certificate.Value,
                 certificate.ContentType,
@@ -85,4 +84,14 @@ public sealed class SecretsVaultRuntimeSecretReferenceResolver(
                 certificate.NotBefore,
                 certificate.Expires));
     }
+
+    private static string CreateMissingSecretMessage(SecretReference reference) =>
+        string.IsNullOrWhiteSpace(reference.Version)
+            ? $"Secret '{reference.SecretName}' from '{reference.VaultResourceId}' was not found."
+            : $"Secret '{reference.SecretName}' version '{reference.Version}' from '{reference.VaultResourceId}' was not found.";
+
+    private static string CreateMissingCertificateMessage(CertificateReference reference) =>
+        string.IsNullOrWhiteSpace(reference.Version)
+            ? $"Certificate '{reference.CertificateName}' from '{reference.VaultResourceId}' was not found."
+            : $"Certificate '{reference.CertificateName}' version '{reference.Version}' from '{reference.VaultResourceId}' was not found.";
 }

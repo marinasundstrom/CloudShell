@@ -48,6 +48,10 @@ on `git blame --follow`, and then by the broad type of change.
   preserved in the edit view, the add/update forms can choose same-group
   Secrets Vault certificates, and Traefik PFX/P12 materialization failures are
   reported as resource diagnostics instead of leaking provider exceptions.
+- Enabled versioned Secrets Vault graph resolution for secret and certificate
+  references. Specific versions now resolve against runtime vault entries, and
+  references without a version use the last matching entry for the requested
+  name, matching the protected Secrets Vault service read behavior.
 - Added a RabbitMQ credential endpoint that lets workloads present their
   CloudShell resource identity token, request access to a target RabbitMQ
   resource, and receive grant-derived RabbitMQ-native credentials after the

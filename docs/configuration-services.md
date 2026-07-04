@@ -108,9 +108,12 @@ resource registration and group assignment.
 The create-only seed path is intended for development launchers, samples, and
 local environments. Production or on-premise hosts should treat seeded secret
 values as sensitive template input and prefer a permission-protected
-secret-import path when that workflow is added. Entry and secret versioning is
-intentionally limited in this slice; durable version semantics should be
-revisited with the future import/export work.
+secret-import path when that workflow is added. Secrets Vault secret and
+certificate entries can carry a `Version` and references may request a specific
+version. When a reference omits the version, the runtime resolves the last
+matching entry for that name. Durable history, retention, activation state,
+automatic version creation, and import/export semantics remain future vault
+work. Configuration Store setting versioning is not supported yet.
 
 ## Service Runtime
 
@@ -269,6 +272,9 @@ public-preview `SecretsVaultClient` from `CloudShell.Secrets.Client` for direct
 Secrets Vault service calls. The same client can read certificate metadata and
 certificate values from the sibling protected certificate collection. See
 [SDK clients](sdk-clients.md).
+Both the direct client and resource graph references support optional
+versioned secret and certificate reads; omitting the version resolves the
+current last matching vault entry.
 
 In this model, the caller owns a resource identity, obtains authentication evidence through
 the selected identity provider, and the protected service validates that

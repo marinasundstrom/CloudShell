@@ -2115,6 +2115,60 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task SecretsVaultRuntimeSecretReferenceResolver_ResolvesVersionedSecrets()
+    {
+        var options = new SecretsVaultRuntimeOptions();
+        options.Secrets.Add(new("api-key", "secret-v1", "v1"));
+        options.Secrets.Add(new("api-key", "secret-v2", "v2"));
+        var resolver = new SecretsVaultRuntimeSecretReferenceResolver(options);
+
+        var latest = await resolver.ResolveSecretAsync(
+            new SecretReference("secrets.vault:vault", "api-key"),
+            new ResourceSettingResolutionContext("application:api"));
+        var versioned = await resolver.ResolveSecretAsync(
+            new SecretReference("secrets.vault:vault", "api-key", "v1"),
+            new ResourceSettingResolutionContext("application:api"));
+
+        Assert.True(latest.IsResolved);
+        Assert.Equal("secret-v2", latest.Value);
+        Assert.True(versioned.IsResolved);
+        Assert.Equal("secret-v1", versioned.Value);
+    }
+
+    [Fact]
+    public async Task SecretsVaultRuntimeSecretReferenceResolver_ResolvesVersionedCertificates()
+    {
+        var options = new SecretsVaultRuntimeOptions();
+        options.Certificates.Add(new(
+            "api-tls",
+            "certificate-v1",
+            "v1",
+            ContentType: "application/x-pem-file",
+            Thumbprint: "V1"));
+        options.Certificates.Add(new(
+            "api-tls",
+            "certificate-v2",
+            "v2",
+            ContentType: "application/x-pem-file",
+            Thumbprint: "V2"));
+        var resolver = new SecretsVaultRuntimeSecretReferenceResolver(options);
+
+        var latest = await resolver.ResolveCertificateAsync(
+            new CertificateReference("secrets.vault:vault", "api-tls"),
+            new ResourceSettingResolutionContext("application:api"));
+        var versioned = await resolver.ResolveCertificateAsync(
+            new CertificateReference("secrets.vault:vault", "api-tls", "v1"),
+            new ResourceSettingResolutionContext("application:api"));
+
+        Assert.True(latest.IsResolved);
+        Assert.Equal("certificate-v2", latest.Value);
+        Assert.Equal("V2", latest.Thumbprint);
+        Assert.True(versioned.IsResolved);
+        Assert.Equal("certificate-v1", versioned.Value);
+        Assert.Equal("V1", versioned.Thumbprint);
+    }
+
+    [Fact]
     public async Task SecretsVaultRuntimeInspector_ReportsConfiguredRuntimeSecretCount()
     {
         var options = new SecretsVaultRuntimeOptions();
