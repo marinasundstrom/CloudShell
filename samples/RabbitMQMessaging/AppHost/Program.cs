@@ -69,7 +69,7 @@ app.DefineResources(resources =>
         .WithEnvironmentVariable("RabbitMQ__Host", "localhost")
         .WithEnvironmentVariable("RabbitMQ__Port", rabbitMqPort.ToString())
         .WithEnvironmentVariable("RabbitMQ__Authentication", "CloudShell")
-        .WithEnvironmentVariable("RabbitMQ__CredentialEndpoint", $"{cloudShellEndpoint.ToString().TrimEnd('/')}/api/rabbitmq/v1/credentials")
+        .WithEnvironmentVariable("CLOUDSHELL_RABBITMQ_CREDENTIAL_ENDPOINT", $"{cloudShellEndpoint.ToString().TrimEnd('/')}/api/rabbitmq/v1/credentials")
         .WithEnvironmentVariable("RabbitMQ__ResourceName", broker.EffectiveResourceId)
         .WithEnvironmentVariable("RabbitMQ__CredentialPermission", RabbitMQResourceOperationPermissions.Configure)
         .WithEnvironmentVariable("RabbitMQ__Exchange", exchangeName)

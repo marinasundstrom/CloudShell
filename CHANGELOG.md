@@ -43,6 +43,10 @@ on `git blame --follow`, and then by the broad type of change.
   CloudShell resource identity credential and produces configured
   `RabbitMQ.Client` connection factories without exposing broker bootstrap
   credentials to applications.
+- Updated the C# RabbitMQ messaging sample workload to use
+  `CloudShell.RabbitMQ.Client` instead of hand-coding the RabbitMQ credential
+  endpoint exchange; the Java workload continues to exercise the direct
+  token-and-endpoint protocol.
 
 ### 2026-07-03
 
