@@ -12,6 +12,7 @@ samples/CloudShell.UiExtensionHost/Data/
 samples/CloudShell.ResourceHost/Data/
 samples/CloudShell.ContainerHost/Data/
 samples/ContainerAppDeployment/Data/
+samples/DeviceRegistry/Data/
 samples/HostVirtualNetwork/Data/
 samples/LoadBalancer/Data/
 samples/ProjectReference/Host/Data/
