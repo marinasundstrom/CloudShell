@@ -312,6 +312,18 @@ public sealed class ResourceActionTests
         Assert.Equal(
             LoadBalancerResourceOperationPermissions.ApplyConfiguration,
             CloudShellPermissions.Network.Actions.ApplyLoadBalancerConfiguration);
+        Assert.Equal(
+            RabbitMQResourceOperationPermissions.Publish,
+            CloudShellPermissions.Messaging.RabbitMQ.Actions.Publish);
+        Assert.Equal(
+            RabbitMQResourceOperationPermissions.Consume,
+            CloudShellPermissions.Messaging.RabbitMQ.Actions.Consume);
+        Assert.Equal(
+            RabbitMQResourceOperationPermissions.Configure,
+            CloudShellPermissions.Messaging.RabbitMQ.Actions.Configure);
+        Assert.Equal(
+            RabbitMQResourceOperationPermissions.ReconcileAccess,
+            CloudShellPermissions.Messaging.RabbitMQ.Actions.ReconcileAccess);
     }
 
     private static Resource CreateResource(IReadOnlyList<ResourceAction>? actions = null) =>

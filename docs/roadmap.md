@@ -202,6 +202,20 @@ distinguish failed spans from recovered flows that contain error spans. The
 shared Traces page can aggregate all sources while trace-detail links return
 users to the relevant resource context.
 
+RabbitMQ now follows the same managed-service direction as SQL Server:
+`application.rabbitmq` is a broker resource with AMQP and management endpoint
+projection, lifecycle actions, and optional volume-backed local state while
+the local provider keeps the RabbitMQ container and bootstrap credentials
+behind the provider boundary. Specialized broker-native Resource Manager UI is
+intentionally deferred; users should continue to use the RabbitMQ management UI
+for queues, exchanges, bindings, users, virtual hosts, policies, and cluster
+settings until CloudShell models the portable workflows it should own.
+The next maturity step for built-in managed services is not only deeper UI:
+identity-backed access, requested-versus-effective provider grants,
+non-secret audit/resource events, and provider reconciliation diagnostics need
+to be planned as one service parity track so built-in resources do not stop at
+container-backed lifecycle and endpoint projection.
+
 Recent shell-composition slices proved the generic menu/page/section graph,
 composition-backed sidebar migration, composition-backed Settings sections,
 route-backed tab links, section address modes, active composition menu links,

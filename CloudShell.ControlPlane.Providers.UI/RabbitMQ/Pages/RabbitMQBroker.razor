@@ -1,0 +1,223 @@
+@using System.Globalization
+@inject IResourceManager ResourceManager
+
+@if (Broker is null)
+{
+    <EmptyState Title="RabbitMQ broker is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
+}
+else if (!BuiltInProviderResourceUiTypes.IsRabbitMQ(Broker.EffectiveTypeId))
+{
+    <EmptyState Title="Broker details are not supported"
+                Message="This resource type does not expose RabbitMQ broker details." />
+}
+else
+{
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Broker</h3>
+                <p>@GetBrokerSummary()</p>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(ManagementAddress) && EndpointLink.CanLink(ManagementAddress))
+            {
+                <FluentAnchor Appearance="Appearance.Neutral"
+                              IconStart="@(new Icons.Regular.Size20.Globe())"
+                              Href="@ManagementAddress"
+                              target="_blank"
+                              rel="noopener noreferrer">
+                    Open management UI
+                </FluentAnchor>
+            }
+        </div>
+        <dl class="detail-list">
+            <dt>Resource ID</dt>
+            <dd>@Broker.Id</dd>
+            <dt>State</dt>
+            <dd>@(Broker.State?.ToString() ?? "n/a")</dd>
+            <dt>Version</dt>
+            <dd>@GetVersion()</dd>
+            <dt>AMQP endpoint</dt>
+            <dd>@FormatEndpoint("amqp")</dd>
+            <dt>Management endpoint</dt>
+            <dd>
+                <EndpointLink Address="@ManagementAddress"
+                              Text="@FormatEndpoint("management")"
+                              EmptyText="not mapped" />
+            </dd>
+        </dl>
+    </section>
+
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Endpoint contracts</h3>
+                <p>@GetEndpointSummary()</p>
+            </div>
+        </div>
+        @if (EndpointRows.Count == 0)
+        {
+            <EmptyState Title="No endpoints"
+                        Message="This broker does not project endpoint contracts." />
+        }
+        else
+        {
+            <ResourceTable AriaLabel="RabbitMQ broker endpoints">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Protocol</th>
+                        <th>Target port</th>
+                        <th>Exposure</th>
+                        <th>Resolved address</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var endpoint in EndpointRows)
+                    {
+                        <tr>
+                            <td>@endpoint.Name</td>
+                            <td>@endpoint.Protocol</td>
+                            <td>@endpoint.TargetPort</td>
+                            <td>@endpoint.Exposure</td>
+                            <td>
+                                <EndpointLink Address="@endpoint.Address"
+                                              EmptyText="not mapped" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </ResourceTable>
+        }
+    </section>
+
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>CloudShell management</h3>
+                <p>CloudShell owns lifecycle, endpoint projection, storage attachment, and access reconciliation.</p>
+            </div>
+        </div>
+        <div class="generated-list">
+            <div>
+                <strong>Broker-native management</strong>
+                <span>@GetManagementUiStatus()</span>
+            </div>
+            <div>
+                <strong>Access reconciliation</strong>
+                <span>@GetReconcileAccessStatus()</span>
+            </div>
+            <div>
+                <strong>Credential projection</strong>
+                <span>Provider-owned credentials are not projected through the resource model.</span>
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private Resource? Broker { get; set; }
+    private IReadOnlyList<BrokerEndpointRow> EndpointRows { get; set; } = [];
+
+    private string? ManagementAddress =>
+        Broker?.GetResolvedEndpointAddress("management");
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Broker = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : await ResourceManager.GetResourceAsync(ResourceId);
+        EndpointRows = Broker is null
+            ? []
+            : Broker.Endpoints
+                .OrderBy(GetEndpointOrder)
+                .ThenBy(endpoint => endpoint.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(endpoint => new BrokerEndpointRow(
+                    endpoint.Name,
+                    endpoint.Protocol,
+                    endpoint.TargetPort?.ToString(CultureInfo.InvariantCulture) ?? "n/a",
+                    endpoint.Exposure.ToString(),
+                    Broker.GetResolvedEndpointAddress(endpoint)))
+                .ToArray();
+    }
+
+    private string GetBrokerSummary()
+    {
+        var state = Broker?.State?.ToString() ?? "n/a";
+        return $"RabbitMQ broker service projected by CloudShell. Current state: {state}.";
+    }
+
+    private string GetEndpointSummary()
+    {
+        var count = EndpointRows.Count.ToString(CultureInfo.InvariantCulture);
+        return EndpointRows.Count == 1
+            ? "1 broker endpoint is projected."
+            : $"{count} broker endpoints are projected.";
+    }
+
+    private string GetVersion()
+    {
+        if (Broker?.ResourceAttributes.TryGetValue(
+                RabbitMQResourceTypeProvider.Attributes.Version.ToString(),
+                out var version) == true &&
+            !string.IsNullOrWhiteSpace(version))
+        {
+            return version;
+        }
+
+        return Broker?.Version ?? "n/a";
+    }
+
+    private string FormatEndpoint(string endpointName)
+    {
+        if (Broker is null)
+        {
+            return "not mapped";
+        }
+
+        var endpoint = Broker.Endpoints.FirstOrDefault(endpoint =>
+            string.Equals(endpoint.Name, endpointName, StringComparison.OrdinalIgnoreCase));
+        if (endpoint is null)
+        {
+            return "not declared";
+        }
+
+        var address = Broker.GetResolvedEndpointAddress(endpoint);
+        if (!string.IsNullOrWhiteSpace(address))
+        {
+            return address;
+        }
+
+        return endpoint.TargetPort is { } targetPort
+            ? $"{endpoint.Protocol}:{targetPort.ToString(CultureInfo.InvariantCulture)}"
+            : endpoint.Protocol;
+    }
+
+    private string GetManagementUiStatus() =>
+        string.IsNullOrWhiteSpace(ManagementAddress)
+            ? "No mapped management endpoint is currently projected."
+            : "RabbitMQ management UI is available from the management endpoint.";
+
+    private string GetReconcileAccessStatus() =>
+        Broker?.HasAction(RabbitMQResourceTypeProvider.Operations.ReconcileAccess.ToString()) == true
+            ? "Reconcile access is available as a resource operation."
+            : "Reconcile access is not advertised by this broker projection.";
+
+    private static int GetEndpointOrder(ResourceEndpoint endpoint) =>
+        endpoint.Name.ToLowerInvariant() switch
+        {
+            "amqp" => 0,
+            "management" => 1,
+            _ => 10
+        };
+
+    private sealed record BrokerEndpointRow(
+        string Name,
+        string Protocol,
+        string TargetPort,
+        string Exposure,
+        string? Address);
+}

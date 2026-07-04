@@ -47,6 +47,8 @@ public static class CloudShellBuilderExtensions
             services.AddSingleton(new ResourceDeclarationStore());
         }
 
+        services.TryAddSingleton<IResourcePermissionGrantReader>(
+            serviceProvider => serviceProvider.GetRequiredService<ResourceDeclarationStore>());
         services.TryAddSingleton(new ResourceIdentityProviderCatalog());
         services.TryAddSingleton<ICloudShellExtensionActivationStore, InMemoryCloudShellExtensionActivationStore>();
 

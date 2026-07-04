@@ -74,6 +74,47 @@ projects back to the full Resource model reference with `relationship:
 dependsOn` and `addressingMode: resourceId`. Use the full shape only when a
 reference needs extra relationship, type, provider, or addressing details.
 
+### Identity And Access Attributes
+
+Resource identity and access grants are authored as ordinary resource
+attributes so every launcher and language SDK can emit the same template
+shape. The resource that owns the identity carries `identity.*` attributes.
+The target resource that receives inbound access carries `access.grants`.
+
+```yaml
+resources:
+  - type: application.executable
+    name: api
+    identity:
+      kind: provider
+      providerId: identity:development
+      name: api-service
+      subject: application.executable:api
+      provisionOnStartup: true
+      scopes:
+        - configuration.read
+
+  - type: configuration.store
+    name: settings
+    access:
+      grants:
+        - principal:
+            kind: resourceIdentity
+            id: application.executable:api/identities/api-service
+            providerId: identity:development
+            sourceResourceId: application.executable:api
+            sourceIdentityName: api-service
+          permission: CloudShell.Configuration/stores/entries/read/action
+```
+
+These attributes are CloudShell Resource Manager declaration metadata. They do
+not contain provider-native credentials. Resource-type providers remain
+responsible for mapping CloudShell grants to native users, roles, permissions,
+or tokens when that runtime supports reconciliation. For example, RabbitMQ and
+SQL Server can maintain their own provider-specific connection settings and
+broker/database-native accounts while still using `identity.*` and
+`access.grants` for CloudShell traceability and audit intent.
+
 ## Apply Semantics
 
 Applying a template means applying resource intent:

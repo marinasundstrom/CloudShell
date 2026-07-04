@@ -88,6 +88,7 @@ public static class BuiltInResourceModelProviderServiceCollectionExtensions
             .AddCloudShellVolumeResourceType()
             .AddSqlServerResourceType()
             .AddSqlDatabaseResourceType()
+            .AddRabbitMQResourceType()
             .AddHostConfigurationSourceResourceType()
             .AddLocalVolumeResourceType()
             .AddIdentityProvisioningResourceType()

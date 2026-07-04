@@ -63,6 +63,7 @@ public static class ResourceModelResourceDefinitionBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
 
         GetMetadata(builder).ProvisionIdentityOnStartup = provision;
+        SetProvisionIdentityOnStartupAttribute(builder, provision);
         return builder;
     }
 
@@ -149,12 +150,14 @@ public static class ResourceModelResourceDefinitionBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        GetMetadata(builder).Identity = new ResourceIdentityBinding(
+        var identity = new ResourceIdentityBinding(
             providerId,
             subject,
             scopes,
             claims,
             Name: name);
+        GetMetadata(builder).Identity = identity;
+        SetIdentityAttribute(builder, identity);
         return builder;
     }
 
@@ -167,6 +170,7 @@ public static class ResourceModelResourceDefinitionBuilderExtensions
         ArgumentNullException.ThrowIfNull(identity);
 
         GetMetadata(builder).Identity = identity;
+        SetIdentityAttribute(builder, identity);
         return builder;
     }
 
@@ -213,6 +217,7 @@ public static class ResourceModelResourceDefinitionBuilderExtensions
             principal,
             builder.EffectiveResourceId,
             permission));
+        AddAccessGrantAttribute(builder, principal, permission);
         return builder;
     }
 
@@ -326,8 +331,144 @@ public static class ResourceModelResourceDefinitionBuilderExtensions
     private static ResourceModelDeclarationMetadata GetMetadata(IResourceDefinitionBuilder builder) =>
         DeclarationMetadata.GetValue(builder, _ => new ResourceModelDeclarationMetadata());
 
+    private static void SetIdentityAttribute(
+        IResourceDefinitionBuilder builder,
+        ResourceIdentityBinding identity)
+    {
+        if (builder is not IResourceDefinitionAttributeBuilder attributeBuilder)
+        {
+            return;
+        }
+
+        var attribute = new ResourceIdentityBindingAttribute(
+            identity.ProviderId,
+            identity.Subject,
+            identity.IdentityScopes,
+            identity.IdentityClaims,
+            identity.Kind == ResourceIdentityBindingKind.Required
+                ? ResourceIdentityBindingAttributeKinds.Required
+                : ResourceIdentityBindingAttributeKinds.Provider,
+            identity.Name);
+
+        foreach (var (attributeId, value) in CreateIdentityAttributes(attribute))
+        {
+            attributeBuilder.SetAttribute(attributeId, value);
+        }
+    }
+
+    private static void SetProvisionIdentityOnStartupAttribute(
+        IResourceDefinitionBuilder builder,
+        bool provision)
+    {
+        if (builder is IResourceDefinitionAttributeBuilder attributeBuilder)
+        {
+            attributeBuilder.SetAttribute(
+                ResourceDeclarationAttributeIds.IdentityProvisionOnStartup,
+                ResourceAttributeValue.Boolean(provision));
+        }
+    }
+
+    private static void AddAccessGrantAttribute(
+        IResourceDefinitionBuilder builder,
+        ResourcePrincipalReference principal,
+        string permission)
+    {
+        if (builder is not IResourceDefinitionAttributeBuilder attributeBuilder)
+        {
+            return;
+        }
+
+        var grants = GetAccessGrantAttributes(attributeBuilder)
+            .Append(new ResourceAccessGrantAttribute(ToAttribute(principal), permission.Trim()))
+            .DistinctBy(grant => new AccessGrantAttributeKey(grant))
+            .ToArray();
+        attributeBuilder.SetAttribute(
+            ResourceDeclarationAttributeIds.AccessGrants,
+            ResourceAttributeValue.FromObject(grants));
+    }
+
+    private static IReadOnlyList<ResourceAccessGrantAttribute> GetAccessGrantAttributes(
+        IResourceDefinitionAttributeBuilder builder) =>
+        builder.AttributeValues.TryGetValue(ResourceDeclarationAttributeIds.AccessGrants, out var value)
+            ? value.ToObject<ResourceAccessGrantAttribute[]>(ResourceDefinitionJson.Options) ?? []
+            : [];
+
+    private static Dictionary<ResourceAttributeId, ResourceAttributeValue> CreateIdentityAttributes(
+        ResourceIdentityBindingAttribute identity)
+    {
+        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>();
+        SetOptional(attributes, ResourceDeclarationAttributeIds.IdentityKind, identity.Kind);
+        SetOptional(attributes, ResourceDeclarationAttributeIds.IdentityProviderId, identity.ProviderId);
+        SetOptional(attributes, ResourceDeclarationAttributeIds.IdentitySubject, identity.Subject);
+        SetOptional(attributes, ResourceDeclarationAttributeIds.IdentityName, identity.Name);
+
+        if (identity.Scopes is { Count: > 0 })
+        {
+            attributes[ResourceDeclarationAttributeIds.IdentityScopes] =
+                ResourceAttributeValue.FromObject(identity.Scopes);
+        }
+
+        if (identity.Claims is { Count: > 0 })
+        {
+            attributes[ResourceDeclarationAttributeIds.IdentityClaims] =
+                ResourceAttributeValue.FromObject(identity.Claims);
+        }
+
+        return attributes;
+    }
+
+    private static ResourcePrincipalReferenceAttribute ToAttribute(ResourcePrincipalReference principal) =>
+        new(
+            ToAttributeKind(principal.Kind),
+            principal.Id,
+            principal.DisplayName,
+            principal.ProviderId,
+            principal.SourceResourceId,
+            principal.SourceIdentityName);
+
+    private static string ToAttributeKind(ResourcePrincipalKind kind) =>
+        kind switch
+        {
+            ResourcePrincipalKind.ResourceIdentity => ResourcePrincipalAttributeKinds.ResourceIdentity,
+            ResourcePrincipalKind.User => ResourcePrincipalAttributeKinds.User,
+            ResourcePrincipalKind.Group => ResourcePrincipalAttributeKinds.Group,
+            ResourcePrincipalKind.ServiceAccount => ResourcePrincipalAttributeKinds.ServiceAccount,
+            ResourcePrincipalKind.ServicePrincipal => ResourcePrincipalAttributeKinds.ServicePrincipal,
+            ResourcePrincipalKind.ManagedIdentity => ResourcePrincipalAttributeKinds.ManagedIdentity,
+            ResourcePrincipalKind.WorkloadIdentity => ResourcePrincipalAttributeKinds.WorkloadIdentity,
+            ResourcePrincipalKind.External => ResourcePrincipalAttributeKinds.External,
+            _ => kind.ToString()
+        };
+
+    private static void SetOptional(
+        Dictionary<ResourceAttributeId, ResourceAttributeValue> attributes,
+        ResourceAttributeId attributeId,
+        string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            attributes[attributeId] = ResourceAttributeValue.String(value.Trim());
+        }
+    }
+
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private sealed record AccessGrantAttributeKey(
+        string Kind,
+        string Id,
+        string? ProviderId,
+        string Permission)
+    {
+        public AccessGrantAttributeKey(ResourceAccessGrantAttribute grant)
+            : this(
+                grant.Principal.Kind,
+                grant.Principal.Id,
+                grant.Principal.ProviderId,
+                grant.Permission)
+        {
+        }
+    }
 }
 
 internal sealed class ResourceModelDeclarationMetadata

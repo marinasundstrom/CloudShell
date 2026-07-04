@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
 using ResourceManagerClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
 using ResourceManagerState = CloudShell.Abstractions.ResourceManager.ResourceState;
@@ -156,12 +157,26 @@ public static class ResourceModelResourceManagerMapper
         JsonSerializer.Serialize(attribute.AttributeValue);
 
     private static bool ShouldProjectResourceManagerAttribute(ResourceAttributeResolution attribute) =>
+        !IsSensitiveResourceManagerAttribute(attribute.Name.ToString()) &&
         attribute.AttributeValue?.Kind is
             ResourceAttributeValueKind.String or
             ResourceAttributeValueKind.Boolean or
             ResourceAttributeValueKind.Integer or
             ResourceAttributeValueKind.Decimal or
             ResourceAttributeValueKind.Object;
+
+    private static bool IsSensitiveResourceManagerAttribute(string name) =>
+        name
+            .Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(IsSensitiveResourceManagerAttributeSegment);
+
+    private static bool IsSensitiveResourceManagerAttributeSegment(string segment) =>
+        string.Equals(segment, "secret", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(segment, "secrets", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(segment, "password", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(segment, "token", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(segment, "apikey", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(segment, "api-key", StringComparison.OrdinalIgnoreCase);
 
     private static void AddDerivedContainerReplicaAttributes(IDictionary<string, string> attributes)
     {
@@ -254,6 +269,16 @@ public static class ResourceModelResourceManagerMapper
             ResourceActionIds.Stop => ResourceAction.Stop,
             ResourceActionIds.Pause => ResourceAction.Pause,
             ResourceActionIds.Restart => ResourceAction.Restart,
+            "application.sql-server.reconcile-access" => new ResourceAction(
+                "application.sql-server.reconcile-access",
+                ToDisplayName("application.sql-server.reconcile-access"),
+                Description: "Resolved Resource model operation.",
+                RequiredPermission: DatabaseResourceOperationPermissions.ReconcileAccess),
+            "application.rabbitmq.reconcile-access" => new ResourceAction(
+                "application.rabbitmq.reconcile-access",
+                ToDisplayName("application.rabbitmq.reconcile-access"),
+                Description: "Resolved Resource model operation.",
+                RequiredPermission: RabbitMQResourceOperationPermissions.ReconcileAccess),
             var id => new ResourceAction(
                 id,
                 ToDisplayName(id),

@@ -6,6 +6,7 @@ using CloudShell.ControlPlane.Providers;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ContainerAppPages = CloudShell.ControlPlane.Providers.UI.ContainerApplication.Pages;
 using ConfigurationPages = CloudShell.ControlPlane.Providers.UI.Configuration.Pages;
+using RabbitMQPages = CloudShell.ControlPlane.Providers.UI.RabbitMQ.Pages;
 using SharedPages = CloudShell.ControlPlane.Providers.UI.Shared.Pages;
 using SqlServerPages = CloudShell.ControlPlane.Providers.UI.SqlServer.Pages;
 using ResourceManagerResourceClass = CloudShell.Abstractions.ResourceManager.ResourceClass;
@@ -26,6 +27,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
             "resource-ui.application.java-app",
             "resource-ui.application.go-app",
             "resource-ui.application.sql-server",
+            "resource-ui.application.rabbitmq",
             "resource-ui.application.container-app"
         ],
         ["resource-manager.resources"]);
@@ -34,6 +36,8 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
     {
         builder.Services.TryAddScoped<IResourceDeploymentManager, EmptyResourceDeploymentManager>();
         builder.Services.TryAddScoped<IResourceReplicaSlotStateManager, EmptyResourceReplicaSlotStateManager>();
+        builder.Services.TryAddSingleton<IRabbitMQBrokerTopologyProvider, NoopRabbitMQBrokerTopologyProvider>();
+        builder.Services.TryAddSingleton<IRabbitMQBrokerDashboardProvider, NoopRabbitMQBrokerDashboardProvider>();
 
         builder
             .AddResourceType<SharedPages.RegisterApplicationResource>(
@@ -147,28 +151,35 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                             CreateSqlServerProbeSource(),
                             ResourceProbeType.Liveness,
                             "liveness")
-                    ]),
+                ]),
+                resourceClass: ResourceManagerResourceClass.Service)
+            .AddResourceType<SharedPages.RegisterApplicationResource>(
+                RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
+                "RabbitMQ",
+                "Inspect RabbitMQ broker resources declared through Resource Manager.",
+                "queue",
+                27,
                 resourceClass: ResourceManagerResourceClass.Service)
             .AddResourceType<SharedPages.RegisterResource>(
                 SqlDatabaseResourceTypeProvider.ResourceTypeId.ToString(),
                 "SQL Database",
                 "Inspect SQL database child resources declared through Resource Manager.",
                 "database-item",
-                27,
+                28,
                 resourceClass: ResourceManagerResourceClass.Service)
             .AddResourceType<SharedPages.RegisterResource>(
                 ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(),
                 "Configuration Store",
                 "Inspect configuration store resources declared through Resource Manager.",
                 "settings",
-                28,
+                29,
                 resourceClass: ResourceManagerResourceClass.Configuration)
             .AddResourceType<SharedPages.RegisterResource>(
                 SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),
                 "Secrets Vault",
                 "Inspect secrets vault resources declared through Resource Manager.",
                 "key",
-                29,
+                30,
                 resourceClass: ResourceManagerResourceClass.SecretsVault)
             .AddResourceTab<ConfigurationPages.ConfigurationStoreEntries>(
                 ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(),
@@ -191,63 +202,63 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 "Identity Provisioning",
                 "Inspect identity provisioning resources declared through Resource Manager.",
                 "identity",
-                30,
+                31,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 ContainerHostResourceTypeProvider.ResourceTypeId.ToString(),
                 "Container Host",
                 "Inspect container host resources declared through Resource Manager.",
                 "container-host",
-                31,
+                32,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 DockerHostResourceTypeProvider.ResourceTypeId.ToString(),
                 "Docker Host",
                 "Inspect Docker host resources declared through Resource Manager.",
                 "container-host",
-                32,
+                33,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 DockerContainerResourceTypeProvider.ResourceTypeId.ToString(),
                 "Docker Container",
                 "Inspect Docker container resources declared through Resource Manager.",
                 "container",
-                33,
+                34,
                 resourceClass: ResourceManagerResourceClass.Container)
             .AddResourceType<SharedPages.RegisterResource>(
                 HostConfigurationSourceResourceTypeProvider.ResourceTypeId.ToString(),
                 "Host Configuration Source",
                 "Inspect host configuration source resources declared through Resource Manager.",
                 "settings",
-                34,
+                35,
                 resourceClass: ResourceManagerResourceClass.Configuration)
             .AddResourceType<SharedPages.RegisterResource>(
                 VirtualNetworkResourceTypeProvider.ResourceTypeId.ToString(),
                 "Virtual Network",
                 "Inspect virtual network resources declared through Resource Manager.",
                 "network",
-                35,
+                36,
                 resourceClass: ResourceManagerResourceClass.Network)
             .AddResourceType<SharedPages.RegisterResource>(
                 LocalHostNetworkResourceTypeProvider.ResourceTypeId.ToString(),
                 "Local Host Networking",
                 "Inspect local host networking resources declared through Resource Manager.",
                 "network",
-                36,
+                37,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 MacOSHostNetworkResourceTypeProvider.ResourceTypeId.ToString(),
                 "macOS Host Networking",
                 "Inspect macOS host networking resources declared through Resource Manager.",
                 "network",
-                37,
+                38,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 LocalVolumeResourceTypeProvider.ResourceTypeId.ToString(),
                 "Local Volume",
                 "Inspect local volume resources declared through Resource Manager.",
                 "storage",
-                38,
+                39,
                 resourceClass: ResourceManagerResourceClass.Storage)
             .AddResourceTypeEndpoint(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
@@ -267,6 +278,12 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
             .AddResourceTypeEndpoint(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourceEndpointDescriptor.Tcp("tds", 1433))
+            .AddResourceTypeEndpoint(
+                RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourceEndpointDescriptor.Tcp("amqp", 5672))
+            .AddResourceTypeEndpoint(
+                RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourceEndpointDescriptor.Http("management", 15672))
             .AddResourceTab<SharedPages.ApplicationConfiguration>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Configuration,
@@ -457,6 +474,45 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 "Environment",
                 25,
                 groupTitle: ResourceTabGroupTitles.Management)
+            .AddResourceTab<SharedPages.ApplicationConfiguration>(
+                RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Configuration,
+                "Configuration",
+                20,
+                groupTitle: ResourceTabGroupTitles.General)
+            .AddResourceTab<SharedPages.ApplicationEnvironment>(
+                RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Environment,
+                "Environment",
+                25,
+                groupTitle: ResourceTabGroupTitles.Management)
+            .AddResourceTab<SharedPages.ApplicationStorage>(
+                RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Storage,
+                "Storage",
+                30,
+                groupTitle: ResourceTabGroupTitles.Storage)
+            .AddResourceTab<RabbitMQPages.RabbitMQBroker>(
+                RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
+                new ResourceViewId(ResourceTabGroupIds.Messaging, "broker"),
+                "Broker",
+                35,
+                groupTitle: ResourceTabGroupTitles.Messaging,
+                icon: "queue")
+            .AddResourceTab<RabbitMQPages.RabbitMQDashboard>(
+                RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
+                new ResourceViewId(ResourceTabGroupIds.Messaging, "dashboard"),
+                "Dashboard",
+                37,
+                groupTitle: ResourceTabGroupTitles.Messaging,
+                icon: "metrics")
+            .AddResourceTab<RabbitMQPages.RabbitMQTopology>(
+                RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
+                new ResourceViewId(ResourceTabGroupIds.Messaging, "topology"),
+                "Topology",
+                40,
+                groupTitle: ResourceTabGroupTitles.Messaging,
+                icon: "queue")
             .AddResourceTab<SqlServerPages.SqlServerDatabases>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Application, "databases"),
@@ -466,6 +522,12 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 icon: "database-item")
             .AddResourcePredefinedViewSection<SharedPages.ApplicationEndpointActions>(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
+                ResourcePredefinedViewIds.Endpoints,
+                "application.exposure-actions",
+                "Application exposure",
+                10)
+            .AddResourcePredefinedViewSection<SharedPages.ApplicationEndpointActions>(
+                RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Endpoints,
                 "application.exposure-actions",
                 "Application exposure",

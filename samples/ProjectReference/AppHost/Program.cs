@@ -6,8 +6,8 @@ var app = CloudShellDistributedApplication
     .WithMetadata("cloudshell.source", "csharp")
     .WithMetadata("cloudshell.sample", "ProjectReference");
 
-var cloudShellEndpoint = app.Configuration["CloudShell:Launcher:ControlPlaneUrl"]?.TrimEnd('/') ??
-    Environment.GetEnvironmentVariable("CLOUDSHELL_CONTROL_PLANE_URL")?.TrimEnd('/') ??
+var cloudShellEndpoint = Environment.GetEnvironmentVariable("CLOUDSHELL_CONTROL_PLANE_URL")?.TrimEnd('/') ??
+    app.Configuration["CloudShell:Launcher:ControlPlaneUrl"]?.TrimEnd('/') ??
     "http://127.0.0.1:5104";
 var traceIngestEndpoint = app.Configuration["ProjectReference:TraceIngestEndpoint"]
     ?? $"{cloudShellEndpoint}/api/control-plane/v1/traces/ingest";

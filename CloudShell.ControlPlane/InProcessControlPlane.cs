@@ -17,6 +17,8 @@ using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
 using ResourceDefinition = CloudShell.ResourceModel.ResourceDefinition;
+using ResourceDefinitionDiagnostic = CloudShell.ResourceModel.ResourceDefinitionDiagnostic;
+using ResourceDefinitionDiagnosticSeverity = CloudShell.ResourceModel.ResourceDefinitionDiagnosticSeverity;
 using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
 using ResourceGraphCommitContext = CloudShell.ResourceModel.ResourceGraphCommitContext;
 
@@ -1097,18 +1099,25 @@ public sealed class InProcessControlPlane(
             new ResourceModelGraphDefinitionApplyOptions(request.Mode),
             cancellationToken);
 
+        var diagnostics = apply.Diagnostics;
         if (!apply.HasErrors && apply.IsCommitted)
         {
             await RegisterAppliedDefinitionsAsync(
                 request.Template.Resources,
                 GetTemplateResourceGroupId(request.Template),
                 cancellationToken);
+            templates.ApplyTemplateDeclarationMetadata(request.Template);
+            diagnostics = diagnostics
+                .Concat(await ProvisionAppliedTemplateIdentitiesAsync(
+                    request.Template.Resources,
+                    cancellationToken))
+                .ToArray();
         }
 
         return new ResourceTemplateApplyResult(
             apply.Template,
             apply.IsCommitted,
-            apply.Diagnostics);
+            diagnostics);
     }
 
     private async Task RegisterAppliedDefinitionsAsync(
@@ -1124,6 +1133,10 @@ public sealed class InProcessControlPlane(
         {
             cancellationToken.ThrowIfCancellationRequested();
             var dependencyIds = definition.StartupDependencyIds;
+            var identity = CloudShell.ResourceModel.ResourceDeclarationAttributes.GetIdentityAttribute(definition)
+                is { } identityAttribute
+                ? ResourceModelGraphDefinitionApplyService.CreateIdentityBinding(identityAttribute)
+                : null;
             if (existingRegistrations.Contains(definition.EffectiveResourceId))
             {
                 await AssignResourceGroupAsync(
@@ -1132,17 +1145,26 @@ public sealed class InProcessControlPlane(
                         resourceGroupId,
                         dependencyIds),
                     cancellationToken);
-                continue;
+            }
+            else
+            {
+                await RegisterResourceAsync(
+                    new RegisterResourceCommand(
+                        ResourceModelResourceProvider.DefaultProviderId,
+                        definition.EffectiveResourceId,
+                        resourceGroupId,
+                        dependencyIds),
+                    cancellationToken);
+                existingRegistrations.Add(definition.EffectiveResourceId);
             }
 
-            await RegisterResourceAsync(
-                new RegisterResourceCommand(
-                    ResourceModelResourceProvider.DefaultProviderId,
+            if (identity is not null)
+            {
+                await registrations.SetIdentityAsync(
                     definition.EffectiveResourceId,
-                    resourceGroupId,
-                    dependencyIds),
-                cancellationToken);
-            existingRegistrations.Add(definition.EffectiveResourceId);
+                    identity,
+                    cancellationToken);
+            }
         }
     }
 
@@ -1157,6 +1179,64 @@ public sealed class InProcessControlPlane(
             ? NormalizeOptional(resourceGroupId)
             : null;
     }
+
+    private async Task<IReadOnlyList<ResourceDefinitionDiagnostic>> ProvisionAppliedTemplateIdentitiesAsync(
+        IReadOnlyList<ResourceDefinition> definitions,
+        CancellationToken cancellationToken)
+    {
+        var diagnostics = new List<ResourceDefinitionDiagnostic>();
+
+        foreach (var definition in definitions.Where(ShouldProvisionIdentityOnApply))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (CloudShell.ResourceModel.ResourceDeclarationAttributes.GetIdentityAttribute(definition) is null)
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Warning(
+                    "identity.provisioning.identityMissing",
+                    $"Resource '{ResourceDisplayLabels.GetName(definition.EffectiveResourceId)}' requested identity provisioning but does not declare an identity.",
+                    definition.EffectiveResourceId));
+                continue;
+            }
+
+            try
+            {
+                var result = await resourceIdentityProvisioning.ProvisionResourceAsync(
+                    definition.EffectiveResourceId,
+                    cancellationToken);
+                diagnostics.AddRange(result.ProvisioningDiagnostics.Select(ToResourceDefinitionDiagnostic));
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    "identity.provisioning.failed",
+                    exception is ControlPlaneException controlPlaneException
+                        ? controlPlaneException.Error.Message
+                        : exception.Message,
+                    definition.EffectiveResourceId));
+            }
+        }
+
+        return diagnostics;
+    }
+
+    private static bool ShouldProvisionIdentityOnApply(ResourceDefinition definition) =>
+        CloudShell.ResourceModel.ResourceDeclarationAttributes
+            .GetProvisionIdentityOnStartupAttribute(definition) == true;
+
+    private static ResourceDefinitionDiagnostic ToResourceDefinitionDiagnostic(
+        ResourceIdentityProvisioningDiagnostic diagnostic) =>
+        new(
+            diagnostic.Severity switch
+            {
+                ResourceIdentityProvisioningDiagnosticSeverity.Error =>
+                    ResourceDefinitionDiagnosticSeverity.Error,
+                ResourceIdentityProvisioningDiagnosticSeverity.Warning =>
+                    ResourceDefinitionDiagnosticSeverity.Warning,
+                _ => ResourceDefinitionDiagnosticSeverity.Information
+            },
+            "identity.provisioning",
+            diagnostic.Message,
+            diagnostic.Identity?.ResourceId ?? diagnostic.ProviderId);
 
     public Task<IReadOnlyList<LogSource>> ListLogSourcesAsync(
         LogQuery? query = null,

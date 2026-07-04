@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
@@ -1545,6 +1546,86 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesIdentityAndAccessGrantAttributesToDeclarations()
+    {
+        var declarations = new ResourceDeclarationStore();
+        var services = new ServiceCollection();
+        services.AddSingleton(declarations);
+        services.AddSingleton<IResourcePermissionGrantReader>(declarations);
+        services.AddInMemoryResourceModelGraph();
+        services.AddExecutableApplicationResourceType();
+        services.AddConfigurationStoreResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var builder = new TestCloudShellBuilder(services);
+
+        declarations.Declare(
+            builder,
+            ResourceModelResourceProvider.DefaultProviderId,
+            "application.executable:api");
+        declarations.Declare(
+            builder,
+            ResourceModelResourceProvider.DefaultProviderId,
+            "configuration.store:settings");
+
+        var template = ResourceTemplateSerializer.DeserializeTemplate("""
+resources:
+  - type: application.executable
+    name: api
+    path: dotnet
+    identity:
+      kind: provider
+      providerId: identity:development
+      name: api-service
+      subject: application.executable:api
+      provisionOnStartup: true
+      scopes:
+      - configuration.read
+      claims:
+        resource: application.executable:api
+  - type: configuration.store
+    name: settings
+    endpoint: http://localhost:5101
+    access:
+      grants:
+      - principal:
+          kind: resourceIdentity
+          id: application.executable:api/identities/api-service
+          providerId: identity:development
+          sourceResourceId: application.executable:api
+          sourceIdentityName: api-service
+        permission: CloudShell.Configuration/stores/entries/read/action
+""");
+
+        var result = await service.ApplyTemplateAsync(
+            template,
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 7, 4, 12, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        var apiDeclaration = declarations.GetDeclaration("application.executable:api");
+        Assert.NotNull(apiDeclaration);
+        Assert.Equal("identity:development", apiDeclaration.IdentityBinding?.ProviderId);
+        Assert.Equal("api-service", apiDeclaration.IdentityBinding?.Name);
+        Assert.Equal("application.executable:api", apiDeclaration.IdentityBinding?.Subject);
+        Assert.Equal(["configuration.read"], apiDeclaration.IdentityBinding?.IdentityScopes);
+        Assert.Equal("application.executable:api", apiDeclaration.IdentityBinding?.IdentityClaims["resource"]);
+        Assert.True(apiDeclaration.ProvisionIdentityOnStartup);
+
+        var grant = Assert.Single(declarations.GetPermissionGrants());
+        Assert.Equal("configuration.store:settings", grant.TargetResourceId);
+        Assert.Equal(ConfigurationStoreResourceOperationPermissions.ReadEntries, grant.Permission);
+        Assert.Equal(ResourcePrincipalKind.ResourceIdentity, grant.Principal.Kind);
+        Assert.Equal("application.executable:api/identities/api-service", grant.Principal.Id);
+        Assert.Equal("identity:development", grant.Principal.ProviderId);
+        Assert.Equal("application.executable:api", grant.Principal.SourceResourceId);
+        Assert.Equal("api-service", grant.Principal.SourceIdentityName);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_HonorsExplicitApplyModes()
     {
         var services = new ServiceCollection();
@@ -1893,18 +1974,26 @@ public sealed class ResourceManagerIntegrationTests
     public async Task ResourceDefinitionRegistrationService_AppliesSingleResourceDefinitionAndRegistersIt()
     {
         var resourceManager = new RecordingResourceManager();
+        var registrationStore = new RecordingResourceRegistrationStore();
         var services = new ServiceCollection();
         services.AddSingleton<IResourceManager>(resourceManager);
+        services.AddSingleton<IResourceRegistrationStore>(registrationStore);
         services.AddInMemoryResourceModelGraph();
         services.AddExecutableApplicationResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<IResourceDefinitionRegistrationService>();
+        var resource = new ExecutableApplicationResourceDefinitionBuilder("api")
+            .WithDisplayName("API")
+            .WithExecutablePath("dotnet")
+            .Build()
+            .WithDeclarationAttributes(
+                new ResourceIdentityBindingAttribute(
+                    "identity:built-in",
+                    Name: "api-service"));
 
         var result = await service.RegisterAsync(
-            new ExecutableApplicationResourceDefinitionBuilder("api")
-                .WithDisplayName("API")
-                .WithExecutablePath("dotnet"),
+            new FixedResourceDefinitionBuilder(resource),
             resourceGroupId: "apps",
             new ResourceGraphCommitContext(
                 EnvironmentId: "local",
@@ -1926,6 +2015,10 @@ public sealed class ResourceManagerIntegrationTests
         Assert.Equal(ResourceModelResourceProvider.DefaultProviderId, registration.ProviderId);
         Assert.Equal(result.ResourceId, registration.ResourceId);
         Assert.Equal("apps", registration.ResourceGroupId);
+        var persistedIdentity = registrationStore.GetRegistration(result.ResourceId)?.IdentityBinding;
+        Assert.NotNull(persistedIdentity);
+        Assert.Equal("identity:built-in", persistedIdentity.ProviderId);
+        Assert.Equal("api-service", persistedIdentity.Name);
     }
 
     [Fact]
@@ -2848,6 +2941,7 @@ public sealed class ResourceManagerIntegrationTests
         services.AddDockerHostResourceType();
         services.AddContainerApplicationResourceType();
         services.AddSqlServerResourceType();
+        services.AddRabbitMQResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
@@ -2860,6 +2954,9 @@ public sealed class ResourceManagerIntegrationTests
             .WithImage("example/api:1.0");
         var sqlServer = graph
             .AddSqlServer("sql")
+            .UseContainerHost(host, DockerHostResourceTypeProvider.ResourceTypeId);
+        var rabbitMQ = graph
+            .AddRabbitMQ("rabbitmq")
             .UseContainerHost(host, DockerHostResourceTypeProvider.ResourceTypeId);
 
         var result = await service.ApplyTemplateAsync(
@@ -2881,16 +2978,21 @@ public sealed class ResourceManagerIntegrationTests
             resource.Id == container.EffectiveResourceId);
         var projectedSqlServer = Assert.Single(projectedResources, resource =>
             resource.Id == sqlServer.EffectiveResourceId);
+        var projectedRabbitMQ = Assert.Single(projectedResources, resource =>
+            resource.Id == rabbitMQ.EffectiveResourceId);
 
         Assert.Equal([host.EffectiveResourceId], projectedContainer.DependsOn);
         Assert.Equal([host.EffectiveResourceId], projectedSqlServer.DependsOn);
+        Assert.Equal([host.EffectiveResourceId], projectedRabbitMQ.DependsOn);
 
         var resolver = serviceProvider.GetRequiredService<ResourceModelGraphResourceResolver>();
         var containerResolution = await resolver.ResolveAsync(container.EffectiveResourceId);
         var sqlResolution = await resolver.ResolveAsync(sqlServer.EffectiveResourceId);
+        var rabbitMQResolution = await resolver.ResolveAsync(rabbitMQ.EffectiveResourceId);
 
         Assert.False(containerResolution.HasErrors, FormatDiagnostics(containerResolution.Diagnostics));
         Assert.False(sqlResolution.HasErrors, FormatDiagnostics(sqlResolution.Diagnostics));
+        Assert.False(rabbitMQResolution.HasErrors, FormatDiagnostics(rabbitMQResolution.Diagnostics));
 
         var projectionResolver = serviceProvider.GetRequiredService<ResourceProjectionResolver>();
         var containerProjection = Assert.IsType<ContainerApplicationResource>(
@@ -2901,9 +3003,14 @@ public sealed class ResourceManagerIntegrationTests
             await projectionResolver.GetResourceProjectionAsync(
                 sqlResolution.Target!,
                 new ResourceProjectionContext("local", "developer")));
+        var rabbitMQProjection = Assert.IsType<RabbitMQResource>(
+            await projectionResolver.GetResourceProjectionAsync(
+                rabbitMQResolution.Target!,
+                new ResourceProjectionContext("local", "developer")));
 
         Assert.Equal(host.EffectiveResourceId, containerProjection.ContainerHostResourceId);
         Assert.Equal(host.EffectiveResourceId, sqlProjection.ContainerHostResourceId);
+        Assert.Equal(host.EffectiveResourceId, rabbitMQProjection.ContainerHostResourceId);
     }
 
     [Fact]
@@ -5357,6 +5464,160 @@ public sealed class ResourceManagerIntegrationTests
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesRabbitMQAcrossProviderBoundaries()
+    {
+        var accessReconciler = new RecordingRabbitMQAccessReconciler();
+        var declarations = new ResourceDeclarationStore();
+        var services = new ServiceCollection();
+        services.AddSingleton(declarations);
+        services.AddSingleton<IResourcePermissionGrantReader>(declarations);
+        services.AddInMemoryResourceModelGraph();
+        services.AddNetworkResourceType();
+        services.AddCloudShellVolumeResourceType();
+        services.AddSingleton<IRabbitMQAccessReconciler>(accessReconciler);
+        services.AddRabbitMQResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceGraphBuilder();
+        var volume = graph.AddVolume(
+            "rabbitmq-data",
+            path: "./Data/storage/rabbitmq");
+        var broker = graph
+            .AddRabbitMQ("rabbitmq")
+            .WithVersion("3")
+            .WithAmqpEndpoint(host: "localhost", port: 5672)
+            .WithManagementEndpoint(host: "localhost", port: 15672)
+            .MountVolume(volume, RabbitMQResourceDefaults.DataPath);
+
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("rabbitmq-app", environmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 7, 3, 12, 15, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+        Assert.Equal(ResourceGraphCommitStatus.Committed, result.Commit.Summary.Status);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedRabbitMQ = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == broker.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Service, projectedRabbitMQ.ResourceClass);
+        Assert.Equal(RabbitMQResourceTypeProvider.ProviderId, projectedRabbitMQ.Provider);
+        Assert.Equal(ResourceManagerResourceState.Unknown, projectedRabbitMQ.State);
+        Assert.Equal("3", projectedRabbitMQ.ResourceAttributes["version"]);
+        Assert.Equal(
+            [ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId, volume.EffectiveResourceId],
+            projectedRabbitMQ.DependsOn);
+        Assert.Contains(projectedRabbitMQ.ResourceActions, action =>
+            action.Id == "start" &&
+            action.Kind == ResourceActionKind.Start);
+        Assert.Contains(projectedRabbitMQ.ResourceActions, action =>
+            action.Id == "stop" &&
+            action.Kind == ResourceActionKind.Stop);
+        Assert.Contains(projectedRabbitMQ.ResourceActions, action =>
+            action.Id == "restart" &&
+            action.Kind == ResourceActionKind.Restart);
+        var reconcile = Assert.Single(projectedRabbitMQ.ResourceActions, action =>
+            action.Id == RabbitMQResourceTypeProvider.Operations.ReconcileAccess.ToString());
+        Assert.Equal(
+            RabbitMQResourceOperationPermissions.ReconcileAccess,
+            reconcile.RequiredPermission);
+        var amqp = Assert.Single(projectedRabbitMQ.Endpoints, endpoint => endpoint.Name == "amqp");
+        Assert.Equal("tcp", amqp.Protocol);
+        Assert.Equal(5672, amqp.TargetPort);
+        var management = Assert.Single(projectedRabbitMQ.Endpoints, endpoint => endpoint.Name == "management");
+        Assert.Equal("http", management.Protocol);
+        Assert.Equal(15672, management.TargetPort);
+        Assert.Contains(projectedRabbitMQ.ResourceEndpointNetworkMappings, mapping =>
+            mapping.Target.EndpointName == "management" &&
+            mapping.Address == "http://localhost:15672");
+        Assert.Contains(projectedRabbitMQ.ResourceCapabilities, capability =>
+            capability.Id == ResourceLogSourceCapabilityIds.LogSources.ToString());
+        var logSource = Assert.Single(projectedRabbitMQ.ResourceLogSources);
+        Assert.Equal("container", logSource.Id);
+        Assert.Equal("Container logs", logSource.Name);
+        Assert.Equal(ResourceLogSourceKind.Container, logSource.Kind);
+        Assert.Equal(LogFormat.PlainText, logSource.Format);
+        Assert.Equal(
+            LogSourceCapabilities.Read | LogSourceCapabilities.Stream,
+            logSource.Capabilities);
+        Assert.Equal(ResourceLogSourceOrigin.ProviderDefault, logSource.Origin);
+        Assert.Equal(ResourceLogSourcePurpose.Default, logSource.Purpose);
+        Assert.Equal(LogSourceAvailability.ResourceRunning, logSource.Availability);
+        Assert.True(projectedRabbitMQ.SupportsLogSources);
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveWithDependenciesAsync(broker.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        Assert.Equal(
+            [
+                broker.EffectiveResourceId,
+                ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId,
+                volume.EffectiveResourceId
+            ],
+            resolution.Resources.Select(resource => resource.EffectiveResourceId));
+        var capability = Assert.IsType<VolumeConsumerCapability>(
+            resolution.Target!.Capabilities.Get<VolumeConsumerCapability>());
+        Assert.Equal(volume.EffectiveResourceId, Assert.Single(capability.Mounts).Volume);
+
+        var projection = Assert.IsType<RabbitMQResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target,
+                    new ResourceProjectionContext("local", "developer")));
+        var reconcileOperation = await projection.GetReconcileAccessOperationAsync();
+
+        Assert.NotNull(reconcileOperation);
+        Assert.True(await reconcileOperation.CanExecuteAsync());
+
+        var grant = new ResourcePermissionGrant(
+            ResourcePrincipalReference.ForResourceIdentity(
+                "application.aspnet-core-project:api",
+                "default"),
+            broker.EffectiveResourceId,
+            RabbitMQResourceOperationPermissions.Publish);
+        declarations.AddPermissionGrant(grant);
+
+        var plan = reconcileOperation.PlanReconciliation();
+        Assert.Equal(broker.EffectiveResourceId, plan.Resource.EffectiveResourceId);
+        Assert.Equal([grant], plan.Grants);
+
+        var procedure = new ResourceProcedureContext(
+            projectedRabbitMQ,
+            null,
+            null,
+            new EmptyResourceRegistrationStore());
+
+        Assert.Null(await provider.GetActionUnavailableReasonAsync(procedure, reconcile));
+
+        await provider.ExecuteActionAsync(procedure, reconcile);
+
+        Assert.Equal([broker.EffectiveResourceId], accessReconciler.ReconciledResourceIds);
+        Assert.Equal([grant], Assert.Single(accessReconciler.ReconciledGrants));
+
+        var statusProvider = serviceProvider
+            .GetServices<IResourcePermissionGrantStatusProvider>()
+            .OfType<RabbitMQPermissionGrantStatusProvider>()
+            .Single();
+        var status = await statusProvider.GetStatusAsync(
+            new ResourcePermissionGrantStatusRequest(projectedRabbitMQ, grant));
+
+        Assert.True(statusProvider.CanGetStatus(new ResourcePermissionGrantStatusRequest(projectedRabbitMQ, grant)));
+        Assert.Equal(ResourcePermissionGrantEffectivenessState.Pending, status.State);
+        Assert.Equal(RabbitMQResourceTypeProvider.ProviderId, status.ProviderId);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesSqlDatabaseAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();
@@ -6399,6 +6660,34 @@ public sealed class ResourceManagerIntegrationTests
             };
             return Task.CompletedTask;
         }
+
+        public Task SetIdentityAsync(
+            string resourceId,
+            ResourceIdentityBinding? identity,
+            CancellationToken cancellationToken = default)
+        {
+            var existing = GetRegistration(resourceId) ??
+                new ResourceRegistration(resourceId, "resource-model", null, DateTimeOffset.UtcNow, []);
+            _registrations[resourceId] = existing with
+            {
+                Identity = identity
+            };
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FixedResourceDefinitionBuilder(ResourceDefinition definition) :
+        IResourceDefinitionBuilder
+    {
+        public string Name => definition.Name;
+
+        public ResourceTypeId ResourceTypeId => definition.TypeId;
+
+        public string? ResourceProviderId => definition.ProviderId;
+
+        public string EffectiveResourceId => definition.EffectiveResourceId;
+
+        public ResourceDefinition Build() => definition;
     }
 
     private sealed class RecordingExecutableApplicationRuntimeController :
@@ -6791,6 +7080,28 @@ public sealed class ResourceManagerIntegrationTests
             CancellationToken cancellationToken = default)
         {
             _reconciledResourceIds.Add(resource.EffectiveResourceId);
+
+            return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+        }
+    }
+
+    private sealed class RecordingRabbitMQAccessReconciler :
+        IRabbitMQAccessReconciler
+    {
+        private readonly List<string> _reconciledResourceIds = [];
+        private readonly List<IReadOnlyList<ResourcePermissionGrant>> _reconciledGrants = [];
+
+        public IReadOnlyList<string> ReconciledResourceIds => _reconciledResourceIds;
+
+        public IReadOnlyList<IReadOnlyList<ResourcePermissionGrant>> ReconciledGrants => _reconciledGrants;
+
+        public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAccessAsync(
+            Resource resource,
+            IReadOnlyList<ResourcePermissionGrant> grants,
+            CancellationToken cancellationToken = default)
+        {
+            _reconciledResourceIds.Add(resource.EffectiveResourceId);
+            _reconciledGrants.Add(grants);
 
             return ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
         }
@@ -7568,6 +7879,11 @@ public sealed class ResourceManagerIntegrationTests
                 results,
                 result.Message);
         }
+    }
+
+    private sealed class TestCloudShellBuilder(IServiceCollection services) : ICloudShellBuilder
+    {
+        public IServiceCollection Services { get; } = services;
     }
 
     private sealed class TemporaryDirectory : IDisposable

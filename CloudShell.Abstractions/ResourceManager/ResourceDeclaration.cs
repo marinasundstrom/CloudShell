@@ -167,6 +167,11 @@ public interface IResourcePermissionGrantStatusProvider
         CancellationToken cancellationToken = default);
 }
 
+public interface IResourcePermissionGrantReader
+{
+    IReadOnlyList<ResourcePermissionGrant> GetPermissionGrants();
+}
+
 public sealed class ResourcePermissionGrantEvaluator(
     IEnumerable<ResourcePermissionGrant> grants)
 {
@@ -532,7 +537,7 @@ public sealed class ResourceIdentityDeclarationBuilder
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
 
-public sealed class ResourceDeclarationStore
+public sealed class ResourceDeclarationStore : IResourcePermissionGrantReader
 {
     private readonly object _gate = new();
     private readonly Dictionary<string, ResourceDeclaration> _declarations =

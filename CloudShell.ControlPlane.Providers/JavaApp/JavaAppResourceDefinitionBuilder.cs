@@ -351,6 +351,8 @@ public static class JavaAppResourceDefinitionBuilderExtensions
 }
 
 public sealed record JavaAppEnvironmentVariableValue(
+    [property: System.Text.Json.Serialization.JsonConverter(
+        typeof(ApplicationEnvironmentVariableValueJsonConverter))]
     string? Value = null,
     ResourceConfigurationEntryReference? ConfigurationEntryRef = null,
     ResourceSecretReference? SecretRef = null);

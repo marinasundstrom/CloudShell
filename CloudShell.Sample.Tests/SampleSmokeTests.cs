@@ -72,6 +72,10 @@ public sealed class SampleSmokeRuntimeCleanupFixture : IAsyncLifetime
                 LocalDockerContainerApplicationRuntimeConventions.CreateReplicaContainerName(signalRDefinition, replica));
         }
 
+        await RemoveContainersMatchingAsync(containerName =>
+            containerName.StartsWith("cloudshell-", StringComparison.OrdinalIgnoreCase) &&
+            containerName.EndsWith("-rabbitmq-rabbitmq", StringComparison.OrdinalIgnoreCase));
+
         foreach (var path in Directory.EnumerateFiles(
             Path.GetTempPath(),
             "cloudshell-load-balancer-*.hosts"))
@@ -84,6 +88,65 @@ public sealed class SampleSmokeRuntimeCleanupFixture : IAsyncLifetime
             {
                 // Test cleanup should not hide the original test failure.
             }
+        }
+    }
+
+    private static async Task RemoveContainersMatchingAsync(
+        Func<string, bool> predicate)
+    {
+        var output = new StringBuilder();
+        var startInfo = new ProcessStartInfo("docker")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+        startInfo.ArgumentList.Add("ps");
+        startInfo.ArgumentList.Add("-a");
+        startInfo.ArgumentList.Add("--format");
+        startInfo.ArgumentList.Add("{{.Names}}");
+
+        try
+        {
+            using var process = Process.Start(startInfo);
+            if (process is null)
+            {
+                return;
+            }
+
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            try
+            {
+                await process.WaitForExitAsync().WaitAsync(DockerCleanupTimeout);
+                output.Append(await outputTask);
+                output.Append(await errorTask);
+            }
+            catch (TimeoutException)
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                    await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(1));
+                }
+
+                return;
+            }
+
+            foreach (var containerName in output
+                .ToString()
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(predicate))
+            {
+                await RemoveContainerIfExistsAsync(containerName);
+            }
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or
+            System.ComponentModel.Win32Exception or
+            TimeoutException)
+        {
+            // Docker may be unavailable for non-Docker sample tests.
         }
     }
 
@@ -186,6 +249,11 @@ public sealed class SampleSmokeTests
         yield return new object[]
         {
             "samples/ProjectReference/AppHost/CloudShell.ProjectReferenceAppHost.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/RabbitMQMessaging/AppHost/CloudShell.RabbitMQMessagingAppHost.csproj",
             resourceHostPaths
         };
         yield return new object[]
@@ -3128,6 +3196,13 @@ public sealed class SampleSmokeTests
             environment.Add(("ProjectReference__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("ProjectReference__ApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
         }
+        else if (sampleName == "RabbitMQMessaging")
+        {
+            environment.Add(("RabbitMQMessaging__DotNetEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("RabbitMQMessaging__JavaEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("RabbitMQMessaging__RabbitMQPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+            environment.Add(("RabbitMQMessaging__ManagementEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+        }
         else if (sampleName == "ReplicatedContainerHealth")
         {
             environment.Add(("ReplicatedContainerHealth__ApiPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
@@ -3193,6 +3268,11 @@ public sealed class SampleSmokeTests
         if (projectPath.Contains("/ProjectReference/", StringComparison.OrdinalIgnoreCase))
         {
             return "ProjectReference";
+        }
+
+        if (projectPath.Contains("/RabbitMQMessaging/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "RabbitMQMessaging";
         }
 
         if (projectPath.Contains("/ReplicatedContainerHealth/", StringComparison.OrdinalIgnoreCase))
@@ -3271,6 +3351,12 @@ public sealed class SampleSmokeTests
             [
                 "application:project-reference-api",
                 "application:project-reference-frontend"
+            ],
+            "RabbitMQMessaging" =>
+            [
+                "application:rabbitmq",
+                "application:rabbitmq-dotnet",
+                "application:rabbitmq-java"
             ],
             "ReplicatedContainerHealth" =>
             [
@@ -3864,6 +3950,7 @@ public sealed class SampleSmokeTests
         var deadline = DateTimeOffset.UtcNow.Add(timeout);
         Exception? lastException = null;
         string? lastBody = null;
+        string? lastUnfilteredBody = null;
 
         while (DateTimeOffset.UtcNow < deadline)
         {
@@ -3888,9 +3975,20 @@ public sealed class SampleSmokeTests
             await Task.Delay(250);
         }
 
+        try
+        {
+            lastUnfilteredBody = await host.GetStringAsync(
+                "/api/control-plane/v1/metrics?maxPoints=50");
+        }
+        catch (Exception exception) when (exception is HttpRequestException or JsonException)
+        {
+            lastException = exception;
+        }
+
         throw new TimeoutException(
             $"Metrics for resource '{resourceId}' were not ingested within {timeout}." +
-            $"{Environment.NewLine}{lastBody ?? lastException?.Message}");
+            $"{Environment.NewLine}Filtered: {lastBody ?? lastException?.Message}" +
+            $"{Environment.NewLine}Unfiltered: {lastUnfilteredBody ?? lastException?.Message}");
     }
 
     private static async Task<bool> WaitForDockerContainerExistsAsync(string containerName, TimeSpan timeout)
@@ -5167,6 +5265,17 @@ public sealed class SampleSmokeTests
                     "configuration.store:java-app-settings",
                     "secrets.vault:java-app-secrets",
                     "application.java-app:java-api"
+                ];
+            }
+
+            if (projectPath.Contains("/RabbitMQMessaging/", StringComparison.OrdinalIgnoreCase))
+            {
+                return
+                [
+                    "cloudshell.volume:rabbitmq-messaging-data",
+                    "application.rabbitmq:rabbitmq",
+                    "application.aspnet-core-project:rabbitmq-dotnet",
+                    "application.java-app:rabbitmq-java"
                 ];
             }
 

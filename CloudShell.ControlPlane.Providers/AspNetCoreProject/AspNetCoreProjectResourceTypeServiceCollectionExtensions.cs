@@ -68,6 +68,10 @@ public static class AspNetCoreProjectResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 IAspNetCoreProjectRuntimeEnvironmentProvider,
                 AspNetCoreProjectServiceDiscoveryEnvironmentResolver>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IAspNetCoreProjectRuntimeEnvironmentProvider,
+                ProjectResourceIdentityEnvironmentResolver>());
         services.TryAddSingleton<AspNetCoreProjectProcessRuntimeController>();
         services.TryAddSingleton<IAspNetCoreProjectRuntimeController>(
             serviceProvider => serviceProvider.GetRequiredService<AspNetCoreProjectProcessRuntimeController>());

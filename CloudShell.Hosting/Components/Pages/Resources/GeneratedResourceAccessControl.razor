@@ -39,6 +39,7 @@
     private const string LoadBalancerResourceType = "cloudshell.loadBalancer";
     private const string IdentityProvisioningResourceType = "cloudshell.identity-provisioning";
     private const string SqlServerResourceType = "application.sql-server";
+    private const string RabbitMQResourceType = "application.rabbitmq";
 
     private static readonly IReadOnlyList<PermissionOption> AllPermissionOptions =
     [
@@ -54,6 +55,10 @@
         new("Identity provisioning", ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities, PermissionOptionTarget.IdentityProvisioning),
         new("Database: read/write", DatabaseResourceOperationPermissions.ReadWrite, PermissionOptionTarget.Database),
         new("Database access: reconcile", DatabaseResourceOperationPermissions.ReconcileAccess, PermissionOptionTarget.Database),
+        new("RabbitMQ: publish", RabbitMQResourceOperationPermissions.Publish, PermissionOptionTarget.RabbitMQ),
+        new("RabbitMQ: consume", RabbitMQResourceOperationPermissions.Consume, PermissionOptionTarget.RabbitMQ),
+        new("RabbitMQ: configure", RabbitMQResourceOperationPermissions.Configure, PermissionOptionTarget.RabbitMQ),
+        new("RabbitMQ access: reconcile", RabbitMQResourceOperationPermissions.ReconcileAccess, PermissionOptionTarget.RabbitMQ),
         new("All permissions", CloudShellPermissions.All, PermissionOptionTarget.Always),
         new("Custom permission", CustomPermissionValue, PermissionOptionTarget.Always)
     ];
@@ -149,6 +154,12 @@
         {
             <ProcedureMessage Severity="ResourceSignalSeverity.Warning" Role="status">
                 @L["Database grants are saved in CloudShell. Reconcile access to create SQL-side users and roles. Workload credential delivery remains provider-owned future work."]
+            </ProcedureMessage>
+        }
+        @if (ShouldShowRabbitMQGrantMaterializationNotice())
+        {
+            <ProcedureMessage Severity="ResourceSignalSeverity.Warning" Role="status">
+                @L["RabbitMQ grants are saved in CloudShell. Reconcile access to create broker-native users and virtual-host permissions. Broker administrator credentials remain provider-owned and hidden."]
             </ProcedureMessage>
         }
         <p class="muted">@L["CloudShell records that the selected principal can access this resource. Identity and access providers apply or reconcile the grant when provisioning runs."]</p>
@@ -495,6 +506,17 @@
              DatabaseResourceOperationPermissions.ReadWrite,
              StringComparison.OrdinalIgnoreCase)));
 
+    private bool ShouldShowRabbitMQGrantMaterializationNotice() =>
+        Resource is not null &&
+        string.Equals(Resource.EffectiveTypeId, RabbitMQResourceType, StringComparison.OrdinalIgnoreCase) &&
+        (string.Equals(SelectedPermission, RabbitMQResourceOperationPermissions.Publish, StringComparison.OrdinalIgnoreCase) ||
+         string.Equals(SelectedPermission, RabbitMQResourceOperationPermissions.Consume, StringComparison.OrdinalIgnoreCase) ||
+         string.Equals(SelectedPermission, RabbitMQResourceOperationPermissions.Configure, StringComparison.OrdinalIgnoreCase) ||
+         InboundGrants.Any(grant =>
+             string.Equals(grant.Permission, RabbitMQResourceOperationPermissions.Publish, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(grant.Permission, RabbitMQResourceOperationPermissions.Consume, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(grant.Permission, RabbitMQResourceOperationPermissions.Configure, StringComparison.OrdinalIgnoreCase)));
+
     private GrantEffectivenessView? GetGrantEffectiveness(ResourcePrincipalReference principal, string permission)
     {
         if (!GrantStatuses.TryGetValue(GetPermissionKey(principal, permission), out var status))
@@ -542,6 +564,7 @@
             PermissionOptionTarget.LoadBalancer => IsResourceType(resource, LoadBalancerResourceType),
             PermissionOptionTarget.IdentityProvisioning => IsResourceType(resource, IdentityProvisioningResourceType),
             PermissionOptionTarget.Database => IsResourceType(resource, SqlServerResourceType),
+            PermissionOptionTarget.RabbitMQ => IsResourceType(resource, RabbitMQResourceType),
             PermissionOptionTarget.LifecycleAction => resource.ResourceActions.Any(action =>
                 action.Kind is ResourceActionKind.Start or
                     ResourceActionKind.Stop or
@@ -568,6 +591,7 @@
         LoadBalancer,
         IdentityProvisioning,
         Database,
+        RabbitMQ,
         LifecycleAction,
         CustomAction
     }

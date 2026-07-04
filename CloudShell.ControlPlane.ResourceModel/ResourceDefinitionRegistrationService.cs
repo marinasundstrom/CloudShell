@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.ControlPlane;
+using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.ControlPlane.ResourceModel;
@@ -15,6 +16,7 @@ public interface IResourceDefinitionRegistrationService
 public sealed class ResourceDefinitionRegistrationService(
     ResourceModelGraphDefinitionApplyService definitionApply,
     IResourceManager resourceManager,
+    IResourceRegistrationStore registrations,
     IServiceProvider services) : IResourceDefinitionRegistrationService
 {
     public async Task<ResourceDefinitionRegistrationResult> RegisterAsync(
@@ -58,8 +60,8 @@ public sealed class ResourceDefinitionRegistrationService(
     {
         var normalizedResourceGroupId = NormalizeOptional(resourceGroupId);
         var dependencyIds = definition.StartupDependencyIds;
-        var registrations = await resourceManager.ListResourceRegistrationsAsync(cancellationToken);
-        if (registrations.Any(registration => string.Equals(
+        var existingRegistrations = await resourceManager.ListResourceRegistrationsAsync(cancellationToken);
+        if (existingRegistrations.Any(registration => string.Equals(
                 registration.ResourceId,
                 definition.EffectiveResourceId,
                 StringComparison.OrdinalIgnoreCase)))
@@ -68,18 +70,27 @@ public sealed class ResourceDefinitionRegistrationService(
                 new AssignResourceGroupCommand(
                     definition.EffectiveResourceId,
                     normalizedResourceGroupId,
+                dependencyIds),
+                cancellationToken);
+        }
+        else
+        {
+            await resourceManager.RegisterResourceAsync(
+                new RegisterResourceCommand(
+                    ResourceModelResourceProvider.DefaultProviderId,
+                    definition.EffectiveResourceId,
+                    normalizedResourceGroupId,
                     dependencyIds),
                 cancellationToken);
-            return;
         }
 
-        await resourceManager.RegisterResourceAsync(
-            new RegisterResourceCommand(
-                ResourceModelResourceProvider.DefaultProviderId,
+        if (definition.GetIdentityAttribute() is { } identityAttribute)
+        {
+            await registrations.SetIdentityAsync(
                 definition.EffectiveResourceId,
-                normalizedResourceGroupId,
-                dependencyIds),
-            cancellationToken);
+                ResourceModelGraphDefinitionApplyService.CreateIdentityBinding(identityAttribute),
+                cancellationToken);
+        }
     }
 
     private static string? NormalizeOptional(string? value) =>

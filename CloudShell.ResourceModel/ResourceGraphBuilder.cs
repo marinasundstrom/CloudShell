@@ -15,6 +15,15 @@ public interface IResourceDefinitionBuilder
     ResourceDefinition Build();
 }
 
+public interface IResourceDefinitionAttributeBuilder
+{
+    IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValue> AttributeValues { get; }
+
+    void SetAttribute(ResourceAttributeId attributeId, ResourceAttributeValue value);
+
+    void RemoveAttribute(ResourceAttributeId attributeId);
+}
+
 internal interface IResourceIdConventionAwareBuilder
 {
     void UseResourceIdConvention(IResourceIdConvention resourceIdConvention);
@@ -28,6 +37,7 @@ public interface IResourceGraphContextAwareBuilder
 public abstract class ResourceDefinitionBuilder<TBuilder>(
     string name) :
     IResourceDefinitionBuilder,
+    IResourceDefinitionAttributeBuilder,
     IResourceIdConventionAwareBuilder,
     IResourceGraphContextAwareBuilder
     where TBuilder : ResourceDefinitionBuilder<TBuilder>
@@ -66,6 +76,9 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
         string.IsNullOrWhiteSpace(_resourceId)
             ? ResourceIdConventionResolver.Resolve(_resourceIdConvention, Name, TypeId, ProviderId)
             : _resourceId;
+
+    public IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValue> AttributeValues =>
+        _attributes;
 
     public TBuilder WithResourceId(string? resourceId)
     {
@@ -171,6 +184,16 @@ public abstract class ResourceDefinitionBuilder<TBuilder>(
     {
     }
 
+    public void SetAttribute(ResourceAttributeId attributeId, ResourceAttributeValue value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+
+        _attributes[attributeId] = value;
+    }
+
+    void IResourceDefinitionAttributeBuilder.RemoveAttribute(ResourceAttributeId attributeId) =>
+        _attributes.Remove(attributeId);
+
     protected TBuilder SetScalarAttribute(
         ResourceAttributeId attributeId,
         string value)
@@ -268,6 +291,9 @@ public class ResourceGraphBuilder(
     IResourceIdConvention? resourceIdConvention = null)
 {
     private readonly List<IResourceDefinitionBuilder> _resources = [];
+    private readonly Dictionary<string, ResourceIdentityDeclaration> _resourceIdentities =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<ResourceAccessGrantDeclaration> _permissionGrants = [];
     private readonly IResourceIdConvention _resourceIdConvention =
         resourceIdConvention ?? DefaultResourceIdConvention.Instance;
 
@@ -317,6 +343,71 @@ public class ResourceGraphBuilder(
         return Add(new FixedResourceDefinitionBuilder(definition));
     }
 
+    public ResourceGraphBuilder AddResourceIdentity(
+        string resourceId,
+        ResourceIdentityBindingAttribute identity,
+        bool? provisionIdentityOnStartup = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        ArgumentNullException.ThrowIfNull(identity);
+
+        _resourceIdentities[resourceId.Trim()] = new ResourceIdentityDeclaration(
+            identity,
+            provisionIdentityOnStartup);
+        return this;
+    }
+
+    public ResourceGraphBuilder ProvisionIdentityOnStartup(
+        string resourceId,
+        bool provision = true)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+
+        var normalizedResourceId = resourceId.Trim();
+        _resourceIdentities[normalizedResourceId] =
+            _resourceIdentities.TryGetValue(normalizedResourceId, out var existing)
+                ? existing with { ProvisionIdentityOnStartup = provision }
+                : new ResourceIdentityDeclaration(null, provision);
+        return this;
+    }
+
+    public ResourceGraphBuilder AddPermissionGrant(
+        string targetResourceId,
+        ResourceAccessGrantAttribute grant)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(targetResourceId);
+        ArgumentNullException.ThrowIfNull(grant);
+        ArgumentNullException.ThrowIfNull(grant.Principal);
+        ArgumentException.ThrowIfNullOrWhiteSpace(grant.Permission);
+
+        var normalized = new ResourceAccessGrantDeclaration(
+            targetResourceId.Trim(),
+            grant with
+            {
+                Permission = grant.Permission.Trim()
+            });
+        if (_permissionGrants.Any(existing =>
+                string.Equals(existing.TargetResourceId, normalized.TargetResourceId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(existing.Grant.Permission, normalized.Grant.Permission, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(existing.Grant.Principal.Kind, normalized.Grant.Principal.Kind, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(existing.Grant.Principal.Id, normalized.Grant.Principal.Id, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(existing.Grant.Principal.ProviderId, normalized.Grant.Principal.ProviderId, StringComparison.OrdinalIgnoreCase)))
+        {
+            return this;
+        }
+
+        _permissionGrants.Add(normalized);
+        return this;
+    }
+
+    public ResourceGraphBuilder AddPermissionGrant(
+        string targetResourceId,
+        ResourcePrincipalReferenceAttribute principal,
+        string permission) =>
+        AddPermissionGrant(
+            targetResourceId,
+            new ResourceAccessGrantAttribute(principal, permission));
+
     public TBuilder GetOrAddResource<TBuilder>(
         string resourceId,
         Func<TBuilder> createResource)
@@ -365,7 +456,10 @@ public class ResourceGraphBuilder(
                 $"Resource '{duplicate.Key}' is already defined in the graph.");
         }
 
-        return new ResourceDefinitionGraph(definitions);
+        return new ResourceDefinitionGraph(
+            definitions
+                .Select(ApplyResourceMetadata)
+                .ToArray());
     }
 
     public ResourceTemplate BuildTemplate(
@@ -380,6 +474,61 @@ public class ResourceGraphBuilder(
             BuildGraph().Resources,
             environmentId,
             metadata);
+    }
+
+    private ResourceDefinition ApplyResourceMetadata(ResourceDefinition definition)
+    {
+        var resourceId = definition.EffectiveResourceId;
+        var attributes = definition.GetDeclarationAttributes();
+        var identity = attributes.Identity;
+        var provisionIdentityOnStartup = attributes.ProvisionIdentityOnStartup;
+        if (_resourceIdentities.TryGetValue(resourceId, out var identityDeclaration))
+        {
+            identity = identityDeclaration.Identity ?? identity;
+            provisionIdentityOnStartup =
+                identityDeclaration.ProvisionIdentityOnStartup ??
+                provisionIdentityOnStartup;
+        }
+
+        var declaredGrants = _permissionGrants
+            .Where(grant => string.Equals(
+                grant.TargetResourceId,
+                resourceId,
+                StringComparison.OrdinalIgnoreCase))
+            .Select(grant => grant.Grant);
+        var grants = attributes.AccessGrantsOrEmpty
+            .Concat(declaredGrants)
+            .DistinctBy(grant => new PermissionGrantKey(grant))
+            .ToArray();
+
+        return definition.WithDeclarationAttributes(
+            identity,
+            provisionIdentityOnStartup,
+            grants);
+    }
+
+    private sealed record ResourceIdentityDeclaration(
+        ResourceIdentityBindingAttribute? Identity,
+        bool? ProvisionIdentityOnStartup);
+
+    private sealed record ResourceAccessGrantDeclaration(
+        string TargetResourceId,
+        ResourceAccessGrantAttribute Grant);
+
+    private sealed record PermissionGrantKey(
+        string Kind,
+        string Id,
+        string? ProviderId,
+        string Permission)
+    {
+        public PermissionGrantKey(ResourceAccessGrantAttribute grant)
+            : this(
+                grant.Principal.Kind,
+                grant.Principal.Id,
+                grant.Principal.ProviderId,
+                grant.Permission)
+        {
+        }
     }
 
     private sealed class FixedResourceDefinitionBuilder(

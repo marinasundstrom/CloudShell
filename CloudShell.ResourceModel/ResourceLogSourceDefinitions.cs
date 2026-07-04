@@ -15,6 +15,7 @@ public static class ResourceLogSourceAttributeIds
 public static class ResourceLogSourceDefinitionValues
 {
     public const string ProcessOutput = "processOutput";
+    public const string Container = "container";
     public const string PlainText = "plainText";
     public const string JsonConsole = "jsonConsole";
     public const string Read = "read";
@@ -72,4 +73,18 @@ public sealed record ResourceLogSourceDefinition(
                 ResourceLogSourceDefinitionValues.Stream
             ],
             Description: "Provider-captured process console output.");
+
+    public static ResourceLogSourceDefinition DefaultContainerConsole(
+        string format = ResourceLogSourceDefinitionValues.PlainText) =>
+        new(
+            "container",
+            "Container logs",
+            ResourceLogSourceDefinitionValues.Container,
+            format,
+            [
+                ResourceLogSourceDefinitionValues.Read,
+                ResourceLogSourceDefinitionValues.Stream
+            ],
+            Description: "Provider-captured container stdout and stderr.",
+            Availability: ResourceLogSourceDefinitionValues.ResourceRunning);
 }

@@ -29,6 +29,14 @@ request/response contracts.
 - `CloudShell.Secrets.Client`: Secrets Vault SDK client. It references
   `CloudShell.Client`, not the full Control Plane abstractions, and owns the
   Microsoft `IConfiguration` integration for vault secrets.
+- `CloudShell.RabbitMQ.Client`: RabbitMQ credential and connection helper. It
+  resolves provider-owned RabbitMQ username, password, and virtual-host access
+  from a CloudShell resource identity credential and can produce normal
+  `RabbitMQ.Client` connection factories.
+- `CloudShell.SqlServer.Client`: SQL Server credential and connection helper.
+  It resolves provider-owned SQL connection strings from a CloudShell resource
+  identity credential and returns normal `Microsoft.Data.SqlClient`
+  connections.
 
 Future service-specific SDK clients should follow the same `.Client`
 convention and avoid depending on `CloudShell.Abstractions` unless the client
@@ -106,6 +114,14 @@ descriptor-driven container orchestration:
 - The credential values are runtime inputs. They must not be copied into
   resource attributes, generated UI details, logs, activity messages, or other
   user-facing projections.
+
+Credentials resolved from CloudShell-protected service endpoints should be
+treated as access material for opening native client connections. Do not
+resolve them for every operation, and do not store them as durable application
+configuration. Resolve before opening a native connection, reuse the native
+connection according to that client's normal lifetime rules, and resolve again
+when a new connection is needed after `expiresOn`, a login failure, an
+access-refused failure, or a provider-driven reconnect.
 
 Service endpoints are a separate concern. Configuration Store, Secrets Vault,
 and other resource-backed services should be discovered through the same
@@ -305,6 +321,182 @@ Java clients read `CLOUDSHELL_CONFIGURATION_*_ENDPOINT` and
 `CLOUDSHELL_SECRETS_*_ENDPOINT` variables and use
 `CLOUDSHELL_CONFIGURATION_TOKEN`, `CLOUDSHELL_SECRETS_TOKEN`,
 `CLOUDSHELL_CONTROL_PLANE_TOKEN`, or `CLOUDSHELL_TOKEN` for bearer tokens.
+
+## SQL Server Client
+
+Use `CloudShell.SqlServer.Client` when a workload should connect to SQL Server
+through CloudShell resource identity instead of receiving an administrator
+password or static connection string:
+
+```csharp
+using CloudShell.SqlServer.Client;
+
+builder.Services.AddCloudShellSqlServerClient(options =>
+{
+    options.SqlServerResourceName = "application-topology-sql-server";
+});
+
+app.MapGet("/database", async (
+    CloudShellSqlConnectionFactory sql,
+    CancellationToken cancellationToken) =>
+{
+    await using var connection = await sql.OpenConnectionAsync(
+        "application-topology-sql-server",
+        "application_topology",
+        cancellationToken);
+
+    // Use Microsoft.Data.SqlClient as usual.
+});
+```
+
+The client reads `CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT` by default and uses
+`DefaultCloudShellResourceCredential` to authorize the credential request.
+
+### Entity Framework Core
+
+EF Core registration is mostly synchronous, while CloudShell SQL credential
+resolution is async. Avoid putting a resolved CloudShell SQL connection string
+into `appsettings.json`, and avoid `AddDbContextPool` for rotating credentials.
+Use an async factory that resolves credentials when a context is needed:
+
+```csharp
+using CloudShell.SqlServer.Client;
+using Microsoft.EntityFrameworkCore;
+
+builder.Services.AddCloudShellSqlServerClient(options =>
+{
+    options.SqlServerResourceName = "application-topology-sql-server";
+});
+builder.Services.AddScoped<AppDbContextFactory>();
+
+public sealed class AppDbContextFactory(ICloudShellSqlCredentialResolver sql)
+{
+    public async ValueTask<AppDbContext> CreateAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var credential = await sql.ResolveCredentialAsync(
+            new CloudShellSqlConnectionRequest(
+                "application-topology-sql-server",
+                "application_topology"),
+            cancellationToken);
+
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlServer(credential.ConnectionString)
+            .Options;
+
+        return new AppDbContext(options);
+    }
+}
+
+public sealed class AppDbContext(DbContextOptions<AppDbContext> options) :
+    DbContext(options);
+```
+
+Use the factory from request handlers or application services:
+
+```csharp
+app.MapGet("/orders", async (
+    AppDbContextFactory contexts,
+    CancellationToken cancellationToken) =>
+{
+    await using var db = await contexts.CreateAsync(cancellationToken);
+    return await db.Set<Order>().ToListAsync(cancellationToken);
+});
+```
+
+This keeps credential exchange at the connection boundary. If a provider
+returns `expiresOn`, create new contexts through the factory after expiry. If
+SQL login fails because credentials rotated or grants changed, discard the
+context and create a new one so the factory resolves fresh credentials.
+
+## RabbitMQ Native Clients
+
+Use `CloudShell.RabbitMQ.Client` when a .NET workload should connect to
+RabbitMQ through CloudShell resource identity instead of receiving the broker
+administrator password or hand-coding the credential endpoint exchange:
+
+```csharp
+using CloudShell.RabbitMQ.Client;
+
+builder.Services.AddCloudShellRabbitMQClient(options =>
+{
+    options.RabbitMQResourceName = "application.rabbitmq:rabbitmq";
+    options.HostName = "localhost";
+    options.Port = 5672;
+    options.Permission = CloudShellRabbitMQPermissions.Publish;
+});
+
+app.MapPost("/publish", async (
+    CloudShellRabbitMQConnectionFactory rabbitMQ,
+    CancellationToken cancellationToken) =>
+{
+    var factory = await rabbitMQ.CreateConnectionFactoryAsync(cancellationToken);
+
+    using var connection = factory.CreateConnection("orders-api");
+    using var channel = connection.CreateModel();
+
+    // Use RabbitMQ.Client as usual.
+});
+```
+
+The client reads `CLOUDSHELL_RABBITMQ_CREDENTIAL_ENDPOINT` by default and uses
+`DefaultCloudShellResourceCredential` to authorize the credential request. It
+requests a CloudShell resource identity token for the RabbitMQ permission that
+the connection needs unless explicit token scopes are configured.
+
+CloudShell does not wrap the RabbitMQ protocol itself. Workloads still use
+their normal RabbitMQ client library after the CloudShell client resolves
+broker-native username, password, and virtual host from
+`/api/rabbitmq/v1/credentials`.
+
+### MassTransit
+
+MassTransit configures the RabbitMQ host when the bus is built. Resolve
+CloudShell RabbitMQ credentials during application startup with
+`CloudShellRabbitMQCredentialResolver`, then pass the resolved values into
+`UsingRabbitMq`:
+
+```csharp
+using CloudShell.RabbitMQ.Client;
+using MassTransit;
+
+var resolver = CloudShellRabbitMQCredentialResolver.FromEnvironment(
+    rabbitMQResourceName: "application.rabbitmq:rabbitmq");
+var rabbit = await resolver.ResolveCredentialAsync(
+    new CloudShellRabbitMQCredentialRequest(
+        "application.rabbitmq:rabbitmq",
+        CloudShellRabbitMQPermissions.Configure));
+builder.Services.AddSingleton(rabbit);
+
+builder.Services.AddMassTransit(bus =>
+{
+    bus.AddConsumer<OrderSubmittedConsumer>();
+
+    bus.UsingRabbitMq((context, cfg) =>
+    {
+        var credential = context.GetRequiredService<CloudShellRabbitMQCredential>();
+        cfg.Host("localhost", 5672, credential.VirtualHost, host =>
+        {
+            host.Username(credential.Username);
+            host.Password(credential.Password);
+        });
+
+        cfg.ConfigureEndpoints(context);
+    });
+});
+```
+
+Do not resolve credentials per message. MassTransit keeps a persistent AMQP
+connection and reconnects using the host credentials it was configured with.
+For the current local RabbitMQ provider, `expiresOn` is normally unset and the
+generated credentials are stable for the resource identity. If a future
+provider returns expiring RabbitMQ credentials, schedule a controlled bus
+restart before expiry so startup can resolve fresh credentials. If RabbitMQ
+closes the connection with an authentication or access-refused failure, stop
+the bus, resolve credentials again, and start it with the new values.
+
+`CloudShellRabbitMQCredential` carries `Username`, `Password`, `VirtualHost`,
+and optional `ExpiresOn`.
 
 ## Stability
 

@@ -97,7 +97,7 @@ public sealed class BuiltInResourceIdentityRegistry
             ? identity.ResourceId
             : $"{identity.ResourceId}/{identity.Name}";
 
-    private static string ResolveClientSecret(
+    public static string ResolveClientSecret(
         ResourceIdentityProviderDefinition provider,
         string clientId) =>
         provider.ProviderSettings.TryGetValue(ClientSecretSettingName, out var configuredSecret) &&
@@ -224,6 +224,7 @@ public sealed class BuiltInResourceIdentityProvisioner(
                     ["resourceId"] = registration.Identity.ResourceId
                 }))
             .Concat(await ListUserPrincipalsAsync(request.Provider.Id, cancellationToken))
+            .Concat(ListConfiguredUserPrincipals(request.Provider.Id))
             .Where(principal => MatchesQuery(principal, request.Query))
             .GroupBy(
                 principal => $"{principal.Reference.Kind}\u001f{principal.Reference.ProviderId}\u001f{principal.Reference.Id}",
@@ -283,6 +284,36 @@ public sealed class BuiltInResourceIdentityProvisioner(
         }
 
         return principals;
+    }
+
+    private IReadOnlyList<ResourcePrincipal> ListConfiguredUserPrincipals(string providerId)
+    {
+        if (inMemoryIdentity is null ||
+            !inMemoryIdentity.IsConfigured)
+        {
+            return [];
+        }
+
+        return inMemoryIdentity.Users
+            .Where(user => !string.IsNullOrWhiteSpace(user.UserName))
+            .Select(user =>
+            {
+                var principalKey = user.UserName.Trim();
+                var displayName = string.IsNullOrWhiteSpace(user.DisplayName)
+                    ? principalKey
+                    : user.DisplayName.Trim();
+                return CreateUserPrincipal(
+                    new ResourcePrincipalReference(
+                        ResourcePrincipalKind.User,
+                        InMemoryIdentityUserOptions.CreatePrincipalId(principalKey),
+                        displayName,
+                        providerId),
+                    principalKey,
+                    user.Email,
+                    InMemoryIdentityUserOptions.CreatePrincipalId(principalKey),
+                    "Configured built-in local user.");
+            })
+            .ToArray();
     }
 
     private InMemoryIdentityUserOptions? FindConfiguredInMemoryUser(IdentityUser user)

@@ -270,6 +270,13 @@ can model users, login, roles, claims, and access grants without keeping state
 after shutdown. Third-party providers should feed the same principal and grant
 model through their own directory/provisioning integrations.
 
+`CloudShell.LocalDevelopmentHost` registers the built-in provider as the
+default resource identity provider for launcher-based local development.
+Launcher appsettings can define local development principals under
+`ResourceIdentity:BuiltIn:Users`; the built-in provider exposes those users in
+the Access control principal directory even when they are only host
+configuration and not resource-template declarations.
+
 Programmatic declarations can also record permission grants from a principal
 to a target resource. A resource identity is one principal source, exposed by
 the declaring resource through `Principal`; it is separate from the resource's
@@ -285,6 +292,40 @@ var database = resources.Declare("database", "database:app");
 
 database.Allow(api.Principal, "Database/databases/readWrite/action");
 ```
+
+The same intent is encoded in resource templates as ordinary attributes. This
+is the cross-launcher contract for C#, Java, JavaScript/TypeScript, and future
+resource builders: the subject resource carries `identity.*`, and each target
+resource carries inbound `access.grants`.
+
+```yaml
+resources:
+  - type: application.executable
+    name: api
+    identity:
+      kind: provider
+      providerId: identity:development
+      name: api-service
+
+  - type: application.rabbitmq
+    name: rabbitmq
+    access:
+      grants:
+        - principal:
+            kind: resourceIdentity
+            id: application.executable:api/identities/api-service
+            providerId: identity:development
+            sourceResourceId: application.executable:api
+            sourceIdentityName: api-service
+          permission: CloudShell.Messaging/rabbitMQ/publish/action
+```
+
+Those attributes are Resource Manager declaration metadata. They do not define
+provider-native credentials for RabbitMQ, SQL Server, or any other backing
+service. Providers can use the declared grants to reconcile native users or
+permissions, but the native credential material stays provider-owned and must
+not be exposed through identity attributes, logs, diagnostics, samples, or
+templates.
 
 Use `ResourceAccessPermissions` when the grant represents a resource access
 level instead of a provider-specific operation string:
@@ -569,6 +610,10 @@ members remain compatibility aliases.
 | `cloudshell.network` and `cloudshell.virtualNetwork` | `reconcileEndpointMappings` | `NetworkResourceOperationPermissions.ReconcileEndpointMappings` |
 | `cloudshell.loadBalancer` | `applyLoadBalancerConfiguration` | `LoadBalancerResourceOperationPermissions.ApplyConfiguration` |
 | `secrets.vault` and `ResourceClass.SecretsVault` | secret value read | `SecretsVaultResourceOperationPermissions.ReadSecrets` |
+| `application.rabbitmq` | publish to broker | `RabbitMQResourceOperationPermissions.Publish` |
+| `application.rabbitmq` | consume from broker | `RabbitMQResourceOperationPermissions.Consume` |
+| `application.rabbitmq` | configure broker resources | `RabbitMQResourceOperationPermissions.Configure` |
+| `application.rabbitmq` | `application.rabbitmq.reconcile-access` | `RabbitMQResourceOperationPermissions.ReconcileAccess` |
 | Resource identity provisioning service | resource identity provisioning | `ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities` |
 
 When adding a new resource action, document the operation permission in this

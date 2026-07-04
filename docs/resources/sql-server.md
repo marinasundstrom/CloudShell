@@ -215,12 +215,127 @@ Server can project individual databases as child database resources.
 The current builder can record grant intent on the SQL Server resource:
 
 ```csharp
-sql.Allow(api.Principal, CloudShellPermissions.Database.Actions.ReadWrite);
+sql.Allow(apiResource, DatabaseResourceOperationPermissions.ReadWrite);
 ```
 
 Resource Manager Access control and identity views show the requested grant and
 the provider-reported effective status when the provider can inspect the SQL
 Server.
+
+## Workload Credential Resolution
+
+Applications should prefer CloudShell resource identity and SQL credential
+resolution over copying the SQL administrator password into workload
+configuration. The workload uses its CloudShell resource identity token to
+call a SQL credential endpoint, and the endpoint returns a provider-owned
+connection string for the requested SQL Server resource and database.
+
+The launcher declares the application identity, grants SQL access, and passes
+the credential endpoint and SQL target metadata to the workload:
+
+```csharp
+var api = resources
+    .AddAspNetCoreProject("api", apiProjectPath)
+    .WithIdentity("identity:built-in", name: "api")
+    .ProvisionIdentityOnStartup()
+    .WithReference(sqlServerResource)
+    .WithEnvironmentVariable(
+        "CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT",
+        $"{cloudShellEndpoint}/api/application-topology/sql-server/v1/credentials")
+    .WithEnvironmentVariable(
+        "ApplicationTopology__SqlServer__Authentication",
+        "CloudShell")
+    .WithEnvironmentVariable(
+        "ApplicationTopology__SqlServer__ResourceName",
+        "application-topology-sql-server")
+    .WithEnvironmentVariable(
+        "ApplicationTopology__SqlServer__Database",
+        "application_topology");
+
+sqlServerResource.Allow(api, DatabaseResourceOperationPermissions.ReadWrite);
+```
+
+In .NET, use `CloudShell.SqlServer.Client` so SQL credential exchange stays
+behind the connection factory:
+
+```csharp
+using CloudShell.SqlServer.Client;
+
+builder.Services.AddCloudShellSqlServerClient(options =>
+{
+    options.SqlServerResourceName = "application-topology-sql-server";
+});
+
+app.MapGet("/database", async (
+    CloudShellSqlConnectionFactory sql,
+    CancellationToken cancellationToken) =>
+{
+    await using var connection = await sql.OpenConnectionAsync(
+        "application-topology-sql-server",
+        "application_topology",
+        cancellationToken);
+
+    // Use Microsoft.Data.SqlClient as usual.
+});
+```
+
+The client reads `CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT` by default. It can also
+use resource-specific endpoint variables named
+`CLOUDSHELL_SQL_<RESOURCE_NAME>_CREDENTIAL_ENDPOINT`, where non-alphanumeric
+characters in the resource name are normalized to `_`.
+
+The credential endpoint request body is:
+
+```json
+{
+  "sqlServerResourceName": "application-topology-sql-server",
+  "databaseName": "application_topology",
+  "permission": "CloudShell.Database/databases/readWrite/action"
+}
+```
+
+The response contains the SQL-native connection string and optional expiry:
+
+```json
+{
+  "connectionString": "Server=...;Database=...;User Id=...;Password=...;",
+  "expiresOn": "2026-07-04T13:30:00Z"
+}
+```
+
+The broad `ApplicationTopology` sample currently hosts the SQL credential
+endpoint in `ResourceModelSqlCredentialApiExtensions`. That endpoint is a
+sample-local bridge while the reusable SQL credential broker is moved fully
+behind the provider. The workload-side client pattern is the intended shape:
+CloudShell validates the resource identity, checks declared SQL grants,
+materializes or reconciles SQL-contained database access, records the
+credential request as a resource event, and returns provider-owned SQL
+connection material without exposing the bootstrap administrator password.
+
+### Connections, Pooling, And Rotation
+
+SQL credentials are used when opening a physical SQL connection. Do not cache
+the returned connection string as application configuration. Ask
+`CloudShellSqlConnectionFactory` for a connection when the application needs
+one, then use and dispose `SqlConnection` normally.
+
+If `expiresOn` is present, treat it as the latest time for creating new
+connections with that credential. An already-open SQL session may continue
+until SQL Server or the provider closes it, but applications should not rely on
+that behavior for long-lived work. For long-running services:
+
+1. Resolve/open a connection through `CloudShellSqlConnectionFactory`.
+2. Keep the connection only for the normal unit of work.
+3. Dispose the connection so the SQL client can manage pooling.
+4. On login failure, permission failure, pool failure, or credential expiry,
+   resolve credentials again before retrying.
+5. Avoid storing the connection string in logs, traces, metrics, health
+   endpoints, resource attributes, or diagnostics.
+
+If a future provider returns aggressively rotating credentials, the SQL client
+should grow pool lifetime or pool-clearing behavior around `expiresOn`.
+Callers should still use the connection factory rather than managing
+credential strings directly, so that rotation behavior can be centralized.
 
 ## Future Database Resources
 

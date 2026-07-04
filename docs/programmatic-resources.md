@@ -103,6 +103,7 @@ for their own resource types. Current provider methods include:
 - `AddContainerApplication(...)` from the container application built-in
   provider.
 - `AddJavaApp(...)` from the Java app built-in provider.
+- `AddRabbitMQ(...)` from the RabbitMQ built-in provider.
 - `AddDockerHost(...)` and Docker container declarations from the Docker host
   and container built-in providers.
 
@@ -225,6 +226,7 @@ The current manual builders cover generic networks, virtual networks, host
 networking, Configuration Store, Secrets Vault, storage, CloudShell
 storage-backed volumes, local volumes, SQL Server, SQL Database, generic
 container hosts, Docker hosts, Docker containers, container applications,
+RabbitMQ brokers,
 executable applications, ASP.NET Core projects, JavaScript apps, Java apps,
 identity provisioning, services, DNS zones, name mappings, load balancers, and
 host configuration sources. They are useful for test setup as well as host

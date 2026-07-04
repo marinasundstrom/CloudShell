@@ -13,13 +13,119 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-07-04
+
+#### Changed
+
+- Added a RabbitMQ credential endpoint that lets workloads present their
+  CloudShell resource identity token, request access to a target RabbitMQ
+  resource, and receive grant-derived RabbitMQ-native credentials after the
+  provider checks declared broker grants, reconciles access, and records the
+  credential request as a resource event.
+- Updated the RabbitMQ messaging sample to use CloudShell-managed RabbitMQ
+  bootstrap credentials and have both .NET and Java clients request
+  RabbitMQ-native credentials through CloudShell before connecting.
+- Persisted local-development RabbitMQ managed bootstrap credentials in
+  provider-owned runtime state so CloudShell can continue using the generated
+  broker administrator account after a host process restart while the container
+  remains running.
+- Enabled the local development host to provide the built-in resource identity
+  authority by default, preserve template-authored identity metadata on
+  resource registrations, and provision `identity.provisionOnStartup`
+  identities when templates are applied after host startup.
+- Added a RabbitMQ Resource Manager Dashboard tab backed by the RabbitMQ
+  Management HTTP API, including broker overview counters, RabbitMQ-style
+  publish/deliver/ack throughput charts from message-rate samples, queue-depth
+  visualization, per-queue counters, auto-refresh, and dark-mode-aware chart
+  styling without routing the view through the shared telemetry surfaces.
+- Added `CloudShell.RabbitMQ.Client`, a lightweight .NET workload client that
+  resolves RabbitMQ-native username, password, and virtual-host access from a
+  CloudShell resource identity credential and produces configured
+  `RabbitMQ.Client` connection factories without exposing broker bootstrap
+  credentials to applications.
+- Updated the C# RabbitMQ messaging sample workload to use
+  `CloudShell.RabbitMQ.Client` instead of hand-coding the RabbitMQ credential
+  endpoint exchange; the Java workload continues to exercise the direct
+  token-and-endpoint protocol.
+- Added RabbitMQ messaging sample trace integration for both the C# and Java
+  workloads, including HTTP publish spans, RabbitMQ publish/consume spans, and
+  RabbitMQ `traceparent` propagation so CloudShell can show correlated traces
+  across both apps.
+
 ### 2026-07-03
 
 #### Changed
 
+- Added portable resource-template attributes for CloudShell resource identity
+  and access grants. `identity.*` and `access.grants` are now interpreted by
+  the Control Plane template apply path and emitted by the C# resource builder
+  helpers, giving non-C# launchers the same declaration shape without mixing
+  Resource Manager identity metadata with provider-native service
+  credentials.
+- Added RabbitMQ provider-owned `user.*` and `vhost` resource configuration,
+  including local Docker runtime projection, management API virtual-host
+  selection, secret projection filtering for generated Resource Manager
+  attributes, and a RabbitMQMessaging sample update that uses the standard
+  `.WithIdentity(...)` and `.Allow(...)` builder APIs.
 - Added Resource Manager diagnostics for resources that declare required
   persistent volume target paths but do not have a declared volume mount,
   including the SQL Server data path warning for `/var/opt/mssql`.
+- Added `application.rabbitmq` as a managed RabbitMQ broker service resource
+  with ResourceDefinition builders, AMQP and management endpoint projection,
+  optional volume mounting at `/var/lib/rabbitmq`, standard lifecycle actions,
+  generated Resource Manager UI registration, and an opt-in local Docker
+  runtime adapter using `rabbitmq:3-management`. `CloudShell.LocalDevelopmentHost`
+  registers the runtime for launcher-authored resources, and
+  `samples/RabbitMQMessaging` demonstrates .NET and Java app resources
+  exchanging fan-out events through the broker. Specialized broker-native
+  Resource Manager UI is deferred while the RabbitMQ management endpoint
+  remains the supported path for queues, exchanges, bindings, users, virtual
+  hosts, and policies; see ADR-20260703-003.
+- Added initial RabbitMQ access-control plumbing with publish, consume,
+  configure, and reconcile permission constants, a
+  `application.rabbitmq.reconcile-access` resource operation,
+  `IRabbitMQAccessReconciler`, and pending grant-status reporting for
+  RabbitMQ grants until a provider can materialize broker-native users and
+  permissions.
+- Added a RabbitMQ Management API-backed access reconciler for local and
+  compatible RabbitMQ runtimes, mapping CloudShell resource-identity publish,
+  consume, and configure grants to broker-native users and virtual-host
+  permissions without projecting credential material through resources.
+- Added RabbitMQ Management API-backed grant-status inspection so reconciled
+  publish, consume, and configure grants can report applied, drifted, not
+  applied, failed, or unknown based on observed broker-native virtual-host
+  permissions.
+- Added RabbitMQ-specific grant options to the generated Resource Manager
+  Access control tab so CloudShell publish, consume, and configure grants map
+  to RabbitMQ broker permissions through the provider status/reconcile path
+  without introducing a separate broker access management surface.
+- Added a focused RabbitMQ Broker Resource Manager tab that summarizes broker
+  state, projected AMQP and management endpoints, access reconciliation
+  availability, and links to the RabbitMQ management UI without duplicating the
+  broker-native administration surface.
+- Added a Resource Manager Messaging tab group and placed RabbitMQ Broker and
+  Topology views directly after General, ahead of Networking and Storage.
+- Added RabbitMQ container log source support so local Docker-backed broker
+  stdout and stderr are available through the generated Resource Manager Logs
+  tab.
+- Made `CloudShell.LocalDevelopmentHost` register the built-in resource
+  identity provider as the default local provider and project launcher
+  appsettings-defined `ResourceIdentity:BuiltIn:Users` as local Access control
+  principals.
+- Added a RabbitMQ Management API-backed topology reader and read-only
+  Resource Manager Topology tab for broker-native queues and exchanges,
+  keeping provider-owned credentials behind the RabbitMQ provider boundary.
+- Extended the RabbitMQ Management API-backed topology reader and Resource
+  Manager Topology tab with broker-native bindings so users can inspect
+  exchange-to-queue relationships without creating CloudShell child resources
+  or exposing provider-owned credentials.
+- Hardened sample smoke cleanup so runtime-scoped RabbitMQ sample containers
+  left by interrupted Docker-backed smoke runs are removed by the shared sample
+  cleanup fixture.
+- Fixed the ProjectReference launcher sample so trace and metric ingest
+  endpoints derived for child app resources prefer the active
+  `CLOUDSHELL_CONTROL_PLANE_URL`, keeping smoke tests and non-default launcher
+  ports from posting observability data to the sample default endpoint.
 - Added an intent-first resource authoring proposal that scopes a future
   smarter Resource Manager authoring UI for starting apps with AI assistance,
   drafting starter structures and `ResourceTemplate` graphs from high-level

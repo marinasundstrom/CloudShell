@@ -1,4 +1,6 @@
 using System.Text.Json;
+using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Providers;
 
 namespace CloudShell.ResourceModel.Tests;
 
@@ -78,6 +80,129 @@ resources:
         var logSource = Assert.Single(logSources!.Sources ?? []);
         Assert.Equal("console", logSource.Id);
         Assert.Equal(ResourceLogSourceDefinitionValues.JsonConsole, logSource.Format);
+    }
+
+    [Fact]
+    public void DeserializeTemplate_YamlProjectsIdentityAndAccessGrantsAsResourceAttributes()
+    {
+        const string yaml = """
+resources:
+  - type: application.executable
+    name: api
+    identity:
+      kind: provider
+      providerId: identity:development
+      name: api-service
+      subject: application.executable:api
+      provisionOnStartup: true
+      scopes:
+      - queue.publish
+      claims:
+        resource: application.executable:api
+  - type: application.rabbitmq
+    name: rabbitmq
+    user:
+      username: developer
+      password: local-password
+    vhost: my_vhost
+    access:
+      grants:
+      - principal:
+          kind: resourceIdentity
+          id: application.executable:api/identities/api-service
+          providerId: identity:development
+          sourceResourceId: application.executable:api
+          sourceIdentityName: api-service
+        permission: CloudShell.Messaging/rabbitMQ/publish/action
+""";
+
+        var template = ResourceTemplateSerializer.DeserializeTemplate(yaml);
+
+        var api = Assert.Single(template.Resources, resource => resource.Name == "api");
+        var identity = api.GetIdentityAttribute();
+        Assert.NotNull(identity);
+        Assert.Equal("provider", identity.Kind);
+        Assert.Equal("identity:development", identity.ProviderId);
+        Assert.Equal("api-service", identity.Name);
+        Assert.Equal("application.executable:api", identity.Subject);
+        Assert.Equal(["queue.publish"], identity.Scopes);
+        Assert.Equal("application.executable:api", identity.Claims?["resource"]);
+        Assert.True(api.GetProvisionIdentityOnStartupAttribute());
+
+        var rabbitmq = Assert.Single(template.Resources, resource => resource.Name == "rabbitmq");
+        var grant = Assert.Single(rabbitmq.GetAccessGrantAttributes());
+        Assert.Equal("resourceIdentity", grant.Principal.Kind);
+        Assert.Equal("application.executable:api/identities/api-service", grant.Principal.Id);
+        Assert.Equal("identity:development", grant.Principal.ProviderId);
+        Assert.Equal("application.executable:api", grant.Principal.SourceResourceId);
+        Assert.Equal("api-service", grant.Principal.SourceIdentityName);
+        Assert.Equal("CloudShell.Messaging/rabbitMQ/publish/action", grant.Permission);
+        Assert.Equal("developer", rabbitmq.ResourceAttributes["user.username"]);
+        Assert.Equal("local-password", rabbitmq.ResourceAttributes["user.password"]);
+        Assert.Equal("my_vhost", rabbitmq.ResourceAttributes["vhost"]);
+    }
+
+    [Fact]
+    public void DeserializeTemplate_YamlPreservesVolumeConsumerCapabilityPayload()
+    {
+        const string yaml = """
+resources:
+  - type: application.rabbitmq
+    name: rabbitmq
+    storage:
+      volumeConsumer:
+        mounts:
+        - volume: cloudshell.volume:rabbitmq-data
+          targetPath: /var/lib/rabbitmq
+          readOnly: false
+""";
+
+        var template = ResourceTemplateSerializer.DeserializeTemplate(yaml);
+        var definition = Assert.Single(template.Resources);
+        var directCapability = definition.GetCapability<VolumeConsumerDefinition>(
+            VolumeConsumerCapabilityProvider.CapabilityIdValue);
+        var resolver = new ResourceResolver(
+            [RabbitMQResourceTypeProvider.ClassDefinition],
+            [new RabbitMQResourceTypeProvider().TypeDefinition]);
+        var resource = resolver.Resolve(definition);
+        var resolvedCapability = resource.Capabilities.Get<VolumeConsumerDefinition>(
+            VolumeConsumerCapabilityProvider.CapabilityIdValue);
+
+        var directMount = Assert.Single(directCapability!.Mounts);
+        Assert.Equal("cloudshell.volume:rabbitmq-data", directMount.Volume);
+        Assert.Equal("/var/lib/rabbitmq", directMount.TargetPath);
+        var resolvedMount = Assert.Single(resolvedCapability!.Mounts);
+        Assert.Equal("cloudshell.volume:rabbitmq-data", resolvedMount.Volume);
+        Assert.Equal("/var/lib/rabbitmq", resolvedMount.TargetPath);
+    }
+
+    [Fact]
+    public void ResourceTemplateApplyRequest_JsonRoundTripPreservesVolumeConsumerCapabilityPayload()
+    {
+        const string yaml = """
+resources:
+  - type: application.rabbitmq
+    name: rabbitmq
+    storage:
+      volumeConsumer:
+        mounts:
+        - volume: cloudshell.volume:rabbitmq-data
+          targetPath: /var/lib/rabbitmq
+          readOnly: false
+""";
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var template = ResourceTemplateSerializer.DeserializeTemplate(yaml);
+        var request = new ResourceTemplateApplyRequest(template);
+
+        var json = JsonSerializer.Serialize(request, options);
+        var roundTripped = JsonSerializer.Deserialize<ResourceTemplateApplyRequest>(json, options);
+
+        var definition = Assert.Single(roundTripped!.Template.Resources);
+        var volumeConsumer = definition.GetCapability<VolumeConsumerDefinition>(
+            VolumeConsumerCapabilityProvider.CapabilityIdValue);
+        var mount = Assert.Single(volumeConsumer!.Mounts);
+        Assert.Equal("cloudshell.volume:rabbitmq-data", mount.Volume);
+        Assert.Equal("/var/lib/rabbitmq", mount.TargetPath);
     }
 
     [Fact]

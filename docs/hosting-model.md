@@ -145,7 +145,9 @@ return (await app.RunAsync(new()
 ```
 
 `CloudShell.LocalDevelopmentHost` is ordinary CloudShell hosting code with the
-built-in presets installed:
+built-in local development presets installed. It composes Resource Manager UI,
+built-in resource model providers, local runtime adapters, and the built-in
+resource identity provider as the default local identity provider:
 
 ```csharp
 var builder = CloudShellApplication.CreateBuilder(args);
@@ -168,6 +170,13 @@ app.MapCloudShellUi<App>();
 
 app.Run();
 ```
+
+Launcher-owned `appsettings.json` files are forwarded to this host through
+`--host-settings`. They can configure host behavior such as persistence,
+provider runtime settings, and local development identity users under
+`ResourceIdentity:BuiltIn:Users`. Custom host profiles can still choose their
+own provider set, authentication mode, persistence, identity provider, and UI
+extensions by composing the same hosting APIs directly.
 
 The launcher/profile split supports both local bootstrap and attach/update
 flows. A launcher can start the configured local host profile through the CLI,

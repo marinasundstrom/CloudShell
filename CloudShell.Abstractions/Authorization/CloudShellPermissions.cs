@@ -63,6 +63,21 @@ public static class DatabaseResourceOperationPermissions
         "CloudShell.Database/databases/access/reconcile/action";
 }
 
+public static class RabbitMQResourceOperationPermissions
+{
+    public const string Publish =
+        "CloudShell.Messaging/rabbitMQ/publish/action";
+
+    public const string Consume =
+        "CloudShell.Messaging/rabbitMQ/consume/action";
+
+    public const string Configure =
+        "CloudShell.Messaging/rabbitMQ/configure/action";
+
+    public const string ReconcileAccess =
+        "CloudShell.Messaging/rabbitMQ/access/reconcile/action";
+}
+
 public static class ResourceIdentityProvisioningOperationPermissions
 {
     public const string ProvisionIdentities =
@@ -183,6 +198,27 @@ public static class CloudShellPermissions
         {
             public const string ReadWrite =
                 DatabaseResourceOperationPermissions.ReadWrite;
+        }
+    }
+
+    public static class Messaging
+    {
+        public static class RabbitMQ
+        {
+            public static class Actions
+            {
+                public const string Publish =
+                    RabbitMQResourceOperationPermissions.Publish;
+
+                public const string Consume =
+                    RabbitMQResourceOperationPermissions.Consume;
+
+                public const string Configure =
+                    RabbitMQResourceOperationPermissions.Configure;
+
+                public const string ReconcileAccess =
+                    RabbitMQResourceOperationPermissions.ReconcileAccess;
+            }
         }
     }
 }

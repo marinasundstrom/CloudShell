@@ -4,6 +4,7 @@ public static class ResourceTabGroupIds
 {
     public const string General = "general";
     public const string Application = "application";
+    public const string Messaging = "messaging";
     public const string Networking = "networking";
     public const string Runtime = "runtime";
     public const string Storage = "storage";

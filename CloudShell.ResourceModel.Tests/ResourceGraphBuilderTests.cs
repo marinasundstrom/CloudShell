@@ -246,9 +246,23 @@ public sealed class ResourceGraphBuilderTests
         var declaration = Assert.Single(
             declarations.GetDeclarations(),
             declaration => declaration.ResourceId == "cloudshell.network:app");
+        var graphDefinition = serviceProvider
+            .GetRequiredService<ResourceGraphModel>()
+            .GetSnapshot()
+            .Resources
+            .Select(resource => resource.ToDefinition())
+            .ToArray();
+        var appDefinition = Assert.Single(
+            graphDefinition,
+            resource => resource.EffectiveResourceId == "cloudshell.network:app");
+        var settingsDefinition = Assert.Single(
+            graphDefinition,
+            resource => resource.EffectiveResourceId == "configuration.store:settings");
         var group = Assert.Single(declarations.GetResourceGroups());
         var provider = Assert.Single(declarations.GetIdentityProviders());
         var grant = Assert.Single(declarations.GetPermissionGrants());
+        var identityAttribute = appDefinition.GetIdentityAttribute();
+        var grantAttribute = Assert.Single(settingsDefinition.GetAccessGrantAttributes());
 
         Assert.Equal("group:sample", group.Id);
         Assert.Equal("identity:development", provider.Id);
@@ -260,12 +274,21 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal("client:app", declaration.IdentityBinding?.Subject);
         Assert.Equal(["openid"], declaration.IdentityBinding?.IdentityScopes);
         Assert.True(declaration.ProvisionIdentityOnStartup);
+        Assert.NotNull(identityAttribute);
+        Assert.Equal("identity:development", identityAttribute.ProviderId);
+        Assert.Equal("app", identityAttribute.Name);
+        Assert.Equal("client:app", identityAttribute.Subject);
+        Assert.Equal(["openid"], identityAttribute.Scopes);
+        Assert.True(appDefinition.GetProvisionIdentityOnStartupAttribute());
         Assert.False(declarations.ShouldAutoStart(declaration.ResourceId));
         Assert.False(declarations.ShouldAutoStartAsDependency(declaration.ResourceId));
         Assert.Equal("configuration.store:settings", grant.TargetResourceId);
         Assert.Equal("configuration.entries.read", grant.Permission);
         Assert.Equal(ResourcePrincipalKind.ResourceIdentity, grant.Principal.Kind);
         Assert.Equal("cloudshell.network:api", grant.Principal.SourceResourceId);
+        Assert.Equal("configuration.entries.read", grantAttribute.Permission);
+        Assert.Equal(ResourcePrincipalAttributeKinds.ResourceIdentity, grantAttribute.Principal.Kind);
+        Assert.Equal("cloudshell.network:api", grantAttribute.Principal.SourceResourceId);
     }
 
     [Fact]
@@ -813,6 +836,91 @@ public sealed class ResourceGraphBuilderTests
                 new ResourceGraphCommitContext(
                     PrincipalId: "developer",
                     Timestamp: new DateTimeOffset(2026, 6, 26, 15, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        Assert.True(result.IsCommitted);
+    }
+
+    [Fact]
+    public async Task ResourceGraphBuilder_BuildsRabbitMQDefinition()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddStorageResourceType();
+        services.AddCloudShellVolumeResourceType();
+        services.AddNetworkResourceType();
+        services.AddContainerHostResourceType();
+        services.AddRabbitMQResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var graph = new ResourceGraphBuilder();
+        var volume = graph.AddVolume(
+            "rabbitmq-data",
+            path: "./Data/storage/rabbitmq");
+        var broker = graph
+            .AddRabbitMQ("rabbitmq")
+            .WithVersion("3")
+            .WithAmqpEndpoint(host: "localhost", port: 5672)
+            .WithManagementEndpoint(host: "localhost", port: 15672)
+            .MountVolume(volume, RabbitMQResourceDefaults.DataPath);
+
+        var template = graph.BuildTemplate("rabbitmq-app", environmentId: "local");
+
+        Assert.Equal(4, template.Resources.Count);
+        var volumeDefinition = Assert.Single(template.Resources, resource =>
+            resource.TypeId == CloudShellVolumeResourceTypeProvider.ResourceTypeId);
+        var hostNetwork = Assert.Single(template.Resources, resource =>
+            resource.EffectiveResourceId == NetworkResourceDefinitionBuilderExtensions.DefaultNetworkResourceId);
+        var containerHost = Assert.Single(template.Resources, resource =>
+            resource.EffectiveResourceId == ContainerHostResourceDefinitionBuilderExtensions.DefaultContainerHostResourceId);
+        var rabbitMQ = Assert.Single(template.Resources, resource =>
+            resource.TypeId == RabbitMQResourceTypeProvider.ResourceTypeId);
+        Assert.Equal("./Data/storage/rabbitmq", volumeDefinition.ResourceAttributeValues[
+            CloudShellVolumeResourceTypeProvider.Attributes.Location].StringValue);
+        Assert.Equal("application.rabbitmq:rabbitmq", rabbitMQ.EffectiveResourceId);
+        Assert.Equal("3", rabbitMQ.ResourceAttributeValues[
+            RabbitMQResourceTypeProvider.Attributes.Version].StringValue);
+        Assert.Equal("Host", hostNetwork.ResourceAttributeValues[
+            NetworkResourceTypeProvider.Attributes.NetworkKind].StringValue);
+        Assert.Equal("Docker", containerHost.ResourceAttributeValues[
+            ContainerHostResourceTypeProvider.Attributes.HostKind].StringValue);
+        var endpoints = rabbitMQ.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+            RabbitMQResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+        Assert.Equal(2, endpoints.Length);
+        var amqp = Assert.Single(endpoints, endpoint => endpoint.Name == "amqp");
+        Assert.Equal("tcp", amqp.Protocol);
+        Assert.Equal(5672, amqp.TargetPort);
+        Assert.Equal(5672, amqp.Port);
+        Assert.NotNull(amqp.Network);
+        Assert.True(amqp.Network!.TryGetResourceId(out var endpointNetworkId));
+        Assert.Equal(hostNetwork.EffectiveResourceId, endpointNetworkId);
+        var management = Assert.Single(endpoints, endpoint => endpoint.Name == "management");
+        Assert.Equal("http", management.Protocol);
+        Assert.Equal(15672, management.TargetPort);
+        Assert.Equal(15672, management.Port);
+        var volumeConsumer = rabbitMQ.GetCapability<VolumeConsumerDefinition>(
+            VolumeConsumerCapabilityProvider.CapabilityIdValue);
+        var logSources = rabbitMQ.GetCapability<ResourceLogSourceDefinitionSet>(
+            ResourceLogSourceCapabilityIds.LogSources);
+        Assert.True(rabbitMQ.ResourceAttributeValues.ContainsKey(
+            ResourceAttributeId.Create(VolumeConsumerCapabilityProvider.CapabilityIdValue.ToString())));
+        Assert.True(rabbitMQ.ResourceAttributeValues.ContainsKey(
+            ResourceLogSourceAttributeIds.LogSources));
+        Assert.Null(rabbitMQ.Capabilities);
+        var mount = Assert.Single(volumeConsumer!.Mounts);
+        Assert.Equal(volume.EffectiveResourceId, mount.Volume);
+        Assert.Equal(RabbitMQResourceDefaults.DataPath, mount.TargetPath);
+        var logSource = Assert.Single(logSources!.Sources ?? []);
+        Assert.Equal("container", logSource.Id);
+        Assert.Equal(ResourceLogSourceDefinitionValues.Container, logSource.Kind);
+
+        var result = await serviceProvider
+            .GetRequiredService<ResourceModelGraphDefinitionApplyService>()
+            .ApplyTemplateAsync(
+                template,
+                new ResourceGraphCommitContext(
+                    PrincipalId: "developer",
+                    Timestamp: new DateTimeOffset(2026, 7, 3, 12, 0, 0, TimeSpan.Zero)));
 
         Assert.False(result.HasErrors, string.Join(" ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
         Assert.True(result.IsCommitted);
