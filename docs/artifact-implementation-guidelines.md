@@ -418,8 +418,10 @@ should be assigned, reserved, or resolved by a network provider.
 Implementation:
 
 - Use `Manual` when the caller provides concrete host/IP and port details.
-- Use `Auto` or `ProviderDefault` when a network provider should assign the
-  address.
+- Use `ProviderDefault` when the provider should use the descriptor's
+  conventional port and fail if that port is unavailable.
+- Use `Auto` when the provider may allocate a different address or port for
+  resources that support endpoint remapping.
 - Preserve target port, requested exposure, network resource ID, and provider
   endpoint ID through declarations and provider requests.
 - Keep assigned endpoint facts projected as `ResourceEndpoint` after resolution.

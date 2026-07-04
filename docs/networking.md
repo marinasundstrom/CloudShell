@@ -42,12 +42,124 @@ provider-default requests let the selected network/provider choose from its
 configured policy. Predefined requests describe an address chosen by provider
 configuration outside the user's create flow.
 
+Some endpoint contracts are expected by the resource type. In those cases the
+user may omit endpoint requests because they do not care which address is
+assigned. The resource still has a network binding, and Resource Manager or
+the network controller can assign an endpoint from the descriptor and
+environment policy. This should be resource-type-specific behavior, not an
+assumption every resource with networking capabilities receives an endpoint
+automatically.
+
+The assigned endpoint is managed state. Endpoint requests are authoring input
+for assignment, but Resource Manager should not require consumers to keep
+reading the request to discover the address that was chosen. The network
+binding is where the concrete port or address is allocated, even when the
+caller explicitly requested one. Resource Manager and network controllers
+should track and project the current assignment as a resource endpoint plus
+endpoint network mapping, whether it came from a requested endpoint,
+resource-type convention, automatic assignment, or environment policy.
+
+Local development assignment should support the common "I do not care which
+port this uses" case. The endpoint assignment is the address and port together.
+On the Host network that normally means `localhost` plus a port, so multiple
+resources of the same kind compete for the same conventional port. In a virtual
+network, each resource can have its own virtual address, so the same
+conventional port can be reused across different virtual hosts. Treat each
+allocated virtual address as a resource-owned sub-host within the virtual
+network. Treat that virtual address as a binding scope with host-like
+semantics: it is not a separate subnet, but it owns a port allocation table in
+the same way the Host network owns the `localhost` port table. A virtual host
+may expose multiple resources or resource endpoints by using different ports.
+The allocation key is `network + address + port`: the same virtual address and
+port can be reused in another virtual network, but the same host-local address
+and port cannot be bound twice on the developer machine.
+
 Resource endpoints are created from endpoint descriptors plus endpoint
 requests by the selected resource provider. They preserve the resource-owned
 endpoint contract on the resource instance. Endpoint network mappings then
 carry the topology-specific address, such as `localhost:<port>` in local
 development, a private virtual-network address, a provider-owned ingress
 endpoint, or an internal DNS-backed address in a managed topology.
+
+## Automatic Endpoint Allocation Strategy
+
+Endpoint allocation belongs to the network binding, not to the resource
+declaration. A resource can bind to an explicit network or to the implicit
+Host network used by local development. Once the binding exists, the network
+controller owns choosing, validating, recording, and projecting the concrete
+endpoint assignment for that topology.
+
+A network binding can allocate a resource address separately from individual
+endpoint ports. In a virtual network, for example, the controller may allocate
+a virtual host address such as a private IP for the resource, then bind
+multiple endpoint ports on that address. The uniqueness rule is therefore
+topology-specific: host-local development usually cares about concrete
+host/port assignments, while a virtual network may care about address
+allocation plus per-address port bindings.
+
+For virtual networks, treat the allocated address as the resource's virtual
+host inside that network. It is not necessarily a separate CloudShell resource,
+but it is a network-owned allocation below the virtual network boundary. The
+virtual host address can carry multiple endpoint port bindings, and the
+reachable endpoint is the tuple of network, virtual host address, protocol,
+and port. This means Resource Manager can show a resource as having a specific
+private address in a virtual network, then list the ports/endpoints bound on
+that address.
+
+The general allocation concern is dynamically assigning ports to addresses.
+For the default Host network, the address is usually `localhost`, so the
+binding is effectively `localhost + port`. For a virtual network, the address
+can be a resource-specific virtual host address, so the binding is
+`virtual host address + port`. The same endpoint model should cover both cases:
+the network owns the address space and port bindings, while the resource owns
+the endpoint contract that needs a binding.
+
+Allocation starts from the resource endpoint descriptor. The descriptor tells
+the network which endpoint name, protocol, target port, exposure default, and
+assignment default the resource type expects. The declaration may override that
+with a requested endpoint, but the request is still input to the network
+controller rather than the source of truth for the assigned address.
+
+The local-development strategy is:
+
+1. Resolve the network binding. Use the explicit network when one is supplied;
+   otherwise use the default network for the environment. Local development may
+   provide an implicit Host network when policy allows host-local bindings.
+2. Resolve the endpoint contract from the request or resource descriptor.
+   Resource types without expected endpoint descriptors do not get automatic
+   endpoints.
+3. If the declaration requested a concrete host/IP and port, validate and use
+   that assignment when policy and availability allow it.
+4. If no concrete endpoint was requested, try the resource type's conventional
+   local port when the descriptor declares one and policy allows it.
+5. If the Host network endpoint is `Auto` and the resource descriptor supports
+   port remapping, allocate a generated or mapped port from the network's
+   configured range when the conventional port is unavailable or multiple
+   instances need distinct host-local bindings. If the endpoint is
+   `ProviderDefault`, fail when the conventional port is unavailable and ask for
+   an explicit endpoint or an `Auto` endpoint on resource types that support
+   remapping.
+6. Record the result as the network-owned address and port binding, then
+   project each reachable endpoint as a `ResourceEndpointNetworkMapping`.
+
+Network resolution follows intent precedence. An endpoint request can target a
+specific network; otherwise a resource-level network binding applies when the
+resource type has one; otherwise the host or environment default network is
+used. If no desired/default network is configured in a local-development host,
+the Host network is the fallback binding scope. Dynamic allocation never
+chooses a virtual network by itself: it allocates inside the network selected by
+that resolution.
+
+The same strategy applies to virtual networks, but the concrete assignment may
+be a virtual address, private DNS name, provider-owned ingress address, or
+another topology-specific endpoint instead of a localhost port. Resource
+Manager should show the projected assignment and should not require callers to
+inspect endpoint requests to discover the current address.
+
+Samples may continue to request explicit ports when they need deterministic
+copy/paste addresses or test assertions. The default development affordance
+should be automatic assignment: if the developer does not care which endpoint
+is used, the network should allocate and track one.
 
 Containers are the typical case where this distinction matters: the container
 image exposes an inner container port, while the runtime maps an external host,
@@ -220,13 +332,19 @@ Resource configuration should therefore follow this order:
 1. The resource type or instance declares endpoint descriptors, such as
    endpoint name, protocol, target port, and whether provider-supported port
    remapping is available.
-2. The environment or network policy decides which binding modes are allowed:
-   host-local, virtual-network-only, public exposure, DNS/name mapping, or
-   provider-managed ingress.
-3. The resource is attached to a topology, such as the Host network
+2. The resource is bound to a network or topology, such as the Host network
    for local development or a tenant virtual network for managed/on-premise
    use.
-4. Exposure is configured separately when callers outside that topology need to
+3. The resource declaration either supplies a requested endpoint or, when the
+   resource type expects an endpoint, lets the network assign one
+   automatically.
+4. The network binding allocates and tracks the concrete endpoint assignment:
+   conventional port when available, requested endpoint when supplied and
+   allowed, or generated/mapped endpoint when needed.
+5. The environment or network policy decides which binding modes are allowed:
+   host-local, virtual-network-only, public exposure, DNS/name mapping, or
+   provider-managed ingress.
+6. Exposure is configured separately when callers outside that topology need to
    reach the endpoint.
 
 Resource Manager has initial support for choosing endpoint assignment mode,

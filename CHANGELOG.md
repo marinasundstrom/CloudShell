@@ -17,6 +17,14 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added host-local endpoint allocation policy for conventional and automatic
+  ports. `ProviderDefault` endpoints now use the resource's conventional port
+  and fail when it is unavailable, while `Auto` endpoints can fall back to the
+  configured automatic port range. Endpoint allocation now scopes conflicts by
+  network, address, and port for virtual bindings while preserving host-local
+  loopback conflicts, and built-in endpoint descriptors mark app-style
+  resources as remappable while SQL Server and RabbitMQ stay conventional-port
+  first.
 - Added the first Device Registry MVP: `iot.device-registry` resource type,
   C# `AddDeviceRegistry(...)` builder, certificate trust references,
   enrollment policy attributes, lifecycle-backed standalone

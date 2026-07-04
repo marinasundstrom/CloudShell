@@ -89,6 +89,11 @@ ASP.NET Core project endpoint sources are resolved in this order:
    `WithLaunchSettingsEndpoints()`.
 3. The ASP.NET project provider default: a stable local HTTP endpoint.
 
+The third case covers the common local development case where the project needs
+an HTTP endpoint but the caller does not care which concrete address Resource
+Manager or the local network provider assigns. It is an ASP.NET Core project
+provider rule, not a generic rule for all resource types.
+
 Explicit endpoint declarations always win. If endpoints are declared manually,
 CloudShell ignores launch settings even when launch-settings endpoint loading
 was enabled earlier in the builder chain. Resource Manager create and update

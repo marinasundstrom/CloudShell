@@ -286,28 +286,28 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 resourceClass: ResourceManagerResourceClass.Storage)
             .AddResourceTypeEndpoint(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourceEndpointDescriptor.Http())
+                ResourceEndpointDescriptor.Http(defaultAssignment: ResourceEndpointAssignment.Auto))
             .AddResourceTypeEndpoint(
                 JavaScriptAppResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourceEndpointDescriptor.Http())
+                ResourceEndpointDescriptor.Http(defaultAssignment: ResourceEndpointAssignment.Auto))
             .AddResourceTypeEndpoint(
                 JavaAppResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourceEndpointDescriptor.Http())
+                ResourceEndpointDescriptor.Http(defaultAssignment: ResourceEndpointAssignment.Auto))
             .AddResourceTypeEndpoint(
                 GoAppResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourceEndpointDescriptor.Http())
+                ResourceEndpointDescriptor.Http(defaultAssignment: ResourceEndpointAssignment.Auto))
             .AddResourceTypeEndpoint(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourceEndpointDescriptor.Http())
+                ResourceEndpointDescriptor.Http(defaultAssignment: ResourceEndpointAssignment.Auto))
             .AddResourceTypeEndpoint(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourceEndpointDescriptor.Tcp("tds", 1433))
+                ResourceEndpointDescriptor.Tcp("tds", 1433, supportsPortRemapping: false))
             .AddResourceTypeEndpoint(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourceEndpointDescriptor.Tcp("amqp", 5672))
+                ResourceEndpointDescriptor.Tcp("amqp", 5672, supportsPortRemapping: false))
             .AddResourceTypeEndpoint(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourceEndpointDescriptor.Http("management", 15672))
+                ResourceEndpointDescriptor.Http("management", 15672, supportsPortRemapping: false))
             .AddResourceTab<SharedPages.ApplicationConfiguration>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Configuration,
