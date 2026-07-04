@@ -172,7 +172,7 @@ template and an apply mode:
 In all modes, provider validation runs before graph state is committed.
 Runtime reconciliation runs only after accepted state has been committed.
 
-### Seeded Configuration And Secrets
+### Seeded Settings And Secrets
 
 Configuration Store and Secrets Vault resources support create-only seed
 attributes for development templates and launcher samples. YAML is the
@@ -204,9 +204,9 @@ Those values are accepted only when the resource is created. After the create
 commit succeeds, the provider materializes them into runtime-owned state and
 the accepted graph state omits the seed attributes. Applying the same
 attributes to an existing Configuration Store or Secrets Vault is rejected, and
-default resource-template export does not emit seeded entries or secret values.
+default resource-template export does not emit seeded settings or secret values.
 Future import/export work should add permission-protected flows for moving
-runtime-owned entries and secrets, including versioning semantics.
+runtime-owned settings and secrets, including versioning semantics.
 
 The implemented apply surfaces are:
 

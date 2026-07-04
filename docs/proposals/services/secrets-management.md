@@ -106,7 +106,7 @@ var settings = resources
 
 resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
     .WithAppSetting("Database:Host", "postgres")
-    .WithAppSetting("Database:Name", settings.Entry("database-name"));
+    .WithAppSetting("Database:Name", settings.Setting("database-name"));
 ```
 
 Configuration-entry references are for non-secret settings. If an existing
@@ -122,14 +122,9 @@ not a default bridge that exposes all host configuration to every resource.
 
 For example:
 
-```csharp
-var hostSettings = resources.AddHostConfigurationSource("configuration:host-dev")
-    .WithEntry("ExternalApi:BaseUrl")
-    .WithEntry("FeatureFlags:UseMockPayments");
-
-resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
-    .WithAppSetting("ExternalApi:BaseUrl", hostSettings.Entry("ExternalApi:BaseUrl"));
-```
+For example, a future host-configuration source authoring API should expose
+selected host settings and let application resources bind those settings by
+reference instead of copying literal values.
 
 The host-configuration provider should use the same
 `ConfigurationEntryReference` and resolver path as configuration service
@@ -195,7 +190,7 @@ var settings = resources
     .WithDisplayName("App Settings");
 
 resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
-    .WithAppSetting("Database:Host", settings.Entry("database-host"))
+    .WithAppSetting("Database:Host", settings.Setting("database-host"))
     .WithEnvironmentVariable("DB_PASSWORD", vault.Secret("db-password"));
 ```
 
@@ -315,11 +310,11 @@ var settings = resources
     .WithDisplayName("App Settings");
 
 resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
-    .WithAppSetting("Database:Host", settings.Entry("database-host"))
+    .WithAppSetting("Database:Host", settings.Setting("database-host"))
     .WithEnvironmentVariable("DB_PASSWORD", vault.Secret("db-password"));
 ```
 
-The `settings.Entry(...)` helper creates a `ConfigurationEntryReference`; it
+The `settings.Setting(...)` helper creates a `ConfigurationEntryReference`; it
 does not copy the entry value into the application resource definition. The
 `vault.Secret(...)` helper creates a `SecretReference`; it does not resolve the
 secret value. Passing either reference to an app-setting or environment API

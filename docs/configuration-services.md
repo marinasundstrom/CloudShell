@@ -46,10 +46,10 @@ Templates may include create-only seed attributes for local development:
 for create-time input and is not accepted when updating an existing resource.
 The Control Plane materializes those values into provider-owned runtime state
 after the create commit succeeds, then strips the seed attributes from accepted
-graph state. Normal resource-template export does not emit seeded setting
-entries, secret values, or certificate payloads.
+graph state. Normal resource-template export does not emit seeded settings,
+secret values, or certificate payloads.
 
-Each store stores key-value setting entries:
+Each store stores key-value settings:
 
 - `Name`: the setting name.
 - `Value`: the stored value.
@@ -74,8 +74,8 @@ deployment targets may apply their own character and length restrictions.
 
 Graph-backed Configuration Store resources contribute an **Entries** tab in
 Resource Manager when the UI host has access to the provider runtime manager.
-That tab manages provider-owned runtime entries and rewrites the sidecar
-definition file used by the backing Configuration Store service. Entry values
+That tab manages provider-owned runtime settings and rewrites the sidecar
+definition file used by the backing Configuration Store service. Setting values
 do not become Resource graph attributes.
 
 Graph-backed Secrets Vault resources contribute **Secrets** and

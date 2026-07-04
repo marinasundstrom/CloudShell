@@ -24,14 +24,14 @@ app.DefineResources(resources =>
         .AddConfigurationStore("csharp-app-settings")
         .WithDisplayName("Settings")
         .WithEndpoint(settingsEndpoint)
-        .WithSetting("Sample--Message", "Hello from C# launcher seed")
+        .WithSeed(seed => seed.Setting("Sample--Message", "Hello from C# launcher seed"))
         .WithAutoStart(false);
 
     var secrets = resources
         .AddSecretsVault("csharp-app-secrets")
         .WithDisplayName("Secrets")
         .WithEndpoint("http://localhost:6103")
-        .WithSecret("Sample--ApiKey", "csharp-launcher-secret", "v1")
+        .WithSeed(seed => seed.Secret("Sample--ApiKey", "csharp-launcher-secret", "v1"))
         .WithAutoStart(false);
 
     resources
@@ -57,7 +57,7 @@ app.DefineResources(resources =>
             settingsEntriesEndpoint)
         .WithEnvironmentVariable(
             "Sample__Message",
-            settings.Entry("Sample--Message"))
+            settings.Setting("Sample--Message"))
         .WithEnvironmentVariable(
             "Sample__ApiKey",
             secrets.Secret("Sample--ApiKey"))

@@ -1830,7 +1830,7 @@ resources:
         var templates = serviceProvider.GetRequiredService<ResourceDefinitionTemplateService>();
         var store = new ConfigurationStoreResourceDefinitionBuilder("settings")
             .WithEndpoint("http://localhost:5138")
-            .WithSetting("Sample--Message", "Hello from template")
+            .WithSeed(seed => seed.Setting("Sample--Message", "Hello from template"))
             .Build();
 
         var create = await apply.ApplyTemplateAsync(
@@ -1889,16 +1889,17 @@ resources:
         var templates = serviceProvider.GetRequiredService<ResourceDefinitionTemplateService>();
         var vault = new SecretsVaultResourceDefinitionBuilder("secrets")
             .WithEndpoint("http://localhost:6138")
-            .WithSecret("Sample--ApiKey", "secret-from-template", "v1")
-            .WithCertificate(
-                new SecretsVaultSeedCertificate(
-                    "ApiTls",
-                    "certificate-from-template",
-                    "v1",
-                    "application/x-pem-file",
-                    "ABC123",
-                    "CN=api.local",
-                    HasPrivateKey: true))
+            .WithSeed(seed => seed
+                .Secret("Sample--ApiKey", "secret-from-template", "v1")
+                .Certificate(
+                    new SecretsVaultSeedCertificate(
+                        "ApiTls",
+                        "certificate-from-template",
+                        "v1",
+                        "application/x-pem-file",
+                        "ABC123",
+                        "CN=api.local",
+                        HasPrivateKey: true)))
             .Build();
 
         var create = await apply.ApplyTemplateAsync(

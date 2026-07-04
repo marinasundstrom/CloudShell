@@ -28,19 +28,20 @@ public final class CloudShellAppTest {
         ConfigurationStoreResource settings = app.addConfigurationStore("settings")
             .withDisplayName("Settings")
             .withEndpoint("http://localhost:5104")
-            .withSetting("Sample--Message", "Hello from Java");
+            .withSeed(seed -> seed.setting("Sample--Message", "Hello from Java"));
 
         SecretsVaultResource secrets = app.addSecretsVault("secrets")
             .withDisplayName("Secrets")
             .withEndpoint("http://localhost:6104")
-            .withSecret("Sample--ApiKey", "java-secret", "v1")
-            .withCertificate("ApiTls", "java-certificate", "v1", "application/x-pem-file");
+            .withSeed(seed -> seed
+                .secret("Sample--ApiKey", "java-secret", "v1")
+                .certificate("ApiTls", "java-certificate", "v1", "application/x-pem-file"));
 
         app.addJavaMavenApp("api", "samples/JavaApp/App", "target/app.jar", "clean package -DskipTests")
             .withDisplayName("Java API")
             .withServiceDiscovery()
             .withEnvironmentVariable("PORT", "5186")
-            .withEnvironmentVariable("Sample__Message", settings.entry("Sample--Message"))
+            .withEnvironmentVariable("Sample__Message", settings.setting("Sample--Message"))
             .withEnvironmentVariable("Sample__ApiKey", secrets.secret("Sample--ApiKey"))
             .withReference(settings)
             .withReference(secrets)

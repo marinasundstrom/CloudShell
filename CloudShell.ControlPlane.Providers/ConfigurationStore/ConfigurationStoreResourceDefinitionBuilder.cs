@@ -15,54 +15,24 @@ public sealed class ConfigurationStoreResourceDefinitionBuilder(string name) :
     public ConfigurationStoreResourceDefinitionBuilder WithEndpoint(string endpoint) =>
         SetScalarAttribute(ConfigurationStoreResourceTypeProvider.Attributes.Endpoint, endpoint);
 
-    public ConfigurationStoreResourceDefinitionBuilder WithEntry(
-        string name,
-        string value) =>
-        WithSetting(name, value);
-
-    public ConfigurationStoreResourceDefinitionBuilder WithEntry(
-        ConfigurationStoreSeedEntry entry) =>
-        WithSetting(new ConfigurationStoreSettingEntry(entry.Name, entry.Value));
-
-    public ConfigurationStoreResourceDefinitionBuilder WithSetting(
-        string name,
-        string value) =>
-        WithSetting(new ConfigurationStoreSettingEntry(name, value));
-
-    public ConfigurationStoreResourceDefinitionBuilder WithSetting(
-        ConfigurationStoreSettingEntry entry)
+    public ConfigurationStoreResourceDefinitionBuilder WithSeed(
+        Action<ConfigurationStoreSeedBuilder> configure)
     {
-        ArgumentNullException.ThrowIfNull(entry);
+        ArgumentNullException.ThrowIfNull(configure);
 
-        var entries = Attributes.TryGetValue(
+        var seed = new ConfigurationStoreSeedBuilder();
+        configure(seed);
+        if (seed.Settings.Count > 0)
+        {
+            SetObjectAttribute(
                 ConfigurationStoreResourceTypeProvider.Attributes.Entries,
-                out var currentEntries)
-            ? currentEntries.ToObject<ConfigurationStoreSettingEntry[]>() ?? []
-            : [];
-        return SetObjectAttribute(
-            ConfigurationStoreResourceTypeProvider.Attributes.Entries,
-            entries.Append(entry).ToArray());
+                seed.Settings);
+        }
+
+        return this;
     }
 
-    public ConfigurationStoreResourceDefinitionBuilder WithEntries(
-        IEnumerable<ConfigurationStoreSeedEntry> entries)
-    {
-        ArgumentNullException.ThrowIfNull(entries);
-
-        return WithSettings(entries.Select(entry => new ConfigurationStoreSettingEntry(entry.Name, entry.Value)));
-    }
-
-    public ConfigurationStoreResourceDefinitionBuilder WithSettings(
-        IEnumerable<ConfigurationStoreSettingEntry> entries)
-    {
-        ArgumentNullException.ThrowIfNull(entries);
-
-        return SetObjectAttribute(
-            ConfigurationStoreResourceTypeProvider.Attributes.Entries,
-            entries.ToArray());
-    }
-
-    public ResourceConfigurationEntryReference Entry(
+    public ResourceConfigurationEntryReference Setting(
         string name,
         string? version = null)
     {
@@ -75,11 +45,22 @@ public sealed class ConfigurationStoreResourceDefinitionBuilder(string name) :
     }
 }
 
-public sealed record ConfigurationStoreSeedEntry(
-    string Name,
-    string Value);
+public sealed class ConfigurationStoreSeedBuilder
+{
+    private readonly List<ConfigurationStoreSeedSetting> _settings = [];
 
-public sealed record ConfigurationStoreSettingEntry(
+    public IReadOnlyList<ConfigurationStoreSeedSetting> Settings => _settings;
+
+    public ConfigurationStoreSeedBuilder Setting(
+        string name,
+        string value)
+    {
+        _settings.Add(new(name, value));
+        return this;
+    }
+}
+
+public sealed record ConfigurationStoreSeedSetting(
     string Name,
     string Value);
 

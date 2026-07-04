@@ -703,8 +703,10 @@ resources:
 
 ### `configuration.store`
 
-Use for a Configuration Store service. Seed entries are create-only and are
-not retained as accepted graph state.
+Use for a Configuration Store service. Seed settings are create-only and are
+not retained as accepted graph state. The ResourceDefinition attribute remains
+`seed.entries` because the protected service API exposes entries, but builder
+APIs should present them as settings.
 
 Common optional attributes:
 

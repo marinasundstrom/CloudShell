@@ -84,10 +84,10 @@ var postgres = resources
 
 var certificates = resources
     .AddSecretsVault("edge-certificates")
-    .WithCertificate(
+    .WithSeed(seed => seed.Certificate(
         "EdgeTls",
         "local-development-pem-or-pfx",
-        contentType: "application/x-pem-file");
+        contentType: "application/x-pem-file"));
 
 var lb = resources
     .AddLoadBalancer("public")

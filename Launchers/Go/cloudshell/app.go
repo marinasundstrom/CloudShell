@@ -250,3 +250,11 @@ func requireNotBlank(value string, name string) string {
 
 	return value
 }
+
+func requireNotNil[T any](value T, name string) T {
+	if any(value) == nil {
+		panic(name + " is required")
+	}
+
+	return value
+}

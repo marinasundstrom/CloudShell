@@ -147,11 +147,11 @@ public sealed class ResourceGraphBuilderTests
             {
                 resources
                     .AddConfigurationStore("settings")
-                    .WithSetting("Api:BaseUrl", "http://localhost:5000");
+                    .WithSeed(seed => seed.Setting("Api:BaseUrl", "http://localhost:5000"));
             });
 
         var definition = Assert.Single(graph.BuildGraph().Resources);
-        var entry = Assert.Single(definition.ResourceAttributeValues.GetObject<ConfigurationStoreSettingEntry[]>(
+        var entry = Assert.Single(definition.ResourceAttributeValues.GetObject<ConfigurationStoreSeedSetting[]>(
             ConfigurationStoreResourceTypeProvider.Attributes.Entries) ?? []);
 
         Assert.Equal("Api:BaseUrl", entry.Name);
@@ -1756,10 +1756,10 @@ public sealed class ResourceGraphBuilderTests
         var host = graph.AddDockerHost("engine");
         var certificates = graph
             .AddSecretsVault("edge-certificates")
-            .WithCertificate(
+            .WithSeed(seed => seed.Certificate(
                 "EdgeTls",
                 "local-development-certificate",
-                contentType: "application/x-pem-file");
+                contentType: "application/x-pem-file"));
         var target = graph
             .AddContainerApplication("api")
             .WithImage("example/api:1.0");

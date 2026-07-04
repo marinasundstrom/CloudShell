@@ -20,19 +20,23 @@ func TestBuildsGoAppTemplate(t *testing.T) {
 	settings := app.AddConfigurationStore("settings").
 		WithDisplayName("Settings").
 		WithEndpoint("http://localhost:5105").
-		WithSetting("Sample--Message", "Hello from Go")
+		WithSeed(func(seed *ConfigurationStoreSeed) {
+			seed.Setting("Sample--Message", "Hello from Go")
+		})
 
 	secrets := app.AddSecretsVault("secrets").
 		WithDisplayName("Secrets").
 		WithEndpoint("http://localhost:6105").
-		WithSecret("Sample--ApiKey", "go-secret", "v1").
-		WithCertificateContentType("ApiTls", "go-certificate", "application/x-pem-file", "v1")
+		WithSeed(func(seed *SecretsVaultSeed) {
+			seed.Secret("Sample--ApiKey", "go-secret", "v1").
+				Certificate("ApiTls", "go-certificate", "application/x-pem-file", "v1")
+		})
 
 	app.AddGoApp("api", "samples/GoApp/App").
 		WithDisplayName("Go API").
 		WithServiceDiscovery().
 		WithEnvironmentVariable("PORT", "5186").
-		WithConfigurationEntry("Sample__Message", settings.Entry("Sample--Message")).
+		WithConfigurationEntry("Sample__Message", settings.Setting("Sample--Message")).
 		WithSecret("Sample__ApiKey", secrets.Secret("Sample--ApiKey")).
 		WithReference(settings).
 		WithReference(secrets).

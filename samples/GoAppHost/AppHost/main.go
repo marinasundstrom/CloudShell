@@ -40,19 +40,23 @@ func buildTemplate(goAppRoot string) *cloudshell.App {
 	settings := app.AddConfigurationStore("go-launcher-settings").
 		WithDisplayName("Go Launcher Settings").
 		WithEndpoint("http://localhost:5106").
-		WithSetting("Sample--Message", "Hello from Go launcher seed")
+		WithSeed(func(seed *cloudshell.ConfigurationStoreSeed) {
+			seed.Setting("Sample--Message", "Hello from Go launcher seed")
+		})
 
 	secrets := app.AddSecretsVault("go-launcher-secrets").
 		WithDisplayName("Go Launcher Secrets").
 		WithEndpoint("http://localhost:6106").
-		WithSecret("Sample--ApiKey", "go-launcher-secret", "v1")
+		WithSeed(func(seed *cloudshell.SecretsVaultSeed) {
+			seed.Secret("Sample--ApiKey", "go-launcher-secret", "v1")
+		})
 
 	app.AddGoApp("go-launcher-api", goAppRoot).
 		WithDisplayName("Go Launcher API").
 		WithServiceDiscovery().
 		WithEnvironmentVariable("PORT", "5187").
 		WithEnvironmentVariable("OTEL_SERVICE_NAME", "go-launcher-api").
-		WithConfigurationEntry("Sample__Message", settings.Entry("Sample--Message")).
+		WithConfigurationEntry("Sample__Message", settings.Setting("Sample--Message")).
 		WithSecret("Sample__ApiKey", secrets.Secret("Sample--ApiKey")).
 		WithReference(settings).
 		WithReference(secrets).

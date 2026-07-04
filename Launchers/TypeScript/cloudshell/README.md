@@ -16,14 +16,26 @@ const app = cloudshell("orders");
 
 const settings = app
   .addConfigurationStore("orders-settings")
-  .withEndpoint("http://localhost:5101");
+  .withEndpoint("http://localhost:5101")
+  .withSeed(seed => seed.setting("Orders--Message", "Hello from TypeScript"));
+
+const secrets = app
+  .addSecretsVault("orders-secrets")
+  .withSeed(seed => seed.secret("Orders--ApiKey", "local-development-secret"));
 
 app
   .addJavaScriptApp("orders-web", "src/web")
   .withHttpEndpoint({ port: 5173, targetPort: 5173, host: "localhost" })
   .withReference(settings)
+  .withReference(secrets)
   .withEnvironmentVariable("CLOUDSHELL_SETTINGS_ENDPOINT", {
     value: "http://localhost:5101/api/configuration/stores/configuration.store%3Aorders-settings/entries"
+  })
+  .withEnvironmentVariable("Orders__Message", {
+    configurationEntryRef: settings.setting("Orders--Message")
+  })
+  .withEnvironmentVariable("Orders__ApiKey", {
+    secretRef: secrets.secret("Orders--ApiKey")
   });
 
 console.log(app.toJson());

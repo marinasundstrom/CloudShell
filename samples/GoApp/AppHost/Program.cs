@@ -20,13 +20,13 @@ app.DefineResources(resources =>
         .AddConfigurationStore("go-app-settings")
         .WithDisplayName("Settings")
         .WithEndpoint(settingsServiceEndpoint)
-        .WithSetting("Sample--Message", "Hello from the Go app configuration store");
+        .WithSeed(seed => seed.Setting("Sample--Message", "Hello from the Go app configuration store"));
 
     var secrets = resources
         .AddSecretsVault("go-app-secrets")
         .WithDisplayName("Secrets")
         .WithEndpoint(secretsServiceEndpoint)
-        .WithSecret("Sample--Secret", "local-development-go-secret");
+        .WithSeed(seed => seed.Secret("Sample--Secret", "local-development-go-secret"));
 
     resources
         .AddGoApp("go-api", appPath)

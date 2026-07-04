@@ -44,7 +44,7 @@ public static class AspNetCoreProjectShapes
                     ValueType: ResourceAttributeValueType.String),
                 ["name"] = new(
                     Required: true,
-                    RequiredMessage: "Configuration entry name is required.",
+                    RequiredMessage: "Configuration setting name is required.",
                     ValueType: ResourceAttributeValueType.String),
                 ["version"] = new(ValueType: ResourceAttributeValueType.String)
             }),

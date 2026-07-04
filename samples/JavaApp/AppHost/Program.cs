@@ -21,13 +21,13 @@ app.DefineResources(resources =>
         .AddConfigurationStore("java-app-settings")
         .WithDisplayName("Settings")
         .WithEndpoint(settingsServiceEndpoint)
-        .WithSetting("Sample--Message", "Hello from the Java app configuration store");
+        .WithSeed(seed => seed.Setting("Sample--Message", "Hello from the Java app configuration store"));
 
     var secrets = resources
         .AddSecretsVault("java-app-secrets")
         .WithDisplayName("Secrets")
         .WithEndpoint(secretsServiceEndpoint)
-        .WithSecret("Sample--Secret", "local-development-java-secret");
+        .WithSeed(seed => seed.Secret("Sample--Secret", "local-development-java-secret"));
 
     resources
         .AddJavaApp("java-api", appPath, artifactPath)

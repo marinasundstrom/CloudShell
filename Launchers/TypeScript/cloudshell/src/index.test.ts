@@ -13,14 +13,15 @@ test("builds a resource template with JavaScript app and configuration store", (
     .addConfigurationStore("typescript-settings")
     .withDisplayName("TypeScript Settings")
     .withEndpoint("http://localhost:5101")
-    .withSetting("Sample--Message", "Hello from TypeScript");
+    .withSeed(seed => seed.setting("Sample--Message", "Hello from TypeScript"));
 
   const secrets = app
     .addSecretsVault("typescript-secrets")
     .withDisplayName("TypeScript Secrets")
     .withEndpoint("http://localhost:6101")
-    .withSecret("Sample--ApiKey", "typescript-secret", "v1")
-    .withCertificate("ApiTls", "typescript-certificate", "v1", "application/x-pem-file");
+    .withSeed(seed => seed
+      .secret("Sample--ApiKey", "typescript-secret", "v1")
+      .certificate("ApiTls", "typescript-certificate", "v1", "application/x-pem-file"));
 
   app
     .addJavaScriptApp("typescript-frontend", "samples/TypeScriptAppHost/App")
@@ -34,7 +35,7 @@ test("builds a resource template with JavaScript app and configuration store", (
       value: "http://localhost:5101/api/configuration/stores/configuration.store%3Atypescript-settings/entries"
     })
     .withEnvironmentVariable("Sample__Message", {
-      configurationEntryRef: settings.entry("Sample--Message")
+      configurationEntryRef: settings.setting("Sample--Message")
     })
     .withEnvironmentVariable("Sample__ApiKey", {
       secretRef: secrets.secret("Sample--ApiKey")

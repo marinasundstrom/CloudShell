@@ -117,10 +117,10 @@ var cloudShell = builder.AddCloudShellControlPlaneApplication(
                     "ControlPlane.Access")
                 .WithEnvironmentVariable(
                     "SAMPLE_MESSAGE",
-                    settingsResource.Entry("Sample:Message"))
+                    settingsResource.Setting("Sample:Message"))
                 .WithEnvironmentVariable(
                     "SAMPLE_MODE",
-                    settingsResource.Entry("Sample:Mode"))
+                    settingsResource.Setting("Sample:Mode"))
                 .WithEnvironmentVariable(
                     "SAMPLE_API_KEY",
                     secretsResource.Secret("sample-api-key"))

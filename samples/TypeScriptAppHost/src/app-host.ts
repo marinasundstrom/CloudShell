@@ -31,13 +31,13 @@ const settings = app
   .addConfigurationStore("typescript-app-settings")
   .withDisplayName("TypeScript App Settings")
   .withEndpoint(settingsServiceEndpoint)
-  .withSetting("Sample--Message", "Hello from TypeScript launcher seed");
+  .withSeed(seed => seed.setting("Sample--Message", "Hello from TypeScript launcher seed"));
 
 const secrets = app
   .addSecretsVault("typescript-app-secrets")
   .withDisplayName("TypeScript App Secrets")
   .withEndpoint(secretsServiceEndpoint)
-  .withSecret("Sample--ApiKey", "typescript-launcher-secret", "v1");
+  .withSeed(seed => seed.secret("Sample--ApiKey", "typescript-launcher-secret", "v1"));
 
 app
   .addJavaScriptApp("typescript-frontend", appRoot)
@@ -53,7 +53,7 @@ app
     "CLOUDSHELL_SETTINGS_ENDPOINT",
     settingsEntriesEndpoint)
   .withEnvironmentVariable("Sample__Message", {
-    configurationEntryRef: settings.entry("Sample--Message")
+    configurationEntryRef: settings.setting("Sample--Message")
   })
   .withEnvironmentVariable("Sample__ApiKey", {
     secretRef: secrets.secret("Sample--ApiKey")

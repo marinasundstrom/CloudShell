@@ -15,71 +15,28 @@ public sealed class SecretsVaultResourceDefinitionBuilder(string name) :
     public SecretsVaultResourceDefinitionBuilder WithEndpoint(string endpoint) =>
         SetScalarAttribute(SecretsVaultResourceTypeProvider.Attributes.Endpoint, endpoint);
 
-    public SecretsVaultResourceDefinitionBuilder WithSecret(
-        string name,
-        string value,
-        string? version = null) =>
-        WithSecret(new SecretsVaultSeedSecret(name, value, version));
-
-    public SecretsVaultResourceDefinitionBuilder WithSecret(
-        SecretsVaultSeedSecret secret)
+    public SecretsVaultResourceDefinitionBuilder WithSeed(
+        Action<SecretsVaultSeedBuilder> configure)
     {
-        ArgumentNullException.ThrowIfNull(secret);
+        ArgumentNullException.ThrowIfNull(configure);
 
-        var secrets = Attributes.TryGetValue(
+        var seed = new SecretsVaultSeedBuilder();
+        configure(seed);
+        if (seed.Secrets.Count > 0)
+        {
+            SetObjectAttribute(
                 SecretsVaultResourceTypeProvider.Attributes.Secrets,
-                out var currentSecrets)
-            ? currentSecrets.ToObject<SecretsVaultSeedSecret[]>() ?? []
-            : [];
-        return SetObjectAttribute(
-            SecretsVaultResourceTypeProvider.Attributes.Secrets,
-            secrets.Append(secret).ToArray());
-    }
+                seed.Secrets);
+        }
 
-    public SecretsVaultResourceDefinitionBuilder WithSecrets(
-        IEnumerable<SecretsVaultSeedSecret> secrets)
-    {
-        ArgumentNullException.ThrowIfNull(secrets);
-
-        return SetObjectAttribute(
-            SecretsVaultResourceTypeProvider.Attributes.Secrets,
-            secrets.ToArray());
-    }
-
-    public SecretsVaultResourceDefinitionBuilder WithCertificate(
-        string name,
-        string value,
-        string? version = null,
-        string? contentType = null) =>
-        WithCertificate(new SecretsVaultSeedCertificate(
-            name,
-            value,
-            version,
-            contentType));
-
-    public SecretsVaultResourceDefinitionBuilder WithCertificate(
-        SecretsVaultSeedCertificate certificate)
-    {
-        ArgumentNullException.ThrowIfNull(certificate);
-
-        var certificates = Attributes.TryGetValue(
+        if (seed.Certificates.Count > 0)
+        {
+            SetObjectAttribute(
                 SecretsVaultResourceTypeProvider.Attributes.Certificates,
-                out var currentCertificates)
-            ? currentCertificates.ToObject<SecretsVaultSeedCertificate[]>() ?? []
-            : [];
-        return SetObjectAttribute(
-            SecretsVaultResourceTypeProvider.Attributes.Certificates,
-            certificates.Append(certificate).ToArray());
-    }
+                seed.Certificates);
+        }
 
-    public SecretsVaultResourceDefinitionBuilder WithCertificates(
-        IEnumerable<SecretsVaultSeedCertificate> certificates)
-    {
-        ArgumentNullException.ThrowIfNull(certificates);
-
-        return SetObjectAttribute(
-            SecretsVaultResourceTypeProvider.Attributes.Certificates,
-            certificates.ToArray());
+        return this;
     }
 
     public ResourceSecretReference Secret(
@@ -104,6 +61,57 @@ public sealed class SecretsVaultResourceDefinitionBuilder(string name) :
             EffectiveResourceId,
             name.Trim(),
             string.IsNullOrWhiteSpace(version) ? null : version.Trim());
+    }
+}
+
+public sealed class SecretsVaultSeedBuilder
+{
+    private readonly List<SecretsVaultSeedSecret> _secrets = [];
+    private readonly List<SecretsVaultSeedCertificate> _certificates = [];
+
+    public IReadOnlyList<SecretsVaultSeedSecret> Secrets => _secrets;
+
+    public IReadOnlyList<SecretsVaultSeedCertificate> Certificates => _certificates;
+
+    public SecretsVaultSeedBuilder Secret(
+        string name,
+        string value,
+        string? version = null)
+    {
+        _secrets.Add(new(name, value, version));
+        return this;
+    }
+
+    public SecretsVaultSeedBuilder Secret(
+        SecretsVaultSeedSecret secret)
+    {
+        ArgumentNullException.ThrowIfNull(secret);
+
+        _secrets.Add(secret);
+        return this;
+    }
+
+    public SecretsVaultSeedBuilder Certificate(
+        string name,
+        string value,
+        string? version = null,
+        string? contentType = null)
+    {
+        _certificates.Add(new(
+            name,
+            value,
+            version,
+            contentType));
+        return this;
+    }
+
+    public SecretsVaultSeedBuilder Certificate(
+        SecretsVaultSeedCertificate certificate)
+    {
+        ArgumentNullException.ThrowIfNull(certificate);
+
+        _certificates.Add(certificate);
+        return this;
     }
 }
 

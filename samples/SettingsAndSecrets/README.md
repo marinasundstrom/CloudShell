@@ -4,7 +4,7 @@ This sample declares a Web API resource programmatically and assigns runtime
 environment variables from references:
 
 - `SAMPLE_MESSAGE` and `SAMPLE_MODE` come from a `configuration.store`
-  resource through `settings.Entry(...)`.
+  resource through `settings.Setting(...)`.
 - `SAMPLE_API_KEY` comes from a `secrets.vault` resource through
   `secrets.Secret(...)`.
 

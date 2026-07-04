@@ -5,7 +5,7 @@
 - Resource type: `configuration.store`
 - Provider id: `configuration`
 - Purpose: declares a graph-backed configuration store service while keeping
-  entry values out of persisted/exported graph state.
+  setting values out of persisted/exported graph state.
 
 ## Ported
 
@@ -14,19 +14,19 @@
 - Start, stop, and restart operations backed by a provider-local process controller that runs the existing service web app.
 - Type-level runtime monitoring support, with Resource Manager process metric
   snapshots provided by the runtime bridge when the backing service is running.
-- Provider-owned runtime entry seed options.
+- Provider-owned runtime setting seed options.
 - Optional provider-owned runtime authentication options for external
   `Authentication:ServiceBearer` validation when a host wants the graph-backed
   service to accept tokens from a non-built-in identity provider.
 - Inspect operation with a runtime-backed inspector that reports configured counts without exposing values.
 - Typed wrapper plus Resource Manager bridge projection and execution.
-- Resource Manager Entries tab for managing provider-owned runtime entries.
-  Entry values stay in provider runtime state and sidecar definition files, not
+- Resource Manager Entries tab for managing provider-owned runtime settings.
+  Setting values stay in provider runtime state and sidecar definition files, not
   Resource graph attributes.
 - Manual `ResourceGraphBuilder.AddConfigurationStore(...)` builder
   for code-first resource and endpoint declaration, including create-only
   `seed.entries` attributes for development templates. Seeded
-  entries materialize into provider-owned runtime state and are stripped from
+  settings materialize into provider-owned runtime state and are stripped from
   accepted graph state before normal template export.
 - SettingsAndSecrets smoke coverage for endpoint projection, inspect execution, authorized entry reads, and API consumption through the graph-backed endpoint.
 - ThirdPartyIdentity Docker smoke coverage for a Keycloak-protected
@@ -77,13 +77,13 @@ samples. The graph path starts the backing service, projects endpoint/count,
 supports inspect, monitoring, health/liveness, built-in authorization, and
 external bearer validation for the Keycloak sample. Runtime entries can be
 managed through Resource Manager when the UI host has access to the provider
-runtime manager. Durable entry storage, log streaming, permission-protected
-import/export, entry versioning, and full registration/update flows remain
+runtime manager. Durable setting storage, log streaming, permission-protected
+import/export, setting versioning, and full registration/update flows remain
 outside the switch gate.
 
 ## Remaining
 
-- Durable entry storage.
+- Durable setting storage.
 - Logs and richer diagnostics.
-- Permission-protected entry import/export and versioning.
+- Permission-protected setting import/export and versioning.
 - Full UI registration/update flow.

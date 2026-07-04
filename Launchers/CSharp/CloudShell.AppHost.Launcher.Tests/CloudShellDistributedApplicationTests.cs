@@ -19,12 +19,12 @@ public sealed class CloudShellDistributedApplicationTests
             var settings = resources
                 .AddConfigurationStore("settings")
                 .WithEndpoint("http://localhost:5101")
-                .WithSetting("Sample--Message", "Hello from C#");
+                .WithSeed(seed => seed.Setting("Sample--Message", "Hello from C#"));
 
             var secrets = resources
                 .AddSecretsVault("secrets")
                 .WithEndpoint("http://localhost:6101")
-                .WithSecret("Sample--ApiKey", "csharp-secret", "v1");
+                .WithSeed(seed => seed.Secret("Sample--ApiKey", "csharp-secret", "v1"));
 
             resources
                 .AddJavaScriptApp("frontend", "App")
@@ -58,7 +58,7 @@ public sealed class CloudShellDistributedApplicationTests
 
         var settings = Assert.Single(template.Resources, resource =>
             resource.EffectiveResourceId == "configuration.store:settings");
-        var entry = Assert.Single(settings.ResourceAttributeValues.GetObject<ConfigurationStoreSettingEntry[]>(
+        var entry = Assert.Single(settings.ResourceAttributeValues.GetObject<ConfigurationStoreSeedSetting[]>(
             ConfigurationStoreResourceTypeProvider.Attributes.Entries)!);
         Assert.Equal("Sample--Message", entry.Name);
         Assert.Equal("Hello from C#", entry.Value);

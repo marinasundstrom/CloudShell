@@ -170,10 +170,14 @@ func (r *NetworkResource) build() map[string]any {
 type ConfigurationStoreResource struct {
 	baseResource
 	endpoint string
-	entries  []ConfigurationSeedEntry
+	entries  []ConfigurationSeedSetting
 }
 
-type ConfigurationSeedEntry struct {
+type ConfigurationStoreSeed struct {
+	settings []ConfigurationSeedSetting
+}
+
+type ConfigurationSeedSetting struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
 }
@@ -205,18 +209,27 @@ func (r *ConfigurationStoreResource) WithEndpoint(endpoint string) *Configuratio
 	return r
 }
 
-func (r *ConfigurationStoreResource) WithSetting(name string, value string) *ConfigurationStoreResource {
-	r.entries = append(r.entries, ConfigurationSeedEntry{
-		Name:  requireNotBlank(name, "configuration entry name"),
-		Value: value,
-	})
+func (r *ConfigurationStoreResource) WithSeed(configure func(seed *ConfigurationStoreSeed)) *ConfigurationStoreResource {
+	requireNotNil(configure, "configuration store seed configure")
+
+	seed := &ConfigurationStoreSeed{}
+	configure(seed)
+	r.entries = append([]ConfigurationSeedSetting{}, seed.settings...)
 	return r
 }
 
-func (r *ConfigurationStoreResource) Entry(name string) ConfigurationEntryReference {
+func (s *ConfigurationStoreSeed) Setting(name string, value string) *ConfigurationStoreSeed {
+	s.settings = append(s.settings, ConfigurationSeedSetting{
+		Name:  requireNotBlank(name, "configuration setting name"),
+		Value: value,
+	})
+	return s
+}
+
+func (r *ConfigurationStoreResource) Setting(name string) ConfigurationEntryReference {
 	return ConfigurationEntryReference{
 		StoreResourceID: r.ResourceID(),
-		Name:            requireNotBlank(name, "configuration entry name"),
+		Name:            requireNotBlank(name, "configuration setting name"),
 	}
 }
 
@@ -242,6 +255,11 @@ func (r *ConfigurationStoreResource) build() map[string]any {
 type SecretsVaultResource struct {
 	baseResource
 	endpoint     string
+	secrets      []SecretSeedValue
+	certificates []CertificateSeedValue
+}
+
+type SecretsVaultSeed struct {
 	secrets      []SecretSeedValue
 	certificates []CertificateSeedValue
 }
@@ -292,7 +310,17 @@ func (r *SecretsVaultResource) WithEndpoint(endpoint string) *SecretsVaultResour
 	return r
 }
 
-func (r *SecretsVaultResource) WithSecret(name string, value string, version ...string) *SecretsVaultResource {
+func (r *SecretsVaultResource) WithSeed(configure func(seed *SecretsVaultSeed)) *SecretsVaultResource {
+	requireNotNil(configure, "secrets vault seed configure")
+
+	seed := &SecretsVaultSeed{}
+	configure(seed)
+	r.secrets = append([]SecretSeedValue{}, seed.secrets...)
+	r.certificates = append([]CertificateSeedValue{}, seed.certificates...)
+	return r
+}
+
+func (s *SecretsVaultSeed) Secret(name string, value string, version ...string) *SecretsVaultSeed {
 	secret := SecretSeedValue{
 		Name:  requireNotBlank(name, "secret name"),
 		Value: value,
@@ -301,24 +329,11 @@ func (r *SecretsVaultResource) WithSecret(name string, value string, version ...
 		secret.Version = version[0]
 	}
 
-	r.secrets = append(r.secrets, secret)
-	return r
+	s.secrets = append(s.secrets, secret)
+	return s
 }
 
-func (r *SecretsVaultResource) WithCertificate(name string, value string, version ...string) *SecretsVaultResource {
-	certificate := CertificateSeedValue{
-		Name:  requireNotBlank(name, "certificate name"),
-		Value: value,
-	}
-	if len(version) > 0 {
-		certificate.Version = version[0]
-	}
-
-	r.certificates = append(r.certificates, certificate)
-	return r
-}
-
-func (r *SecretsVaultResource) WithCertificateContentType(name string, value string, contentType string, version ...string) *SecretsVaultResource {
+func (s *SecretsVaultSeed) Certificate(name string, value string, contentType string, version ...string) *SecretsVaultSeed {
 	certificate := CertificateSeedValue{
 		Name:        requireNotBlank(name, "certificate name"),
 		Value:       value,
@@ -328,8 +343,8 @@ func (r *SecretsVaultResource) WithCertificateContentType(name string, value str
 		certificate.Version = version[0]
 	}
 
-	r.certificates = append(r.certificates, certificate)
-	return r
+	s.certificates = append(s.certificates, certificate)
+	return s
 }
 
 func (r *SecretsVaultResource) Secret(name string, version ...string) SecretReference {

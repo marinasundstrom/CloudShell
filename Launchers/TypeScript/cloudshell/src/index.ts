@@ -83,12 +83,7 @@ export interface ConfigurationEntryReference {
   version?: string;
 }
 
-export interface ConfigurationSeedEntry {
-  name: string;
-  value: string;
-}
-
-export interface ConfigurationSettingEntry {
+export interface ConfigurationSeedSetting {
   name: string;
   value: string;
 }
@@ -487,7 +482,7 @@ export class NetworkResourceBuilder extends ResourceBuilder {
 }
 
 export class ConfigurationStoreResourceBuilder extends ResourceBuilder {
-  private readonly entries: ConfigurationSettingEntry[] = [];
+  private readonly entries: ConfigurationSeedSetting[] = [];
 
   public constructor(name: string) {
     super(name, "configuration.store", "configuration");
@@ -497,43 +492,39 @@ export class ConfigurationStoreResourceBuilder extends ResourceBuilder {
     return this.withAttribute("endpoint", endpoint);
   }
 
-  public withEntry(name: string, value: string): this {
-    return this.withSetting(name, value);
-  }
-
-  public withSetting(name: string, value: string): this {
-    assertNotBlank(name, "Configuration entry name is required.");
-    this.entries.push({
-      name: name.trim(),
-      value
-    });
-    return this.withAttribute("seed.entries", this.entries);
-  }
-
-  public withEntries(entries: ConfigurationSeedEntry[]): this {
-    return this.withSettings(entries);
-  }
-
-  public withSettings(entries: ConfigurationSettingEntry[]): this {
+  public withSeed(configure: (seed: ConfigurationStoreSeedBuilder) => void): this {
+    const seed = new ConfigurationStoreSeedBuilder();
+    configure(seed);
     this.entries.splice(0, this.entries.length);
-    for (const entry of entries) {
-      assertNotBlank(entry.name, "Configuration entry name is required.");
-      this.entries.push({
-        name: entry.name.trim(),
-        value: entry.value
-      });
-    }
+    this.entries.push(...seed.settings);
 
     return this.withAttribute("seed.entries", this.entries);
   }
 
-  public entry(name: string, version?: string): ConfigurationEntryReference {
-    assertNotBlank(name, "Configuration entry name is required.");
+  public setting(name: string, version?: string): ConfigurationEntryReference {
+    assertNotBlank(name, "Configuration setting name is required.");
     return pruneUndefined({
       storeResourceId: this.effectiveResourceId,
       name: name.trim(),
       version: normalizeOptionalString(version)
     }) as ConfigurationEntryReference;
+  }
+}
+
+export class ConfigurationStoreSeedBuilder {
+  private readonly seedSettings: ConfigurationSeedSetting[] = [];
+
+  public get settings(): ConfigurationSeedSetting[] {
+    return this.seedSettings;
+  }
+
+  public setting(name: string, value: string): this {
+    assertNotBlank(name, "Configuration setting name is required.");
+    this.seedSettings.push({
+      name: name.trim(),
+      value
+    });
+    return this;
   }
 }
 
@@ -549,54 +540,23 @@ export class SecretsVaultResourceBuilder extends ResourceBuilder {
     return this.withAttribute("endpoint", endpoint);
   }
 
-  public withSecret(name: string, value: string, version?: string): this {
-    assertNotBlank(name, "Secret name is required.");
-    this.secrets.push(pruneUndefined({
-      name: name.trim(),
-      value,
-      version: normalizeOptionalString(version)
-    }) as SecretSeedValue);
-    return this.withAttribute("seed.secrets", this.secrets);
-  }
-
-  public withSecrets(secrets: SecretSeedValue[]): this {
+  public withSeed(configure: (seed: SecretsVaultSeedBuilder) => void): this {
+    const seed = new SecretsVaultSeedBuilder();
+    configure(seed);
     this.secrets.splice(0, this.secrets.length);
-    for (const secret of secrets) {
-      assertNotBlank(secret.name, "Secret name is required.");
-      this.secrets.push(pruneUndefined({
-        name: secret.name.trim(),
-        value: secret.value,
-        version: normalizeOptionalString(secret.version)
-      }) as SecretSeedValue);
-    }
-
-    return this.withAttribute("seed.secrets", this.secrets);
-  }
-
-  public withCertificate(name: string, value: string, version?: string, contentType?: string): this {
-    assertNotBlank(name, "Certificate name is required.");
-    this.certificates.push(pruneUndefined({
-      name: name.trim(),
-      value,
-      version: normalizeOptionalString(version),
-      contentType: normalizeOptionalString(contentType)
-    }) as CertificateSeedValue);
-    return this.withAttribute("seed.certificates", this.certificates);
-  }
-
-  public withCertificates(certificates: CertificateSeedValue[]): this {
+    this.secrets.push(...seed.secrets);
     this.certificates.splice(0, this.certificates.length);
-    for (const certificate of certificates) {
-      assertNotBlank(certificate.name, "Certificate name is required.");
-      this.certificates.push(pruneUndefined({
-        name: certificate.name.trim(),
-        value: certificate.value,
-        version: normalizeOptionalString(certificate.version),
-        contentType: normalizeOptionalString(certificate.contentType)
-      }) as CertificateSeedValue);
+    this.certificates.push(...seed.certificates);
+
+    if (this.secrets.length > 0) {
+      this.withAttribute("seed.secrets", this.secrets);
     }
 
-    return this.withAttribute("seed.certificates", this.certificates);
+    if (this.certificates.length > 0) {
+      this.withAttribute("seed.certificates", this.certificates);
+    }
+
+    return this;
   }
 
   public secret(name: string, version?: string): SecretReference {
@@ -615,6 +575,40 @@ export class SecretsVaultResourceBuilder extends ResourceBuilder {
       name: name.trim(),
       version: normalizeOptionalString(version)
     }) as CertificateReference;
+  }
+}
+
+export class SecretsVaultSeedBuilder {
+  private readonly seedSecrets: SecretSeedValue[] = [];
+  private readonly seedCertificates: CertificateSeedValue[] = [];
+
+  public get secrets(): SecretSeedValue[] {
+    return this.seedSecrets;
+  }
+
+  public get certificates(): CertificateSeedValue[] {
+    return this.seedCertificates;
+  }
+
+  public secret(name: string, value: string, version?: string): this {
+    assertNotBlank(name, "Secret name is required.");
+    this.seedSecrets.push(pruneUndefined({
+      name: name.trim(),
+      value,
+      version: normalizeOptionalString(version)
+    }) as SecretSeedValue);
+    return this;
+  }
+
+  public certificate(name: string, value: string, version?: string, contentType?: string): this {
+    assertNotBlank(name, "Certificate name is required.");
+    this.seedCertificates.push(pruneUndefined({
+      name: name.trim(),
+      value,
+      version: normalizeOptionalString(version),
+      contentType: normalizeOptionalString(contentType)
+    }) as CertificateSeedValue);
+    return this;
   }
 }
 

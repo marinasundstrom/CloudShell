@@ -29,6 +29,12 @@ on `git blame --follow`, and then by the broad type of change.
   certificate generation, masked preservation of existing values, and load
   balancer HTTPS entrypoint certificate references that validate the target
   vault without projecting certificate material through the load balancer.
+- Replaced Configuration Store and Secrets Vault seed authoring helpers with
+  declarative seed builders across C#, TypeScript, Go, and Java launchers:
+  `WithSeed(seed => seed.Setting(...))` for Configuration Store settings and
+  `WithSeed(seed => seed.Secret(...).Certificate(...))` for Secrets Vault
+  values. Configuration Store references now use `Setting(...)` in builder
+  APIs while the ResourceDefinition wire attribute remains `seed.entries`.
 - Added a RabbitMQ credential endpoint that lets workloads present their
   CloudShell resource identity token, request access to a target RabbitMQ
   resource, and receive grant-derived RabbitMQ-native credentials after the

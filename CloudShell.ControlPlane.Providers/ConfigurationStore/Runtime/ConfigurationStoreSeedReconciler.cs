@@ -22,7 +22,7 @@ public sealed class ConfigurationStoreSeedReconciler(
             }
 
             var seedEntries = change.ChangeSet.ProposedState.ResourceAttributeValues
-                .GetObject<ConfigurationStoreSettingEntry[]>(
+                .GetObject<ConfigurationStoreSeedSetting[]>(
                     ConfigurationStoreResourceTypeProvider.Attributes.Entries) ?? [];
             var accepted = change.AcceptedState!;
 

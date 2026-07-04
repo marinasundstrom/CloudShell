@@ -21,7 +21,7 @@ app.DefineResources(resources =>
         .AddConfigurationStore("javascript-app-settings")
         .WithDisplayName("Settings")
         .WithEndpoint(settingsServiceEndpoint)
-        .WithSetting("Sample--Message", "Hello from the JavaScript app host");
+        .WithSeed(seed => seed.Setting("Sample--Message", "Hello from the JavaScript app host"));
 
     resources
         .AddJavaScriptApp("javascript-frontend", appPath)

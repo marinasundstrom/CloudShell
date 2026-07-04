@@ -6,6 +6,7 @@ import static com.cloudshell.launcher.JsonSupport.property;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 public final class SecretsVaultResource extends ResourceBuilder<SecretsVaultResource> {
     private String endpoint;
@@ -21,37 +22,13 @@ public final class SecretsVaultResource extends ResourceBuilder<SecretsVaultReso
         return this;
     }
 
-    public SecretsVaultResource withSecret(String name, String value) {
-        return withSecret(name, value, null);
-    }
-
-    public SecretsVaultResource withSecret(String name, String value, String version) {
-        secrets.add(new SecretSeedValue(name, value, version));
-        return this;
-    }
-
-    public SecretsVaultResource withSecrets(List<SecretSeedValue> secrets) {
+    public SecretsVaultResource withSeed(Consumer<SecretsVaultSeed> configure) {
+        SecretsVaultSeed seed = new SecretsVaultSeed();
+        configure.accept(seed);
         this.secrets.clear();
-        this.secrets.addAll(secrets);
-        return this;
-    }
-
-    public SecretsVaultResource withCertificate(String name, String value) {
-        return withCertificate(name, value, null, null);
-    }
-
-    public SecretsVaultResource withCertificate(String name, String value, String version) {
-        return withCertificate(name, value, version, null);
-    }
-
-    public SecretsVaultResource withCertificate(String name, String value, String version, String contentType) {
-        certificates.add(new CertificateSeedValue(name, value, version, contentType));
-        return this;
-    }
-
-    public SecretsVaultResource withCertificates(List<CertificateSeedValue> certificates) {
+        this.secrets.addAll(seed.secrets);
         this.certificates.clear();
-        this.certificates.addAll(certificates);
+        this.certificates.addAll(seed.certificates);
         return this;
     }
 
@@ -139,6 +116,33 @@ public final class SecretsVaultResource extends ResourceBuilder<SecretsVaultReso
     }
 
     public record SecretSeedValue(String name, String value, String version) {
+    }
+
+    public static final class SecretsVaultSeed {
+        private final List<SecretSeedValue> secrets = new ArrayList<>();
+        private final List<CertificateSeedValue> certificates = new ArrayList<>();
+
+        public SecretsVaultSeed secret(String name, String value) {
+            return secret(name, value, null);
+        }
+
+        public SecretsVaultSeed secret(String name, String value, String version) {
+            secrets.add(new SecretSeedValue(name, value, version));
+            return this;
+        }
+
+        public SecretsVaultSeed certificate(String name, String value) {
+            return certificate(name, value, null, null);
+        }
+
+        public SecretsVaultSeed certificate(String name, String value, String version) {
+            return certificate(name, value, version, null);
+        }
+
+        public SecretsVaultSeed certificate(String name, String value, String version, String contentType) {
+            certificates.add(new CertificateSeedValue(name, value, version, contentType));
+            return this;
+        }
     }
 
     public record SecretReference(String vaultResourceId, String name, String version) {

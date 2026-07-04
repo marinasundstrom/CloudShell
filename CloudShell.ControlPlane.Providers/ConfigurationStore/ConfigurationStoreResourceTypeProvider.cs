@@ -185,7 +185,7 @@ public sealed class ConfigurationStoreResourceTypeProvider :
         ResourceState state,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
-        var entries = state.ResourceAttributeValues.GetObject<ConfigurationStoreSettingEntry[]>(
+        var entries = state.ResourceAttributeValues.GetObject<ConfigurationStoreSeedSetting[]>(
             Attributes.Entries) ?? [];
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -226,7 +226,7 @@ public sealed class ConfigurationStoreResourceTypeProvider :
             return state;
         }
 
-        var entries = state.ResourceAttributeValues.GetObject<ConfigurationStoreSettingEntry[]>(
+        var entries = state.ResourceAttributeValues.GetObject<ConfigurationStoreSeedSetting[]>(
             Attributes.Entries) ?? [];
         var attributes = state.ResourceAttributeValues
             .Where(attribute => attribute.Key != Attributes.Entries)

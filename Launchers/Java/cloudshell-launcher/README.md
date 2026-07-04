@@ -39,6 +39,21 @@ The lifecycle methods match the shared launcher vocabulary:
   Control Plane is ready, and keeps the host tied to the Java launcher
   process lifetime.
 
+Configuration Store and Secrets Vault seed values use declarative seed
+builders:
+
+```java
+ConfigurationStoreResource settings = app.addConfigurationStore("settings")
+    .withSeed(seed -> seed.setting("Sample--Message", "Hello from Java"));
+
+SecretsVaultResource secrets = app.addSecretsVault("secrets")
+    .withSeed(seed -> seed.secret("Sample--ApiKey", "local-development-secret"));
+
+app.addJavaApp("api", "src/main/java", "target/api.jar")
+    .withEnvironmentVariable("Sample__Message", settings.setting("Sample--Message"))
+    .withEnvironmentVariable("Sample__ApiKey", secrets.secret("Sample--ApiKey"));
+```
+
 ```java
 CloudShellLauncherOptions options = new CloudShellLauncherOptions()
     .withCliProject(Path.of("CloudShell.Cli/CloudShell.Cli.csproj"))

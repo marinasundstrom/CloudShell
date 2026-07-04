@@ -5,11 +5,12 @@ import static com.cloudshell.launcher.JsonSupport.line;
 import static com.cloudshell.launcher.JsonSupport.property;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import java.util.List;
 
 public final class ConfigurationStoreResource extends ResourceBuilder<ConfigurationStoreResource> {
     private String endpoint;
-    private final List<ConfigurationSettingEntry> entries = new ArrayList<>();
+    private final List<ConfigurationSeedSetting> entries = new ArrayList<>();
 
     ConfigurationStoreResource(String name) {
         super(name, "configuration.store", "configuration");
@@ -20,32 +21,19 @@ public final class ConfigurationStoreResource extends ResourceBuilder<Configurat
         return this;
     }
 
-    public ConfigurationStoreResource withEntry(String name, String value) {
-        return withSetting(name, value);
-    }
-
-    public ConfigurationStoreResource withSetting(String name, String value) {
-        entries.add(new ConfigurationSettingEntry(name, value));
-        return this;
-    }
-
-    public ConfigurationStoreResource withEntries(List<ConfigurationSeedEntry> entries) {
-        return withSettings(entries.stream()
-                .map(entry -> new ConfigurationSettingEntry(entry.name(), entry.value()))
-                .toList());
-    }
-
-    public ConfigurationStoreResource withSettings(List<ConfigurationSettingEntry> entries) {
+    public ConfigurationStoreResource withSeed(Consumer<ConfigurationStoreSeed> configure) {
+        ConfigurationStoreSeed seed = new ConfigurationStoreSeed();
+        configure.accept(seed);
         this.entries.clear();
-        this.entries.addAll(entries);
+        this.entries.addAll(seed.settings);
         return this;
     }
 
-    public ConfigurationEntryReference entry(String name) {
-        return entry(name, null);
+    public ConfigurationEntryReference setting(String name) {
+        return setting(name, null);
     }
 
-    public ConfigurationEntryReference entry(String name, String version) {
+    public ConfigurationEntryReference setting(String name, String version) {
         return new ConfigurationEntryReference(resourceId(), name, version);
     }
 
@@ -68,7 +56,7 @@ public final class ConfigurationStoreResource extends ResourceBuilder<Configurat
     private void appendEntries(StringBuilder builder, int indent) {
         line(builder, indent, "\"entries\": [");
         for (int index = 0; index < entries.size(); index++) {
-            ConfigurationSettingEntry entry = entries.get(index);
+            ConfigurationSeedSetting entry = entries.get(index);
             line(builder, indent + 1, "{");
             property(builder, indent + 2, "name", json(entry.name()), true);
             property(builder, indent + 2, "value", json(entry.value()), false);
@@ -83,10 +71,16 @@ public final class ConfigurationStoreResource extends ResourceBuilder<Configurat
         return this;
     }
 
-    public record ConfigurationSeedEntry(String name, String value) {
+    public static final class ConfigurationStoreSeed {
+        private final List<ConfigurationSeedSetting> settings = new ArrayList<>();
+
+        public ConfigurationStoreSeed setting(String name, String value) {
+            settings.add(new ConfigurationSeedSetting(name, value));
+            return this;
+        }
     }
 
-    public record ConfigurationSettingEntry(String name, String value) {
+    public record ConfigurationSeedSetting(String name, String value) {
     }
 
     public record ConfigurationEntryReference(String storeResourceId, String name, String version) {
