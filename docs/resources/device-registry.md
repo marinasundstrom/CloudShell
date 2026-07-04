@@ -99,6 +99,11 @@ rejected. Already-issued short-lived bearer tokens remain normal bearer tokens
 until they expire; the registry rejects revoked devices on registry-owned
 operations such as heartbeat.
 
+Removing a device record deletes the registry-owned metadata and unregisters
+the built-in device identity client. Removal is a management cleanup operation;
+revocation remains the explicit audit-friendly access-denial state when an
+operator needs to preserve the record.
+
 Enrollment requests also include non-secret device properties. The generic C#
 client sends basic current-device facts such as platform, operating system,
 OS and process architecture, framework description, machine name, and processor
@@ -114,7 +119,9 @@ surface such as MQTT rather than this HTTP pull flow.
 The built-in Resource Manager UI contributes a Devices tab for Device Registry
 resources. It lists enrolled devices and shows device status, last seen,
 identity metadata, enrollment claims, and non-secret device properties reported
-by the client.
+by the client. Registry operators can revoke access for the selected device or
+remove the device record from this tab when the backing registry service is
+running.
 
 ## Runtime Boundary
 
@@ -148,5 +155,5 @@ store with a stronger database while keeping the resource model stable.
 - Enrollment profiles are the first provisioning policy shape; richer matching,
   profile selection diagnostics, individual/group enrollment management, and
   profile-specific UI are future work.
-- Remove/delete actions, heartbeat stale-after policy, MQTT transport, and
-  richer microcontroller provisioning remain future work.
+- Heartbeat stale-after policy, MQTT transport, and richer microcontroller
+  provisioning remain future work.

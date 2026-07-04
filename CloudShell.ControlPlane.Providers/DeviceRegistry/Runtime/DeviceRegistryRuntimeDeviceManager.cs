@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace CloudShell.ControlPlane.Providers;
@@ -6,6 +7,17 @@ public interface IDeviceRegistryRuntimeDeviceManager
 {
     ValueTask<IReadOnlyList<DeviceRegistryRuntimeDevice>> ListDevicesAsync(
         string resourceId,
+        CancellationToken cancellationToken = default);
+
+    ValueTask<DeviceRegistryRuntimeDevice> RevokeDeviceAsync(
+        CloudShell.Abstractions.ResourceManager.Resource resource,
+        string deviceId,
+        string? reason = null,
+        CancellationToken cancellationToken = default);
+
+    ValueTask RemoveDeviceAsync(
+        CloudShell.Abstractions.ResourceManager.Resource resource,
+        string deviceId,
         CancellationToken cancellationToken = default);
 }
 
@@ -45,6 +57,132 @@ public sealed class DeviceRegistryRuntimeDeviceManager(
                 .ToArray());
     }
 
+    public async ValueTask<DeviceRegistryRuntimeDevice> RevokeDeviceAsync(
+        CloudShell.Abstractions.ResourceManager.Resource resource,
+        string deviceId,
+        string? reason = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+
+        var endpoint = GetEndpoint(resource);
+        var token = await RequestManagementTokenAsync(endpoint, cancellationToken);
+        using var client = CreateClient();
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            BuildDeviceActionEndpoint(endpoint, resource.Id, deviceId, "revoke"))
+        {
+            Content = JsonContent.Create(new { reason }, options: SerializerOptions)
+        };
+        request.Headers.Authorization = new("Bearer", token);
+        using var response = await client.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        var device = await response.Content.ReadFromJsonAsync<DeviceRegistryRuntimeDeviceResponse>(
+            SerializerOptions,
+            cancellationToken) ??
+            throw new JsonException("Device Registry returned an empty revoke response.");
+        return device.ToRuntimeDevice();
+    }
+
+    public async ValueTask RemoveDeviceAsync(
+        CloudShell.Abstractions.ResourceManager.Resource resource,
+        string deviceId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+
+        var endpoint = GetEndpoint(resource);
+        var token = await RequestManagementTokenAsync(endpoint, cancellationToken);
+        using var client = CreateClient();
+        using var request = new HttpRequestMessage(
+            HttpMethod.Delete,
+            BuildDeviceEndpoint(endpoint, resource.Id, deviceId));
+        request.Headers.Authorization = new("Bearer", token);
+        using var response = await client.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    private async Task<string> RequestManagementTokenAsync(
+        string endpoint,
+        CancellationToken cancellationToken)
+    {
+        using var client = CreateClient();
+        using var response = await client.PostAsync(
+            $"{endpoint.TrimEnd('/')}/api/auth/v1/token",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = "client_credentials",
+                ["client_id"] = _options.ManagementClientId,
+                ["client_secret"] = _options.ManagementClientSecret,
+                ["scope"] = "ControlPlane.Access"
+            }),
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        return document.RootElement.GetProperty("access_token").GetString() ??
+            throw new JsonException("Device Registry token response did not include an access token.");
+    }
+
+    private static string GetEndpoint(
+        CloudShell.Abstractions.ResourceManager.Resource resource)
+    {
+        var endpoint = resource.ResourceAttributes.GetValueOrDefault(
+            DeviceRegistryResourceTypeProvider.Attributes.Endpoint.ToString());
+        if (string.IsNullOrWhiteSpace(endpoint))
+        {
+            throw new InvalidOperationException("Device Registry endpoint is required before devices can be managed.");
+        }
+
+        return endpoint;
+    }
+
+    private static HttpClient CreateClient() =>
+        new()
+        {
+            Timeout = TimeSpan.FromSeconds(10)
+        };
+
+    private static Uri BuildDeviceEndpoint(
+        string endpoint,
+        string registryId,
+        string deviceId)
+    {
+        var builder = new UriBuilder(endpoint);
+        var path = builder.Path.TrimEnd('/');
+        builder.Path = $"{path}/api/devices/registries/{Uri.EscapeDataString(registryId)}/devices/{Uri.EscapeDataString(deviceId)}";
+        builder.Query = string.Empty;
+        return builder.Uri;
+    }
+
+    private static Uri BuildDeviceActionEndpoint(
+        string endpoint,
+        string registryId,
+        string deviceId,
+        string action)
+    {
+        var builder = new UriBuilder(BuildDeviceEndpoint(endpoint, registryId, deviceId));
+        builder.Path = $"{builder.Path.TrimEnd('/')}/{action}";
+        return builder.Uri;
+    }
+
+    private static async Task EnsureSuccessAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        throw new InvalidOperationException(
+            $"Device Registry returned {(int)response.StatusCode} {response.ReasonPhrase}. {content}".Trim());
+    }
+
     private static string SanitizeFileName(string value)
     {
         var invalid = Path.GetInvalidFileNameChars();
@@ -77,4 +215,44 @@ public sealed record DeviceRegistryRuntimeDevice(
     public DateTimeOffset? RevokedAt { get; init; }
 
     public string? RevokedReason { get; init; }
+}
+
+internal sealed record DeviceRegistryRuntimeDeviceResponse(
+    string DeviceId,
+    string Subject,
+    string IdentityCategory,
+    CloudShell.Abstractions.ResourceManager.ResourcePrincipalReference Principal,
+    string IdentityProviderId,
+    string IdentityResourceId,
+    string IdentityName,
+    string ClientId,
+    IReadOnlyDictionary<string, string> Claims,
+    IReadOnlyDictionary<string, string> Properties,
+    DateTimeOffset EnrolledAt,
+    string Status,
+    DateTimeOffset? LastSeenAt,
+    string? LastSeenSource,
+    DateTimeOffset? RevokedAt,
+    string? RevokedReason)
+{
+    public DeviceRegistryRuntimeDevice ToRuntimeDevice() =>
+        new(
+            DeviceId,
+            IdentityResourceId,
+            Subject,
+            IdentityCategory,
+            IdentityProviderId,
+            IdentityResourceId,
+            IdentityName,
+            ClientId,
+            Claims,
+            Properties,
+            EnrolledAt)
+        {
+            Status = Status,
+            LastSeenAt = LastSeenAt,
+            LastSeenSource = LastSeenSource,
+            RevokedAt = RevokedAt,
+            RevokedReason = RevokedReason
+        };
 }

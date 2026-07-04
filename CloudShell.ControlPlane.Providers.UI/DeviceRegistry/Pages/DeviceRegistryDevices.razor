@@ -1,3 +1,4 @@
+@using System.Text.Json
 @inject IResourceManager ResourceManager
 @inject IServiceProvider Services
 
@@ -80,7 +81,26 @@ else
                     <h3>@SelectedDevice.Subject</h3>
                     <p>@SelectedDevice.ClientId</p>
                 </div>
+                <div class="heading-actions">
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  Disabled="@(!CanRevokeSelectedDevice || IsMutatingDevice)"
+                                  IconStart="@(new Icons.Regular.Size20.ErrorCircle())"
+                                  OnClick="RevokeSelectedDevice">
+                        Revoke access
+                    </FluentButton>
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  Disabled="@IsMutatingDevice"
+                                  IconStart="@(new Icons.Regular.Size20.Delete())"
+                                  OnClick="RemoveSelectedDevice">
+                        Remove
+                    </FluentButton>
+                </div>
             </div>
+
+            @if (!string.IsNullOrWhiteSpace(DeviceOperationMessage))
+            {
+                <p>@DeviceOperationMessage</p>
+            }
 
             <ResourceTable AriaLabel="Device identity details">
                 <tbody>
@@ -176,11 +196,15 @@ else
     private IDeviceRegistryRuntimeDeviceManager? DeviceManager { get; set; }
     private List<DeviceRegistryRuntimeDevice> Devices { get; } = [];
     private string? SelectedDeviceId { get; set; }
+    private bool IsMutatingDevice { get; set; }
+    private string? DeviceOperationMessage { get; set; }
     private DeviceRegistryRuntimeDevice? SelectedDevice =>
         Devices.FirstOrDefault(device => string.Equals(
             device.Id,
             SelectedDeviceId,
             StringComparison.OrdinalIgnoreCase));
+    private bool CanRevokeSelectedDevice =>
+        SelectedDevice is { } device && !IsRevoked(device);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -214,6 +238,83 @@ else
 
     private void SelectDevice(DeviceRegistryRuntimeDevice device) =>
         SelectedDeviceId = device.Id;
+
+    private async Task RevokeSelectedDevice()
+    {
+        if (DeviceManager is null ||
+            Resource is null ||
+            SelectedDevice is null ||
+            !CanRevokeSelectedDevice)
+        {
+            return;
+        }
+
+        await MutateSelectedDeviceAsync(async device =>
+        {
+            var updated = await DeviceManager.RevokeDeviceAsync(
+                Resource,
+                device.Id,
+                "Revoked from Resource Manager");
+            var index = Devices.FindIndex(current => string.Equals(
+                current.Id,
+                device.Id,
+                StringComparison.OrdinalIgnoreCase));
+            if (index >= 0)
+            {
+                Devices[index] = updated;
+            }
+
+            DeviceOperationMessage = "Device access was revoked.";
+        });
+    }
+
+    private async Task RemoveSelectedDevice()
+    {
+        if (DeviceManager is null ||
+            Resource is null ||
+            SelectedDevice is null)
+        {
+            return;
+        }
+
+        await MutateSelectedDeviceAsync(async device =>
+        {
+            await DeviceManager.RemoveDeviceAsync(
+                Resource,
+                device.Id);
+            Devices.RemoveAll(current => string.Equals(
+                current.Id,
+                device.Id,
+                StringComparison.OrdinalIgnoreCase));
+            SelectedDeviceId = Devices.FirstOrDefault()?.Id;
+            DeviceOperationMessage = "Device record was removed.";
+        });
+    }
+
+    private async Task MutateSelectedDeviceAsync(
+        Func<DeviceRegistryRuntimeDevice, Task> operation)
+    {
+        var device = SelectedDevice;
+        if (device is null || IsMutatingDevice)
+        {
+            return;
+        }
+
+        IsMutatingDevice = true;
+        DeviceOperationMessage = null;
+        try
+        {
+            await operation(device);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException or JsonException)
+        {
+            DeviceOperationMessage = exception.Message;
+        }
+        finally
+        {
+            IsMutatingDevice = false;
+        }
+    }
 
     private static string GetOperatingSystem(DeviceRegistryRuntimeDevice device)
     {
@@ -274,4 +375,8 @@ else
         string.IsNullOrWhiteSpace(device.Status)
             ? "active"
             : device.Status;
+
+    private static bool IsRevoked(DeviceRegistryRuntimeDevice device) =>
+        string.Equals(device.Status, "revoked", StringComparison.OrdinalIgnoreCase) ||
+        device.RevokedAt is not null;
 }

@@ -45,6 +45,9 @@ api.MapPost("/registries/{registryId}/devices/{deviceId}/heartbeat", HeartbeatDe
 api.MapPost("/registries/{registryId}/devices/{deviceId}/revoke", RevokeDevice)
     .WithName("CloudShellDeviceRegistryService_RevokeDevice");
 
+api.MapDelete("/registries/{registryId}/devices/{deviceId}", RemoveDevice)
+    .WithName("CloudShellDeviceRegistryService_RemoveDevice");
+
 app.Run();
 
 static IResult ListDevices(
@@ -59,7 +62,7 @@ static IResult ListDevices(
     }
 
     if (registry is null ||
-        !IsAuthorized(registry, request))
+        !HasListDevicesPermission(registry, request))
     {
         return NotFound();
     }
@@ -164,6 +167,38 @@ static IResult HeartbeatDevice(
     return Results.Ok(ToMetadataResponse(store, result.Device!));
 }
 
+static IResult RemoveDevice(
+    string registryId,
+    string deviceId,
+    HttpRequest httpRequest,
+    DeviceRegistryServiceStore store)
+{
+    var registry = store.GetRegistry(registryId);
+    if (!HasBearerToken(httpRequest))
+    {
+        return Unauthorized("A Device Registry bearer token is required.");
+    }
+
+    if (registry is null ||
+        !HasManageDevicesPermission(registry, httpRequest))
+    {
+        return NotFound();
+    }
+
+    var result = store.RemoveDevice(
+        registry.Id,
+        deviceId);
+    if (result.IsNotFound)
+    {
+        return Results.Problem(
+            result.Failure,
+            statusCode: StatusCodes.Status404NotFound,
+            title: "Device not found");
+    }
+
+    return Results.NoContent();
+}
+
 static IResult RevokeDevice(
     string registryId,
     string deviceId,
@@ -228,13 +263,17 @@ static string BuildAbsoluteTokenEndpoint(HttpRequest request)
     return $"{request.Scheme}://{host}/api/auth/v1/token";
 }
 
-static bool IsAuthorized(
+static bool HasListDevicesPermission(
     DeviceRegistryDefinition registry,
     HttpRequest request) =>
     ResourcePermissionClaimAuthorization.HasResourcePermission(
         request.HttpContext.User,
         registry.Id,
-        DeviceRegistryResourceOperationPermissions.EnrollDevices);
+        DeviceRegistryResourceOperationPermissions.EnrollDevices) ||
+    ResourcePermissionClaimAuthorization.HasResourcePermission(
+        request.HttpContext.User,
+        registry.Id,
+        DeviceRegistryResourceOperationPermissions.ManageDevices);
 
 static bool HasManageDevicesPermission(
     DeviceRegistryDefinition registry,

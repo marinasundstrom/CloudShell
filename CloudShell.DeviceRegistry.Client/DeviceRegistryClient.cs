@@ -166,6 +166,24 @@ public sealed class DeviceRegistryClient
             throw new JsonException("CloudShell Device Registry returned an empty revoke response.");
     }
 
+    public async Task RemoveDeviceAsync(
+        string registryId,
+        string deviceId,
+        string bearerToken,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registryId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bearerToken);
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Delete,
+            BuildDeviceEndpoint(registryId, deviceId));
+        request.Headers.Authorization = new("Bearer", bearerToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+    }
+
     private Uri BuildEnrollmentEndpoint(string registryId)
     {
         var builder = new UriBuilder(RegistryEndpoint);
@@ -189,9 +207,18 @@ public sealed class DeviceRegistryClient
         string deviceId,
         string action)
     {
+        var builder = new UriBuilder(BuildDeviceEndpoint(registryId, deviceId));
+        builder.Path = $"{builder.Path.TrimEnd('/')}/{action}";
+        return builder.Uri;
+    }
+
+    private Uri BuildDeviceEndpoint(
+        string registryId,
+        string deviceId)
+    {
         var builder = new UriBuilder(RegistryEndpoint);
         var path = builder.Path.TrimEnd('/');
-        builder.Path = $"{path}/api/devices/registries/{Uri.EscapeDataString(registryId)}/devices/{Uri.EscapeDataString(deviceId)}/{action}";
+        builder.Path = $"{path}/api/devices/registries/{Uri.EscapeDataString(registryId)}/devices/{Uri.EscapeDataString(deviceId)}";
         builder.Query = string.Empty;
         return builder.Uri;
     }

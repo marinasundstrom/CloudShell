@@ -46,6 +46,10 @@ on `git blame --follow`, and then by the broad type of change.
   requests are rejected. The Device Registry sample now exercises enrollment,
   heartbeat, configuration access, revocation, and post-revocation token
   denial.
+- Added Device Registry device-management cleanup. The registry service,
+  client, launcher runtime manager, and Resource Manager Devices tab now
+  support removing enrolled-device records, while the Devices tab also exposes
+  revoke access for the selected device through the running registry service.
 - Added typed Secrets Vault certificate support for future TLS/HTTPS flows:
   `CertificateReference` and resolver contracts, create-only
   `seed.certificates` resource-template input, provider-owned runtime

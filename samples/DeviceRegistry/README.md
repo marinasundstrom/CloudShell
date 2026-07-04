@@ -74,4 +74,5 @@ for device capabilities. The Device Registry resource blade shows enrolled
 devices, status, last-seen information, and reported properties on the Devices
 tab. Registry operators can revoke a device identity through the Device
 Registry API; revocation disables future token issuance for that device
-credential.
+credential. Operators can also remove the device record after revocation or
+when they want to clean up sample state.

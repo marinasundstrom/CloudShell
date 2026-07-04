@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ControlPlane.Providers;
@@ -21,6 +22,11 @@ public sealed class DeviceRegistryRuntimeOptions
     public string? ServiceAuthenticationAudience { get; set; }
 
     public string? ServiceAuthenticationSigningKeyPem { get; set; }
+
+    public string ManagementClientId { get; set; } = "device-registry-admin";
+
+    public string ManagementClientSecret { get; set; } =
+        "local-development-device-registry-admin-secret";
 
     public IList<ResourcePermissionGrant> PermissionGrants { get; } = [];
 }
@@ -78,7 +84,7 @@ public sealed class DeviceRegistryProcessRuntimeController(
             {
                 ServiceWorkingDirectory = _options.ServiceWorkingDirectory,
                 DefinitionsDirectory = _options.DefinitionsDirectory,
-                EnvironmentVariables = CreateEnvironmentVariables(_options)
+                EnvironmentVariables = CreateEnvironmentVariables(_options, resource)
             },
             CreateDefinition,
             "iot.deviceRegistry",
@@ -165,7 +171,8 @@ public sealed class DeviceRegistryProcessRuntimeController(
                         StringComparison.OrdinalIgnoreCase));
 
     private static IReadOnlyDictionary<string, string> CreateEnvironmentVariables(
-        DeviceRegistryRuntimeOptions options)
+        DeviceRegistryRuntimeOptions options,
+        Resource resource)
     {
         var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -184,6 +191,20 @@ public sealed class DeviceRegistryProcessRuntimeController(
             variables,
             "Authentication__BuiltInAuthority__SigningKeyPem",
             options.ServiceAuthenticationSigningKeyPem);
+
+        if (!string.IsNullOrWhiteSpace(options.ManagementClientId) &&
+            !string.IsNullOrWhiteSpace(options.ManagementClientSecret))
+        {
+            var clientPath = $"Authentication__BuiltInAuthority__Clients__{options.ManagementClientId}";
+            variables[$"{clientPath}__Secret"] = options.ManagementClientSecret;
+            variables[$"{clientPath}__Scopes__0"] = "ControlPlane.Access";
+            variables[$"{clientPath}__ResourcePermissions__0__ResourceId"] = resource.EffectiveResourceId;
+            variables[$"{clientPath}__ResourcePermissions__0__Permission"] =
+                DeviceRegistryResourceOperationPermissions.ManageDevices;
+            variables[$"{clientPath}__ResourcePermissions__1__ResourceId"] = resource.EffectiveResourceId;
+            variables[$"{clientPath}__ResourcePermissions__1__Permission"] =
+                DeviceRegistryResourceOperationPermissions.EnrollDevices;
+        }
 
         return variables;
     }

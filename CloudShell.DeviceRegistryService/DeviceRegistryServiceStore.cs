@@ -263,6 +263,30 @@ public sealed class DeviceRegistryServiceStore(
         }
     }
 
+    public DeviceMutationResult RemoveDevice(
+        string registryId,
+        string deviceId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registryId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+
+        lock (_gate)
+        {
+            var devices = LoadDevices().ToList();
+            var device = FindDevice(devices, registryId, deviceId);
+            if (device is null)
+            {
+                return DeviceMutationResult.NotFound("The device was not found.");
+            }
+
+            devices.Remove(device);
+            WriteDevices(devices);
+            identities.Unregister(device.ClientId);
+
+            return DeviceMutationResult.Accepted(device);
+        }
+    }
+
     public ResourcePrincipalReference CreatePrincipal(DeviceRecord device) =>
         ResourcePrincipalReference.ForDeviceIdentity(
             device.RegistryId,

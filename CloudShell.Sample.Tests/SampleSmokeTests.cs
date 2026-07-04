@@ -1622,6 +1622,20 @@ public sealed class SampleSmokeTests
                 ["scope"] = "ControlPlane.Access"
             }));
         Assert.Equal(HttpStatusCode.Unauthorized, revokedTokenResponse.StatusCode);
+
+        await registryClient.RemoveDeviceAsync(
+            registryResourceId,
+            enrollment.DeviceId,
+            adminToken);
+        var remainingDevices = await registryClient.GetDevicesAsync(
+            registryResourceId,
+            adminToken);
+        Assert.DoesNotContain(
+            remainingDevices,
+            device => string.Equals(
+                device.DeviceId,
+                enrollment.DeviceId,
+                StringComparison.OrdinalIgnoreCase));
     }
 
     private static async Task<string> RequestClientCredentialsTokenAsync(
