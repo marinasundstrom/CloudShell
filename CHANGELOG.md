@@ -17,6 +17,17 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added the first Device Registry MVP: `iot.device-registry` resource type,
+  C# `AddDeviceRegistry(...)` builder, certificate trust references,
+  enrollment policy attributes, lifecycle-backed standalone
+  `CloudShell.DeviceRegistryService`, a separate enrolled-device store,
+  built-in authority device credential registration, and public
+  `DeviceIdentity` principal-kind support. Added a generic Device Registry
+  client and sample app that enrolls the current machine, reports basic
+  platform/runtime properties, and reads Configuration Store settings with the
+  issued device identity. Added a Resource Manager Devices tab for enrolled
+  device identity metadata, claims, and reported properties; see
+  ADR-20260704-002.
 - Added typed Secrets Vault certificate support for future TLS/HTTPS flows:
   `CertificateReference` and resolver contracts, create-only
   `seed.certificates` resource-template input, provider-owned runtime

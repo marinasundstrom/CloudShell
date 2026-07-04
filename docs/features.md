@@ -86,6 +86,7 @@ Use these terms when summarizing feature and proposal state:
 | RabbitMQ | [RabbitMQ resources](resources/rabbitmq.md) | Local-development RabbitMQ broker bridge, AMQP and management endpoints, optional volume support, generated Resource Manager details, read-only queues/exchanges/bindings topology, CloudShell access grants mapped to RabbitMQ broker permissions, and deferred specialized broker management. |
 | Load balancers | [Load balancers](resources/load-balancers.md), [Networking](networking.md) | Load-balancer resources, routes/backends, Traefik/local file-provider support, DNS/name mapping relationships, and exposure behavior. |
 | Configuration and secrets | [Configuration services](configuration-services.md), [Resource identity and permissions](resource-identity-and-permissions.md) | Configuration Store, Secrets Vault, reference flow, identity-backed access, and safe value handling. |
+| Device identity and enrollment | [Device Registry](resources/device-registry.md), [Resource identity and permissions](resource-identity-and-permissions.md) | Device Registry service resources, trust anchors, enrollment policy, device identity category, and built-in identity-backed MVP provisioning. |
 
 ## Operations And Observability
 

@@ -11,6 +11,29 @@ link to the decision so the dependency is visible.
 
 ## 2026-07-04
 
+### ADR-20260704-002: Treat enrolled devices as device identities backed by a Device Registry
+
+CloudShell should model IoT onboarding through a `iot.device-registry`
+service resource that owns enrollment policy, trusted factory certificate
+references, registry lifecycle, and registry-owned device metadata. An
+enrolled device establishes a `deviceIdentity` principal category. Device
+identity credentials can use the same built-in authority mechanics as app and
+resource identities for the first implementation, but the principal category
+must remain distinct so access control, API projection, diagnostics, and future
+Resource Manager views can tell device identities apart from application
+resource identities.
+
+The Device Registry service owns a separate device database for enrolled
+device metadata. Device identities are provisioned into the built-in identity
+provider boundary for now so devices can obtain CloudShell-compatible client
+credentials and later access selected services through normal resource
+permission grants. The enrollment model should evolve into the provisioning
+template for device identities: it decides which devices may enroll and which
+resource access grants the resulting device principal receives. Projecting
+enrolled devices as CloudShell resources, resolving factory certificates for
+proof validation, device revocation, rotation, per-application identities, and
+provider-backed identity systems remain future work.
+
 ### ADR-20260704-001: Model certificates as typed vault-backed references
 
 Certificates should be modeled as typed references to provider-owned vault

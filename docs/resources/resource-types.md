@@ -54,6 +54,7 @@ state and omitted from accepted graph state and normal exports.
 | `application.sql-server` | `service` | `applications.sql-server` | User-authored local-development SQL Server. |
 | `application.sql-database` | `service` | `applications.sql-database` | User-authored SQL database child/resource. |
 | `application.rabbitmq` | `service` | `applications.rabbitmq` | User-authored local-development RabbitMQ broker. |
+| `iot.device-registry` | `service` | `iot.device-registry` | User-authored Device Registry for device enrollment and identity provisioning. |
 | `cloudshell.service` | `service` | `cloudshell.service` | Optional logical service facade. |
 | `configuration.store` | `configuration` | `configuration` | User-authored configuration service. |
 | `configuration.host` | `configuration` | `host-configuration` | Usually host/provider-authored configuration source. |

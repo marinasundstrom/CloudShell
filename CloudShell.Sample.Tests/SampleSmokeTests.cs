@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using CloudShell.Abstractions.Authorization;
@@ -17,6 +18,7 @@ using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
+using CloudShell.DeviceRegistry.Client;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
@@ -1365,6 +1367,248 @@ public sealed class SampleSmokeTests
         Assert.Equal(
             "local-development-api-key",
             secretDocument.RootElement.GetProperty("value").GetString());
+    }
+
+    [Fact]
+    public async Task DeviceRegistrySample_EnrollsCurrentDevice()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            $"cloudshell-device-registry-sample-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            await DeviceRegistrySample_EnrollsCurrentDeviceCore(directory);
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+            catch
+            {
+                // Test cleanup should not hide the original failure.
+            }
+        }
+    }
+
+    private static async Task DeviceRegistrySample_EnrollsCurrentDeviceCore(string directory)
+    {
+        var registryEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var configurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var deviceAppPort = await GetFreePortAsync();
+        var deviceAppEndpoint = $"http://127.0.0.1:{deviceAppPort}";
+        const string registryResourceId = "iot.device-registry:devices";
+        const string configurationResourceId = "configuration.store:device-settings";
+        var subject = CreateCurrentDeviceSubject();
+        var deviceId = CreateDeviceId(registryResourceId, subject);
+        var signingKeyPem = CreateDevelopmentSigningKeyPem();
+        var configurationDefinitionsPath = Path.Combine(directory, "configuration-stores.json");
+        var registryDefinitionsPath = Path.Combine(directory, "device-registries.json");
+
+        await File.WriteAllTextAsync(
+            configurationDefinitionsPath,
+            JsonSerializer.Serialize(
+                new[]
+                {
+                    new
+                    {
+                        id = configurationResourceId,
+                        entries = new[]
+                        {
+                            new
+                            {
+                                name = "Device:Mode",
+                                value = "factory-online",
+                                isSecret = false
+                            }
+                        }
+                    }
+                },
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        await File.WriteAllTextAsync(
+            registryDefinitionsPath,
+            JsonSerializer.Serialize(
+                new[]
+                {
+                    new
+                    {
+                        id = registryResourceId,
+                        enrollmentPolicy = new
+                        {
+                            subjectPrefixes = new[] { "device/" },
+                            requiredClaims = new[]
+                            {
+                                new
+                                {
+                                    name = "manufacturer",
+                                    value = "cloudshell"
+                                }
+                            }
+                        },
+                        permissionGrants = new[]
+                        {
+                            new
+                            {
+                                principal = new
+                                {
+                                    kind = (int)ResourcePrincipalKind.DeviceIdentity,
+                                    id = $"{registryResourceId}/devices/{deviceId}",
+                                    displayName = subject,
+                                    providerId = "built-in",
+                                    sourceResourceId = registryResourceId,
+                                    sourceIdentityName = deviceId
+                                },
+                                targetResourceId = configurationResourceId,
+                                permission = ConfigurationStoreResourceOperationPermissions.ReadEntries
+                            }
+                        }
+                    }
+                },
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+
+        using var configurationService = await SampleProcess.StartAsync(
+            "CloudShell.ConfigurationStoreService/CloudShell.ConfigurationStoreService.csproj",
+            new Uri(configurationEndpoint).Port,
+            CreateServiceEnvironment(
+                signingKeyPem,
+                "CloudShell__ConfigurationStoreService__DefinitionsPath",
+                configurationDefinitionsPath,
+                "CloudShell__ConfigurationStoreService__ResourceId",
+                configurationResourceId));
+        using var registryService = await SampleProcess.StartAsync(
+            "CloudShell.DeviceRegistryService/CloudShell.DeviceRegistryService.csproj",
+            new Uri(registryEndpoint).Port,
+            CreateServiceEnvironment(
+                signingKeyPem,
+                "CloudShell__DeviceRegistryService__DefinitionsPath",
+                registryDefinitionsPath,
+                "CloudShell__DeviceRegistryService__ResourceId",
+                registryResourceId));
+        await configurationService.WaitForHttpOkAsync("/healthz", StartupTimeout);
+        await registryService.WaitForHttpOkAsync("/healthz", StartupTimeout);
+
+        using var deviceApp = await SampleProcess.StartAsync(
+            "samples/DeviceRegistry/DeviceApp/CloudShell.DeviceRegistry.DeviceApp.csproj",
+            deviceAppPort,
+            [
+                ("CLOUDSHELL_DEVICE_REGISTRY_ENDPOINT", registryEndpoint),
+                ("CLOUDSHELL_DEVICE_REGISTRY_RESOURCE_ID", registryResourceId),
+                ("CLOUDSHELL_CONFIGURATION_STORE_ENDPOINT", configurationEndpoint),
+                ("CLOUDSHELL_CONFIGURATION_STORE_RESOURCE_ID", configurationResourceId),
+                ("CLOUDSHELL_CONFIGURATION_ENTRY_NAME", "Device:Mode"),
+                ("DEVICE_MANUFACTURER", "cloudshell")
+            ]);
+        await deviceApp.WaitForHttpOkAsync("/health", StartupTimeout);
+
+        using var enrollmentClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(10)
+        };
+        using var enrollmentResponse = await enrollmentClient.PostAsync(
+            $"{deviceAppEndpoint.TrimEnd('/')}/enroll-current-device",
+            content: null);
+        var enrollmentJson = await enrollmentResponse.Content.ReadAsStringAsync();
+        Assert.True(
+            enrollmentResponse.IsSuccessStatusCode,
+            $"Device app enrollment returned {(int)enrollmentResponse.StatusCode} {enrollmentResponse.ReasonPhrase}: {enrollmentJson}");
+        using var enrollmentDocument = JsonDocument.Parse(enrollmentJson);
+        var enrollment = enrollmentDocument.RootElement
+            .GetProperty("enrollment")
+            .Deserialize<DeviceEnrollmentResponse>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)) ??
+            throw new JsonException("Device Registry sample returned no enrollment response.");
+        var configurationEntry = enrollmentDocument.RootElement.GetProperty("configuration");
+
+        Assert.Equal("iot.device-registry:devices", enrollment.RegistryId);
+        Assert.StartsWith("device/", enrollment.Subject);
+        Assert.Equal("deviceIdentity", enrollment.IdentityCategory);
+        Assert.Equal(ResourcePrincipalKind.DeviceIdentity, enrollment.Principal.Kind);
+        Assert.Equal("built-in", enrollment.Principal.ProviderId);
+        Assert.Equal("iot.device-registry:devices", enrollment.Principal.SourceResourceId);
+        Assert.Equal(enrollment.DeviceId, enrollment.Principal.SourceIdentityName);
+        Assert.Equal("built-in", enrollment.IdentityProviderId);
+        Assert.Equal("iot.device-registry:devices", enrollment.IdentityResourceId);
+        Assert.Equal(enrollment.DeviceId, enrollment.IdentityName);
+        Assert.Equal(
+            $"iot.device-registry:devices/{enrollment.DeviceId}",
+            enrollment.ClientId);
+        Assert.False(string.IsNullOrWhiteSpace(enrollment.ClientSecret));
+        Assert.Equal("cloudshell", enrollment.Claims["manufacturer"]);
+        Assert.False(string.IsNullOrWhiteSpace(enrollment.Properties["platform"]));
+        Assert.False(string.IsNullOrWhiteSpace(enrollment.Properties["osDescription"]));
+        Assert.False(string.IsNullOrWhiteSpace(enrollment.Properties["frameworkDescription"]));
+        Assert.Equal("Device:Mode", configurationEntry.GetProperty("name").GetString());
+        Assert.Equal("factory-online", configurationEntry.GetProperty("value").GetString());
+        Assert.False(configurationEntry.GetProperty("isSecret").GetBoolean());
+
+        using var tokenClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(10)
+        };
+        using var tokenResponse = await tokenClient.PostAsync(
+            enrollment.TokenEndpoint,
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = "client_credentials",
+                ["client_id"] = enrollment.ClientId,
+                ["client_secret"] = enrollment.ClientSecret,
+                ["scope"] = "ControlPlane.Access"
+            }));
+        var tokenJson = await tokenResponse.Content.ReadAsStringAsync();
+        Assert.True(
+            tokenResponse.IsSuccessStatusCode,
+            $"Device identity token request returned {(int)tokenResponse.StatusCode} {tokenResponse.ReasonPhrase}: {tokenJson}");
+        using var tokenDocument = JsonDocument.Parse(tokenJson);
+        Assert.False(string.IsNullOrWhiteSpace(
+            tokenDocument.RootElement.GetProperty("access_token").GetString()));
+    }
+
+    private static IReadOnlyList<(string Key, string Value)> CreateServiceEnvironment(
+        string signingKeyPem,
+        string definitionsVariableName,
+        string definitionsPath,
+        string resourceIdVariableName,
+        string resourceId) =>
+        [
+            ("Authentication__BuiltInAuthority__Enabled", "true"),
+            ("Authentication__BuiltInAuthority__Issuer", "http://localhost"),
+            ("Authentication__BuiltInAuthority__Audience", "cloudshell-control-plane"),
+            ("Authentication__BuiltInAuthority__SigningKeyPem", signingKeyPem),
+            (definitionsVariableName, definitionsPath),
+            (resourceIdVariableName, resourceId)
+        ];
+
+    private static string CreateDevelopmentSigningKeyPem()
+    {
+        using var rsa = RSA.Create(2048);
+        return rsa.ExportRSAPrivateKeyPem();
+    }
+
+    private static string CreateCurrentDeviceSubject()
+    {
+        var machineName = Environment.MachineName;
+        if (string.IsNullOrWhiteSpace(machineName))
+        {
+            machineName = "current";
+        }
+
+        var characters = machineName
+            .Trim()
+            .Select(character => char.IsLetterOrDigit(character) ? char.ToLowerInvariant(character) : '-')
+            .ToArray();
+        var normalized = new string(characters).Trim('-');
+
+        return $"device/{(string.IsNullOrWhiteSpace(normalized) ? "current" : normalized)}";
+    }
+
+    private static string CreateDeviceId(
+        string registryId,
+        string subject)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"{registryId}\u001f{subject}"));
+        return $"device-{Convert.ToHexString(bytes)[..24].ToLowerInvariant()}";
     }
 
     private static void AssertGraphHealthRefreshSucceeded(
@@ -5320,6 +5564,16 @@ public sealed class SampleSmokeTests
                 [
                     "configuration.store:javascript-app-settings",
                     "application.javascript-app:javascript-frontend"
+                ];
+            }
+
+            if (projectPath.Contains("/DeviceRegistry/", StringComparison.OrdinalIgnoreCase))
+            {
+                return
+                [
+                    "configuration.store:device-settings",
+                    "secrets.vault:factory",
+                    "iot.device-registry:devices"
                 ];
             }
 

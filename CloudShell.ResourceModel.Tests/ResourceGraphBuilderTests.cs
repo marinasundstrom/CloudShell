@@ -159,6 +159,49 @@ public sealed class ResourceGraphBuilderTests
     }
 
     [Fact]
+    public void ResourceGraphBuilder_BuildsDeviceRegistryTrustAndEnrollmentPolicyAsAttributes()
+    {
+        var graph = new ResourceGraphBuilder()
+            .DefineResources(resources =>
+            {
+                var vault = resources
+                    .AddSecretsVault("vault")
+                    .WithSeed(seed => seed.Certificate("factory-ca", "certificate"));
+
+                resources
+                    .AddDeviceRegistry("devices")
+                    .TrustCertificate(vault.Certificate("factory-ca"))
+                    .UseEnrollmentPolicy(policy =>
+                    {
+                        policy.AllowSubjectPrefix("device/");
+                        policy.RequireClaim("manufacturer", "acme");
+                    });
+            });
+
+        var definition = Assert.Single(
+            graph.BuildGraph().Resources,
+            resource => resource.TypeId == DeviceRegistryResourceTypeProvider.ResourceTypeId);
+        var certificate = Assert.Single(definition.ResourceAttributeValues
+            .GetObject<ResourceCertificateReference[]>(
+                DeviceRegistryResourceTypeProvider.Attributes.TrustedCertificates) ?? []);
+        var prefix = Assert.Single(definition.ResourceAttributeValues
+            .GetObject<string[]>(
+                DeviceRegistryResourceTypeProvider.Attributes.AllowedSubjectPrefixes) ?? []);
+        var claim = Assert.Single(definition.ResourceAttributeValues
+            .GetObject<DeviceEnrollmentRequiredClaim[]>(
+                DeviceRegistryResourceTypeProvider.Attributes.RequiredClaims) ?? []);
+        var dependency = Assert.Single(definition.StartupDependencies);
+
+        Assert.Equal("secrets.vault:vault", certificate.VaultResourceId);
+        Assert.Equal("factory-ca", certificate.Name);
+        Assert.Equal("device/", prefix);
+        Assert.Equal("manufacturer", claim.Name);
+        Assert.Equal("acme", claim.Value);
+        Assert.True(dependency.TryGetDependsOnResourceId(out var dependencyResourceId));
+        Assert.Equal("secrets.vault:vault", dependencyResourceId);
+    }
+
+    [Fact]
     public void ResourceGraphBuilder_UsesConfiguredResourceIdConventionForReferences()
     {
         var graph = new ResourceGraphBuilder(new TestResourceIdConvention("host"))

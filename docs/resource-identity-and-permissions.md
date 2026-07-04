@@ -25,6 +25,16 @@ The domain separates related but distinct concepts:
 
 - An identity provider is an environment capability. It belongs to the cloud
   plane and determines whether resource identity can be resolved at all.
+- A user principal represents an authenticated human or operator.
+- A resource principal represents a CloudShell resource acting through a
+  resource identity binding.
+- An app principal is the common resource-principal case for executable,
+  project, container app, or managed application resources. It is not a
+  separate credential mechanism; it is a resource identity attached to an app
+  resource.
+- A device principal represents a device enrolled through a Device Registry.
+  It is backed by a `deviceIdentity` principal category so devices can be
+  granted access without pretending they are application resources.
 - A resource identity binding is per-resource intent. It says that a resource
   has, or requires, an identity that can later be resolved and provisioned by a
   provider.

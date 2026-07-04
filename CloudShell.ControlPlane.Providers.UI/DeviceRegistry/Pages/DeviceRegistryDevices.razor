@@ -1,0 +1,238 @@
+@inject IResourceManager ResourceManager
+@inject IServiceProvider Services
+
+@if (DeviceManager is null)
+{
+    <EmptyState Title="Device inventory unavailable"
+                Message="This UI host does not have access to the Device Registry runtime manager." />
+}
+else if (Resource is null)
+{
+    <EmptyState Title="Device Registry is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
+}
+else
+{
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Devices</h3>
+                <p>@GetDeviceSummary()</p>
+            </div>
+        </div>
+
+        @if (Devices.Count == 0)
+        {
+            <EmptyState Title="No enrolled devices"
+                        Message="Enrolled devices will appear here after a device provisions an identity." />
+        }
+        else
+        {
+            <ResourceTable AriaLabel="Enrolled devices">
+                <thead>
+                    <tr>
+                        <th>Subject</th>
+                        <th>Platform</th>
+                        <th>Operating system</th>
+                        <th>Architecture</th>
+                        <th>Enrolled</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var device in Devices)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@device.Subject</strong>
+                                <div class="table-subtext">@device.Id</div>
+                            </td>
+                            <td>@GetProperty(device, "platform")</td>
+                            <td>
+                                @GetOperatingSystem(device)
+                                <div class="table-subtext">@GetProperty(device, "osDescription")</div>
+                            </td>
+                            <td>@GetArchitecture(device)</td>
+                            <td>@FormatTimestamp(device.EnrolledAt)</td>
+                            <td>
+                                <FluentButton Appearance="Appearance.Neutral"
+                                              IconStart="@(new Icons.Regular.Size20.Info())"
+                                              OnClick="() => SelectDevice(device)">
+                                    Details
+                                </FluentButton>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </ResourceTable>
+        }
+    </section>
+
+    @if (SelectedDevice is not null)
+    {
+        <section class="blade-section">
+            <div class="blade-section-header">
+                <div>
+                    <h3>@SelectedDevice.Subject</h3>
+                    <p>@SelectedDevice.ClientId</p>
+                </div>
+            </div>
+
+            <ResourceTable AriaLabel="Device identity details">
+                <tbody>
+                    <tr>
+                        <th scope="row">Identity category</th>
+                        <td>@SelectedDevice.IdentityCategory</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Identity provider</th>
+                        <td>@SelectedDevice.IdentityProviderId</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Identity resource</th>
+                        <td>@SelectedDevice.IdentityResourceId</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Identity name</th>
+                        <td>@SelectedDevice.IdentityName</td>
+                    </tr>
+                </tbody>
+            </ResourceTable>
+        </section>
+
+        <section class="blade-section">
+            <div class="blade-section-header">
+                <div>
+                    <h3>Properties</h3>
+                    <p>@GetPairSummary(SelectedDevice.Properties, "property", "properties")</p>
+                </div>
+            </div>
+
+            <ResourceTable AriaLabel="Device properties">
+                <tbody>
+                    @foreach (var property in GetPairs(SelectedDevice.Properties))
+                    {
+                        <tr>
+                            <th scope="row">@property.Key</th>
+                            <td>@property.Value</td>
+                        </tr>
+                    }
+                </tbody>
+            </ResourceTable>
+        </section>
+
+        <section class="blade-section">
+            <div class="blade-section-header">
+                <div>
+                    <h3>Claims</h3>
+                    <p>@GetPairSummary(SelectedDevice.Claims, "claim", "claims")</p>
+                </div>
+            </div>
+
+            <ResourceTable AriaLabel="Device claims">
+                <tbody>
+                    @foreach (var claim in GetPairs(SelectedDevice.Claims))
+                    {
+                        <tr>
+                            <th scope="row">@claim.Key</th>
+                            <td>@claim.Value</td>
+                        </tr>
+                    }
+                </tbody>
+            </ResourceTable>
+        </section>
+    }
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private CloudShell.Abstractions.ResourceManager.Resource? Resource { get; set; }
+    private IDeviceRegistryRuntimeDeviceManager? DeviceManager { get; set; }
+    private List<DeviceRegistryRuntimeDevice> Devices { get; } = [];
+    private string? SelectedDeviceId { get; set; }
+    private DeviceRegistryRuntimeDevice? SelectedDevice =>
+        Devices.FirstOrDefault(device => string.Equals(
+            device.Id,
+            SelectedDeviceId,
+            StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnParametersSetAsync()
+    {
+        DeviceManager = Services.GetService(typeof(IDeviceRegistryRuntimeDeviceManager))
+            as IDeviceRegistryRuntimeDeviceManager;
+        Resource = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : await ResourceManager.GetResourceAsync(ResourceId);
+
+        Devices.Clear();
+        if (DeviceManager is not null && Resource is not null)
+        {
+            var devices = await DeviceManager.ListDevicesAsync(Resource.Id);
+            Devices.AddRange(devices);
+        }
+
+        if (Devices.Count == 0)
+        {
+            SelectedDeviceId = null;
+        }
+        else if (SelectedDevice is null)
+        {
+            SelectedDeviceId = Devices[0].Id;
+        }
+    }
+
+    private string GetDeviceSummary() =>
+        Devices.Count == 1
+            ? "1 device is enrolled in this registry."
+            : $"{Devices.Count} devices are enrolled in this registry.";
+
+    private void SelectDevice(DeviceRegistryRuntimeDevice device) =>
+        SelectedDeviceId = device.Id;
+
+    private static string GetOperatingSystem(DeviceRegistryRuntimeDevice device)
+    {
+        var operatingSystem = GetProperty(device, "operatingSystem");
+        return operatingSystem == "-"
+            ? GetProperty(device, "osDescription")
+            : operatingSystem;
+    }
+
+    private static string GetArchitecture(DeviceRegistryRuntimeDevice device)
+    {
+        var osArchitecture = GetProperty(device, "osArchitecture");
+        var processArchitecture = GetProperty(device, "processArchitecture");
+        if (osArchitecture == "-")
+        {
+            return processArchitecture;
+        }
+
+        return processArchitecture == "-"
+            ? osArchitecture
+            : $"{osArchitecture} / {processArchitecture}";
+    }
+
+    private static string GetProperty(
+        DeviceRegistryRuntimeDevice device,
+        string name) =>
+        device.Properties.TryGetValue(name, out var value) &&
+        !string.IsNullOrWhiteSpace(value)
+            ? value
+            : "-";
+
+    private static IEnumerable<KeyValuePair<string, string>> GetPairs(
+        IReadOnlyDictionary<string, string> values) =>
+        values.OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase);
+
+    private static string GetPairSummary(
+        IReadOnlyDictionary<string, string> values,
+        string singular,
+        string plural) =>
+        values.Count == 1
+            ? $"1 {singular}"
+            : $"{values.Count} {plural}";
+
+    private static string FormatTimestamp(DateTimeOffset timestamp) =>
+        timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+}

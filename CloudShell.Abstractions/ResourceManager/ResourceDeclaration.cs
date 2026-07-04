@@ -107,12 +107,18 @@ public sealed record ResourcePermissionGrant(
     string Permission)
 {
     public ResourceIdentityReference? ResourceIdentity =>
-        Principal.Kind == ResourcePrincipalKind.ResourceIdentity &&
-        !string.IsNullOrWhiteSpace(Principal.SourceResourceId)
-            ? ResourceIdentityReference.ForResource(
-                Principal.SourceResourceId,
-                Principal.SourceIdentityName)
-            : null;
+        Principal.Kind switch
+        {
+            ResourcePrincipalKind.ResourceIdentity when !string.IsNullOrWhiteSpace(Principal.SourceResourceId) =>
+                ResourceIdentityReference.ForResource(
+                    Principal.SourceResourceId,
+                    Principal.SourceIdentityName),
+            ResourcePrincipalKind.DeviceIdentity when !string.IsNullOrWhiteSpace(Principal.SourceResourceId) =>
+                ResourceIdentityReference.ForResource(
+                    Principal.SourceResourceId,
+                    Principal.SourceIdentityName),
+            _ => null
+        };
 
     public string TargetResourceId { get; init; } = RequireValue(TargetResourceId);
 

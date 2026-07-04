@@ -1,0 +1,161 @@
+using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.Authorization;
+using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Authentication;
+using CloudShell.ControlPlane.Hosting;
+using CloudShell.ControlPlane.Providers;
+using CloudShell.ControlPlane.Providers.UI;
+using CloudShell.ControlPlane.ResourceModel;
+using CloudShell.Hosting;
+using CloudShell.Hosting.Components;
+using CloudShell.Hosting.ResourceManager;
+using CloudShell.Hosting.Shell;
+using System.Security.Cryptography;
+using System.Text;
+
+var builder = CloudShellApplication.CreateBuilder(args);
+var repositoryRootPath = Path.GetFullPath("../..", builder.Environment.ContentRootPath);
+var deviceRegistryServiceProjectPath = Path.Combine(
+    repositoryRootPath,
+    "CloudShell.DeviceRegistryService",
+    "CloudShell.DeviceRegistryService.csproj");
+var configurationStoreServiceProjectPath = Path.Combine(
+    repositoryRootPath,
+    "CloudShell.ConfigurationStoreService",
+    "CloudShell.ConfigurationStoreService.csproj");
+var identityIssuer = builder.Configuration["Authentication:BuiltInAuthority:Issuer"] ??
+    "http://localhost";
+var identityAudience = builder.Configuration["Authentication:BuiltInAuthority:Audience"] ??
+    "cloudshell-control-plane";
+var identitySigningKeyPem = builder.Configuration["Authentication:BuiltInAuthority:SigningKeyPem"] ??
+    CreateDevelopmentSigningKeyPem();
+var registryEndpoint = builder.Configuration["Samples:DeviceRegistry:RegistryEndpoint"] ??
+    "http://localhost:7150";
+var configurationEndpoint = builder.Configuration["Samples:DeviceRegistry:ConfigurationEndpoint"] ??
+    "http://localhost:7152";
+const string configurationResourceId = "configuration.store:device-settings";
+const string registryResourceId = "iot.device-registry:devices";
+var currentDeviceSubject = CreateCurrentDeviceSubject();
+var currentDeviceId = CreateDeviceId(registryResourceId, currentDeviceSubject);
+var currentDevicePrincipal = ResourcePrincipalReference.ForDeviceIdentity(
+    registryResourceId,
+    currentDeviceId,
+    currentDeviceSubject,
+    "built-in");
+
+builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+{
+    ["Authentication:BuiltInAuthority:Enabled"] = "true",
+    ["Authentication:BuiltInAuthority:Issuer"] = identityIssuer,
+    ["Authentication:BuiltInAuthority:Audience"] = identityAudience,
+    ["Authentication:BuiltInAuthority:SigningKeyPem"] = identitySigningKeyPem
+});
+
+var cloudShell = builder.AddCloudShellControlPlaneApplication(
+    configureBuiltInResourceModelProviders: null,
+    configureControlPlane: controlPlane =>
+    {
+        controlPlane.DefineResources(resources =>
+        {
+            var settings = resources
+                .AddConfigurationStore("device-settings")
+                .WithDisplayName("Device Settings")
+                .WithEndpoint(configurationEndpoint)
+                .WithSeed(seed => seed.Setting(
+                    "Device:Mode",
+                    "factory-online"));
+            var vault = resources
+                .AddSecretsVault("factory")
+                .WithDisplayName("Factory Trust Vault")
+                .WithSeed(seed => seed.Certificate(
+                    "factory-ca",
+                    "local-development-factory-ca"));
+
+            resources
+                .AddDeviceRegistry("devices")
+                .WithDisplayName("Factory Device Registry")
+                .WithEndpoint(registryEndpoint)
+                .TrustCertificate(vault.Certificate("factory-ca"))
+                .UseEnrollmentPolicy(policy =>
+                {
+                    policy.AllowSubjectPrefix("device/");
+                    policy.RequireClaim("manufacturer", "cloudshell");
+                });
+
+            settings.Allow(
+                currentDevicePrincipal,
+                ConfigurationStoreResourceOperationPermissions.ReadEntries);
+        });
+    });
+
+cloudShell
+    .UseConfigurationStoreResourceProvider(runtime =>
+    {
+        runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
+        runtime.ServiceWorkingDirectory = repositoryRootPath;
+        runtime.ServiceAuthenticationIssuer = identityIssuer;
+        runtime.ServiceAuthenticationAudience = identityAudience;
+        runtime.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
+        runtime.Entries.Add(new("Device:Mode", "factory-online"));
+    })
+    .UseDeviceRegistryResourceProvider(runtime =>
+    {
+        runtime.ServiceProjectPath = deviceRegistryServiceProjectPath;
+        runtime.ServiceWorkingDirectory = repositoryRootPath;
+        runtime.ServiceAuthenticationIssuer = identityIssuer;
+        runtime.ServiceAuthenticationAudience = identityAudience;
+        runtime.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
+        runtime.PermissionGrants.Add(new ResourcePermissionGrant(
+            currentDevicePrincipal,
+            configurationResourceId,
+            ConfigurationStoreResourceOperationPermissions.ReadEntries));
+    });
+
+builder.AddCloudShellUi(ui =>
+{
+    ui
+        .AddExtension<ResourceManagerExtension>()
+        .AddExtension<TelemetryExtension>()
+        .AddExtension<UsageExtension>();
+    ui.AddBuiltInProviderResourceManagerUi();
+});
+
+var app = builder.Build();
+
+await app.UseCloudShellControlPlaneAsync();
+await app.UseCloudShellUiAsync();
+app.MapCloudShellControlPlane();
+app.MapCloudShellUi<App>();
+
+app.Run();
+
+static string CreateDevelopmentSigningKeyPem()
+{
+    using var rsa = RSA.Create(2048);
+    return rsa.ExportRSAPrivateKeyPem();
+}
+
+static string CreateCurrentDeviceSubject()
+{
+    var machineName = Environment.MachineName;
+    if (string.IsNullOrWhiteSpace(machineName))
+    {
+        machineName = "current";
+    }
+
+    var characters = machineName
+        .Trim()
+        .Select(character => char.IsLetterOrDigit(character) ? char.ToLowerInvariant(character) : '-')
+        .ToArray();
+    var normalized = new string(characters).Trim('-');
+
+    return $"device/{(string.IsNullOrWhiteSpace(normalized) ? "current" : normalized)}";
+}
+
+static string CreateDeviceId(
+    string registryId,
+    string subject)
+{
+    var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"{registryId}\u001f{subject}"));
+    return $"device-{Convert.ToHexString(bytes)[..24].ToLowerInvariant()}";
+}

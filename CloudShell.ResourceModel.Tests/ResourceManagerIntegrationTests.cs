@@ -5670,6 +5670,82 @@ resources:
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesDeviceRegistryAcrossProviderBoundaries()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        services.AddSecretsVaultResourceType();
+        services.AddDeviceRegistryResourceType();
+        services.AddResourceModelGraphServices();
+        services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var graph = new ResourceGraphBuilder();
+        var vault = graph
+            .AddSecretsVault("vault")
+            .WithSeed(seed => seed.Certificate("factory-ca", "certificate"));
+        var registry = graph
+            .AddDeviceRegistry("devices")
+            .WithEndpoint("http://localhost:7140")
+            .TrustCertificate(vault.Certificate("factory-ca"))
+            .UseEnrollmentPolicy(policy =>
+            {
+                policy.AllowSubjectPrefix("device/");
+                policy.RequireClaim("manufacturer", "acme");
+            });
+
+        var result = await service.ApplyTemplateAsync(
+            graph.BuildTemplate("iot-app", environmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 7, 4, 12, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(result.HasErrors, FormatDiagnostics(result.Diagnostics));
+        Assert.True(result.IsCommitted);
+
+        var provider = serviceProvider
+            .GetServices<IResourceProvider>()
+            .OfType<ResourceModelGraphProcedureProvider>()
+            .Single();
+        var projectedRegistry = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == registry.EffectiveResourceId);
+
+        Assert.Equal(ResourceManagerClass.Service, projectedRegistry.ResourceClass);
+        Assert.Equal(DeviceRegistryResourceTypeProvider.ProviderId, projectedRegistry.Provider);
+        Assert.Equal(ResourceManagerResourceState.Unknown, projectedRegistry.State);
+        Assert.Equal("registry", projectedRegistry.ResourceAttributes["kind"]);
+        Assert.Equal("http://localhost:7140", projectedRegistry.ResourceAttributes["endpoint"]);
+        Assert.Equal("0", projectedRegistry.ResourceAttributes["enrolledDeviceCount"]);
+        Assert.Contains(projectedRegistry.ResourceCapabilities, capability =>
+            capability.Id == ResourceCapabilityIds.EndpointSource);
+        Assert.Contains(projectedRegistry.ResourceCapabilities, capability =>
+            capability.Id == ResourceCapabilityIds.Monitoring);
+        Assert.Contains(projectedRegistry.ResourceActions, action =>
+            action.Id == "start" &&
+            action.Kind == ResourceActionKind.Start);
+        Assert.Contains(projectedRegistry.DependsOn, dependency =>
+            dependency == vault.EffectiveResourceId);
+
+        var resolution = await serviceProvider
+            .GetRequiredService<ResourceModelGraphResourceResolver>()
+            .ResolveAsync(registry.EffectiveResourceId);
+
+        Assert.False(resolution.HasErrors);
+        var projection = Assert.IsType<DeviceRegistryResource>(
+            await serviceProvider
+                .GetRequiredService<ResourceProjectionResolver>()
+                .GetResourceProjectionAsync(
+                    resolution.Target!,
+                    new ResourceProjectionContext("local", "developer")));
+
+        Assert.Equal("http://localhost:7140", projection.Endpoint);
+        Assert.Equal(0, projection.EnrolledDeviceCount);
+        Assert.Equal("factory-ca", Assert.Single(projection.TrustedCertificates).Name);
+        Assert.Equal("device/", Assert.Single(projection.AllowedSubjectPrefixes));
+        Assert.Equal("manufacturer", Assert.Single(projection.RequiredClaims).Name);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesSqlDatabaseAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();

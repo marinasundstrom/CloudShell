@@ -360,7 +360,8 @@ public enum ResourcePrincipalKind
     ServicePrincipal,
     ManagedIdentity,
     WorkloadIdentity,
-    External
+    External,
+    DeviceIdentity
 }
 
 public sealed record ResourcePrincipalReference(
@@ -398,6 +399,23 @@ public sealed record ResourcePrincipalReference(
             providerId,
             normalizedResourceId,
             normalizedIdentityName);
+    }
+
+    public static ResourcePrincipalReference ForDeviceIdentity(
+        string registryResourceId,
+        string deviceId,
+        string? displayName = null,
+        string? providerId = null)
+    {
+        var normalizedRegistryResourceId = RequireValue(registryResourceId);
+        var normalizedDeviceId = RequireValue(deviceId);
+        return new(
+            ResourcePrincipalKind.DeviceIdentity,
+            $"{normalizedRegistryResourceId}/devices/{normalizedDeviceId}",
+            displayName,
+            providerId,
+            normalizedRegistryResourceId,
+            normalizedDeviceId);
     }
 
     private static string RequireValue(string value)

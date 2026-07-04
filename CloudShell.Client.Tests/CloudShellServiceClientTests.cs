@@ -1,9 +1,12 @@
 using CloudShell.Client.Authentication;
 using CloudShell.Configuration.Client;
+using CloudShell.Abstractions.ResourceManager;
+using CloudShell.DeviceRegistry.Client;
 using CloudShell.Secrets.Client;
 using Microsoft.Extensions.Configuration;
 using System.Net;
 using System.Net.Sockets;
+using System.Text.Json;
 
 namespace CloudShell.Client.Tests;
 
@@ -155,6 +158,115 @@ public sealed class CloudShellServiceClientTests
         Assert.Equal(
             "http://localhost/api/secrets/vaults/secrets-vault%3Aapp/certificates",
             handler.Requests[0].RequestUri?.ToString());
+    }
+
+    [Fact]
+    public async Task DeviceRegistryClient_EnrollsDeviceAndReturnsPrincipalCredentials()
+    {
+        var handler = new RecordingHandler($$"""
+            {
+              "deviceId": "device-123",
+              "registryId": "iot.device-registry:devices",
+              "subject": "device/test-pc",
+              "identityCategory": "deviceIdentity",
+              "principal": {
+                "kind": {{(int)ResourcePrincipalKind.DeviceIdentity}},
+                "id": "iot.device-registry:devices/devices/device-123",
+                "displayName": "device/test-pc",
+                "providerId": "built-in",
+                "sourceResourceId": "iot.device-registry:devices",
+                "sourceIdentityName": "device-123"
+              },
+              "identityProviderId": "built-in",
+              "identityResourceId": "iot.device-registry:devices",
+              "identityName": "device-123",
+              "clientId": "iot.device-registry:devices/device-123",
+              "clientSecret": "local-development-device-secret",
+              "tokenEndpoint": "http://localhost/api/auth/v1/token",
+              "enrolledAt": "2026-07-04T00:00:00+00:00",
+              "claims": { "manufacturer": "cloudshell" },
+              "properties": { "platform": "linux", "supportsConfigurationPull": "true" }
+            }
+            """);
+        var client = new DeviceRegistryClient(
+            new Uri("http://localhost"),
+            new HttpClient(handler));
+
+        var enrollment = await client.EnrollDeviceAsync(
+            "iot.device-registry:devices",
+            "device/test-pc",
+            new Dictionary<string, string>
+            {
+                ["manufacturer"] = "cloudshell"
+            },
+            new Dictionary<string, string>
+            {
+                ["supportsConfigurationPull"] = "true"
+            });
+
+        Assert.Equal("device-123", enrollment.DeviceId);
+        Assert.Equal("deviceIdentity", enrollment.IdentityCategory);
+        Assert.Equal(ResourcePrincipalKind.DeviceIdentity, enrollment.Principal.Kind);
+        Assert.Equal("iot.device-registry:devices/devices/device-123", enrollment.Principal.Id);
+        Assert.Equal("iot.device-registry:devices/device-123", enrollment.ClientId);
+        Assert.Equal(
+            "http://localhost/api/devices/registries/iot.device-registry%3Adevices/enroll",
+            handler.Requests[0].RequestUri?.ToString());
+
+        var requestJson = await handler.Requests[0].Content!.ReadAsStringAsync();
+        using var requestDocument = JsonDocument.Parse(requestJson);
+        Assert.Equal("device/test-pc", requestDocument.RootElement.GetProperty("subject").GetString());
+        Assert.Equal(
+            "cloudshell",
+            requestDocument.RootElement.GetProperty("claims").GetProperty("manufacturer").GetString());
+        Assert.Equal(
+            "true",
+            requestDocument.RootElement.GetProperty("properties").GetProperty("supportsConfigurationPull").GetString());
+        Assert.Equal("linux", enrollment.Properties["platform"]);
+    }
+
+    [Fact]
+    public async Task DeviceRegistryClient_EnrollCurrentDevice_UsesDeviceSubjectPrefix()
+    {
+        var handler = new RecordingHandler($$"""
+            {
+              "deviceId": "device-current",
+              "registryId": "iot.device-registry:devices",
+              "subject": "device/current",
+              "identityCategory": "deviceIdentity",
+              "principal": {
+                "kind": {{(int)ResourcePrincipalKind.DeviceIdentity}},
+                "id": "iot.device-registry:devices/devices/device-current",
+                "providerId": "built-in",
+                "sourceResourceId": "iot.device-registry:devices",
+                "sourceIdentityName": "device-current"
+              },
+              "identityProviderId": "built-in",
+              "identityResourceId": "iot.device-registry:devices",
+              "identityName": "device-current",
+              "clientId": "iot.device-registry:devices/device-current",
+              "clientSecret": "local-development-device-secret",
+              "tokenEndpoint": "http://localhost/api/auth/v1/token",
+              "enrolledAt": "2026-07-04T00:00:00+00:00",
+              "claims": {},
+              "properties": {}
+            }
+            """);
+        var client = new DeviceRegistryClient(
+            new Uri("http://localhost"),
+            new HttpClient(handler));
+
+        await client.EnrollCurrentDeviceAsync("iot.device-registry:devices");
+
+        var requestJson = await handler.Requests[0].Content!.ReadAsStringAsync();
+        using var requestDocument = JsonDocument.Parse(requestJson);
+        Assert.StartsWith(
+            "device/",
+            requestDocument.RootElement.GetProperty("subject").GetString());
+        var properties = requestDocument.RootElement.GetProperty("properties");
+        Assert.False(string.IsNullOrWhiteSpace(properties.GetProperty("platform").GetString()));
+        Assert.False(string.IsNullOrWhiteSpace(properties.GetProperty("osDescription").GetString()));
+        Assert.False(string.IsNullOrWhiteSpace(properties.GetProperty("frameworkDescription").GetString()));
     }
 
     [Fact]

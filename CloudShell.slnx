@@ -34,6 +34,12 @@
   <Folder Name="/samples/ContainerAppDeployment/">
     <Project Path="samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj" />
   </Folder>
+  <Folder Name="/samples/DeviceRegistry/">
+    <Project Path="samples/DeviceRegistry/CloudShell.DeviceRegistry.csproj" />
+  </Folder>
+  <Folder Name="/samples/DeviceRegistry/DeviceApp/">
+    <Project Path="samples/DeviceRegistry/DeviceApp/CloudShell.DeviceRegistry.DeviceApp.csproj" />
+  </Folder>
   <Folder Name="/samples/ReplicatedContainerHealth/">
     <Project Path="samples/ReplicatedContainerHealth/CloudShell.ReplicatedContainerHealth.csproj" />
   </Folder>
@@ -140,6 +146,8 @@
   <Project Path="CloudShell.Configuration.Client/CloudShell.Configuration.Client.csproj" />
   <Project Path="CloudShell.Configuration/CloudShell.Configuration.csproj" />
   <Project Path="CloudShell.ConfigurationStoreService/CloudShell.ConfigurationStoreService.csproj" />
+  <Project Path="CloudShell.DeviceRegistryService/CloudShell.DeviceRegistryService.csproj" />
+  <Project Path="CloudShell.DeviceRegistry.Client/CloudShell.DeviceRegistry.Client.csproj" />
   <Project Path="CloudShell.ControlPlane.Client.Tests/CloudShell.ControlPlane.Client.Tests.csproj" />
   <Project Path="CloudShell.ControlPlane.Client/CloudShell.ControlPlane.Client.csproj" />
   <Project Path="CloudShell.ControlPlane.Tests/CloudShell.ControlPlane.Tests.csproj" />

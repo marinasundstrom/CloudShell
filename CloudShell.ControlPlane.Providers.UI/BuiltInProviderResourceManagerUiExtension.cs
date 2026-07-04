@@ -6,6 +6,7 @@ using CloudShell.ControlPlane.Providers;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ContainerAppPages = CloudShell.ControlPlane.Providers.UI.ContainerApplication.Pages;
 using ConfigurationPages = CloudShell.ControlPlane.Providers.UI.Configuration.Pages;
+using DeviceRegistryPages = CloudShell.ControlPlane.Providers.UI.DeviceRegistry.Pages;
 using RabbitMQPages = CloudShell.ControlPlane.Providers.UI.RabbitMQ.Pages;
 using SharedPages = CloudShell.ControlPlane.Providers.UI.Shared.Pages;
 using SqlServerPages = CloudShell.ControlPlane.Providers.UI.SqlServer.Pages;
@@ -28,7 +29,8 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
             "resource-ui.application.go-app",
             "resource-ui.application.sql-server",
             "resource-ui.application.rabbitmq",
-            "resource-ui.application.container-app"
+            "resource-ui.application.container-app",
+            "resource-ui.service.device-registry"
         ],
         ["resource-manager.resources"]);
 
@@ -181,6 +183,13 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 "key",
                 30,
                 resourceClass: ResourceManagerResourceClass.SecretsVault)
+            .AddResourceType<SharedPages.RegisterResource>(
+                DeviceRegistryResourceTypeProvider.ResourceTypeId.ToString(),
+                "Device Registry",
+                "Inspect device registry resources declared through Resource Manager.",
+                "devices",
+                31,
+                resourceClass: ResourceManagerResourceClass.Service)
             .AddResourceTab<ConfigurationPages.ConfigurationStoreEntries>(
                 ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(),
                 new ResourceViewId(ResourceTabGroupIds.Entries, "entries"),
@@ -205,6 +214,13 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.Secrets,
                 icon: "certificates")
+            .AddResourceTab<DeviceRegistryPages.DeviceRegistryDevices>(
+                DeviceRegistryResourceTypeProvider.ResourceTypeId.ToString(),
+                new ResourceViewId("devices", "enrolled-devices"),
+                "Devices",
+                20,
+                groupTitle: "Devices",
+                icon: "devices")
             .AddResourceType<SharedPages.RegisterResource>(
                 IdentityProvisioningResourceTypeProvider.ResourceTypeId.ToString(),
                 "Identity Provisioning",

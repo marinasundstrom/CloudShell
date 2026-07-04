@@ -68,6 +68,7 @@ public sealed record ResourcePrincipalReferenceAttribute(
 public static class ResourcePrincipalAttributeKinds
 {
     public const string ResourceIdentity = "resourceIdentity";
+    public const string DeviceIdentity = "deviceIdentity";
     public const string User = "user";
     public const string Group = "group";
     public const string ServiceAccount = "serviceAccount";

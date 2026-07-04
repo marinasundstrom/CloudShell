@@ -437,6 +437,7 @@ public static class ResourceModelResourceDefinitionBuilderExtensions
             ResourcePrincipalKind.ManagedIdentity => ResourcePrincipalAttributeKinds.ManagedIdentity,
             ResourcePrincipalKind.WorkloadIdentity => ResourcePrincipalAttributeKinds.WorkloadIdentity,
             ResourcePrincipalKind.External => ResourcePrincipalAttributeKinds.External,
+            ResourcePrincipalKind.DeviceIdentity => ResourcePrincipalAttributeKinds.DeviceIdentity,
             _ => kind.ToString()
         };
 

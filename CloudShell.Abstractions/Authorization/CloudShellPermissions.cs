@@ -54,6 +54,12 @@ public static class SecretsVaultResourceOperationPermissions
         "CloudShell.Secrets/vaults/secrets/read/action";
 }
 
+public static class DeviceRegistryResourceOperationPermissions
+{
+    public const string EnrollDevices =
+        "CloudShell.IoT/deviceRegistries/devices/enroll/action";
+}
+
 public static class DatabaseResourceOperationPermissions
 {
     public const string ReadWrite =
@@ -189,6 +195,15 @@ public static class CloudShellPermissions
         {
             public const string ProvisionIdentities =
                 ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities;
+        }
+    }
+
+    public static class IoT
+    {
+        public static class Actions
+        {
+            public const string EnrollDevices =
+                DeviceRegistryResourceOperationPermissions.EnrollDevices;
         }
     }
 
