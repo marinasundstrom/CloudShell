@@ -24,8 +24,10 @@ cd samples/DeviceRegistry
 ./cloudshell.sh run
 ```
 
-The launcher host configuration lives in `AppHost/appsettings.json`. It uses an
-in-memory built-in identity user for local development:
+The launcher starts CloudShell at `http://127.0.0.1:5108` and applies the
+sample resource template. The launcher host configuration lives in
+`AppHost/appsettings.json`. It uses an in-memory built-in identity user for
+local development:
 
 | Field | Value |
 | --- | --- |
@@ -37,7 +39,8 @@ run without an initial sign-in. Enable authentication in `AppHost/appsettings.js
 when you want to exercise the UI login path with the seeded user.
 
 After the template is applied, start the service resources from a second
-terminal:
+terminal. The helper script targets the launcher-owned Control Plane URL by
+default:
 
 ```bash
 ./cloudshell.sh start-services
