@@ -17,17 +17,129 @@ else if (!BuiltInProviderResourceUiTypes.IsRabbitMQ(Broker.EffectiveTypeId))
 }
 else
 {
+    <style>
+        .rabbitmq-dashboard-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: .65rem;
+        }
+
+        .rabbitmq-dashboard-metrics {
+            grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+        }
+
+        .rabbitmq-dashboard-metrics strong {
+            color: var(--cloudshell-text);
+            font-size: .78rem;
+            font-weight: 600;
+        }
+
+        .rabbitmq-dashboard-metrics span {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .rabbitmq-dashboard-chart-shell {
+            min-width: 0;
+            padding: .65rem;
+            border: 1px solid var(--cloudshell-divider);
+            border-radius: 4px;
+            background: var(--cloudshell-surface-muted);
+        }
+
+        .rabbitmq-dashboard-chart {
+            min-height: 18rem;
+            width: 100%;
+        }
+
+        .rabbitmq-dashboard-chart svg {
+            display: block;
+            width: 100%;
+            min-height: 18rem;
+        }
+
+        .rabbitmq-dashboard-chart .axis text,
+        .rabbitmq-dashboard-chart .queue-label,
+        .rabbitmq-dashboard-chart .queue-value,
+        .rabbitmq-dashboard-chart .legend-label {
+            fill: var(--cloudshell-text-muted);
+            font-family: var(--body-font);
+            font-size: .72rem;
+        }
+
+        .rabbitmq-dashboard-chart .queue-label {
+            fill: var(--cloudshell-text);
+            font-weight: 600;
+        }
+
+        .rabbitmq-dashboard-chart .queue-ready {
+            fill: var(--cloudshell-accent);
+        }
+
+        .rabbitmq-dashboard-chart .queue-unacknowledged {
+            fill: color-mix(in srgb, var(--cloudshell-warning-text) 82%, var(--cloudshell-text));
+        }
+
+        .rabbitmq-dashboard-chart .queue-track {
+            fill: var(--cloudshell-surface);
+            stroke: var(--cloudshell-divider);
+        }
+
+        .rabbitmq-dashboard-chart .axis line,
+        .rabbitmq-dashboard-chart .axis path {
+            stroke: var(--cloudshell-divider);
+        }
+
+        .rabbitmq-dashboard-chart .legend-swatch.ready {
+            fill: var(--cloudshell-accent);
+        }
+
+        .rabbitmq-dashboard-chart .legend-swatch.unacknowledged {
+            fill: color-mix(in srgb, var(--cloudshell-warning-text) 82%, var(--cloudshell-text));
+        }
+
+        .rabbitmq-dashboard-chart .throughput-publish {
+            stroke: var(--cloudshell-accent);
+            fill: var(--cloudshell-accent);
+        }
+
+        .rabbitmq-dashboard-chart .throughput-deliver {
+            stroke: color-mix(in srgb, #0f766e 78%, var(--cloudshell-text));
+            fill: color-mix(in srgb, #0f766e 78%, var(--cloudshell-text));
+        }
+
+        .rabbitmq-dashboard-chart .throughput-ack {
+            stroke: color-mix(in srgb, var(--cloudshell-warning-text) 82%, var(--cloudshell-text));
+            fill: color-mix(in srgb, var(--cloudshell-warning-text) 82%, var(--cloudshell-text));
+        }
+
+        .rabbitmq-dashboard-chart .legend-line {
+            stroke-width: 3;
+        }
+
+        .rabbitmq-dashboard-chart .throughput-line {
+            fill: none;
+        }
+    </style>
+
     <div class="blade-section-header">
         <div>
             <h3>Dashboard</h3>
             <p>@GetDashboardSummary()</p>
         </div>
-        <FluentButton Appearance="Appearance.Neutral"
-                      IconStart="@(new Icons.Regular.Size20.ArrowSync())"
-                      Disabled="@IsLoading"
-                      OnClick="RefreshDashboardAsync">
-            @(IsLoading ? "Refreshing" : "Refresh")
-        </FluentButton>
+        <div class="rabbitmq-dashboard-actions">
+            <FluentCheckbox Value="@AutoRefreshEnabled"
+                            ValueChanged="OnAutoRefreshChanged">
+                Auto refresh
+            </FluentCheckbox>
+            <FluentButton Appearance="Appearance.Neutral"
+                          IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          Disabled="@IsLoading"
+                          OnClick="RefreshDashboardAsync">
+                @(IsLoading ? "Refreshing" : "Refresh")
+            </FluentButton>
+        </div>
     </div>
 
     @if (IsLoading)
@@ -206,12 +318,21 @@ else
     [Parameter]
     public string? ResourceId { get; set; }
 
+    private static readonly TimeSpan AutoRefreshInterval = TimeSpan.FromSeconds(10);
+
     private Resource? Broker { get; set; }
     private RabbitMQBrokerDashboardResult? Dashboard { get; set; }
     private bool IsLoading { get; set; }
+    private bool AutoRefreshEnabled { get; set; } = true;
     private ElementReference QueueChartElement { get; set; }
     private ElementReference ThroughputChartElement { get; set; }
     private IJSObjectReference? Module { get; set; }
+    private CancellationTokenSource? AutoRefreshCancellation { get; set; }
+
+    protected override void OnInitialized()
+    {
+        StartAutoRefresh();
+    }
 
     protected override Task OnParametersSetAsync() => RefreshDashboardAsync();
 
@@ -248,6 +369,56 @@ else
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    private void OnAutoRefreshChanged(bool enabled)
+    {
+        AutoRefreshEnabled = enabled;
+        if (enabled)
+        {
+            StartAutoRefresh();
+        }
+        else
+        {
+            StopAutoRefresh();
+        }
+    }
+
+    private void StartAutoRefresh()
+    {
+        if (!AutoRefreshEnabled || AutoRefreshCancellation is not null)
+        {
+            return;
+        }
+
+        AutoRefreshCancellation = new CancellationTokenSource();
+        _ = RunAutoRefreshAsync(AutoRefreshCancellation.Token);
+    }
+
+    private void StopAutoRefresh()
+    {
+        AutoRefreshCancellation?.Cancel();
+        AutoRefreshCancellation?.Dispose();
+        AutoRefreshCancellation = null;
+    }
+
+    private async Task RunAutoRefreshAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(AutoRefreshInterval);
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await RefreshDashboardAsync();
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
     }
 
@@ -350,6 +521,8 @@ else
 
     public async ValueTask DisposeAsync()
     {
+        StopAutoRefresh();
+
         if (Module is not null)
         {
             await Module.InvokeVoidAsync("disposeRabbitMQChart", QueueChartElement);
