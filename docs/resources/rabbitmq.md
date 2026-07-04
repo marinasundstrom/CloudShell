@@ -190,6 +190,142 @@ Hosts can register the same management API integration directly with
 `AddRabbitMQManagementApiAccessReconciler(...)` when a non-Docker runtime
 exposes the RabbitMQ management API.
 
+## Workload Credential Resolution
+
+Applications should not receive the RabbitMQ bootstrap administrator username
+or password. When a resource identity has RabbitMQ grants, the application
+uses its CloudShell resource identity credential to request short-lived
+workload credentials from CloudShell, then passes the returned username,
+password, and virtual host to its normal RabbitMQ client.
+
+The launcher declares the identity and grants:
+
+```csharp
+const string identityProviderId = "identity:built-in";
+
+var broker = resources
+    .AddRabbitMQ("rabbitmq")
+    .WithCloudShellManagedUser()
+    .WithVirtualHost("cloudshell_sample");
+
+var api = resources
+    .AddAspNetCoreProject("api", apiProjectPath)
+    .WithIdentity(identityProviderId, name: "api")
+    .ProvisionIdentityOnStartup()
+    .WithReference(broker)
+    .WithEnvironmentVariable("RabbitMQ__Authentication", "CloudShell")
+    .WithEnvironmentVariable("RabbitMQ__CredentialEndpoint", "http://127.0.0.1:5112/api/rabbitmq/v1/credentials")
+    .WithEnvironmentVariable("RabbitMQ__ResourceName", broker.EffectiveResourceId)
+    .WithEnvironmentVariable("RabbitMQ__CredentialPermission", RabbitMQResourceOperationPermissions.Configure);
+
+broker.Allow(api.Principal("api", providerId: identityProviderId), RabbitMQResourceOperationPermissions.Configure);
+broker.Allow(api.Principal("api", providerId: identityProviderId), RabbitMQResourceOperationPermissions.Publish);
+broker.Allow(api.Principal("api", providerId: identityProviderId), RabbitMQResourceOperationPermissions.Consume);
+```
+
+At runtime, the application requests a CloudShell token for the permission it
+needs and posts it to the credential endpoint:
+
+```http
+POST /api/rabbitmq/v1/credentials
+Authorization: Bearer <CloudShell resource identity token>
+Content-Type: application/json
+
+{
+  "rabbitMQResourceName": "application.rabbitmq:rabbitmq",
+  "permission": "CloudShell.Messaging/rabbitMQ/configure/action"
+}
+```
+
+CloudShell returns only the broker-native workload identity material:
+
+```json
+{
+  "username": "cloudshell-...",
+  "password": "...",
+  "virtualHost": "cloudshell_sample",
+  "expiresOn": null
+}
+```
+
+A .NET workload should use `CloudShell.RabbitMQ.Client` so the credential
+exchange stays behind a RabbitMQ-specific client helper:
+
+```csharp
+using CloudShell.RabbitMQ.Client;
+
+builder.Services.AddCloudShellRabbitMQClient(options =>
+{
+    options.CredentialEndpoint = new Uri("http://127.0.0.1:5112/api/rabbitmq/v1/credentials");
+    options.RabbitMQResourceName = "application.rabbitmq:rabbitmq";
+    options.HostName = "localhost";
+    options.Port = 5672;
+    options.Permission = CloudShellRabbitMQPermissions.Configure;
+});
+
+var factory = await rabbitMQ.CreateConnectionFactoryAsync(cancellationToken);
+using var connection = factory.CreateConnection("orders-api");
+```
+
+The .NET client reads `CLOUDSHELL_RABBITMQ_CREDENTIAL_ENDPOINT` by default
+when no endpoint is configured explicitly. It requests a CloudShell resource
+identity token for the RabbitMQ permission being requested, calls the
+credential endpoint, and applies the returned username, password, and virtual
+host to the normal `RabbitMQ.Client` connection factory.
+
+The Java sample follows the same protocol directly: it reads
+`CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT`, `CLOUDSHELL_IDENTITY_CLIENT_ID`, and
+`CLOUDSHELL_IDENTITY_CLIENT_SECRET`, requests a CloudShell token, calls
+`/api/rabbitmq/v1/credentials`, then passes the returned values to the
+RabbitMQ Java client.
+
+Credential resolution fails with `401` or `403` when the token is missing,
+invalid, lacks the requested RabbitMQ permission claim, or no matching
+CloudShell grant is declared for the resource identity. It can also fail with
+`400` when the target RabbitMQ resource or requested broker permission is
+invalid. Successful requests are recorded as RabbitMQ credential resource
+events for traceability.
+
+```csharp
+public sealed record RabbitMQCredential(
+    string Username,
+    string Password,
+    string VirtualHost,
+    DateTimeOffset? ExpiresOn);
+```
+
+### Persistent Connections And Rotation
+
+Credential resolution is not meant to happen for every message. Resolve
+RabbitMQ credentials when creating the native AMQP connection, keep the
+connection open using the normal RabbitMQ client connection/channel model, and
+resolve credentials again only when the application needs a new connection or
+the returned `expiresOn` value says the credential should be refreshed soon.
+
+The current local provider returns deterministic RabbitMQ-native credentials
+for the resource identity and usually leaves `expiresOn` unset. Future
+providers may return expiring credentials, rotate generated passwords, or
+support a managed broker that invalidates credentials on a schedule. Workloads
+should therefore follow this pattern even when local development credentials
+appear stable:
+
+1. Use `DefaultCloudShellResourceCredential` to request a CloudShell token for
+   the RabbitMQ permission needed by this process.
+2. Call `/api/rabbitmq/v1/credentials`.
+3. Open the RabbitMQ connection with the returned username, password, and
+   virtual host.
+4. Reuse that connection and its channels for normal publishing and consuming.
+5. If `expiresOn` is present, schedule a reconnect before expiry with a small
+   safety window.
+6. If the broker closes the connection, the connection cannot authenticate, or
+   the client receives an access-refused condition, request credentials again
+   before reconnecting.
+
+Do not store the returned password in application configuration, resource
+attributes, logs, health output, metrics, traces, or user-facing diagnostics.
+It is provider-issued access material, not a durable secret owned by the
+application.
+
 ## Current Resource Manager UI
 
 Resource Manager registers RabbitMQ type metadata, AMQP and management endpoint
@@ -305,7 +441,9 @@ credential material, connection strings, or message payloads.
 - No specialized Resource Manager broker configuration UI for creating,
   updating, or deleting queues, exchanges, bindings, users, virtual hosts,
   policies, or cluster state yet.
-- No RabbitMQ-specific workload client package or service-discovery helper yet.
+- No Java, TypeScript, or service-discovery helper for RabbitMQ workload
+  clients yet. The .NET `CloudShell.RabbitMQ.Client` package covers the first
+  native-client helper path.
 - Queues, exchanges, and bindings are visible through the read-only broker
   topology tab, but they are not projected as CloudShell child resources and
   virtual hosts, users, and policies are not surfaced yet.

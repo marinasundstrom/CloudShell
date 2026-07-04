@@ -38,6 +38,11 @@ on `git blame --follow`, and then by the broad type of change.
   publish/deliver/ack throughput charts from message-rate samples, queue-depth
   visualization, per-queue counters, auto-refresh, and dark-mode-aware chart
   styling without routing the view through the shared telemetry surfaces.
+- Added `CloudShell.RabbitMQ.Client`, a lightweight .NET workload client that
+  resolves RabbitMQ-native username, password, and virtual-host access from a
+  CloudShell resource identity credential and produces configured
+  `RabbitMQ.Client` connection factories without exposing broker bootstrap
+  credentials to applications.
 
 ### 2026-07-03
 

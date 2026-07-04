@@ -153,6 +153,7 @@
   <Project Path="CoreShell.Composition/CoreShell.Composition.csproj" />
   <Project Path="CloudShell.Providers.DockerCompose/CloudShell.Providers.DockerCompose.csproj" />
   <Project Path="CloudShell.Providers.Traefik/CloudShell.Providers.Traefik.csproj" />
+  <Project Path="CloudShell.RabbitMQ.Client/CloudShell.RabbitMQ.Client.csproj" />
   <Project Path="CloudShell.ControlPlane.Providers.UI/CloudShell.ControlPlane.Providers.UI.csproj" />
   <Project Path="CloudShell.ControlPlane.Providers/CloudShell.ControlPlane.Providers.csproj" />
   <Project Path="CloudShell.ControlPlane.ResourceModel/CloudShell.ControlPlane.ResourceModel.csproj" />
