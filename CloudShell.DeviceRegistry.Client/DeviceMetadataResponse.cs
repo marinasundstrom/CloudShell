@@ -13,4 +13,9 @@ public sealed record DeviceMetadataResponse(
     string ClientId,
     IReadOnlyDictionary<string, string> Claims,
     IReadOnlyDictionary<string, string> Properties,
-    DateTimeOffset EnrolledAt);
+    DateTimeOffset EnrolledAt,
+    string Status,
+    DateTimeOffset? LastSeenAt,
+    string? LastSeenSource,
+    DateTimeOffset? RevokedAt,
+    string? RevokedReason);

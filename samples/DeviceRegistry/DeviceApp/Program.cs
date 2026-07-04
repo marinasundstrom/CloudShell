@@ -1,6 +1,7 @@
 using CloudShell.Client.Authentication;
 using CloudShell.Configuration.Client;
 using CloudShell.DeviceRegistry.Client;
+using System.Net.Http.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 var registryEndpoint = builder.Configuration["DeviceRegistry:Endpoint"] ??
@@ -52,10 +53,25 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
         cancellationToken: cancellationToken);
 
     CloudShellConfigurationEntry? configuration = null;
+    DeviceMetadataResponse? heartbeat = null;
     if (!string.IsNullOrWhiteSpace(configurationEndpoint))
     {
         using var configurationHttpClient = new HttpClient();
         using var tokenHttpClient = new HttpClient();
+        var accessToken = await RequestAccessTokenAsync(
+            enrollment,
+            tokenHttpClient,
+            cancellationToken);
+        heartbeat = await client.SendHeartbeatAsync(
+            registryResourceId,
+            enrollment.DeviceId,
+            accessToken,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["sample.app"] = "device-app"
+            },
+            "sample-app",
+            cancellationToken);
         var credential = new EnvironmentCloudShellResourceCredential(
             new EnvironmentCloudShellResourceCredentialOptions
             {
@@ -78,6 +94,7 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
     return Results.Ok(new
     {
         enrollment,
+        heartbeat,
         configuration
     });
 });
@@ -88,3 +105,28 @@ static Uri BuildConfigurationEntriesEndpoint(
     string configurationEndpoint,
     string configurationResourceId) =>
     new($"{configurationEndpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(configurationResourceId)}/entries");
+
+static async Task<string> RequestAccessTokenAsync(
+    DeviceEnrollmentResponse enrollment,
+    HttpClient httpClient,
+    CancellationToken cancellationToken)
+{
+    using var response = await httpClient.PostAsync(
+        enrollment.TokenEndpoint,
+        new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["grant_type"] = "client_credentials",
+            ["client_id"] = enrollment.ClientId,
+            ["client_secret"] = enrollment.ClientSecret,
+            ["scope"] = ConfigurationStoreClient.DefaultScope
+        }),
+        cancellationToken);
+    response.EnsureSuccessStatusCode();
+    var token = await response.Content.ReadFromJsonAsync<Dictionary<string, object>>(
+        cancellationToken: cancellationToken);
+    return token is not null &&
+        token.TryGetValue("access_token", out var accessToken) &&
+        accessToken is not null
+            ? accessToken.ToString() ?? string.Empty
+            : throw new InvalidOperationException("CloudShell token response did not include an access token.");
+}

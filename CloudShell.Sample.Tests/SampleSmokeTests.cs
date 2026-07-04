@@ -1406,6 +1406,8 @@ public sealed class SampleSmokeTests
         var deviceAppEndpoint = $"http://127.0.0.1:{deviceAppPort}";
         const string registryResourceId = "iot.device-registry:devices";
         const string configurationResourceId = "configuration.store:device-settings";
+        const string registryAdminClientId = "device-registry-admin";
+        const string registryAdminClientSecret = "device-registry-admin-secret";
         var signingKeyPem = CreateDevelopmentSigningKeyPem();
         var configurationDefinitionsPath = Path.Combine(directory, "configuration-stores.json");
         var registryDefinitionsPath = Path.Combine(directory, "device-registries.json");
@@ -1498,7 +1500,13 @@ public sealed class SampleSmokeTests
                 "CloudShell__DeviceRegistryService__DefinitionsPath",
                 registryDefinitionsPath,
                 "CloudShell__DeviceRegistryService__ResourceId",
-                registryResourceId));
+                registryResourceId,
+                [
+                    ("Authentication__BuiltInAuthority__Clients__device-registry-admin__Secret", registryAdminClientSecret),
+                    ("Authentication__BuiltInAuthority__Clients__device-registry-admin__Scopes__0", "ControlPlane.Access"),
+                    ("Authentication__BuiltInAuthority__Clients__device-registry-admin__ResourcePermissions__0__ResourceId", registryResourceId),
+                    ("Authentication__BuiltInAuthority__Clients__device-registry-admin__ResourcePermissions__0__Permission", DeviceRegistryResourceOperationPermissions.ManageDevices)
+                ]));
         await configurationService.WaitForHttpOkAsync("/healthz", StartupTimeout);
         await registryService.WaitForHttpOkAsync("/healthz", StartupTimeout);
 
@@ -1532,6 +1540,11 @@ public sealed class SampleSmokeTests
             .Deserialize<DeviceEnrollmentResponse>(
                 new JsonSerializerOptions(JsonSerializerDefaults.Web)) ??
             throw new JsonException("Device Registry sample returned no enrollment response.");
+        var heartbeat = enrollmentDocument.RootElement
+            .GetProperty("heartbeat")
+            .Deserialize<DeviceMetadataResponse>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)) ??
+            throw new JsonException("Device Registry sample returned no heartbeat response.");
         var configurationEntry = enrollmentDocument.RootElement.GetProperty("configuration");
 
         Assert.Equal("iot.device-registry:devices", enrollment.RegistryId);
@@ -1552,6 +1565,14 @@ public sealed class SampleSmokeTests
         Assert.False(string.IsNullOrWhiteSpace(enrollment.Properties["platform"]));
         Assert.False(string.IsNullOrWhiteSpace(enrollment.Properties["osDescription"]));
         Assert.False(string.IsNullOrWhiteSpace(enrollment.Properties["frameworkDescription"]));
+        Assert.Equal("active", enrollment.Status);
+        Assert.NotNull(enrollment.LastSeenAt);
+        Assert.Equal("enrollment", enrollment.LastSeenSource);
+        Assert.Equal(enrollment.DeviceId, heartbeat.DeviceId);
+        Assert.Equal("active", heartbeat.Status);
+        Assert.NotNull(heartbeat.LastSeenAt);
+        Assert.Equal("sample-app", heartbeat.LastSeenSource);
+        Assert.Equal("device-app", heartbeat.Properties["sample.app"]);
         Assert.Equal("Device:Mode", configurationEntry.GetProperty("name").GetString());
         Assert.Equal("factory-online", configurationEntry.GetProperty("value").GetString());
         Assert.False(configurationEntry.GetProperty("isSecret").GetBoolean());
@@ -1576,6 +1597,58 @@ public sealed class SampleSmokeTests
         using var tokenDocument = JsonDocument.Parse(tokenJson);
         Assert.False(string.IsNullOrWhiteSpace(
             tokenDocument.RootElement.GetProperty("access_token").GetString()));
+
+        var adminToken = await RequestClientCredentialsTokenAsync(
+            enrollment.TokenEndpoint,
+            registryAdminClientId,
+            registryAdminClientSecret);
+        var registryClient = new DeviceRegistryClient(new Uri(registryEndpoint), tokenClient);
+        var revoked = await registryClient.RevokeDeviceAsync(
+            registryResourceId,
+            enrollment.DeviceId,
+            adminToken,
+            "sample cleanup");
+        Assert.Equal("revoked", revoked.Status);
+        Assert.NotNull(revoked.RevokedAt);
+        Assert.Equal("sample cleanup", revoked.RevokedReason);
+
+        using var revokedTokenResponse = await tokenClient.PostAsync(
+            enrollment.TokenEndpoint,
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = "client_credentials",
+                ["client_id"] = enrollment.ClientId,
+                ["client_secret"] = enrollment.ClientSecret,
+                ["scope"] = "ControlPlane.Access"
+            }));
+        Assert.Equal(HttpStatusCode.Unauthorized, revokedTokenResponse.StatusCode);
+    }
+
+    private static async Task<string> RequestClientCredentialsTokenAsync(
+        string tokenEndpoint,
+        string clientId,
+        string clientSecret)
+    {
+        using var tokenClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(10)
+        };
+        using var tokenResponse = await tokenClient.PostAsync(
+            tokenEndpoint,
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = "client_credentials",
+                ["client_id"] = clientId,
+                ["client_secret"] = clientSecret,
+                ["scope"] = "ControlPlane.Access"
+            }));
+        var tokenJson = await tokenResponse.Content.ReadAsStringAsync();
+        Assert.True(
+            tokenResponse.IsSuccessStatusCode,
+            $"Client credentials token request returned {(int)tokenResponse.StatusCode} {tokenResponse.ReasonPhrase}: {tokenJson}");
+        using var tokenDocument = JsonDocument.Parse(tokenJson);
+        return tokenDocument.RootElement.GetProperty("access_token").GetString() ??
+            throw new JsonException("Token response did not include an access token.");
     }
 
     private static IReadOnlyList<(string Key, string Value)> CreateServiceEnvironment(
@@ -1583,15 +1656,25 @@ public sealed class SampleSmokeTests
         string definitionsVariableName,
         string definitionsPath,
         string resourceIdVariableName,
-        string resourceId) =>
-        [
+        string resourceId,
+        IReadOnlyList<(string Key, string Value)>? additionalVariables = null)
+    {
+        var variables = new List<(string Key, string Value)>
+        {
             ("Authentication__BuiltInAuthority__Enabled", "true"),
             ("Authentication__BuiltInAuthority__Issuer", "http://localhost"),
             ("Authentication__BuiltInAuthority__Audience", "cloudshell-control-plane"),
             ("Authentication__BuiltInAuthority__SigningKeyPem", signingKeyPem),
             (definitionsVariableName, definitionsPath),
             (resourceIdVariableName, resourceId)
-        ];
+        };
+        if (additionalVariables is not null)
+        {
+            variables.AddRange(additionalVariables);
+        }
+
+        return variables;
+    }
 
     private static string CreateDevelopmentSigningKeyPem()
     {

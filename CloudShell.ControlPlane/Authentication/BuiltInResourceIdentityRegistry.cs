@@ -81,6 +81,21 @@ public sealed class BuiltInResourceIdentityRegistry
         }
     }
 
+    public bool Unregister(string clientId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientId);
+
+        lock (gate)
+        {
+            var removedClient = clients.Remove(clientId);
+            var removedRegistration = registrations.Remove(clientId);
+            return removedClient || removedRegistration;
+        }
+    }
+
+    public bool Unregister(ResourceIdentityReference identity) =>
+        Unregister(CreateClientId(identity));
+
     public bool Contains(ResourceIdentityReference identity) =>
         TryGetClient(CreateClientId(identity), out _);
 

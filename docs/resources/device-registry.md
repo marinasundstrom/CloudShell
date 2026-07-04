@@ -76,6 +76,29 @@ built-in authority registry and returns client credentials for the device.
 Those credentials are returned only in the enrollment response and are not
 stored in projected resource attributes.
 
+Device records carry basic presence and access state:
+
+| Field | Meaning |
+| --- | --- |
+| `status` | Registry-owned device state such as `active` or `revoked`. |
+| `enrolledAt` | Time the device identity was first provisioned. |
+| `lastSeenAt` | Last registry-observed device contact. Enrollment and heartbeat update this value. |
+| `lastSeenSource` | Source of the last contact, such as `enrollment`, `heartbeat`, or a client-provided source. |
+| `revokedAt` | Time the device identity was revoked, when applicable. |
+| `revokedReason` | Optional non-secret operator reason for revocation. |
+
+Heartbeat is explicit and opt-in at the device application level. A device
+uses its issued identity token to call the heartbeat endpoint for its own
+device record. Heartbeat updates `lastSeenAt`, can merge non-secret reported
+properties, and does not imply CloudShell can start or stop the physical
+device.
+
+Revocation marks the device record as `revoked` and unregisters the built-in
+device identity client so future token requests with that device credential are
+rejected. Already-issued short-lived bearer tokens remain normal bearer tokens
+until they expire; the registry rejects revoked devices on registry-owned
+operations such as heartbeat.
+
 Enrollment requests also include non-secret device properties. The generic C#
 client sends basic current-device facts such as platform, operating system,
 OS and process architecture, framework description, machine name, and processor
@@ -88,8 +111,8 @@ principal, and uses that identity to read a Configuration Store entry. Devices
 that need offline or push-based settings are expected to use a future protocol
 surface such as MQTT rather than this HTTP pull flow.
 
-The built-in Resource Manager UI contributes a read-only Devices tab for
-Device Registry resources. It lists enrolled devices and shows the device
+The built-in Resource Manager UI contributes a Devices tab for Device Registry
+resources. It lists enrolled devices and shows device status, last seen,
 identity metadata, enrollment claims, and non-secret device properties reported
 by the client.
 
@@ -120,10 +143,10 @@ store with a stronger database while keeping the resource model stable.
 - Factory certificate proof validation is not implemented yet; trusted
   certificate references are modeled and persisted for the next slice.
 - Enrolled devices are not projected as resources yet.
-- Device revocation, credential rotation, device groups, per-application
-  identities, and provider-backed identity systems are future work.
+- Credential rotation, device groups, per-application identities, and
+  provider-backed identity systems are future work.
 - Enrollment profiles are the first provisioning policy shape; richer matching,
   profile selection diagnostics, individual/group enrollment management, and
   profile-specific UI are future work.
-- Device inventory UI is read-only; remove/revoke actions are not implemented
-  yet.
+- Remove/delete actions, heartbeat stale-after policy, MQTT transport, and
+  richer microcontroller provisioning remain future work.

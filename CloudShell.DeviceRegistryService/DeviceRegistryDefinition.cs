@@ -65,12 +65,36 @@ public sealed record DeviceRecord(
     string ClientId,
     IReadOnlyDictionary<string, string> Claims,
     IReadOnlyDictionary<string, string> Properties,
-    DateTimeOffset EnrolledAt);
+    DateTimeOffset EnrolledAt)
+{
+    public string Status { get; init; } = DeviceRecordStatuses.Active;
+
+    public DateTimeOffset? LastSeenAt { get; init; }
+
+    public string? LastSeenSource { get; init; }
+
+    public DateTimeOffset? RevokedAt { get; init; }
+
+    public string? RevokedReason { get; init; }
+}
+
+public static class DeviceRecordStatuses
+{
+    public const string Active = "active";
+    public const string Revoked = "revoked";
+}
 
 public sealed record DeviceEnrollmentRequest(
     string Subject,
     IReadOnlyDictionary<string, string>? Claims = null,
     IReadOnlyDictionary<string, string>? Properties = null);
+
+public sealed record DeviceHeartbeatRequest(
+    IReadOnlyDictionary<string, string>? Properties = null,
+    string? Source = null);
+
+public sealed record DeviceRevokeRequest(
+    string? Reason = null);
 
 public sealed record DeviceEnrollmentResponse(
     string DeviceId,
@@ -85,6 +109,11 @@ public sealed record DeviceEnrollmentResponse(
     string ClientSecret,
     string TokenEndpoint,
     DateTimeOffset EnrolledAt,
+    string Status,
+    DateTimeOffset? LastSeenAt,
+    string? LastSeenSource,
+    DateTimeOffset? RevokedAt,
+    string? RevokedReason,
     IReadOnlyDictionary<string, string> Claims,
     IReadOnlyDictionary<string, string> Properties);
 
@@ -99,4 +128,9 @@ public sealed record DeviceMetadataResponse(
     string ClientId,
     IReadOnlyDictionary<string, string> Claims,
     IReadOnlyDictionary<string, string> Properties,
-    DateTimeOffset EnrolledAt);
+    DateTimeOffset EnrolledAt,
+    string Status,
+    DateTimeOffset? LastSeenAt,
+    string? LastSeenSource,
+    DateTimeOffset? RevokedAt,
+    string? RevokedReason);

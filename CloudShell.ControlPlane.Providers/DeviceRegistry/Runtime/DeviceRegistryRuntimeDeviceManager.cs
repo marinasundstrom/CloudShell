@@ -66,4 +66,15 @@ public sealed record DeviceRegistryRuntimeDevice(
     string ClientId,
     IReadOnlyDictionary<string, string> Claims,
     IReadOnlyDictionary<string, string> Properties,
-    DateTimeOffset EnrolledAt);
+    DateTimeOffset EnrolledAt)
+{
+    public string Status { get; init; } = "active";
+
+    public DateTimeOffset? LastSeenAt { get; init; }
+
+    public string? LastSeenSource { get; init; }
+
+    public DateTimeOffset? RevokedAt { get; init; }
+
+    public string? RevokedReason { get; init; }
+}

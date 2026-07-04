@@ -53,7 +53,8 @@ Then run the device app independently:
 ```
 
 Call the device app to enroll the current machine and read configuration with
-the issued device identity:
+the issued device identity. The app also sends a heartbeat check-in after it
+receives a device token, so the registry records last-seen metadata:
 
 ```bash
 ./cloudshell.sh enroll
@@ -70,4 +71,7 @@ The generic device client sends basic device properties during enrollment,
 including platform, operating system, architecture, framework description,
 machine name, and processor count. Specialized clients can add more properties
 for device capabilities. The Device Registry resource blade shows enrolled
-devices and their reported properties on the Devices tab.
+devices, status, last-seen information, and reported properties on the Devices
+tab. Registry operators can revoke a device identity through the Device
+Registry API; revocation disables future token issuance for that device
+credential.

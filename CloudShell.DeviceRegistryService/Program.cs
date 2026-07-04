@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.ControlPlane.Authentication;
 using CloudShell.DeviceRegistryService;
@@ -38,6 +39,12 @@ api.MapPost("/registries/{registryId}/enroll", EnrollDevice)
     .WithName("CloudShellDeviceRegistryService_EnrollDevice")
     .AllowAnonymous();
 
+api.MapPost("/registries/{registryId}/devices/{deviceId}/heartbeat", HeartbeatDevice)
+    .WithName("CloudShellDeviceRegistryService_HeartbeatDevice");
+
+api.MapPost("/registries/{registryId}/devices/{deviceId}/revoke", RevokeDevice)
+    .WithName("CloudShellDeviceRegistryService_RevokeDevice");
+
 app.Run();
 
 static IResult ListDevices(
@@ -57,19 +64,8 @@ static IResult ListDevices(
         return NotFound();
     }
 
-        return Results.Ok(store.ListDevices(registry.Id)
-        .Select(device => new DeviceMetadataResponse(
-            device.Id,
-            device.Subject,
-            device.IdentityCategory,
-            store.CreatePrincipal(device),
-            device.IdentityProviderId,
-            device.IdentityResourceId,
-            device.IdentityName,
-            device.ClientId,
-            device.Claims,
-            device.Properties,
-            device.EnrolledAt))
+    return Results.Ok(store.ListDevices(registry.Id)
+        .Select(device => ToMetadataResponse(store, device))
         .ToArray());
 }
 
@@ -110,9 +106,119 @@ static IResult EnrollDevice(
         result.ClientSecret!,
         BuildAbsoluteTokenEndpoint(httpRequest),
         result.Device.EnrolledAt,
+        result.Device.Status,
+        result.Device.LastSeenAt,
+        result.Device.LastSeenSource,
+        result.Device.RevokedAt,
+        result.Device.RevokedReason,
         result.Device.Claims,
         result.Device.Properties));
 }
+
+static IResult HeartbeatDevice(
+    string registryId,
+    string deviceId,
+    DeviceHeartbeatRequest request,
+    HttpRequest httpRequest,
+    DeviceRegistryServiceStore store)
+{
+    var registry = store.GetRegistry(registryId);
+    if (registry is null)
+    {
+        return NotFound();
+    }
+
+    if (!HasBearerToken(httpRequest))
+    {
+        return Unauthorized("A device bearer token is required.");
+    }
+
+    var clientId = httpRequest.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (string.IsNullOrWhiteSpace(clientId))
+    {
+        return Unauthorized("A device bearer token is required.");
+    }
+
+    var result = store.RecordHeartbeat(
+        registry.Id,
+        deviceId,
+        clientId,
+        request,
+        DateTimeOffset.UtcNow);
+    if (result.IsNotFound)
+    {
+        return Results.Problem(
+            result.Failure,
+            statusCode: StatusCodes.Status404NotFound,
+            title: "Device not found");
+    }
+
+    if (!result.IsAccepted)
+    {
+        return Results.Problem(
+            result.Failure,
+            statusCode: StatusCodes.Status403Forbidden,
+            title: "Heartbeat rejected");
+    }
+
+    return Results.Ok(ToMetadataResponse(store, result.Device!));
+}
+
+static IResult RevokeDevice(
+    string registryId,
+    string deviceId,
+    DeviceRevokeRequest request,
+    HttpRequest httpRequest,
+    DeviceRegistryServiceStore store)
+{
+    var registry = store.GetRegistry(registryId);
+    if (!HasBearerToken(httpRequest))
+    {
+        return Unauthorized("A Device Registry bearer token is required.");
+    }
+
+    if (registry is null ||
+        !HasManageDevicesPermission(registry, httpRequest))
+    {
+        return NotFound();
+    }
+
+    var result = store.RevokeDevice(
+        registry.Id,
+        deviceId,
+        request.Reason,
+        DateTimeOffset.UtcNow);
+    if (result.IsNotFound)
+    {
+        return Results.Problem(
+            result.Failure,
+            statusCode: StatusCodes.Status404NotFound,
+            title: "Device not found");
+    }
+
+    return Results.Ok(ToMetadataResponse(store, result.Device!));
+}
+
+static DeviceMetadataResponse ToMetadataResponse(
+    DeviceRegistryServiceStore store,
+    DeviceRecord device) =>
+    new(
+        device.Id,
+        device.Subject,
+        device.IdentityCategory,
+        store.CreatePrincipal(device),
+        device.IdentityProviderId,
+        device.IdentityResourceId,
+        device.IdentityName,
+        device.ClientId,
+        device.Claims,
+        device.Properties,
+        device.EnrolledAt,
+        device.Status,
+        device.LastSeenAt,
+        device.LastSeenSource,
+        device.RevokedAt,
+        device.RevokedReason);
 
 static string BuildAbsoluteTokenEndpoint(HttpRequest request)
 {
@@ -129,6 +235,14 @@ static bool IsAuthorized(
         request.HttpContext.User,
         registry.Id,
         DeviceRegistryResourceOperationPermissions.EnrollDevices);
+
+static bool HasManageDevicesPermission(
+    DeviceRegistryDefinition registry,
+    HttpRequest request) =>
+    ResourcePermissionClaimAuthorization.HasResourcePermission(
+        request.HttpContext.User,
+        registry.Id,
+        DeviceRegistryResourceOperationPermissions.ManageDevices);
 
 static bool HasBearerToken(HttpRequest request)
 {

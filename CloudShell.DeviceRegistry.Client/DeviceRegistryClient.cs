@@ -107,6 +107,65 @@ public sealed class DeviceRegistryClient
             cancellationToken) ?? [];
     }
 
+    public async Task<DeviceMetadataResponse> SendHeartbeatAsync(
+        string registryId,
+        string deviceId,
+        string bearerToken,
+        IReadOnlyDictionary<string, string>? properties = null,
+        string? source = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registryId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bearerToken);
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            BuildDeviceActionEndpoint(registryId, deviceId, "heartbeat"))
+        {
+            Content = JsonContent.Create(
+                new DeviceHeartbeatRequest(properties, source),
+                options: SerializerOptions)
+        };
+        request.Headers.Authorization = new("Bearer", bearerToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        return await response.Content.ReadFromJsonAsync<DeviceMetadataResponse>(
+            SerializerOptions,
+            cancellationToken) ??
+            throw new JsonException("CloudShell Device Registry returned an empty heartbeat response.");
+    }
+
+    public async Task<DeviceMetadataResponse> RevokeDeviceAsync(
+        string registryId,
+        string deviceId,
+        string bearerToken,
+        string? reason = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registryId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bearerToken);
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            BuildDeviceActionEndpoint(registryId, deviceId, "revoke"))
+        {
+            Content = JsonContent.Create(
+                new DeviceRevokeRequest(reason),
+                options: SerializerOptions)
+        };
+        request.Headers.Authorization = new("Bearer", bearerToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        return await response.Content.ReadFromJsonAsync<DeviceMetadataResponse>(
+            SerializerOptions,
+            cancellationToken) ??
+            throw new JsonException("CloudShell Device Registry returned an empty revoke response.");
+    }
+
     private Uri BuildEnrollmentEndpoint(string registryId)
     {
         var builder = new UriBuilder(RegistryEndpoint);
@@ -121,6 +180,18 @@ public sealed class DeviceRegistryClient
         var builder = new UriBuilder(RegistryEndpoint);
         var path = builder.Path.TrimEnd('/');
         builder.Path = $"{path}/api/devices/registries/{Uri.EscapeDataString(registryId)}/devices";
+        builder.Query = string.Empty;
+        return builder.Uri;
+    }
+
+    private Uri BuildDeviceActionEndpoint(
+        string registryId,
+        string deviceId,
+        string action)
+    {
+        var builder = new UriBuilder(RegistryEndpoint);
+        var path = builder.Path.TrimEnd('/');
+        builder.Path = $"{path}/api/devices/registries/{Uri.EscapeDataString(registryId)}/devices/{Uri.EscapeDataString(deviceId)}/{action}";
         builder.Query = string.Empty;
         return builder.Uri;
     }

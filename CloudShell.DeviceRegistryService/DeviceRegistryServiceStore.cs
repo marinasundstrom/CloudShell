@@ -94,6 +94,11 @@ public sealed class DeviceRegistryServiceStore(
             var existing = devices.FirstOrDefault(device =>
                 string.Equals(device.RegistryId, registry.Id, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(device.Subject, normalizedSubject, StringComparison.OrdinalIgnoreCase));
+            if (IsRevoked(existing))
+            {
+                return DeviceEnrollmentResult.Rejected("Device identity has been revoked.");
+            }
+
             var deviceId = existing?.Id ?? CreateDeviceId(registry.Id, normalizedSubject);
             var identityName = deviceId;
             var identity = ResourceIdentityReference.ForResource(registry.Id, identityName);
@@ -115,7 +120,12 @@ public sealed class DeviceRegistryServiceStore(
                 clientId,
                 claims,
                 properties,
-                existing?.EnrolledAt ?? timestamp);
+                existing?.EnrolledAt ?? timestamp)
+            {
+                Status = DeviceRecordStatuses.Active,
+                LastSeenAt = timestamp,
+                LastSeenSource = "enrollment"
+            };
 
             if (existing is null)
             {
@@ -142,6 +152,12 @@ public sealed class DeviceRegistryServiceStore(
 
     private void RegisterIdentity(DeviceRecord device)
     {
+        if (IsRevoked(device))
+        {
+            identities.Unregister(device.ClientId);
+            return;
+        }
+
         var registry = GetRegistry(device.RegistryId);
         var identity = ResourceIdentityReference.ForResource(
             device.IdentityResourceId,
@@ -163,6 +179,88 @@ public sealed class DeviceRegistryServiceStore(
                     : ResolveEnrollmentProfile(registry, device.Subject, device.Claims, out _),
                 CreatePrincipal(device)),
             CreatePrincipal(device));
+    }
+
+    public DeviceMutationResult RecordHeartbeat(
+        string registryId,
+        string deviceId,
+        string clientId,
+        DeviceHeartbeatRequest request,
+        DateTimeOffset timestamp)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registryId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientId);
+        ArgumentNullException.ThrowIfNull(request);
+
+        lock (_gate)
+        {
+            var devices = LoadDevices().ToList();
+            var device = FindDevice(devices, registryId, deviceId);
+            if (device is null)
+            {
+                return DeviceMutationResult.NotFound("The device was not found.");
+            }
+
+            if (!string.Equals(device.ClientId, clientId, StringComparison.Ordinal))
+            {
+                return DeviceMutationResult.Rejected("The device identity cannot update another device.");
+            }
+
+            if (IsRevoked(device))
+            {
+                identities.Unregister(device.ClientId);
+                return DeviceMutationResult.Rejected("Device identity has been revoked.");
+            }
+
+            var updated = device with
+            {
+                Properties = MergeProperties(device.Properties, request.Properties),
+                LastSeenAt = timestamp,
+                LastSeenSource = string.IsNullOrWhiteSpace(request.Source)
+                    ? "heartbeat"
+                    : request.Source.Trim(),
+                Status = DeviceRecordStatuses.Active
+            };
+            devices[devices.IndexOf(device)] = updated;
+            WriteDevices(devices);
+
+            return DeviceMutationResult.Accepted(updated);
+        }
+    }
+
+    public DeviceMutationResult RevokeDevice(
+        string registryId,
+        string deviceId,
+        string? reason,
+        DateTimeOffset timestamp)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registryId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+
+        lock (_gate)
+        {
+            var devices = LoadDevices().ToList();
+            var device = FindDevice(devices, registryId, deviceId);
+            if (device is null)
+            {
+                return DeviceMutationResult.NotFound("The device was not found.");
+            }
+
+            var updated = device with
+            {
+                Status = DeviceRecordStatuses.Revoked,
+                RevokedAt = device.RevokedAt ?? timestamp,
+                RevokedReason = string.IsNullOrWhiteSpace(reason)
+                    ? device.RevokedReason
+                    : reason.Trim()
+            };
+            devices[devices.IndexOf(device)] = updated;
+            WriteDevices(devices);
+            identities.Unregister(updated.ClientId);
+
+            return DeviceMutationResult.Accepted(updated);
+        }
     }
 
     public ResourcePrincipalReference CreatePrincipal(DeviceRecord device) =>
@@ -340,6 +438,38 @@ public sealed class DeviceRegistryServiceStore(
         return normalized;
     }
 
+    private static IReadOnlyDictionary<string, string> MergeProperties(
+        IReadOnlyDictionary<string, string> existing,
+        IReadOnlyDictionary<string, string>? updates)
+    {
+        var merged = new Dictionary<string, string>(
+            existing,
+            StringComparer.OrdinalIgnoreCase);
+        if (updates is null)
+        {
+            return merged;
+        }
+
+        foreach (var (name, value) in NormalizeProperties(updates))
+        {
+            merged[name] = value;
+        }
+
+        return merged;
+    }
+
+    private static DeviceRecord? FindDevice(
+        IReadOnlyList<DeviceRecord> devices,
+        string registryId,
+        string deviceId) =>
+        devices.FirstOrDefault(device =>
+            string.Equals(device.RegistryId, registryId, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(device.Id, deviceId, StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsRevoked(DeviceRecord? device) =>
+        string.Equals(device?.Status, DeviceRecordStatuses.Revoked, StringComparison.OrdinalIgnoreCase) ||
+        device?.RevokedAt is not null;
+
     private static string CreateDeviceId(
         string registryId,
         string subject)
@@ -383,4 +513,20 @@ public sealed record DeviceEnrollmentResult(
 
     public static DeviceEnrollmentResult Rejected(string failure) =>
         new(false, null, null, failure);
+}
+
+public sealed record DeviceMutationResult(
+    bool IsAccepted,
+    bool IsNotFound,
+    DeviceRecord? Device,
+    string? Failure)
+{
+    public static DeviceMutationResult Accepted(DeviceRecord device) =>
+        new(true, false, device, null);
+
+    public static DeviceMutationResult Rejected(string failure) =>
+        new(false, false, null, failure);
+
+    public static DeviceMutationResult NotFound(string failure) =>
+        new(false, true, null, failure);
 }

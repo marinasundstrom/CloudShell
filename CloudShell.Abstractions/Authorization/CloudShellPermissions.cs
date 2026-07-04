@@ -58,6 +58,9 @@ public static class DeviceRegistryResourceOperationPermissions
 {
     public const string EnrollDevices =
         "CloudShell.IoT/deviceRegistries/devices/enroll/action";
+
+    public const string ManageDevices =
+        "CloudShell.IoT/deviceRegistries/devices/manage/action";
 }
 
 public static class DatabaseResourceOperationPermissions
@@ -204,6 +207,9 @@ public static class CloudShellPermissions
         {
             public const string EnrollDevices =
                 DeviceRegistryResourceOperationPermissions.EnrollDevices;
+
+            public const string ManageDevices =
+                DeviceRegistryResourceOperationPermissions.ManageDevices;
         }
     }
 

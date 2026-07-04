@@ -35,6 +35,8 @@ else
                         <th>Platform</th>
                         <th>Operating system</th>
                         <th>Architecture</th>
+                        <th>Status</th>
+                        <th>Last seen</th>
                         <th>Enrolled</th>
                         <th></th>
                     </tr>
@@ -53,6 +55,8 @@ else
                                 <div class="table-subtext">@GetProperty(device, "osDescription")</div>
                             </td>
                             <td>@GetArchitecture(device)</td>
+                            <td>@FormatStatus(device)</td>
+                            <td>@FormatOptionalTimestamp(device.LastSeenAt)</td>
                             <td>@FormatTimestamp(device.EnrolledAt)</td>
                             <td>
                                 <FluentButton Appearance="Appearance.Neutral"
@@ -95,6 +99,26 @@ else
                     <tr>
                         <th scope="row">Identity name</th>
                         <td>@SelectedDevice.IdentityName</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Status</th>
+                        <td>@FormatStatus(SelectedDevice)</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Last seen</th>
+                        <td>@FormatOptionalTimestamp(SelectedDevice.LastSeenAt)</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Last seen source</th>
+                        <td>@FormatOptionalValue(SelectedDevice.LastSeenSource)</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Revoked</th>
+                        <td>@FormatOptionalTimestamp(SelectedDevice.RevokedAt)</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Revocation reason</th>
+                        <td>@FormatOptionalValue(SelectedDevice.RevokedReason)</td>
                     </tr>
                 </tbody>
             </ResourceTable>
@@ -235,4 +259,19 @@ else
 
     private static string FormatTimestamp(DateTimeOffset timestamp) =>
         timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+
+    private static string FormatOptionalTimestamp(DateTimeOffset? timestamp) =>
+        timestamp is null
+            ? "-"
+            : FormatTimestamp(timestamp.Value);
+
+    private static string FormatOptionalValue(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? "-"
+            : value;
+
+    private static string FormatStatus(DeviceRegistryRuntimeDevice device) =>
+        string.IsNullOrWhiteSpace(device.Status)
+            ? "active"
+            : device.Status;
 }

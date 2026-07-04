@@ -38,6 +38,14 @@ on `git blame --follow`, and then by the broad type of change.
   profiles now distinguish individual and group enrollment intent and carry
   the target resource permissions provisioned for matching devices; see
   ADR-20260704-002.
+- Added Device Registry presence and revocation support. Enrolled device
+  records now track status, last-seen timestamp/source, and revocation
+  metadata; device clients can send authenticated heartbeat check-ins; registry
+  operators with device-management permission can revoke a device identity; and
+  revocation unregisters the built-in device identity client so future token
+  requests are rejected. The Device Registry sample now exercises enrollment,
+  heartbeat, configuration access, revocation, and post-revocation token
+  denial.
 - Added typed Secrets Vault certificate support for future TLS/HTTPS flows:
   `CertificateReference` and resolver contracts, create-only
   `seed.certificates` resource-template input, provider-owned runtime

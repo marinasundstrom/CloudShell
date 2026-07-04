@@ -15,5 +15,10 @@ public sealed record DeviceEnrollmentResponse(
     string ClientSecret,
     string TokenEndpoint,
     DateTimeOffset EnrolledAt,
+    string Status,
+    DateTimeOffset? LastSeenAt,
+    string? LastSeenSource,
+    DateTimeOffset? RevokedAt,
+    string? RevokedReason,
     IReadOnlyDictionary<string, string> Claims,
     IReadOnlyDictionary<string, string> Properties);
