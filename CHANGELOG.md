@@ -21,6 +21,8 @@ on `git blame --follow`, and then by the broad type of change.
   `Launchers/Python/cloudshell`, converted `samples/PythonAppHost` to a
   Python-authored AppHost script, and documented the template/apply/start/run
   launcher path for Python resource declarations.
+- Added Python script launcher support to the sample smoke harness and restored
+  `samples/PythonAppHost` to supported-host readiness coverage.
 - Added a Python app resource model slice with `application.python-app`,
   `AddPythonApp(...)`, process lifecycle/log/monitoring support, Resource
   Manager projection, sample coverage, and resource documentation.

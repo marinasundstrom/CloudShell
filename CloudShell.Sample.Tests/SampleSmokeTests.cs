@@ -284,6 +284,11 @@ public sealed class SampleSmokeTests
         };
         yield return new object[]
         {
+            "samples/PythonAppHost/AppHost/app_host.py",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
             "samples/SplitHosting/ControlPlane/CloudShell.SplitHosting.ControlPlane.csproj",
             new[] { "/openapi/control-plane-v1.json", "/api/control-plane/v1/resources" }
         };
@@ -3892,6 +3897,10 @@ public sealed class SampleSmokeTests
             environment.Add(("Samples__SettingsAndSecrets__SecretsServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("Samples__SettingsAndSecrets__ApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
         }
+        else if (sampleName == "PythonAppHost")
+        {
+            environment.Add(("Authentication__Enabled", "false"));
+        }
         else if (sampleName == "SplitHosting")
         {
             environment.Add(("Authentication__BuiltInAuthority__Issuer", $"http://localhost:{hostPort}"));
@@ -5820,27 +5829,41 @@ public sealed class SampleSmokeTests
             IReadOnlyList<(string Key, string Value)>? environment = null)
         {
             var root = FindRepositoryRoot();
-            var projectFile = Path.Combine(root, projectPath);
-            var projectDirectory = Path.GetDirectoryName(projectFile) ??
+            var launcherPath = Path.Combine(root, projectPath);
+            var projectDirectory = Path.GetDirectoryName(launcherPath) ??
                 throw new InvalidOperationException($"Could not resolve sample project directory for '{projectPath}'.");
             var stateDirectory = Path.Combine(
                 Path.GetTempPath(),
-                $"cloudshell-sample-{Path.GetFileNameWithoutExtension(projectFile)}-{Guid.NewGuid():N}");
+                $"cloudshell-sample-{Path.GetFileNameWithoutExtension(launcherPath)}-{Guid.NewGuid():N}");
 
             var baseAddress = new Uri($"http://127.0.0.1:{port}");
-            var startInfo = new ProcessStartInfo("dotnet")
+            var isPythonLauncher = string.Equals(
+                Path.GetExtension(launcherPath),
+                ".py",
+                StringComparison.OrdinalIgnoreCase);
+            var startInfo = new ProcessStartInfo(isPythonLauncher ? "python3" : "dotnet")
             {
-                WorkingDirectory = root,
+                WorkingDirectory = isPythonLauncher ? projectDirectory : root,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false
             };
-            startInfo.ArgumentList.Add("run");
-            startInfo.ArgumentList.Add("--no-build");
-            startInfo.ArgumentList.Add("--project");
-            startInfo.ArgumentList.Add(projectFile);
-            startInfo.ArgumentList.Add("--");
-            startInfo.ArgumentList.Add("--run");
+            if (isPythonLauncher)
+            {
+                startInfo.ArgumentList.Add(launcherPath);
+                startInfo.ArgumentList.Add("run");
+                startInfo.Environment["PYTHONPATH"] = BuildPythonLauncherPath(root);
+            }
+            else
+            {
+                startInfo.ArgumentList.Add("run");
+                startInfo.ArgumentList.Add("--no-build");
+                startInfo.ArgumentList.Add("--project");
+                startInfo.ArgumentList.Add(launcherPath);
+                startInfo.ArgumentList.Add("--");
+                startInfo.ArgumentList.Add("--run");
+            }
+
             startInfo.ArgumentList.Add("--no-build");
             startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
             startInfo.Environment["CLOUDSHELL_CONTROL_PLANE_URL"] = baseAddress.ToString().TrimEnd('/');
@@ -5872,6 +5895,15 @@ public sealed class SampleSmokeTests
                 sample.Dispose();
                 throw;
             }
+        }
+
+        private static string BuildPythonLauncherPath(string root)
+        {
+            var launcherPath = Path.Combine(root, "Launchers", "Python", "cloudshell");
+            var existing = Environment.GetEnvironmentVariable("PYTHONPATH");
+            return string.IsNullOrWhiteSpace(existing)
+                ? launcherPath
+                : $"{launcherPath}{Path.PathSeparator}{existing}";
         }
 
         private async Task WaitForResourcesAsync(
