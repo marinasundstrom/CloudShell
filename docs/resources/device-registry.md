@@ -178,6 +178,9 @@ a Configuration Store setting.
 The built-in Resource Manager UI contributes Device Registry tabs under the
 General section:
 
+- Standard Resource Manager endpoint surfaces show the HTTP registry endpoint
+  and, when configured, the MQTT endpoint as separate local endpoints so
+  operators can tell which device transports are available.
 - **Devices** lists enrolled devices and shows device status, last seen,
   identity metadata, enrollment claims, and non-secret device properties
   reported by the client. Registry operators can revoke access for the selected

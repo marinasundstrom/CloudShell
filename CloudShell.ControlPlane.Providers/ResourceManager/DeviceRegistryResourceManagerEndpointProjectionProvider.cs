@@ -15,29 +15,47 @@ public sealed class DeviceRegistryResourceManagerEndpointProjectionProvider :
         }
 
         var endpoint = resource.Attributes.GetString(DeviceRegistryResourceTypeProvider.Attributes.Endpoint);
-        if (string.IsNullOrWhiteSpace(endpoint))
+        var mqttEndpoint = resource.Attributes.GetString(DeviceRegistryResourceTypeProvider.Attributes.MqttEndpoint);
+        if (string.IsNullOrWhiteSpace(endpoint) && string.IsNullOrWhiteSpace(mqttEndpoint))
         {
             return ResourceModelResourceManagerEndpointProjection.Empty;
         }
 
+        var endpoints = new List<ResourceEndpoint>();
+        var mappings = new List<ResourceEndpointNetworkMapping>();
+        if (!string.IsNullOrWhiteSpace(endpoint))
+        {
+            endpoints.Add(ResourceEndpoint.Contract(
+                "registry",
+                "http",
+                ResourceExposureScope.Local,
+                ResourceEndpoint.TryGetPort(endpoint, out var port) ? port : null));
+            mappings.Add(ResourceEndpointNetworkMapping.ForEndpoint(
+                resource.EffectiveResourceId,
+                "registry",
+                ToRegistryEndpoint(endpoint, resource.EffectiveResourceId),
+                ResourceExposureScope.Local,
+                sourceEndpointName: "registry"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(mqttEndpoint))
+        {
+            endpoints.Add(ResourceEndpoint.Contract(
+                "mqtt",
+                "mqtt",
+                ResourceExposureScope.Local,
+                ResourceEndpoint.TryGetPort(mqttEndpoint, out var port) ? port : null));
+            mappings.Add(ResourceEndpointNetworkMapping.ForEndpoint(
+                resource.EffectiveResourceId,
+                "mqtt",
+                mqttEndpoint,
+                ResourceExposureScope.Local,
+                sourceEndpointName: "mqtt"));
+        }
+
         return new ResourceModelResourceManagerEndpointProjection(
-            Endpoints:
-            [
-                ResourceEndpoint.Contract(
-                    "registry",
-                    "http",
-                    ResourceExposureScope.Local,
-                    ResourceEndpoint.TryGetPort(endpoint, out var port) ? port : null)
-            ],
-            EndpointNetworkMappings:
-            [
-                ResourceEndpointNetworkMapping.ForEndpoint(
-                    resource.EffectiveResourceId,
-                    "registry",
-                    ToRegistryEndpoint(endpoint, resource.EffectiveResourceId),
-                    ResourceExposureScope.Local,
-                    sourceEndpointName: "registry")
-            ]);
+            Endpoints: endpoints,
+            EndpointNetworkMappings: mappings);
     }
 
     private static string ToRegistryEndpoint(

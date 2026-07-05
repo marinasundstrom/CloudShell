@@ -21,7 +21,9 @@ public sealed class DeviceRegistryResourceManagerProjectionTests
         services.AddBuiltInProviderResourceManagerProjections();
 
         await using var serviceProvider = services.BuildServiceProvider();
-        var resource = ResolveDeviceRegistry("http://localhost:7150");
+        var resource = ResolveDeviceRegistry(
+            "http://localhost:7150",
+            "mqtt://localhost:7154");
         var endpointProjection = serviceProvider
             .GetServices<IResourceModelResourceManagerEndpointProjectionProvider>()
             .Select(provider => provider.GetEndpointProjection(resource))
@@ -48,14 +50,31 @@ public sealed class DeviceRegistryResourceManagerProjectionTests
 
         Assert.NotNull(endpointProjection);
         var projection = endpointProjection;
-        var endpoint = Assert.Single(projection.ResourceEndpoints);
-        Assert.Equal("registry", endpoint.Name);
-        Assert.Equal("http", endpoint.Protocol);
-        Assert.Equal(7150, endpoint.TargetPort);
-        var mapping = Assert.Single(projection.ResourceEndpointNetworkMappings);
+        Assert.Collection(
+            projection.ResourceEndpoints,
+            endpoint =>
+            {
+                Assert.Equal("registry", endpoint.Name);
+                Assert.Equal("http", endpoint.Protocol);
+                Assert.Equal(7150, endpoint.TargetPort);
+            },
+            endpoint =>
+            {
+                Assert.Equal("mqtt", endpoint.Name);
+                Assert.Equal("mqtt", endpoint.Protocol);
+                Assert.Equal(7154, endpoint.TargetPort);
+            });
+        Assert.Collection(
+            projection.ResourceEndpointNetworkMappings,
+            mapping => Assert.Equal(
+                "http://localhost:7150/api/device-registries/iot.device-registry%3Adevices",
+                mapping.Address),
+            mapping => Assert.Equal(
+                "mqtt://localhost:7154",
+                mapping.Address));
         Assert.Equal(
             "http://localhost:7150/api/device-registries/iot.device-registry%3Adevices",
-            mapping.Address);
+            projection.ResourceEndpointNetworkMappings[0].Address);
         Assert.Equal(ResourceManagerState.Running, state);
         Assert.Equal(ResourceManagerState.Running, managerResource.State);
         Assert.Equal(
@@ -67,17 +86,25 @@ public sealed class DeviceRegistryResourceManagerProjectionTests
         Assert.Contains(monitoring.Metrics, metric => metric.Name == "resource.process.count");
     }
 
-    private static ResourceModelResource ResolveDeviceRegistry(string endpoint)
+    private static ResourceModelResource ResolveDeviceRegistry(
+        string endpoint,
+        string? mqttEndpoint = null)
     {
+        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+        {
+            [DeviceRegistryResourceTypeProvider.Attributes.Endpoint] = endpoint
+        };
+        if (!string.IsNullOrWhiteSpace(mqttEndpoint))
+        {
+            attributes[DeviceRegistryResourceTypeProvider.Attributes.MqttEndpoint] = mqttEndpoint;
+        }
+
         var state = new CloudShell.ResourceModel.ResourceState(
             "devices",
             DeviceRegistryResourceTypeProvider.ResourceTypeId,
             ResourceId: "iot.device-registry:devices",
             ProviderId: DeviceRegistryResourceTypeProvider.ProviderId,
-            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
-            {
-                [DeviceRegistryResourceTypeProvider.Attributes.Endpoint] = endpoint
-            });
+            Attributes: attributes);
         var typeProvider = new DeviceRegistryResourceTypeProvider();
         var resolver = new ResourceResolver(
             [DeviceRegistryResourceTypeProvider.ClassDefinition],
