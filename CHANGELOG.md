@@ -25,6 +25,8 @@ on `git blame --follow`, and then by the broad type of change.
   and reported-state sync messages, including an optional embedded MQTT
   endpoint, device identity credential validation, C# client helpers, sample
   wiring, and smoke coverage.
+- Added an explicit `Microsoft.OpenApi` 3.7.0 dependency for OpenAPI-enabled
+  hosts so the vulnerable transitive 3.3.1 package is no longer resolved.
 - Recorded the enrollment profile name and kind on enrolled Device Registry
   devices and surfaced that attribution through API/client responses and the
   Resource Manager device list.
