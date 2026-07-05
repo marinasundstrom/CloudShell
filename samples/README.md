@@ -36,6 +36,7 @@ target `CloudShell.LocalDevelopmentHost`.
 | `CSharpAppHost` | C# launcher authoring with Resource Model builders. | Preferred C# app-authoring sample. |
 | `DeviceRegistry` | C# launcher authoring for device enrollment, device identity, and configuration access. | Preferred IoT/device identity sample. |
 | `TypeScriptAppHost` | TypeScript launcher authoring and template apply. | Experimental launcher sample. |
+| `ReactTypeScriptApp` | TypeScript launcher authoring for a React frontend, Node backend, Configuration Store, and load-balancer resource. | Experimental launcher sample. |
 | `JavaAppHost` | Java launcher authoring and template apply. | Experimental launcher sample. |
 | `GoAppHost` | Go launcher authoring and template apply. | Experimental launcher sample. |
 | `GoContainerApp` | Go launcher authoring for a Dockerfile-backed container app that reads Configuration Store settings through the Go runtime SDK. | Experimental launcher sample. |

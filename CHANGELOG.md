@@ -115,6 +115,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Moved the Configuration Store Settings tab and Secrets Vault content tabs
   into the Resource Manager General section instead of giving each small
   collection view its own same-named section.
+- Added `samples/ReactTypeScriptApp`, a TypeScript launcher sample that
+  declares a React/Vite frontend, a Node backend API, a Configuration Store
+  dependency, and a load-balancer resource, with sample smoke coverage for the
+  package-backed TypeScript AppHost path.
 
 ### 2026-07-04
 

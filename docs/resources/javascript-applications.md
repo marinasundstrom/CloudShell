@@ -141,3 +141,9 @@ wrapping use case. It declares a JavaScript app, projects it as an
 `application.container-app`, builds the image from `App/Dockerfile`, and
 declares three replicas so the container app deployment and scale views can be
 tested without changing the basic process sample.
+
+The `samples/ReactTypeScriptApp` sample covers a browser frontend with a
+backend. A TypeScript launcher declares a React/Vite frontend, a Node backend
+API, a Configuration Store dependency consumed by the backend, and a
+load-balancer resource that routes frontend and `/api` traffic to the
+appropriate application resources.

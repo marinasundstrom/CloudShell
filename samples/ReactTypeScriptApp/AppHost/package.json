@@ -1,0 +1,15 @@
+{
+  "name": "cloudshell-react-typescript-app-host",
+  "version": "0.0.0-poc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "template": "node --experimental-transform-types src/app-host.ts",
+    "apply": "node --experimental-transform-types src/app-host.ts --apply"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}

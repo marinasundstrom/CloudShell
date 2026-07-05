@@ -289,6 +289,11 @@ public sealed class SampleSmokeTests
         };
         yield return new object[]
         {
+            "samples/ReactTypeScriptApp/AppHost/package.json",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
             "samples/SplitHosting/ControlPlane/CloudShell.SplitHosting.ControlPlane.csproj",
             new[] { "/openapi/control-plane-v1.json", "/api/control-plane/v1/resources" }
         };
@@ -3901,6 +3906,14 @@ public sealed class SampleSmokeTests
         {
             environment.Add(("Authentication__Enabled", "false"));
         }
+        else if (sampleName == "ReactTypeScriptApp")
+        {
+            environment.Add(("Authentication__Enabled", "false"));
+            environment.Add(("ReactTypeScriptApp__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ReactTypeScriptApp__BackendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ReactTypeScriptApp__ConfigurationServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("ReactTypeScriptApp__EdgeHttpPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+        }
         else if (sampleName == "SplitHosting")
         {
             environment.Add(("Authentication__BuiltInAuthority__Issuer", $"http://localhost:{hostPort}"));
@@ -3980,6 +3993,11 @@ public sealed class SampleSmokeTests
         if (projectPath.Contains("/PythonAppHost/", StringComparison.OrdinalIgnoreCase))
         {
             return "PythonAppHost";
+        }
+
+        if (projectPath.Contains("/ReactTypeScriptApp/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ReactTypeScriptApp";
         }
 
         if (projectPath.Contains("/SplitHosting/ControlPlane/", StringComparison.OrdinalIgnoreCase))
@@ -4064,6 +4082,12 @@ public sealed class SampleSmokeTests
                 "configuration:sample-app",
                 "secrets-vault:sample-app",
                 "application:settings-secrets-api"
+            ],
+            "ReactTypeScriptApp" =>
+            [
+                "configuration:react-typescript-settings",
+                "application:react-api",
+                "application:react-frontend"
             ],
             "SplitHosting" => [],
             "ThirdPartyIdentity" =>
@@ -5841,9 +5865,20 @@ public sealed class SampleSmokeTests
                 Path.GetExtension(launcherPath),
                 ".py",
                 StringComparison.OrdinalIgnoreCase);
-            var startInfo = new ProcessStartInfo(isPythonLauncher ? "python3" : "dotnet")
+            var isTypeScriptPackageLauncher = string.Equals(
+                Path.GetFileName(launcherPath),
+                "package.json",
+                StringComparison.OrdinalIgnoreCase);
+            var startInfo = new ProcessStartInfo(
+                isPythonLauncher
+                    ? "python3"
+                    : isTypeScriptPackageLauncher
+                        ? "npm"
+                        : "dotnet")
             {
-                WorkingDirectory = isPythonLauncher ? projectDirectory : root,
+                WorkingDirectory = isPythonLauncher || isTypeScriptPackageLauncher
+                    ? projectDirectory
+                    : root,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false
@@ -5853,6 +5888,13 @@ public sealed class SampleSmokeTests
                 startInfo.ArgumentList.Add(launcherPath);
                 startInfo.ArgumentList.Add("run");
                 startInfo.Environment["PYTHONPATH"] = BuildPythonLauncherPath(root);
+            }
+            else if (isTypeScriptPackageLauncher)
+            {
+                startInfo.ArgumentList.Add("run");
+                startInfo.ArgumentList.Add("apply");
+                startInfo.ArgumentList.Add("--");
+                startInfo.ArgumentList.Add("--run");
             }
             else
             {
@@ -6022,6 +6064,17 @@ public sealed class SampleSmokeTests
                     "configuration.store:python-app-settings",
                     "secrets.vault:python-app-secrets",
                     "application.python-app:python-api"
+                ];
+            }
+
+            if (projectPath.Contains("/ReactTypeScriptApp/", StringComparison.OrdinalIgnoreCase))
+            {
+                return
+                [
+                    "configuration.store:react-typescript-settings",
+                    "application.javascript-app:react-api",
+                    "application.javascript-app:react-frontend",
+                    "cloudshell.loadBalancer:react-edge"
                 ];
             }
 
