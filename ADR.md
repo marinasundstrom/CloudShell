@@ -65,15 +65,17 @@ device identities: it decides which devices may enroll and which resource
 access grants the resulting device principal receives. Profiles distinguish
 individual enrollment from group enrollment so CloudShell can later expose
 per-device and criteria-based enrollment management without changing the
-device principal contract. Device presence is registry-owned metadata:
-enrollment and explicit heartbeat update `lastSeenAt`, while revocation marks
-the device record revoked and disables future built-in token issuance for that
-device credential. Removing a device record is a cleanup operation that also
-unregisters the built-in device identity client, while revocation remains the
-explicit audit-friendly denial state. Projecting enrolled devices as CloudShell
-resources, resolving factory certificates for proof validation, credential
-rotation, per-application identities, and provider-backed identity systems
-remain future work.
+device principal contract. Enrollment must require provider-owned proof before
+credentials are issued; the first implementation uses a service-configured
+enrollment token while certificate-backed proof remains future work. Device
+presence is registry-owned metadata: enrollment and explicit heartbeat update
+`lastSeenAt`, while revocation marks the device record revoked and disables
+future built-in token issuance for that device credential. Removing a device
+record is a cleanup operation that also unregisters the built-in device
+identity client, while revocation remains the explicit audit-friendly denial
+state. Projecting enrolled devices as CloudShell resources, resolving factory
+certificates for proof validation, credential rotation, per-application
+identities, and provider-backed identity systems remain future work.
 
 ### ADR-20260704-001: Model certificates as typed vault-backed references
 

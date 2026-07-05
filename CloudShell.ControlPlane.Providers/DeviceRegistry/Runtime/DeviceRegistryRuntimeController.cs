@@ -28,6 +28,8 @@ public sealed class DeviceRegistryRuntimeOptions
     public string ManagementClientSecret { get; set; } =
         "local-development-device-registry-admin-secret";
 
+    public string? EnrollmentToken { get; set; }
+
     public IList<ResourcePermissionGrant> PermissionGrants { get; } = [];
 }
 
@@ -205,6 +207,10 @@ public sealed class DeviceRegistryProcessRuntimeController(
             variables,
             "CloudShell__DeviceRegistryService__MqttEndpoint",
             resource.Attributes.GetString(DeviceRegistryResourceTypeProvider.Attributes.MqttEndpoint));
+        AddIfNotWhiteSpace(
+            variables,
+            "CloudShell__DeviceRegistryService__EnrollmentToken",
+            options.EnrollmentToken);
 
         if (!string.IsNullOrWhiteSpace(options.ManagementClientId) &&
             !string.IsNullOrWhiteSpace(options.ManagementClientSecret))

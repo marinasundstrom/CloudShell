@@ -36,8 +36,8 @@ The end-to-end flow is:
 2. The Device Registry and related backing services are started from the
    resource model.
 3. The standalone device app enrolls the current machine with subject
-   `device/<machine>`.
-4. The registry validates the enrollment profile and provisions a
+   `device/<machine>` and a local enrollment token proof.
+4. The registry validates the enrollment token and profile, then provisions a
    `deviceIdentity` principal.
 5. The device requests a token with its issued credentials and reads a
    Configuration Store setting.
@@ -67,9 +67,14 @@ This sample has two apps:
 - `EventConsumer/CloudShell.DeviceRegistry.EventConsumer` is a separate
   retained-event consumer that reads events from the Event Broker.
 
-The registry enrollment policy accepts subjects under `device/` and requires
-the `manufacturer=cloudshell` enrollment claim. The launcher targets
-`CloudShell.LocalDevelopmentHost` and declares three local service resources:
+The registry enrollment token is configured in the launcher host settings under
+`CloudShell:DeviceRegistryService:EnrollmentToken` and passed to the standalone
+device app as `CLOUDSHELL_DEVICE_REGISTRY_ENROLLMENT_TOKEN` or
+`DeviceRegistry:EnrollmentToken`. The token is local sample proof material, not
+resource graph state. The registry enrollment policy accepts subjects under
+`device/` and requires the `manufacturer=cloudshell` enrollment claim. The
+launcher targets `CloudShell.LocalDevelopmentHost` and declares three local
+service resources:
 
 | Resource | Default endpoint |
 | --- | --- |

@@ -198,6 +198,7 @@ public sealed class CloudShellServiceClientTests
         var enrollment = await client.EnrollDeviceAsync(
             "iot.device-registry:devices",
             "device/test-pc",
+            "trusted-token",
             new Dictionary<string, string>
             {
                 ["manufacturer"] = "cloudshell"
@@ -225,6 +226,9 @@ public sealed class CloudShellServiceClientTests
         Assert.Equal(
             "cloudshell",
             requestDocument.RootElement.GetProperty("claims").GetProperty("manufacturer").GetString());
+        Assert.Equal(
+            "trusted-token",
+            requestDocument.RootElement.GetProperty("enrollmentToken").GetString());
         Assert.Equal(
             "true",
             requestDocument.RootElement.GetProperty("properties").GetProperty("supportsConfigurationPull").GetString());

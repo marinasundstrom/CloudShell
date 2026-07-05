@@ -28,6 +28,9 @@ public sealed class DeviceRegistryServiceStore(
     private readonly string? _resourceId = string.IsNullOrWhiteSpace(options.Value.ResourceId)
         ? null
         : options.Value.ResourceId.Trim();
+    private readonly string? _enrollmentToken = string.IsNullOrWhiteSpace(options.Value.EnrollmentToken)
+        ? null
+        : options.Value.EnrollmentToken.Trim();
     private const string DeviceIdentityCategory = "deviceIdentity";
     private const string HttpTransport = "http";
     private readonly ResourceIdentityProviderDefinition _identityProvider = new(
@@ -79,6 +82,12 @@ public sealed class DeviceRegistryServiceStore(
         if (string.IsNullOrWhiteSpace(normalizedSubject))
         {
             return DeviceEnrollmentResult.Rejected("Device subject is required.");
+        }
+
+        var proofFailure = ValidateEnrollmentProof(request.EnrollmentToken);
+        if (proofFailure is not null)
+        {
+            return DeviceEnrollmentResult.Rejected(proofFailure);
         }
 
         var claims = NormalizeClaims(request.Claims);
@@ -531,6 +540,23 @@ public sealed class DeviceRegistryServiceStore(
             device = candidate;
             return true;
         }
+    }
+
+    private string? ValidateEnrollmentProof(string? enrollmentToken)
+    {
+        if (string.IsNullOrWhiteSpace(_enrollmentToken))
+        {
+            return "Device enrollment is not configured with a trusted proof.";
+        }
+
+        if (string.IsNullOrWhiteSpace(enrollmentToken))
+        {
+            return "Device enrollment proof is required.";
+        }
+
+        return FixedTimeEquals(_enrollmentToken, enrollmentToken.Trim())
+            ? null
+            : "Device enrollment proof is invalid.";
     }
 
     private IReadOnlyList<DeviceRegistryDefinition> LoadDefinitions()

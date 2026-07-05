@@ -81,6 +81,8 @@ cloudShell
         runtime.ServiceAuthenticationIssuer = serviceAuthenticationIssuer;
         runtime.ServiceAuthenticationAudience = serviceAuthenticationAudience;
         runtime.ServiceAuthenticationSigningKeyPem = serviceAuthenticationSigningKeyPem;
+        runtime.EnrollmentToken =
+            builder.Configuration["CloudShell:DeviceRegistryService:EnrollmentToken"];
     })
     .UseEventBrokerResourceProvider(runtime =>
     {

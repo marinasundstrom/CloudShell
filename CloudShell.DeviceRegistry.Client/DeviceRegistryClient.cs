@@ -64,6 +64,20 @@ public sealed class DeviceRegistryClient
             MergeCurrentDeviceProperties(properties),
             cancellationToken);
 
+    public Task<DeviceEnrollmentResponse> EnrollCurrentDeviceAsync(
+        string registryId,
+        string enrollmentToken,
+        IReadOnlyDictionary<string, string>? claims = null,
+        IReadOnlyDictionary<string, string>? properties = null,
+        CancellationToken cancellationToken = default) =>
+        EnrollDeviceAsync(
+            registryId,
+            CreateCurrentDeviceSubject(),
+            enrollmentToken,
+            claims,
+            MergeCurrentDeviceProperties(properties),
+            cancellationToken);
+
     public async Task<DeviceEnrollmentResponse> EnrollDeviceAsync(
         string registryId,
         string subject,
@@ -77,6 +91,31 @@ public sealed class DeviceRegistryClient
         using var response = await httpClient.PostAsJsonAsync(
             BuildEnrollmentEndpoint(registryId),
             new DeviceEnrollmentRequest(subject, claims, properties),
+            SerializerOptions,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        return await response.Content.ReadFromJsonAsync<DeviceEnrollmentResponse>(
+            SerializerOptions,
+            cancellationToken) ??
+            throw new JsonException("CloudShell Device Registry returned an empty enrollment response.");
+    }
+
+    public async Task<DeviceEnrollmentResponse> EnrollDeviceAsync(
+        string registryId,
+        string subject,
+        string enrollmentToken,
+        IReadOnlyDictionary<string, string>? claims = null,
+        IReadOnlyDictionary<string, string>? properties = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registryId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(subject);
+        ArgumentException.ThrowIfNullOrWhiteSpace(enrollmentToken);
+
+        using var response = await httpClient.PostAsJsonAsync(
+            BuildEnrollmentEndpoint(registryId),
+            new DeviceEnrollmentRequest(subject, claims, properties, enrollmentToken),
             SerializerOptions,
             cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);

@@ -60,10 +60,15 @@ on the vault resource. The registry can then be started through its lifecycle
 actions, using the same host-local process runtime pattern as Configuration
 Store and Secrets Vault.
 
-Enrollment policy is the MVP gate for provisioning. Enrollment profiles extend
-that policy with resource access grants assigned to the enrolled device
-principal, making enrollment the durable source for what services a device can
-access after provisioning.
+Enrollment requires a provider-owned proof token before policy matching can
+issue device credentials. The token is configured on the Device Registry service
+host as `CloudShell:DeviceRegistryService:EnrollmentToken`; it is not part of
+the resource graph and must not be projected through resource attributes,
+templates, logs, diagnostics, or generated UI. Enrollment policy is the MVP
+gate after that proof is accepted. Enrollment profiles extend that policy with
+resource access grants assigned to the enrolled device principal, making
+enrollment the durable source for what services a device can access after
+provisioning.
 
 Enrollment profiles are intentionally close to Azure IoT DPS enrollment
 language while staying CloudShell-specific:
@@ -86,10 +91,10 @@ in the MVP, but they are not app resources and should remain distinguishable in
 access control, diagnostics, API projection, and future UI.
 
 The Device Registry service persists registry-owned device metadata in its own
-device store. During enrollment it registers the device identity with the
-built-in authority registry and returns client credentials for the device.
-Those credentials are returned only in the enrollment response and are not
-stored in projected resource attributes.
+device store. During enrollment it validates the provider-owned enrollment
+token, registers the device identity with the built-in authority registry, and
+returns client credentials for the device. Those credentials are returned only
+in the enrollment response and are not stored in projected resource attributes.
 
 Device records carry lifecycle, presence, and twin state. These are separate
 concepts:
@@ -244,7 +249,9 @@ store with a stronger database while keeping the resource model stable.
 ## Known Gaps
 
 - Factory certificate proof validation is not implemented yet; trusted
-  certificate references are modeled and persisted for the next slice.
+  certificate references are modeled and persisted for the next slice. Until
+  that lands, enrollment uses the provider-owned service enrollment token as
+  the required proof.
 - Enrolled devices are not projected as resources yet.
 - Credential rotation, device groups, per-application identities, and
   provider-backed identity systems are future work.

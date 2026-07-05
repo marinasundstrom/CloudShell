@@ -32,6 +32,8 @@ var eventBrokerStream = builder.Configuration["EventBroker:Stream"] ??
 var manufacturer = builder.Configuration["Device:Manufacturer"] ??
     Environment.GetEnvironmentVariable("DEVICE_MANUFACTURER") ??
     "cloudshell";
+var enrollmentToken = builder.Configuration["DeviceRegistry:EnrollmentToken"] ??
+    Environment.GetEnvironmentVariable("CLOUDSHELL_DEVICE_REGISTRY_ENROLLMENT_TOKEN");
 
 if (string.IsNullOrWhiteSpace(registryEndpoint))
 {
@@ -62,6 +64,8 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
         registryResourceId);
     var enrollment = await client.EnrollCurrentDeviceAsync(
         registryResourceId,
+        enrollmentToken ?? throw new InvalidOperationException(
+            "Set CLOUDSHELL_DEVICE_REGISTRY_ENROLLMENT_TOKEN to the Device Registry enrollment token."),
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["manufacturer"] = manufacturer

@@ -11,4 +11,6 @@ public sealed class DeviceRegistryServiceOptions
     public string? ResourceId { get; set; }
 
     public string? MqttEndpoint { get; set; }
+
+    public string? EnrollmentToken { get; set; }
 }

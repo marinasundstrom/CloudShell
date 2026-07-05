@@ -44,6 +44,11 @@ on `git blame --follow`, and then by the broad type of change.
   coverage for the event-transport boundary; see ADR-20260705-001.
 - Projected configured Device Registry MQTT endpoints into Resource Manager
   endpoint details alongside the HTTP registry endpoint.
+- Hardened Device Registry enrollment so matching subject prefixes and
+  self-asserted claims are no longer enough to mint device credentials.
+  Enrollment now requires a provider-owned service token configured outside
+  the resource graph, and the Device Registry sample passes that token through
+  local host/device-app configuration.
 - Added an explicit `Microsoft.OpenApi` 3.7.0 dependency for OpenAPI-enabled
   hosts so the vulnerable transitive 3.3.1 package is no longer resolved.
 - Recorded the enrollment profile name and kind on enrolled Device Registry

@@ -1413,6 +1413,7 @@ public sealed class SampleSmokeTests
         const string configurationResourceId = "configuration.store:device-settings";
         const string registryAdminClientId = "device-registry-admin";
         const string registryAdminClientSecret = "device-registry-admin-secret";
+        const string registryEnrollmentToken = "local-development-device-enrollment-token";
         var signingKeyPem = CreateDevelopmentSigningKeyPem();
         var configurationDefinitionsPath = Path.Combine(directory, "configuration-stores.json");
         var registryDefinitionsPath = Path.Combine(directory, "device-registries.json");
@@ -1508,6 +1509,7 @@ public sealed class SampleSmokeTests
                 registryResourceId,
                 [
                     ("CloudShell__DeviceRegistryService__MqttEndpoint", registryMqttEndpoint),
+                    ("CloudShell__DeviceRegistryService__EnrollmentToken", registryEnrollmentToken),
                     ("Authentication__BuiltInAuthority__Clients__device-registry-admin__Secret", registryAdminClientSecret),
                     ("Authentication__BuiltInAuthority__Clients__device-registry-admin__Scopes__0", "ControlPlane.Access"),
                     ("Authentication__BuiltInAuthority__Clients__device-registry-admin__ResourcePermissions__0__ResourceId", registryResourceId),
@@ -1523,6 +1525,7 @@ public sealed class SampleSmokeTests
                 ("CLOUDSHELL_DEVICE_REGISTRY_ENDPOINT", registryEndpoint),
                 ("CLOUDSHELL_DEVICE_REGISTRY_RESOURCE_ID", registryResourceId),
                 ("CLOUDSHELL_DEVICE_REGISTRY_MQTT_ENDPOINT", registryMqttEndpoint),
+                ("CLOUDSHELL_DEVICE_REGISTRY_ENROLLMENT_TOKEN", registryEnrollmentToken),
                 ("CLOUDSHELL_CONFIGURATION_STORE_ENDPOINT", configurationEndpoint),
                 ("CLOUDSHELL_CONFIGURATION_STORE_RESOURCE_ID", configurationResourceId),
                 ("CLOUDSHELL_CONFIGURATION_SETTING_NAME", "Device:Mode"),
