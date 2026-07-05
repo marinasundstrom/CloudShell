@@ -216,11 +216,18 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 icon: "certificates")
             .AddResourceTab<DeviceRegistryPages.DeviceRegistryDevices>(
                 DeviceRegistryResourceTypeProvider.ResourceTypeId.ToString(),
-                new ResourceViewId("devices", "enrolled-devices"),
+                new ResourceViewId(ResourceTabGroupIds.General, "enrolled-devices"),
                 "Devices",
                 20,
-                groupTitle: "Devices",
+                groupTitle: ResourceTabGroupTitles.General,
                 icon: "devices")
+            .AddResourceTab<DeviceRegistryPages.DeviceRegistryEnrollmentProfiles>(
+                DeviceRegistryResourceTypeProvider.ResourceTypeId.ToString(),
+                new ResourceViewId(ResourceTabGroupIds.General, "enrollment-profiles"),
+                "Enrollment profiles",
+                30,
+                groupTitle: ResourceTabGroupTitles.General,
+                icon: "identity")
             .AddResourceType<SharedPages.RegisterResource>(
                 IdentityProvisioningResourceTypeProvider.ResourceTypeId.ToString(),
                 "Identity Provisioning",

@@ -112,16 +112,22 @@ capability properties without changing the registry contract.
 
 The connected-device sample keeps the device app outside the CloudShell
 resource graph. The app enrolls the current machine, receives a device
-principal, and uses that identity to read a Configuration Store entry. Devices
+principal, and uses that identity to read a Configuration Store setting. Devices
 that need offline or push-based settings are expected to use a future protocol
 surface such as MQTT rather than this HTTP pull flow.
 
-The built-in Resource Manager UI contributes a Devices tab for Device Registry
-resources. It lists enrolled devices and shows device status, last seen,
-identity metadata, enrollment claims, and non-secret device properties reported
-by the client. Registry operators can revoke access for the selected device or
-remove the device record from this tab when the backing registry service is
-running.
+The built-in Resource Manager UI contributes Device Registry tabs under the
+General section:
+
+- **Devices** lists enrolled devices and shows device status, last seen,
+  identity metadata, enrollment claims, and non-secret device properties
+  reported by the client. Registry operators can revoke access for the selected
+  device or remove the device record from this tab when the backing registry
+  service is running.
+- **Enrollment profiles** shows the base enrollment policy, trusted
+  certificate references, individual/group profile matching criteria, and the
+  resource permission grants a matching device identity receives. Profile
+  editing is intentionally deferred.
 
 ## Runtime Boundary
 
@@ -153,7 +159,7 @@ store with a stronger database while keeping the resource model stable.
 - Credential rotation, device groups, per-application identities, and
   provider-backed identity systems are future work.
 - Enrollment profiles are the first provisioning policy shape; richer matching,
-  profile selection diagnostics, individual/group enrollment management, and
-  profile-specific UI are future work.
+  profile selection diagnostics, and individual/group enrollment management are
+  future work.
 - Heartbeat stale-after policy, MQTT transport, and richer microcontroller
   provisioning remain future work.

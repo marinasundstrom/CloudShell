@@ -1,0 +1,214 @@
+@using System.Text.Json
+@using CloudShell.ResourceModel
+@inject IResourceManager ResourceManager
+
+@if (Resource is null)
+{
+    <EmptyState Title="Device Registry is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
+}
+else
+{
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Enrollment policy</h3>
+                <p>@GetPolicySummary()</p>
+            </div>
+        </div>
+
+        <ResourceTable AriaLabel="Device Registry enrollment policy">
+            <tbody>
+                <tr>
+                    <th scope="row">Trusted certificates</th>
+                    <td>@FormatTrustedCertificates(TrustedCertificates)</td>
+                </tr>
+                <tr>
+                    <th scope="row">Allowed subject prefixes</th>
+                    <td>@FormatValues(AllowedSubjectPrefixes)</td>
+                </tr>
+                <tr>
+                    <th scope="row">Required claims</th>
+                    <td>@FormatRequiredClaims(RequiredClaims)</td>
+                </tr>
+            </tbody>
+        </ResourceTable>
+    </section>
+
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Enrollment profiles</h3>
+                <p>@GetProfileSummary(Profiles)</p>
+            </div>
+        </div>
+
+        @if (Profiles.Count == 0)
+        {
+            <EmptyState Title="No enrollment profiles"
+                        Message="This registry uses the base enrollment policy without profile-specific grants." />
+        }
+        else
+        {
+            <ResourceTable AriaLabel="Device enrollment profiles">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Kind</th>
+                        <th>Subjects</th>
+                        <th>Required claims</th>
+                        <th>Grants</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var profile in Profiles)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@profile.Name</strong>
+                            </td>
+                            <td>@FormatProfileKind(profile.Kind)</td>
+                            <td>@FormatPolicySubjects(profile.Policy)</td>
+                            <td>@FormatRequiredClaims(profile.Policy.RequiredClaims)</td>
+                            <td>@FormatGrants(profile.PermissionGrants)</td>
+                        </tr>
+                    }
+                </tbody>
+            </ResourceTable>
+        }
+    </section>
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private CloudShell.Abstractions.ResourceManager.Resource? Resource { get; set; }
+
+    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+
+    private IReadOnlyList<DeviceEnrollmentProfile> Profiles =>
+        GetAttributeValues<DeviceEnrollmentProfile>(
+            DeviceRegistryResourceTypeProvider.Attributes.EnrollmentProfiles);
+
+    private IReadOnlyList<ResourceCertificateReference> TrustedCertificates =>
+        GetAttributeValues<ResourceCertificateReference>(
+            DeviceRegistryResourceTypeProvider.Attributes.TrustedCertificates);
+
+    private IReadOnlyList<string> AllowedSubjectPrefixes =>
+        GetAttributeValues<string>(
+            DeviceRegistryResourceTypeProvider.Attributes.AllowedSubjectPrefixes);
+
+    private IReadOnlyList<DeviceEnrollmentRequiredClaim> RequiredClaims =>
+        GetAttributeValues<DeviceEnrollmentRequiredClaim>(
+            DeviceRegistryResourceTypeProvider.Attributes.RequiredClaims);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Resource = null;
+        if (string.IsNullOrWhiteSpace(ResourceId))
+        {
+            return;
+        }
+
+        Resource = await ResourceManager.GetResourceAsync(ResourceId);
+    }
+
+    private string GetPolicySummary()
+    {
+        var certificateCount = TrustedCertificates.Count;
+        var claimCount = RequiredClaims.Count;
+        return $"{certificateCount} trusted certificate{Plural(certificateCount)} and {claimCount} required claim{Plural(claimCount)} configured.";
+    }
+
+    private static string GetProfileSummary(IReadOnlyList<DeviceEnrollmentProfile> profiles) =>
+        profiles.Count == 1
+            ? "1 enrollment profile is configured for this registry."
+            : $"{profiles.Count} enrollment profiles are configured for this registry.";
+
+    private static string FormatProfileKind(string? kind) =>
+        string.IsNullOrWhiteSpace(kind)
+            ? DeviceEnrollmentProfileKinds.Group
+            : kind;
+
+    private static string FormatPolicySubjects(DeviceEnrollmentPolicy policy)
+    {
+        var subjects = policy.Subjects
+            .Where(subject => !string.IsNullOrWhiteSpace(subject))
+            .Select(subject => $"subject:{subject.Trim()}");
+        var prefixes = policy.SubjectPrefixes
+            .Where(prefix => !string.IsNullOrWhiteSpace(prefix))
+            .Select(prefix => $"prefix:{prefix.Trim()}");
+
+        return FormatValues(subjects.Concat(prefixes));
+    }
+
+    private static string FormatRequiredClaims(IReadOnlyList<DeviceEnrollmentRequiredClaim> claims) =>
+        claims.Count == 0
+            ? "-"
+            : string.Join(
+                ", ",
+                claims
+                    .OrderBy(claim => claim.Name, StringComparer.OrdinalIgnoreCase)
+                    .Select(claim => $"{claim.Name}={claim.Value}"));
+
+    private static string FormatGrants(IReadOnlyList<DeviceEnrollmentPermissionGrant> grants) =>
+        grants.Count == 0
+            ? "-"
+            : string.Join(
+                ", ",
+                grants
+                    .OrderBy(grant => grant.TargetResourceId, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(grant => grant.Permission, StringComparer.OrdinalIgnoreCase)
+                    .Select(grant => $"{grant.TargetResourceId}: {grant.Permission}"));
+
+    private static string FormatTrustedCertificates(IReadOnlyList<ResourceCertificateReference> certificates) =>
+        certificates.Count == 0
+            ? "-"
+            : string.Join(
+                ", ",
+                certificates
+                    .OrderBy(certificate => certificate.VaultResourceId, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(certificate => certificate.Name, StringComparer.OrdinalIgnoreCase)
+                    .Select(certificate =>
+                        string.IsNullOrWhiteSpace(certificate.Version)
+                            ? $"{certificate.VaultResourceId}/{certificate.Name}"
+                            : $"{certificate.VaultResourceId}/{certificate.Name}@{certificate.Version}"));
+
+    private static string FormatValues(IEnumerable<string> values)
+    {
+        var normalized = values
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return normalized.Length == 0
+            ? "-"
+            : string.Join(", ", normalized);
+    }
+
+    private static string Plural(int count) =>
+        count == 1 ? string.Empty : "s";
+
+    private IReadOnlyList<T> GetAttributeValues<T>(ResourceAttributeId attributeId)
+    {
+        if (Resource is null ||
+            !Resource.ResourceAttributes.TryGetValue(attributeId.ToString(), out var value) ||
+            string.IsNullOrWhiteSpace(value))
+        {
+            return [];
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<IReadOnlyList<T>>(
+                value,
+                SerializerOptions) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+}

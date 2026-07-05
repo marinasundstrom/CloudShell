@@ -29,6 +29,10 @@ public sealed class DeviceRegistryResource(
     public IReadOnlyList<DeviceEnrollmentRequiredClaim> RequiredClaims =>
         Resource.Attributes.GetObject<DeviceEnrollmentRequiredClaim[]>(
             DeviceRegistryResourceTypeProvider.Attributes.RequiredClaims) ?? [];
+
+    public IReadOnlyList<DeviceEnrollmentProfile> EnrollmentProfiles =>
+        Resource.Attributes.GetObject<DeviceEnrollmentProfile[]>(
+            DeviceRegistryResourceTypeProvider.Attributes.EnrollmentProfiles) ?? [];
 }
 
 public sealed class DeviceRegistryResourceProjectionProvider : IResourceProjectionProvider

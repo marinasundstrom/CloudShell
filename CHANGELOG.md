@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added a read-only Resource Manager Enrollment profiles tab for Device
+  Registry resources and moved Device Registry tabs into the General section.
 - Completed the Configuration Store terminology migration from entries to
   settings across the service API, resource attributes, permissions, runtime
   manager, app/environment references, launchers, samples, Resource Manager UI,
