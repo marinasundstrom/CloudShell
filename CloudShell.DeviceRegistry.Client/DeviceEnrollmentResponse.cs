@@ -24,4 +24,5 @@ public sealed record DeviceEnrollmentResponse(
     IReadOnlyDictionary<string, string> Properties,
     string? Presence = null,
     string? EnrollmentProfileName = null,
-    string? EnrollmentProfileKind = null);
+    string? EnrollmentProfileKind = null,
+    string? LastSeenTransport = null);

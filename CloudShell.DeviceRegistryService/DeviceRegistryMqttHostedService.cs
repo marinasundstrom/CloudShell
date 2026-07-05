@@ -15,6 +15,7 @@ public sealed class DeviceRegistryMqttHostedService(
 {
     private const string SessionDeviceClientIdKey = "cloudshell.device.clientId";
     private const string ServerClientId = "cloudshell-device-registry";
+    private const string MqttTransport = "mqtt";
     private readonly DeviceRegistryServiceOptions _options = options.Value;
     private readonly Channel<PendingMqttMessage> _outboundMessages =
         Channel.CreateUnbounded<PendingMqttMessage>(
@@ -154,7 +155,8 @@ public sealed class DeviceRegistryMqttHostedService(
                         topic.DeviceId,
                         clientId,
                         heartbeat,
-                        timestamp);
+                        timestamp,
+                        MqttTransport);
                     if (!heartbeatResult.IsAccepted)
                     {
                         RejectPublish(
@@ -176,7 +178,8 @@ public sealed class DeviceRegistryMqttHostedService(
                         topic.DeviceId,
                         clientId,
                         sync,
-                        timestamp);
+                        timestamp,
+                        MqttTransport);
                     if (!syncResult.IsAccepted)
                     {
                         RejectPublish(
@@ -285,7 +288,8 @@ public sealed class DeviceRegistryMqttHostedService(
             device.RevokedReason,
             ResolvePresence(registry, device, timestamp),
             device.EnrollmentProfileName,
-            device.EnrollmentProfileKind);
+            device.EnrollmentProfileKind,
+            device.LastSeenTransport);
 
     private static string ResolvePresence(
         DeviceRegistryDefinition registry,

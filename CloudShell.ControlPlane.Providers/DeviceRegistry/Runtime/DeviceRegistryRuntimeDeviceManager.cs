@@ -295,6 +295,8 @@ public sealed record DeviceRegistryRuntimeDevice(
 
     public string? LastSeenSource { get; init; }
 
+    public string? LastSeenTransport { get; init; }
+
     public DateTimeOffset? RevokedAt { get; init; }
 
     public string? RevokedReason { get; init; }
@@ -347,7 +349,8 @@ internal sealed record DeviceRegistryRuntimeDeviceResponse(
     string? Presence = null,
     string? EnrollmentProfileName = null,
     string? EnrollmentProfileKind = null,
-    DeviceRegistryRuntimeDeviceTwin? Twin = null)
+    DeviceRegistryRuntimeDeviceTwin? Twin = null,
+    string? LastSeenTransport = null)
 {
     public DeviceRegistryRuntimeDevice ToRuntimeDevice() =>
         new(
@@ -366,6 +369,7 @@ internal sealed record DeviceRegistryRuntimeDeviceResponse(
             Status = Status,
             LastSeenAt = LastSeenAt,
             LastSeenSource = LastSeenSource,
+            LastSeenTransport = LastSeenTransport,
             RevokedAt = RevokedAt,
             RevokedReason = RevokedReason,
             Presence = Presence,

@@ -103,8 +103,9 @@ Device records expose:
 | `enrollmentProfileName` | Name of the enrollment profile that provisioned the device, when known. |
 | `enrollmentProfileKind` | Profile kind, such as `individual` or `group`, that provisioned the device. |
 | `enrolledAt` | Time the device identity was first provisioned. |
-| `lastSeenAt` | Last registry-observed device contact. Enrollment and heartbeat update this value. |
+| `lastSeenAt` | Last registry-observed device contact. Enrollment, heartbeat, and sync update this value. |
 | `lastSeenSource` | Source of the last contact, such as `enrollment`, `heartbeat`, or a client-provided source. |
+| `lastSeenTransport` | Transport used by the last contact, such as `http` or `mqtt`. |
 | `revokedAt` | Time the device identity was revoked, when applicable. |
 | `revokedReason` | Optional non-secret operator reason for revocation. |
 
@@ -181,13 +182,16 @@ General section:
 - Standard Resource Manager endpoint surfaces show the HTTP registry endpoint
   and, when configured, the MQTT endpoint as separate local endpoints so
   operators can tell which device transports are available.
-- **Devices** lists enrolled devices and shows device status, last seen,
-  identity metadata, enrollment claims, and non-secret device properties
-  reported by the client. Registry operators can revoke access for the selected
-  device or remove the device record from the dedicated device details view when
-  the backing registry service is running. The details view includes identity,
-  lifecycle, enrollment profile, properties, claims, and a Twin section that
-  shows desired and reported state versions, update timestamps, last sync time,
+- **Devices** lists enrolled devices and shows device status, presence, last
+  seen, last transport, identity metadata, enrollment claims, and non-secret
+  device properties reported by the client. Presence uses a colored indicator
+  dot in both the list and device details so online, stale, revoked, and
+  unknown devices are easy to scan. Registry operators can revoke access for
+  the selected device or remove the device record from the dedicated device
+  details view when the backing registry service is running. The details view
+  includes identity, lifecycle, enrollment profile, properties, claims, and a
+  Twin section that shows desired and reported state versions, update
+  timestamps, last sync time,
   read-only reported state JSON, and an editor for the desired state JSON object.
 - **Enrollment profiles** shows the base enrollment policy, trusted
   certificate references, individual/group profile matching criteria, and the

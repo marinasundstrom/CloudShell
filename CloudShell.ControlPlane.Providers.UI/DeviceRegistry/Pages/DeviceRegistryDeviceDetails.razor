@@ -56,7 +56,12 @@
             </tr>
             <tr>
                 <th scope="row">Presence</th>
-                <td>@FormatPresence(Device)</td>
+                <td>
+                    <span class="device-presence">
+                        <span class="state-dot @GetPresenceClass(Device)"></span>
+                        <span>@FormatPresence(Device)</span>
+                    </span>
+                </td>
             </tr>
             <tr>
                 <th scope="row">Enrollment profile</th>
@@ -69,6 +74,10 @@
             <tr>
                 <th scope="row">Last seen source</th>
                 <td>@FormatOptionalValue(Device.LastSeenSource)</td>
+            </tr>
+            <tr>
+                <th scope="row">Last seen transport</th>
+                <td>@FormatLastSeenTransport(Device)</td>
             </tr>
             <tr>
                 <th scope="row">Revoked</th>
@@ -392,6 +401,19 @@
         string.IsNullOrWhiteSpace(device.Presence)
             ? "unknown"
             : device.Presence;
+
+    private static string GetPresenceClass(DeviceRegistryRuntimeDevice device) =>
+        FormatPresence(device).ToLowerInvariant() switch
+        {
+            "online" => "health-healthy",
+            "stale" or "revoked" => "health-unhealthy",
+            _ => "health-unknown"
+        };
+
+    private static string FormatLastSeenTransport(DeviceRegistryRuntimeDevice device) =>
+        string.IsNullOrWhiteSpace(device.LastSeenTransport)
+            ? "-"
+            : device.LastSeenTransport.ToUpperInvariant();
 
     private static string FormatEnrollmentProfile(DeviceRegistryRuntimeDevice device)
     {

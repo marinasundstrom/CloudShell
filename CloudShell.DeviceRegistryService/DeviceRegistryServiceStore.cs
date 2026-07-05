@@ -29,6 +29,7 @@ public sealed class DeviceRegistryServiceStore(
         ? null
         : options.Value.ResourceId.Trim();
     private const string DeviceIdentityCategory = "deviceIdentity";
+    private const string HttpTransport = "http";
     private readonly ResourceIdentityProviderDefinition _identityProvider = new(
         "built-in",
         "Built-in device identities",
@@ -125,6 +126,7 @@ public sealed class DeviceRegistryServiceStore(
                 Status = DeviceRecordStatuses.Active,
                 LastSeenAt = timestamp,
                 LastSeenSource = "enrollment",
+                LastSeenTransport = HttpTransport,
                 EnrollmentProfileName = profile?.Name,
                 EnrollmentProfileKind = profile?.Kind,
                 Twin = existing?.Twin ?? new()
@@ -189,7 +191,8 @@ public sealed class DeviceRegistryServiceStore(
         string deviceId,
         string clientId,
         DeviceHeartbeatRequest request,
-        DateTimeOffset timestamp)
+        DateTimeOffset timestamp,
+        string? transport = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(registryId);
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
@@ -223,6 +226,7 @@ public sealed class DeviceRegistryServiceStore(
                 LastSeenSource = string.IsNullOrWhiteSpace(request.Source)
                     ? "heartbeat"
                     : request.Source.Trim(),
+                LastSeenTransport = NormalizeContactTransport(transport, HttpTransport),
                 Status = DeviceRecordStatuses.Active
             };
             devices[devices.IndexOf(device)] = updated;
@@ -276,7 +280,8 @@ public sealed class DeviceRegistryServiceStore(
         string deviceId,
         string clientId,
         DeviceSyncRequest request,
-        DateTimeOffset timestamp)
+        DateTimeOffset timestamp,
+        string? transport = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(registryId);
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
@@ -319,6 +324,7 @@ public sealed class DeviceRegistryServiceStore(
                 LastSeenSource = string.IsNullOrWhiteSpace(request.Source)
                     ? "sync"
                     : request.Source.Trim(),
+                LastSeenTransport = NormalizeContactTransport(transport, HttpTransport),
                 Status = DeviceRecordStatuses.Active,
                 Twin = twin with
                 {
@@ -641,6 +647,13 @@ public sealed class DeviceRegistryServiceStore(
 
         return normalized;
     }
+
+    private static string NormalizeContactTransport(
+        string? transport,
+        string fallback) =>
+        string.IsNullOrWhiteSpace(transport)
+            ? fallback
+            : transport.Trim().ToLowerInvariant();
 
     private static DeviceRecord? FindDevice(
         IReadOnlyList<DeviceRecord> devices,

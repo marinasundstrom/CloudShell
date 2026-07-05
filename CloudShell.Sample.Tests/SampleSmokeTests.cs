@@ -1591,6 +1591,7 @@ public sealed class SampleSmokeTests
         Assert.Equal("group", enrollment.EnrollmentProfileKind);
         Assert.NotNull(enrollment.LastSeenAt);
         Assert.Equal("enrollment", enrollment.LastSeenSource);
+        Assert.Equal("http", enrollment.LastSeenTransport);
         Assert.Equal(enrollment.DeviceId, heartbeat.DeviceId);
         Assert.Equal("active", heartbeat.Status);
         Assert.Equal("online", heartbeat.Presence);
@@ -1598,11 +1599,13 @@ public sealed class SampleSmokeTests
         Assert.Equal("group", heartbeat.EnrollmentProfileKind);
         Assert.NotNull(heartbeat.LastSeenAt);
         Assert.Equal("sample-app", heartbeat.LastSeenSource);
+        Assert.Equal("http", heartbeat.LastSeenTransport);
         Assert.Equal("device-app", heartbeat.Properties["sample.app"]);
         Assert.Equal(enrollment.DeviceId, sync.Device.DeviceId);
         Assert.Equal("default", sync.Device.EnrollmentProfileName);
         Assert.Equal("group", sync.Device.EnrollmentProfileKind);
         Assert.Equal("sample-app", sync.Device.LastSeenSource);
+        Assert.Equal("http", sync.Device.LastSeenTransport);
         Assert.Equal("device-app", sync.Device.Properties["sample.sync"]);
         Assert.False(sync.DesiredStateChanged);
         Assert.Equal(0, sync.Desired.Version);
@@ -1612,6 +1615,7 @@ public sealed class SampleSmokeTests
         Assert.True(mqttSyncPublished);
         Assert.Equal(enrollment.DeviceId, mqttSync.Device.DeviceId);
         Assert.Equal("sample-app-mqtt", mqttSync.Device.LastSeenSource);
+        Assert.Equal("mqtt", mqttSync.Device.LastSeenTransport);
         Assert.False(mqttSync.DesiredStateChanged);
         Assert.Equal(0, mqttSync.Desired.Version);
         Assert.Equal(2, mqttSync.Reported.Version);
@@ -1651,6 +1655,7 @@ public sealed class SampleSmokeTests
         var deviceAfterMqttSync = Assert.Single(devicesAfterMqttSync);
         Assert.Equal(enrollment.DeviceId, deviceAfterMqttSync.DeviceId);
         Assert.Equal("sample-app-mqtt", deviceAfterMqttSync.LastSeenSource);
+        Assert.Equal("mqtt", deviceAfterMqttSync.LastSeenTransport);
         Assert.Equal("device-app", deviceAfterMqttSync.Properties["sample.mqttSync"]);
 
         Assert.Equal(
@@ -1684,6 +1689,7 @@ public sealed class SampleSmokeTests
             adminToken);
         var deviceAfterRejectedMqttPublishes = Assert.Single(devicesAfterRejectedMqttPublishes);
         Assert.Equal("sample-app-mqtt", deviceAfterRejectedMqttPublishes.LastSeenSource);
+        Assert.Equal("mqtt", deviceAfterRejectedMqttPublishes.LastSeenTransport);
         Assert.Equal("device-app", deviceAfterRejectedMqttPublishes.Properties["sample.mqttSync"]);
         var twinAfterRejectedMqttPublishes = await registryClient.GetDeviceTwinAsync(
             registryResourceId,
@@ -1720,6 +1726,7 @@ public sealed class SampleSmokeTests
         Assert.True(followUpMqttSync.DesiredStateChanged);
         Assert.Equal(1, followUpMqttSync.Desired.Version);
         Assert.Equal("eco", followUpMqttSync.Desired.State["mode"].GetString());
+        Assert.Equal("mqtt", followUpMqttSync.Device.LastSeenTransport);
         Assert.Equal(3, followUpMqttSync.Reported.Version);
         Assert.Equal("running", followUpMqttSync.Reported.State["mode"].GetString());
 

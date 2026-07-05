@@ -30,6 +30,9 @@ on `git blame --follow`, and then by the broad type of change.
   JSON payloads are rejected without mutating device state.
 - Added MQTT response-topic sync support so Device Registry devices can receive
   the same desired-state response payload over MQTT that HTTP sync returns.
+- Recorded Device Registry last-seen transport for HTTP and MQTT contacts and
+  showed device presence with a colored indicator dot in the device list and
+  details views.
 - Projected configured Device Registry MQTT endpoints into Resource Manager
   endpoint details alongside the HTTP registry endpoint.
 - Added an explicit `Microsoft.OpenApi` 3.7.0 dependency for OpenAPI-enabled

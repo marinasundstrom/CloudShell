@@ -60,9 +60,17 @@ else
                                     <div class="table-subtext">@GetProperty(device, "osDescription")</div>
                                 </td>
                                 <td>@GetArchitecture(device)</td>
-                                <td>@FormatPresence(device)</td>
+                                <td>
+                                    <span class="device-presence">
+                                        <span class="state-dot @GetPresenceClass(device)"></span>
+                                        <span>@FormatPresence(device)</span>
+                                    </span>
+                                </td>
                                 <td>@FormatStatus(device)</td>
-                                <td>@FormatOptionalTimestamp(device.LastSeenAt)</td>
+                                <td>
+                                    @FormatOptionalTimestamp(device.LastSeenAt)
+                                    <div class="table-subtext">@FormatLastSeenTransport(device)</div>
+                                </td>
                                 <td>@FormatTimestamp(device.EnrolledAt)</td>
                                 <td>
                                     <FluentButton Appearance="Appearance.Neutral"
@@ -214,6 +222,19 @@ else
         string.IsNullOrWhiteSpace(device.Presence)
             ? "unknown"
             : device.Presence;
+
+    private static string GetPresenceClass(DeviceRegistryRuntimeDevice device) =>
+        FormatPresence(device).ToLowerInvariant() switch
+        {
+            "online" => "health-healthy",
+            "stale" or "revoked" => "health-unhealthy",
+            _ => "health-unknown"
+        };
+
+    private static string FormatLastSeenTransport(DeviceRegistryRuntimeDevice device) =>
+        string.IsNullOrWhiteSpace(device.LastSeenTransport)
+            ? "-"
+            : device.LastSeenTransport.ToUpperInvariant();
 
     private static string FormatEnrollmentProfile(DeviceRegistryRuntimeDevice device)
     {

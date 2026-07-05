@@ -143,8 +143,9 @@ The generic device client sends basic device properties during enrollment,
 including platform, operating system, architecture, framework description,
 machine name, and processor count. Specialized clients can add more properties
 for device capabilities. The Device Registry resource blade shows enrolled
-devices, status, last-seen information, reported properties, and configured
-enrollment profiles. Registry operators can revoke a device identity through
-the Device Registry API; revocation disables future token issuance for that
-device credential. Operators can also remove the device record after revocation
-or when they want to clean up sample state.
+devices, status, presence with a colored indicator dot, last-seen source and
+transport, reported properties, and configured enrollment profiles. Registry
+operators can revoke a device identity through the Device Registry API;
+revocation disables future token issuance for that device credential. Operators
+can also remove the device record after revocation or when they want to clean
+up sample state.

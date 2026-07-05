@@ -76,6 +76,8 @@ public sealed record DeviceRecord(
 
     public string? LastSeenSource { get; init; }
 
+    public string? LastSeenTransport { get; init; }
+
     public DateTimeOffset? RevokedAt { get; init; }
 
     public string? RevokedReason { get; init; }
@@ -175,7 +177,8 @@ public sealed record DeviceEnrollmentResponse(
     IReadOnlyDictionary<string, string> Properties,
     string? Presence = null,
     string? EnrollmentProfileName = null,
-    string? EnrollmentProfileKind = null);
+    string? EnrollmentProfileKind = null,
+    string? LastSeenTransport = null);
 
 public sealed record DeviceMetadataResponse(
     string DeviceId,
@@ -196,4 +199,5 @@ public sealed record DeviceMetadataResponse(
     string? RevokedReason,
     string? Presence = null,
     string? EnrollmentProfileName = null,
-    string? EnrollmentProfileKind = null);
+    string? EnrollmentProfileKind = null,
+    string? LastSeenTransport = null);
