@@ -16,6 +16,10 @@ var configurationEndpoint = app.Configuration["Samples:DeviceRegistry:Configurat
     "http://localhost:7152";
 var mqttEndpoint = app.Configuration["Samples:DeviceRegistry:MqttEndpoint"] ??
     "mqtt://localhost:7154";
+var eventBrokerMqttEndpoint = app.Configuration["Samples:DeviceRegistry:EventBrokerMqttEndpoint"] ??
+    "mqtt://localhost:7183";
+var eventBrokerHttpEndpoint = app.Configuration["Samples:DeviceRegistry:EventBrokerHttpEndpoint"] ??
+    "http://localhost:7184";
 
 app.DefineResources(resources =>
 {
@@ -34,6 +38,25 @@ app.DefineResources(resources =>
         .WithSeed(seed => seed.Certificate(
             "factory-ca",
             "local-development-factory-ca"));
+
+    resources
+        .AddEventBroker("events")
+        .WithDisplayName("Factory Event Broker")
+        .WithMqttEndpoint(
+            eventBrokerMqttEndpoint,
+            capabilities:
+            [
+                EventBrokerProtocolCapabilities.PublishEvents,
+                EventBrokerProtocolCapabilities.SubscribeEvents,
+                EventBrokerProtocolCapabilities.TelemetryIngestion
+            ])
+        .WithHttpEndpoint(
+            eventBrokerHttpEndpoint,
+            capabilities:
+            [
+                EventBrokerProtocolCapabilities.PublishEvents,
+                EventBrokerProtocolCapabilities.SubscribeEvents
+            ]);
 
     resources
         .AddDeviceRegistry("devices")

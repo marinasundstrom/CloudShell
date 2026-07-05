@@ -9,6 +9,39 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-07-05
+
+### ADR-20260705-001: Keep event transport separate from device management and operation queues
+
+CloudShell should offer managed event transport as an `event.broker` service
+resource instead of folding broker protocols into Device Registry or copying a
+provider-specific IoT product boundary. Device Registry owns device identity,
+enrollment, trust, desired state, reported state, last-seen metadata,
+capabilities, and lifecycle. Event Broker transports and can retain event facts
+such as telemetry, sensor readings, device check-ins, lifecycle events, and
+audit events. A future Service Bus or operation-queue resource should deliver
+work or commands that have intended recipients, acknowledgement, retries, and
+completion tracking.
+
+This keeps CloudShell consistent across protocols and providers when an
+environment chooses the CloudShell-managed event path. MQTT, HTTP, AMQP, Kafka,
+Azure Event Hubs, NATS, or other transports can implement or project the same
+event-broker concept without changing the device management model. Device apps
+and specialized device clients may still connect to custom brokers or
+device-specific endpoints outside this resource when needed. Event Broker can
+feed CloudShell observability and future OpenTelemetry integration, but
+observability remains the query, correlation, and storage surface for logs,
+traces, metrics, and telemetry.
+
+The first implementation validates declared protocol endpoints, accepts the
+resource definition, exposes a C# `AddEventBroker(...)` builder, projects
+endpoints into Resource Manager, and provides a built-in local HTTP retained
+event log. Publishers append immutable events to named streams, and consumers
+query retained events by sequence number through a separate `EventBrokerClient`.
+Broker-native permission reconciliation, live subscriptions, telemetry
+ingestion, Device Registry broker bridging, MQTT broker runtime, retention
+policy controls, and operation queues remain future work.
+
 ## 2026-07-04
 
 ### ADR-20260704-002: Treat enrolled devices as device identities backed by a Device Registry

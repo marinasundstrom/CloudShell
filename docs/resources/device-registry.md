@@ -10,6 +10,14 @@ Device Registry is a service resource that owns device enrollment, trusted
 factory certificate references, device identity provisioning, registry-owned
 device metadata, and the lifecycle of the registry service process.
 
+Device Registry is deliberately decoupled from communication infrastructure.
+It may consume or publish events through an [Event Broker](event-broker.md) in
+future slices, but it remains the owner of device identity, enrollment, trust,
+desired/reported state, last-seen metadata, capabilities, and lifecycle.
+Event Broker transports event facts. Future Service Bus or operation-queue
+resources should deliver commands or work with acknowledgement and completion
+tracking.
+
 ## Resource Shape
 
 The built-in resource type is `iot.device-registry` with provider ID
@@ -184,6 +192,11 @@ principal, sends HTTP heartbeat and sync updates, publishes a follow-up MQTT
 sync update when an MQTT endpoint is configured, and uses that identity to read
 a Configuration Store setting.
 
+The same sample also declares a model-only Event Broker resource to show where
+event transport belongs in the resource graph. The sample device app does not
+use that broker yet; Device Registry still owns the experimental embedded MQTT
+endpoint for heartbeat and sync in this slice.
+
 The built-in Resource Manager UI contributes Device Registry tabs under the
 General section:
 
@@ -241,6 +254,8 @@ store with a stronger database while keeping the resource model stable.
 - Twin history and conflict diagnostics are future work.
 - Device telemetry and device-submitted logs should be integrated with
   CloudShell observability under the Device Registry resource and global
-  observability views in a future slice.
-- External broker integration, TLS listener configuration, retained messages,
-  and richer microcontroller provisioning remain future work for MQTT.
+  observability views in a future slice. Event Broker should be one supported
+  transport path for those events.
+- External broker integration through Event Broker, TLS listener configuration,
+  retained messages, and richer microcontroller provisioning remain future work
+  for MQTT.

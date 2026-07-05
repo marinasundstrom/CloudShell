@@ -973,7 +973,7 @@ public sealed class SampleSmokeTests
             graphHostConfiguration.GetProperty("attributes").GetProperty("configuration.source").GetString());
         Assert.Equal(
             "0",
-            graphHostConfiguration.GetProperty("attributes").GetProperty("configuration.settings.count").GetString());
+            graphHostConfiguration.GetProperty("attributes").GetProperty("configuration.entries.count").GetString());
         Assert.True(
             graphHostConfiguration.GetProperty("resourceActions")
                 .TryGetProperty(HostConfigurationSourceResourceTypeProvider.Operations.Inspect.ToString(), out _));
@@ -3857,6 +3857,15 @@ public sealed class SampleSmokeTests
             environment.Add(("ProjectReference__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("ProjectReference__ApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
         }
+        else if (sampleName == "DeviceRegistry")
+        {
+            environment.Add(("Samples__DeviceRegistry__RegistryEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("Samples__DeviceRegistry__SecretsEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("Samples__DeviceRegistry__ConfigurationEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("Samples__DeviceRegistry__MqttEndpoint", $"mqtt://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("Samples__DeviceRegistry__EventBrokerMqttEndpoint", $"mqtt://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("Samples__DeviceRegistry__EventBrokerHttpEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+        }
         else if (sampleName == "RabbitMQMessaging")
         {
             environment.Add(("RabbitMQMessaging__DotNetEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
@@ -3929,6 +3938,11 @@ public sealed class SampleSmokeTests
         if (projectPath.Contains("/ProjectReference/", StringComparison.OrdinalIgnoreCase))
         {
             return "ProjectReference";
+        }
+
+        if (projectPath.Contains("/DeviceRegistry/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "DeviceRegistry";
         }
 
         if (projectPath.Contains("/RabbitMQMessaging/", StringComparison.OrdinalIgnoreCase))
@@ -5924,6 +5938,7 @@ public sealed class SampleSmokeTests
                 return
                 [
                     "configuration.store:device-settings",
+                    "event.broker:events",
                     "secrets.vault:factory",
                     "iot.device-registry:devices"
                 ];

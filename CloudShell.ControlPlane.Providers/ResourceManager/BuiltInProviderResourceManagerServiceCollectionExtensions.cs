@@ -128,6 +128,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerEndpointProjectionProvider,
+                EventBrokerResourceManagerEndpointProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerEndpointProjectionProvider,
                 SqlServerResourceManagerEndpointProjectionProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
@@ -173,6 +177,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerStateProvider,
                 DeviceRegistryResourceManagerStateProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerStateProvider,
+                EventBrokerResourceManagerStateProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerStateProvider,
@@ -281,6 +289,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 IResourceMonitoringProvider,
                 DeviceRegistryResourceManagerMonitoringProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceMonitoringProvider,
+                EventBrokerResourceMonitoringProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 ILogProvider,

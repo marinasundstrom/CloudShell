@@ -36,6 +36,12 @@ on `git blame --follow`, and then by the broad type of change.
 - Added reversible Device Registry disable/enable lifecycle operations that
   block token issuance and MQTT authentication while keeping revoke as the
   terminal access removal path.
+- Added an Event Broker resource model slice with `event.broker`,
+  `AddEventBroker(...)`, protocol endpoint projection for MQTT, HTTP, AMQP,
+  Kafka, Event Hubs, and NATS style transports, generic Resource Manager
+  registration, a local HTTP retained event log, a separate `EventBrokerClient`,
+  a Resource Manager Streams tab, and Device Registry sample publisher/consumer
+  coverage for the event-transport boundary; see ADR-20260705-001.
 - Projected configured Device Registry MQTT endpoints into Resource Manager
   endpoint details alongside the HTTP registry endpoint.
 - Added an explicit `Microsoft.OpenApi` 3.7.0 dependency for OpenAPI-enabled

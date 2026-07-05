@@ -29,6 +29,10 @@ var deviceRegistryServiceProjectPath = Path.Combine(
     repositoryRootPath,
     "CloudShell.DeviceRegistryService",
     "CloudShell.DeviceRegistryService.csproj");
+var eventBrokerServiceProjectPath = Path.Combine(
+    repositoryRootPath,
+    "CloudShell.EventBrokerService",
+    "CloudShell.EventBrokerService.csproj");
 var cloudShellDataDirectory = ResolveCloudShellDataDirectory(
     builder.Configuration,
     builder.Environment.ContentRootPath);
@@ -77,6 +81,14 @@ cloudShell
         runtime.ServiceAuthenticationIssuer = serviceAuthenticationIssuer;
         runtime.ServiceAuthenticationAudience = serviceAuthenticationAudience;
         runtime.ServiceAuthenticationSigningKeyPem = serviceAuthenticationSigningKeyPem;
+    })
+    .UseEventBrokerResourceProvider(runtime =>
+    {
+        runtime.ServiceProjectPath = eventBrokerServiceProjectPath;
+        runtime.ServiceWorkingDirectory = repositoryRootPath;
+        runtime.DefinitionsDirectory = Path.Combine(
+            cloudShellDataDirectory,
+            "event-broker-definitions");
     });
 builder.Services.AddLocalRabbitMQDockerRuntime();
 

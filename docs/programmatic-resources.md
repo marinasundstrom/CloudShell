@@ -96,6 +96,7 @@ for their own resource types. Current provider methods include:
 - `AddConfigurationStore(...)` from the configuration-store built-in
   provider.
 - `AddSecretsVault(...)` from the secrets-vault built-in provider.
+- `AddEventBroker(...)` from the Event Broker built-in provider.
 - `AddDeviceRegistry(...)` from the Device Registry built-in provider.
 - `AddExecutableApplication(...)` from the executable application built-in
   provider.

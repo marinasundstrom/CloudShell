@@ -89,6 +89,7 @@ public static class BuiltInResourceModelProviderServiceCollectionExtensions
             .AddSqlServerResourceType()
             .AddSqlDatabaseResourceType()
             .AddRabbitMQResourceType()
+            .AddEventBrokerResourceType()
             .AddDeviceRegistryResourceType()
             .AddHostConfigurationSourceResourceType()
             .AddLocalVolumeResourceType()

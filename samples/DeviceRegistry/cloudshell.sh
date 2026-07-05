@@ -6,16 +6,20 @@ repo_root="$(cd "$script_dir/../.." && pwd)"
 
 app_host_project="${CLOUDSHELL_APP_HOST_PROJECT:-$script_dir/AppHost/CloudShell.DeviceRegistryAppHost.csproj}"
 device_app_project="${CLOUDSHELL_DEVICE_APP_PROJECT:-$script_dir/DeviceApp/CloudShell.DeviceRegistry.DeviceApp.csproj}"
+event_consumer_project="${CLOUDSHELL_EVENT_CONSUMER_PROJECT:-$script_dir/EventConsumer/CloudShell.DeviceRegistry.EventConsumer.csproj}"
 cli_project="${CLOUDSHELL_CLI_PROJECT:-$repo_root/CloudShell.Cli/CloudShell.Cli.csproj}"
 state_dir="${CLOUDSHELL_STATE_DIR:-$script_dir/.cloudshell}"
 control_plane_url="${CLOUDSHELL_CONTROL_PLANE_URL:-http://127.0.0.1:5108}"
 registry_endpoint="${CLOUDSHELL_DEVICE_REGISTRY_ENDPOINT:-http://localhost:7150}"
 registry_mqtt_endpoint="${CLOUDSHELL_DEVICE_REGISTRY_MQTT_ENDPOINT:-mqtt://localhost:7154}"
+event_broker_endpoint="${CLOUDSHELL_EVENT_BROKER_ENDPOINT:-http://localhost:7184}"
 configuration_endpoint="${CLOUDSHELL_CONFIGURATION_STORE_ENDPOINT:-http://localhost:7152}"
 device_app_url="${CLOUDSHELL_DEVICE_APP_URL:-http://localhost:7153}"
 settings_resource_id="${CLOUDSHELL_CONFIGURATION_STORE_RESOURCE_ID:-configuration.store:device-settings}"
 secrets_resource_id="${CLOUDSHELL_SECRETS_VAULT_RESOURCE_ID:-secrets.vault:factory}"
 registry_resource_id="${CLOUDSHELL_DEVICE_REGISTRY_RESOURCE_ID:-iot.device-registry:devices}"
+event_broker_resource_id="${CLOUDSHELL_EVENT_BROKER_RESOURCE_ID:-event.broker:events}"
+event_broker_stream="${CLOUDSHELL_EVENT_BROKER_STREAM:-device-checkins}"
 
 usage() {
   cat <<USAGE
@@ -29,15 +33,17 @@ Commands:
   reset           Stop the recorded host process and remove generated sample state.
   open            Open the configured host URL in the default browser.
   resources       List resources from the configured Control Plane.
-  start-services  Start the Configuration Store, Secrets Vault, and Device Registry resources.
+  start-services  Start the Configuration Store, Secrets Vault, Event Broker, and Device Registry resources.
   run-device      Run the independent device app.
   enroll          Enroll the current device through the device app.
+  consume-events  Read retained device events from the Event Broker.
 
 Environment:
   CLOUDSHELL_CONTROL_PLANE_URL              Host URL. Default: $control_plane_url
   CLOUDSHELL_STATE_DIR                      Launcher state directory. Default: $state_dir
   CLOUDSHELL_DEVICE_REGISTRY_ENDPOINT       Device Registry endpoint. Default: $registry_endpoint
   CLOUDSHELL_DEVICE_REGISTRY_MQTT_ENDPOINT  Device Registry MQTT endpoint. Default: $registry_mqtt_endpoint
+  CLOUDSHELL_EVENT_BROKER_ENDPOINT          Event Broker endpoint. Default: $event_broker_endpoint
   CLOUDSHELL_CONFIGURATION_STORE_ENDPOINT   Configuration Store endpoint. Default: $configuration_endpoint
   CLOUDSHELL_DEVICE_APP_URL                 Device app URL. Default: $device_app_url
 USAGE
@@ -94,6 +100,7 @@ case "$command" in
   start-services)
     start_resource "$settings_resource_id"
     start_resource "$secrets_resource_id"
+    start_resource "$event_broker_resource_id"
     start_resource "$registry_resource_id"
     ;;
   run-device)
@@ -102,6 +109,9 @@ case "$command" in
       --DeviceRegistry:Endpoint "$registry_endpoint" \
       --DeviceRegistry:ResourceId "$registry_resource_id" \
       --DeviceRegistry:MqttEndpoint "$registry_mqtt_endpoint" \
+      --EventBroker:Endpoint "$event_broker_endpoint" \
+      --EventBroker:ResourceId "$event_broker_resource_id" \
+      --EventBroker:Stream "$event_broker_stream" \
       --ConfigurationStore:Endpoint "$configuration_endpoint" \
       --ConfigurationStore:ResourceId "$settings_resource_id" \
       --ConfigurationStore:SettingName Device:Mode \
@@ -110,6 +120,13 @@ case "$command" in
     ;;
   enroll)
     curl -X POST "$device_app_url/enroll-current-device"
+    ;;
+  consume-events)
+    dotnet run --project "$event_consumer_project" -- \
+      --event-broker-endpoint "$event_broker_endpoint" \
+      --event-broker-resource-id "$event_broker_resource_id" \
+      --stream "$event_broker_stream" \
+      "$@"
     ;;
   help|--help|-h)
     usage

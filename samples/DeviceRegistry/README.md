@@ -23,6 +23,7 @@ The scenario uses these CloudShell features:
 | Launcher-hosted resource template | Declares the local Device Registry, trust vault, and Configuration Store resources. |
 | Secrets Vault | Holds the factory CA certificate reference used as the registry trust anchor. |
 | Device Registry | Owns enrollment policy, device records, identities, heartbeat, presence, twin state, revocation, and removal. |
+| Event Broker | Demonstrates the CloudShell-managed retained event path through a separate event client without coupling Device Registry to event transport. |
 | Enrollment profile | Matches devices by subject/claims and grants the resulting device identity access to selected resources. |
 | Built-in identity provider | Issues the device identity credentials and bearer tokens used by the sample device app. |
 | Configuration Store | Provides a setting that the enrolled device reads remotely using its own identity. |
@@ -58,9 +59,13 @@ HTTP sync endpoint.
 This sample has two apps:
 
 - `AppHost/CloudShell.DeviceRegistryAppHost` is the CloudShell launcher that
-  declares the trust vault, Device Registry, and device configuration resources.
+  declares the trust vault, Device Registry, Event Broker, and device
+  configuration resources.
 - `DeviceApp/CloudShell.DeviceRegistry.DeviceApp` is a separate app that
-  enrolls the current machine through `DeviceRegistryClient`.
+  enrolls the current machine through `DeviceRegistryClient`, then opts into
+  publishing a check-in event through `EventBrokerClient`.
+- `EventConsumer/CloudShell.DeviceRegistry.EventConsumer` is a separate
+  retained-event consumer that reads events from the Event Broker.
 
 The registry enrollment policy accepts subjects under `device/` and requires
 the `manufacturer=cloudshell` enrollment claim. The launcher targets
@@ -70,6 +75,8 @@ the `manufacturer=cloudshell` enrollment claim. The launcher targets
 | --- | --- |
 | Device Registry | `http://localhost:7150` |
 | Device Registry MQTT | `mqtt://localhost:7154` |
+| Factory Event Broker MQTT | `mqtt://localhost:7183` |
+| Factory Event Broker HTTP | `http://localhost:7184` |
 | Factory Trust Vault | `http://localhost:7151` |
 | Device Settings | `http://localhost:7152` |
 
@@ -126,6 +133,12 @@ heartbeat, HTTP sync, MQTT sync, and configuration reads:
 The device app is intentionally not a CloudShell resource; it represents
 software running on the enrolled device.
 
+Read retained device events from the Event Broker:
+
+```bash
+./cloudshell.sh consume-events
+```
+
 The launcher declares a group enrollment profile that grants matching devices
 read access to the Configuration Store setting. The registry expands that profile
 into permissions for the device identity created during enrollment. It also
@@ -150,3 +163,15 @@ it through the Device Registry API. Disablement blocks future token issuance and
 MQTT authentication until the device is enabled again; revocation is the
 terminal access removal path. Operators can also remove the device record after
 revocation or when they want to clean up sample state.
+
+The Event Broker resource is a local retained event log in this sample. The
+device app opts into publishing one `cloudshell.device.checkin` event to the
+`device-checkins` stream through the separate Event Broker client, and the
+consumer app reads retained events back from that stream. Device Registry still
+owns identity, enrollment, presence, and twin sync; Event Broker only stores and
+serves event facts.
+
+This is CloudShell's managed event path, not the only possible event path for a
+device. A real device app can still connect to a custom broker, a
+device-specific endpoint, or another provider-native event service when its
+scenario requires that.

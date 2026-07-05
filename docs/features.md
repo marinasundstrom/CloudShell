@@ -84,9 +84,10 @@ Use these terms when summarizing feature and proposal state:
 | Storage and volumes | [Storage and Volumes](resources/storage-and-volumes.md) | Storage/volume resource types, volume-consumer payloads, mount materialization observations, Resource Manager storage views, permissions, diagnostics, and provider/launcher parity. |
 | SQL Server | [SQL Server resources](resources/sql-server.md) | Local-development SQL Server bridge, database child resources, volume support, access grants, and reconcile behavior. |
 | RabbitMQ | [RabbitMQ resources](resources/rabbitmq.md) | Local-development RabbitMQ broker bridge, AMQP and management endpoints, optional volume support, generated Resource Manager details, read-only queues/exchanges/bindings topology, CloudShell access grants mapped to RabbitMQ broker permissions, and deferred specialized broker management. |
+| Event Broker | [Event Broker](resources/event-broker.md) | Provider-neutral event-transport resource shape, protocol endpoint projection, and the boundary between event distribution, device management, operation queues, and observability. |
 | Load balancers | [Load balancers](resources/load-balancers.md), [Networking](networking.md) | Load-balancer resources, routes/backends, Traefik/local file-provider support, DNS/name mapping relationships, and exposure behavior. |
 | Configuration and secrets | [Configuration services](configuration-services.md), [Resource identity and permissions](resource-identity-and-permissions.md) | Configuration Store, Secrets Vault, reference flow, identity-backed access, and safe value handling. |
-| Device identity and enrollment | [Device Registry](resources/device-registry.md), [Resource identity and permissions](resource-identity-and-permissions.md) | Device Registry service resources, trust anchors, enrollment policy, device identity category, and built-in identity-backed MVP provisioning. |
+| Device identity and enrollment | [Device Registry](resources/device-registry.md), [Resource identity and permissions](resource-identity-and-permissions.md), [Event Broker](resources/event-broker.md) | Device Registry service resources, trust anchors, enrollment policy, device identity category, built-in identity-backed MVP provisioning, and the event-transport boundary for future device telemetry and check-ins. |
 
 ## Operations And Observability
 

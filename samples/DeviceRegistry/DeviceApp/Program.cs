@@ -1,6 +1,7 @@
 using CloudShell.Client.Authentication;
 using CloudShell.Configuration.Client;
 using CloudShell.DeviceRegistry.Client;
+using CloudShell.EventBroker.Client;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -20,6 +21,14 @@ var configurationResourceId = builder.Configuration["ConfigurationStore:Resource
 var configurationSettingName = builder.Configuration["ConfigurationStore:SettingName"] ??
     Environment.GetEnvironmentVariable("CLOUDSHELL_CONFIGURATION_SETTING_NAME") ??
     "Device:Mode";
+var eventBrokerEndpoint = builder.Configuration["EventBroker:Endpoint"] ??
+    Environment.GetEnvironmentVariable("CLOUDSHELL_EVENT_BROKER_ENDPOINT");
+var eventBrokerResourceId = builder.Configuration["EventBroker:ResourceId"] ??
+    Environment.GetEnvironmentVariable("CLOUDSHELL_EVENT_BROKER_RESOURCE_ID") ??
+    "event.broker:events";
+var eventBrokerStream = builder.Configuration["EventBroker:Stream"] ??
+    Environment.GetEnvironmentVariable("CLOUDSHELL_EVENT_BROKER_STREAM") ??
+    "device-checkins";
 var manufacturer = builder.Configuration["Device:Manufacturer"] ??
     Environment.GetEnvironmentVariable("DEVICE_MANUFACTURER") ??
     "cloudshell";
@@ -67,6 +76,7 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
     DeviceMetadataResponse? heartbeat = null;
     DeviceSyncResponse? sync = null;
     DeviceSyncResponse? mqttSync = null;
+    EventBrokerEvent? publishedEvent = null;
     var mqttSyncPublished = false;
     if (!string.IsNullOrWhiteSpace(configurationEndpoint))
     {
@@ -178,12 +188,49 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
             mqttSync.DesiredStateChanged);
     }
 
+    if (!string.IsNullOrWhiteSpace(eventBrokerEndpoint))
+    {
+        var eventClient = new EventBrokerClient(new Uri(eventBrokerEndpoint));
+        app.Logger.LogInformation(
+            "Publishing CloudShell Event Broker check-in event for device {DeviceId} to stream {Stream}.",
+            enrollment.DeviceId,
+            eventBrokerStream);
+        publishedEvent = await eventClient.PublishAsync(
+            eventBrokerResourceId,
+            eventBrokerStream,
+            new EventBrokerPublishRequest(
+                "cloudshell.device.checkin",
+                JsonSerializer.SerializeToElement(new
+                {
+                    enrollment.DeviceId,
+                    enrollment.Subject,
+                    heartbeat?.Presence,
+                    configurationSetting = configuration?.Name,
+                    configurationValue = configuration?.Value,
+                    mqttSyncPublished
+                }),
+                Source: "samples/device-registry/device-app",
+                Subject: enrollment.Subject,
+                Properties: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["deviceId"] = enrollment.DeviceId,
+                    ["registryResourceId"] = registryResourceId
+                }),
+            cancellationToken);
+        app.Logger.LogInformation(
+            "CloudShell Event Broker retained event {EventId} at sequence {Sequence} for device {DeviceId}.",
+            publishedEvent.Id,
+            publishedEvent.Sequence,
+            enrollment.DeviceId);
+    }
+
     return Results.Ok(new
     {
         enrollment,
         heartbeat,
         sync,
         mqttSync,
+        publishedEvent,
         mqttSyncPublished,
         configuration
     });
