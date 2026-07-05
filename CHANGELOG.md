@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Moved Resource Manager Device Registry device inspection into a dedicated
+  device details view.
+- Added sample device app logs for enrollment, heartbeat, twin sync, and
+  Configuration Store reads.
 - Recorded the enrollment profile name and kind on enrolled Device Registry
   devices and surfaced that attribution through API/client responses and the
   Resource Manager device list.

@@ -164,8 +164,9 @@ General section:
 - **Devices** lists enrolled devices and shows device status, last seen,
   identity metadata, enrollment claims, and non-secret device properties
   reported by the client. Registry operators can revoke access for the selected
-  device or remove the device record from this tab when the backing registry
-  service is running. The selected device details include a Twin section that
+  device or remove the device record from the dedicated device details view when
+  the backing registry service is running. The details view includes identity,
+  lifecycle, enrollment profile, properties, claims, and a Twin section that
   shows desired and reported state versions, update timestamps, last sync time,
   read-only reported state JSON, and an editor for the desired state JSON object.
 - **Enrollment profiles** shows the base enrollment policy, trusted

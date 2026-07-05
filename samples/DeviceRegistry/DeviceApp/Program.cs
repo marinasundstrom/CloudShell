@@ -45,6 +45,9 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
 {
     using var httpClient = new HttpClient();
     var client = new DeviceRegistryClient(new Uri(registryEndpoint), httpClient);
+    app.Logger.LogInformation(
+        "Enrolling current device with CloudShell Device Registry {RegistryResourceId}.",
+        registryResourceId);
     var enrollment = await client.EnrollCurrentDeviceAsync(
         registryResourceId,
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -52,6 +55,10 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
             ["manufacturer"] = manufacturer
         },
         cancellationToken: cancellationToken);
+    app.Logger.LogInformation(
+        "CloudShell Device Registry enrollment completed for device {DeviceId} with subject {Subject}.",
+        enrollment.DeviceId,
+        enrollment.Subject);
 
     CloudShellConfigurationSetting? configuration = null;
     DeviceMetadataResponse? heartbeat = null;
@@ -64,6 +71,9 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
             enrollment,
             tokenHttpClient,
             cancellationToken);
+        app.Logger.LogInformation(
+            "Sending CloudShell Device Registry heartbeat for device {DeviceId}.",
+            enrollment.DeviceId);
         heartbeat = await client.SendHeartbeatAsync(
             registryResourceId,
             enrollment.DeviceId,
@@ -74,6 +84,13 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
             },
             "sample-app",
             cancellationToken);
+        app.Logger.LogInformation(
+            "CloudShell Device Registry heartbeat completed for device {DeviceId} with presence {Presence}.",
+            heartbeat.DeviceId,
+            heartbeat.Presence);
+        app.Logger.LogInformation(
+            "Synchronizing CloudShell Device Registry twin state for device {DeviceId}.",
+            enrollment.DeviceId);
         sync = await client.SyncDeviceAsync(
             registryResourceId,
             enrollment.DeviceId,
@@ -91,6 +108,12 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
                 "sample-app",
                 LastKnownDesiredVersion: 0),
             cancellationToken);
+        app.Logger.LogInformation(
+            "CloudShell Device Registry twin sync completed for device {DeviceId}; desired version {DesiredVersion}, reported version {ReportedVersion}, changed {DesiredStateChanged}.",
+            sync.Device.DeviceId,
+            sync.Desired.Version,
+            sync.Reported.Version,
+            sync.DesiredStateChanged);
         var credential = new EnvironmentCloudShellResourceCredential(
             new EnvironmentCloudShellResourceCredentialOptions
             {
@@ -105,9 +128,17 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
             credential,
             configurationHttpClient,
             [ConfigurationStoreClient.DefaultScope]);
+        app.Logger.LogInformation(
+            "Reading CloudShell Configuration Store setting {SettingName} for device {DeviceId}.",
+            configurationSettingName,
+            enrollment.DeviceId);
         configuration = await configurationClient.GetSettingAsync(
             configurationSettingName,
             cancellationToken);
+        app.Logger.LogInformation(
+            "CloudShell Configuration Store setting {SettingName} was read for device {DeviceId}.",
+            configuration?.Name ?? configurationSettingName,
+            enrollment.DeviceId);
     }
 
     return Results.Ok(new

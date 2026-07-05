@@ -110,7 +110,9 @@ Then run the device app independently:
 Call the device app to enroll the current machine and read configuration with
 the issued device identity. The app also sends a heartbeat check-in after it
 receives a device token, then performs a device twin sync so the registry
-records reported state and returns desired state:
+records reported state and returns desired state. The device app logs each
+CloudShell contact so the local run shows enrollment, heartbeat, sync, and
+configuration reads:
 
 ```bash
 ./cloudshell.sh enroll

@@ -1,0 +1,411 @@
+@using System.Text.Json
+
+<section class="blade-section">
+    <div class="blade-section-header">
+        <div>
+            <h3>@Device.Subject</h3>
+            <p>@Device.ClientId</p>
+        </div>
+        <div class="heading-actions">
+            <FluentButton Appearance="Appearance.Neutral"
+                          IconStart="@(new Icons.Regular.Size20.ArrowLeft())"
+                          OnClick="@(() => Back.InvokeAsync())">
+                Devices
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Neutral"
+                          Disabled="@(!CanRevokeDevice || IsMutatingDevice)"
+                          IconStart="@(new Icons.Regular.Size20.ErrorCircle())"
+                          OnClick="RevokeDevice">
+                Revoke access
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Neutral"
+                          Disabled="@IsMutatingDevice"
+                          IconStart="@(new Icons.Regular.Size20.Delete())"
+                          OnClick="RemoveDevice">
+                Remove
+            </FluentButton>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(DeviceOperationMessage))
+    {
+        <p>@DeviceOperationMessage</p>
+    }
+
+    <ResourceTable AriaLabel="Device identity details">
+        <tbody>
+            <tr>
+                <th scope="row">Identity category</th>
+                <td>@Device.IdentityCategory</td>
+            </tr>
+            <tr>
+                <th scope="row">Identity provider</th>
+                <td>@Device.IdentityProviderId</td>
+            </tr>
+            <tr>
+                <th scope="row">Identity resource</th>
+                <td>@Device.IdentityResourceId</td>
+            </tr>
+            <tr>
+                <th scope="row">Identity name</th>
+                <td>@Device.IdentityName</td>
+            </tr>
+            <tr>
+                <th scope="row">Status</th>
+                <td>@FormatStatus(Device)</td>
+            </tr>
+            <tr>
+                <th scope="row">Presence</th>
+                <td>@FormatPresence(Device)</td>
+            </tr>
+            <tr>
+                <th scope="row">Enrollment profile</th>
+                <td>@FormatEnrollmentProfile(Device)</td>
+            </tr>
+            <tr>
+                <th scope="row">Last seen</th>
+                <td>@FormatOptionalTimestamp(Device.LastSeenAt)</td>
+            </tr>
+            <tr>
+                <th scope="row">Last seen source</th>
+                <td>@FormatOptionalValue(Device.LastSeenSource)</td>
+            </tr>
+            <tr>
+                <th scope="row">Revoked</th>
+                <td>@FormatOptionalTimestamp(Device.RevokedAt)</td>
+            </tr>
+            <tr>
+                <th scope="row">Revocation reason</th>
+                <td>@FormatOptionalValue(Device.RevokedReason)</td>
+            </tr>
+        </tbody>
+    </ResourceTable>
+</section>
+
+<section class="blade-section">
+    <div class="blade-section-header">
+        <div>
+            <h3>Twin</h3>
+            <p>@GetTwinSummary(Device)</p>
+        </div>
+        <div class="heading-actions">
+            <FluentButton Appearance="Appearance.Accent"
+                          Disabled="@IsUpdatingTwin"
+                          IconStart="@(new Icons.Regular.Size20.Save())"
+                          OnClick="UpdateDesiredStateAsync">
+                Save desired state
+            </FluentButton>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(TwinOperationMessage))
+    {
+        <p>@TwinOperationMessage</p>
+    }
+
+    <ResourceTable AriaLabel="Device twin metadata">
+        <tbody>
+            <tr>
+                <th scope="row">Desired version</th>
+                <td>@Device.Twin.Desired.Version</td>
+            </tr>
+            <tr>
+                <th scope="row">Desired updated</th>
+                <td>@FormatOptionalTimestamp(Device.Twin.Desired.UpdatedAt)</td>
+            </tr>
+            <tr>
+                <th scope="row">Reported version</th>
+                <td>@Device.Twin.Reported.Version</td>
+            </tr>
+            <tr>
+                <th scope="row">Reported updated</th>
+                <td>@FormatOptionalTimestamp(Device.Twin.Reported.UpdatedAt)</td>
+            </tr>
+            <tr>
+                <th scope="row">Last sync</th>
+                <td>@FormatOptionalTimestamp(Device.Twin.LastSyncedAt)</td>
+            </tr>
+        </tbody>
+    </ResourceTable>
+
+    <div class="form-grid">
+        <label for="device-twin-desired">Desired state</label>
+        <FluentTextArea Id="device-twin-desired"
+                        AriaLabel="Desired twin state JSON"
+                        @bind-Value="DesiredStateJson"
+                        Rows="8"
+                        Style="width: 100%;" />
+    </div>
+
+    <ResourceTable AriaLabel="Reported twin state">
+        <thead>
+            <tr>
+                <th>Reported state</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>
+                    <pre>@FormatTwinStateJson(Device.Twin.Reported.State)</pre>
+                </td>
+            </tr>
+        </tbody>
+    </ResourceTable>
+</section>
+
+<section class="blade-section">
+    <div class="blade-section-header">
+        <div>
+            <h3>Properties</h3>
+            <p>@GetPairSummary(Device.Properties, "property", "properties")</p>
+        </div>
+    </div>
+
+    <ResourceTable AriaLabel="Device properties">
+        <tbody>
+            @foreach (var property in GetPairs(Device.Properties))
+            {
+                <tr>
+                    <th scope="row">@property.Key</th>
+                    <td>@property.Value</td>
+                </tr>
+            }
+        </tbody>
+    </ResourceTable>
+</section>
+
+<section class="blade-section">
+    <div class="blade-section-header">
+        <div>
+            <h3>Claims</h3>
+            <p>@GetPairSummary(Device.Claims, "claim", "claims")</p>
+        </div>
+    </div>
+
+    <ResourceTable AriaLabel="Device claims">
+        <tbody>
+            @foreach (var claim in GetPairs(Device.Claims))
+            {
+                <tr>
+                    <th scope="row">@claim.Key</th>
+                    <td>@claim.Value</td>
+                </tr>
+            }
+        </tbody>
+    </ResourceTable>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public CloudShell.Abstractions.ResourceManager.Resource Resource { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public DeviceRegistryRuntimeDevice Device { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public IDeviceRegistryRuntimeDeviceManager DeviceManager { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback<DeviceRegistryRuntimeDevice> DeviceChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<string> DeviceRemoved { get; set; }
+
+    [Parameter]
+    public EventCallback Back { get; set; }
+
+    private bool IsMutatingDevice { get; set; }
+    private bool IsUpdatingTwin { get; set; }
+    private string? DeviceOperationMessage { get; set; }
+    private string DesiredStateJson { get; set; } = "{}";
+    private string? TwinEditorDeviceId { get; set; }
+    private string? TwinOperationMessage { get; set; }
+    private bool CanRevokeDevice => !IsRevoked(Device);
+
+    protected override void OnParametersSet() =>
+        SyncTwinEditor();
+
+    private async Task RevokeDevice()
+    {
+        if (!CanRevokeDevice || IsMutatingDevice)
+        {
+            return;
+        }
+
+        await MutateDeviceAsync(async () =>
+        {
+            var updated = await DeviceManager.RevokeDeviceAsync(
+                Resource,
+                Device.Id,
+                "Revoked from Resource Manager");
+            DeviceOperationMessage = "Device access was revoked.";
+            await DeviceChanged.InvokeAsync(updated);
+        });
+    }
+
+    private async Task RemoveDevice()
+    {
+        if (IsMutatingDevice)
+        {
+            return;
+        }
+
+        await MutateDeviceAsync(async () =>
+        {
+            await DeviceManager.RemoveDeviceAsync(
+                Resource,
+                Device.Id);
+            DeviceOperationMessage = "Device record was removed.";
+            await DeviceRemoved.InvokeAsync(Device.Id);
+        });
+    }
+
+    private async Task UpdateDesiredStateAsync()
+    {
+        if (IsUpdatingTwin)
+        {
+            return;
+        }
+
+        IsUpdatingTwin = true;
+        TwinOperationMessage = null;
+        try
+        {
+            var desiredState = ParseTwinStateJson(DesiredStateJson);
+            var twin = await DeviceManager.SetDesiredStateAsync(
+                Resource,
+                Device.Id,
+                desiredState);
+            TwinOperationMessage = "Desired state was updated.";
+            await DeviceChanged.InvokeAsync(Device with
+            {
+                Twin = twin
+            });
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException or JsonException)
+        {
+            TwinOperationMessage = exception.Message;
+        }
+        finally
+        {
+            IsUpdatingTwin = false;
+        }
+    }
+
+    private async Task MutateDeviceAsync(Func<Task> operation)
+    {
+        IsMutatingDevice = true;
+        DeviceOperationMessage = null;
+        try
+        {
+            await operation();
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException or JsonException)
+        {
+            DeviceOperationMessage = exception.Message;
+        }
+        finally
+        {
+            IsMutatingDevice = false;
+        }
+    }
+
+    private void SyncTwinEditor()
+    {
+        if (string.Equals(TwinEditorDeviceId, Device.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        DesiredStateJson = FormatTwinStateJson(Device.Twin.Desired.State);
+        TwinEditorDeviceId = Device.Id;
+        TwinOperationMessage = null;
+    }
+
+    private static IEnumerable<KeyValuePair<string, string>> GetPairs(
+        IReadOnlyDictionary<string, string> values) =>
+        values.OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase);
+
+    private static string GetPairSummary(
+        IReadOnlyDictionary<string, string> values,
+        string singular,
+        string plural) =>
+        values.Count == 1
+            ? $"1 {singular}"
+            : $"{values.Count} {plural}";
+
+    private static string GetTwinSummary(DeviceRegistryRuntimeDevice device) =>
+        device.Twin.LastSyncedAt is null
+            ? "Desired and reported state for this device."
+            : $"Last synced {FormatTimestamp(device.Twin.LastSyncedAt.Value)}.";
+
+    private static IReadOnlyDictionary<string, JsonElement> ParseTwinStateJson(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        using var document = JsonDocument.Parse(json);
+        if (document.RootElement.ValueKind != JsonValueKind.Object)
+        {
+            throw new JsonException("Desired state must be a JSON object.");
+        }
+
+        var state = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+        foreach (var property in document.RootElement.EnumerateObject())
+        {
+            state[property.Name] = property.Value.Clone();
+        }
+
+        return state;
+    }
+
+    private static string FormatTwinStateJson(
+        IReadOnlyDictionary<string, JsonElement> state) =>
+        JsonSerializer.Serialize(
+            state,
+            new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+
+    private static string FormatTimestamp(DateTimeOffset timestamp) =>
+        timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+
+    private static string FormatOptionalTimestamp(DateTimeOffset? timestamp) =>
+        timestamp is null
+            ? "-"
+            : FormatTimestamp(timestamp.Value);
+
+    private static string FormatOptionalValue(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? "-"
+            : value;
+
+    private static string FormatStatus(DeviceRegistryRuntimeDevice device) =>
+        string.IsNullOrWhiteSpace(device.Status)
+            ? "active"
+            : device.Status;
+
+    private static string FormatPresence(DeviceRegistryRuntimeDevice device) =>
+        string.IsNullOrWhiteSpace(device.Presence)
+            ? "unknown"
+            : device.Presence;
+
+    private static string FormatEnrollmentProfile(DeviceRegistryRuntimeDevice device)
+    {
+        if (string.IsNullOrWhiteSpace(device.EnrollmentProfileName))
+        {
+            return "-";
+        }
+
+        return string.IsNullOrWhiteSpace(device.EnrollmentProfileKind)
+            ? device.EnrollmentProfileName
+            : $"{device.EnrollmentProfileName} ({device.EnrollmentProfileKind})";
+    }
+
+    private static bool IsRevoked(DeviceRegistryRuntimeDevice device) =>
+        string.Equals(device.Status, "revoked", StringComparison.OrdinalIgnoreCase) ||
+        device.RevokedAt is not null;
+}
