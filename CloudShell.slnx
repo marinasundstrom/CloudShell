@@ -78,6 +78,10 @@
     <Project Path="samples/GoApp/AppHost/CloudShell.GoAppHost.csproj" />
   </Folder>
   <Folder Name="/samples/GoAppHost/" />
+  <Folder Name="/samples/PythonAppHost/" />
+  <Folder Name="/samples/PythonAppHost/AppHost/">
+    <Project Path="samples/PythonAppHost/AppHost/CloudShell.PythonAppHost.csproj" />
+  </Folder>
   <Folder Name="/samples/JavaAppHost/" />
   <Folder Name="/samples/JavaScriptContainerApp/" />
   <Folder Name="/samples/JavaScriptContainerApp/Host/">

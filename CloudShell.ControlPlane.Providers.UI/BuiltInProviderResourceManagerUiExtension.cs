@@ -28,6 +28,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
             "resource-ui.application.javascript-app",
             "resource-ui.application.java-app",
             "resource-ui.application.go-app",
+            "resource-ui.application.python-app",
             "resource-ui.application.sql-server",
             "resource-ui.application.rabbitmq",
             "resource-ui.application.container-app",
@@ -133,6 +134,27 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                             "http",
                             "liveness",
                             Source: ResourceProbeSource.ForHttp("/alive", "http"))
+                ]),
+                resourceClass: ResourceManagerResourceClass.Project)
+            .AddResourceType<SharedPages.RegisterApplicationResource>(
+                PythonAppResourceTypeProvider.ResourceTypeId.ToString(),
+                "Python app",
+                "Inspect Python applications declared through Resource Manager.",
+                "application",
+                25,
+                probeOptions: new ResourceTypeProbeOptions(
+                    [
+                        new ResourceHealthCheck(
+                            "/healthz",
+                            EndpointName: "http",
+                            Name: "health",
+                            Source: ResourceProbeSource.ForHttp("/healthz", "http")),
+                        new ResourceHealthCheck(
+                            "/alive",
+                            ResourceProbeType.Liveness,
+                            "http",
+                            "liveness",
+                            Source: ResourceProbeSource.ForHttp("/alive", "http"))
                     ]),
                 resourceClass: ResourceManagerResourceClass.Project)
             .AddResourceType<ContainerAppPages.RegisterContainerApplicationResource>(
@@ -140,7 +162,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 "Container app",
                 "Inspect container applications declared through Resource Manager.",
                 "container",
-                25,
+                26,
                 probeOptions: new ResourceTypeProbeOptions(SupportsHealth: true),
                 resourceClass: ResourceManagerResourceClass.Container)
             .AddResourceType<SharedPages.RegisterApplicationResource>(
@@ -148,7 +170,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 "SQL Server",
                 "Inspect SQL Server resources declared through Resource Manager.",
                 "database-server",
-                26,
+                27,
                 probeOptions: new ResourceTypeProbeOptions(
                     [
                         new ResourceHealthCheck(
@@ -162,42 +184,42 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 "RabbitMQ",
                 "Inspect RabbitMQ broker resources declared through Resource Manager.",
                 "queue",
-                27,
+                28,
                 resourceClass: ResourceManagerResourceClass.Service)
             .AddResourceType<SharedPages.RegisterResource>(
                 EventBrokerResourceTypeProvider.ResourceTypeId.ToString(),
                 "Event Broker",
                 "Inspect event broker resources declared through Resource Manager.",
                 "queue",
-                28,
+                29,
                 resourceClass: ResourceManagerResourceClass.Service)
             .AddResourceType<SharedPages.RegisterResource>(
                 SqlDatabaseResourceTypeProvider.ResourceTypeId.ToString(),
                 "SQL Database",
                 "Inspect SQL database child resources declared through Resource Manager.",
                 "database-item",
-                29,
+                30,
                 resourceClass: ResourceManagerResourceClass.Service)
             .AddResourceType<SharedPages.RegisterResource>(
                 ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(),
                 "Configuration Store",
                 "Inspect configuration store resources declared through Resource Manager.",
                 "settings",
-                30,
+                31,
                 resourceClass: ResourceManagerResourceClass.Configuration)
             .AddResourceType<SharedPages.RegisterResource>(
                 SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),
                 "Secrets Vault",
                 "Inspect secrets vault resources declared through Resource Manager.",
                 "key",
-                31,
+                32,
                 resourceClass: ResourceManagerResourceClass.SecretsVault)
             .AddResourceType<SharedPages.RegisterResource>(
                 DeviceRegistryResourceTypeProvider.ResourceTypeId.ToString(),
                 "Device Registry",
                 "Inspect device registry resources declared through Resource Manager.",
                 "devices",
-                32,
+                33,
                 resourceClass: ResourceManagerResourceClass.Service)
             .AddResourceTab<ConfigurationPages.ConfigurationStoreSettings>(
                 ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(),
@@ -249,14 +271,14 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 "Identity Provisioning",
                 "Inspect identity provisioning resources declared through Resource Manager.",
                 "identity",
-                33,
+                34,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 ContainerHostResourceTypeProvider.ResourceTypeId.ToString(),
                 "Container Host",
                 "Inspect container host resources declared through Resource Manager.",
                 "container-host",
-                34,
+                35,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 DockerHostResourceTypeProvider.ResourceTypeId.ToString(),

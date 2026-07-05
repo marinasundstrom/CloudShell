@@ -1,7 +1,7 @@
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class GoAppServiceDiscoveryEnvironmentResolver(
-    ResourceGraphModel? graphModel = null) : IGoAppRuntimeEnvironmentProvider
+public sealed class PythonAppServiceDiscoveryEnvironmentResolver(
+    ResourceGraphModel? graphModel = null) : IPythonAppRuntimeEnvironmentProvider
 {
     private readonly ResourceGraphModel? _graphModel = graphModel;
 
@@ -12,7 +12,7 @@ public sealed class GoAppServiceDiscoveryEnvironmentResolver(
         ArgumentNullException.ThrowIfNull(resource);
 
         var references = resource.Attributes.GetObject<ResourceReference[]>(
-            GoAppResourceTypeProvider.Attributes.References) ?? [];
+            PythonAppResourceTypeProvider.Attributes.References) ?? [];
         if (_graphModel is null || references.Length == 0)
         {
             return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -78,10 +78,10 @@ public sealed class GoAppServiceDiscoveryEnvironmentResolver(
     private static IReadOnlyList<NetworkingEndpointRequestValue> GetEndpointRequests(
         ResourceState resource)
     {
-        if (resource.TypeId == GoAppResourceTypeProvider.ResourceTypeId)
+        if (resource.TypeId == PythonAppResourceTypeProvider.ResourceTypeId)
         {
             return resource.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
-                GoAppResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+                PythonAppResourceTypeProvider.Attributes.EndpointRequests) ?? [];
         }
 
         if (resource.TypeId == JavaAppResourceTypeProvider.ResourceTypeId)
@@ -90,10 +90,10 @@ public sealed class GoAppServiceDiscoveryEnvironmentResolver(
                 JavaAppResourceTypeProvider.Attributes.EndpointRequests) ?? [];
         }
 
-        if (resource.TypeId == PythonAppResourceTypeProvider.ResourceTypeId)
+        if (resource.TypeId == GoAppResourceTypeProvider.ResourceTypeId)
         {
             return resource.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
-                PythonAppResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+                GoAppResourceTypeProvider.Attributes.EndpointRequests) ?? [];
         }
 
         if (resource.TypeId == JavaScriptAppResourceTypeProvider.ResourceTypeId)
@@ -212,7 +212,7 @@ public sealed class GoAppServiceDiscoveryEnvironmentResolver(
     private static IReadOnlyList<string> ResolveServiceDiscoveryNames(ResourceState resource)
     {
         var configured = resource.ResourceAttributeValues.TryGetValue(
-            GoAppResourceTypeProvider.Attributes.ServiceDiscoveryName,
+            PythonAppResourceTypeProvider.Attributes.ServiceDiscoveryName,
             out var value) &&
             value.TryGetScalarString(out var serviceDiscoveryName)
                 ? serviceDiscoveryName

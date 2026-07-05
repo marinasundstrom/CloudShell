@@ -17,6 +17,8 @@ Resource-type-specific guidance:
   JVM-backed project resources.
 - [Go applications](go-applications.md) for `application.go-app`
   Go-backed project resources.
+- [Python applications](python-applications.md) for `application.python-app`
+  Python-backed project resources.
 - [Container apps](container-apps.md) for `application.container-app` deployable
   container workloads.
 - [SQL Server resources](sql-server.md) for `application.sql-server`
@@ -46,15 +48,15 @@ like a managed service.
 Application resource authoring now flows through ResourceDefinition entries
 and the Resource graph. The current built-in providers expose builders such as
 `AddExecutableApplication(...)`, `AddAspNetCoreProject(...)`,
-`AddJavaScriptApp(...)`, `AddJavaApp(...)`, `AddGoApp(...)`, and
-`AddContainerApplication(...)`, then map accepted
+`AddJavaScriptApp(...)`, `AddJavaApp(...)`, `AddGoApp(...)`,
+`AddPythonApp(...)`, and `AddContainerApplication(...)`, then map accepted
 resource intent to provider projection, actions, logs, health, endpoint, and
 runtime adapter contracts.
 The earlier application-definition provider package was part of the old
 provider model and has been removed from the active solution.
 
 Executable apps, ASP.NET Core projects, JavaScript apps, Java apps, Go apps,
-container apps, and SQL Server each have their own resource type and
+Python apps, container apps, and SQL Server each have their own resource type and
 provider-owned semantics. They can still share provider-neutral helpers for
 common concerns such as local process execution, container-backed startup,
 environment variables, app settings, endpoint projection, logs, monitoring,
@@ -83,6 +85,7 @@ flowchart TB
         JavaScript["application.javascript-app"]
         Java["application.java-app"]
         Go["application.go-app"]
+        Python["application.python-app"]
         Container["application.container-app"]
         SqlServer["application.sql-server"]
     end

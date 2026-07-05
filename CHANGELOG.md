@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added a Python app resource model slice with `application.python-app`,
+  `AddPythonApp(...)`, process lifecycle/log/monitoring support, Resource
+  Manager projection, C# launcher sample coverage, and documentation that keeps
+  Python-native launcher support deferred to the next slice.
 - Moved Resource Manager Device Registry device inspection into a dedicated
   device details view.
 - Added sample device app logs for enrollment, heartbeat, twin sync, and

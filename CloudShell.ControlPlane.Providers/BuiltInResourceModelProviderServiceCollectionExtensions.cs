@@ -80,6 +80,7 @@ public static class BuiltInResourceModelProviderServiceCollectionExtensions
             .AddJavaScriptAppResourceType()
             .AddJavaAppResourceType()
             .AddGoAppResourceType()
+            .AddPythonAppResourceType()
             .AddContainerApplicationResourceType()
             .AddDockerHostResourceType()
             .AddDockerContainerResourceType()

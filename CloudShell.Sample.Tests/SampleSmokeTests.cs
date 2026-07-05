@@ -284,6 +284,11 @@ public sealed class SampleSmokeTests
         };
         yield return new object[]
         {
+            "samples/PythonAppHost/AppHost/CloudShell.PythonAppHost.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
             "samples/SplitHosting/ControlPlane/CloudShell.SplitHosting.ControlPlane.csproj",
             new[] { "/openapi/control-plane-v1.json", "/api/control-plane/v1/resources" }
         };
@@ -3968,6 +3973,11 @@ public sealed class SampleSmokeTests
             return "SettingsAndSecrets";
         }
 
+        if (projectPath.Contains("/PythonAppHost/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "PythonAppHost";
+        }
+
         if (projectPath.Contains("/SplitHosting/ControlPlane/", StringComparison.OrdinalIgnoreCase))
         {
             return "SplitHosting";
@@ -5975,6 +5985,16 @@ public sealed class SampleSmokeTests
                     "configuration.store:go-app-settings",
                     "secrets.vault:go-app-secrets",
                     "application.go-app:go-api"
+                ];
+            }
+
+            if (projectPath.Contains("/PythonAppHost/", StringComparison.OrdinalIgnoreCase))
+            {
+                return
+                [
+                    "configuration.store:python-app-settings",
+                    "secrets.vault:python-app-secrets",
+                    "application.python-app:python-api"
                 ];
             }
 

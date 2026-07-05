@@ -90,6 +90,28 @@ internal static class ProjectEnvironmentVariableReader
                 StringComparer.OrdinalIgnoreCase);
     }
 
+    public static IReadOnlyDictionary<string, PythonAppEnvironmentVariableValue> ReadPythonApp(
+        ResourceAttributeSet attributes)
+    {
+        ArgumentNullException.ThrowIfNull(attributes);
+
+        var values = attributes.GetObject<Dictionary<string, PythonAppEnvironmentVariableValue>>(
+            PythonAppResourceTypeProvider.Attributes.EnvironmentVariables);
+        if (values is { Count: > 0 })
+        {
+            return values;
+        }
+
+        return ReadFlattened(attributes, PythonAppResourceTypeProvider.Attributes.EnvironmentVariables)
+            .ToDictionary(
+                variable => variable.Key,
+                variable => new PythonAppEnvironmentVariableValue(
+                    variable.Value.Value,
+                    variable.Value.ConfigurationSettingRef,
+                    variable.Value.SecretRef),
+                StringComparer.OrdinalIgnoreCase);
+    }
+
     private static IReadOnlyDictionary<string, EnvironmentVariableParts> ReadFlattened(
         ResourceAttributeSet attributes,
         ResourceAttributeId root)

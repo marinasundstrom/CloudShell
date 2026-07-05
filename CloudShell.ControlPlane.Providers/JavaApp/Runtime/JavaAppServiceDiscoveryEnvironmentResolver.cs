@@ -90,6 +90,12 @@ public sealed class JavaAppServiceDiscoveryEnvironmentResolver(
                 GoAppResourceTypeProvider.Attributes.EndpointRequests) ?? [];
         }
 
+        if (resource.TypeId == PythonAppResourceTypeProvider.ResourceTypeId)
+        {
+            return resource.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+                PythonAppResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+        }
+
         if (resource.TypeId == JavaScriptAppResourceTypeProvider.ResourceTypeId)
         {
             return resource.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(

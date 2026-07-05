@@ -50,6 +50,7 @@ state and omitted from accepted graph state and normal exports.
 | `application.javascript-app` | `project` | `applications.javascript-app` | User-authored JavaScript/Node.js project. |
 | `application.java-app` | `project` | `applications.java-app` | User-authored Java/JVM project. |
 | `application.go-app` | `project` | `applications.go-app` | User-authored Go project. |
+| `application.python-app` | `project` | `applications.python-app` | User-authored Python project. |
 | `application.container-app` | `container` | `applications.container-app` | User-authored deployable container app. |
 | `application.sql-server` | `service` | `applications.sql-server` | User-authored local-development SQL Server. |
 | `application.sql-database` | `service` | `applications.sql-database` | User-authored SQL database child/resource. |

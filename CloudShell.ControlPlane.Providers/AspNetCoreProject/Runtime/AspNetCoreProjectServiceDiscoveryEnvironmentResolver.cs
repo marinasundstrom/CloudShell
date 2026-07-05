@@ -78,12 +78,47 @@ public sealed class AspNetCoreProjectServiceDiscoveryEnvironmentResolver(
     }
 
     private static IReadOnlyList<NetworkingEndpointRequestValue> GetEndpointRequests(
-        ResourceState resource) =>
-        resource.TypeId == SqlServerResourceTypeProvider.ResourceTypeId
-            ? resource.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
-                SqlServerResourceTypeProvider.Attributes.EndpointRequests) ?? []
-            : resource.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
-                AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+        ResourceState resource)
+    {
+        if (resource.TypeId == JavaScriptAppResourceTypeProvider.ResourceTypeId)
+        {
+            return resource.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+                JavaScriptAppResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+        }
+
+        if (resource.TypeId == JavaAppResourceTypeProvider.ResourceTypeId)
+        {
+            return resource.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+                JavaAppResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+        }
+
+        if (resource.TypeId == GoAppResourceTypeProvider.ResourceTypeId)
+        {
+            return resource.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+                GoAppResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+        }
+
+        if (resource.TypeId == PythonAppResourceTypeProvider.ResourceTypeId)
+        {
+            return resource.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+                PythonAppResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+        }
+
+        if (resource.TypeId == ContainerApplicationResourceTypeProvider.ResourceTypeId)
+        {
+            return resource.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+                ContainerApplicationResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+        }
+
+        if (resource.TypeId == SqlServerResourceTypeProvider.ResourceTypeId)
+        {
+            return resource.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+                SqlServerResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+        }
+
+        return resource.ResourceAttributeValues.GetObject<NetworkingEndpointRequestValue[]>(
+            AspNetCoreProjectResourceTypeProvider.Attributes.EndpointRequests) ?? [];
+    }
 
     private static void AddEndpointAttribute(
         ResourceState resource,

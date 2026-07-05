@@ -100,6 +100,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerEndpointProjectionProvider,
+                PythonAppResourceManagerEndpointProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerEndpointProjectionProvider,
                 ContainerApplicationResourceManagerEndpointProjectionProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
@@ -160,6 +164,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerStateProvider,
+                PythonAppResourceManagerStateProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerStateProvider,
                 ContainerApplicationResourceManagerStateProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
@@ -201,6 +209,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerObservabilityProvider,
                 GoAppResourceManagerObservabilityProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerObservabilityProvider,
+                PythonAppResourceManagerObservabilityProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerAttributeProvider,
@@ -247,6 +259,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
                 GoAppEnvironmentReferenceResolver>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
+                IPythonAppRuntimeEnvironmentProvider,
+                PythonAppEnvironmentReferenceResolver>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
                 IConfigurationSettingReferenceResolver,
                 ConfigurationStoreRuntimeSettingReferenceResolver>());
         services.TryAddEnumerable(
@@ -273,6 +289,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 IResourceMonitoringProvider,
                 GoAppResourceManagerMonitoringProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceMonitoringProvider,
+                PythonAppResourceManagerMonitoringProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceMonitoringProvider,
@@ -309,6 +329,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 ILogProvider,
                 GoAppResourceManagerLogProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                ILogProvider,
+                PythonAppResourceManagerLogProvider>());
         services.AddScoped<
             ISqlDatabaseServerResolver,
             SqlDatabaseResourceManagerServerResolver>();

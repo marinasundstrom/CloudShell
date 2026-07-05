@@ -11,6 +11,7 @@ internal static class BuiltInProviderResourceUiTypes
         IsJavaScriptApp(resourceType) ||
         IsJavaApp(resourceType) ||
         IsGoApp(resourceType) ||
+        IsPythonApp(resourceType) ||
         IsContainerApplication(resourceType) ||
         IsSqlServer(resourceType) ||
         IsRabbitMQ(resourceType);
@@ -43,6 +44,12 @@ internal static class BuiltInProviderResourceUiTypes
         string.Equals(
             resourceType,
             GoAppResourceTypeProvider.ResourceTypeId.ToString(),
+            StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsPythonApp(string? resourceType) =>
+        string.Equals(
+            resourceType,
+            PythonAppResourceTypeProvider.ResourceTypeId.ToString(),
             StringComparison.OrdinalIgnoreCase);
 
     public static bool IsSqlServer(string? resourceType) =>
