@@ -210,14 +210,14 @@ dotnet run --project CloudShell.Cli -- template apply ./cloudshell.template.yaml
   --bearer-token "$TOKEN"
 ```
 
-The same token can be supplied through `CLOUDSHELL_CONTROL_PLANE_TOKEN`.
+The same token can be supplied through `CLOUDSHELL_CONTROL_PLANE_TOKEN`. If no
+bearer token is supplied, commands read the active CloudShell profile from
+`~/.cloudshell/config.json` or `CLOUDSHELL_CONFIG_DIR`, with
+`CLOUDSHELL_PROFILE` selecting a profile. The first supported profile
+credential kind is `staticBearer`, matching the SDK client profile contract.
 
-This is intentionally a temporary credential source. CloudShell should later
-standardize a local credential/profile store, similar in role to Azure CLI's
-profile directory, so CLI commands and SDK launchers can discover the active
-Control Plane account, selected Control Plane target, selected environment, and
-credential material from one well-known place. That store must be designed
-before tokens are persisted.
+CLI login/profile commands, OS secure-store-backed credential material, logout,
+and profile target management remain future work.
 
 ## Local Host Name Mappings
 

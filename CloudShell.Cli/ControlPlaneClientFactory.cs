@@ -4,16 +4,22 @@ namespace CloudShell.Cli;
 
 internal static class ControlPlaneClientFactory
 {
-    public static ControlPlaneApiClient Create(Uri controlPlaneUrl, string? bearerToken)
+    public static async Task<ControlPlaneApiClient> CreateAsync(
+        Uri controlPlaneUrl,
+        string? bearerToken,
+        CancellationToken cancellationToken)
     {
         var httpClient = new HttpClient
         {
             BaseAddress = NormalizeBaseAddress(controlPlaneUrl)
         };
-        if (!string.IsNullOrWhiteSpace(bearerToken))
+        var resolvedBearerToken = await CliCredentialResolver.ResolveBearerTokenAsync(
+            bearerToken,
+            cancellationToken);
+        if (!string.IsNullOrWhiteSpace(resolvedBearerToken))
         {
             httpClient.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearerToken);
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", resolvedBearerToken);
         }
 
         return new ControlPlaneApiClient(httpClient, new RemoteControlPlane(httpClient));

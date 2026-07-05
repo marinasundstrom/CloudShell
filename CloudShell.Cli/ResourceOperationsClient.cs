@@ -13,7 +13,10 @@ internal static class ResourceOperationsClient
         bool? isRegistered,
         CancellationToken cancellationToken)
     {
-        using var client = ControlPlaneClientFactory.Create(controlPlaneUrl, bearerToken);
+        using var client = await ControlPlaneClientFactory.CreateAsync(
+            controlPlaneUrl,
+            bearerToken,
+            cancellationToken);
         return await client.ControlPlane.ListResourcesAsync(
             new ResourceQuery(
                 ResourceType: resourceType,
@@ -28,7 +31,10 @@ internal static class ResourceOperationsClient
         string resourceId,
         CancellationToken cancellationToken)
     {
-        using var client = ControlPlaneClientFactory.Create(controlPlaneUrl, bearerToken);
+        using var client = await ControlPlaneClientFactory.CreateAsync(
+            controlPlaneUrl,
+            bearerToken,
+            cancellationToken);
         return await client.ControlPlane.GetResourceAsync(resourceId, cancellationToken);
     }
 
@@ -38,7 +44,10 @@ internal static class ResourceOperationsClient
         ResourceActionExecuteCommand command,
         CancellationToken cancellationToken)
     {
-        using var client = ControlPlaneClientFactory.Create(controlPlaneUrl, bearerToken);
+        using var client = await ControlPlaneClientFactory.CreateAsync(
+            controlPlaneUrl,
+            bearerToken,
+            cancellationToken);
         return await client.ControlPlane.ExecuteResourceActionAsync(
             new ExecuteResourceActionCommand(
                 command.ResourceId,

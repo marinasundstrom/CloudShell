@@ -45,9 +45,12 @@ internal sealed class ControlPlaneDaemon
 
         try
         {
+            var bearerToken = await CliCredentialResolver.ResolveBearerTokenAsync(
+                command.BearerToken,
+                cancellationToken);
             await WaitForReadyAsync(
                 command.Url,
-                command.BearerToken,
+                bearerToken,
                 processId,
                 TimeSpan.FromSeconds(command.TimeoutSeconds),
                 cancellationToken);
@@ -92,9 +95,12 @@ internal sealed class ControlPlaneDaemon
         }
 
         var running = IsProcessRunning(state.ProcessId);
+        var bearerToken = await CliCredentialResolver.ResolveBearerTokenAsync(
+            command.BearerToken,
+            cancellationToken);
         var apiReady = running && await IsReadyAsync(
             state.BaseUrl,
-            command.BearerToken,
+            bearerToken,
             cancellationToken);
         return new ControlPlaneDaemonStatus(state, running, apiReady);
     }

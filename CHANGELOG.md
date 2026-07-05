@@ -67,6 +67,9 @@ on `git blame --follow`, and then by the broad type of change.
   default SDK credential chains check environment tokens first, then the shared
   CloudShell profile. The TypeScript Configuration Store sample now relies on
   that default chain instead of hand-picking token environment variables.
+- Updated the CloudShell CLI Control Plane API calls and daemon readiness checks
+  to fall back to the active CloudShell profile when no explicit bearer token or
+  `CLOUDSHELL_CONTROL_PLANE_TOKEN` is supplied.
 - Added an explicit `Microsoft.OpenApi` 3.7.0 dependency for OpenAPI-enabled
   hosts so the vulnerable transitive 3.3.1 package is no longer resolved.
 - Recorded the enrollment profile name and kind on enrolled Device Registry

@@ -30,7 +30,7 @@ Commands:
 
 Options:
   --control-plane        Control Plane base URL. Defaults to recorded daemon state.
-  --bearer-token         Bearer token for Control Plane API calls. Defaults to CLOUDSHELL_CONTROL_PLANE_TOKEN.
+  --bearer-token         Bearer token for Control Plane API calls. Defaults to CLOUDSHELL_CONTROL_PLANE_TOKEN, then the active CloudShell profile.
   --host-project         CloudShell host project to run. Defaults to CloudShell.Host in the current repo.
   --data-dir             Directory for CloudShell host databases and local data files.
   --host-settings        JSON appsettings file to pass through to the launched host.

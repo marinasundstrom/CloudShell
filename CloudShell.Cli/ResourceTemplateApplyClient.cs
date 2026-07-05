@@ -14,7 +14,10 @@ internal static class ResourceTemplateApplyClient
         CancellationToken cancellationToken)
     {
         var template = await ReadTemplateAsync(templatePath, cancellationToken);
-        using var client = ControlPlaneClientFactory.Create(controlPlaneUrl, bearerToken);
+        using var client = await ControlPlaneClientFactory.CreateAsync(
+            controlPlaneUrl,
+            bearerToken,
+            cancellationToken);
         return await client.ControlPlane.ApplyResourceTemplateAsync(
             new ResourceTemplateApplyRequest(template, mode),
             cancellationToken);
