@@ -19,4 +19,6 @@ public sealed record DeviceMetadataResponse(
     string? LastSeenSource,
     DateTimeOffset? RevokedAt,
     string? RevokedReason,
-    string? Presence = null);
+    string? Presence = null,
+    string? EnrollmentProfileName = null,
+    string? EnrollmentProfileKind = null);

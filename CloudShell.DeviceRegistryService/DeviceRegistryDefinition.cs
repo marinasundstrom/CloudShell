@@ -80,6 +80,10 @@ public sealed record DeviceRecord(
 
     public string? RevokedReason { get; init; }
 
+    public string? EnrollmentProfileName { get; init; }
+
+    public string? EnrollmentProfileKind { get; init; }
+
     public DeviceTwinDocument Twin { get; init; } = new();
 }
 
@@ -169,7 +173,9 @@ public sealed record DeviceEnrollmentResponse(
     string? RevokedReason,
     IReadOnlyDictionary<string, string> Claims,
     IReadOnlyDictionary<string, string> Properties,
-    string? Presence = null);
+    string? Presence = null,
+    string? EnrollmentProfileName = null,
+    string? EnrollmentProfileKind = null);
 
 public sealed record DeviceMetadataResponse(
     string DeviceId,
@@ -188,4 +194,6 @@ public sealed record DeviceMetadataResponse(
     string? LastSeenSource,
     DateTimeOffset? RevokedAt,
     string? RevokedReason,
-    string? Presence = null);
+    string? Presence = null,
+    string? EnrollmentProfileName = null,
+    string? EnrollmentProfileKind = null);

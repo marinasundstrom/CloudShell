@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Recorded the enrollment profile name and kind on enrolled Device Registry
+  devices and surfaced that attribution through API/client responses and the
+  Resource Manager device list.
 - Added Resource Manager Device Registry twin details and desired-state editing
   for enrolled devices.
 - Added an MVP Device Registry twin sync path with desired/reported state

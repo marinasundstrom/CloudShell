@@ -8,9 +8,13 @@ identity to access a service and synchronize device state.
 
 The physical device is simulated by the local `DeviceApp` process. It is
 intentionally outside the CloudShell resource graph to model the real-world
-case where the software running on a PC, Raspberry Pi, microcontroller gateway,
-or other device is not part of the control plane. CloudShell tracks the device
-through the Device Registry record and the provisioned device principal.
+case where the software running on a PC, Raspberry Pi, gateway, low-power
+microcontroller, or other device is not part of the control plane. Device
+Registry is not limited to low-power IoT devices; it registers any device that
+needs a CloudShell identity while keeping familiar IoT registry concepts such
+as enrollment, lifecycle, presence, and optional desired/reported twin state.
+CloudShell tracks the device through the Device Registry record and the
+provisioned device principal.
 
 The scenario uses these CloudShell features:
 
@@ -22,7 +26,7 @@ The scenario uses these CloudShell features:
 | Enrollment profile | Matches devices by subject/claims and grants the resulting device identity access to selected resources. |
 | Built-in identity provider | Issues the device identity credentials and bearer tokens used by the sample device app. |
 | Configuration Store | Provides a setting that the enrolled device reads remotely using its own identity. |
-| Device client API | Enrolls the current machine, sends heartbeat, and performs device twin sync. |
+| Device client API | Enrolls the current machine, sends heartbeat, and performs optional device twin sync. |
 | Resource Manager UI | Shows enrolled devices, reported properties, presence, enrollment profiles, and editable desired twin state. |
 
 The end-to-end flow is:
@@ -37,7 +41,9 @@ The end-to-end flow is:
 5. The device requests a token with its issued credentials and reads a
    Configuration Store setting.
 6. The device sends heartbeat and sync calls so the registry records presence,
-   reported properties, and reported twin state.
+   reported properties, and reported twin state. Twin sync is optional in the
+   Device Registry model; this sample uses it to simulate a low-power device
+   check-in.
 7. Operators can inspect the device in Resource Manager, update desired twin
    state, revoke access, or remove the device record.
 
@@ -119,7 +125,9 @@ into permissions for the device identity created during enrollment. It also
 configures a five-minute heartbeat stale-after window so the registry can show
 device presence as `online` or `stale` based on the most recent heartbeat.
 The same identity can call the sync endpoint when a device wakes to report its
-current state and fetch the latest desired state version.
+current state and fetch the latest desired state version. Devices that do not
+need state reconciliation can ignore the twin APIs and still use their
+provisioned identity to access allowed CloudShell services.
 
 The generic device client sends basic device properties during enrollment,
 including platform, operating system, architecture, framework description,

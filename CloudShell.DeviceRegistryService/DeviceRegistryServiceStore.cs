@@ -124,7 +124,10 @@ public sealed class DeviceRegistryServiceStore(
             {
                 Status = DeviceRecordStatuses.Active,
                 LastSeenAt = timestamp,
-                LastSeenSource = "enrollment"
+                LastSeenSource = "enrollment",
+                EnrollmentProfileName = profile?.Name,
+                EnrollmentProfileKind = profile?.Kind,
+                Twin = existing?.Twin ?? new()
             };
 
             if (existing is null)

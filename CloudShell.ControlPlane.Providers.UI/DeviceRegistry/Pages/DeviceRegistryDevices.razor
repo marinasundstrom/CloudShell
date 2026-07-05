@@ -33,6 +33,7 @@ else
                 <thead>
                     <tr>
                         <th>Subject</th>
+                        <th>Enrollment profile</th>
                         <th>Platform</th>
                         <th>Operating system</th>
                         <th>Architecture</th>
@@ -51,6 +52,7 @@ else
                                 <strong>@device.Subject</strong>
                                 <div class="table-subtext">@device.Id</div>
                             </td>
+                            <td>@FormatEnrollmentProfile(device)</td>
                             <td>@GetProperty(device, "platform")</td>
                             <td>
                                 @GetOperatingSystem(device)
@@ -129,6 +131,10 @@ else
                     <tr>
                         <th scope="row">Presence</th>
                         <td>@FormatPresence(SelectedDevice)</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Enrollment profile</th>
+                        <td>@FormatEnrollmentProfile(SelectedDevice)</td>
                     </tr>
                     <tr>
                         <th scope="row">Last seen</th>
@@ -568,6 +574,18 @@ else
         string.IsNullOrWhiteSpace(device.Presence)
             ? "unknown"
             : device.Presence;
+
+    private static string FormatEnrollmentProfile(DeviceRegistryRuntimeDevice device)
+    {
+        if (string.IsNullOrWhiteSpace(device.EnrollmentProfileName))
+        {
+            return "-";
+        }
+
+        return string.IsNullOrWhiteSpace(device.EnrollmentProfileKind)
+            ? device.EnrollmentProfileName
+            : $"{device.EnrollmentProfileName} ({device.EnrollmentProfileKind})";
+    }
 
     private static bool IsRevoked(DeviceRegistryRuntimeDevice device) =>
         string.Equals(device.Status, "revoked", StringComparison.OrdinalIgnoreCase) ||

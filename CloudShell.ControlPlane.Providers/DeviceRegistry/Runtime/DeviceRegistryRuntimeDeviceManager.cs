@@ -301,6 +301,10 @@ public sealed record DeviceRegistryRuntimeDevice(
 
     public string? Presence { get; init; }
 
+    public string? EnrollmentProfileName { get; init; }
+
+    public string? EnrollmentProfileKind { get; init; }
+
     public DeviceRegistryRuntimeDeviceTwin Twin { get; init; } = new();
 }
 
@@ -341,6 +345,8 @@ internal sealed record DeviceRegistryRuntimeDeviceResponse(
     DateTimeOffset? RevokedAt,
     string? RevokedReason,
     string? Presence = null,
+    string? EnrollmentProfileName = null,
+    string? EnrollmentProfileKind = null,
     DeviceRegistryRuntimeDeviceTwin? Twin = null)
 {
     public DeviceRegistryRuntimeDevice ToRuntimeDevice() =>
@@ -363,6 +369,8 @@ internal sealed record DeviceRegistryRuntimeDeviceResponse(
             RevokedAt = RevokedAt,
             RevokedReason = RevokedReason,
             Presence = Presence,
+            EnrollmentProfileName = EnrollmentProfileName,
+            EnrollmentProfileKind = EnrollmentProfileKind,
             Twin = Twin ?? new()
         };
 }

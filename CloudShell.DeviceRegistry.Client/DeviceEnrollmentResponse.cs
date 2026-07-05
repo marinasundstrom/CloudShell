@@ -22,4 +22,6 @@ public sealed record DeviceEnrollmentResponse(
     string? RevokedReason,
     IReadOnlyDictionary<string, string> Claims,
     IReadOnlyDictionary<string, string> Properties,
-    string? Presence = null);
+    string? Presence = null,
+    string? EnrollmentProfileName = null,
+    string? EnrollmentProfileKind = null);

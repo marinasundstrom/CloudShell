@@ -127,7 +127,9 @@ static IResult EnrollDevice(
         result.Device.RevokedReason,
         result.Device.Claims,
         result.Device.Properties,
-        ResolvePresence(registry, result.Device, timestamp)));
+        ResolvePresence(registry, result.Device, timestamp),
+        result.Device.EnrollmentProfileName,
+        result.Device.EnrollmentProfileKind));
 }
 
 static IResult HeartbeatDevice(
@@ -391,7 +393,9 @@ static DeviceMetadataResponse ToMetadataResponse(
         device.LastSeenSource,
         device.RevokedAt,
         device.RevokedReason,
-        ResolvePresence(registry, device, timestamp));
+        ResolvePresence(registry, device, timestamp),
+        device.EnrollmentProfileName,
+        device.EnrollmentProfileKind);
 
 static DeviceTwinResponse ToTwinResponse(DeviceTwinDocument twin) =>
     new(

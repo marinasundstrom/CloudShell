@@ -1,9 +1,14 @@
 # Device Registry
 
-Device Registry is the first IoT resource model slice. It is a service
-resource that owns device enrollment, trusted factory certificate references,
-device identity provisioning, registry-owned device metadata, and the lifecycle
-of the registry service process.
+Device Registry is the first IoT resource model slice. It can register any
+device that needs a CloudShell device identity, from a local PC or gateway to a
+low-power IoT device. The model follows familiar IoT registry expectations:
+enrollment, trust, device identity, lifecycle state, presence, and optional
+desired/reported twin state.
+
+Device Registry is a service resource that owns device enrollment, trusted
+factory certificate references, device identity provisioning, registry-owned
+device metadata, and the lifecycle of the registry service process.
 
 ## Resource Shape
 
@@ -84,7 +89,8 @@ concepts:
   `revoked`;
 - presence is computed contact state such as `online`, `stale`, `unknown`, or
   `revoked`;
-- twin state is the desired/reported state document used by low-power or
+- twin state is an optional desired/reported state document used by device
+  scenarios that need state reconciliation, especially low-power or
   intermittently connected devices.
 
 Device records expose:
@@ -93,6 +99,8 @@ Device records expose:
 | --- | --- |
 | `status` | Registry-owned device state such as `active` or `revoked`. |
 | `presence` | Computed contact state such as `online`, `stale`, `unknown`, or `revoked`. |
+| `enrollmentProfileName` | Name of the enrollment profile that provisioned the device, when known. |
+| `enrollmentProfileKind` | Profile kind, such as `individual` or `group`, that provisioned the device. |
 | `enrolledAt` | Time the device identity was first provisioned. |
 | `lastSeenAt` | Last registry-observed device contact. Enrollment and heartbeat update this value. |
 | `lastSeenSource` | Source of the last contact, such as `enrollment`, `heartbeat`, or a client-provided source. |
@@ -108,13 +116,16 @@ set, active devices whose last contact is older than that threshold report
 `presence=stale`. Without that threshold, CloudShell records last-seen metadata
 but does not infer stale device presence.
 
-Device twin sync is pull-based for the MVP. A device uses its issued identity
-token to call the sync endpoint when it wakes or reaches a configured contact
-interval. Sync can update reported state, merge non-secret device properties,
-update `lastSeenAt`, and return the latest desired state. Desired and reported
-state each carry a monotonically increasing version and timestamp so a device
-can send the last desired version it observed and cheaply determine whether it
-needs to apply new state.
+Device twin services are part of the baseline Device Registry capability, but
+using twin state is optional for each device scenario. A simple device may only
+enroll and use its identity to call CloudShell services. Devices that need state
+reconciliation can use the pull-based MVP sync endpoint with their issued
+identity token when they wake or reach a configured contact interval. Sync can
+update reported state, merge non-secret device properties, update `lastSeenAt`,
+and return the latest desired state. Desired and reported state each carry a
+monotonically increasing version and timestamp so a device can send the last
+desired version it observed and cheaply determine whether it needs to apply new
+state.
 
 The twin model intentionally does not imply that CloudShell has an always-on
 connection to the device. It supports low-power devices that periodically wake,
