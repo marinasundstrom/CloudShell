@@ -4,7 +4,8 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
 
-app_host_project="${CLOUDSHELL_APP_HOST_PROJECT:-$script_dir/AppHost/CloudShell.PythonAppHost.csproj}"
+python_launcher_path="${CLOUDSHELL_PYTHON_LAUNCHER_PATH:-$repo_root/Launchers/Python/cloudshell}"
+app_host_script="${CLOUDSHELL_APP_HOST_SCRIPT:-$script_dir/AppHost/app_host.py}"
 cli_project="${CLOUDSHELL_CLI_PROJECT:-$repo_root/CloudShell.Cli/CloudShell.Cli.csproj}"
 state_dir="${CLOUDSHELL_STATE_DIR:-$script_dir/.cloudshell}"
 control_plane_url="${CLOUDSHELL_CONTROL_PLANE_URL:-http://127.0.0.1:5107}"
@@ -15,7 +16,7 @@ usage() {
 Usage: ./cloudshell.sh <command> [options]
 
 Commands:
-  template       Print the C# launcher-authored ResourceTemplate YAML.
+  template       Print the Python launcher-authored ResourceTemplate JSON.
   apply          Apply the template to the configured Control Plane.
   run            Run the local development host in the foreground, apply the
                  template, and keep the host tied to the launcher lifetime.
@@ -34,14 +35,17 @@ Commands:
 Environment:
   CLOUDSHELL_CONTROL_PLANE_URL  Host URL. Default: $control_plane_url
   CLOUDSHELL_STATE_DIR          Launcher state directory. Default: $state_dir
-  CLOUDSHELL_APP_HOST_PROJECT   Launcher project path. Default: $app_host_project
+  CLOUDSHELL_APP_HOST_SCRIPT    Launcher script path. Default: $app_host_script
+  CLOUDSHELL_PYTHON_LAUNCHER_PATH
+                                Python launcher package path. Default: $python_launcher_path
   CLOUDSHELL_CLI_PROJECT        CLI project path. Default: $cli_project
   CLOUDSHELL_APP_RESOURCE_ID    App resource id. Default: $app_resource_id
 USAGE
 }
 
 run_launcher() {
-  dotnet run --project "$app_host_project" -- "$@"
+  PYTHONPATH="$python_launcher_path${PYTHONPATH:+:$PYTHONPATH}" \
+    python3 "$app_host_script" "$@"
 }
 
 run_cli() {
@@ -55,22 +59,22 @@ fi
 
 case "$command" in
   template)
-    run_launcher "$@"
+    run_launcher template "$@"
     ;;
   apply)
-    run_launcher --apply "$@"
+    run_launcher apply "$@"
     ;;
   run)
-    run_launcher --run "$@"
+    run_launcher run "$@"
     ;;
   run-no-auth)
-    Authentication__Enabled=false run_launcher --run "$@"
+    Authentication__Enabled=false run_launcher run "$@"
     ;;
   start)
-    run_launcher --start "$@"
+    run_launcher start "$@"
     ;;
   start-no-auth)
-    Authentication__Enabled=false run_launcher --start "$@"
+    Authentication__Enabled=false run_launcher start "$@"
     ;;
   stop)
     run_cli control-plane stop \

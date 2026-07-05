@@ -284,11 +284,6 @@ public sealed class SampleSmokeTests
         };
         yield return new object[]
         {
-            "samples/PythonAppHost/AppHost/CloudShell.PythonAppHost.csproj",
-            resourceHostPaths
-        };
-        yield return new object[]
-        {
             "samples/SplitHosting/ControlPlane/CloudShell.SplitHosting.ControlPlane.csproj",
             new[] { "/openapi/control-plane-v1.json", "/api/control-plane/v1/resources" }
         };

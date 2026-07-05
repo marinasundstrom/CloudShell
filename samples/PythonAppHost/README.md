@@ -1,9 +1,8 @@
 # Python App Host Launcher Sample
 
-This sample shows a Python workload declared from a C# launcher. The launcher
-uses the built-in `AddPythonApp(...)` Resource Model builder to target
-`CloudShell.LocalDevelopmentHost`; it does not add Python-native launcher
-support. Python launcher builders are intentionally deferred to the next slice.
+This sample shows a Python workload declared from a Python launcher. The
+launcher uses the experimental package under `Launchers/Python/cloudshell` to
+emit a ResourceTemplate and target `CloudShell.LocalDevelopmentHost`.
 
 Generate the template:
 

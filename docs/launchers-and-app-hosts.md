@@ -160,6 +160,7 @@ folder:
 - `Launchers/TypeScript/cloudshell`
 - `Launchers/Java/cloudshell-launcher`
 - `Launchers/Go/cloudshell`
+- `Launchers/Python/cloudshell`
 
 `CloudShell.AppHost.Launcher` is the current C# launcher authoring package. It
 reuses Resource Model builders, emits a `ResourceTemplate`, and owns the
@@ -310,6 +311,14 @@ consumes that package from a small Go program, emits a ResourceTemplate,
 applies it through the CLI, and can run the local host in the foreground for
 launcher-owned lifetime scenarios. The package is launcher support only; the
 `application.go-app` provider remains a C# CloudShell provider.
+
+The experimental Python launcher package under `Launchers/Python/cloudshell`
+contains Python-native ResourceTemplate builders for Python launcher apps.
+`samples/PythonAppHost` consumes that package from a Python script, emits a
+ResourceTemplate, applies it through the CLI, and can run the local host in the
+foreground for launcher-owned lifetime scenarios. The package is launcher
+support only; the `application.python-app` provider remains a C# CloudShell
+provider.
 
 ## Java Staging
 

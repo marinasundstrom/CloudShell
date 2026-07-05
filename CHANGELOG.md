@@ -17,10 +17,13 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added an experimental Python launcher package under
+  `Launchers/Python/cloudshell`, converted `samples/PythonAppHost` to a
+  Python-authored AppHost script, and documented the template/apply/start/run
+  launcher path for Python resource declarations.
 - Added a Python app resource model slice with `application.python-app`,
   `AddPythonApp(...)`, process lifecycle/log/monitoring support, Resource
-  Manager projection, C# launcher sample coverage, and documentation that keeps
-  Python-native launcher support deferred to the next slice.
+  Manager projection, sample coverage, and resource documentation.
 - Moved Resource Manager Device Registry device inspection into a dedicated
   device details view.
 - Added sample device app logs for enrollment, heartbeat, twin sync, and

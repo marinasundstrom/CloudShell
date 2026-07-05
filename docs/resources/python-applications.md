@@ -64,8 +64,8 @@ The projection changes the Resource Manager resource to
 
 ## Samples
 
-`samples/PythonAppHost` demonstrates the current authoring path. It uses a C#
-launcher program to declare:
+`samples/PythonAppHost` demonstrates Python-native launcher authoring. It uses
+the experimental package under `Launchers/Python/cloudshell` to declare:
 
 - an `application.python-app` API rooted at `samples/PythonAppHost/App`
 - Configuration Store and Secrets Vault resources referenced by the Python app
@@ -87,5 +87,7 @@ samples/PythonAppHost/cloudshell.sh resources
 samples/PythonAppHost/cloudshell.sh start-app
 ```
 
-This is C# resource authoring for a Python workload, not Python-native launcher
-support. Python launcher support remains the next planned slice.
+The launcher package is still experimental. It covers ResourceTemplate
+authoring, template/apply/start/run verbs, and the Python app sample. A Python
+runtime SDK for Configuration Store or Secrets Vault clients remains separate
+future work.

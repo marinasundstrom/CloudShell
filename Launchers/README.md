@@ -19,6 +19,7 @@ Current launcher packages:
 - `TypeScript/cloudshell`
 - `Java/cloudshell-launcher`
 - `Go/cloudshell`
+- `Python/cloudshell`
 
 ## Default Run Contract
 

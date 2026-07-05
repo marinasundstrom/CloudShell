@@ -185,6 +185,7 @@ configuration systems.
 | TypeScript launcher | `Launchers/TypeScript/cloudshell` is experimental, hand-authored for initial resource types, and proves template/apply/start/run behavior. |
 | Java launcher | `Launchers/Java/cloudshell-launcher` is experimental, hand-authored for Java launcher apps, and separates `toJson`, `apply`, `start`, and `run`. |
 | Go launcher | `Launchers/Go/cloudshell` is experimental, hand-authored for Go launcher apps, and separates `template`, `apply`, `start`, and `run`. |
+| Python launcher | `Launchers/Python/cloudshell` is experimental, hand-authored for Python launcher apps, and separates `template`, `apply`, `start`, and `run`. |
 | Control Plane .NET client | `CloudShell.ControlPlane.Client` maps the HTTP API back to public domain managers. |
 | Configuration Store .NET client | `CloudShell.Configuration.Client` provides direct service calls and `IConfiguration` integration. |
 | Secrets Vault .NET client | `CloudShell.Secrets.Client` provides direct service calls and `IConfiguration` integration. |
@@ -200,10 +201,10 @@ should be made consistent before broader SDK stability claims:
 - package and document a default local-development host path that does not
   require a repository checkout or `--host-project`
 - make appsettings-style host configuration pass-through consistent across
-  C#, TypeScript, Java, and Go launchers
+  C#, TypeScript, Java, Go, and Python launchers
 - converge no-argument launcher execution on foreground `run`
 - add parity tests that compare emitted `ResourceTemplate` shapes for the same
-  graph across C#, TypeScript, Java, and Go
+  graph across C#, TypeScript, Java, Go, and Python
 - define generated Control Plane client expectations for non-.NET languages
 - standardize profile and credential discovery shared by CLI commands and
   launcher packages without persisting raw tokens in daemon state
