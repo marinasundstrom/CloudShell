@@ -63,6 +63,10 @@ on `git blame --follow`, and then by the broad type of change.
   `CLOUDSHELL_CONFIG_DIR`, with `CLOUDSHELL_PROFILE` profile selection and a
   first `staticBearer` credential kind for inline test tokens or local token
   files; see ADR-20260705-002.
+- Added matching TypeScript and Java profile credential resolvers so their
+  default SDK credential chains check environment tokens first, then the shared
+  CloudShell profile. The TypeScript Configuration Store sample now relies on
+  that default chain instead of hand-picking token environment variables.
 - Added an explicit `Microsoft.OpenApi` 3.7.0 dependency for OpenAPI-enabled
   hosts so the vulnerable transitive 3.3.1 package is no longer resolved.
 - Recorded the enrollment profile name and kind on enrolled Device Registry

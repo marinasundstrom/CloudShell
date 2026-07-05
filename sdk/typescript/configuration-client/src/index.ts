@@ -1,3 +1,7 @@
+import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { dirname, isAbsolute, join } from "node:path";
+
 export const defaultConfigurationScope = "ControlPlane.Access";
 
 export interface CloudShellConfigurationSetting {
@@ -25,11 +29,18 @@ export interface ConfigurationStoreEnvironmentOptions extends ConfigurationStore
   environment?: Record<string, string | undefined>;
 }
 
+export interface CloudShellProfileCredentialOptions {
+  configDirectory?: string;
+  configPath?: string;
+  profileName?: string;
+  environment?: Record<string, string | undefined>;
+}
+
 export class StaticTokenCredential implements TokenCredential {
   public constructor(private readonly token: string) {
   }
 
-  public async getToken(): Promise<AccessToken> {
+  public async getToken(_scopes: string[] = []): Promise<AccessToken> {
     return { token: this.token };
   }
 }
@@ -44,11 +55,106 @@ export class EnvironmentTokenCredential implements TokenCredential {
     private readonly environment: Record<string, string | undefined> = process.env) {
   }
 
-  public async getToken(): Promise<AccessToken | null> {
+  public async getToken(_scopes: string[] = []): Promise<AccessToken | null> {
     for (const variableName of this.variableNames) {
       const token = this.environment[variableName];
       if (token && token.trim().length > 0) {
         return { token: token.trim() };
+      }
+    }
+
+    return null;
+  }
+}
+
+export class CloudShellProfileCredential implements TokenCredential {
+  public static readonly configDirectoryEnvironmentVariable = "CLOUDSHELL_CONFIG_DIR";
+  public static readonly profileEnvironmentVariable = "CLOUDSHELL_PROFILE";
+  public static readonly defaultConfigDirectoryName = ".cloudshell";
+  public static readonly defaultConfigFileName = "config.json";
+
+  public constructor(private readonly options: CloudShellProfileCredentialOptions = {}) {
+  }
+
+  public async getToken(_scopes: string[] = []): Promise<AccessToken | null> {
+    const configPath = this.resolveConfigPath();
+    const configuration = await readJsonFile<CloudShellProfileConfiguration>(configPath);
+    if (!configuration) {
+      return null;
+    }
+
+    const profileName = firstNotBlank(
+      this.options.profileName,
+      this.options.environment?.[CloudShellProfileCredential.profileEnvironmentVariable],
+      configuration.activeProfile);
+    if (!profileName) {
+      return null;
+    }
+
+    const profile = findProfile(configuration.profiles, profileName);
+    const credential = profile?.credential;
+    if (!credential ||
+      credential.kind?.toLowerCase() !== "staticbearer") {
+      return null;
+    }
+
+    const expiresOnTimestamp = parseExpiresOn(credential.expiresOn);
+    if (expiresOnTimestamp !== undefined && expiresOnTimestamp <= Date.now()) {
+      return null;
+    }
+
+    const token = await this.resolveStaticBearerToken(credential, configPath);
+    return token && token.trim().length > 0
+      ? { token: token.trim(), expiresOnTimestamp }
+      : null;
+  }
+
+  private resolveConfigPath(): string {
+    return this.options.configPath ??
+      join(this.resolveConfigDirectory(), CloudShellProfileCredential.defaultConfigFileName);
+  }
+
+  private resolveConfigDirectory(): string {
+    return firstNotBlank(
+      this.options.configDirectory,
+      this.options.environment?.[CloudShellProfileCredential.configDirectoryEnvironmentVariable],
+      join(homedir(), CloudShellProfileCredential.defaultConfigDirectoryName))!;
+  }
+
+  private async resolveStaticBearerToken(
+    credential: CloudShellProfileCredentialDefinition,
+    configPath: string): Promise<string | undefined> {
+    if (credential.accessToken && credential.accessToken.trim().length > 0) {
+      return credential.accessToken;
+    }
+
+    if (!credential.accessTokenPath || credential.accessTokenPath.trim().length === 0) {
+      return undefined;
+    }
+
+    const tokenPath = isAbsolute(credential.accessTokenPath)
+      ? credential.accessTokenPath
+      : join(dirname(configPath), credential.accessTokenPath);
+    return await readTextFile(tokenPath);
+  }
+}
+
+export class DefaultCloudShellCredential implements TokenCredential {
+  public constructor(
+    private readonly credentials: TokenCredential[] = [
+      new EnvironmentTokenCredential(),
+      new CloudShellProfileCredential()
+    ]) {
+  }
+
+  public async getToken(scopes: string[]): Promise<AccessToken | string | null | undefined> {
+    for (const credential of this.credentials) {
+      const token = await credential.getToken(scopes);
+      const tokenValue = typeof token === "string"
+        ? token
+        : token?.token;
+      if (tokenValue && tokenValue.trim().length > 0) {
+        return token;
       }
     }
 
@@ -64,7 +170,7 @@ export class ConfigurationStoreClient {
   public constructor(
     public readonly settingsEndpoint: string | URL,
     options: ConfigurationStoreClientOptions = {}) {
-    this.credential = options.credential ?? new EnvironmentTokenCredential();
+    this.credential = options.credential ?? new DefaultCloudShellCredential();
     this.scopes = options.scopes ?? [defaultConfigurationScope];
     this.fetchImpl = options.fetch ?? fetch;
   }
@@ -206,8 +312,75 @@ function isAbsoluteUrl(value: string | undefined): value is string {
   }
 }
 
+async function readJsonFile<T>(path: string): Promise<T | undefined> {
+  const content = await readTextFile(path);
+  return content === undefined
+    ? undefined
+    : JSON.parse(content) as T;
+}
+
+async function readTextFile(path: string): Promise<string | undefined> {
+  try {
+    return await readFile(path, "utf8");
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code === "ENOENT") {
+      return undefined;
+    }
+
+    throw error;
+  }
+}
+
+function firstNotBlank(...values: Array<string | undefined>): string | undefined {
+  return values.find(value => value && value.trim().length > 0)?.trim();
+}
+
+function findProfile(
+  profiles: Record<string, CloudShellProfile> | undefined,
+  profileName: string): CloudShellProfile | undefined {
+  if (!profiles) {
+    return undefined;
+  }
+
+  return profiles[profileName] ??
+    Object.entries(profiles)
+      .find(([candidate]) => candidate.toLowerCase() === profileName.toLowerCase())?.[1];
+}
+
+function parseExpiresOn(value: string | undefined): number | undefined {
+  if (!value || value.trim().length === 0) {
+    return undefined;
+  }
+
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) {
+    throw new Error(`CloudShell profile credential has an invalid expiresOn value '${value}'.`);
+  }
+
+  return timestamp;
+}
+
 function assertNotBlank(value: string, message: string): void {
   if (!value || value.trim().length === 0) {
     throw new Error(message);
   }
+}
+
+interface CloudShellProfileConfiguration {
+  activeProfile?: string;
+  profiles?: Record<string, CloudShellProfile>;
+}
+
+interface CloudShellProfile {
+  controlPlane?: string;
+  environment?: string;
+  credential?: CloudShellProfileCredentialDefinition;
+}
+
+interface CloudShellProfileCredentialDefinition {
+  kind?: string;
+  accessToken?: string;
+  accessTokenPath?: string;
+  expiresOn?: string;
 }

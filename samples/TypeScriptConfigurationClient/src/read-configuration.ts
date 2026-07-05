@@ -1,15 +1,9 @@
 import {
-  ConfigurationStoreClient,
-  StaticTokenCredential
+  ConfigurationStoreClient
 } from "@cloudshell/configuration-client";
 
-const token = process.env.CLOUDSHELL_TOKEN ??
-  process.env.CLOUDSHELL_CONFIGURATION_TOKEN ??
-  process.env.CLOUDSHELL_CONTROL_PLANE_TOKEN;
-
 const client = ConfigurationStoreClient.fromEnvironment({
-  serviceName: process.env.CLOUDSHELL_CONFIGURATION_SERVICE_NAME,
-  credential: new StaticTokenCredential(token ?? "")
+  serviceName: process.env.CLOUDSHELL_CONFIGURATION_SERVICE_NAME
 });
 
 const settings = await client.getSettings();

@@ -1,7 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import {
+  CloudShellProfileCredential,
   ConfigurationStoreClient,
+  DefaultCloudShellCredential,
+  EnvironmentTokenCredential,
   StaticTokenCredential
 } from "./index.js";
 
@@ -88,3 +94,100 @@ test("maps portable hierarchy separator to configuration keys", async () => {
     "Orders:Api:BaseUrl": "http://localhost:5080"
   });
 });
+
+test("profile credential reads active profile static bearer token", async () => {
+  const directory = await createTemporaryDirectory();
+  try {
+    await writeFile(
+      join(directory, CloudShellProfileCredential.defaultConfigFileName),
+      JSON.stringify({
+        activeProfile: "local",
+        profiles: {
+          local: {
+            controlPlane: "http://127.0.0.1:5108",
+            environment: "local",
+            credential: {
+              kind: "staticBearer",
+              accessToken: "profile-token",
+              expiresOn: "2099-01-01T00:00:00Z"
+            }
+          }
+        }
+      }));
+    const credential = new CloudShellProfileCredential({
+      configDirectory: directory
+    });
+
+    const token = await credential.getToken(["ControlPlane.Access"]);
+
+    assert.equal(token?.token, "profile-token");
+    assert.equal(token?.expiresOnTimestamp, Date.parse("2099-01-01T00:00:00Z"));
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("profile credential reads relative token file", async () => {
+  const directory = await createTemporaryDirectory();
+  try {
+    await mkdir(join(directory, "tokens"));
+    await writeFile(join(directory, "tokens", "local.token"), "file-token\n");
+    await writeFile(
+      join(directory, CloudShellProfileCredential.defaultConfigFileName),
+      JSON.stringify({
+        activeProfile: "local",
+        profiles: {
+          local: {
+            credential: {
+              kind: "staticBearer",
+              accessTokenPath: "tokens/local.token"
+            }
+          }
+        }
+      }));
+    const credential = new CloudShellProfileCredential({
+      configDirectory: directory
+    });
+
+    const token = await credential.getToken(["ControlPlane.Access"]);
+
+    assert.equal(token?.token, "file-token");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("default credential falls back from environment token to profile token", async () => {
+  const directory = await createTemporaryDirectory();
+  try {
+    await writeFile(
+      join(directory, CloudShellProfileCredential.defaultConfigFileName),
+      JSON.stringify({
+        activeProfile: "local",
+        profiles: {
+          local: {
+            credential: {
+              kind: "staticBearer",
+              accessToken: "profile-token"
+            }
+          }
+        }
+      }));
+    const credential = new DefaultCloudShellCredential([
+      new EnvironmentTokenCredential(undefined, {}),
+      new CloudShellProfileCredential({
+        configDirectory: directory
+      })
+    ]);
+
+    const token = await credential.getToken(["ControlPlane.Access"]);
+
+    assert.deepEqual(token, { token: "profile-token", expiresOnTimestamp: undefined });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+async function createTemporaryDirectory(): Promise<string> {
+  return await mkdtemp(join(tmpdir(), "cloudshell-ts-"));
+}

@@ -8,13 +8,13 @@ application to read configuration settings from a Configuration Store endpoint.
 ```ts
 import {
   ConfigurationStoreClient,
-  StaticTokenCredential
+  CloudShellProfileCredential
 } from "@cloudshell/configuration-client";
 
 const client = new ConfigurationStoreClient(
   "http://localhost:5138/api/configuration/stores/configuration.store%3Aapp/settings",
   {
-    credential: new StaticTokenCredential(process.env.CLOUDSHELL_TOKEN ?? "")
+    credential: new CloudShellProfileCredential()
   });
 
 const settings = await client.getSettings();
@@ -30,18 +30,25 @@ CLOUDSHELL_CONFIGURATION_<SERVICE_NAME>_ENDPOINT
 
 ```ts
 const client = ConfigurationStoreClient.fromEnvironment({
-  credential: new StaticTokenCredential(process.env.CLOUDSHELL_TOKEN ?? "")
+  credential: new CloudShellProfileCredential()
 });
 ```
 
-If no credential is supplied, `EnvironmentTokenCredential` checks these
-environment variables in order:
+If no credential is supplied, `DefaultCloudShellCredential` checks environment
+tokens first, then the active CloudShell profile. The environment credential
+checks these variables in order:
 
 ```text
 CLOUDSHELL_CONFIGURATION_TOKEN
 CLOUDSHELL_CONTROL_PLANE_TOKEN
 CLOUDSHELL_TOKEN
 ```
+
+The profile credential reads `~/.cloudshell/config.json` by default.
+`CLOUDSHELL_CONFIG_DIR` overrides the directory, and `CLOUDSHELL_PROFILE`
+selects a profile. The first supported credential kind is `staticBearer`, using
+either `accessToken` for short-lived tests or `accessTokenPath` for a local
+token file relative to the profile directory.
 
 Each service call sends the acquired token as `Authorization: Bearer ...`.
 `getSettings()` reads the full settings collection, `getSetting(name)` reads a

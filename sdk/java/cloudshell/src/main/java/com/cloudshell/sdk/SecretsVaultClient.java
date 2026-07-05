@@ -19,7 +19,7 @@ public final class SecretsVaultClient {
     private final HttpClient httpClient;
 
     public SecretsVaultClient(URI secretsEndpoint) {
-        this(secretsEndpoint, new EnvironmentTokenCredential(), new String[] { DEFAULT_SCOPE }, HttpClient.newHttpClient());
+        this(secretsEndpoint, new DefaultCloudShellTokenCredential(), new String[] { DEFAULT_SCOPE }, HttpClient.newHttpClient());
     }
 
     public SecretsVaultClient(

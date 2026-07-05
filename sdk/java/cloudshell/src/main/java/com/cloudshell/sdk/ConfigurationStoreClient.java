@@ -22,7 +22,7 @@ public final class ConfigurationStoreClient {
     private final HttpClient httpClient;
 
     public ConfigurationStoreClient(URI settingsEndpoint) {
-        this(settingsEndpoint, new EnvironmentTokenCredential(), new String[] { DEFAULT_SCOPE }, HttpClient.newHttpClient());
+        this(settingsEndpoint, new DefaultCloudShellTokenCredential(), new String[] { DEFAULT_SCOPE }, HttpClient.newHttpClient());
     }
 
     public ConfigurationStoreClient(

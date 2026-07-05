@@ -268,13 +268,14 @@ Environment variables are the common runtime projection because they work for
 executables and containers. The chain now also has a local profile credential
 source that reads the active profile from `~/.cloudshell/config.json` or
 `CLOUDSHELL_CONFIG_DIR`, with `CLOUDSHELL_PROFILE` selecting a profile. That
-profile format is the language-neutral contract that TypeScript, Java, Python,
-and CLI clients should mirror before calling the Control Plane or
-resource-backed service endpoints. Future sources should be added to the same
-chain for managed identity endpoints, federated workload identity, refreshable
-developer credentials, OS secure-store integration, external provider plugins,
-or platform-specific credential brokers. A stored developer identity is a
-credential source, not the resource identity itself.
+profile format is the language-neutral contract that the TypeScript and Java
+service clients now mirror before calling resource-backed service endpoints.
+Python clients, CLI login/profile commands, and future Control Plane bindings
+should use the same profile contract. Future sources should be added to the
+same chain for managed identity endpoints, federated workload identity,
+refreshable developer credentials, OS secure-store integration, external
+provider plugins, or platform-specific credential brokers. A stored developer
+identity is a credential source, not the resource identity itself.
 
 CloudShell client SDKs should accept `CloudShellResourceCredential` objects in
 the same way Azure SDK clients accept credential objects. The Control Plane

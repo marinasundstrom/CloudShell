@@ -437,9 +437,8 @@ Remaining implementation work:
    attach helpers.
 6. Decide whether generated Control Plane client bindings are required before
    broader SDK hardening.
-7. Add CLI login/profile commands, OS secure-store-backed credential material,
-   and matching TypeScript/Java SDK profile resolvers for the shared profile
-   contract.
+7. Add CLI login/profile commands and OS secure-store-backed credential
+   material for the shared profile contract.
 8. Decide which SDK APIs are stable enough to document as public preview.
 
 ## Verification

@@ -254,13 +254,10 @@ Node.js applications:
 
 ```ts
 import {
-  ConfigurationStoreClient,
-  StaticTokenCredential
+  ConfigurationStoreClient
 } from "@cloudshell/configuration-client";
 
-const configuration = ConfigurationStoreClient.fromEnvironment({
-  credential: new StaticTokenCredential(process.env.CLOUDSHELL_TOKEN ?? "")
-});
+const configuration = ConfigurationStoreClient.fromEnvironment();
 
 const settings = await configuration.getSettings();
 const values = await configuration.toObject();
@@ -268,7 +265,10 @@ const values = await configuration.toObject();
 
 This client reads the injected
 `CLOUDSHELL_CONFIGURATION_<SERVICE_NAME>_ENDPOINT` variables, sends
-`Authorization: Bearer ...`, and can map `--` in setting names to `:` keys. It
+`Authorization: Bearer ...`, and can map `--` in setting names to `:` keys.
+Its default credential checks environment tokens first, then the active
+CloudShell profile using the same `~/.cloudshell/config.json`,
+`CLOUDSHELL_CONFIG_DIR`, and `CLOUDSHELL_PROFILE` contract as the C# client. It
 does not declare resources or launch hosts; that remains the responsibility of
 the TypeScript hosting package and the CloudShell CLI.
 
@@ -293,7 +293,10 @@ String message = configuration
 
 `ConfigurationStoreClient.toProperties(true)` maps portable CloudShell
 hierarchy names such as `Sample--Message` into Java property names such as
-`Sample.Message`.
+`Sample.Message`. Java service clients use `DefaultCloudShellTokenCredential`
+by default, which checks environment tokens first, then the active CloudShell
+profile using the same shared profile contract as the C# and TypeScript
+clients.
 
 ## Secrets Vault Client
 
