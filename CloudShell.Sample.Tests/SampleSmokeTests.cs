@@ -1439,6 +1439,7 @@ public sealed class SampleSmokeTests
                     new
                     {
                         id = registryResourceId,
+                        heartbeatStaleAfterSeconds = 300,
                         enrollmentPolicy = new
                         {
                             subjectPrefixes = new[] { "device/" },
@@ -1565,10 +1566,12 @@ public sealed class SampleSmokeTests
         Assert.False(string.IsNullOrWhiteSpace(enrollment.Properties["osDescription"]));
         Assert.False(string.IsNullOrWhiteSpace(enrollment.Properties["frameworkDescription"]));
         Assert.Equal("active", enrollment.Status);
+        Assert.Equal("online", enrollment.Presence);
         Assert.NotNull(enrollment.LastSeenAt);
         Assert.Equal("enrollment", enrollment.LastSeenSource);
         Assert.Equal(enrollment.DeviceId, heartbeat.DeviceId);
         Assert.Equal("active", heartbeat.Status);
+        Assert.Equal("online", heartbeat.Presence);
         Assert.NotNull(heartbeat.LastSeenAt);
         Assert.Equal("sample-app", heartbeat.LastSeenSource);
         Assert.Equal("device-app", heartbeat.Properties["sample.app"]);
@@ -1607,6 +1610,7 @@ public sealed class SampleSmokeTests
             adminToken,
             "sample cleanup");
         Assert.Equal("revoked", revoked.Status);
+        Assert.Equal("revoked", revoked.Presence);
         Assert.NotNull(revoked.RevokedAt);
         Assert.Equal("sample cleanup", revoked.RevokedReason);
 

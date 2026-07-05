@@ -18,6 +18,7 @@ Authoring attributes:
 | `trust.certificates` | Vault-backed certificate references trusted for factory enrollment. |
 | `enrollmentPolicy.subjectPrefixes` | Device subject prefixes accepted during enrollment. |
 | `enrollmentPolicy.requiredClaims` | Required non-secret enrollment claims. |
+| `heartbeat.staleAfterSeconds` | Optional heartbeat age after which an active device is reported as stale. |
 | `enrolledDeviceCount` | Provider-managed count projected on the registry resource. |
 
 Device credentials and certificate payloads must not be projected through
@@ -81,6 +82,7 @@ Device records carry basic presence and access state:
 | Field | Meaning |
 | --- | --- |
 | `status` | Registry-owned device state such as `active` or `revoked`. |
+| `presence` | Computed contact state such as `online`, `stale`, `unknown`, or `revoked`. |
 | `enrolledAt` | Time the device identity was first provisioned. |
 | `lastSeenAt` | Last registry-observed device contact. Enrollment and heartbeat update this value. |
 | `lastSeenSource` | Source of the last contact, such as `enrollment`, `heartbeat`, or a client-provided source. |
@@ -91,7 +93,10 @@ Heartbeat is explicit and opt-in at the device application level. A device
 uses its issued identity token to call the heartbeat endpoint for its own
 device record. Heartbeat updates `lastSeenAt`, can merge non-secret reported
 properties, and does not imply CloudShell can start or stop the physical
-device.
+device. A registry can optionally configure `heartbeat.staleAfterSeconds`; when
+set, active devices whose last contact is older than that threshold report
+`presence=stale`. Without that threshold, CloudShell records last-seen metadata
+but does not infer stale device presence.
 
 Revocation marks the device record as `revoked` and unregisters the built-in
 device identity client so future token requests with that device credential are
@@ -161,5 +166,4 @@ store with a stronger database while keeping the resource model stable.
 - Enrollment profiles are the first provisioning policy shape; richer matching,
   profile selection diagnostics, and individual/group enrollment management are
   future work.
-- Heartbeat stale-after policy, MQTT transport, and richer microcontroller
-  provisioning remain future work.
+- MQTT transport and richer microcontroller provisioning remain future work.

@@ -19,6 +19,7 @@ public sealed class DeviceRegistryResourceTypeProvider :
         public static readonly ResourceAttributeId AllowedSubjectPrefixes = "enrollmentPolicy.subjectPrefixes";
         public static readonly ResourceAttributeId RequiredClaims = "enrollmentPolicy.requiredClaims";
         public static readonly ResourceAttributeId EnrollmentProfiles = "enrollment.profiles";
+        public static readonly ResourceAttributeId HeartbeatStaleAfterSeconds = "heartbeat.staleAfterSeconds";
         public static readonly ResourceAttributeId EnrolledDeviceCount = "enrolledDeviceCount";
     }
 
@@ -98,6 +99,9 @@ public sealed class DeviceRegistryResourceTypeProvider :
                         }))
                 }),
                 description: "Enrollment profiles that provision device identity access grants."),
+            [Attributes.HeartbeatStaleAfterSeconds] = new(
+                ValueType: ResourceAttributeValueType.Integer,
+                Description: "Optional heartbeat age, in seconds, after which an active device is reported as stale."),
             [Attributes.EnrolledDeviceCount] = new(
                 DefaultValue: 0,
                 ValueType: ResourceAttributeValueType.Integer,
@@ -188,6 +192,9 @@ public sealed class DeviceRegistryResourceTypeProvider :
         ValidateDeviceCount(
             resource.Attributes.GetString(Attributes.EnrolledDeviceCount),
             diagnostics);
+        ValidateHeartbeatStaleAfter(
+            resource.Attributes.GetString(Attributes.HeartbeatStaleAfterSeconds),
+            diagnostics);
         return diagnostics;
     }
 
@@ -219,6 +226,17 @@ public sealed class DeviceRegistryResourceTypeProvider :
         if (state.ResourceAttributeValues.ContainsKey(Attributes.EnrollmentProfiles))
         {
             ValidateEnrollmentProfiles(state, diagnostics);
+        }
+
+        if (state.ResourceAttributes.TryGetValue(Attributes.HeartbeatStaleAfterSeconds, out var staleAfterSeconds))
+        {
+            ValidateHeartbeatStaleAfter(staleAfterSeconds, diagnostics);
+        }
+        else if (state.ResourceAttributeValues.TryGetValue(
+            Attributes.HeartbeatStaleAfterSeconds,
+            out var staleAfterValue))
+        {
+            ValidateHeartbeatStaleAfter(GetScalarAttributeText(staleAfterValue), diagnostics);
         }
 
         return diagnostics;
@@ -357,6 +375,28 @@ public sealed class DeviceRegistryResourceTypeProvider :
                 Attributes.EnrolledDeviceCount));
         }
     }
+
+    private static void ValidateHeartbeatStaleAfter(
+        string? secondsValue,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (!string.IsNullOrWhiteSpace(secondsValue) &&
+            (!int.TryParse(secondsValue, out var seconds) || seconds <= 0))
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                "iot.deviceRegistry.heartbeatStaleAfterInvalid",
+                "Device Registry heartbeat stale-after seconds must be a positive integer.",
+                Attributes.HeartbeatStaleAfterSeconds));
+        }
+    }
+
+    private static string? GetScalarAttributeText(ResourceAttributeValue value) =>
+        value.Kind switch
+        {
+            ResourceAttributeValueKind.Integer => value.IntegerValue?.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ResourceAttributeValueKind.String => value.StringValue,
+            _ => null
+        };
 
     private static void ValidateEnrollmentProfiles(
         ResourceState state,

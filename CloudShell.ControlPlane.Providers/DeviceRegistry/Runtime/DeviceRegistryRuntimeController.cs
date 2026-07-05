@@ -106,6 +106,7 @@ public sealed class DeviceRegistryProcessRuntimeController(
             name = resource.Name,
             displayName = resource.State.DisplayName,
             endpoint,
+            heartbeatStaleAfterSeconds = GetHeartbeatStaleAfterSeconds(resource),
             trustedCertificates = resource.Attributes
                 .GetObject<ResourceCertificateReference[]>(
                     DeviceRegistryResourceTypeProvider.Attributes.TrustedCertificates) ?? [],
@@ -123,6 +124,13 @@ public sealed class DeviceRegistryProcessRuntimeController(
                 .ToArray(),
             healthChecks = Array.Empty<object>()
         };
+
+    private static int? GetHeartbeatStaleAfterSeconds(Resource resource) =>
+        int.TryParse(
+            resource.Attributes.GetString(DeviceRegistryResourceTypeProvider.Attributes.HeartbeatStaleAfterSeconds),
+            out var seconds)
+                ? seconds
+                : null;
 
     private IReadOnlyList<DeviceEnrollmentProfile> GetEnrollmentProfiles(Resource resource)
     {

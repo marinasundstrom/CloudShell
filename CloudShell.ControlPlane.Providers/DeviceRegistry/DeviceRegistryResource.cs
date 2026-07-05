@@ -33,6 +33,13 @@ public sealed class DeviceRegistryResource(
     public IReadOnlyList<DeviceEnrollmentProfile> EnrollmentProfiles =>
         Resource.Attributes.GetObject<DeviceEnrollmentProfile[]>(
             DeviceRegistryResourceTypeProvider.Attributes.EnrollmentProfiles) ?? [];
+
+    public int? HeartbeatStaleAfterSeconds =>
+        int.TryParse(
+            Resource.Attributes.GetString(DeviceRegistryResourceTypeProvider.Attributes.HeartbeatStaleAfterSeconds),
+            out var seconds)
+                ? seconds
+                : null;
 }
 
 public sealed class DeviceRegistryResourceProjectionProvider : IResourceProjectionProvider

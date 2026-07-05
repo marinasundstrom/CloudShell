@@ -18,6 +18,21 @@ public sealed class DeviceRegistryResourceDefinitionBuilder(string name) :
     public DeviceRegistryResourceDefinitionBuilder WithEndpoint(string endpoint) =>
         SetScalarAttribute(DeviceRegistryResourceTypeProvider.Attributes.Endpoint, endpoint);
 
+    public DeviceRegistryResourceDefinitionBuilder WithHeartbeatStaleAfter(TimeSpan staleAfter)
+    {
+        if (staleAfter <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(staleAfter),
+                staleAfter,
+                "Heartbeat stale-after must be greater than zero.");
+        }
+
+        return SetScalarAttribute(
+            DeviceRegistryResourceTypeProvider.Attributes.HeartbeatStaleAfterSeconds,
+            (long)Math.Ceiling(staleAfter.TotalSeconds));
+    }
+
     public DeviceRegistryResourceDefinitionBuilder TrustCertificate(
         ResourceCertificateReference certificate)
     {

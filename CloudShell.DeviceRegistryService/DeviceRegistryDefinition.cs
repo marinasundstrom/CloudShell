@@ -13,6 +13,8 @@ public sealed record DeviceRegistryDefinition
     public IReadOnlyList<DeviceEnrollmentProfile> EnrollmentProfiles { get; init; } = [];
 
     public IReadOnlyList<ResourcePermissionGrant> PermissionGrants { get; init; } = [];
+
+    public int? HeartbeatStaleAfterSeconds { get; init; }
 }
 
 public sealed record DeviceRegistryTrustedCertificate(
@@ -84,6 +86,14 @@ public static class DeviceRecordStatuses
     public const string Revoked = "revoked";
 }
 
+public static class DevicePresenceStatuses
+{
+    public const string Online = "online";
+    public const string Stale = "stale";
+    public const string Unknown = "unknown";
+    public const string Revoked = "revoked";
+}
+
 public sealed record DeviceEnrollmentRequest(
     string Subject,
     IReadOnlyDictionary<string, string>? Claims = null,
@@ -115,7 +125,8 @@ public sealed record DeviceEnrollmentResponse(
     DateTimeOffset? RevokedAt,
     string? RevokedReason,
     IReadOnlyDictionary<string, string> Claims,
-    IReadOnlyDictionary<string, string> Properties);
+    IReadOnlyDictionary<string, string> Properties,
+    string? Presence = null);
 
 public sealed record DeviceMetadataResponse(
     string DeviceId,
@@ -133,4 +144,5 @@ public sealed record DeviceMetadataResponse(
     DateTimeOffset? LastSeenAt,
     string? LastSeenSource,
     DateTimeOffset? RevokedAt,
-    string? RevokedReason);
+    string? RevokedReason,
+    string? Presence = null);

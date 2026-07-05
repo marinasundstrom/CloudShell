@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added an opt-in Device Registry heartbeat stale-after policy and computed
+  device presence values for registry responses and Resource Manager device
+  listings.
 - Added a read-only Resource Manager Enrollment profiles tab for Device
   Registry resources and moved Device Registry tabs into the General section.
 - Completed the Configuration Store terminology migration from entries to

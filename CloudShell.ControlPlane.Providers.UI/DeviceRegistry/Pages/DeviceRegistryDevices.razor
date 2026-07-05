@@ -36,6 +36,7 @@ else
                         <th>Platform</th>
                         <th>Operating system</th>
                         <th>Architecture</th>
+                        <th>Presence</th>
                         <th>Status</th>
                         <th>Last seen</th>
                         <th>Enrolled</th>
@@ -56,6 +57,7 @@ else
                                 <div class="table-subtext">@GetProperty(device, "osDescription")</div>
                             </td>
                             <td>@GetArchitecture(device)</td>
+                            <td>@FormatPresence(device)</td>
                             <td>@FormatStatus(device)</td>
                             <td>@FormatOptionalTimestamp(device.LastSeenAt)</td>
                             <td>@FormatTimestamp(device.EnrolledAt)</td>
@@ -123,6 +125,10 @@ else
                     <tr>
                         <th scope="row">Status</th>
                         <td>@FormatStatus(SelectedDevice)</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Presence</th>
+                        <td>@FormatPresence(SelectedDevice)</td>
                     </tr>
                     <tr>
                         <th scope="row">Last seen</th>
@@ -217,7 +223,7 @@ else
         Devices.Clear();
         if (DeviceManager is not null && Resource is not null)
         {
-            var devices = await DeviceManager.ListDevicesAsync(Resource.Id);
+            var devices = await DeviceManager.ListDevicesAsync(Resource);
             Devices.AddRange(devices);
         }
 
@@ -375,6 +381,11 @@ else
         string.IsNullOrWhiteSpace(device.Status)
             ? "active"
             : device.Status;
+
+    private static string FormatPresence(DeviceRegistryRuntimeDevice device) =>
+        string.IsNullOrWhiteSpace(device.Presence)
+            ? "unknown"
+            : device.Presence;
 
     private static bool IsRevoked(DeviceRegistryRuntimeDevice device) =>
         string.Equals(device.Status, "revoked", StringComparison.OrdinalIgnoreCase) ||

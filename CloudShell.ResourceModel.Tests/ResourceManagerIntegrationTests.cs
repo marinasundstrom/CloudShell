@@ -5687,6 +5687,7 @@ resources:
         var registry = graph
             .AddDeviceRegistry("devices")
             .WithEndpoint("http://localhost:7140")
+            .WithHeartbeatStaleAfter(TimeSpan.FromMinutes(5))
             .TrustCertificate(vault.Certificate("factory-ca"))
             .UseEnrollmentPolicy(policy =>
             {
@@ -5715,6 +5716,7 @@ resources:
         Assert.Equal(ResourceManagerResourceState.Unknown, projectedRegistry.State);
         Assert.Equal("registry", projectedRegistry.ResourceAttributes["kind"]);
         Assert.Equal("http://localhost:7140", projectedRegistry.ResourceAttributes["endpoint"]);
+        Assert.Equal("300", projectedRegistry.ResourceAttributes["heartbeat.staleAfterSeconds"]);
         Assert.Equal("0", projectedRegistry.ResourceAttributes["enrolledDeviceCount"]);
         Assert.Contains(projectedRegistry.ResourceCapabilities, capability =>
             capability.Id == ResourceCapabilityIds.EndpointSource);
@@ -5739,6 +5741,7 @@ resources:
                     new ResourceProjectionContext("local", "developer")));
 
         Assert.Equal("http://localhost:7140", projection.Endpoint);
+        Assert.Equal(300, projection.HeartbeatStaleAfterSeconds);
         Assert.Equal(0, projection.EnrolledDeviceCount);
         Assert.Equal("factory-ca", Assert.Single(projection.TrustedCertificates).Name);
         Assert.Equal("device/", Assert.Single(projection.AllowedSubjectPrefixes));

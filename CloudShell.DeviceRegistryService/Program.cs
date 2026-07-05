@@ -67,8 +67,9 @@ static IResult ListDevices(
         return NotFound();
     }
 
+    var timestamp = DateTimeOffset.UtcNow;
     return Results.Ok(store.ListDevices(registry.Id)
-        .Select(device => ToMetadataResponse(store, device))
+        .Select(device => ToMetadataResponse(registry, store, device, timestamp))
         .ToArray());
 }
 
@@ -84,10 +85,11 @@ static IResult EnrollDevice(
         return NotFound();
     }
 
+    var timestamp = DateTimeOffset.UtcNow;
     var result = store.EnrollDevice(
         registry,
         request,
-        DateTimeOffset.UtcNow);
+        timestamp);
     if (!result.IsAccepted)
     {
         return Results.Problem(
@@ -115,7 +117,8 @@ static IResult EnrollDevice(
         result.Device.RevokedAt,
         result.Device.RevokedReason,
         result.Device.Claims,
-        result.Device.Properties));
+        result.Device.Properties,
+        ResolvePresence(registry, result.Device, timestamp)));
 }
 
 static IResult HeartbeatDevice(
@@ -142,12 +145,13 @@ static IResult HeartbeatDevice(
         return Unauthorized("A device bearer token is required.");
     }
 
+    var timestamp = DateTimeOffset.UtcNow;
     var result = store.RecordHeartbeat(
         registry.Id,
         deviceId,
         clientId,
         request,
-        DateTimeOffset.UtcNow);
+        timestamp);
     if (result.IsNotFound)
     {
         return Results.Problem(
@@ -164,7 +168,7 @@ static IResult HeartbeatDevice(
             title: "Heartbeat rejected");
     }
 
-    return Results.Ok(ToMetadataResponse(store, result.Device!));
+    return Results.Ok(ToMetadataResponse(registry, store, result.Device!, timestamp));
 }
 
 static IResult RemoveDevice(
@@ -218,11 +222,12 @@ static IResult RevokeDevice(
         return NotFound();
     }
 
+    var timestamp = DateTimeOffset.UtcNow;
     var result = store.RevokeDevice(
         registry.Id,
         deviceId,
         request.Reason,
-        DateTimeOffset.UtcNow);
+        timestamp);
     if (result.IsNotFound)
     {
         return Results.Problem(
@@ -231,12 +236,14 @@ static IResult RevokeDevice(
             title: "Device not found");
     }
 
-    return Results.Ok(ToMetadataResponse(store, result.Device!));
+    return Results.Ok(ToMetadataResponse(registry, store, result.Device!, timestamp));
 }
 
 static DeviceMetadataResponse ToMetadataResponse(
+    DeviceRegistryDefinition registry,
     DeviceRegistryServiceStore store,
-    DeviceRecord device) =>
+    DeviceRecord device,
+    DateTimeOffset timestamp) =>
     new(
         device.Id,
         device.Subject,
@@ -253,7 +260,30 @@ static DeviceMetadataResponse ToMetadataResponse(
         device.LastSeenAt,
         device.LastSeenSource,
         device.RevokedAt,
-        device.RevokedReason);
+        device.RevokedReason,
+        ResolvePresence(registry, device, timestamp));
+
+static string ResolvePresence(
+    DeviceRegistryDefinition registry,
+    DeviceRecord device,
+    DateTimeOffset timestamp)
+{
+    if (string.Equals(device.Status, DeviceRecordStatuses.Revoked, StringComparison.OrdinalIgnoreCase) ||
+        device.RevokedAt is not null)
+    {
+        return DevicePresenceStatuses.Revoked;
+    }
+
+    if (device.LastSeenAt is null)
+    {
+        return DevicePresenceStatuses.Unknown;
+    }
+
+    return registry.HeartbeatStaleAfterSeconds is > 0 &&
+        timestamp - device.LastSeenAt.Value > TimeSpan.FromSeconds(registry.HeartbeatStaleAfterSeconds.Value)
+            ? DevicePresenceStatuses.Stale
+            : DevicePresenceStatuses.Online;
+}
 
 static string BuildAbsoluteTokenEndpoint(HttpRequest request)
 {

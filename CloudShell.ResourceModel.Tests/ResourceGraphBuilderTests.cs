@@ -171,6 +171,7 @@ public sealed class ResourceGraphBuilderTests
 
                 resources
                     .AddDeviceRegistry("devices")
+                    .WithHeartbeatStaleAfter(TimeSpan.FromMinutes(5))
                     .TrustCertificate(vault.Certificate("factory-ca"))
                     .UseEnrollmentPolicy(policy =>
                     {
@@ -196,6 +197,10 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal("secrets.vault:vault", certificate.VaultResourceId);
         Assert.Equal("factory-ca", certificate.Name);
         Assert.Equal("device/", prefix);
+        Assert.Equal(
+            300,
+            definition.ResourceAttributeValues[
+                DeviceRegistryResourceTypeProvider.Attributes.HeartbeatStaleAfterSeconds].IntegerValue);
         Assert.Equal("manufacturer", claim.Name);
         Assert.Equal("acme", claim.Value);
         Assert.True(dependency.TryGetDependsOnResourceId(out var dependencyResourceId));

@@ -21,4 +21,5 @@ public sealed record DeviceEnrollmentResponse(
     DateTimeOffset? RevokedAt,
     string? RevokedReason,
     IReadOnlyDictionary<string, string> Claims,
-    IReadOnlyDictionary<string, string> Properties);
+    IReadOnlyDictionary<string, string> Properties,
+    string? Presence = null);

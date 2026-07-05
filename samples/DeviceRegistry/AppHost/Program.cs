@@ -37,6 +37,7 @@ app.DefineResources(resources =>
         .AddDeviceRegistry("devices")
         .WithDisplayName("Factory Device Registry")
         .WithEndpoint(registryEndpoint)
+        .WithHeartbeatStaleAfter(TimeSpan.FromMinutes(5))
         .TrustCertificate(vault.Certificate("factory-ca"))
         .UseEnrollmentProfile(profile =>
         {

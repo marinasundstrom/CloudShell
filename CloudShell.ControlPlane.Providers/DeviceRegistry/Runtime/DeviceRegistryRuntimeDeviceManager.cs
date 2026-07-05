@@ -6,7 +6,7 @@ namespace CloudShell.ControlPlane.Providers;
 public interface IDeviceRegistryRuntimeDeviceManager
 {
     ValueTask<IReadOnlyList<DeviceRegistryRuntimeDevice>> ListDevicesAsync(
-        string resourceId,
+        CloudShell.Abstractions.ResourceManager.Resource resource,
         CancellationToken cancellationToken = default);
 
     ValueTask<DeviceRegistryRuntimeDevice> RevokeDeviceAsync(
@@ -28,15 +28,15 @@ public sealed class DeviceRegistryRuntimeDeviceManager(
     private readonly DeviceRegistryRuntimeOptions _options = options;
 
     public ValueTask<IReadOnlyList<DeviceRegistryRuntimeDevice>> ListDevicesAsync(
-        string resourceId,
+        CloudShell.Abstractions.ResourceManager.Resource resource,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        ArgumentNullException.ThrowIfNull(resource);
         cancellationToken.ThrowIfCancellationRequested();
 
         var devicesPath = Path.Combine(
             _options.DefinitionsDirectory,
-            SanitizeFileName(resourceId),
+            SanitizeFileName(resource.Id),
             "device-registries.devices.json");
         if (!File.Exists(devicesPath))
         {
@@ -51,8 +51,15 @@ public sealed class DeviceRegistryRuntimeDeviceManager(
             devices
                 .Where(device => string.Equals(
                     device.RegistryId,
-                    resourceId,
+                    resource.Id,
                     StringComparison.OrdinalIgnoreCase))
+                .Select(device => device with
+                {
+                    Presence = ResolvePresence(
+                        device,
+                        GetHeartbeatStaleAfter(resource),
+                        DateTimeOffset.UtcNow)
+                })
                 .OrderBy(device => device.Subject, StringComparer.OrdinalIgnoreCase)
                 .ToArray());
     }
@@ -146,6 +153,37 @@ public sealed class DeviceRegistryRuntimeDeviceManager(
             Timeout = TimeSpan.FromSeconds(10)
         };
 
+    private static int? GetHeartbeatStaleAfter(
+        CloudShell.Abstractions.ResourceManager.Resource resource) =>
+        int.TryParse(
+            resource.ResourceAttributes.GetValueOrDefault(
+                DeviceRegistryResourceTypeProvider.Attributes.HeartbeatStaleAfterSeconds.ToString()),
+            out var seconds)
+                ? seconds
+                : null;
+
+    private static string ResolvePresence(
+        DeviceRegistryRuntimeDevice device,
+        int? staleAfterSeconds,
+        DateTimeOffset timestamp)
+    {
+        if (string.Equals(device.Status, "revoked", StringComparison.OrdinalIgnoreCase) ||
+            device.RevokedAt is not null)
+        {
+            return "revoked";
+        }
+
+        if (device.LastSeenAt is null)
+        {
+            return "unknown";
+        }
+
+        return staleAfterSeconds is > 0 &&
+            timestamp - device.LastSeenAt.Value > TimeSpan.FromSeconds(staleAfterSeconds.Value)
+                ? "stale"
+                : "online";
+    }
+
     private static Uri BuildDeviceEndpoint(
         string endpoint,
         string registryId,
@@ -215,6 +253,8 @@ public sealed record DeviceRegistryRuntimeDevice(
     public DateTimeOffset? RevokedAt { get; init; }
 
     public string? RevokedReason { get; init; }
+
+    public string? Presence { get; init; }
 }
 
 internal sealed record DeviceRegistryRuntimeDeviceResponse(
@@ -233,7 +273,8 @@ internal sealed record DeviceRegistryRuntimeDeviceResponse(
     DateTimeOffset? LastSeenAt,
     string? LastSeenSource,
     DateTimeOffset? RevokedAt,
-    string? RevokedReason)
+    string? RevokedReason,
+    string? Presence = null)
 {
     public DeviceRegistryRuntimeDevice ToRuntimeDevice() =>
         new(
@@ -253,6 +294,7 @@ internal sealed record DeviceRegistryRuntimeDeviceResponse(
             LastSeenAt = LastSeenAt,
             LastSeenSource = LastSeenSource,
             RevokedAt = RevokedAt,
-            RevokedReason = RevokedReason
+            RevokedReason = RevokedReason,
+            Presence = Presence
         };
 }

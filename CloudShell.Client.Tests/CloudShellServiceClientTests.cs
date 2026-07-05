@@ -184,6 +184,7 @@ public sealed class CloudShellServiceClientTests
               "clientSecret": "local-development-device-secret",
               "tokenEndpoint": "http://localhost/api/auth/v1/token",
               "enrolledAt": "2026-07-04T00:00:00+00:00",
+              "presence": "online",
               "claims": { "manufacturer": "cloudshell" },
               "properties": { "platform": "linux", "supportsConfigurationPull": "true" }
             }
@@ -206,6 +207,7 @@ public sealed class CloudShellServiceClientTests
 
         Assert.Equal("device-123", enrollment.DeviceId);
         Assert.Equal("deviceIdentity", enrollment.IdentityCategory);
+        Assert.Equal("online", enrollment.Presence);
         Assert.Equal(ResourcePrincipalKind.DeviceIdentity, enrollment.Principal.Kind);
         Assert.Equal("iot.device-registry:devices/devices/device-123", enrollment.Principal.Id);
         Assert.Equal("iot.device-registry:devices/device-123", enrollment.ClientId);

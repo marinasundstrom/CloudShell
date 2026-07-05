@@ -18,4 +18,5 @@ public sealed record DeviceMetadataResponse(
     DateTimeOffset? LastSeenAt,
     string? LastSeenSource,
     DateTimeOffset? RevokedAt,
-    string? RevokedReason);
+    string? RevokedReason,
+    string? Presence = null);
