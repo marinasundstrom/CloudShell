@@ -75,21 +75,30 @@ public sealed class DeviceRegistryMqttHostedService(
         if (!args.SessionItems.Contains(SessionDeviceClientIdKey) ||
             args.SessionItems[SessionDeviceClientIdKey] is not string clientId)
         {
-            args.Response.ReasonString = "Device MQTT session is not authenticated.";
+            RejectPublish(
+                args,
+                MqttPubAckReasonCode.NotAuthorized,
+                "Device MQTT session is not authenticated.");
             return;
         }
 
         var topic = DeviceRegistryMqttTopics.Parse(args.ApplicationMessage.Topic);
         if (topic is null)
         {
-            args.ProcessPublish = true;
+            RejectPublish(
+                args,
+                MqttPubAckReasonCode.TopicNameInvalid,
+                "Device Registry MQTT topic is not supported.");
             return;
         }
 
         var registry = store.GetRegistry(topic.RegistryId);
         if (registry is null)
         {
-            args.Response.ReasonString = "Device Registry was not found.";
+            RejectPublish(
+                args,
+                MqttPubAckReasonCode.TopicNameInvalid,
+                "Device Registry was not found.");
             return;
         }
 
@@ -111,7 +120,12 @@ public sealed class DeviceRegistryMqttHostedService(
                         timestamp);
                     if (!heartbeatResult.IsAccepted)
                     {
-                        args.Response.ReasonString = heartbeatResult.Failure;
+                        RejectPublish(
+                            args,
+                            heartbeatResult.IsNotFound
+                                ? MqttPubAckReasonCode.TopicNameInvalid
+                                : MqttPubAckReasonCode.NotAuthorized,
+                            heartbeatResult.Failure ?? "Device heartbeat was rejected.");
                     }
 
                     break;
@@ -128,7 +142,12 @@ public sealed class DeviceRegistryMqttHostedService(
                         timestamp);
                     if (!syncResult.IsAccepted)
                     {
-                        args.Response.ReasonString = syncResult.Failure;
+                        RejectPublish(
+                            args,
+                            syncResult.IsNotFound
+                                ? MqttPubAckReasonCode.TopicNameInvalid
+                                : MqttPubAckReasonCode.NotAuthorized,
+                            syncResult.Failure ?? "Device sync was rejected.");
                         break;
                     }
 
@@ -137,8 +156,21 @@ public sealed class DeviceRegistryMqttHostedService(
         }
         catch (JsonException exception)
         {
-            args.Response.ReasonString = $"Invalid Device Registry MQTT payload. {exception.Message}";
+            RejectPublish(
+                args,
+                MqttPubAckReasonCode.PayloadFormatInvalid,
+                $"Invalid Device Registry MQTT payload. {exception.Message}");
         }
+    }
+
+    private static void RejectPublish(
+        InterceptingPublishEventArgs args,
+        MqttPubAckReasonCode reasonCode,
+        string reason)
+    {
+        args.ProcessPublish = false;
+        args.Response.ReasonCode = reasonCode;
+        args.Response.ReasonString = reason;
     }
 
     private static string GetPayload(MqttApplicationMessage message)

@@ -24,6 +24,10 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using MQTTnet;
+using MQTTnet.Client;
+using MQTTnet.Formatter;
+using MQTTnet.Protocol;
 using ResourceAttributeId = CloudShell.ResourceModel.ResourceAttributeId;
 using ResourceAttributeValue = CloudShell.ResourceModel.ResourceAttributeValue;
 using ResourceCapabilityId = CloudShell.ResourceModel.ResourceCapabilityId;
@@ -1638,6 +1642,45 @@ public sealed class SampleSmokeTests
         Assert.Equal("sample-app-mqtt", deviceAfterMqttSync.LastSeenSource);
         Assert.Equal("device-app", deviceAfterMqttSync.Properties["sample.mqttSync"]);
 
+        Assert.Equal(
+            MqttClientConnectResultCode.BadUserNameOrPassword,
+            await ConnectDeviceRegistryMqttAsync(
+                registryMqttEndpoint,
+                enrollment.DeviceId,
+                enrollment.ClientId,
+                "invalid-secret"));
+
+        _ = await PublishDeviceRegistryMqttAsync(
+            registryMqttEndpoint,
+            enrollment.DeviceId,
+            enrollment.ClientId,
+            enrollment.ClientSecret,
+            DeviceRegistryMqttTopicNames.BuildSyncTopic(
+                registryResourceId,
+                enrollment.DeviceId),
+            "{");
+
+        _ = await PublishDeviceRegistryMqttAsync(
+            registryMqttEndpoint,
+            enrollment.DeviceId,
+            enrollment.ClientId,
+            enrollment.ClientSecret,
+            $"cloudshell/device-registries/{Uri.EscapeDataString(registryResourceId)}/devices/{enrollment.DeviceId}/unsupported",
+            "{}");
+
+        var devicesAfterRejectedMqttPublishes = await registryClient.GetDevicesAsync(
+            registryResourceId,
+            adminToken);
+        var deviceAfterRejectedMqttPublishes = Assert.Single(devicesAfterRejectedMqttPublishes);
+        Assert.Equal("sample-app-mqtt", deviceAfterRejectedMqttPublishes.LastSeenSource);
+        Assert.Equal("device-app", deviceAfterRejectedMqttPublishes.Properties["sample.mqttSync"]);
+        var twinAfterRejectedMqttPublishes = await registryClient.GetDeviceTwinAsync(
+            registryResourceId,
+            enrollment.DeviceId,
+            adminToken);
+        Assert.Equal(2, twinAfterRejectedMqttPublishes.Reported.Version);
+        Assert.Equal("mqtt", twinAfterRejectedMqttPublishes.Reported.State["transport"].GetString());
+
         var desired = await registryClient.SetDesiredStateAsync(
             registryResourceId,
             enrollment.DeviceId,
@@ -1679,6 +1722,13 @@ public sealed class SampleSmokeTests
         Assert.Equal("revoked", revoked.Presence);
         Assert.NotNull(revoked.RevokedAt);
         Assert.Equal("sample cleanup", revoked.RevokedReason);
+        Assert.Equal(
+            MqttClientConnectResultCode.BadUserNameOrPassword,
+            await ConnectDeviceRegistryMqttAsync(
+                registryMqttEndpoint,
+                enrollment.DeviceId,
+                enrollment.ClientId,
+                enrollment.ClientSecret));
 
         using var revokedTokenResponse = await tokenClient.PostAsync(
             enrollment.TokenEndpoint,
@@ -1704,6 +1754,64 @@ public sealed class SampleSmokeTests
                 device.DeviceId,
                 enrollment.DeviceId,
                 StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static async Task<MqttClientConnectResultCode> ConnectDeviceRegistryMqttAsync(
+        string endpoint,
+        string deviceId,
+        string clientId,
+        string clientSecret)
+    {
+        var factory = new MqttFactory();
+        using var client = factory.CreateMqttClient();
+        var result = await client.ConnectAsync(
+            CreateMqttClientOptions(endpoint, deviceId, clientId, clientSecret)
+                .WithoutThrowOnNonSuccessfulConnectResponse()
+                .Build());
+        if (client.IsConnected)
+        {
+            await client.DisconnectAsync(new());
+        }
+
+        return result.ResultCode;
+    }
+
+    private static async Task<MqttClientPublishResult> PublishDeviceRegistryMqttAsync(
+        string endpoint,
+        string deviceId,
+        string clientId,
+        string clientSecret,
+        string topic,
+        string payload)
+    {
+        var factory = new MqttFactory();
+        using var client = factory.CreateMqttClient();
+        await client.ConnectAsync(
+            CreateMqttClientOptions(endpoint, deviceId, clientId, clientSecret)
+                .Build());
+        var result = await client.PublishAsync(
+            new MqttApplicationMessageBuilder()
+                .WithTopic(topic)
+                .WithPayload(payload)
+                .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)
+                .Build());
+        await client.DisconnectAsync(new());
+        return result;
+    }
+
+    private static MqttClientOptionsBuilder CreateMqttClientOptions(
+        string endpoint,
+        string deviceId,
+        string clientId,
+        string clientSecret)
+    {
+        var uri = new Uri(endpoint);
+        return new MqttClientOptionsBuilder()
+            .WithTcpServer(uri.Host, uri.Port > 0 ? uri.Port : 1883)
+            .WithClientId($"cloudshell-sample-{deviceId}-{Guid.NewGuid():N}")
+            .WithCredentials(clientId, clientSecret)
+            .WithProtocolVersion(MqttProtocolVersion.V500)
+            .WithCleanSession();
     }
 
     private static async Task<string> RequestClientCredentialsTokenAsync(
