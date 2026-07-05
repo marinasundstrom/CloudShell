@@ -15,6 +15,17 @@ public interface IDeviceRegistryRuntimeDeviceManager
         string? reason = null,
         CancellationToken cancellationToken = default);
 
+    ValueTask<DeviceRegistryRuntimeDevice> DisableDeviceAsync(
+        CloudShell.Abstractions.ResourceManager.Resource resource,
+        string deviceId,
+        string? reason = null,
+        CancellationToken cancellationToken = default);
+
+    ValueTask<DeviceRegistryRuntimeDevice> EnableDeviceAsync(
+        CloudShell.Abstractions.ResourceManager.Resource resource,
+        string deviceId,
+        CancellationToken cancellationToken = default);
+
     ValueTask RemoveDeviceAsync(
         CloudShell.Abstractions.ResourceManager.Resource resource,
         string deviceId,
@@ -96,6 +107,60 @@ public sealed class DeviceRegistryRuntimeDeviceManager(
             SerializerOptions,
             cancellationToken) ??
             throw new JsonException("Device Registry returned an empty revoke response.");
+        return device.ToRuntimeDevice();
+    }
+
+    public async ValueTask<DeviceRegistryRuntimeDevice> DisableDeviceAsync(
+        CloudShell.Abstractions.ResourceManager.Resource resource,
+        string deviceId,
+        string? reason = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+
+        var endpoint = GetEndpoint(resource);
+        var token = await RequestManagementTokenAsync(endpoint, cancellationToken);
+        using var client = CreateClient();
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            BuildDeviceActionEndpoint(endpoint, resource.Id, deviceId, "disable"))
+        {
+            Content = JsonContent.Create(new { reason }, options: SerializerOptions)
+        };
+        request.Headers.Authorization = new("Bearer", token);
+        using var response = await client.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        var device = await response.Content.ReadFromJsonAsync<DeviceRegistryRuntimeDeviceResponse>(
+            SerializerOptions,
+            cancellationToken) ??
+            throw new JsonException("Device Registry returned an empty disable response.");
+        return device.ToRuntimeDevice();
+    }
+
+    public async ValueTask<DeviceRegistryRuntimeDevice> EnableDeviceAsync(
+        CloudShell.Abstractions.ResourceManager.Resource resource,
+        string deviceId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+
+        var endpoint = GetEndpoint(resource);
+        var token = await RequestManagementTokenAsync(endpoint, cancellationToken);
+        using var client = CreateClient();
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            BuildDeviceActionEndpoint(endpoint, resource.Id, deviceId, "enable"));
+        request.Headers.Authorization = new("Bearer", token);
+        using var response = await client.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        var device = await response.Content.ReadFromJsonAsync<DeviceRegistryRuntimeDeviceResponse>(
+            SerializerOptions,
+            cancellationToken) ??
+            throw new JsonException("Device Registry returned an empty enable response.");
         return device.ToRuntimeDevice();
     }
 
@@ -208,6 +273,12 @@ public sealed class DeviceRegistryRuntimeDeviceManager(
             return "revoked";
         }
 
+        if (string.Equals(device.Status, "disabled", StringComparison.OrdinalIgnoreCase) ||
+            device.DisabledAt is not null)
+        {
+            return "disabled";
+        }
+
         if (device.LastSeenAt is null)
         {
             return "unknown";
@@ -301,6 +372,10 @@ public sealed record DeviceRegistryRuntimeDevice(
 
     public string? RevokedReason { get; init; }
 
+    public DateTimeOffset? DisabledAt { get; init; }
+
+    public string? DisabledReason { get; init; }
+
     public string? Presence { get; init; }
 
     public string? EnrollmentProfileName { get; init; }
@@ -350,7 +425,9 @@ internal sealed record DeviceRegistryRuntimeDeviceResponse(
     string? EnrollmentProfileName = null,
     string? EnrollmentProfileKind = null,
     DeviceRegistryRuntimeDeviceTwin? Twin = null,
-    string? LastSeenTransport = null)
+    string? LastSeenTransport = null,
+    DateTimeOffset? DisabledAt = null,
+    string? DisabledReason = null)
 {
     public DeviceRegistryRuntimeDevice ToRuntimeDevice() =>
         new(
@@ -372,6 +449,8 @@ internal sealed record DeviceRegistryRuntimeDeviceResponse(
             LastSeenTransport = LastSeenTransport,
             RevokedAt = RevokedAt,
             RevokedReason = RevokedReason,
+            DisabledAt = DisabledAt,
+            DisabledReason = DisabledReason,
             Presence = Presence,
             EnrollmentProfileName = EnrollmentProfileName,
             EnrollmentProfileKind = EnrollmentProfileKind,

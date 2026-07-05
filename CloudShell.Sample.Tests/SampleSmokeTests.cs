@@ -1730,6 +1730,55 @@ public sealed class SampleSmokeTests
         Assert.Equal(3, followUpMqttSync.Reported.Version);
         Assert.Equal("running", followUpMqttSync.Reported.State["mode"].GetString());
 
+        var disabled = await registryClient.DisableDeviceAsync(
+            registryResourceId,
+            enrollment.DeviceId,
+            adminToken,
+            "sample maintenance");
+        Assert.Equal("disabled", disabled.Status);
+        Assert.Equal("disabled", disabled.Presence);
+        Assert.NotNull(disabled.DisabledAt);
+        Assert.Equal("sample maintenance", disabled.DisabledReason);
+        Assert.Equal(
+            MqttClientConnectResultCode.BadUserNameOrPassword,
+            await ConnectDeviceRegistryMqttAsync(
+                registryMqttEndpoint,
+                enrollment.DeviceId,
+                enrollment.ClientId,
+                enrollment.ClientSecret));
+
+        using var disabledTokenResponse = await tokenClient.PostAsync(
+            enrollment.TokenEndpoint,
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = "client_credentials",
+                ["client_id"] = enrollment.ClientId,
+                ["client_secret"] = enrollment.ClientSecret,
+                ["scope"] = "ControlPlane.Access"
+            }));
+        Assert.Equal(HttpStatusCode.Unauthorized, disabledTokenResponse.StatusCode);
+
+        var enabled = await registryClient.EnableDeviceAsync(
+            registryResourceId,
+            enrollment.DeviceId,
+            adminToken);
+        Assert.Equal("active", enabled.Status);
+        Assert.Equal("online", enabled.Presence);
+        Assert.Null(enabled.DisabledAt);
+        Assert.Null(enabled.DisabledReason);
+        Assert.Equal(
+            MqttClientConnectResultCode.Success,
+            await ConnectDeviceRegistryMqttAsync(
+                registryMqttEndpoint,
+                enrollment.DeviceId,
+                enrollment.ClientId,
+                enrollment.ClientSecret));
+        var enabledDeviceToken = await RequestClientCredentialsTokenAsync(
+            enrollment.TokenEndpoint,
+            enrollment.ClientId,
+            enrollment.ClientSecret);
+        Assert.False(string.IsNullOrWhiteSpace(enabledDeviceToken));
+
         var revoked = await registryClient.RevokeDeviceAsync(
             registryResourceId,
             enrollment.DeviceId,

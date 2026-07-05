@@ -227,7 +227,7 @@ else
         FormatPresence(device).ToLowerInvariant() switch
         {
             "online" => "health-healthy",
-            "stale" or "revoked" => "health-unhealthy",
+            "stale" or "disabled" or "revoked" => "health-unhealthy",
             _ => "health-unknown"
         };
 

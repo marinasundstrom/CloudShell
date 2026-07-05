@@ -100,6 +100,11 @@ public sealed class DeviceRegistryServiceStore(
                 return DeviceEnrollmentResult.Rejected("Device identity has been revoked.");
             }
 
+            if (IsDisabled(existing))
+            {
+                return DeviceEnrollmentResult.Rejected("Device identity has been disabled.");
+            }
+
             var deviceId = existing?.Id ?? CreateDeviceId(registry.Id, normalizedSubject);
             var identityName = deviceId;
             var identity = ResourceIdentityReference.ForResource(registry.Id, identityName);
@@ -157,7 +162,7 @@ public sealed class DeviceRegistryServiceStore(
 
     private void RegisterIdentity(DeviceRecord device)
     {
-        if (IsRevoked(device))
+        if (IsIdentityBlocked(device))
         {
             identities.Unregister(device.ClientId);
             return;
@@ -217,6 +222,12 @@ public sealed class DeviceRegistryServiceStore(
             {
                 identities.Unregister(device.ClientId);
                 return DeviceMutationResult.Rejected("Device identity has been revoked.");
+            }
+
+            if (IsDisabled(device))
+            {
+                identities.Unregister(device.ClientId);
+                return DeviceMutationResult.Rejected("Device identity has been disabled.");
             }
 
             var updated = device with
@@ -308,6 +319,12 @@ public sealed class DeviceRegistryServiceStore(
                 return DeviceSyncMutationResult.Rejected("Device identity has been revoked.");
             }
 
+            if (IsDisabled(device))
+            {
+                identities.Unregister(device.ClientId);
+                return DeviceSyncMutationResult.Rejected("Device identity has been disabled.");
+            }
+
             var twin = device.Twin;
             var reported = request.ReportedState is null
                 ? twin.Reported
@@ -366,11 +383,87 @@ public sealed class DeviceRegistryServiceStore(
                 RevokedAt = device.RevokedAt ?? timestamp,
                 RevokedReason = string.IsNullOrWhiteSpace(reason)
                     ? device.RevokedReason
+                    : reason.Trim(),
+                DisabledAt = null,
+                DisabledReason = null
+            };
+            devices[devices.IndexOf(device)] = updated;
+            WriteDevices(devices);
+            identities.Unregister(updated.ClientId);
+
+            return DeviceMutationResult.Accepted(updated);
+        }
+    }
+
+    public DeviceMutationResult DisableDevice(
+        string registryId,
+        string deviceId,
+        string? reason,
+        DateTimeOffset timestamp)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registryId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+
+        lock (_gate)
+        {
+            var devices = LoadDevices().ToList();
+            var device = FindDevice(devices, registryId, deviceId);
+            if (device is null)
+            {
+                return DeviceMutationResult.NotFound("The device was not found.");
+            }
+
+            if (IsRevoked(device))
+            {
+                return DeviceMutationResult.Rejected("Device identity has been revoked.");
+            }
+
+            var updated = device with
+            {
+                Status = DeviceRecordStatuses.Disabled,
+                DisabledAt = device.DisabledAt ?? timestamp,
+                DisabledReason = string.IsNullOrWhiteSpace(reason)
+                    ? device.DisabledReason
                     : reason.Trim()
             };
             devices[devices.IndexOf(device)] = updated;
             WriteDevices(devices);
             identities.Unregister(updated.ClientId);
+
+            return DeviceMutationResult.Accepted(updated);
+        }
+    }
+
+    public DeviceMutationResult EnableDevice(
+        string registryId,
+        string deviceId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registryId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+
+        lock (_gate)
+        {
+            var devices = LoadDevices().ToList();
+            var device = FindDevice(devices, registryId, deviceId);
+            if (device is null)
+            {
+                return DeviceMutationResult.NotFound("The device was not found.");
+            }
+
+            if (IsRevoked(device))
+            {
+                return DeviceMutationResult.Rejected("Device identity has been revoked.");
+            }
+
+            var updated = device with
+            {
+                Status = DeviceRecordStatuses.Active,
+                DisabledAt = null,
+                DisabledReason = null
+            };
+            devices[devices.IndexOf(device)] = updated;
+            WriteDevices(devices);
+            RegisterIdentity(updated);
 
             return DeviceMutationResult.Accepted(updated);
         }
@@ -423,7 +516,7 @@ public sealed class DeviceRegistryServiceStore(
         {
             var candidate = LoadDevices().FirstOrDefault(record =>
                 string.Equals(record.ClientId, clientId, StringComparison.Ordinal));
-            if (candidate is null || IsRevoked(candidate))
+            if (candidate is null || IsIdentityBlocked(candidate))
             {
                 return false;
             }
@@ -666,6 +759,13 @@ public sealed class DeviceRegistryServiceStore(
     private static bool IsRevoked(DeviceRecord? device) =>
         string.Equals(device?.Status, DeviceRecordStatuses.Revoked, StringComparison.OrdinalIgnoreCase) ||
         device?.RevokedAt is not null;
+
+    private static bool IsDisabled(DeviceRecord? device) =>
+        string.Equals(device?.Status, DeviceRecordStatuses.Disabled, StringComparison.OrdinalIgnoreCase) ||
+        device?.DisabledAt is not null;
+
+    private static bool IsIdentityBlocked(DeviceRecord? device) =>
+        IsRevoked(device) || IsDisabled(device);
 
     private static bool FixedTimeEquals(
         string expected,

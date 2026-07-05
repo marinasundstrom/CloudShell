@@ -86,10 +86,10 @@ stored in projected resource attributes.
 Device records carry lifecycle, presence, and twin state. These are separate
 concepts:
 
-- lifecycle state is the registry-owned access state such as `active` or
-  `revoked`;
-- presence is computed contact state such as `online`, `stale`, `unknown`, or
-  `revoked`;
+- lifecycle state is the registry-owned access state such as `active`,
+  `disabled`, or `revoked`;
+- presence is computed contact state such as `online`, `stale`, `disabled`,
+  `unknown`, or `revoked`;
 - twin state is an optional desired/reported state document used by device
   scenarios that need state reconciliation, especially low-power or
   intermittently connected devices.
@@ -98,14 +98,16 @@ Device records expose:
 
 | Field | Meaning |
 | --- | --- |
-| `status` | Registry-owned device state such as `active` or `revoked`. |
-| `presence` | Computed contact state such as `online`, `stale`, `unknown`, or `revoked`. |
+| `status` | Registry-owned device state such as `active`, `disabled`, or `revoked`. |
+| `presence` | Computed contact state such as `online`, `stale`, `disabled`, `unknown`, or `revoked`. |
 | `enrollmentProfileName` | Name of the enrollment profile that provisioned the device, when known. |
 | `enrollmentProfileKind` | Profile kind, such as `individual` or `group`, that provisioned the device. |
 | `enrolledAt` | Time the device identity was first provisioned. |
 | `lastSeenAt` | Last registry-observed device contact. Enrollment, heartbeat, and sync update this value. |
 | `lastSeenSource` | Source of the last contact, such as `enrollment`, `heartbeat`, or a client-provided source. |
 | `lastSeenTransport` | Transport used by the last contact, such as `http` or `mqtt`. |
+| `disabledAt` | Time the device identity was temporarily disabled, when applicable. |
+| `disabledReason` | Optional non-secret operator reason for disabling access. |
 | `revokedAt` | Time the device identity was revoked, when applicable. |
 | `revokedReason` | Optional non-secret operator reason for revocation. |
 
@@ -117,6 +119,12 @@ device. A registry can optionally configure `heartbeat.staleAfterSeconds`; when
 set, active devices whose last contact is older than that threshold report
 `presence=stale`. Without that threshold, CloudShell records last-seen metadata
 but does not infer stale device presence.
+
+Lifecycle controls distinguish reversible disablement from terminal revocation.
+Disabling a device blocks new token issuance and MQTT authentication while
+retaining the device record and credential material so an operator can enable it
+again. Revoking a device unregisters the identity and marks the credential as no
+longer trusted; it is intended as the permanent access removal path.
 
 Device twin services are part of the baseline Device Registry capability, but
 using twin state is optional for each device scenario. A simple device may only
@@ -185,13 +193,13 @@ General section:
 - **Devices** lists enrolled devices and shows device status, presence, last
   seen, last transport, identity metadata, enrollment claims, and non-secret
   device properties reported by the client. Presence uses a colored indicator
-  dot in both the list and device details so online, stale, revoked, and
-  unknown devices are easy to scan. Registry operators can revoke access for
-  the selected device or remove the device record from the dedicated device
-  details view when the backing registry service is running. The details view
-  includes identity, lifecycle, enrollment profile, properties, claims, and a
-  Twin section that shows desired and reported state versions, update
-  timestamps, last sync time,
+  dot in both the list and device details so online, stale, disabled, revoked,
+  and unknown devices are easy to scan. Registry operators can disable, enable,
+  revoke access for the selected device, or remove the device record from the
+  dedicated device details view when the backing registry service is running.
+  The details view includes identity, lifecycle, enrollment profile, properties,
+  claims, and a Twin section that shows desired and reported state versions,
+  update timestamps, last sync time,
   read-only reported state JSON, and an editor for the desired state JSON object.
 - **Enrollment profiles** shows the base enrollment policy, trusted
   certificate references, individual/group profile matching criteria, and the

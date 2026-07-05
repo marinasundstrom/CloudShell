@@ -13,6 +13,18 @@
                 Devices
             </FluentButton>
             <FluentButton Appearance="Appearance.Neutral"
+                          Disabled="@(!CanDisableDevice || IsMutatingDevice)"
+                          IconStart="@(new Icons.Regular.Size20.DismissCircle())"
+                          OnClick="DisableDevice">
+                Disable
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Neutral"
+                          Disabled="@(!CanEnableDevice || IsMutatingDevice)"
+                          IconStart="@(new Icons.Regular.Size20.CheckmarkCircle())"
+                          OnClick="EnableDevice">
+                Enable
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Neutral"
                           Disabled="@(!CanRevokeDevice || IsMutatingDevice)"
                           IconStart="@(new Icons.Regular.Size20.ErrorCircle())"
                           OnClick="RevokeDevice">
@@ -78,6 +90,14 @@
             <tr>
                 <th scope="row">Last seen transport</th>
                 <td>@FormatLastSeenTransport(Device)</td>
+            </tr>
+            <tr>
+                <th scope="row">Disabled</th>
+                <td>@FormatOptionalTimestamp(Device.DisabledAt)</td>
+            </tr>
+            <tr>
+                <th scope="row">Disabled reason</th>
+                <td>@FormatOptionalValue(Device.DisabledReason)</td>
             </tr>
             <tr>
                 <th scope="row">Revoked</th>
@@ -230,6 +250,8 @@
     private string? TwinEditorDeviceId { get; set; }
     private string? TwinOperationMessage { get; set; }
     private bool CanRevokeDevice => !IsRevoked(Device);
+    private bool CanDisableDevice => !IsRevoked(Device) && !IsDisabled(Device);
+    private bool CanEnableDevice => IsDisabled(Device) && !IsRevoked(Device);
 
     protected override void OnParametersSet() =>
         SyncTwinEditor();
@@ -248,6 +270,41 @@
                 Device.Id,
                 "Revoked from Resource Manager");
             DeviceOperationMessage = "Device access was revoked.";
+            await DeviceChanged.InvokeAsync(updated);
+        });
+    }
+
+    private async Task DisableDevice()
+    {
+        if (!CanDisableDevice || IsMutatingDevice)
+        {
+            return;
+        }
+
+        await MutateDeviceAsync(async () =>
+        {
+            var updated = await DeviceManager.DisableDeviceAsync(
+                Resource,
+                Device.Id,
+                "Disabled from Resource Manager");
+            DeviceOperationMessage = "Device access was disabled.";
+            await DeviceChanged.InvokeAsync(updated);
+        });
+    }
+
+    private async Task EnableDevice()
+    {
+        if (!CanEnableDevice || IsMutatingDevice)
+        {
+            return;
+        }
+
+        await MutateDeviceAsync(async () =>
+        {
+            var updated = await DeviceManager.EnableDeviceAsync(
+                Resource,
+                Device.Id);
+            DeviceOperationMessage = "Device access was enabled.";
             await DeviceChanged.InvokeAsync(updated);
         });
     }
@@ -406,7 +463,7 @@
         FormatPresence(device).ToLowerInvariant() switch
         {
             "online" => "health-healthy",
-            "stale" or "revoked" => "health-unhealthy",
+            "stale" or "disabled" or "revoked" => "health-unhealthy",
             _ => "health-unknown"
         };
 
@@ -430,4 +487,8 @@
     private static bool IsRevoked(DeviceRegistryRuntimeDevice device) =>
         string.Equals(device.Status, "revoked", StringComparison.OrdinalIgnoreCase) ||
         device.RevokedAt is not null;
+
+    private static bool IsDisabled(DeviceRegistryRuntimeDevice device) =>
+        string.Equals(device.Status, "disabled", StringComparison.OrdinalIgnoreCase) ||
+        device.DisabledAt is not null;
 }

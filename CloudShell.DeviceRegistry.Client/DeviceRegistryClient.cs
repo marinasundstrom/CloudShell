@@ -249,6 +249,58 @@ public sealed class DeviceRegistryClient
             throw new JsonException("CloudShell Device Registry returned an empty revoke response.");
     }
 
+    public async Task<DeviceMetadataResponse> DisableDeviceAsync(
+        string registryId,
+        string deviceId,
+        string bearerToken,
+        string? reason = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registryId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bearerToken);
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            BuildDeviceActionEndpoint(registryId, deviceId, "disable"))
+        {
+            Content = JsonContent.Create(
+                new DeviceDisableRequest(reason),
+                options: SerializerOptions)
+        };
+        request.Headers.Authorization = new("Bearer", bearerToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        return await response.Content.ReadFromJsonAsync<DeviceMetadataResponse>(
+            SerializerOptions,
+            cancellationToken) ??
+            throw new JsonException("CloudShell Device Registry returned an empty disable response.");
+    }
+
+    public async Task<DeviceMetadataResponse> EnableDeviceAsync(
+        string registryId,
+        string deviceId,
+        string bearerToken,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registryId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bearerToken);
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            BuildDeviceActionEndpoint(registryId, deviceId, "enable"));
+        request.Headers.Authorization = new("Bearer", bearerToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        return await response.Content.ReadFromJsonAsync<DeviceMetadataResponse>(
+            SerializerOptions,
+            cancellationToken) ??
+            throw new JsonException("CloudShell Device Registry returned an empty enable response.");
+    }
+
     public async Task RemoveDeviceAsync(
         string registryId,
         string deviceId,

@@ -289,7 +289,9 @@ public sealed class DeviceRegistryMqttHostedService(
             ResolvePresence(registry, device, timestamp),
             device.EnrollmentProfileName,
             device.EnrollmentProfileKind,
-            device.LastSeenTransport);
+            device.LastSeenTransport,
+            device.DisabledAt,
+            device.DisabledReason);
 
     private static string ResolvePresence(
         DeviceRegistryDefinition registry,
@@ -300,6 +302,12 @@ public sealed class DeviceRegistryMqttHostedService(
             device.RevokedAt is not null)
         {
             return DevicePresenceStatuses.Revoked;
+        }
+
+        if (string.Equals(device.Status, DeviceRecordStatuses.Disabled, StringComparison.OrdinalIgnoreCase) ||
+            device.DisabledAt is not null)
+        {
+            return DevicePresenceStatuses.Disabled;
         }
 
         if (device.LastSeenAt is null)

@@ -22,4 +22,6 @@ public sealed record DeviceMetadataResponse(
     string? Presence = null,
     string? EnrollmentProfileName = null,
     string? EnrollmentProfileKind = null,
-    string? LastSeenTransport = null);
+    string? LastSeenTransport = null,
+    DateTimeOffset? DisabledAt = null,
+    string? DisabledReason = null);

@@ -82,6 +82,10 @@ public sealed record DeviceRecord(
 
     public string? RevokedReason { get; init; }
 
+    public DateTimeOffset? DisabledAt { get; init; }
+
+    public string? DisabledReason { get; init; }
+
     public string? EnrollmentProfileName { get; init; }
 
     public string? EnrollmentProfileKind { get; init; }
@@ -92,6 +96,7 @@ public sealed record DeviceRecord(
 public static class DeviceRecordStatuses
 {
     public const string Active = "active";
+    public const string Disabled = "disabled";
     public const string Revoked = "revoked";
 }
 
@@ -100,6 +105,7 @@ public static class DevicePresenceStatuses
     public const string Online = "online";
     public const string Stale = "stale";
     public const string Unknown = "unknown";
+    public const string Disabled = "disabled";
     public const string Revoked = "revoked";
 }
 
@@ -113,6 +119,9 @@ public sealed record DeviceHeartbeatRequest(
     string? Source = null);
 
 public sealed record DeviceRevokeRequest(
+    string? Reason = null);
+
+public sealed record DeviceDisableRequest(
     string? Reason = null);
 
 public sealed record DeviceTwinDocument
@@ -178,7 +187,9 @@ public sealed record DeviceEnrollmentResponse(
     string? Presence = null,
     string? EnrollmentProfileName = null,
     string? EnrollmentProfileKind = null,
-    string? LastSeenTransport = null);
+    string? LastSeenTransport = null,
+    DateTimeOffset? DisabledAt = null,
+    string? DisabledReason = null);
 
 public sealed record DeviceMetadataResponse(
     string DeviceId,
@@ -200,4 +211,6 @@ public sealed record DeviceMetadataResponse(
     string? Presence = null,
     string? EnrollmentProfileName = null,
     string? EnrollmentProfileKind = null,
-    string? LastSeenTransport = null);
+    string? LastSeenTransport = null,
+    DateTimeOffset? DisabledAt = null,
+    string? DisabledReason = null);

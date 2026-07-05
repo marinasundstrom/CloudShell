@@ -145,7 +145,8 @@ machine name, and processor count. Specialized clients can add more properties
 for device capabilities. The Device Registry resource blade shows enrolled
 devices, status, presence with a colored indicator dot, last-seen source and
 transport, reported properties, and configured enrollment profiles. Registry
-operators can revoke a device identity through the Device Registry API;
-revocation disables future token issuance for that device credential. Operators
-can also remove the device record after revocation or when they want to clean
-up sample state.
+operators can temporarily disable a device identity, enable it again, or revoke
+it through the Device Registry API. Disablement blocks future token issuance and
+MQTT authentication until the device is enabled again; revocation is the
+terminal access removal path. Operators can also remove the device record after
+revocation or when they want to clean up sample state.

@@ -52,6 +52,12 @@ api.MapGet("/registries/{registryId}/devices/{deviceId}/twin", GetDeviceTwin)
 api.MapPut("/registries/{registryId}/devices/{deviceId}/twin/desired", SetDeviceDesiredState)
     .WithName("CloudShellDeviceRegistryService_SetDeviceDesiredState");
 
+api.MapPost("/registries/{registryId}/devices/{deviceId}/disable", DisableDevice)
+    .WithName("CloudShellDeviceRegistryService_DisableDevice");
+
+api.MapPost("/registries/{registryId}/devices/{deviceId}/enable", EnableDevice)
+    .WithName("CloudShellDeviceRegistryService_EnableDevice");
+
 api.MapPost("/registries/{registryId}/devices/{deviceId}/revoke", RevokeDevice)
     .WithName("CloudShellDeviceRegistryService_RevokeDevice");
 
@@ -131,7 +137,9 @@ static IResult EnrollDevice(
         ResolvePresence(registry, result.Device, timestamp),
         result.Device.EnrollmentProfileName,
         result.Device.EnrollmentProfileKind,
-        result.Device.LastSeenTransport));
+        result.Device.LastSeenTransport,
+        result.Device.DisabledAt,
+        result.Device.DisabledReason));
 }
 
 static IResult HeartbeatDevice(
@@ -373,6 +381,91 @@ static IResult RevokeDevice(
     return Results.Ok(ToMetadataResponse(registry, store, result.Device!, timestamp));
 }
 
+static IResult DisableDevice(
+    string registryId,
+    string deviceId,
+    DeviceDisableRequest request,
+    HttpRequest httpRequest,
+    DeviceRegistryServiceStore store)
+{
+    var registry = store.GetRegistry(registryId);
+    if (!HasBearerToken(httpRequest))
+    {
+        return Unauthorized("A Device Registry bearer token is required.");
+    }
+
+    if (registry is null ||
+        !HasManageDevicesPermission(registry, httpRequest))
+    {
+        return NotFound();
+    }
+
+    var timestamp = DateTimeOffset.UtcNow;
+    var result = store.DisableDevice(
+        registry.Id,
+        deviceId,
+        request.Reason,
+        timestamp);
+    if (result.IsNotFound)
+    {
+        return Results.Problem(
+            result.Failure,
+            statusCode: StatusCodes.Status404NotFound,
+            title: "Device not found");
+    }
+
+    if (!result.IsAccepted)
+    {
+        return Results.Problem(
+            result.Failure,
+            statusCode: StatusCodes.Status403Forbidden,
+            title: "Device disable rejected");
+    }
+
+    return Results.Ok(ToMetadataResponse(registry, store, result.Device!, timestamp));
+}
+
+static IResult EnableDevice(
+    string registryId,
+    string deviceId,
+    HttpRequest httpRequest,
+    DeviceRegistryServiceStore store)
+{
+    var registry = store.GetRegistry(registryId);
+    if (!HasBearerToken(httpRequest))
+    {
+        return Unauthorized("A Device Registry bearer token is required.");
+    }
+
+    if (registry is null ||
+        !HasManageDevicesPermission(registry, httpRequest))
+    {
+        return NotFound();
+    }
+
+    var timestamp = DateTimeOffset.UtcNow;
+    var result = store.EnableDevice(
+        registry.Id,
+        deviceId);
+    if (result.IsNotFound)
+    {
+        return Results.Problem(
+            result.Failure,
+            statusCode: StatusCodes.Status404NotFound,
+            title: "Device not found");
+    }
+
+    if (!result.IsAccepted)
+    {
+        return Results.Problem(
+            result.Failure,
+            statusCode: StatusCodes.Status403Forbidden,
+            title: "Device enable rejected");
+    }
+
+    return Results.Ok(ToMetadataResponse(registry, store, result.Device!, timestamp));
+}
+
 static DeviceMetadataResponse ToMetadataResponse(
     DeviceRegistryDefinition registry,
     DeviceRegistryServiceStore store,
@@ -398,7 +491,9 @@ static DeviceMetadataResponse ToMetadataResponse(
         ResolvePresence(registry, device, timestamp),
         device.EnrollmentProfileName,
         device.EnrollmentProfileKind,
-        device.LastSeenTransport);
+        device.LastSeenTransport,
+        device.DisabledAt,
+        device.DisabledReason);
 
 static DeviceTwinResponse ToTwinResponse(DeviceTwinDocument twin) =>
     new(
@@ -415,6 +510,12 @@ static string ResolvePresence(
         device.RevokedAt is not null)
     {
         return DevicePresenceStatuses.Revoked;
+    }
+
+    if (string.Equals(device.Status, DeviceRecordStatuses.Disabled, StringComparison.OrdinalIgnoreCase) ||
+        device.DisabledAt is not null)
+    {
+        return DevicePresenceStatuses.Disabled;
     }
 
     if (device.LastSeenAt is null)

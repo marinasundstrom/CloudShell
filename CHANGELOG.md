@@ -33,6 +33,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Recorded Device Registry last-seen transport for HTTP and MQTT contacts and
   showed device presence with a colored indicator dot in the device list and
   details views.
+- Added reversible Device Registry disable/enable lifecycle operations that
+  block token issuance and MQTT authentication while keeping revoke as the
+  terminal access removal path.
 - Projected configured Device Registry MQTT endpoints into Resource Manager
   endpoint details alongside the HTTP registry endpoint.
 - Added an explicit `Microsoft.OpenApi` 3.7.0 dependency for OpenAPI-enabled
