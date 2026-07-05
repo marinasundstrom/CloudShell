@@ -229,6 +229,110 @@ public sealed class DeviceRegistryServiceStore(
         }
     }
 
+    public DeviceMutationResult SetDesiredState(
+        string registryId,
+        string deviceId,
+        DeviceDesiredStateRequest request,
+        DateTimeOffset timestamp)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registryId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+        ArgumentNullException.ThrowIfNull(request);
+
+        lock (_gate)
+        {
+            var devices = LoadDevices().ToList();
+            var device = FindDevice(devices, registryId, deviceId);
+            if (device is null)
+            {
+                return DeviceMutationResult.NotFound("The device was not found.");
+            }
+
+            var twin = device.Twin;
+            var updated = device with
+            {
+                Twin = twin with
+                {
+                    Desired = twin.Desired with
+                    {
+                        Version = twin.Desired.Version + 1,
+                        UpdatedAt = timestamp,
+                        State = NormalizeTwinState(request.State)
+                    }
+                }
+            };
+            devices[devices.IndexOf(device)] = updated;
+            WriteDevices(devices);
+
+            return DeviceMutationResult.Accepted(updated);
+        }
+    }
+
+    public DeviceSyncMutationResult SyncDevice(
+        string registryId,
+        string deviceId,
+        string clientId,
+        DeviceSyncRequest request,
+        DateTimeOffset timestamp)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registryId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientId);
+        ArgumentNullException.ThrowIfNull(request);
+
+        lock (_gate)
+        {
+            var devices = LoadDevices().ToList();
+            var device = FindDevice(devices, registryId, deviceId);
+            if (device is null)
+            {
+                return DeviceSyncMutationResult.NotFound("The device was not found.");
+            }
+
+            if (!string.Equals(device.ClientId, clientId, StringComparison.Ordinal))
+            {
+                return DeviceSyncMutationResult.Rejected("The device identity cannot sync another device.");
+            }
+
+            if (IsRevoked(device))
+            {
+                identities.Unregister(device.ClientId);
+                return DeviceSyncMutationResult.Rejected("Device identity has been revoked.");
+            }
+
+            var twin = device.Twin;
+            var reported = request.ReportedState is null
+                ? twin.Reported
+                : twin.Reported with
+                {
+                    Version = twin.Reported.Version + 1,
+                    UpdatedAt = timestamp,
+                    State = NormalizeTwinState(request.ReportedState)
+                };
+            var updated = device with
+            {
+                Properties = MergeProperties(device.Properties, request.Properties),
+                LastSeenAt = timestamp,
+                LastSeenSource = string.IsNullOrWhiteSpace(request.Source)
+                    ? "sync"
+                    : request.Source.Trim(),
+                Status = DeviceRecordStatuses.Active,
+                Twin = twin with
+                {
+                    Reported = reported,
+                    LastSyncedAt = timestamp
+                }
+            };
+            devices[devices.IndexOf(device)] = updated;
+            WriteDevices(devices);
+
+            return DeviceSyncMutationResult.Accepted(
+                updated,
+                request.LastKnownDesiredVersion is null ||
+                    request.LastKnownDesiredVersion.Value < updated.Twin.Desired.Version);
+        }
+    }
+
     public DeviceMutationResult RevokeDevice(
         string registryId,
         string deviceId,
@@ -482,6 +586,26 @@ public sealed class DeviceRegistryServiceStore(
         return merged;
     }
 
+    private static IReadOnlyDictionary<string, JsonElement> NormalizeTwinState(
+        IReadOnlyDictionary<string, JsonElement>? state)
+    {
+        if (state is null || state.Count == 0)
+        {
+            return new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var normalized = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, value) in state)
+        {
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                normalized[name.Trim()] = value.Clone();
+            }
+        }
+
+        return normalized;
+    }
+
     private static DeviceRecord? FindDevice(
         IReadOnlyList<DeviceRecord> devices,
         string registryId,
@@ -553,4 +677,23 @@ public sealed record DeviceMutationResult(
 
     public static DeviceMutationResult NotFound(string failure) =>
         new(false, true, null, failure);
+}
+
+public sealed record DeviceSyncMutationResult(
+    bool IsAccepted,
+    bool IsNotFound,
+    DeviceRecord? Device,
+    bool DesiredStateChanged,
+    string? Failure)
+{
+    public static DeviceSyncMutationResult Accepted(
+        DeviceRecord device,
+        bool desiredStateChanged) =>
+        new(true, false, device, desiredStateChanged, null);
+
+    public static DeviceSyncMutationResult Rejected(string failure) =>
+        new(false, false, null, false, failure);
+
+    public static DeviceSyncMutationResult NotFound(string failure) =>
+        new(false, true, null, false, failure);
 }

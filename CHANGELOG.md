@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added an MVP Device Registry twin sync path with desired/reported state
+  versions so low-power devices can wake, report state, and pull updated
+  desired state through the device identity.
 - Added an opt-in Device Registry heartbeat stale-after policy and computed
   device presence values for registry responses and Resource Manager device
   listings.

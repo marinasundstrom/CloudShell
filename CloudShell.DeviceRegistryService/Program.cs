@@ -42,6 +42,15 @@ api.MapPost("/registries/{registryId}/enroll", EnrollDevice)
 api.MapPost("/registries/{registryId}/devices/{deviceId}/heartbeat", HeartbeatDevice)
     .WithName("CloudShellDeviceRegistryService_HeartbeatDevice");
 
+api.MapPost("/registries/{registryId}/devices/{deviceId}/sync", SyncDevice)
+    .WithName("CloudShellDeviceRegistryService_SyncDevice");
+
+api.MapGet("/registries/{registryId}/devices/{deviceId}/twin", GetDeviceTwin)
+    .WithName("CloudShellDeviceRegistryService_GetDeviceTwin");
+
+api.MapPut("/registries/{registryId}/devices/{deviceId}/twin/desired", SetDeviceDesiredState)
+    .WithName("CloudShellDeviceRegistryService_SetDeviceDesiredState");
+
 api.MapPost("/registries/{registryId}/devices/{deviceId}/revoke", RevokeDevice)
     .WithName("CloudShellDeviceRegistryService_RevokeDevice");
 
@@ -171,6 +180,127 @@ static IResult HeartbeatDevice(
     return Results.Ok(ToMetadataResponse(registry, store, result.Device!, timestamp));
 }
 
+static IResult SyncDevice(
+    string registryId,
+    string deviceId,
+    DeviceSyncRequest request,
+    HttpRequest httpRequest,
+    DeviceRegistryServiceStore store)
+{
+    var registry = store.GetRegistry(registryId);
+    if (registry is null)
+    {
+        return NotFound();
+    }
+
+    if (!HasBearerToken(httpRequest))
+    {
+        return Unauthorized("A device bearer token is required.");
+    }
+
+    var clientId = httpRequest.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (string.IsNullOrWhiteSpace(clientId))
+    {
+        return Unauthorized("A device bearer token is required.");
+    }
+
+    var timestamp = DateTimeOffset.UtcNow;
+    var result = store.SyncDevice(
+        registry.Id,
+        deviceId,
+        clientId,
+        request,
+        timestamp);
+    if (result.IsNotFound)
+    {
+        return Results.Problem(
+            result.Failure,
+            statusCode: StatusCodes.Status404NotFound,
+            title: "Device not found");
+    }
+
+    if (!result.IsAccepted)
+    {
+        return Results.Problem(
+            result.Failure,
+            statusCode: StatusCodes.Status403Forbidden,
+            title: "Device sync rejected");
+    }
+
+    return Results.Ok(new DeviceSyncResponse(
+        ToMetadataResponse(registry, store, result.Device!, timestamp),
+        result.Device!.Twin.Desired,
+        result.Device.Twin.Reported,
+        result.DesiredStateChanged,
+        result.Device.Twin.LastSyncedAt));
+}
+
+static IResult GetDeviceTwin(
+    string registryId,
+    string deviceId,
+    HttpRequest httpRequest,
+    DeviceRegistryServiceStore store)
+{
+    var registry = store.GetRegistry(registryId);
+    if (!HasBearerToken(httpRequest))
+    {
+        return Unauthorized("A Device Registry bearer token is required.");
+    }
+
+    if (registry is null ||
+        !HasListDevicesPermission(registry, httpRequest))
+    {
+        return NotFound();
+    }
+
+    var device = store.ListDevices(registry.Id).FirstOrDefault(candidate =>
+        string.Equals(candidate.Id, deviceId, StringComparison.OrdinalIgnoreCase));
+    if (device is null)
+    {
+        return Results.Problem(
+            "The device was not found.",
+            statusCode: StatusCodes.Status404NotFound,
+            title: "Device not found");
+    }
+
+    return Results.Ok(ToTwinResponse(device.Twin));
+}
+
+static IResult SetDeviceDesiredState(
+    string registryId,
+    string deviceId,
+    DeviceDesiredStateRequest request,
+    HttpRequest httpRequest,
+    DeviceRegistryServiceStore store)
+{
+    var registry = store.GetRegistry(registryId);
+    if (!HasBearerToken(httpRequest))
+    {
+        return Unauthorized("A Device Registry bearer token is required.");
+    }
+
+    if (registry is null ||
+        !HasManageDevicesPermission(registry, httpRequest))
+    {
+        return NotFound();
+    }
+
+    var result = store.SetDesiredState(
+        registry.Id,
+        deviceId,
+        request,
+        DateTimeOffset.UtcNow);
+    if (result.IsNotFound)
+    {
+        return Results.Problem(
+            result.Failure,
+            statusCode: StatusCodes.Status404NotFound,
+            title: "Device not found");
+    }
+
+    return Results.Ok(ToTwinResponse(result.Device!.Twin));
+}
+
 static IResult RemoveDevice(
     string registryId,
     string deviceId,
@@ -262,6 +392,12 @@ static DeviceMetadataResponse ToMetadataResponse(
         device.RevokedAt,
         device.RevokedReason,
         ResolvePresence(registry, device, timestamp));
+
+static DeviceTwinResponse ToTwinResponse(DeviceTwinDocument twin) =>
+    new(
+        twin.Desired,
+        twin.Reported,
+        twin.LastSyncedAt);
 
 static string ResolvePresence(
     DeviceRegistryDefinition registry,

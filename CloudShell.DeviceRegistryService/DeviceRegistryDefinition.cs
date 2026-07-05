@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.ResourceManager;
+using System.Text.Json;
 
 namespace CloudShell.DeviceRegistryService;
 
@@ -78,6 +79,8 @@ public sealed record DeviceRecord(
     public DateTimeOffset? RevokedAt { get; init; }
 
     public string? RevokedReason { get; init; }
+
+    public DeviceTwinDocument Twin { get; init; } = new();
 }
 
 public static class DeviceRecordStatuses
@@ -105,6 +108,46 @@ public sealed record DeviceHeartbeatRequest(
 
 public sealed record DeviceRevokeRequest(
     string? Reason = null);
+
+public sealed record DeviceTwinDocument
+{
+    public DeviceTwinState Desired { get; init; } = new();
+
+    public DeviceTwinState Reported { get; init; } = new();
+
+    public DateTimeOffset? LastSyncedAt { get; init; }
+}
+
+public sealed record DeviceTwinState
+{
+    public long Version { get; init; }
+
+    public DateTimeOffset? UpdatedAt { get; init; }
+
+    public IReadOnlyDictionary<string, JsonElement> State { get; init; } =
+        new Dictionary<string, JsonElement>();
+}
+
+public sealed record DeviceDesiredStateRequest(
+    IReadOnlyDictionary<string, JsonElement>? State = null);
+
+public sealed record DeviceSyncRequest(
+    IReadOnlyDictionary<string, JsonElement>? ReportedState = null,
+    IReadOnlyDictionary<string, string>? Properties = null,
+    string? Source = null,
+    long? LastKnownDesiredVersion = null);
+
+public sealed record DeviceTwinResponse(
+    DeviceTwinState Desired,
+    DeviceTwinState Reported,
+    DateTimeOffset? LastSyncedAt);
+
+public sealed record DeviceSyncResponse(
+    DeviceMetadataResponse Device,
+    DeviceTwinState Desired,
+    DeviceTwinState Reported,
+    bool DesiredStateChanged,
+    DateTimeOffset? LastSyncedAt);
 
 public sealed record DeviceEnrollmentResponse(
     string DeviceId,

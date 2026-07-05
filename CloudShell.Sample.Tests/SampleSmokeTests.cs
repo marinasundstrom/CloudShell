@@ -1545,6 +1545,11 @@ public sealed class SampleSmokeTests
             .Deserialize<DeviceMetadataResponse>(
                 new JsonSerializerOptions(JsonSerializerDefaults.Web)) ??
             throw new JsonException("Device Registry sample returned no heartbeat response.");
+        var sync = enrollmentDocument.RootElement
+            .GetProperty("sync")
+            .Deserialize<DeviceSyncResponse>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)) ??
+            throw new JsonException("Device Registry sample returned no sync response.");
         var configurationSetting = enrollmentDocument.RootElement.GetProperty("configuration");
 
         Assert.Equal("iot.device-registry:devices", enrollment.RegistryId);
@@ -1575,6 +1580,14 @@ public sealed class SampleSmokeTests
         Assert.NotNull(heartbeat.LastSeenAt);
         Assert.Equal("sample-app", heartbeat.LastSeenSource);
         Assert.Equal("device-app", heartbeat.Properties["sample.app"]);
+        Assert.Equal(enrollment.DeviceId, sync.Device.DeviceId);
+        Assert.Equal("sample-app", sync.Device.LastSeenSource);
+        Assert.Equal("device-app", sync.Device.Properties["sample.sync"]);
+        Assert.False(sync.DesiredStateChanged);
+        Assert.Equal(0, sync.Desired.Version);
+        Assert.Equal(1, sync.Reported.Version);
+        Assert.Equal("running", sync.Reported.State["mode"].GetString());
+        Assert.Equal("Device:Mode", sync.Reported.State["configurationSetting"].GetString());
         Assert.Equal("Device:Mode", configurationSetting.GetProperty("name").GetString());
         Assert.Equal("factory-online", configurationSetting.GetProperty("value").GetString());
 
@@ -1604,6 +1617,38 @@ public sealed class SampleSmokeTests
             registryAdminClientId,
             registryAdminClientSecret);
         var registryClient = new DeviceRegistryClient(new Uri(registryEndpoint), tokenClient);
+        var desired = await registryClient.SetDesiredStateAsync(
+            registryResourceId,
+            enrollment.DeviceId,
+            adminToken,
+            new DeviceDesiredStateRequest(
+                new Dictionary<string, JsonElement>
+                {
+                    ["mode"] = JsonSerializer.SerializeToElement("eco")
+                }));
+        Assert.Equal(1, desired.Desired.Version);
+        Assert.Equal("eco", desired.Desired.State["mode"].GetString());
+
+        var deviceToken = await RequestClientCredentialsTokenAsync(
+            enrollment.TokenEndpoint,
+            enrollment.ClientId,
+            enrollment.ClientSecret);
+        var followUpSync = await registryClient.SyncDeviceAsync(
+            registryResourceId,
+            enrollment.DeviceId,
+            deviceToken,
+            new DeviceSyncRequest(
+                new Dictionary<string, JsonElement>
+                {
+                    ["mode"] = JsonSerializer.SerializeToElement("running")
+                },
+                Source: "sample-follow-up",
+                LastKnownDesiredVersion: 0));
+        Assert.True(followUpSync.DesiredStateChanged);
+        Assert.Equal(1, followUpSync.Desired.Version);
+        Assert.Equal("eco", followUpSync.Desired.State["mode"].GetString());
+        Assert.Equal("running", followUpSync.Reported.State["mode"].GetString());
+
         var revoked = await registryClient.RevokeDeviceAsync(
             registryResourceId,
             enrollment.DeviceId,

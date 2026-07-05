@@ -215,7 +215,7 @@ public sealed class CloudShellServiceClientTests
             "http://localhost/api/devices/registries/iot.device-registry%3Adevices/enroll",
             handler.Requests[0].RequestUri?.ToString());
 
-        var requestJson = await handler.Requests[0].Content!.ReadAsStringAsync();
+        var requestJson = handler.RequestBodies[0]!;
         using var requestDocument = JsonDocument.Parse(requestJson);
         Assert.Equal("device/test-pc", requestDocument.RootElement.GetProperty("subject").GetString());
         Assert.Equal(
@@ -260,7 +260,7 @@ public sealed class CloudShellServiceClientTests
 
         await client.EnrollCurrentDeviceAsync("iot.device-registry:devices");
 
-        var requestJson = await handler.Requests[0].Content!.ReadAsStringAsync();
+        var requestJson = handler.RequestBodies[0]!;
         using var requestDocument = JsonDocument.Parse(requestJson);
         Assert.StartsWith(
             "device/",
@@ -269,6 +269,95 @@ public sealed class CloudShellServiceClientTests
         Assert.False(string.IsNullOrWhiteSpace(properties.GetProperty("platform").GetString()));
         Assert.False(string.IsNullOrWhiteSpace(properties.GetProperty("osDescription").GetString()));
         Assert.False(string.IsNullOrWhiteSpace(properties.GetProperty("frameworkDescription").GetString()));
+    }
+
+    [Fact]
+    public async Task DeviceRegistryClient_SyncDevice_ReturnsTwinState()
+    {
+        var handler = new RecordingHandler($$"""
+            {
+              "device": {
+                "deviceId": "device-123",
+                "subject": "device/test-pc",
+                "identityCategory": "deviceIdentity",
+                "principal": {
+                  "kind": {{(int)ResourcePrincipalKind.DeviceIdentity}},
+                  "id": "iot.device-registry:devices/devices/device-123",
+                  "providerId": "built-in",
+                  "sourceResourceId": "iot.device-registry:devices",
+                  "sourceIdentityName": "device-123"
+                },
+                "identityProviderId": "built-in",
+                "identityResourceId": "iot.device-registry:devices",
+                "identityName": "device-123",
+                "clientId": "iot.device-registry:devices/device-123",
+                "claims": {},
+                "properties": { "sample.sync": "device-app" },
+                "enrolledAt": "2026-07-04T00:00:00+00:00",
+                "status": "active",
+                "lastSeenAt": "2026-07-04T00:01:00+00:00",
+                "lastSeenSource": "sample-app",
+                "presence": "online"
+              },
+              "desired": {
+                "version": 2,
+                "updatedAt": "2026-07-04T00:00:30+00:00",
+                "state": { "mode": "eco" }
+              },
+              "reported": {
+                "version": 1,
+                "updatedAt": "2026-07-04T00:01:00+00:00",
+                "state": { "batteryPercent": 87 }
+              },
+              "desiredStateChanged": true,
+              "lastSyncedAt": "2026-07-04T00:01:00+00:00"
+            }
+            """);
+        var client = new DeviceRegistryClient(
+            new Uri("http://localhost"),
+            new HttpClient(handler));
+
+        var sync = await client.SyncDeviceAsync(
+            "iot.device-registry:devices",
+            "device-123",
+            "device-token",
+            new DeviceSyncRequest(
+                new Dictionary<string, JsonElement>
+                {
+                    ["batteryPercent"] = JsonSerializer.SerializeToElement(87)
+                },
+                new Dictionary<string, string>
+                {
+                    ["sample.sync"] = "device-app"
+                },
+                "sample-app",
+                LastKnownDesiredVersion: 1));
+
+        Assert.Equal("device-123", sync.Device.DeviceId);
+        Assert.True(sync.DesiredStateChanged);
+        Assert.Equal(2, sync.Desired.Version);
+        Assert.Equal("eco", sync.Desired.State["mode"].GetString());
+        Assert.Equal(87, sync.Reported.State["batteryPercent"].GetInt32());
+        Assert.Equal(
+            "http://localhost/api/devices/registries/iot.device-registry%3Adevices/devices/device-123/sync",
+            handler.Requests[0].RequestUri?.ToString());
+        Assert.Equal("Bearer", handler.Requests[0].Headers.Authorization?.Scheme);
+        Assert.Equal("device-token", handler.Requests[0].Headers.Authorization?.Parameter);
+
+        var requestJson = handler.RequestBodies[0]!;
+        using var requestDocument = JsonDocument.Parse(requestJson);
+        Assert.Equal(
+            87,
+            requestDocument.RootElement
+                .GetProperty("reportedState")
+                .GetProperty("batteryPercent")
+                .GetInt32());
+        Assert.Equal(
+            "sample-app",
+            requestDocument.RootElement.GetProperty("source").GetString());
+        Assert.Equal(
+            1,
+            requestDocument.RootElement.GetProperty("lastKnownDesiredVersion").GetInt64());
     }
 
     [Fact]
@@ -344,11 +433,16 @@ public sealed class CloudShellServiceClientTests
     {
         public List<HttpRequestMessage> Requests { get; } = [];
 
+        public List<string?> RequestBodies { get; } = [];
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
             Requests.Add(request);
+            RequestBodies.Add(request.Content is null
+                ? null
+                : request.Content.ReadAsStringAsync(cancellationToken).GetAwaiter().GetResult());
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(responseJson, System.Text.Encoding.UTF8, "application/json")

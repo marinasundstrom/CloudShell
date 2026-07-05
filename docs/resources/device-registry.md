@@ -77,7 +77,17 @@ built-in authority registry and returns client credentials for the device.
 Those credentials are returned only in the enrollment response and are not
 stored in projected resource attributes.
 
-Device records carry basic presence and access state:
+Device records carry lifecycle, presence, and twin state. These are separate
+concepts:
+
+- lifecycle state is the registry-owned access state such as `active` or
+  `revoked`;
+- presence is computed contact state such as `online`, `stale`, `unknown`, or
+  `revoked`;
+- twin state is the desired/reported state document used by low-power or
+  intermittently connected devices.
+
+Device records expose:
 
 | Field | Meaning |
 | --- | --- |
@@ -98,6 +108,21 @@ set, active devices whose last contact is older than that threshold report
 `presence=stale`. Without that threshold, CloudShell records last-seen metadata
 but does not infer stale device presence.
 
+Device twin sync is pull-based for the MVP. A device uses its issued identity
+token to call the sync endpoint when it wakes or reaches a configured contact
+interval. Sync can update reported state, merge non-secret device properties,
+update `lastSeenAt`, and return the latest desired state. Desired and reported
+state each carry a monotonically increasing version and timestamp so a device
+can send the last desired version it observed and cheaply determine whether it
+needs to apply new state.
+
+The twin model intentionally does not imply that CloudShell has an always-on
+connection to the device. It supports low-power devices that periodically wake,
+report their current state, receive desired state, then disconnect. HTTP pull is
+the MVP transport; MQTT can later become another transport for the same
+desired/reported state contract. Future registry configuration should choose the
+transport protocol without changing lifecycle, identity, or twin semantics.
+
 Revocation marks the device record as `revoked` and unregisters the built-in
 device identity client so future token requests with that device credential are
 rejected. Already-issued short-lived bearer tokens remain normal bearer tokens
@@ -117,9 +142,10 @@ capability properties without changing the registry contract.
 
 The connected-device sample keeps the device app outside the CloudShell
 resource graph. The app enrolls the current machine, receives a device
-principal, and uses that identity to read a Configuration Store setting. Devices
-that need offline or push-based settings are expected to use a future protocol
-surface such as MQTT rather than this HTTP pull flow.
+principal, sends heartbeat and sync updates, and uses that identity to read a
+Configuration Store setting. Devices that need push-based transport are
+expected to use a future protocol surface such as MQTT over the same registry
+identity and twin concepts.
 
 The built-in Resource Manager UI contributes Device Registry tabs under the
 General section:
@@ -166,4 +192,8 @@ store with a stronger database while keeping the resource model stable.
 - Enrollment profiles are the first provisioning policy shape; richer matching,
   profile selection diagnostics, and individual/group enrollment management are
   future work.
+- Rich UI editing for desired twin state and history is future work.
+- Device telemetry and device-submitted logs should be integrated with
+  CloudShell observability under the Device Registry resource and global
+  observability views in a future slice.
 - MQTT transport and richer microcontroller provisioning remain future work.

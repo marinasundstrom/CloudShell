@@ -54,7 +54,8 @@ Then run the device app independently:
 
 Call the device app to enroll the current machine and read configuration with
 the issued device identity. The app also sends a heartbeat check-in after it
-receives a device token, so the registry records last-seen metadata:
+receives a device token, then performs a device twin sync so the registry
+records reported state and returns desired state:
 
 ```bash
 ./cloudshell.sh enroll
@@ -68,6 +69,8 @@ read access to the Configuration Store setting. The registry expands that profil
 into permissions for the device identity created during enrollment. It also
 configures a five-minute heartbeat stale-after window so the registry can show
 device presence as `online` or `stale` based on the most recent heartbeat.
+The same identity can call the sync endpoint when a device wakes to report its
+current state and fetch the latest desired state version.
 
 The generic device client sends basic device properties during enrollment,
 including platform, operating system, architecture, framework description,

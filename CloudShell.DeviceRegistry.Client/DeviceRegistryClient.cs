@@ -137,6 +137,89 @@ public sealed class DeviceRegistryClient
             throw new JsonException("CloudShell Device Registry returned an empty heartbeat response.");
     }
 
+    public async Task<DeviceSyncResponse> SyncDeviceAsync(
+        string registryId,
+        string deviceId,
+        string bearerToken,
+        DeviceSyncRequest sync,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registryId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bearerToken);
+        ArgumentNullException.ThrowIfNull(sync);
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            BuildDeviceActionEndpoint(registryId, deviceId, "sync"))
+        {
+            Content = JsonContent.Create(
+                sync,
+                options: SerializerOptions)
+        };
+        request.Headers.Authorization = new("Bearer", bearerToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        return await response.Content.ReadFromJsonAsync<DeviceSyncResponse>(
+            SerializerOptions,
+            cancellationToken) ??
+            throw new JsonException("CloudShell Device Registry returned an empty device sync response.");
+    }
+
+    public async Task<DeviceTwinResponse> GetDeviceTwinAsync(
+        string registryId,
+        string deviceId,
+        string bearerToken,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registryId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bearerToken);
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            BuildDeviceTwinEndpoint(registryId, deviceId));
+        request.Headers.Authorization = new("Bearer", bearerToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        return await response.Content.ReadFromJsonAsync<DeviceTwinResponse>(
+            SerializerOptions,
+            cancellationToken) ??
+            throw new JsonException("CloudShell Device Registry returned an empty device twin response.");
+    }
+
+    public async Task<DeviceTwinResponse> SetDesiredStateAsync(
+        string registryId,
+        string deviceId,
+        string bearerToken,
+        DeviceDesiredStateRequest desiredState,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registryId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bearerToken);
+        ArgumentNullException.ThrowIfNull(desiredState);
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            BuildDeviceDesiredStateEndpoint(registryId, deviceId))
+        {
+            Content = JsonContent.Create(
+                desiredState,
+                options: SerializerOptions)
+        };
+        request.Headers.Authorization = new("Bearer", bearerToken);
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        return await response.Content.ReadFromJsonAsync<DeviceTwinResponse>(
+            SerializerOptions,
+            cancellationToken) ??
+            throw new JsonException("CloudShell Device Registry returned an empty device twin response.");
+    }
+
     public async Task<DeviceMetadataResponse> RevokeDeviceAsync(
         string registryId,
         string deviceId,
@@ -209,6 +292,24 @@ public sealed class DeviceRegistryClient
     {
         var builder = new UriBuilder(BuildDeviceEndpoint(registryId, deviceId));
         builder.Path = $"{builder.Path.TrimEnd('/')}/{action}";
+        return builder.Uri;
+    }
+
+    private Uri BuildDeviceTwinEndpoint(
+        string registryId,
+        string deviceId)
+    {
+        var builder = new UriBuilder(BuildDeviceEndpoint(registryId, deviceId));
+        builder.Path = $"{builder.Path.TrimEnd('/')}/twin";
+        return builder.Uri;
+    }
+
+    private Uri BuildDeviceDesiredStateEndpoint(
+        string registryId,
+        string deviceId)
+    {
+        var builder = new UriBuilder(BuildDeviceTwinEndpoint(registryId, deviceId));
+        builder.Path = $"{builder.Path.TrimEnd('/')}/desired";
         return builder.Uri;
     }
 

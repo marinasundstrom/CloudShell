@@ -2,6 +2,7 @@ using CloudShell.Client.Authentication;
 using CloudShell.Configuration.Client;
 using CloudShell.DeviceRegistry.Client;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 var registryEndpoint = builder.Configuration["DeviceRegistry:Endpoint"] ??
@@ -54,6 +55,7 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
 
     CloudShellConfigurationSetting? configuration = null;
     DeviceMetadataResponse? heartbeat = null;
+    DeviceSyncResponse? sync = null;
     if (!string.IsNullOrWhiteSpace(configurationEndpoint))
     {
         using var configurationHttpClient = new HttpClient();
@@ -71,6 +73,23 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
                 ["sample.app"] = "device-app"
             },
             "sample-app",
+            cancellationToken);
+        sync = await client.SyncDeviceAsync(
+            registryResourceId,
+            enrollment.DeviceId,
+            accessToken,
+            new DeviceSyncRequest(
+                new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["mode"] = JsonSerializer.SerializeToElement("running"),
+                    ["configurationSetting"] = JsonSerializer.SerializeToElement(configurationSettingName)
+                },
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["sample.sync"] = "device-app"
+                },
+                "sample-app",
+                LastKnownDesiredVersion: 0),
             cancellationToken);
         var credential = new EnvironmentCloudShellResourceCredential(
             new EnvironmentCloudShellResourceCredentialOptions
@@ -95,6 +114,7 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
     {
         enrollment,
         heartbeat,
+        sync,
         configuration
     });
 });
