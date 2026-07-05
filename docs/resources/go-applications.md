@@ -83,6 +83,11 @@ The projection changes the Resource Manager resource to
 `project.path`, `go.command`, `go.packagePath`, `go.binaryPath`, and
 `go.arguments`.
 
+`samples/GoContainerApp` demonstrates this path from the Go launcher. It
+declares a Go app as an `application.container-app`, seeds a Configuration
+Store, and uses the Go runtime SDK from the launched container's
+`/configuration` endpoint.
+
 ## Samples
 
 The preferred Go authoring sample is `samples/GoAppHost`. It uses a Go
@@ -110,6 +115,9 @@ samples/GoAppHost/cloudshell.sh start-app
 This is Go resource authoring and host launch support, not a Go provider
 implementation. It targets `CloudShell.LocalDevelopmentHost` rather than
 defining a custom CloudShell host.
+
+Use `samples/GoContainerApp` when validating Go launcher authoring against the
+container-app projection and runtime Configuration Store credential flow.
 
 The older `samples/GoApp` full-host sample exists only for provider/host
 composition coverage while the Go provider path is being proven. It should not

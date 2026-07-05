@@ -88,6 +88,11 @@ resources
     .WithReplicas(3);
 ```
 
+The `samples/GoContainerApp` sample shows the same app-as-container pattern
+from the Go launcher. It declares a Go app as an `application.container-app`,
+builds it from a Dockerfile, and reads a launcher-declared Configuration Store
+from inside the launched container.
+
 Docker is the initial local container runtime target for this flow. The
 resource contract remains a container app plus container host intent so Podman
 or other OCI-compatible hosts can be added without changing the authored app

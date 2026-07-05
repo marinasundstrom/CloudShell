@@ -73,6 +73,10 @@ on `git blame --follow`, and then by the broad type of change.
   default credential order and a Configuration Store client. The Go app sample
   now exposes a `/configuration` route that uses the SDK against the injected
   Configuration Store endpoint.
+- Added `samples/GoContainerApp`, a Go launcher sample that declares a Go app
+  as an `application.container-app`, seeds a Configuration Store, and proves
+  the launched container workload can read settings through the Go SDK default
+  credential chain.
 - Updated the CloudShell CLI Control Plane API calls and daemon readiness checks
   to fall back to the active CloudShell profile when no explicit bearer token or
   `CLOUDSHELL_CONTROL_PLANE_TOKEN` is supplied.

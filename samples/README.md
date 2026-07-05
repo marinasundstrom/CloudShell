@@ -38,6 +38,7 @@ target `CloudShell.LocalDevelopmentHost`.
 | `TypeScriptAppHost` | TypeScript launcher authoring and template apply. | Experimental launcher sample. |
 | `JavaAppHost` | Java launcher authoring and template apply. | Experimental launcher sample. |
 | `GoAppHost` | Go launcher authoring and template apply. | Experimental launcher sample. |
+| `GoContainerApp` | Go launcher authoring for a Dockerfile-backed container app that reads Configuration Store settings through the Go runtime SDK. | Experimental launcher sample. |
 | `RabbitMQMessaging` | C# launcher authoring for a RabbitMQ broker with .NET and Java app resources exchanging fan-out events. | Preferred broker-backed app topology sample. |
 
 ## Host composition samples

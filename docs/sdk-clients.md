@@ -321,7 +321,11 @@ The Go `DefaultCredential` uses the same order as the TypeScript and Java
 runtime clients: injected `CLOUDSHELL_IDENTITY_*` workload identity,
 environment bearer tokens, then the active CloudShell profile. The Go runtime
 SDK lives under `sdk/go/cloudshell`; the Go launcher package remains under
-`Launchers/Go/cloudshell` for ResourceTemplate authoring.
+`Launchers/Go/cloudshell` for ResourceTemplate authoring. See
+`samples/GoContainerApp` for the launcher-integrated flow: the launcher
+declares a Configuration Store resource, starts the Go container app, and the
+app reads settings through its `/configuration` endpoint using the Go SDK
+default credential chain.
 
 ## Secrets Vault Client
 

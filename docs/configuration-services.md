@@ -260,7 +260,10 @@ Node.js application by setting
 `CLOUDSHELL_CONFIGURATION_<SERVICE_NAME>_ENDPOINT` and a bearer token.
 The experimental Go package under `sdk/go/cloudshell` provides the same direct
 Configuration Store client shape for Go workloads, using the default credential
-chain documented in [SDK clients](sdk-clients.md).
+chain documented in [SDK clients](sdk-clients.md). The
+`samples/GoContainerApp` launcher sample shows the same flow by declaring a
+Configuration Store resource and launching a Go container app that reads it
+from the `/configuration` endpoint.
 
 Applications that depend on a Secrets Vault receive:
 
