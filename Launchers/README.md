@@ -68,6 +68,10 @@ Launchers should also keep resource relationship semantics consistent:
 references are for provider-specific binding and discovery, while dependencies
 are for lifecycle ordering and dependency startup.
 
+Shared launcher parity fixtures live under `testdata/`. Launcher tests should
+reuse those fixtures when they cover the same resource graph, normalizing
+optional reference metadata where serializers differ in verbosity.
+
 Runtime service clients stay under `sdk/`. For example,
 `sdk/java/cloudshell` is used by Java applications after CloudShell starts
 them, while `Launchers/Java/cloudshell-launcher` is used by Java launcher code

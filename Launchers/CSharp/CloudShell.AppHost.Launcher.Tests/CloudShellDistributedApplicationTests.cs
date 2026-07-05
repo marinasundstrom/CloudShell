@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using CloudShell.AppHost.Launcher;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ResourceModel;
@@ -70,6 +72,56 @@ public sealed class CloudShellDistributedApplicationTests
         Assert.Equal("Sample--ApiKey", secret.Name);
         Assert.Equal("csharp-secret", secret.Value);
         Assert.Equal("v1", secret.Version);
+    }
+
+    [Fact]
+    public void BuildTemplate_MatchesJavaScriptAppParityFixture()
+    {
+        var app = CloudShellDistributedApplication
+            .CreateBuilder("launcher-parity-javascript")
+            .WithMetadata("cloudshell.parity", "javascript-app");
+
+        app.DefineResources(resources =>
+        {
+            var settings = resources
+                .AddConfigurationStore("settings")
+                .WithDisplayName("Settings")
+                .WithEndpoint("http://localhost:5101")
+                .WithSeed(seed => seed.Setting("Sample--Message", "Hello from launcher parity"));
+
+            var secrets = resources
+                .AddSecretsVault("secrets")
+                .WithDisplayName("Secrets")
+                .WithEndpoint("http://localhost:6101")
+                .WithSeed(seed => seed.Secret("Sample--ApiKey", "parity-secret", "v1"));
+
+            resources
+                .AddJavaScriptApp("frontend", "samples/LauncherParity/App")
+                .WithDisplayName("Frontend")
+                .WithServiceDiscovery()
+                .WithReference(settings)
+                .WithReference(secrets)
+                .DependsOn(settings)
+                .DependsOn(secrets)
+                .WithEnvironmentVariable("PORT", "5173")
+                .WithEnvironmentVariable("Sample__Message", settings.Setting("Sample--Message"))
+                .WithEnvironmentVariable("Sample__ApiKey", secrets.Secret("Sample--ApiKey"))
+                .WithHttpEndpoint(host: "localhost", port: 5173, targetPort: 5173)
+                .WithHttpHealthCheck("/healthz", endpointName: "http")
+                .WithHttpLivenessCheck("/alive", endpointName: "http");
+        });
+
+        var templateJson = ResourceTemplateSerializer.SerializeTemplate(
+            app.BuildTemplate(),
+            ResourceTemplateFormat.Json);
+
+        var expected = CanonicalizeTemplateJson(ReadLauncherParityFixture("javascript-app-parity.json"));
+        var actual = CanonicalizeTemplateJson(templateJson);
+
+        Assert.True(
+            JsonNode.DeepEquals(expected, actual),
+            $"Expected:{Environment.NewLine}{FormatJson(expected)}{Environment.NewLine}" +
+            $"Actual:{Environment.NewLine}{FormatJson(actual)}");
     }
 
     [Fact]
@@ -256,5 +308,84 @@ public sealed class CloudShellDistributedApplicationTests
                 // Test cleanup should not hide assertion failures.
             }
         }
+    }
+
+    private static string ReadLauncherParityFixture(string name)
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            var path = Path.Combine(directory.FullName, "Launchers", "testdata", name);
+            if (File.Exists(path))
+            {
+                return File.ReadAllText(path);
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new InvalidOperationException($"Could not locate launcher parity fixture '{name}'.");
+    }
+
+    private static JsonNode? CanonicalizeTemplateJson(string json)
+    {
+        var node = JsonNode.Parse(json) ??
+            throw new InvalidOperationException("Could not parse template JSON.");
+        return CanonicalizeNode(node);
+    }
+
+    private static string FormatJson(JsonNode? node) =>
+        node?.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) ??
+        string.Empty;
+
+    private static JsonNode? CanonicalizeNode(JsonNode? node, string? propertyName = null) =>
+        node switch
+        {
+            JsonObject value => CanonicalizeObject(value),
+            JsonArray value => CanonicalizeArray(value, propertyName),
+            null => null,
+            _ => JsonNode.Parse(node.ToJsonString())
+        };
+
+    private static JsonObject CanonicalizeObject(JsonObject value)
+    {
+        if (value.ContainsKey("resourceId") &&
+            !value.ContainsKey("name") &&
+            !value.ContainsKey("type"))
+        {
+            return new JsonObject
+            {
+                ["resourceId"] = CanonicalizeNode(value["resourceId"])
+            };
+        }
+
+        var result = new JsonObject();
+        foreach (var property in value.OrderBy(property => property.Key, StringComparer.Ordinal))
+        {
+            result[property.Key] = CanonicalizeNode(property.Value, property.Key);
+        }
+
+        return result;
+    }
+
+    private static JsonArray CanonicalizeArray(JsonArray value, string? propertyName)
+    {
+        var items = value
+            .Select(item => CanonicalizeNode(item))
+            .ToList();
+        if (string.Equals(propertyName, "resources", StringComparison.Ordinal))
+        {
+            items = items
+                .OrderBy(item => item?["resourceId"]?.GetValue<string>(), StringComparer.Ordinal)
+                .ToList();
+        }
+
+        var result = new JsonArray();
+        foreach (var item in items)
+        {
+            result.Add(item);
+        }
+
+        return result;
     }
 }

@@ -23,6 +23,9 @@ on `git blame --follow`, and then by the broad type of change.
   launcher path for Python resource declarations.
 - Added Python script launcher support to the sample smoke harness and restored
   `samples/PythonAppHost` to supported-host readiness coverage.
+- Added a shared JavaScript-app launcher parity fixture, covered it from the
+  C# and Python launcher tests, and corrected the Python Secrets Vault provider
+  id to `secrets-vault`.
 - Added a Python app resource model slice with `application.python-app`,
   `AddPythonApp(...)`, process lifecycle/log/monitoring support, Resource
   Manager projection, sample coverage, and resource documentation.

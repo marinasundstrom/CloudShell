@@ -361,7 +361,7 @@ class SecretsVaultSeed:
 
 class SecretsVaultResource(ResourceBuilder):
     def __init__(self, name: str) -> None:
-        super().__init__(name, "secrets.vault", "secrets")
+        super().__init__(name, "secrets.vault", "secrets-vault")
         self.endpoint: str | None = None
         self.secrets: list[dict[str, str]] = []
         self.certificates: list[dict[str, str]] = []

@@ -220,8 +220,9 @@ should be made consistent before broader SDK stability claims:
 - make appsettings-style host configuration pass-through consistent across
   C#, TypeScript, Java, Go, and Python launchers
 - converge no-argument launcher execution on foreground `run`
-- add parity tests that compare emitted `ResourceTemplate` shapes for the same
-  graph across C#, TypeScript, Java, Go, and Python
+- extend the shared launcher parity fixtures beyond the current C# and Python
+  JavaScript-app coverage so TypeScript, Java, and Go emitted
+  `ResourceTemplate` shapes are compared against the same graphs
 - define generated Control Plane client expectations for non-.NET languages
 - standardize profile and credential discovery shared by CLI commands and
   launcher packages without persisting raw tokens in daemon state

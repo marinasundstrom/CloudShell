@@ -1,0 +1,158 @@
+{
+  "name": "launcher-parity-javascript",
+  "resources": [
+    {
+      "name": "settings",
+      "type": "configuration.store",
+      "resourceId": "configuration.store:settings",
+      "providerId": "configuration",
+      "displayName": "Settings",
+      "endpoint": "http://localhost:5101",
+      "seed": {
+        "settings": [
+          {
+            "name": "Sample--Message",
+            "value": "Hello from launcher parity"
+          }
+        ]
+      }
+    },
+    {
+      "name": "secrets",
+      "type": "secrets.vault",
+      "resourceId": "secrets.vault:secrets",
+      "providerId": "secrets-vault",
+      "displayName": "Secrets",
+      "endpoint": "http://localhost:6101",
+      "seed": {
+        "secrets": [
+          {
+            "name": "Sample--ApiKey",
+            "value": "parity-secret",
+            "version": "v1"
+          }
+        ]
+      }
+    },
+    {
+      "name": "frontend",
+      "type": "application.javascript-app",
+      "resourceId": "application.javascript-app:frontend",
+      "providerId": "applications.javascript-app",
+      "displayName": "Frontend",
+      "dependsOn": [
+        {
+          "resourceId": "configuration.store:settings"
+        },
+        {
+          "resourceId": "secrets.vault:secrets"
+        }
+      ],
+      "project": {
+        "path": "samples/LauncherParity/App",
+        "serviceDiscoveryName": "frontend",
+        "environmentVariables": {
+          "PORT": {
+            "value": "5173"
+          },
+          "Sample__Message": {
+            "configurationSettingRef": {
+              "storeResourceId": "configuration.store:settings",
+              "name": "Sample--Message"
+            }
+          },
+          "Sample__ApiKey": {
+            "secretRef": {
+              "vaultResourceId": "secrets.vault:secrets",
+              "name": "Sample--ApiKey"
+            }
+          }
+        },
+        "references": [
+          {
+            "resourceId": "configuration.store:settings"
+          },
+          {
+            "resourceId": "secrets.vault:secrets"
+          }
+        ],
+        "endpointRequests": [
+          {
+            "name": "http",
+            "protocol": "http",
+            "targetPort": 5173,
+            "host": "localhost",
+            "port": 5173,
+            "exposure": "Local",
+            "network": {
+              "resourceId": "network:host"
+            }
+          }
+        ]
+      },
+      "health": {
+        "checks": [
+          {
+            "name": "health",
+            "type": "health",
+            "source": {
+              "kind": "http",
+              "http": {
+                "path": "/healthz",
+                "endpointName": "http"
+              }
+            }
+          },
+          {
+            "name": "alive",
+            "type": "liveness",
+            "source": {
+              "kind": "http",
+              "http": {
+                "path": "/alive",
+                "endpointName": "http"
+              }
+            }
+          }
+        ]
+      },
+      "logs": {
+        "sources": [
+          {
+            "id": "console",
+            "name": "Console logs",
+            "kind": "processOutput",
+            "format": "plainText",
+            "capabilities": [
+              "read",
+              "stream"
+            ],
+            "description": "Provider-captured process console output.",
+            "origin": "providerDefault",
+            "purpose": "default",
+            "availability": "resourceRunning"
+          }
+        ]
+      },
+      "javascript": {
+        "engine": "node",
+        "packageManager": "npm",
+        "script": "dev"
+      }
+    },
+    {
+      "name": "host",
+      "type": "cloudshell.network",
+      "resourceId": "network:host",
+      "providerId": "cloudshell.network",
+      "displayName": "Host network",
+      "network": {
+        "kind": "Host",
+        "hostReadiness": "hostReady"
+      }
+    }
+  ],
+  "metadata": {
+    "cloudshell.parity": "javascript-app"
+  }
+}

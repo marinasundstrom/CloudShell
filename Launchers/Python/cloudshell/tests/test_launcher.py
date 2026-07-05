@@ -128,6 +128,82 @@ class CloudShellPythonLauncherTests(unittest.TestCase):
         self.assertIn("--no-build", args)
         self.assertIn("--control-plane", args)
 
+    def test_javascript_app_matches_launcher_parity_fixture(self):
+        app = (
+            CloudShellDistributedApplication.create_builder("launcher-parity-javascript")
+            .with_metadata("cloudshell.parity", "javascript-app")
+        )
+
+        def define(resources):
+            settings = (
+                resources.add_configuration_store("settings")
+                .with_display_name("Settings")
+                .with_endpoint("http://localhost:5101")
+                .with_seed(lambda seed: seed.setting(
+                    "Sample--Message",
+                    "Hello from launcher parity",
+                ))
+            )
+            secrets = (
+                resources.add_secrets_vault("secrets")
+                .with_display_name("Secrets")
+                .with_endpoint("http://localhost:6101")
+                .with_seed(lambda seed: seed.secret(
+                    "Sample--ApiKey",
+                    "parity-secret",
+                    "v1",
+                ))
+            )
+            (
+                resources.add_javascript_app("frontend", "samples/LauncherParity/App")
+                .with_display_name("Frontend")
+                .with_service_discovery()
+                .with_reference(settings)
+                .with_reference(secrets)
+                .depends_on(settings)
+                .depends_on(secrets)
+                .with_environment_variable("PORT", "5173")
+                .with_environment_variable("Sample__Message", settings.setting("Sample--Message"))
+                .with_environment_variable("Sample__ApiKey", secrets.secret("Sample--ApiKey"))
+                .with_http_endpoint(host="localhost", port=5173, target_port=5173)
+                .with_http_health_check("/healthz", endpoint_name="http")
+                .with_http_liveness_check("/alive", endpoint_name="http")
+            )
+
+        app.define_resources(define)
+
+        self.assertEqual(
+            _normalize_template(_load_parity_fixture("javascript-app-parity.json")),
+            _normalize_template(app.build_template()),
+        )
+
+
+def _load_parity_fixture(name):
+    path = Path(__file__).resolve().parents[3] / "testdata" / name
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _normalize_template(template):
+    normalized = _normalize_value(template)
+    normalized["resources"] = sorted(
+        normalized["resources"],
+        key=lambda resource: resource["resourceId"],
+    )
+    return normalized
+
+
+def _normalize_value(value):
+    if isinstance(value, dict):
+        if "resourceId" in value and "name" not in value and "type" not in value:
+            return {"resourceId": value["resourceId"]}
+        return {
+            item_key: _normalize_value(item_value)
+            for item_key, item_value in value.items()
+        }
+    if isinstance(value, list):
+        return [_normalize_value(item) for item in value]
+    return value
+
 
 if __name__ == "__main__":
     unittest.main()
