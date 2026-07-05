@@ -12,6 +12,7 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\CloudShell.Abstractions\CloudShell.Abstractions.csproj" />
     <ProjectReference Include="..\CloudShell.Components\CloudShell.Components.csproj" />
+    <ProjectReference Include="..\CloudShell.ControlPlane\CloudShell.ControlPlane.csproj" />
     <ProjectReference Include="..\CloudShell.ControlPlane.Providers\CloudShell.ControlPlane.Providers.csproj" />
     <ProjectReference Include="..\CloudShell.EventBroker.Client\CloudShell.EventBroker.Client.csproj" />
   </ItemGroup>

@@ -140,6 +140,11 @@ a read-only **Streams** tab under the General section. The tab shows declared
 protocol endpoints and retained stream summaries from the running HTTP broker
 service.
 
+When reading retained stream summaries, Resource Manager creates a short-lived
+built-in bearer token scoped to
+`EventBrokerResourceOperationPermissions.ReadEvents` for the selected broker
+after the current user passes CloudShell authorization.
+
 There is no specialized subscription, topic-routing, telemetry, or
 access-management UI in this first slice.
 

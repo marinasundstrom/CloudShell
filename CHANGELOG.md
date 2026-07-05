@@ -54,6 +54,9 @@ on `git blame --follow`, and then by the broad type of change.
   resource permission claims. `EventBrokerClient` now supports
   `CloudShellResourceCredential`, and the Device Registry sample grants enrolled
   devices broker publish access for check-in events.
+- Updated the Resource Manager Event Broker Streams tab to call the protected
+  retained event API with a short-lived broker read token instead of anonymous
+  HTTP.
 - Added an explicit `Microsoft.OpenApi` 3.7.0 dependency for OpenAPI-enabled
   hosts so the vulnerable transitive 3.3.1 package is no longer resolved.
 - Recorded the enrollment profile name and kind on enrolled Device Registry

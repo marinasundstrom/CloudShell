@@ -1,6 +1,14 @@
+@using System.Net.Http.Headers
+@using System.Security.Claims
+@using CloudShell.Abstractions.Authorization
+@using CloudShell.ControlPlane.Authentication
 @using CloudShell.EventBroker.Client
 @using CloudShell.ResourceModel
+@using Microsoft.Extensions.Options
+@inject ICloudShellAuthorizationService Authorization
 @inject IResourceManager ResourceManager
+@inject BuiltInAuthorityTokenService TokenService
+@inject IOptions<CloudShellAuthenticationOptions> AuthenticationOptions
 
 @if (Resource is null)
 {
@@ -132,7 +140,21 @@ else
 
         try
         {
-            var client = new EventBrokerClient(new Uri(endpoint));
+            if (!Authorization.CanAccessResource(
+                    Resource.Id,
+                    resourceGroupId: null,
+                    EventBrokerResourceOperationPermissions.ReadEvents))
+            {
+                Error = "You do not have Event Broker read access for this resource.";
+                return;
+            }
+
+            using var httpClient = new HttpClient();
+            httpClient.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue(
+                    "Bearer",
+                    CreateReadAccessToken(Resource.Id));
+            var client = new EventBrokerClient(new Uri(endpoint), httpClient);
             Streams.AddRange(await client.ListStreamsAsync(Resource.Id));
         }
         catch (Exception exception)
@@ -155,6 +177,23 @@ else
         ProtocolRows.FirstOrDefault(protocol =>
             string.Equals(protocol.Protocol, EventBrokerProtocols.Http, StringComparison.OrdinalIgnoreCase))
             ?.Address;
+
+    private string CreateReadAccessToken(string resourceId)
+    {
+        var authentication = AuthenticationOptions.Value;
+        var resourcePermission = ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
+            resourceId,
+            EventBrokerResourceOperationPermissions.ReadEvents);
+        var token = TokenService.IssueToken(
+            [
+                new Claim(
+                    CloudShellAuthenticationOptions.ResourcePermissionClaimType,
+                    resourcePermission)
+            ],
+            authentication.BuiltInAuthority.Audience,
+            [EventBrokerClient.DefaultScope]);
+        return token.AccessToken;
+    }
 
     private static IReadOnlyList<EventBrokerProtocolRow> CreateProtocolRows(
         CloudShell.Abstractions.ResourceManager.Resource resource)
