@@ -179,6 +179,23 @@ configuration systems.
 
 ## Current Integration Inventory
 
+The language parity matrix tracks the user-facing integration surface for each
+runtime. "Platform app resource" means CloudShell has a resource type/provider
+that can model and run that workload. "Launcher app builder" means the
+language-native launcher can author that workload without falling back to C#.
+"Configuration resources" covers Configuration Store and Secrets Vault
+declaration plus reference/environment projection from the launcher. "Runtime
+service clients" covers package code intended to run inside the workload and
+call CloudShell-protected platform services.
+
+| Language/runtime | Launcher | Platform app resource | Launcher app builder | Configuration resources | Container app support | Runtime service clients | Primary samples |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| .NET/C# | Preferred: `Launchers/CSharp/CloudShell.AppHost.Launcher` and `ResourceGraphBuilder`. | ASP.NET Core projects, executables, generic container apps, and all built-in app-resource builders. | Yes. C# can author ASP.NET Core, executable, JavaScript, Java, Go, Python, container, and shared infrastructure resources. | Yes. Configuration Store, Secrets Vault, references, dependency ordering, and environment projection are first-class. | Yes. `AsContainerApp(...)` and `AddContainerApplication(...)` are the baseline platform surface. | Yes. Control Plane, Configuration Store, Secrets Vault, RabbitMQ, and SQL Server clients use the shared default credential chain. | `samples/CSharpAppHost`, `samples/SettingsAndSecrets`, `samples/ProjectReference`. |
+| TypeScript/JavaScript | Experimental: `Launchers/TypeScript/cloudshell`. | JavaScript app resources. | Yes for JavaScript apps. The launcher also has early Java helper coverage, but Java-native authoring is owned by the Java launcher. | Yes. The launcher can declare Configuration Store and Secrets Vault resources and inject references into app environment variables. | Yes for JavaScript app projection through `asContainerApp(...)`. | Partial. `sdk/typescript/configuration-client` implements Configuration Store and the shared default credential chain; Secrets Vault and Control Plane clients are not implemented yet. | `samples/TypeScriptAppHost`, `samples/TypeScriptConfigurationClient`. |
+| Java | Experimental: `Launchers/Java/cloudshell-launcher`. | Java app resources, including Maven and Gradle build-on-start shapes. | Yes for Java apps. | Yes. The launcher can declare Configuration Store and Secrets Vault resources and separate references from lifecycle dependencies. | Yes for Java app projection through `asContainerApp(...)`. | Partial. `sdk/java/cloudshell` implements Configuration Store, Secrets Vault, and the shared default credential chain; a generated/domain Control Plane client is not implemented yet. | `samples/JavaAppHost`, `samples/JavaApp`. |
+| Go | Experimental: `Launchers/Go/cloudshell`. | Go app resources. | Yes for Go apps. | Yes. The launcher can declare Configuration Store and Secrets Vault resources and inject setting/secret references. | Yes for Go app projection through `AsContainerApp(...)`. | Partial. `sdk/go/cloudshell` implements Configuration Store and the shared default credential chain; Secrets Vault and Control Plane clients are not implemented yet. | `samples/GoAppHost`, `samples/GoContainerApp`. |
+| Python | Experimental: `Launchers/Python/cloudshell`. | Python app resources. | Yes for Python apps. | Yes. The launcher can declare Configuration Store and Secrets Vault resources and inject setting/secret references. | Partial. The C# platform builder supports Python `AsContainerApp(...)`; the Python launcher does not expose container-app projection yet. | Not yet. A Python runtime SDK for Configuration Store, Secrets Vault, or Control Plane access is not implemented. | `samples/PythonAppHost`. |
+
 | Surface | Current status |
 | --- | --- |
 | C# launcher | `Launchers/CSharp/CloudShell.AppHost.Launcher` reuses `ResourceGraphBuilder`, emits templates, and can apply/start/run against a host profile. |

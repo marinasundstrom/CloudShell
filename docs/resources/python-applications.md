@@ -6,9 +6,9 @@ resources project as `application.python-app`.
 
 CloudShell provider authoring is currently C#-only. The built-in Python app
 provider is implemented in C#, and Python workloads integrate as managed
-application resources. Python-native launcher builders are intentionally
-deferred to the next slice; this slice supports C# launcher authoring through
-`AddPythonApp(...)`.
+application resources. Python-native launcher builders are available through
+the experimental package under `Launchers/Python/cloudshell`, while C# launcher
+authoring remains available through `AddPythonApp(...)`.
 
 For shared application-provider behavior, see
 [Application resources](application-resources.md). For related resource types,

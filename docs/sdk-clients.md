@@ -45,6 +45,10 @@ Future service-specific SDK clients should follow the same `.Client`
 convention and avoid depending on `CloudShell.Abstractions` unless the client
 explicitly exposes Control Plane domain contracts.
 
+For the cross-language parity matrix covering launchers, app resources,
+container projection, configuration resources, and runtime service clients, see
+[Integration story](integration-story.md#current-integration-inventory).
+
 ## Resource Credentials
 
 Authored services running as CloudShell resources should use
