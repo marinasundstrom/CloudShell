@@ -57,6 +57,12 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated the Resource Manager Event Broker Streams tab to call the protected
   retained event API with a short-lived broker read token instead of anonymous
   HTTP.
+- Added a profile-backed `CloudShellProfileCredential` source to the default
+  resource credential chain. Local tools and remote Control Plane clients can
+  now resolve the active developer profile from `~/.cloudshell/config.json` or
+  `CLOUDSHELL_CONFIG_DIR`, with `CLOUDSHELL_PROFILE` profile selection and a
+  first `staticBearer` credential kind for inline test tokens or local token
+  files; see ADR-20260705-002.
 - Added an explicit `Microsoft.OpenApi` 3.7.0 dependency for OpenAPI-enabled
   hosts so the vulnerable transitive 3.3.1 package is no longer resolved.
 - Recorded the enrollment profile name and kind on enrolled Device Registry

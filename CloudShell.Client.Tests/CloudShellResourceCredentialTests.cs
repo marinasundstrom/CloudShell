@@ -62,6 +62,182 @@ public sealed class CloudShellResourceCredentialTests
         Assert.Equal("fallback-token", token.Token);
     }
 
+    [Fact]
+    public async Task ProfileCredential_ReadsActiveProfileStaticBearerToken()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            await File.WriteAllTextAsync(
+                Path.Combine(directory, CloudShellProfileCredential.DefaultConfigFileName),
+                """
+                {
+                  "activeProfile": "local",
+                  "profiles": {
+                    "local": {
+                      "controlPlane": "http://127.0.0.1:5108",
+                      "environment": "local",
+                      "credential": {
+                        "kind": "staticBearer",
+                        "accessToken": "profile-token",
+                        "expiresOn": "2099-01-01T00:00:00Z"
+                      }
+                    }
+                  }
+                }
+                """);
+            var credential = new CloudShellProfileCredential(
+                new CloudShellProfileCredentialOptions
+                {
+                    ConfigDirectory = directory
+                });
+
+            var token = await credential.GetTokenAsync(new CloudShellResourceTokenRequest(["ControlPlane.Access"]));
+
+            Assert.Equal("profile-token", token.Token);
+            Assert.Equal(DateTimeOffset.Parse("2099-01-01T00:00:00Z"), token.ExpiresOn);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ProfileCredential_ReadsRelativeStaticBearerTokenFile()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(directory, "tokens"));
+            await File.WriteAllTextAsync(
+                Path.Combine(directory, "tokens", "local.token"),
+                "file-token\n");
+            await File.WriteAllTextAsync(
+                Path.Combine(directory, CloudShellProfileCredential.DefaultConfigFileName),
+                """
+                {
+                  "activeProfile": "local",
+                  "profiles": {
+                    "local": {
+                      "credential": {
+                        "kind": "staticBearer",
+                        "accessTokenPath": "tokens/local.token"
+                      }
+                    }
+                  }
+                }
+                """);
+            var credential = new CloudShellProfileCredential(
+                new CloudShellProfileCredentialOptions
+                {
+                    ConfigDirectory = directory
+                });
+
+            var token = await credential.GetTokenAsync(new CloudShellResourceTokenRequest());
+
+            Assert.Equal("file-token", token.Token);
+            Assert.Null(token.ExpiresOn);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ProfileCredential_UsesExplicitProfileName()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            await File.WriteAllTextAsync(
+                Path.Combine(directory, CloudShellProfileCredential.DefaultConfigFileName),
+                """
+                {
+                  "activeProfile": "local",
+                  "profiles": {
+                    "local": {
+                      "credential": {
+                        "kind": "staticBearer",
+                        "accessToken": "local-token"
+                      }
+                    },
+                    "remote": {
+                      "credential": {
+                        "kind": "staticBearer",
+                        "accessToken": "remote-token"
+                      }
+                    }
+                  }
+                }
+                """);
+            var credential = new CloudShellProfileCredential(
+                new CloudShellProfileCredentialOptions
+                {
+                    ConfigDirectory = directory,
+                    ProfileName = "remote"
+                });
+
+            var token = await credential.GetTokenAsync(new CloudShellResourceTokenRequest());
+
+            Assert.Equal("remote-token", token.Token);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ProfileCredential_ReportsUnavailableWhenProfileTokenExpired()
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            await File.WriteAllTextAsync(
+                Path.Combine(directory, CloudShellProfileCredential.DefaultConfigFileName),
+                """
+                {
+                  "activeProfile": "local",
+                  "profiles": {
+                    "local": {
+                      "credential": {
+                        "kind": "staticBearer",
+                        "accessToken": "expired-token",
+                        "expiresOn": "2000-01-01T00:00:00Z"
+                      }
+                    }
+                  }
+                }
+                """);
+            var credential = new CloudShellProfileCredential(
+                new CloudShellProfileCredentialOptions
+                {
+                    ConfigDirectory = directory
+                });
+
+            var exception = await Assert.ThrowsAsync<CloudShellCredentialUnavailableException>(() =>
+                credential.GetTokenAsync(new CloudShellResourceTokenRequest()).AsTask());
+
+            Assert.Contains("has expired", exception.Message);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private static string CreateTemporaryDirectory()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "cloudshell-tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        return directory;
+    }
+
     private sealed class StaticCredential(string token) : CloudShellResourceCredential
     {
         public override ValueTask<CloudShellResourceAccessToken> GetTokenAsync(

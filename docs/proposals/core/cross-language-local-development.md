@@ -353,17 +353,20 @@ exist for quick development, but the CLI surface should not assume that
 localhost means unauthenticated.
 
 The initial CLI can accept an explicit bearer token or read one from an
-environment variable. That keeps authenticated Control Plane calls possible
-without prematurely defining a credential store. Tokens and secrets must not be
-persisted in daemon state.
+environment variable. Authenticated Control Plane calls can also use the shared
+CloudShell profile directory through the same language-neutral contract as the
+C# `CloudShellProfileCredential`: `~/.cloudshell/config.json` by default,
+`CLOUDSHELL_CONFIG_DIR` for an alternate directory, and `CLOUDSHELL_PROFILE` for
+profile selection. The first profile credential kind is `staticBearer`, with
+inline `accessToken` for short-lived tests or `accessTokenPath` for local token
+files.
 
-Later work should standardize a CloudShell credential/profile store, similar in
-role to Azure CLI's local profile. That store should let commands resolve the
-active account, selected Control Plane target, selected environment, default
-subscription/project equivalent if CloudShell adds one, and credential
-material from one well-known location. The store design must define secret
-storage, target selection, profile selection, logout behavior, and how language
-SDK launchers discover the same active profile.
+This gives the CLI and language SDKs a common active profile lookup, similar in
+role to Azure CLI's local profile, without declaring the full login experience
+complete. Follow-up work still needs to define refreshable credentials, OS
+secure storage, account/logout behavior, target selection, selected
+environment, default subscription/project equivalent if CloudShell adds one,
+and how launchers create or update the active profile.
 
 ## Resource Manager behavior
 
@@ -402,8 +405,9 @@ not deployment to another environment.
   resource model?
 - How should editor tooling surface source spans from generated
   ResourceDefinition diagnostics?
-- What is the CloudShell credential/profile store layout, and which OS-native
-  secure storage backends should protect token material?
+- Which OS-native secure storage backends should protect token material, and
+  how should login, refresh, profile update, and logout flows write the shared
+  CloudShell profile?
 
 ## Implementation plan
 
@@ -433,7 +437,9 @@ Remaining implementation work:
    attach helpers.
 6. Decide whether generated Control Plane client bindings are required before
    broader SDK hardening.
-7. Define the CLI profile and credential store before persisting token material.
+7. Add CLI login/profile commands, OS secure-store-backed credential material,
+   and matching TypeScript/Java SDK profile resolvers for the shared profile
+   contract.
 8. Decide which SDK APIs are stable enough to document as public preview.
 
 ## Verification

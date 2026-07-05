@@ -30,8 +30,11 @@ Implemented today:
   OIDC/OAuth JWT bearer tokens through service-bearer validation settings.
 - A public-preview `DefaultCloudShellResourceCredential` chain for authored and
   built-in services that need to acquire authentication evidence for their own
-  resource identity. See [SDK clients](sdk-clients.md) for the lightweight
-  client package and service-client boundaries.
+  resource identity. The chain supports the workload `CLOUDSHELL_IDENTITY_*`
+  environment contract first, then the active local CloudShell profile in
+  `~/.cloudshell/config.json` or `CLOUDSHELL_CONFIG_DIR`. See
+  [SDK clients](sdk-clients.md) for the lightweight client package,
+  language-neutral profile shape, and service-client boundaries.
 
 Direction:
 
@@ -47,8 +50,9 @@ Direction:
 - Protected API resource metadata for services that expose their own direct
   APIs.
 - Extend `DefaultCloudShellResourceCredential` with provider-backed sources
-  such as managed identity endpoints, federated workload identity, local
-  developer credentials, and external credential plugins.
+  such as managed identity endpoints, federated workload identity, refreshable
+  local developer credentials, OS secure-store integration, and external
+  credential plugins.
 - Optional provider-specific provisioning against systems such as Microsoft
   Entra ID, API gateways, service meshes, mTLS, signed requests, or local
   credential stores.
@@ -286,9 +290,13 @@ resource-level `.default` scope. Other providers can map the same abstraction
 to their own audience, scope, API key, signed request, or service identity
 model.
 
-The built-in remote adapter supports no credentials, static bearer tokens, and
-client-credentials tokens issued by the Control Plane token authority. Delegated
-current-user credentials are still directional.
+The built-in remote adapter supports no credentials, static bearer tokens,
+client-credentials tokens issued by the Control Plane token authority, and the
+shared CloudShell resource credential chain. When configured for
+`ResourceCredential` or `CloudShellResourceCredential`, the remote adapter can
+use the same workload environment credential or active local profile credential
+as other service clients. Delegated current-user credentials with login,
+refresh, logout, and secure-store management are still directional.
 
 Enable the built-in token authority on the Control Plane host:
 

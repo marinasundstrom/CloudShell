@@ -11,6 +11,29 @@ link to the decision so the dependency is visible.
 
 ## 2026-07-05
 
+### ADR-20260705-002: Resolve developer credentials from a shared CloudShell profile
+
+CloudShell should give local tools and language SDKs a consistent credential
+resolution story instead of treating C#, TypeScript, Java, and future clients as
+separate credential ecosystems. The shared developer profile lives in
+`~/.cloudshell/config.json` by default, can be redirected with
+`CLOUDSHELL_CONFIG_DIR`, and can select a profile with `CLOUDSHELL_PROFILE`.
+Profiles can name a Control Plane target, environment, and credential source.
+
+The first supported credential source is `staticBearer`, either inline for
+short-lived tests or in a relative token file. This is intentionally a minimal
+contract for local development and SDK parity, not a complete login system.
+Token material remains credential material and must not be written into resource
+attributes, logs, Resource Manager projections, or source-controlled samples.
+OS secure-store integration, refreshable credentials, login/profile update,
+logout behavior, and provider-specific brokers remain future work.
+
+`DefaultCloudShellResourceCredential` should try workload-injected
+`CLOUDSHELL_IDENTITY_*` credentials before the local profile. That precedence
+keeps CloudShell-started resources bound to their assigned resource identity
+while still allowing ordinary local tools and remote Control Plane clients to
+use the active developer profile when no workload identity is injected.
+
 ### ADR-20260705-001: Keep event transport separate from device management and operation queues
 
 CloudShell should offer managed event transport as an `event.broker` service

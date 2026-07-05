@@ -13,8 +13,8 @@ request/response contracts.
 
 - `CloudShell.Client`: shared SDK credential primitives, including
   `CloudShellResourceCredential`, `DefaultCloudShellResourceCredential`, and
-  the environment-backed credential source. This package intentionally does not
-  reference `CloudShell.Abstractions`.
+  the environment-backed and profile-backed credential sources. This package
+  intentionally does not reference `CloudShell.Abstractions`.
 - `CloudShell.ControlPlane.Client`: remote domain client for the Control Plane
   API. This package references `CloudShell.Abstractions` because it exposes the
   domain-shaped `IControlPlane`, `IResourceManager`, resource, log, and trace
@@ -85,10 +85,17 @@ sealed class CloudShellServiceClients(CloudShellResourceCredential credential)
 }
 ```
 
-The first credential source reads the environment contract injected by the
-resource provider that starts the workload process or container. Environment
-variables are the default injection mechanism because they work consistently
-for local executables, direct container starts, and descriptor-driven container
+`DefaultCloudShellResourceCredential` resolves credential sources in this order:
+
+1. `EnvironmentCloudShellResourceCredential` reads the runtime identity
+   contract injected into a workload process or container.
+2. `CloudShellProfileCredential` reads the active local CloudShell profile from
+   the shared profile directory.
+
+The environment credential source reads the contract injected by the resource
+provider that starts the workload process or container. Environment variables
+are the default injection mechanism because they work consistently for local
+executables, direct container starts, and descriptor-driven container
 orchestration:
 
 ```text
@@ -115,6 +122,37 @@ descriptor-driven container orchestration:
   resource attributes, generated UI details, logs, activity messages, or other
   user-facing projections.
 
+The profile credential source gives local tools and language SDKs one common
+place to find the developer-selected CloudShell identity. The default profile
+directory is `~/.cloudshell`; `CLOUDSHELL_CONFIG_DIR` overrides the directory,
+and `CLOUDSHELL_PROFILE` selects a named profile. The first supported file is
+`config.json`:
+
+```json
+{
+  "activeProfile": "local",
+  "profiles": {
+    "local": {
+      "controlPlane": "http://127.0.0.1:5108",
+      "environment": "local",
+      "credential": {
+        "kind": "staticBearer",
+        "accessTokenPath": "tokens/local.token",
+        "expiresOn": "2026-07-05T18:00:00Z"
+      }
+    }
+  }
+}
+```
+
+`credential.kind` is currently `staticBearer`. The token can be stored inline
+as `accessToken` for short-lived tests, or in `accessTokenPath`; relative token
+paths are resolved from the profile directory. Token files are still credential
+material and must not be checked in, logged, projected through Resource Manager,
+or copied into resource attributes. The profile format is language-neutral so
+future TypeScript, Java, Python, and CLI clients can resolve the same active
+profile before calling the Control Plane or resource-backed service endpoints.
+
 Credentials resolved from CloudShell-protected service endpoints should be
 treated as access material for opening native client connections. Do not
 resolve them for every operation, and do not store them as durable application
@@ -131,12 +169,11 @@ variables explicitly or receive them from the current local development host
 integration.
 
 The credential contract is public preview. Future sources can add managed
-identity endpoints, federated workload identity, local development
-credentials, external provider plugins, or platform-specific brokers without
-changing service-client code. Local development credentials may be backed by a
-file or developer profile on disk, similar to Azure SDK developer credentials;
-that stored credential is a credential source in the chain, not a replacement
-for the resource identity binding or permission grants.
+identity endpoints, federated workload identity, refreshable developer
+credentials, external provider plugins, OS secure-store integration, or
+platform-specific brokers without changing service-client code. A stored
+developer identity is a credential source in the chain, not a replacement for
+the resource identity binding or permission grants.
 
 ## Control Plane Client
 

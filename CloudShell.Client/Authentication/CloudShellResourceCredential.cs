@@ -22,9 +22,9 @@ public abstract class CloudShellResourceCredential
 /// Default credential chain for CloudShell resource identities.
 /// </summary>
 /// <remarks>
-/// Public preview API. The first source is environment-provided CloudShell
-/// identity client credentials; future sources can add managed identity,
-/// federated workload identity, local development credentials, or provider
+/// Public preview API. The chain prefers environment-provided CloudShell
+/// identity client credentials, then a developer profile credential. Future
+/// sources can add managed identity, federated workload identity, or provider
 /// plugins without changing resource consumers.
 /// </remarks>
 public sealed class DefaultCloudShellResourceCredential : CloudShellResourceCredential
@@ -32,7 +32,11 @@ public sealed class DefaultCloudShellResourceCredential : CloudShellResourceCred
     private readonly IReadOnlyList<CloudShellResourceCredential> credentials;
 
     public DefaultCloudShellResourceCredential()
-        : this([new EnvironmentCloudShellResourceCredential()])
+        : this(
+            [
+                new EnvironmentCloudShellResourceCredential(),
+                new CloudShellProfileCredential()
+            ])
     {
     }
 
@@ -67,6 +71,232 @@ public sealed class DefaultCloudShellResourceCredential : CloudShellResourceCred
                 ? "No CloudShell resource credential sources are configured."
                 : string.Join(" ", unavailableMessages));
     }
+}
+
+/// <summary>
+/// Acquires a CloudShell resource identity token from the local CloudShell
+/// profile directory.
+/// </summary>
+/// <remarks>
+/// Public preview API. Reads <c>config.json</c> from <c>~/.cloudshell</c> by
+/// default, or from <c>CLOUDSHELL_CONFIG_DIR</c> when that environment variable
+/// is set. <c>CLOUDSHELL_PROFILE</c> selects a named profile when specified.
+/// </remarks>
+public sealed class CloudShellProfileCredential : CloudShellResourceCredential
+{
+    public const string ConfigDirectoryEnvironmentVariable = "CLOUDSHELL_CONFIG_DIR";
+    public const string ProfileEnvironmentVariable = "CLOUDSHELL_PROFILE";
+    public const string DefaultConfigDirectoryName = ".cloudshell";
+    public const string DefaultConfigFileName = "config.json";
+
+    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+
+    private readonly CloudShellProfileCredentialOptions options;
+
+    public CloudShellProfileCredential()
+        : this(new CloudShellProfileCredentialOptions())
+    {
+    }
+
+    public CloudShellProfileCredential(CloudShellProfileCredentialOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        this.options = options;
+    }
+
+    public override async ValueTask<CloudShellResourceAccessToken> GetTokenAsync(
+        CloudShellResourceTokenRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var configPath = ResolveConfigPath();
+        if (!File.Exists(configPath))
+        {
+            throw new CloudShellCredentialUnavailableException(
+                $"CloudShell profile credential is unavailable because '{configPath}' does not exist.");
+        }
+
+        CloudShellProfileConfiguration configuration;
+        try
+        {
+            await using var stream = File.OpenRead(configPath);
+            configuration = await JsonSerializer.DeserializeAsync<CloudShellProfileConfiguration>(
+                stream,
+                SerializerOptions,
+                cancellationToken) ??
+                new CloudShellProfileConfiguration();
+        }
+        catch (JsonException exception)
+        {
+            throw new CloudShellAuthenticationException(
+                $"CloudShell profile credential could not parse '{configPath}'. {exception.Message}");
+        }
+
+        var profileName = GetOptionOrEnvironment(options.ProfileName, ProfileEnvironmentVariable) ??
+            configuration.ActiveProfile;
+        if (string.IsNullOrWhiteSpace(profileName))
+        {
+            throw new CloudShellCredentialUnavailableException(
+                "CloudShell profile credential is unavailable because no active profile is configured.");
+        }
+
+        var profile = FindProfile(configuration, profileName);
+        if (profile is null)
+        {
+            throw new CloudShellCredentialUnavailableException(
+                $"CloudShell profile credential is unavailable because profile '{profileName}' was not found.");
+        }
+
+        var credentialDefinition = profile.Credential;
+        if (credentialDefinition is null ||
+            !string.Equals(credentialDefinition.Kind, "staticBearer", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new CloudShellCredentialUnavailableException(
+                $"CloudShell profile '{profileName}' does not contain a supported resource credential.");
+        }
+
+        if (credentialDefinition.ExpiresOn is { } expiresOn &&
+            expiresOn <= DateTimeOffset.UtcNow)
+        {
+            throw new CloudShellCredentialUnavailableException(
+                $"CloudShell profile credential for profile '{profileName}' has expired.");
+        }
+
+        var token = await ResolveStaticBearerTokenAsync(
+            credentialDefinition,
+            Path.GetDirectoryName(configPath) ?? string.Empty,
+            cancellationToken);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new CloudShellCredentialUnavailableException(
+                $"CloudShell profile '{profileName}' does not contain an access token.");
+        }
+
+        return new CloudShellResourceAccessToken(
+            token.Trim(),
+            credentialDefinition.ExpiresOn);
+    }
+
+    private string ResolveConfigPath()
+    {
+        if (!string.IsNullOrWhiteSpace(options.ConfigPath))
+        {
+            return options.ConfigPath;
+        }
+
+        return Path.Combine(ResolveConfigDirectory(), DefaultConfigFileName);
+    }
+
+    private string ResolveConfigDirectory()
+    {
+        var configuredDirectory = GetOptionOrEnvironment(
+            options.ConfigDirectory,
+            ConfigDirectoryEnvironmentVariable);
+        if (!string.IsNullOrWhiteSpace(configuredDirectory))
+        {
+            return configuredDirectory;
+        }
+
+        var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrWhiteSpace(homeDirectory))
+        {
+            throw new CloudShellCredentialUnavailableException(
+                "CloudShell profile credential is unavailable because no user profile directory could be resolved.");
+        }
+
+        return Path.Combine(homeDirectory, DefaultConfigDirectoryName);
+    }
+
+    private static CloudShellProfile? FindProfile(
+        CloudShellProfileConfiguration configuration,
+        string profileName)
+    {
+        if (configuration.Profiles.TryGetValue(profileName, out var profile))
+        {
+            return profile;
+        }
+
+        foreach (var candidate in configuration.Profiles)
+        {
+            if (string.Equals(candidate.Key, profileName, StringComparison.OrdinalIgnoreCase))
+            {
+                return candidate.Value;
+            }
+        }
+
+        return null;
+    }
+
+    private static async ValueTask<string?> ResolveStaticBearerTokenAsync(
+        CloudShellProfileCredentialDefinition credential,
+        string configDirectory,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(credential.AccessToken))
+        {
+            return credential.AccessToken;
+        }
+
+        if (string.IsNullOrWhiteSpace(credential.AccessTokenPath))
+        {
+            return null;
+        }
+
+        var tokenPath = Path.IsPathRooted(credential.AccessTokenPath)
+            ? credential.AccessTokenPath
+            : Path.Combine(configDirectory, credential.AccessTokenPath);
+        if (!File.Exists(tokenPath))
+        {
+            throw new CloudShellCredentialUnavailableException(
+                $"CloudShell profile credential is unavailable because token file '{tokenPath}' does not exist.");
+        }
+
+        return await File.ReadAllTextAsync(tokenPath, cancellationToken);
+    }
+
+    private static string? GetOptionOrEnvironment(
+        string? value,
+        string environmentVariable) =>
+        !string.IsNullOrWhiteSpace(value)
+            ? value
+            : Environment.GetEnvironmentVariable(environmentVariable);
+
+    private sealed class CloudShellProfileConfiguration
+    {
+        public string? ActiveProfile { get; set; }
+
+        public Dictionary<string, CloudShellProfile> Profiles { get; set; } = [];
+    }
+
+    private sealed class CloudShellProfile
+    {
+        public string? ControlPlane { get; set; }
+
+        public string? Environment { get; set; }
+
+        public CloudShellProfileCredentialDefinition? Credential { get; set; }
+    }
+
+    private sealed class CloudShellProfileCredentialDefinition
+    {
+        public string? Kind { get; set; }
+
+        public string? AccessToken { get; set; }
+
+        public string? AccessTokenPath { get; set; }
+
+        public DateTimeOffset? ExpiresOn { get; set; }
+    }
+}
+
+public sealed class CloudShellProfileCredentialOptions
+{
+    public string? ConfigDirectory { get; set; }
+
+    public string? ConfigPath { get; set; }
+
+    public string? ProfileName { get; set; }
 }
 
 /// <summary>
