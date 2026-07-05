@@ -45,6 +45,29 @@ Resource model patterns as other application resources. The default local
 runtime tracks process state and exposes process logs and metrics through
 Resource Manager.
 
+## Runtime SDK
+
+Go workloads use the experimental runtime SDK under `sdk/go/cloudshell` to call
+CloudShell-protected services. The package is intentionally separate from the
+Go launcher package:
+
+- `Launchers/Go/cloudshell` declares ResourceTemplates and starts/applies them.
+- `sdk/go/cloudshell` runs inside workloads and calls service endpoints.
+
+The Go `DefaultCredential` resolves credentials in the same order as the C#,
+TypeScript, and Java runtime clients: injected `CLOUDSHELL_IDENTITY_*` workload
+identity, environment bearer tokens, then the active CloudShell profile. The
+first Go runtime client is Configuration Store:
+
+```go
+configuration, err := cloudshell.ConfigurationStoreFromEnvironment("", nil)
+if err != nil {
+    return err
+}
+
+settings, err := configuration.GetSettings(context.Background())
+```
+
 Use `AsContainerApp(...)` when a Go app should be authored as a Go project but run
 as a scalable container app:
 

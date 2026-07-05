@@ -12,6 +12,7 @@ The sample includes:
 
 - a C# launcher AppHost that declares the Go app resource
 - a Go HTTP API under `App`
+- the experimental Go runtime SDK from `sdk/go/cloudshell`
 - Configuration Store and Secrets Vault resources referenced by the Go app
 - Resource Manager support for start, stop, restart, endpoints, logs,
   monitoring, configuration, and environment views
@@ -37,3 +38,9 @@ Resource Manager representation:
 cd samples/GoApp/App
 go run .
 ```
+
+The running app exposes `/configuration`, which uses the Go runtime SDK to read
+the injected Configuration Store endpoint. Its default credential resolves the
+same way as the C#, TypeScript, and Java runtime clients:
+`CLOUDSHELL_IDENTITY_*` workload identity first, then environment bearer tokens,
+then the active CloudShell profile.

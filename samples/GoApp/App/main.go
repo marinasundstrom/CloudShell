@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
 	"sort"
 	"strings"
+	"time"
+
+	cloudshell "github.com/cloudshell/sdk-go/cloudshell"
 )
 
 func main() {
@@ -17,11 +21,34 @@ func main() {
 	mux.HandleFunc("/healthz", handleHealth)
 	mux.HandleFunc("/alive", handleHealth)
 	mux.HandleFunc("/environment", handleEnvironment)
+	mux.HandleFunc("/configuration", handleConfiguration)
 
 	log.Printf("Go API listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func handleConfiguration(w http.ResponseWriter, r *http.Request) {
+	client, err := cloudshell.ConfigurationStoreFromEnvironment("", nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), defaultRequestTimeout)
+	defer cancel()
+
+	settings, err := client.GetSettings(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	writeJSON(w, map[string]any{
+		"settingCount": len(settings),
+		"settings":     settings,
+	})
 }
 
 func handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -86,3 +113,5 @@ func firstNonEmpty(values ...string) string {
 
 	return ""
 }
+
+const defaultRequestTimeout = 10 * time.Second

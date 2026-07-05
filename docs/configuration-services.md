@@ -258,6 +258,9 @@ sends bearer tokens, reads all settings or a single setting, and can map portabl
 The `samples/TypeScriptConfigurationClient` sample shows the same flow from a
 Node.js application by setting
 `CLOUDSHELL_CONFIGURATION_<SERVICE_NAME>_ENDPOINT` and a bearer token.
+The experimental Go package under `sdk/go/cloudshell` provides the same direct
+Configuration Store client shape for Go workloads, using the default credential
+chain documented in [SDK clients](sdk-clients.md).
 
 Applications that depend on a Secrets Vault receive:
 

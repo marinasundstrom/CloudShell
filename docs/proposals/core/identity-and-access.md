@@ -268,10 +268,10 @@ Environment variables are the common runtime projection because they work for
 executables and containers. The chain now also has a local profile credential
 source that reads the active profile from `~/.cloudshell/config.json` or
 `CLOUDSHELL_CONFIG_DIR`, with `CLOUDSHELL_PROFILE` selecting a profile. The
-TypeScript and Java service clients now mirror both parts of that contract:
+TypeScript, Java, and Go service clients now mirror both parts of that contract:
 inside CloudShell-started containers they use `CLOUDSHELL_IDENTITY_*`
 client-credentials acquisition first, and outside injected workloads they can
-fall back to environment bearer tokens or the shared profile. Python, Go, CLI
+fall back to environment bearer tokens or the shared profile. Python, CLI
 login/profile commands, and future Control Plane bindings should use the same
 credential source order. Future sources should be added to the same chain for
 managed identity endpoints, federated workload identity, refreshable developer

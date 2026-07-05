@@ -190,6 +190,7 @@ configuration systems.
 | Secrets Vault .NET client | `CloudShell.Secrets.Client` provides direct service calls and `IConfiguration` integration. |
 | TypeScript Configuration Store client | `sdk/typescript/configuration-client` is experimental and separate from the TypeScript launcher package. |
 | Java runtime clients | `sdk/java/cloudshell` provides experimental Configuration Store and Secrets Vault clients for Java workloads. |
+| Go runtime client | `sdk/go/cloudshell` provides an experimental Configuration Store client and default credential chain for Go workloads. |
 
 ## Consistency Work To Close
 

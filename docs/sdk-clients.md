@@ -26,6 +26,9 @@ request/response contracts.
   Configuration Store client. It is separate from the TypeScript hosting
   package and is used by Node.js applications at runtime to call a
   Configuration Store endpoint.
+- `sdk/go/cloudshell`: experimental Go runtime SDK. It is separate from the Go
+  launcher package and is used by Go applications at runtime to call
+  CloudShell-protected service endpoints.
 - `CloudShell.Secrets.Client`: Secrets Vault SDK client. It references
   `CloudShell.Client`, not the full Control Plane abstractions, and owns the
   Microsoft `IConfiguration` integration for vault secrets.
@@ -150,7 +153,7 @@ as `accessToken` for short-lived tests, or in `accessTokenPath`; relative token
 paths are resolved from the profile directory. Token files are still credential
 material and must not be checked in, logged, projected through Resource Manager,
 or copied into resource attributes. The profile format is language-neutral; the
-TypeScript and Java clients and the CLI now read it, and future Python, Go, and
+TypeScript, Java, and Go clients and the CLI now read it, and future Python and
 generated clients should use the same active profile contract before calling the
 Control Plane or resource-backed service endpoints.
 
@@ -300,6 +303,25 @@ by default, which checks the injected `CLOUDSHELL_IDENTITY_*` workload identity
 contract first, then environment bearer tokens, then the active CloudShell
 profile using the same shared profile contract as the C# and TypeScript
 clients.
+
+The experimental Go client follows the same runtime boundary:
+
+```go
+import cloudshell "github.com/cloudshell/sdk-go/cloudshell"
+
+configuration, err := cloudshell.ConfigurationStoreFromEnvironment("", nil)
+if err != nil {
+    return err
+}
+
+settings, err := configuration.GetSettings(context.Background())
+```
+
+The Go `DefaultCredential` uses the same order as the TypeScript and Java
+runtime clients: injected `CLOUDSHELL_IDENTITY_*` workload identity,
+environment bearer tokens, then the active CloudShell profile. The Go runtime
+SDK lives under `sdk/go/cloudshell`; the Go launcher package remains under
+`Launchers/Go/cloudshell` for ResourceTemplate authoring.
 
 ## Secrets Vault Client
 
