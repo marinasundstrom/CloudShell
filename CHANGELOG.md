@@ -17,6 +17,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added Resource Manager Device Registry twin details and desired-state editing
+  for enrolled devices.
 - Added an MVP Device Registry twin sync path with desired/reported state
   versions so low-power devices can wake, report state, and pull updated
   desired state through the device identity.

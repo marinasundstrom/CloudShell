@@ -19,6 +19,12 @@ public interface IDeviceRegistryRuntimeDeviceManager
         CloudShell.Abstractions.ResourceManager.Resource resource,
         string deviceId,
         CancellationToken cancellationToken = default);
+
+    ValueTask<DeviceRegistryRuntimeDeviceTwin> SetDesiredStateAsync(
+        CloudShell.Abstractions.ResourceManager.Resource resource,
+        string deviceId,
+        IReadOnlyDictionary<string, JsonElement> state,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class DeviceRegistryRuntimeDeviceManager(
@@ -110,6 +116,35 @@ public sealed class DeviceRegistryRuntimeDeviceManager(
         request.Headers.Authorization = new("Bearer", token);
         using var response = await client.SendAsync(request, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    public async ValueTask<DeviceRegistryRuntimeDeviceTwin> SetDesiredStateAsync(
+        CloudShell.Abstractions.ResourceManager.Resource resource,
+        string deviceId,
+        IReadOnlyDictionary<string, JsonElement> state,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+        ArgumentNullException.ThrowIfNull(state);
+
+        var endpoint = GetEndpoint(resource);
+        var token = await RequestManagementTokenAsync(endpoint, cancellationToken);
+        using var client = CreateClient();
+        using var request = new HttpRequestMessage(
+            HttpMethod.Put,
+            BuildDeviceDesiredStateEndpoint(endpoint, resource.Id, deviceId))
+        {
+            Content = JsonContent.Create(new { state }, options: SerializerOptions)
+        };
+        request.Headers.Authorization = new("Bearer", token);
+        using var response = await client.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        return await response.Content.ReadFromJsonAsync<DeviceRegistryRuntimeDeviceTwin>(
+            SerializerOptions,
+            cancellationToken) ??
+            throw new JsonException("Device Registry returned an empty device twin response.");
     }
 
     private async Task<string> RequestManagementTokenAsync(
@@ -207,6 +242,16 @@ public sealed class DeviceRegistryRuntimeDeviceManager(
         return builder.Uri;
     }
 
+    private static Uri BuildDeviceDesiredStateEndpoint(
+        string endpoint,
+        string registryId,
+        string deviceId)
+    {
+        var builder = new UriBuilder(BuildDeviceEndpoint(endpoint, registryId, deviceId));
+        builder.Path = $"{builder.Path.TrimEnd('/')}/twin/desired";
+        return builder.Uri;
+    }
+
     private static async Task EnsureSuccessAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
@@ -255,6 +300,27 @@ public sealed record DeviceRegistryRuntimeDevice(
     public string? RevokedReason { get; init; }
 
     public string? Presence { get; init; }
+
+    public DeviceRegistryRuntimeDeviceTwin Twin { get; init; } = new();
+}
+
+public sealed record DeviceRegistryRuntimeDeviceTwin
+{
+    public DeviceRegistryRuntimeDeviceTwinState Desired { get; init; } = new();
+
+    public DeviceRegistryRuntimeDeviceTwinState Reported { get; init; } = new();
+
+    public DateTimeOffset? LastSyncedAt { get; init; }
+}
+
+public sealed record DeviceRegistryRuntimeDeviceTwinState
+{
+    public long Version { get; init; }
+
+    public DateTimeOffset? UpdatedAt { get; init; }
+
+    public IReadOnlyDictionary<string, JsonElement> State { get; init; } =
+        new Dictionary<string, JsonElement>();
 }
 
 internal sealed record DeviceRegistryRuntimeDeviceResponse(
@@ -274,7 +340,8 @@ internal sealed record DeviceRegistryRuntimeDeviceResponse(
     string? LastSeenSource,
     DateTimeOffset? RevokedAt,
     string? RevokedReason,
-    string? Presence = null)
+    string? Presence = null,
+    DeviceRegistryRuntimeDeviceTwin? Twin = null)
 {
     public DeviceRegistryRuntimeDevice ToRuntimeDevice() =>
         new(
@@ -295,6 +362,7 @@ internal sealed record DeviceRegistryRuntimeDeviceResponse(
             LastSeenSource = LastSeenSource,
             RevokedAt = RevokedAt,
             RevokedReason = RevokedReason,
-            Presence = Presence
+            Presence = Presence,
+            Twin = Twin ?? new()
         };
 }

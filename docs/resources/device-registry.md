@@ -154,7 +154,9 @@ General section:
   identity metadata, enrollment claims, and non-secret device properties
   reported by the client. Registry operators can revoke access for the selected
   device or remove the device record from this tab when the backing registry
-  service is running.
+  service is running. The selected device details include a Twin section that
+  shows desired and reported state versions, update timestamps, last sync time,
+  read-only reported state JSON, and an editor for the desired state JSON object.
 - **Enrollment profiles** shows the base enrollment policy, trusted
   certificate references, individual/group profile matching criteria, and the
   resource permission grants a matching device identity receives. Profile
@@ -192,7 +194,7 @@ store with a stronger database while keeping the resource model stable.
 - Enrollment profiles are the first provisioning policy shape; richer matching,
   profile selection diagnostics, and individual/group enrollment management are
   future work.
-- Rich UI editing for desired twin state and history is future work.
+- Twin history and conflict diagnostics are future work.
 - Device telemetry and device-submitted logs should be integrated with
   CloudShell observability under the Device Registry resource and global
   observability views in a future slice.

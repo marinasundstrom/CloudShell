@@ -153,6 +153,77 @@ else
         <section class="blade-section">
             <div class="blade-section-header">
                 <div>
+                    <h3>Twin</h3>
+                    <p>@GetTwinSummary(SelectedDevice)</p>
+                </div>
+                <div class="heading-actions">
+                    <FluentButton Appearance="Appearance.Accent"
+                                  Disabled="@IsUpdatingTwin"
+                                  IconStart="@(new Icons.Regular.Size20.Save())"
+                                  OnClick="UpdateDesiredStateAsync">
+                        Save desired state
+                    </FluentButton>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(TwinOperationMessage))
+            {
+                <p>@TwinOperationMessage</p>
+            }
+
+            <ResourceTable AriaLabel="Device twin metadata">
+                <tbody>
+                    <tr>
+                        <th scope="row">Desired version</th>
+                        <td>@SelectedDevice.Twin.Desired.Version</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Desired updated</th>
+                        <td>@FormatOptionalTimestamp(SelectedDevice.Twin.Desired.UpdatedAt)</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Reported version</th>
+                        <td>@SelectedDevice.Twin.Reported.Version</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Reported updated</th>
+                        <td>@FormatOptionalTimestamp(SelectedDevice.Twin.Reported.UpdatedAt)</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Last sync</th>
+                        <td>@FormatOptionalTimestamp(SelectedDevice.Twin.LastSyncedAt)</td>
+                    </tr>
+                </tbody>
+            </ResourceTable>
+
+            <div class="form-grid">
+                <label for="device-twin-desired">Desired state</label>
+                <FluentTextArea Id="device-twin-desired"
+                                AriaLabel="Desired twin state JSON"
+                                @bind-Value="DesiredStateJson"
+                                Rows="8"
+                                Style="width: 100%;" />
+            </div>
+
+            <ResourceTable AriaLabel="Reported twin state">
+                <thead>
+                    <tr>
+                        <th>Reported state</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <pre>@FormatTwinStateJson(SelectedDevice.Twin.Reported.State)</pre>
+                        </td>
+                    </tr>
+                </tbody>
+            </ResourceTable>
+        </section>
+
+        <section class="blade-section">
+            <div class="blade-section-header">
+                <div>
                     <h3>Properties</h3>
                     <p>@GetPairSummary(SelectedDevice.Properties, "property", "properties")</p>
                 </div>
@@ -203,7 +274,11 @@ else
     private List<DeviceRegistryRuntimeDevice> Devices { get; } = [];
     private string? SelectedDeviceId { get; set; }
     private bool IsMutatingDevice { get; set; }
+    private bool IsUpdatingTwin { get; set; }
     private string? DeviceOperationMessage { get; set; }
+    private string DesiredStateJson { get; set; } = "{}";
+    private string? TwinEditorDeviceId { get; set; }
+    private string? TwinOperationMessage { get; set; }
     private DeviceRegistryRuntimeDevice? SelectedDevice =>
         Devices.FirstOrDefault(device => string.Equals(
             device.Id,
@@ -235,6 +310,8 @@ else
         {
             SelectedDeviceId = Devices[0].Id;
         }
+
+        SyncTwinEditor();
     }
 
     private string GetDeviceSummary() =>
@@ -242,8 +319,11 @@ else
             ? "1 device is enrolled in this registry."
             : $"{Devices.Count} devices are enrolled in this registry.";
 
-    private void SelectDevice(DeviceRegistryRuntimeDevice device) =>
+    private void SelectDevice(DeviceRegistryRuntimeDevice device)
+    {
         SelectedDeviceId = device.Id;
+        SyncTwinEditor(force: true);
+    }
 
     private async Task RevokeSelectedDevice()
     {
@@ -293,8 +373,74 @@ else
                 device.Id,
                 StringComparison.OrdinalIgnoreCase));
             SelectedDeviceId = Devices.FirstOrDefault()?.Id;
+            SyncTwinEditor(force: true);
             DeviceOperationMessage = "Device record was removed.";
         });
+    }
+
+    private async Task UpdateDesiredStateAsync()
+    {
+        if (DeviceManager is null ||
+            Resource is null ||
+            SelectedDevice is null ||
+            IsUpdatingTwin)
+        {
+            return;
+        }
+
+        IsUpdatingTwin = true;
+        TwinOperationMessage = null;
+        try
+        {
+            var desiredState = ParseTwinStateJson(DesiredStateJson);
+            var twin = await DeviceManager.SetDesiredStateAsync(
+                Resource,
+                SelectedDevice.Id,
+                desiredState);
+            var index = Devices.FindIndex(current => string.Equals(
+                current.Id,
+                SelectedDevice.Id,
+                StringComparison.OrdinalIgnoreCase));
+            if (index >= 0)
+            {
+                Devices[index] = Devices[index] with
+                {
+                    Twin = twin
+                };
+            }
+
+            TwinOperationMessage = "Desired state was updated.";
+            SyncTwinEditor(force: true);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException or JsonException)
+        {
+            TwinOperationMessage = exception.Message;
+        }
+        finally
+        {
+            IsUpdatingTwin = false;
+        }
+    }
+
+    private void SyncTwinEditor(bool force = false)
+    {
+        if (SelectedDevice is null)
+        {
+            DesiredStateJson = "{}";
+            TwinEditorDeviceId = null;
+            TwinOperationMessage = null;
+            return;
+        }
+
+        if (!force &&
+            string.Equals(TwinEditorDeviceId, SelectedDevice.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        DesiredStateJson = FormatTwinStateJson(SelectedDevice.Twin.Desired.State);
+        TwinEditorDeviceId = SelectedDevice.Id;
+        TwinOperationMessage = null;
     }
 
     private async Task MutateSelectedDeviceAsync(
@@ -363,6 +509,42 @@ else
         values.Count == 1
             ? $"1 {singular}"
             : $"{values.Count} {plural}";
+
+    private static string GetTwinSummary(DeviceRegistryRuntimeDevice device) =>
+        device.Twin.LastSyncedAt is null
+            ? "Desired and reported state for this device."
+            : $"Last synced {FormatTimestamp(device.Twin.LastSyncedAt.Value)}.";
+
+    private static IReadOnlyDictionary<string, JsonElement> ParseTwinStateJson(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        using var document = JsonDocument.Parse(json);
+        if (document.RootElement.ValueKind != JsonValueKind.Object)
+        {
+            throw new JsonException("Desired state must be a JSON object.");
+        }
+
+        var state = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+        foreach (var property in document.RootElement.EnumerateObject())
+        {
+            state[property.Name] = property.Value.Clone();
+        }
+
+        return state;
+    }
+
+    private static string FormatTwinStateJson(
+        IReadOnlyDictionary<string, JsonElement> state) =>
+        JsonSerializer.Serialize(
+            state,
+            new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
 
     private static string FormatTimestamp(DateTimeOffset timestamp) =>
         timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
