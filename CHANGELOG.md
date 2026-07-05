@@ -21,6 +21,10 @@ on `git blame --follow`, and then by the broad type of change.
   device details view.
 - Added sample device app logs for enrollment, heartbeat, twin sync, and
   Configuration Store reads.
+- Added an experimental Device Registry MQTT publish path for device heartbeat
+  and reported-state sync messages, including an optional embedded MQTT
+  endpoint, device identity credential validation, C# client helpers, sample
+  wiring, and smoke coverage.
 - Recorded the enrollment profile name and kind on enrolled Device Registry
   devices and surfaced that attribution through API/client responses and the
   Resource Manager device list.

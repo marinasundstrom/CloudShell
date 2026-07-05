@@ -9,4 +9,6 @@ public sealed class DeviceRegistryServiceOptions
     public string? DevicesPath { get; set; }
 
     public string? ResourceId { get; set; }
+
+    public string? MqttEndpoint { get; set; }
 }

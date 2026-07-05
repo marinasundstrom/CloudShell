@@ -1401,6 +1401,7 @@ public sealed class SampleSmokeTests
     private static async Task DeviceRegistrySample_EnrollsCurrentDeviceCore(string directory)
     {
         var registryEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var registryMqttEndpoint = $"mqtt://127.0.0.1:{await GetFreePortAsync()}";
         var configurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
         var deviceAppPort = await GetFreePortAsync();
         var deviceAppEndpoint = $"http://127.0.0.1:{deviceAppPort}";
@@ -1502,6 +1503,7 @@ public sealed class SampleSmokeTests
                 "CloudShell__DeviceRegistryService__ResourceId",
                 registryResourceId,
                 [
+                    ("CloudShell__DeviceRegistryService__MqttEndpoint", registryMqttEndpoint),
                     ("Authentication__BuiltInAuthority__Clients__device-registry-admin__Secret", registryAdminClientSecret),
                     ("Authentication__BuiltInAuthority__Clients__device-registry-admin__Scopes__0", "ControlPlane.Access"),
                     ("Authentication__BuiltInAuthority__Clients__device-registry-admin__ResourcePermissions__0__ResourceId", registryResourceId),
@@ -1516,6 +1518,7 @@ public sealed class SampleSmokeTests
             [
                 ("CLOUDSHELL_DEVICE_REGISTRY_ENDPOINT", registryEndpoint),
                 ("CLOUDSHELL_DEVICE_REGISTRY_RESOURCE_ID", registryResourceId),
+                ("CLOUDSHELL_DEVICE_REGISTRY_MQTT_ENDPOINT", registryMqttEndpoint),
                 ("CLOUDSHELL_CONFIGURATION_STORE_ENDPOINT", configurationEndpoint),
                 ("CLOUDSHELL_CONFIGURATION_STORE_RESOURCE_ID", configurationResourceId),
                 ("CLOUDSHELL_CONFIGURATION_SETTING_NAME", "Device:Mode"),
@@ -1550,6 +1553,9 @@ public sealed class SampleSmokeTests
             .Deserialize<DeviceSyncResponse>(
                 new JsonSerializerOptions(JsonSerializerDefaults.Web)) ??
             throw new JsonException("Device Registry sample returned no sync response.");
+        var mqttSyncPublished = enrollmentDocument.RootElement
+            .GetProperty("mqttSyncPublished")
+            .GetBoolean();
         var configurationSetting = enrollmentDocument.RootElement.GetProperty("configuration");
 
         Assert.Equal("iot.device-registry:devices", enrollment.RegistryId);
@@ -1594,6 +1600,7 @@ public sealed class SampleSmokeTests
         Assert.Equal(1, sync.Reported.Version);
         Assert.Equal("running", sync.Reported.State["mode"].GetString());
         Assert.Equal("Device:Mode", sync.Reported.State["configurationSetting"].GetString());
+        Assert.True(mqttSyncPublished);
         Assert.Equal("Device:Mode", configurationSetting.GetProperty("name").GetString());
         Assert.Equal("factory-online", configurationSetting.GetProperty("value").GetString());
 
@@ -1623,6 +1630,14 @@ public sealed class SampleSmokeTests
             registryAdminClientId,
             registryAdminClientSecret);
         var registryClient = new DeviceRegistryClient(new Uri(registryEndpoint), tokenClient);
+        var devicesAfterMqttSync = await registryClient.GetDevicesAsync(
+            registryResourceId,
+            adminToken);
+        var deviceAfterMqttSync = Assert.Single(devicesAfterMqttSync);
+        Assert.Equal(enrollment.DeviceId, deviceAfterMqttSync.DeviceId);
+        Assert.Equal("sample-app-mqtt", deviceAfterMqttSync.LastSeenSource);
+        Assert.Equal("device-app", deviceAfterMqttSync.Properties["sample.mqttSync"]);
+
         var desired = await registryClient.SetDesiredStateAsync(
             registryResourceId,
             enrollment.DeviceId,

@@ -15,6 +15,7 @@ public sealed class DeviceRegistryResourceTypeProvider :
     {
         public static readonly ResourceAttributeId Kind = "kind";
         public static readonly ResourceAttributeId Endpoint = "endpoint";
+        public static readonly ResourceAttributeId MqttEndpoint = "mqtt.endpoint";
         public static readonly ResourceAttributeId TrustedCertificates = "trust.certificates";
         public static readonly ResourceAttributeId AllowedSubjectPrefixes = "enrollmentPolicy.subjectPrefixes";
         public static readonly ResourceAttributeId RequiredClaims = "enrollmentPolicy.requiredClaims";
@@ -42,6 +43,9 @@ public sealed class DeviceRegistryResourceTypeProvider :
                 DefaultValue: "registry",
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.Endpoint] = new(ValueType: ResourceAttributeValueType.String),
+            [Attributes.MqttEndpoint] = new(
+                ValueType: ResourceAttributeValueType.String,
+                Description: "Optional MQTT endpoint for device heartbeat and twin sync messages."),
             [Attributes.TrustedCertificates] = ResourceAttributeDefinition.Collection(
                 ResourceAttributeValueType.ComplexType,
                 itemShape: new(new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
@@ -195,6 +199,9 @@ public sealed class DeviceRegistryResourceTypeProvider :
         ValidateHeartbeatStaleAfter(
             resource.Attributes.GetString(Attributes.HeartbeatStaleAfterSeconds),
             diagnostics);
+        ValidateMqttEndpoint(
+            resource.Attributes.GetString(Attributes.MqttEndpoint),
+            diagnostics);
         return diagnostics;
     }
 
@@ -237,6 +244,17 @@ public sealed class DeviceRegistryResourceTypeProvider :
             out var staleAfterValue))
         {
             ValidateHeartbeatStaleAfter(GetScalarAttributeText(staleAfterValue), diagnostics);
+        }
+
+        if (state.ResourceAttributes.TryGetValue(Attributes.MqttEndpoint, out var mqttEndpoint))
+        {
+            ValidateMqttEndpoint(mqttEndpoint, diagnostics);
+        }
+        else if (state.ResourceAttributeValues.TryGetValue(
+            Attributes.MqttEndpoint,
+            out var mqttEndpointValue))
+        {
+            ValidateMqttEndpoint(GetScalarAttributeText(mqttEndpointValue), diagnostics);
         }
 
         return diagnostics;
@@ -387,6 +405,26 @@ public sealed class DeviceRegistryResourceTypeProvider :
                 "iot.deviceRegistry.heartbeatStaleAfterInvalid",
                 "Device Registry heartbeat stale-after seconds must be a positive integer.",
                 Attributes.HeartbeatStaleAfterSeconds));
+        }
+    }
+
+    private static void ValidateMqttEndpoint(
+        string? endpoint,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint))
+        {
+            return;
+        }
+
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ||
+            !string.Equals(uri.Scheme, "mqtt", StringComparison.OrdinalIgnoreCase) ||
+            uri.Port <= 0)
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                "iot.deviceRegistry.mqttEndpointInvalid",
+                "Device Registry MQTT endpoint must be an absolute mqtt:// URI with a port.",
+                Attributes.MqttEndpoint));
         }
     }
 

@@ -106,6 +106,8 @@ public sealed class DeviceRegistryProcessRuntimeController(
             name = resource.Name,
             displayName = resource.State.DisplayName,
             endpoint,
+            mqttEndpoint = resource.Attributes.GetString(
+                DeviceRegistryResourceTypeProvider.Attributes.MqttEndpoint),
             heartbeatStaleAfterSeconds = GetHeartbeatStaleAfterSeconds(resource),
             trustedCertificates = resource.Attributes
                 .GetObject<ResourceCertificateReference[]>(
@@ -199,6 +201,10 @@ public sealed class DeviceRegistryProcessRuntimeController(
             variables,
             "Authentication__BuiltInAuthority__SigningKeyPem",
             options.ServiceAuthenticationSigningKeyPem);
+        AddIfNotWhiteSpace(
+            variables,
+            "CloudShell__DeviceRegistryService__MqttEndpoint",
+            resource.Attributes.GetString(DeviceRegistryResourceTypeProvider.Attributes.MqttEndpoint));
 
         if (!string.IsNullOrWhiteSpace(options.ManagementClientId) &&
             !string.IsNullOrWhiteSpace(options.ManagementClientSecret))

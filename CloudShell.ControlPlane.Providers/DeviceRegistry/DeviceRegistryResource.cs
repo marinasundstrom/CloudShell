@@ -11,6 +11,9 @@ public sealed class DeviceRegistryResource(
     public string? Endpoint =>
         Resource.Attributes.GetString(DeviceRegistryResourceTypeProvider.Attributes.Endpoint);
 
+    public string? MqttEndpoint =>
+        Resource.Attributes.GetString(DeviceRegistryResourceTypeProvider.Attributes.MqttEndpoint);
+
     public int EnrolledDeviceCount =>
         int.TryParse(
             Resource.Attributes.GetString(DeviceRegistryResourceTypeProvider.Attributes.EnrolledDeviceCount),

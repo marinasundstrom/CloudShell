@@ -14,6 +14,7 @@ builder.Services.AddSingleton<BuiltInAuthorityTokenService>();
 builder.Services.AddSingleton<BuiltInResourceIdentityRegistry>();
 builder.Services.AddSingleton<CloudShellBearerTokenValidationService>();
 builder.Services.AddHostedService<DeviceRegistryIdentityRegistrationService>();
+builder.Services.AddHostedService<DeviceRegistryMqttHostedService>();
 
 var app = builder.Build();
 

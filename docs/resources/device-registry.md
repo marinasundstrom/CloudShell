@@ -20,6 +20,7 @@ Authoring attributes:
 | Attribute | Purpose |
 | --- | --- |
 | `endpoint` | Device Registry service endpoint. |
+| `mqtt.endpoint` | Optional MQTT endpoint for device heartbeat and reported-state sync messages. |
 | `trust.certificates` | Vault-backed certificate references trusted for factory enrollment. |
 | `enrollmentPolicy.subjectPrefixes` | Device subject prefixes accepted during enrollment. |
 | `enrollmentPolicy.requiredClaims` | Required non-secret enrollment claims. |
@@ -129,10 +130,27 @@ state.
 
 The twin model intentionally does not imply that CloudShell has an always-on
 connection to the device. It supports low-power devices that periodically wake,
-report their current state, receive desired state, then disconnect. HTTP pull is
-the MVP transport; MQTT can later become another transport for the same
-desired/reported state contract. Future registry configuration should choose the
-transport protocol without changing lifecycle, identity, or twin semantics.
+report their current state, receive desired state, then disconnect. HTTP pull
+remains the MVP path when a device needs the latest desired state response.
+Device Registry can also expose an experimental embedded MQTT endpoint for
+publish-style heartbeat and reported-state sync messages using the same device
+identity credentials. MQTT messages update the same registry-owned metadata and
+twin reported state as HTTP calls, but MQTT request/response desired-state pull
+is intentionally deferred.
+
+The MQTT topic contract is:
+
+| Topic | Payload |
+| --- | --- |
+| `cloudshell/device-registries/{registryId}/devices/{deviceId}/heartbeat` | `DeviceHeartbeatRequest` JSON. |
+| `cloudshell/device-registries/{registryId}/devices/{deviceId}/sync` | `DeviceSyncRequest` JSON. |
+
+`registryId` and `deviceId` are URL-escaped topic segments. MQTT clients
+authenticate with the enrolled device `clientId` as the MQTT username and the
+issued device `clientSecret` as the MQTT password. The embedded MQTT endpoint
+is local-development infrastructure for the first slice; external broker
+bridges, TLS listener configuration, retained desired-state messages, and
+broker-native diagnostics remain future work.
 
 Revocation marks the device record as `revoked` and unregisters the built-in
 device identity client so future token requests with that device credential are
@@ -153,10 +171,9 @@ capability properties without changing the registry contract.
 
 The connected-device sample keeps the device app outside the CloudShell
 resource graph. The app enrolls the current machine, receives a device
-principal, sends heartbeat and sync updates, and uses that identity to read a
-Configuration Store setting. Devices that need push-based transport are
-expected to use a future protocol surface such as MQTT over the same registry
-identity and twin concepts.
+principal, sends HTTP heartbeat and sync updates, publishes a follow-up MQTT
+sync update when an MQTT endpoint is configured, and uses that identity to read
+a Configuration Store setting.
 
 The built-in Resource Manager UI contributes Device Registry tabs under the
 General section:
@@ -210,4 +227,6 @@ store with a stronger database while keeping the resource model stable.
 - Device telemetry and device-submitted logs should be integrated with
   CloudShell observability under the Device Registry resource and global
   observability views in a future slice.
-- MQTT transport and richer microcontroller provisioning remain future work.
+- MQTT request/response desired-state pull, external broker integration, TLS
+  listener configuration, retained messages, and richer microcontroller
+  provisioning remain future work.

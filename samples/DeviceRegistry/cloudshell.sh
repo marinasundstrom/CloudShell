@@ -10,6 +10,7 @@ cli_project="${CLOUDSHELL_CLI_PROJECT:-$repo_root/CloudShell.Cli/CloudShell.Cli.
 state_dir="${CLOUDSHELL_STATE_DIR:-$script_dir/.cloudshell}"
 control_plane_url="${CLOUDSHELL_CONTROL_PLANE_URL:-http://127.0.0.1:5108}"
 registry_endpoint="${CLOUDSHELL_DEVICE_REGISTRY_ENDPOINT:-http://localhost:7150}"
+registry_mqtt_endpoint="${CLOUDSHELL_DEVICE_REGISTRY_MQTT_ENDPOINT:-mqtt://localhost:7154}"
 configuration_endpoint="${CLOUDSHELL_CONFIGURATION_STORE_ENDPOINT:-http://localhost:7152}"
 device_app_url="${CLOUDSHELL_DEVICE_APP_URL:-http://localhost:7153}"
 settings_resource_id="${CLOUDSHELL_CONFIGURATION_STORE_RESOURCE_ID:-configuration.store:device-settings}"
@@ -36,6 +37,7 @@ Environment:
   CLOUDSHELL_CONTROL_PLANE_URL              Host URL. Default: $control_plane_url
   CLOUDSHELL_STATE_DIR                      Launcher state directory. Default: $state_dir
   CLOUDSHELL_DEVICE_REGISTRY_ENDPOINT       Device Registry endpoint. Default: $registry_endpoint
+  CLOUDSHELL_DEVICE_REGISTRY_MQTT_ENDPOINT  Device Registry MQTT endpoint. Default: $registry_mqtt_endpoint
   CLOUDSHELL_CONFIGURATION_STORE_ENDPOINT   Configuration Store endpoint. Default: $configuration_endpoint
   CLOUDSHELL_DEVICE_APP_URL                 Device app URL. Default: $device_app_url
 USAGE
@@ -99,9 +101,10 @@ case "$command" in
       --urls "$device_app_url" \
       --DeviceRegistry:Endpoint "$registry_endpoint" \
       --DeviceRegistry:ResourceId "$registry_resource_id" \
+      --DeviceRegistry:MqttEndpoint "$registry_mqtt_endpoint" \
       --ConfigurationStore:Endpoint "$configuration_endpoint" \
       --ConfigurationStore:ResourceId "$settings_resource_id" \
-      --ConfigurationStore:EntryName Device:Mode \
+      --ConfigurationStore:SettingName Device:Mode \
       --Device:Manufacturer cloudshell \
       "$@"
     ;;

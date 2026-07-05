@@ -365,6 +365,21 @@ public sealed class CloudShellServiceClientTests
     }
 
     [Fact]
+    public void DeviceRegistryMqttTopicNames_BuildsDeviceOperationTopics()
+    {
+        Assert.Equal(
+            "cloudshell/device-registries/iot.device-registry%3Adevices/devices/device-123/heartbeat",
+            DeviceRegistryMqttTopicNames.BuildHeartbeatTopic(
+                "iot.device-registry:devices",
+                "device-123"));
+        Assert.Equal(
+            "cloudshell/device-registries/iot.device-registry%3Adevices/devices/device-123/sync",
+            DeviceRegistryMqttTopicNames.BuildSyncTopic(
+                "iot.device-registry:devices",
+                "device-123"));
+    }
+
+    [Fact]
     public void AddCloudShellConfigurationStore_LoadsSettingsIntoConfiguration()
     {
         using var server = LoopbackServer.Start("""

@@ -401,6 +401,39 @@ public sealed class DeviceRegistryServiceStore(
             device.Subject,
             device.IdentityProviderId);
 
+    public bool TryValidateDeviceCredentials(
+        string? clientId,
+        string? clientSecret,
+        out DeviceRecord device)
+    {
+        device = null!;
+        if (string.IsNullOrWhiteSpace(clientId) ||
+            string.IsNullOrWhiteSpace(clientSecret))
+        {
+            return false;
+        }
+
+        lock (_gate)
+        {
+            var candidate = LoadDevices().FirstOrDefault(record =>
+                string.Equals(record.ClientId, clientId, StringComparison.Ordinal));
+            if (candidate is null || IsRevoked(candidate))
+            {
+                return false;
+            }
+
+            if (!identities.TryGetClient(clientId, out var client) ||
+                string.IsNullOrWhiteSpace(client.Secret) ||
+                !FixedTimeEquals(client.Secret, clientSecret))
+            {
+                return false;
+            }
+
+            device = candidate;
+            return true;
+        }
+    }
+
     private IReadOnlyList<DeviceRegistryDefinition> LoadDefinitions()
     {
         if (!File.Exists(_definitionsPath))
@@ -620,6 +653,16 @@ public sealed class DeviceRegistryServiceStore(
     private static bool IsRevoked(DeviceRecord? device) =>
         string.Equals(device?.Status, DeviceRecordStatuses.Revoked, StringComparison.OrdinalIgnoreCase) ||
         device?.RevokedAt is not null;
+
+    private static bool FixedTimeEquals(
+        string expected,
+        string actual)
+    {
+        var expectedBytes = Encoding.UTF8.GetBytes(expected);
+        var actualBytes = Encoding.UTF8.GetBytes(actual);
+        return expectedBytes.Length == actualBytes.Length &&
+            CryptographicOperations.FixedTimeEquals(expectedBytes, actualBytes);
+    }
 
     private static string CreateDeviceId(
         string registryId,

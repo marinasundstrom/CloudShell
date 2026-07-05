@@ -18,6 +18,9 @@ public sealed class DeviceRegistryResourceDefinitionBuilder(string name) :
     public DeviceRegistryResourceDefinitionBuilder WithEndpoint(string endpoint) =>
         SetScalarAttribute(DeviceRegistryResourceTypeProvider.Attributes.Endpoint, endpoint);
 
+    public DeviceRegistryResourceDefinitionBuilder WithMqttEndpoint(string endpoint) =>
+        SetScalarAttribute(DeviceRegistryResourceTypeProvider.Attributes.MqttEndpoint, endpoint);
+
     public DeviceRegistryResourceDefinitionBuilder WithHeartbeatStaleAfter(TimeSpan staleAfter)
     {
         if (staleAfter <= TimeSpan.Zero)

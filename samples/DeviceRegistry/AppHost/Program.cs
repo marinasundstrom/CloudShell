@@ -14,6 +14,8 @@ var secretsEndpoint = app.Configuration["Samples:DeviceRegistry:SecretsEndpoint"
     "http://localhost:7151";
 var configurationEndpoint = app.Configuration["Samples:DeviceRegistry:ConfigurationEndpoint"] ??
     "http://localhost:7152";
+var mqttEndpoint = app.Configuration["Samples:DeviceRegistry:MqttEndpoint"] ??
+    "mqtt://localhost:7154";
 
 app.DefineResources(resources =>
 {
@@ -37,6 +39,7 @@ app.DefineResources(resources =>
         .AddDeviceRegistry("devices")
         .WithDisplayName("Factory Device Registry")
         .WithEndpoint(registryEndpoint)
+        .WithMqttEndpoint(mqttEndpoint)
         .WithHeartbeatStaleAfter(TimeSpan.FromMinutes(5))
         .TrustCertificate(vault.Certificate("factory-ca"))
         .UseEnrollmentProfile(profile =>

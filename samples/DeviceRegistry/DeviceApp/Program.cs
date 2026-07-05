@@ -10,6 +10,8 @@ var registryEndpoint = builder.Configuration["DeviceRegistry:Endpoint"] ??
 var registryResourceId = builder.Configuration["DeviceRegistry:ResourceId"] ??
     Environment.GetEnvironmentVariable("CLOUDSHELL_DEVICE_REGISTRY_RESOURCE_ID") ??
     "iot.device-registry:devices";
+var registryMqttEndpoint = builder.Configuration["DeviceRegistry:MqttEndpoint"] ??
+    Environment.GetEnvironmentVariable("CLOUDSHELL_DEVICE_REGISTRY_MQTT_ENDPOINT");
 var configurationEndpoint = builder.Configuration["ConfigurationStore:Endpoint"] ??
     Environment.GetEnvironmentVariable("CLOUDSHELL_CONFIGURATION_STORE_ENDPOINT");
 var configurationResourceId = builder.Configuration["ConfigurationStore:ResourceId"] ??
@@ -33,7 +35,8 @@ var app = builder.Build();
 app.MapGet("/", () => Results.Ok(new
 {
     application = "CloudShell Device Registry sample app",
-    registryResourceId
+    registryResourceId,
+    registryMqttEndpoint
 }));
 
 app.MapGet("/health", () => Results.Ok(new
@@ -63,6 +66,7 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
     CloudShellConfigurationSetting? configuration = null;
     DeviceMetadataResponse? heartbeat = null;
     DeviceSyncResponse? sync = null;
+    var mqttSyncPublished = false;
     if (!string.IsNullOrWhiteSpace(configurationEndpoint))
     {
         using var configurationHttpClient = new HttpClient();
@@ -141,11 +145,42 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
             enrollment.DeviceId);
     }
 
+    if (!string.IsNullOrWhiteSpace(registryMqttEndpoint))
+    {
+        var mqttClient = new DeviceRegistryMqttClient(new Uri(registryMqttEndpoint));
+        app.Logger.LogInformation(
+            "Synchronizing CloudShell Device Registry twin state over MQTT for device {DeviceId}.",
+            enrollment.DeviceId);
+        await mqttClient.PublishSyncAsync(
+            registryResourceId,
+            enrollment.DeviceId,
+            enrollment.ClientId,
+            enrollment.ClientSecret,
+            new DeviceSyncRequest(
+                new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["mode"] = JsonSerializer.SerializeToElement("running"),
+                    ["transport"] = JsonSerializer.SerializeToElement("mqtt")
+                },
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["sample.mqttSync"] = "device-app"
+                },
+                "sample-app-mqtt",
+                sync?.Desired.Version),
+            cancellationToken: cancellationToken);
+        mqttSyncPublished = true;
+        app.Logger.LogInformation(
+            "CloudShell Device Registry MQTT twin sync was published for device {DeviceId}.",
+            enrollment.DeviceId);
+    }
+
     return Results.Ok(new
     {
         enrollment,
         heartbeat,
         sync,
+        mqttSyncPublished,
         configuration
     });
 });

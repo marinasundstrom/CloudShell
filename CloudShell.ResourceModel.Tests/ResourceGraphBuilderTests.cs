@@ -171,6 +171,7 @@ public sealed class ResourceGraphBuilderTests
 
                 resources
                     .AddDeviceRegistry("devices")
+                    .WithMqttEndpoint("mqtt://localhost:7154")
                     .WithHeartbeatStaleAfter(TimeSpan.FromMinutes(5))
                     .TrustCertificate(vault.Certificate("factory-ca"))
                     .UseEnrollmentPolicy(policy =>
@@ -201,6 +202,9 @@ public sealed class ResourceGraphBuilderTests
             300,
             definition.ResourceAttributeValues[
                 DeviceRegistryResourceTypeProvider.Attributes.HeartbeatStaleAfterSeconds].IntegerValue);
+        Assert.Equal(
+            "mqtt://localhost:7154",
+            definition.ResourceAttributes[DeviceRegistryResourceTypeProvider.Attributes.MqttEndpoint]);
         Assert.Equal("manufacturer", claim.Name);
         Assert.Equal("acme", claim.Value);
         Assert.True(dependency.TryGetDependsOnResourceId(out var dependencyResourceId));
