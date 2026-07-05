@@ -82,10 +82,20 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
     DeviceSyncResponse? mqttSync = null;
     EventBrokerEvent? publishedEvent = null;
     var mqttSyncPublished = false;
+    using var tokenHttpClient = new HttpClient();
+    var deviceCredential = new EnvironmentCloudShellResourceCredential(
+        new EnvironmentCloudShellResourceCredentialOptions
+        {
+            TokenEndpoint = enrollment.TokenEndpoint,
+            ClientId = enrollment.ClientId,
+            ClientSecret = enrollment.ClientSecret,
+            Scope = EventBrokerClient.DefaultScope
+        },
+        tokenHttpClient);
+
     if (!string.IsNullOrWhiteSpace(configurationEndpoint))
     {
         using var configurationHttpClient = new HttpClient();
-        using var tokenHttpClient = new HttpClient();
         var accessToken = await RequestAccessTokenAsync(
             enrollment,
             tokenHttpClient,
@@ -133,18 +143,9 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
             sync.Desired.Version,
             sync.Reported.Version,
             sync.DesiredStateChanged);
-        var credential = new EnvironmentCloudShellResourceCredential(
-            new EnvironmentCloudShellResourceCredentialOptions
-            {
-                TokenEndpoint = enrollment.TokenEndpoint,
-                ClientId = enrollment.ClientId,
-                ClientSecret = enrollment.ClientSecret,
-                Scope = ConfigurationStoreClient.DefaultScope
-            },
-            tokenHttpClient);
         var configurationClient = new ConfigurationStoreClient(
             BuildConfigurationSettingsEndpoint(configurationEndpoint, configurationResourceId),
-            credential,
+            deviceCredential,
             configurationHttpClient,
             [ConfigurationStoreClient.DefaultScope]);
         app.Logger.LogInformation(
@@ -194,7 +195,12 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
 
     if (!string.IsNullOrWhiteSpace(eventBrokerEndpoint))
     {
-        var eventClient = new EventBrokerClient(new Uri(eventBrokerEndpoint));
+        using var eventHttpClient = new HttpClient();
+        var eventClient = new EventBrokerClient(
+            new Uri(eventBrokerEndpoint),
+            deviceCredential,
+            eventHttpClient,
+            [EventBrokerClient.DefaultScope]);
         app.Logger.LogInformation(
             "Publishing CloudShell Event Broker check-in event for device {DeviceId} to stream {Stream}.",
             enrollment.DeviceId,

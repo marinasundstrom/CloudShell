@@ -39,7 +39,7 @@ app.DefineResources(resources =>
             "factory-ca",
             "local-development-factory-ca"));
 
-    resources
+    var events = resources
         .AddEventBroker("events")
         .WithDisplayName("Factory Event Broker")
         .WithMqttEndpoint(
@@ -72,7 +72,10 @@ app.DefineResources(resources =>
                 .RequireClaim("manufacturer", "cloudshell")
                 .GrantAccess(
                     settings,
-                    ConfigurationStoreResourceOperationPermissions.ReadSettings);
+                    ConfigurationStoreResourceOperationPermissions.ReadSettings)
+                .GrantAccess(
+                    events,
+                    EventBrokerResourceOperationPermissions.PublishEvents);
         });
 });
 

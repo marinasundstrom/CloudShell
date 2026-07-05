@@ -49,6 +49,11 @@ on `git blame --follow`, and then by the broad type of change.
   Enrollment now requires a provider-owned service token configured outside
   the resource graph, and the Device Registry sample passes that token through
   local host/device-app configuration.
+- Hardened the Event Broker retained event log so stream listing, event reads,
+  and event publishing require CloudShell bearer tokens with broker-specific
+  resource permission claims. `EventBrokerClient` now supports
+  `CloudShellResourceCredential`, and the Device Registry sample grants enrolled
+  devices broker publish access for check-in events.
 - Added an explicit `Microsoft.OpenApi` 3.7.0 dependency for OpenAPI-enabled
   hosts so the vulnerable transitive 3.3.1 package is no longer resolved.
 - Recorded the enrollment profile name and kind on enrolled Device Registry

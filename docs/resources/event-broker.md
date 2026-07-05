@@ -73,6 +73,15 @@ projected through resource attributes. A provider-backed broker should keep
 those values behind provider-owned configuration, resource identity grants, or
 Secrets Vault references.
 
+The built-in HTTP retained event log is protected by CloudShell bearer tokens.
+Callers must present a token whose principal carries a resource permission claim
+for the target broker:
+
+| Permission | Purpose |
+| --- | --- |
+| `EventBrokerResourceOperationPermissions.PublishEvents` | Append events to retained streams. |
+| `EventBrokerResourceOperationPermissions.ReadEvents` | List retained streams and read retained events. |
+
 ## Programmatic Authoring
 
 ```csharp
@@ -109,12 +118,20 @@ The HTTP MVP exposes:
 | `GET /api/events/brokers/{brokerId}/streams/{stream}/events?fromSequence=0&limit=100` | Read retained events after a sequence number. |
 | `POST /api/events/brokers/{brokerId}/streams/{stream}/events` | Append an event to a stream. |
 
+All retained event routes require `Authorization: Bearer <token>`. The service
+returns unauthorized when no bearer token is present and hides missing or
+unauthorized broker resources behind the same not-found response.
+
 The C# `EventBrokerClient` is separate from Device Registry clients. A device
 application may opt into publishing device data or check-ins through
 `EventBrokerClient`, but Device Registry remains the owner of device identity,
 enrollment, presence, and twin state. Device-specific clients can still expose
 their own custom broker or endpoint integrations outside this CloudShell-managed
 event path.
+
+The token-aware `EventBrokerClient` constructors accept a
+`CloudShellResourceCredential` and request the standard `ControlPlane.Access`
+scope before calling the protected HTTP service.
 
 ## Resource Manager
 
@@ -142,6 +159,9 @@ The service receives:
   `CloudShell:EventBrokerService:ResourceId`
 - an optional retained event store path through
   `CloudShell:EventBrokerService:EventsPath`
+- built-in authority or service bearer settings through the shared
+  `Authentication:*` configuration used by other protected CloudShell runtime
+  services
 
 When `EventsPath` is omitted, the service stores retained events next to the
 broker definition file using a `.events.json` sidecar. This is the MVP
@@ -161,8 +181,8 @@ portable subset.
 
 - Device Registry still owns its experimental embedded MQTT endpoint; it is not
   bridged through Event Broker in this slice.
-- Resource access grants and broker-native permission reconciliation are future
-  work.
+- Broker-native permission reconciliation is future work. The built-in HTTP
+  retained event log already enforces CloudShell resource permission claims.
 - Event subscriptions, topic routing, dead-letter handling, retention policy
   controls, and provider-native topology inspection are future work.
 - Service Bus or operation queue resources for command/work delivery are

@@ -38,7 +38,8 @@ The end-to-end flow is:
 3. The standalone device app enrolls the current machine with subject
    `device/<machine>` and a local enrollment token proof.
 4. The registry validates the enrollment token and profile, then provisions a
-   `deviceIdentity` principal.
+   `deviceIdentity` principal with Configuration Store read and Event Broker
+   publish grants.
 5. The device requests a token with its issued credentials and reads a
    Configuration Store setting.
 6. The device sends heartbeat and sync calls so the registry records presence,
@@ -84,6 +85,12 @@ service resources:
 | Factory Event Broker HTTP | `http://localhost:7184` |
 | Factory Trust Vault | `http://localhost:7151` |
 | Device Settings | `http://localhost:7152` |
+
+The Event Broker retained event API is protected by CloudShell bearer tokens.
+The sample device app publishes check-in events using the enrolled device
+identity and the broker publish grant from its enrollment profile. The
+standalone `consume-events` helper accepts `CLOUDSHELL_EVENT_BROKER_TOKEN` when
+you want to read retained events with an identity that has broker read access.
 
 ## Run
 

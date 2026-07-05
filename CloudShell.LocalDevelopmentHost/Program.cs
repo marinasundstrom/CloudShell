@@ -91,6 +91,9 @@ cloudShell
         runtime.DefinitionsDirectory = Path.Combine(
             cloudShellDataDirectory,
             "event-broker-definitions");
+        runtime.ServiceAuthenticationIssuer = serviceAuthenticationIssuer;
+        runtime.ServiceAuthenticationAudience = serviceAuthenticationAudience;
+        runtime.ServiceAuthenticationSigningKeyPem = serviceAuthenticationSigningKeyPem;
     });
 builder.Services.AddLocalRabbitMQDockerRuntime();
 

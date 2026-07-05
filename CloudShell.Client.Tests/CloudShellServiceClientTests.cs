@@ -2,6 +2,7 @@ using CloudShell.Client.Authentication;
 using CloudShell.Configuration.Client;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.DeviceRegistry.Client;
+using CloudShell.EventBroker.Client;
 using CloudShell.Secrets.Client;
 using Microsoft.Extensions.Configuration;
 using System.Net;
@@ -158,6 +159,48 @@ public sealed class CloudShellServiceClientTests
         Assert.Equal(
             "http://localhost/api/secrets/vaults/secrets-vault%3Aapp/certificates",
             handler.Requests[0].RequestUri?.ToString());
+    }
+
+    [Fact]
+    public async Task EventBrokerClient_SendsBearerTokenAndPublishesEvent()
+    {
+        var handler = new RecordingHandler("""
+            {
+              "sequence": 1,
+              "id": "event-1",
+              "stream": "device-checkins",
+              "type": "cloudshell.device.checkin",
+              "timestamp": "2026-07-05T00:00:00+00:00",
+              "source": "device-app",
+              "subject": "device/test-pc",
+              "data": { "deviceId": "device-123" },
+              "properties": { "deviceId": "device-123" }
+            }
+            """);
+        var credential = new RecordingCredential("event-token");
+        var client = new EventBrokerClient(
+            new Uri("http://localhost"),
+            credential,
+            new HttpClient(handler),
+            ["ControlPlane.Access"]);
+
+        var published = await client.PublishAsync(
+            "event.broker:events",
+            "device-checkins",
+            new EventBrokerPublishRequest(
+                "cloudshell.device.checkin",
+                JsonSerializer.SerializeToElement(new { deviceId = "device-123" }),
+                Source: "device-app",
+                Subject: "device/test-pc"));
+
+        Assert.Equal(1, published.Sequence);
+        Assert.Equal("device-checkins", published.Stream);
+        Assert.Equal(
+            "http://localhost/api/events/brokers/event.broker%3Aevents/streams/device-checkins/events",
+            handler.Requests[0].RequestUri?.ToString());
+        Assert.Equal("Bearer", handler.Requests[0].Headers.Authorization?.Scheme);
+        Assert.Equal("event-token", handler.Requests[0].Headers.Authorization?.Parameter);
+        Assert.Equal(["ControlPlane.Access"], credential.RequestedScopes);
     }
 
     [Fact]

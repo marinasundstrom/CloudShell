@@ -411,9 +411,10 @@ files, or future managed-identity endpoints behind the provider while authored
 services continue to use `DefaultCloudShellResourceCredential`.
 
 Protected CloudShell service APIs validate runtime credentials separately from
-credential acquisition. Configuration Store and Secrets Vault use the shared
-CloudShell bearer middleware to accept either built-in authority tokens or
-configured external OIDC/OAuth JWT bearer tokens, then apply
+credential acquisition. Configuration Store, Secrets Vault, Device Registry,
+and Event Broker use the shared CloudShell bearer middleware to accept either
+built-in authority tokens or configured external OIDC/OAuth JWT bearer tokens,
+then apply
 `ResourcePermissionClaimAuthorization` to the resulting principal. The token
 issuer owns signing keys, client credentials, and claim mapping. CloudShell
 only requires the validated principal to carry scoped
@@ -425,9 +426,10 @@ to `AddRemoteControlPlane(...)` and use the domain-shaped `IControlPlane` or
 manager interfaces without passing raw bearer tokens through each call. Future
 service-specific SDK clients should reuse this credential contract.
 `CloudShell.Configuration.Client` and `CloudShell.Secrets.Client` are the first
-service-specific client packages that follow that pattern, and both depend on
-the lightweight `CloudShell.Client` credential package instead of the full
-Control Plane abstraction surface.
+service-specific client packages that follow that pattern. Event Broker uses
+the same credential contract for retained event reads and publishes, and these
+clients depend on the lightweight `CloudShell.Client` credential package
+instead of the full Control Plane abstraction surface.
 
 `ProvisionResourceIdentityAsync(resourceId)` asks the resolved identity
 provider to provision one resource identity and its matching permission grants.

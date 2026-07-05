@@ -38,9 +38,11 @@ resource definition, exposes a C# `AddEventBroker(...)` builder, projects
 endpoints into Resource Manager, and provides a built-in local HTTP retained
 event log. Publishers append immutable events to named streams, and consumers
 query retained events by sequence number through a separate `EventBrokerClient`.
-Broker-native permission reconciliation, live subscriptions, telemetry
-ingestion, Device Registry broker bridging, MQTT broker runtime, retention
-policy controls, and operation queues remain future work.
+The retained event HTTP API requires CloudShell bearer tokens with broker
+publish or read resource permission claims. Broker-native permission
+reconciliation, live subscriptions, telemetry ingestion, Device Registry broker
+bridging, MQTT broker runtime, retention policy controls, and operation queues
+remain future work.
 
 ## 2026-07-04
 

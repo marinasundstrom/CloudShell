@@ -14,6 +14,7 @@ registry_endpoint="${CLOUDSHELL_DEVICE_REGISTRY_ENDPOINT:-http://localhost:7150}
 registry_mqtt_endpoint="${CLOUDSHELL_DEVICE_REGISTRY_MQTT_ENDPOINT:-mqtt://localhost:7154}"
 registry_enrollment_token="${CLOUDSHELL_DEVICE_REGISTRY_ENROLLMENT_TOKEN:-local-development-device-enrollment-token}"
 event_broker_endpoint="${CLOUDSHELL_EVENT_BROKER_ENDPOINT:-http://localhost:7184}"
+event_broker_token="${CLOUDSHELL_EVENT_BROKER_TOKEN:-}"
 configuration_endpoint="${CLOUDSHELL_CONFIGURATION_STORE_ENDPOINT:-http://localhost:7152}"
 device_app_url="${CLOUDSHELL_DEVICE_APP_URL:-http://localhost:7153}"
 settings_resource_id="${CLOUDSHELL_CONFIGURATION_STORE_RESOURCE_ID:-configuration.store:device-settings}"
@@ -46,6 +47,7 @@ Environment:
   CLOUDSHELL_DEVICE_REGISTRY_MQTT_ENDPOINT  Device Registry MQTT endpoint. Default: $registry_mqtt_endpoint
   CLOUDSHELL_DEVICE_REGISTRY_ENROLLMENT_TOKEN  Device enrollment proof token.
   CLOUDSHELL_EVENT_BROKER_ENDPOINT          Event Broker endpoint. Default: $event_broker_endpoint
+  CLOUDSHELL_EVENT_BROKER_TOKEN             Bearer token for retained event reads.
   CLOUDSHELL_CONFIGURATION_STORE_ENDPOINT   Configuration Store endpoint. Default: $configuration_endpoint
   CLOUDSHELL_DEVICE_APP_URL                 Device app URL. Default: $device_app_url
 USAGE
@@ -125,11 +127,15 @@ case "$command" in
     curl -X POST "$device_app_url/enroll-current-device"
     ;;
   consume-events)
-    dotnet run --project "$event_consumer_project" -- \
-      --event-broker-endpoint "$event_broker_endpoint" \
-      --event-broker-resource-id "$event_broker_resource_id" \
-      --stream "$event_broker_stream" \
-      "$@"
+    event_consumer_args=(
+      --event-broker-endpoint "$event_broker_endpoint"
+      --event-broker-resource-id "$event_broker_resource_id"
+      --stream "$event_broker_stream"
+    )
+    if [[ -n "$event_broker_token" ]]; then
+      event_consumer_args+=(--bearer-token "$event_broker_token")
+    fi
+    dotnet run --project "$event_consumer_project" -- "${event_consumer_args[@]}" "$@"
     ;;
   help|--help|-h)
     usage

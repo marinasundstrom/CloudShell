@@ -1,4 +1,5 @@
 using CloudShell.EventBroker.Client;
+using System.Net.Http.Headers;
 using System.Text.Json;
 
 var endpoint = GetOption(args, "--event-broker-endpoint") ??
@@ -10,11 +11,20 @@ var brokerResourceId = GetOption(args, "--event-broker-resource-id") ??
 var stream = GetOption(args, "--stream") ??
     Environment.GetEnvironmentVariable("CLOUDSHELL_EVENT_BROKER_STREAM") ??
     "device-checkins";
+var bearerToken = GetOption(args, "--bearer-token") ??
+    Environment.GetEnvironmentVariable("CLOUDSHELL_EVENT_BROKER_TOKEN");
 var fromSequence = long.TryParse(GetOption(args, "--from-sequence"), out var parsedSequence)
     ? parsedSequence
     : 0;
 
-var client = new EventBrokerClient(new Uri(endpoint));
+using var httpClient = new HttpClient();
+if (!string.IsNullOrWhiteSpace(bearerToken))
+{
+    httpClient.DefaultRequestHeaders.Authorization =
+        new AuthenticationHeaderValue("Bearer", bearerToken);
+}
+
+var client = new EventBrokerClient(new Uri(endpoint), httpClient);
 Console.WriteLine($"Reading CloudShell Event Broker stream '{stream}' from {endpoint}.");
 var response = await client.ReadEventsAsync(
     brokerResourceId,

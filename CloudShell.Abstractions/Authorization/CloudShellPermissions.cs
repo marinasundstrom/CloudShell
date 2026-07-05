@@ -63,6 +63,15 @@ public static class DeviceRegistryResourceOperationPermissions
         "CloudShell.IoT/deviceRegistries/devices/manage/action";
 }
 
+public static class EventBrokerResourceOperationPermissions
+{
+    public const string PublishEvents =
+        "CloudShell.Events/eventBrokers/events/publish/action";
+
+    public const string ReadEvents =
+        "CloudShell.Events/eventBrokers/events/read/action";
+}
+
 public static class DatabaseResourceOperationPermissions
 {
     public const string ReadWrite =
@@ -210,6 +219,18 @@ public static class CloudShellPermissions
 
             public const string ManageDevices =
                 DeviceRegistryResourceOperationPermissions.ManageDevices;
+        }
+    }
+
+    public static class Events
+    {
+        public static class Actions
+        {
+            public const string Publish =
+                EventBrokerResourceOperationPermissions.PublishEvents;
+
+            public const string Read =
+                EventBrokerResourceOperationPermissions.ReadEvents;
         }
     }
 

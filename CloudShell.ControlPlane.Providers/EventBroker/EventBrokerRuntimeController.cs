@@ -13,6 +13,12 @@ public sealed class EventBrokerRuntimeOptions
         "EventBroker");
 
     public TimeSpan StartupTimeout { get; set; } = TimeSpan.FromSeconds(60);
+
+    public string? ServiceAuthenticationIssuer { get; set; }
+
+    public string? ServiceAuthenticationAudience { get; set; }
+
+    public string? ServiceAuthenticationSigningKeyPem { get; set; }
 }
 
 public interface IEventBrokerRuntimeController
@@ -67,7 +73,8 @@ public sealed class EventBrokerProcessRuntimeController(
                 _options.StartupTimeout)
             {
                 ServiceWorkingDirectory = _options.ServiceWorkingDirectory,
-                DefinitionsDirectory = _options.DefinitionsDirectory
+                DefinitionsDirectory = _options.DefinitionsDirectory,
+                EnvironmentVariables = CreateEnvironmentVariables(_options)
             },
             CreateDefinition,
             "event.broker",
@@ -92,6 +99,41 @@ public sealed class EventBrokerProcessRuntimeController(
             protocols = resource.Attributes.GetObject<EventBrokerProtocolEndpoint[]>(
                 EventBrokerResourceTypeProvider.Attributes.Protocols) ?? []
         };
+
+    private static IReadOnlyDictionary<string, string> CreateEnvironmentVariables(
+        EventBrokerRuntimeOptions options)
+    {
+        var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Authentication__BuiltInAuthority__Enabled"] = "true"
+        };
+
+        AddIfNotWhiteSpace(
+            variables,
+            "Authentication__BuiltInAuthority__Issuer",
+            options.ServiceAuthenticationIssuer);
+        AddIfNotWhiteSpace(
+            variables,
+            "Authentication__BuiltInAuthority__Audience",
+            options.ServiceAuthenticationAudience);
+        AddIfNotWhiteSpace(
+            variables,
+            "Authentication__BuiltInAuthority__SigningKeyPem",
+            options.ServiceAuthenticationSigningKeyPem);
+
+        return variables;
+    }
+
+    private static void AddIfNotWhiteSpace(
+        IDictionary<string, string> variables,
+        string name,
+        string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            variables[name] = value;
+        }
+    }
 }
 
 public sealed class NoopEventBrokerRuntimeController :
