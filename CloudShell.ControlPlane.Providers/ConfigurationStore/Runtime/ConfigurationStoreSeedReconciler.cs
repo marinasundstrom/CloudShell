@@ -3,7 +3,7 @@ using CloudShell.ControlPlane.ResourceModel;
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class ConfigurationStoreSeedReconciler(
-    IConfigurationStoreRuntimeEntryManager entries) : IResourceModelGraphApplyReconciler
+    IConfigurationStoreRuntimeSettingManager settings) : IResourceModelGraphApplyReconciler
 {
     public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ReconcileAsync(
         ResourceModelGraphDefinitionApplyReconciliationContext context,
@@ -16,17 +16,17 @@ public sealed class ConfigurationStoreSeedReconciler(
             if (!change.ChangeSet.IsNewResource ||
                 change.ChangeSet.Resource.Type.TypeId != ConfigurationStoreResourceTypeProvider.ResourceTypeId ||
                 !change.ChangeSet.ProposedState.ResourceAttributeValues.ContainsKey(
-                    ConfigurationStoreResourceTypeProvider.Attributes.Entries))
+                    ConfigurationStoreResourceTypeProvider.Attributes.Settings))
             {
                 continue;
             }
 
             var seedEntries = change.ChangeSet.ProposedState.ResourceAttributeValues
                 .GetObject<ConfigurationStoreSeedSetting[]>(
-                    ConfigurationStoreResourceTypeProvider.Attributes.Entries) ?? [];
+                    ConfigurationStoreResourceTypeProvider.Attributes.Settings) ?? [];
             var accepted = change.AcceptedState!;
 
-            await entries.UpdateEntriesAsync(
+            await settings.UpdateSettingsAsync(
                 new ProviderRuntimeResourceContext(
                     accepted.EffectiveResourceId,
                     accepted.Name,
@@ -34,9 +34,9 @@ public sealed class ConfigurationStoreSeedReconciler(
                     accepted.ResourceAttributes.GetValueOrDefault(
                         ConfigurationStoreResourceTypeProvider.Attributes.Endpoint)),
                 seedEntries
-                    .Select(entry => new ConfigurationStoreRuntimeEntry(
-                        entry.Name.Trim(),
-                        entry.Value))
+                    .Select(setting => new ConfigurationStoreRuntimeSetting(
+                        setting.Name.Trim(),
+                        setting.Value))
                     .ToArray(),
                 cancellationToken);
         }

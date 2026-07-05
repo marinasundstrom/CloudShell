@@ -435,7 +435,7 @@ resources:
       "resourceId": "configuration.store:typescript-app-settings",
       "providerId": "configuration",
       "displayName": "TypeScript App Settings",
-      "endpoint": "http://localhost:5101/api/configuration/stores/typescript-app-settings/entries"
+      "endpoint": "http://localhost:5101/api/configuration/stores/typescript-app-settings/settings"
     },
     {
       "name": "typescript-frontend",
@@ -457,10 +457,10 @@ resources:
         ],
         "environmentVariables": {
           "CLOUDSHELL_SETTINGS_ENDPOINT": {
-            "value": "http://localhost:5101/api/configuration/stores/typescript-app-settings/entries"
+            "value": "http://localhost:5101/api/configuration/stores/typescript-app-settings/settings"
           },
           "Sample__Message": {
-            "configurationEntryRef": {
+            "configurationSettingRef": {
               "storeResourceId": "configuration.store:typescript-app-settings",
               "name": "Sample--Message"
             }
@@ -535,7 +535,7 @@ resources:
         var settings = Assert.Single(template.Resources, resource =>
             resource.Name == "typescript-app-settings");
         Assert.Equal(
-            "http://localhost:5101/api/configuration/stores/typescript-app-settings/entries",
+            "http://localhost:5101/api/configuration/stores/typescript-app-settings/settings",
             settings.ResourceAttributes["endpoint"]);
 
         var frontend = Assert.Single(template.Resources, resource =>

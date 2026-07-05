@@ -11,11 +11,11 @@ public sealed class ConfigurationStoreResource(
     public string? Endpoint =>
         Resource.Attributes.GetString(ConfigurationStoreResourceTypeProvider.Attributes.Endpoint);
 
-    public int EntryCount =>
+    public int SettingCount =>
         int.TryParse(
-            Resource.Attributes.GetString(ConfigurationStoreResourceTypeProvider.Attributes.EntryCount),
-            out var entryCount)
-                ? entryCount
+            Resource.Attributes.GetString(ConfigurationStoreResourceTypeProvider.Attributes.SettingCount),
+            out var settingCount)
+                ? settingCount
                 : 0;
 
     public ValueTask<ConfigurationStoreInspectOperation?> GetInspectOperationAsync(

@@ -44,8 +44,8 @@ public static class StorageVolumeResourceOperationPermissions
 
 public static class ConfigurationStoreResourceOperationPermissions
 {
-    public const string ReadEntries =
-        "CloudShell.Configuration/stores/entries/read/action";
+    public const string ReadSettings =
+        "CloudShell.Configuration/stores/settings/read/action";
 }
 
 public static class SecretsVaultResourceOperationPermissions
@@ -188,7 +188,7 @@ public static class CloudShellPermissions
         public static class Actions
         {
             public const string Read =
-                ConfigurationStoreResourceOperationPermissions.ReadEntries;
+                ConfigurationStoreResourceOperationPermissions.ReadSettings;
         }
     }
 

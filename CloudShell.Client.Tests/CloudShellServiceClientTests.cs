@@ -22,7 +22,7 @@ public sealed class CloudShellServiceClientTests
             """);
         var credential = new RecordingCredential("configuration-token");
         var client = new ConfigurationStoreClient(
-            new Uri("http://localhost/api/configuration/stores/configuration%3Aapp/entries"),
+            new Uri("http://localhost/api/configuration/stores/configuration%3Aapp/settings"),
             credential,
             new HttpClient(handler),
             ["ControlPlane.Access"]);
@@ -44,7 +44,7 @@ public sealed class CloudShellServiceClientTests
             { "name": "Sample:Mode", "value": "Development" }
             """);
         var client = new ConfigurationStoreClient(
-            new Uri("http://localhost/api/configuration/entries?resourceId=configuration%3Aapp"),
+            new Uri("http://localhost/api/configuration/settings?resourceId=configuration%3Aapp"),
             new RecordingCredential("configuration-token"),
             new HttpClient(handler));
 
@@ -52,7 +52,7 @@ public sealed class CloudShellServiceClientTests
 
         Assert.Equal("Development", setting?.Value);
         Assert.Equal(
-            "http://localhost/api/configuration/entries/Sample%3AMode?resourceId=configuration%3Aapp",
+            "http://localhost/api/configuration/settings/Sample%3AMode?resourceId=configuration%3Aapp",
             handler.Requests[0].RequestUri?.ToString());
     }
 

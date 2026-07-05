@@ -25,14 +25,14 @@ public sealed class ConfigurationStoreResourceDefinitionBuilder(string name) :
         if (seed.Settings.Count > 0)
         {
             SetObjectAttribute(
-                ConfigurationStoreResourceTypeProvider.Attributes.Entries,
+                ConfigurationStoreResourceTypeProvider.Attributes.Settings,
                 seed.Settings);
         }
 
         return this;
     }
 
-    public ResourceConfigurationEntryReference Setting(
+    public ResourceConfigurationSettingReference Setting(
         string name,
         string? version = null)
     {

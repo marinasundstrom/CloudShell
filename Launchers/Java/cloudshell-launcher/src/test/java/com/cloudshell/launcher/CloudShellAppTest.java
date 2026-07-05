@@ -65,7 +65,7 @@ public final class CloudShellAppTest {
         assertContains(json, "\"resourceId\": \"configuration.store:settings\"");
         assertContains(json, "\"providerId\": \"secrets-vault\"");
         assertContains(json, "\"seed\": {");
-        assertContains(json, "\"entries\": [");
+        assertContains(json, "\"settings\": [");
         assertContains(json, "\"name\": \"Sample--Message\"");
         assertContains(json, "\"value\": \"Hello from Java\"");
         assertContains(json, "\"secrets\": [");
@@ -76,7 +76,7 @@ public final class CloudShellAppTest {
         assertContains(json, "\"name\": \"ApiTls\"");
         assertContains(json, "\"value\": \"java-certificate\"");
         assertContains(json, "\"contentType\": \"application/x-pem-file\"");
-        assertContains(json, "\"configurationEntryRef\": { \"storeResourceId\": \"configuration.store:settings\", \"name\": \"Sample--Message\" }");
+        assertContains(json, "\"configurationSettingRef\": { \"storeResourceId\": \"configuration.store:settings\", \"name\": \"Sample--Message\" }");
         assertContains(json, "\"secretRef\": { \"vaultResourceId\": \"secrets.vault:secrets\", \"name\": \"Sample--ApiKey\" }");
         assertContains(json, "\"path\": \"/ready\"");
         assertContains(json, "\"path\": \"/live\"");

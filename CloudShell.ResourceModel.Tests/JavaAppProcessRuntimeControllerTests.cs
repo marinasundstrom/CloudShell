@@ -101,8 +101,8 @@ public sealed class JavaAppProcessRuntimeControllerTests
         Assert.Equal(JavaAppRuntimeStatus.Stopped, controller.GetStatus(resource));
         Assert.Contains(
             controller.ReadOutput(resource.EffectiveResourceId),
-            entry => entry.Stream == "build" &&
-                entry.Message.Contains("build failed marker", StringComparison.Ordinal));
+            setting => setting.Stream == "build" &&
+                setting.Message.Contains("build failed marker", StringComparison.Ordinal));
     }
 
     private static Resource CreateResource(

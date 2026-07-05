@@ -24,7 +24,7 @@ var settingsServiceEndpoint = builder.Configuration["JavaScriptContainerApp:Sett
     ?? "http://localhost:5102";
 var settingsResourceId = "configuration.store:javascript-container-app-settings";
 var settingsApiEndpoint =
-    $"{settingsServiceEndpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(settingsResourceId)}/entries";
+    $"{settingsServiceEndpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(settingsResourceId)}/settings";
 var appEndpointUri = new Uri(appEndpoint);
 
 var cloudShell = builder.AddCloudShellControlPlaneApplication(
@@ -84,7 +84,7 @@ cloudShell.UseConfigurationStoreResourceProvider(runtime =>
 {
     runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
     runtime.ServiceWorkingDirectory = repositoryRootPath;
-    runtime.Entries.Add(new("Sample--Message", "Hello from the JavaScript container app host"));
+    runtime.Settings.Add(new("Sample--Message", "Hello from the JavaScript container app host"));
 });
 
 builder.AddCloudShellUi(ui =>

@@ -37,7 +37,7 @@ public sealed class ResourceProviderDispatcherTests
         services.AddConfigurationStoreResourceType(runtime =>
         {
             runtime.ServiceProjectPath = "services/configuration-store.csproj";
-            runtime.Entries.Add(new("Sample:Message", "Hello from graph"));
+            runtime.Settings.Add(new("Sample:Message", "Hello from graph"));
         });
         services.AddSecretsVaultResourceType(runtime =>
         {
@@ -77,7 +77,7 @@ public sealed class ResourceProviderDispatcherTests
 
         var configurationStore = serviceProvider.GetRequiredService<ConfigurationStoreRuntimeOptions>();
         Assert.Equal("services/configuration-store.csproj", configurationStore.ServiceProjectPath);
-        Assert.Equal("Sample:Message", Assert.Single(configurationStore.Entries).Name);
+        Assert.Equal("Sample:Message", Assert.Single(configurationStore.Settings).Name);
 
         var secretsVault = serviceProvider.GetRequiredService<SecretsVaultRuntimeOptions>();
         Assert.Equal("services/secrets-vault.csproj", secretsVault.ServiceProjectPath);
@@ -844,7 +844,7 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal("http://localhost:5138", validation.Resource.Attributes.GetString(
             ConfigurationStoreResourceTypeProvider.Attributes.Endpoint));
         Assert.Equal("0", validation.Resource.Attributes.GetString(
-            ConfigurationStoreResourceTypeProvider.Attributes.EntryCount));
+            ConfigurationStoreResourceTypeProvider.Attributes.SettingCount));
         Assert.True(validation.Resource.Operations.Has(
             ConfigurationStoreResourceTypeProvider.Operations.Inspect));
 
@@ -862,12 +862,12 @@ public sealed class ResourceProviderDispatcherTests
         Assert.NotNull(projection);
         Assert.Equal("store", projection.ConfigurationKind);
         Assert.Equal("http://localhost:5138", projection.Endpoint);
-        Assert.Equal(0, projection.EntryCount);
+        Assert.Equal(0, projection.SettingCount);
         var inspect = await projection.GetInspectOperationAsync();
 
         Assert.NotNull(inspect);
         Assert.True(await inspect.CanExecuteAsync());
-        Assert.Equal(0, inspect.PlanInspection().EntryCount);
+        Assert.Equal(0, inspect.PlanInspection().SettingCount);
     }
 
     [Fact]
@@ -881,7 +881,7 @@ public sealed class ResourceProviderDispatcherTests
             options.ServiceBearerAuthority = "http://identity.local/realms/cloudshell";
             options.ServiceBearerIssuer = "http://identity.local/realms/cloudshell";
             options.ServiceBearerRequireHttpsMetadata = false;
-            options.Entries.Add(new("Sample:Message", "Hello from graph"));
+            options.Settings.Add(new("Sample:Message", "Hello from graph"));
         });
         using var serviceProvider = services.BuildServiceProvider();
 
@@ -892,13 +892,13 @@ public sealed class ResourceProviderDispatcherTests
         Assert.Equal("http://identity.local/realms/cloudshell", options.ServiceBearerAuthority);
         Assert.Equal("http://identity.local/realms/cloudshell", options.ServiceBearerIssuer);
         Assert.False(options.ServiceBearerRequireHttpsMetadata);
-        var entry = Assert.Single(options.Entries);
-        Assert.Equal("Sample:Message", entry.Name);
-        Assert.Equal("Hello from graph", entry.Value);
+        var setting = Assert.Single(options.Settings);
+        Assert.Equal("Sample:Message", setting.Name);
+        Assert.Equal("Hello from graph", setting.Value);
     }
 
     [Fact]
-    public async Task ConfigurationStoreRuntimeEntryManager_UpdatesProviderOwnedRuntimeEntries()
+    public async Task ConfigurationStoreRuntimeSettingManager_UpdatesProviderOwnedRuntimeSettings()
     {
         var definitionsDirectory = Path.Combine(
             Path.GetTempPath(),
@@ -907,16 +907,16 @@ public sealed class ResourceProviderDispatcherTests
         services.AddConfigurationStoreResourceType(options =>
         {
             options.DefinitionsDirectory = definitionsDirectory;
-            options.Entries.Add(new("Sample:Message", "Hello from graph"));
+            options.Settings.Add(new("Sample:Message", "Hello from graph"));
         });
         using var serviceProvider = services.BuildServiceProvider();
 
-        var manager = serviceProvider.GetRequiredService<IConfigurationStoreRuntimeEntryManager>();
-        var initial = await manager.ListEntriesAsync("configuration.store:settings");
+        var manager = serviceProvider.GetRequiredService<IConfigurationStoreRuntimeSettingManager>();
+        var initial = await manager.ListSettingsAsync("configuration.store:settings");
 
         Assert.Equal("Sample:Message", Assert.Single(initial).Name);
 
-        await manager.UpdateEntriesAsync(
+        await manager.UpdateSettingsAsync(
             new ProviderRuntimeResourceContext(
                 "configuration.store:settings",
                 "settings",
@@ -925,9 +925,9 @@ public sealed class ResourceProviderDispatcherTests
             [new("Sample:Mode", "Development")]);
 
         var options = serviceProvider.GetRequiredService<ConfigurationStoreRuntimeOptions>();
-        var entry = Assert.Single(options.Entries);
-        Assert.Equal("Sample:Mode", entry.Name);
-        Assert.Equal("Development", entry.Value);
+        var setting = Assert.Single(options.Settings);
+        Assert.Equal("Sample:Mode", setting.Name);
+        Assert.Equal("Development", setting.Value);
 
         var definitionsPath = Path.Combine(
             definitionsDirectory,
@@ -936,17 +936,17 @@ public sealed class ResourceProviderDispatcherTests
         using var document = JsonDocument.Parse(File.ReadAllText(definitionsPath));
         var store = Assert.Single(document.RootElement.EnumerateArray());
         Assert.Equal("configuration.store:settings", store.GetProperty("id").GetString());
-        var jsonEntry = Assert.Single(store.GetProperty("entries").EnumerateArray());
+        var jsonEntry = Assert.Single(store.GetProperty("settings").EnumerateArray());
         Assert.Equal("Sample:Mode", jsonEntry.GetProperty("name").GetString());
         Assert.Equal("Development", jsonEntry.GetProperty("value").GetString());
     }
 
     [Fact]
-    public async Task ConfigurationStoreRuntimeInspector_ReportsConfiguredRuntimeEntryCount()
+    public async Task ConfigurationStoreRuntimeInspector_ReportsConfiguredRuntimeSettingCount()
     {
         var options = new ConfigurationStoreRuntimeOptions();
-        options.Entries.Add(new("Sample:Message", "Hello from graph"));
-        options.Entries.Add(new("Sample:Mode", "Graph"));
+        options.Settings.Add(new("Sample:Message", "Hello from graph"));
+        options.Settings.Add(new("Sample:Mode", "Graph"));
         var resource = new ResourceResolver(
             [ConfigurationStoreResourceTypeProvider.ClassDefinition],
             [new ConfigurationStoreResourceTypeProvider().TypeDefinition])
@@ -959,9 +959,9 @@ public sealed class ResourceProviderDispatcherTests
 
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal(ResourceDefinitionDiagnosticSeverity.Information, diagnostic.Severity);
-        Assert.Equal("configuration.store.inspect.runtimeEntries", diagnostic.Code);
+        Assert.Equal("configuration.store.inspect.runtimeSettings", diagnostic.Code);
         Assert.Equal(resource.EffectiveResourceId, diagnostic.Target);
-        Assert.Contains("2 configured entries", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("2 configured settings", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

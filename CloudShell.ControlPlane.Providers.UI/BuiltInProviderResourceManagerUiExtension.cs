@@ -190,29 +190,29 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 "devices",
                 31,
                 resourceClass: ResourceManagerResourceClass.Service)
-            .AddResourceTab<ConfigurationPages.ConfigurationStoreEntries>(
+            .AddResourceTab<ConfigurationPages.ConfigurationStoreSettings>(
                 ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(),
-                new ResourceViewId(ResourceTabGroupIds.Entries, "entries"),
+                new ResourceViewId(ResourceTabGroupIds.General, "settings"),
                 "Settings",
                 20,
                 showsApplyButton: true,
-                groupTitle: "Settings",
-                icon: "entries")
+                groupTitle: ResourceTabGroupTitles.General,
+                icon: "settings")
             .AddResourceTab<ConfigurationPages.SecretsVaultSecrets>(
                 SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),
-                new ResourceViewId(ResourceTabGroupIds.Secrets, "secrets"),
+                new ResourceViewId(ResourceTabGroupIds.General, "secrets"),
                 "Secrets",
                 20,
                 showsApplyButton: true,
-                groupTitle: ResourceTabGroupTitles.Secrets,
+                groupTitle: ResourceTabGroupTitles.General,
                 icon: "secrets")
             .AddResourceTab<ConfigurationPages.SecretsVaultCertificates>(
                 SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),
-                new ResourceViewId(ResourceTabGroupIds.Secrets, "certificates"),
+                new ResourceViewId(ResourceTabGroupIds.General, "certificates"),
                 "Certificates",
                 30,
                 showsApplyButton: true,
-                groupTitle: ResourceTabGroupTitles.Secrets,
+                groupTitle: ResourceTabGroupTitles.General,
                 icon: "certificates")
             .AddResourceTab<DeviceRegistryPages.DeviceRegistryDevices>(
                 DeviceRegistryResourceTypeProvider.ResourceTypeId.ToString(),

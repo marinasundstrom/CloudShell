@@ -64,7 +64,7 @@ The device app is intentionally not a CloudShell resource; it represents
 software running on the enrolled device.
 
 The launcher declares a group enrollment profile that grants matching devices
-read access to the Configuration Store entry. The registry expands that profile
+read access to the Configuration Store setting. The registry expands that profile
 into permissions for the device identity created during enrollment.
 
 The generic device client sends basic device properties during enrollment,

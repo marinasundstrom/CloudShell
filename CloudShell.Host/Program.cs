@@ -47,8 +47,8 @@ cloudShell
     {
         runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
         runtime.ServiceWorkingDirectory = repositoryRootPath;
-        runtime.Entries.Add(new("SampleMessage", "Hello from CloudShell configuration"));
-        runtime.Entries.Add(new("SampleMode", "Development"));
+        runtime.Settings.Add(new("SampleMessage", "Hello from CloudShell configuration"));
+        runtime.Settings.Add(new("SampleMode", "Development"));
     })
     .UseSecretsVaultResourceProvider(runtime =>
     {

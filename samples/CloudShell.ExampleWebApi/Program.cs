@@ -136,7 +136,7 @@ app.MapGet("/service-discovery/configuration-store", async (
     }
 
     var logicalEndpoint =
-        $"https+http://configuration.store-sample-app/api/configuration/stores/{Uri.EscapeDataString(storeId)}/entries";
+        $"https+http://configuration.store-sample-app/api/configuration/stores/{Uri.EscapeDataString(storeId)}/settings";
     var token = await credential.GetTokenAsync(
         new CloudShellResourceTokenRequest([ConfigurationStoreClient.DefaultScope]),
         cancellationToken);

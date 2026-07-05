@@ -98,8 +98,8 @@ public final class JavaAppResource extends ResourceBuilder<JavaAppResource> {
 
     public JavaAppResource withEnvironmentVariable(
         String name,
-        ConfigurationStoreResource.ConfigurationEntryReference reference) {
-        environment.add(new EnvironmentVariable(name, configurationEntryReferenceJson(reference)));
+        ConfigurationStoreResource.ConfigurationSettingReference reference) {
+        environment.add(new EnvironmentVariable(name, configurationSettingReferenceJson(reference)));
         return this;
     }
 
@@ -281,10 +281,10 @@ public final class JavaAppResource extends ResourceBuilder<JavaAppResource> {
         return "{ \"value\": " + json(value) + " }";
     }
 
-    private static String configurationEntryReferenceJson(
-        ConfigurationStoreResource.ConfigurationEntryReference reference) {
+    private static String configurationSettingReferenceJson(
+        ConfigurationStoreResource.ConfigurationSettingReference reference) {
         StringBuilder builder = new StringBuilder();
-        builder.append("{ \"configurationEntryRef\": { ");
+        builder.append("{ \"configurationSettingRef\": { ");
         builder.append("\"storeResourceId\": ").append(json(reference.storeResourceId())).append(", ");
         builder.append("\"name\": ").append(json(reference.name()));
         if (reference.version() != null) {

@@ -33,8 +33,8 @@ public sealed class ConfigurationStoreRuntimeInspector(
         [
             new(
                 ResourceDefinitionDiagnosticSeverity.Information,
-                "configuration.store.inspect.runtimeEntries",
-                $"Configuration Store runtime has {_options.Entries.Count} configured entr{(_options.Entries.Count == 1 ? "y" : "ies")} for '{resource.EffectiveResourceId}'.",
+                "configuration.store.inspect.runtimeSettings",
+                $"Configuration Store runtime has {_options.Settings.Count} configured setting{(_options.Settings.Count == 1 ? string.Empty : "s")} for '{resource.EffectiveResourceId}'.",
                 resource.EffectiveResourceId)
         ]);
     }

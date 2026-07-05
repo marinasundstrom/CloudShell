@@ -19,9 +19,9 @@ public static class ResourceSettingDisplay
     {
         ArgumentNullException.ThrowIfNull(setting);
 
-        if (setting.ConfigurationEntry is not null)
+        if (setting.ConfigurationSetting is not null)
         {
-            return Format(setting.ConfigurationEntry);
+            return Format(setting.ConfigurationSetting);
         }
 
         if (setting.Secret is not null)
@@ -36,9 +36,9 @@ public static class ResourceSettingDisplay
     {
         ArgumentNullException.ThrowIfNull(assignment);
 
-        if (assignment.ConfigurationEntry is not null)
+        if (assignment.ConfigurationSetting is not null)
         {
-            return Format(assignment.ConfigurationEntry);
+            return Format(assignment.ConfigurationSetting);
         }
 
         if (assignment.Secret is not null)
@@ -49,12 +49,12 @@ public static class ResourceSettingDisplay
         return assignment.Value;
     }
 
-    public static string Format(ConfigurationEntryReference reference)
+    public static string Format(ConfigurationSettingReference reference)
     {
         ArgumentNullException.ThrowIfNull(reference);
 
         return AppendVersion(
-            $"@CloudShell.Configuration(storeResourceId={reference.StoreResourceId}; entryName={reference.EntryName}",
+            $"@CloudShell.Configuration(storeResourceId={reference.StoreResourceId}; settingName={reference.SettingName}",
             reference.Version);
     }
 

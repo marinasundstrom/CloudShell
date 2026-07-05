@@ -13,7 +13,7 @@ var settingsEndpoint = app.Configuration["CSharpAppHost:SettingsEndpoint"]
     ?? "http://localhost:5103";
 var settingsResourceId = "configuration.store:csharp-app-settings";
 var settingsApiEndpoint =
-    $"{settingsEndpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(settingsResourceId)}/entries";
+    $"{settingsEndpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(settingsResourceId)}/settings";
 var appEndpoint = new Uri(app.Configuration["CSharpAppHost:AppEndpoint"]
     ?? Environment.GetEnvironmentVariable("CLOUDSHELL_APP_ENDPOINT")
     ?? "http://localhost:5175");

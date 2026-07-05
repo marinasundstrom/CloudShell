@@ -12,7 +12,7 @@ import {
 } from "@cloudshell/configuration-client";
 
 const client = new ConfigurationStoreClient(
-  "http://localhost:5138/api/configuration/stores/configuration.store%3Aapp/entries",
+  "http://localhost:5138/api/configuration/stores/configuration.store%3Aapp/settings",
   {
     credential: new StaticTokenCredential(process.env.CLOUDSHELL_TOKEN ?? "")
   });

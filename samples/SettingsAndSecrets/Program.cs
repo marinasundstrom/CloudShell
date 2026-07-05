@@ -129,7 +129,7 @@ var cloudShell = builder.AddCloudShellControlPlaneApplication(
                 .WithHttpHealthCheck(
                     "/health",
                     endpointName: "http");
-            settingsResource.Allow(api, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+            settingsResource.Allow(api, ConfigurationStoreResourceOperationPermissions.ReadSettings);
             secretsResource.Allow(api, SecretsVaultResourceOperationPermissions.ReadSecrets);
         }, AddProjectionState);
     });
@@ -141,8 +141,8 @@ cloudShell
         runtime.ServiceAuthenticationIssuer = identityIssuer;
         runtime.ServiceAuthenticationAudience = identityAudience;
         runtime.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
-        runtime.Entries.Add(new("Sample:Message", "Hello from a configuration setting"));
-        runtime.Entries.Add(new("Sample:Mode", "Development"));
+        runtime.Settings.Add(new("Sample:Message", "Hello from a configuration setting"));
+        runtime.Settings.Add(new("Sample:Mode", "Development"));
     })
     .UseSecretsVaultResourceProvider(runtime =>
     {
@@ -184,7 +184,7 @@ CloudShell.ResourceModel.ResourceState AddProjectionState(
     var attributes = state.ResourceAttributeValues.ToDictionary();
     if (state.EffectiveResourceId == settingsResourceId)
     {
-        attributes[ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] = 2;
+        attributes[ConfigurationStoreResourceTypeProvider.Attributes.SettingCount] = 2;
     }
     else
     {

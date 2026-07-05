@@ -3,12 +3,12 @@ using CloudShell.Abstractions.ResourceManager;
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class AspNetCoreProjectEnvironmentReferenceResolver(
-    IEnumerable<IConfigurationEntryReferenceResolver> configurationEntryResolvers,
+    IEnumerable<IConfigurationSettingReferenceResolver> configurationSettingResolvers,
     IEnumerable<ISecretReferenceResolver> secretResolvers) :
     IAspNetCoreProjectRuntimeEnvironmentProvider
 {
-    private readonly IReadOnlyList<IConfigurationEntryReferenceResolver> _configurationEntryResolvers =
-        configurationEntryResolvers.ToArray();
+    private readonly IReadOnlyList<IConfigurationSettingReferenceResolver> _configurationSettingResolvers =
+        configurationSettingResolvers.ToArray();
     private readonly IReadOnlyList<ISecretReferenceResolver> _secretResolvers =
         secretResolvers.ToArray();
 
@@ -32,14 +32,14 @@ public sealed class AspNetCoreProjectEnvironmentReferenceResolver(
         foreach (var (name, variable) in environmentVariables)
         {
             if (string.IsNullOrWhiteSpace(name) ||
-                (variable.ConfigurationEntryRef is null && variable.SecretRef is null))
+                (variable.ConfigurationSettingRef is null && variable.SecretRef is null))
             {
                 continue;
             }
 
             values[name.Trim()] = await ResolveValueAsync(
                 name,
-                variable.ConfigurationEntryRef,
+                variable.ConfigurationSettingRef,
                 variable.SecretRef,
                 context,
                 cancellationToken);
@@ -50,16 +50,16 @@ public sealed class AspNetCoreProjectEnvironmentReferenceResolver(
 
     private async ValueTask<string> ResolveValueAsync(
         string name,
-        ResourceConfigurationEntryReference? configurationEntry,
+        ResourceConfigurationSettingReference? configurationSetting,
         ResourceSecretReference? secret,
         ResourceSettingResolutionContext context,
         CancellationToken cancellationToken)
     {
-        if (configurationEntry is not null)
+        if (configurationSetting is not null)
         {
-            return ResolveConfigurationEntryValue(
+            return ResolveConfigurationSettingValue(
                 name,
-                ToAbstractionsReference(configurationEntry),
+                ToAbstractionsReference(configurationSetting),
                 context);
         }
 
@@ -75,15 +75,15 @@ public sealed class AspNetCoreProjectEnvironmentReferenceResolver(
         return string.Empty;
     }
 
-    private string ResolveConfigurationEntryValue(
+    private string ResolveConfigurationSettingValue(
         string name,
-        ConfigurationEntryReference reference,
+        ConfigurationSettingReference reference,
         ResourceSettingResolutionContext context)
     {
         var errors = new List<string>();
-        foreach (var resolver in _configurationEntryResolvers)
+        foreach (var resolver in _configurationSettingResolvers)
         {
-            var result = resolver.ResolveConfigurationEntry(reference, context);
+            var result = resolver.ResolveConfigurationSetting(reference, context);
             if (result.IsResolved)
             {
                 return result.Value ?? string.Empty;
@@ -96,9 +96,9 @@ public sealed class AspNetCoreProjectEnvironmentReferenceResolver(
         }
 
         var message = errors.Count == 0
-            ? $"No configuration provider can resolve entry '{reference.EntryName}' from '{reference.StoreResourceId}'."
+            ? $"No configuration provider can resolve setting '{reference.SettingName}' from '{reference.StoreResourceId}'."
             : string.Join(" ", errors);
-        throw new ResourceSettingResolutionException(name, "configuration-entry", message);
+        throw new ResourceSettingResolutionException(name, "configuration-setting", message);
     }
 
     private async ValueTask<string> ResolveSecretValueAsync(
@@ -128,8 +128,8 @@ public sealed class AspNetCoreProjectEnvironmentReferenceResolver(
         throw new ResourceSettingResolutionException(name, "secret", message);
     }
 
-    private static ConfigurationEntryReference ToAbstractionsReference(
-        ResourceConfigurationEntryReference reference) =>
+    private static ConfigurationSettingReference ToAbstractionsReference(
+        ResourceConfigurationSettingReference reference) =>
         new(
             reference.StoreResourceId,
             reference.Name,

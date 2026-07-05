@@ -170,7 +170,7 @@ func (r *NetworkResource) build() map[string]any {
 type ConfigurationStoreResource struct {
 	baseResource
 	endpoint string
-	entries  []ConfigurationSeedSetting
+	settings []ConfigurationSeedSetting
 }
 
 type ConfigurationStoreSeed struct {
@@ -182,7 +182,7 @@ type ConfigurationSeedSetting struct {
 	Value string `json:"value"`
 }
 
-type ConfigurationEntryReference struct {
+type ConfigurationSettingReference struct {
 	StoreResourceID string `json:"storeResourceId"`
 	Name            string `json:"name"`
 	Version         string `json:"version,omitempty"`
@@ -214,7 +214,7 @@ func (r *ConfigurationStoreResource) WithSeed(configure func(seed *Configuration
 
 	seed := &ConfigurationStoreSeed{}
 	configure(seed)
-	r.entries = append([]ConfigurationSeedSetting{}, seed.settings...)
+	r.settings = append([]ConfigurationSeedSetting{}, seed.settings...)
 	return r
 }
 
@@ -226,8 +226,8 @@ func (s *ConfigurationStoreSeed) Setting(name string, value string) *Configurati
 	return s
 }
 
-func (r *ConfigurationStoreResource) Setting(name string) ConfigurationEntryReference {
-	return ConfigurationEntryReference{
+func (r *ConfigurationStoreResource) Setting(name string) ConfigurationSettingReference {
+	return ConfigurationSettingReference{
 		StoreResourceID: r.ResourceID(),
 		Name:            requireNotBlank(name, "configuration setting name"),
 	}
@@ -243,9 +243,9 @@ func (r *ConfigurationStoreResource) build() map[string]any {
 		document["endpoint"] = r.endpoint
 	}
 
-	if len(r.entries) > 0 {
+	if len(r.settings) > 0 {
 		document["seed"] = map[string]any{
-			"entries": r.entries,
+			"settings": r.settings,
 		}
 	}
 

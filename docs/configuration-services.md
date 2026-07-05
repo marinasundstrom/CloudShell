@@ -41,7 +41,7 @@ controlPlane.DefineResources(resources =>
 Configuration Store settings, secret values, and certificate payloads are
 provider/runtime data.
 Templates may include create-only seed attributes for local development:
-`seed.entries` on a new Configuration Store, and `seed.secrets` or
+`seed.settings` on a new Configuration Store, and `seed.secrets` or
 `seed.certificates` on a new Secrets Vault. The `seed` hierarchy is reserved
 for create-time input and is not accepted when updating an existing resource.
 The Control Plane materializes those values into provider-owned runtime state
@@ -107,11 +107,11 @@ The create-only seed path is intended for development launchers, samples, and
 local environments. Production or on-premise hosts should treat seeded secret
 values as sensitive template input and prefer a permission-protected
 secret-import path when that workflow is added. Secrets Vault secret and
-certificate entries carry a `Version`, and references may request a specific
+certificate settings carry a `Version`, and references may request a specific
 version. If a runtime write omits the version, CloudShell generates one. If a
 write changes the payload for an existing version, the previous payload is kept
 and the changed payload is stored as a new generated version. When a reference
-omits the version, the runtime resolves the last matching entry for that name.
+omits the version, the runtime resolves the last matching setting for that name.
 Durable retention policy, activation/disabled state, soft-delete, and
 import/export semantics remain future vault work. Configuration Store setting
 versioning is not supported yet.
@@ -172,7 +172,7 @@ what keeps each process scoped to one configuration service instance.
 
 Configuration services expose their own resource log in the Logs view. The log
 uses the same local process runner as executable applications, so stdout,
-stderr, and lifecycle entries are available without modeling the service as an
+stderr, and lifecycle settings are available without modeling the service as an
 `application.executable` resource.
 
 The runtime is intentionally an implementation detail of the configuration
@@ -225,8 +225,8 @@ integrations use that credential chain internally.
 Applications fetch settings from:
 
 ```text
-GET <configuration-service-endpoint>/api/configuration/stores/{resource-id}/entries
-GET <configuration-service-endpoint>/api/configuration/stores/{resource-id}/entries/{name}
+GET <configuration-service-endpoint>/api/configuration/stores/{resource-id}/settings
+GET <configuration-service-endpoint>/api/configuration/stores/{resource-id}/settings/{name}
 ```
 
 The query-string route remains available for compatibility, but projected
@@ -241,7 +241,7 @@ Authorization: Bearer <token>
 
 The configuration service runtime validates the token and requires a matching
 resource-permission grant for
-`ConfigurationStoreResourceOperationPermissions.ReadEntries` on the target
+`ConfigurationStoreResourceOperationPermissions.ReadSettings` on the target
 configuration store resource. Missing tokens return `401`; invalid tokens,
 missing services, or missing grants return an unavailable or access-denied
 result from the caller's perspective.
@@ -275,7 +275,7 @@ certificate values from the sibling protected certificate collection. See
 [SDK clients](sdk-clients.md).
 Both the direct client and resource graph references support optional
 versioned secret and certificate reads; omitting the version resolves the
-current last matching vault entry.
+current last matching vault setting.
 
 In this model, the caller owns a resource identity, obtains authentication evidence through
 the selected identity provider, and the protected service validates that

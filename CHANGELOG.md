@@ -17,12 +17,14 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
-- Renamed Configuration Store runtime client terminology from entries to
-  settings across the C#, TypeScript, and Java clients, client-facing samples,
-  Resource Manager labels, and SDK documentation while preserving the existing
-  protected service route and resource attribute shape. Configuration Store
-  settings are now plain name/value data without an `isSecret` marker;
-  sensitive values belong in Secrets Vault.
+- Completed the Configuration Store terminology migration from entries to
+  settings across the service API, resource attributes, permissions, runtime
+  manager, app/environment references, launchers, samples, Resource Manager UI,
+  and SDK documentation. Configuration Store settings are plain name/value data
+  without an `isSecret` marker; sensitive values belong in Secrets Vault.
+- Moved the Configuration Store Settings tab and Secrets Vault content tabs
+  into the Resource Manager General section instead of giving each small
+  collection view its own same-named section.
 
 ### 2026-07-04
 

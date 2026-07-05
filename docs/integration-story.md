@@ -167,7 +167,7 @@ provider has only the service base URL, it builds the protected collection URL
 with this route shape:
 
 ```text
-GET <configuration-service-base-url>/api/configuration/stores/{resource-id}/entries
+GET <configuration-service-base-url>/api/configuration/stores/{resource-id}/settings
 GET <secrets-service-base-url>/api/secrets/vaults/{resource-id}/secrets
 ```
 

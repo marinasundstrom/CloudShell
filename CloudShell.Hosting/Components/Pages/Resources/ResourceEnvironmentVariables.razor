@@ -447,16 +447,16 @@ else
 
         public static AppSettingInput FromSetting(AppSetting setting)
         {
-            if (setting.ConfigurationEntry is not null)
+            if (setting.ConfigurationSetting is not null)
             {
                 return new AppSettingInput
                 {
                     Name = setting.Name,
                     OriginalName = setting.Name,
                     Source = EnvironmentVariableSource.Configuration,
-                    ReferenceResourceId = setting.ConfigurationEntry.StoreResourceId,
-                    ReferenceName = setting.ConfigurationEntry.EntryName,
-                    Version = setting.ConfigurationEntry.Version
+                    ReferenceResourceId = setting.ConfigurationSetting.StoreResourceId,
+                    ReferenceName = setting.ConfigurationSetting.SettingName,
+                    Version = setting.ConfigurationSetting.Version
                 };
             }
 
@@ -498,7 +498,7 @@ else
             {
                 EnvironmentVariableSource.Configuration => AppSetting.FromConfiguration(
                     name,
-                    new ConfigurationEntryReference(
+                    new ConfigurationSettingReference(
                         ReferenceResourceId?.Trim() ?? string.Empty,
                         ReferenceName?.Trim() ?? string.Empty,
                         Normalize(Version))),
@@ -549,16 +549,16 @@ else
 
         public static EnvironmentVariableInput FromAssignment(EnvironmentVariableAssignment assignment)
         {
-            if (assignment.ConfigurationEntry is not null)
+            if (assignment.ConfigurationSetting is not null)
             {
                 return new EnvironmentVariableInput
                 {
                     Name = assignment.Name,
                     OriginalName = assignment.Name,
                     Source = EnvironmentVariableSource.Configuration,
-                    ReferenceResourceId = assignment.ConfigurationEntry.StoreResourceId,
-                    ReferenceName = assignment.ConfigurationEntry.EntryName,
-                    Version = assignment.ConfigurationEntry.Version
+                    ReferenceResourceId = assignment.ConfigurationSetting.StoreResourceId,
+                    ReferenceName = assignment.ConfigurationSetting.SettingName,
+                    Version = assignment.ConfigurationSetting.Version
                 };
             }
 
@@ -600,7 +600,7 @@ else
             {
                 EnvironmentVariableSource.Configuration => EnvironmentVariableAssignment.FromConfiguration(
                     name,
-                    new ConfigurationEntryReference(
+                    new ConfigurationSettingReference(
                         ReferenceResourceId?.Trim() ?? string.Empty,
                         ReferenceName?.Trim() ?? string.Empty,
                         Normalize(Version))),

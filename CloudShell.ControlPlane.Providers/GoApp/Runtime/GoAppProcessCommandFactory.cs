@@ -122,7 +122,7 @@ public sealed class GoAppProcessCommandFactory
                 continue;
             }
 
-            if (variable.ConfigurationEntryRef is not null ||
+            if (variable.ConfigurationSettingRef is not null ||
                 variable.SecretRef is not null)
             {
                 continue;

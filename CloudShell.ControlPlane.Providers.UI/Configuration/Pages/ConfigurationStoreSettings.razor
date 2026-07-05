@@ -1,7 +1,7 @@
 @inject IResourceManager ResourceManager
 @inject IServiceProvider Services
 
-@if (EntryManager is null)
+@if (SettingManager is null)
 {
     <EmptyState Title="Setting management unavailable"
                 Message="This UI host does not have access to the Configuration Store runtime manager." />
@@ -26,7 +26,7 @@ else
             <ProcedureMessage Message="@ErrorMessage" />
         }
 
-        <ResourceEditorSection Class="configuration-store-entry-editor">
+        <ResourceEditorSection Class="configuration-store-setting-editor">
             <Actions>
                 <FluentButton Appearance="Appearance.Neutral"
                               IconStart="new Icons.Regular.Size20.Add()"
@@ -35,18 +35,18 @@ else
                 </FluentButton>
             </Actions>
             <ChildContent>
-                @foreach (var entry in Entries)
+                @foreach (var setting in Settings)
                 {
-                    <div class="environment-row configuration-entry-row configuration-entry-runtime-row">
+                    <div class="environment-row configuration-setting-row configuration-setting-runtime-row">
                         <FluentTextField AriaLabel="Configuration setting name"
                                          Placeholder="Name"
-                                         @bind-Value="entry.Name" />
+                                         @bind-Value="setting.Name" />
                         <FluentTextField AriaLabel="Configuration setting value"
                                          Placeholder="Value"
-                                         @bind-Value="entry.Value" />
+                                         @bind-Value="setting.Value" />
                         <FluentButton Appearance="Appearance.Neutral"
                                       IconStart="new Icons.Regular.Size20.Delete()"
-                                      OnClick="() => RemoveSetting(entry)">
+                                      OnClick="() => RemoveSetting(setting)">
                             Remove
                         </FluentButton>
                     </div>
@@ -64,29 +64,29 @@ else
     public string? ResourceId { get; set; }
 
     private CloudShell.Abstractions.ResourceManager.Resource? Resource { get; set; }
-    private IConfigurationStoreRuntimeEntryManager? EntryManager { get; set; }
-    private List<EntryInput> Entries { get; } = [];
+    private IConfigurationStoreRuntimeSettingManager? SettingManager { get; set; }
+    private List<SettingInput> Settings { get; } = [];
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
     private string? ErrorMessage { get; set; }
 
     protected override async Task OnParametersSetAsync()
     {
-        EntryManager = Services.GetService(typeof(IConfigurationStoreRuntimeEntryManager))
-            as IConfigurationStoreRuntimeEntryManager;
+        SettingManager = Services.GetService(typeof(IConfigurationStoreRuntimeSettingManager))
+            as IConfigurationStoreRuntimeSettingManager;
         Resource = string.IsNullOrWhiteSpace(ResourceId)
             ? null
             : await ResourceManager.GetResourceAsync(ResourceId);
 
-        Entries.Clear();
-        if (EntryManager is not null && Resource is not null)
+        Settings.Clear();
+        if (SettingManager is not null && Resource is not null)
         {
-            var entries = await EntryManager.ListEntriesAsync(Resource.Id);
-            Entries.AddRange(entries.Select(EntryInput.FromEntry));
+            var settings = await SettingManager.ListSettingsAsync(Resource.Id);
+            Settings.AddRange(settings.Select(SettingInput.FromSetting));
         }
 
-        if (Entries.Count == 0)
+        if (Settings.Count == 0)
         {
-            Entries.Add(new());
+            Settings.Add(new());
         }
 
         RegisterApplyHandler();
@@ -95,7 +95,7 @@ else
     private void RegisterApplyHandler()
     {
         if (Configuration is not null &&
-            EntryManager is not null &&
+            SettingManager is not null &&
             Resource is not null &&
             !ReferenceEquals(Configuration, RegisteredConfiguration))
         {
@@ -106,7 +106,7 @@ else
 
     private string GetSettingSummary()
     {
-        var count = Entries.Count(entry => !string.IsNullOrWhiteSpace(entry.Name));
+        var count = Settings.Count(setting => !string.IsNullOrWhiteSpace(setting.Name));
         return count == 1
             ? "1 runtime setting is configured for this store."
             : $"{count} runtime settings are configured for this store.";
@@ -114,16 +114,16 @@ else
 
     private void AddSetting()
     {
-        Entries.Add(new());
+        Settings.Add(new());
         ErrorMessage = null;
     }
 
-    private void RemoveSetting(EntryInput entry)
+    private void RemoveSetting(SettingInput setting)
     {
-        Entries.Remove(entry);
-        if (Entries.Count == 0)
+        Settings.Remove(setting);
+        if (Settings.Count == 0)
         {
-            Entries.Add(new());
+            Settings.Add(new());
         }
 
         ErrorMessage = null;
@@ -131,36 +131,36 @@ else
 
     private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
     {
-        if (EntryManager is null || Resource is null)
+        if (SettingManager is null || Resource is null)
         {
             return ResourceProcedureResult.Completed("Configuration Store setting management is unavailable.");
         }
 
-        var entries = BuildEntries();
-        if (entries is null)
+        var settings = BuildSettings();
+        if (settings is null)
         {
             return ResourceProcedureResult.Completed(ErrorMessage ?? "Configuration Store settings were not updated.");
         }
 
-        await EntryManager.UpdateEntriesAsync(
+        await SettingManager.UpdateSettingsAsync(
             CreateRuntimeContext(Resource),
-            entries,
+            settings,
             cancellationToken);
         ErrorMessage = null;
         return ResourceProcedureResult.Completed("Configuration Store settings updated.");
     }
 
-    private IReadOnlyList<ConfigurationStoreRuntimeEntry>? BuildEntries()
+    private IReadOnlyList<ConfigurationStoreRuntimeSetting>? BuildSettings()
     {
-        var entries = Entries
-            .Where(entry => !string.IsNullOrWhiteSpace(entry.Name))
-            .Select(entry => new ConfigurationStoreRuntimeEntry(
-                entry.Name!.Trim(),
-                entry.Value ?? string.Empty))
+        var settings = Settings
+            .Where(setting => !string.IsNullOrWhiteSpace(setting.Name))
+            .Select(setting => new ConfigurationStoreRuntimeSetting(
+                setting.Name!.Trim(),
+                setting.Value ?? string.Empty))
             .ToArray();
 
-        var duplicate = entries
-            .GroupBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+        var duplicate = settings
+            .GroupBy(setting => setting.Name, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault(group => group.Count() > 1)
             ?.Key;
         if (!string.IsNullOrWhiteSpace(duplicate))
@@ -169,7 +169,7 @@ else
             return null;
         }
 
-        return entries;
+        return settings;
     }
 
     private static ProviderRuntimeResourceContext CreateRuntimeContext(
@@ -181,17 +181,17 @@ else
             resource.ResourceAttributes.GetValueOrDefault(
                 ConfigurationStoreResourceTypeProvider.Attributes.Endpoint.ToString()));
 
-    private sealed class EntryInput
+    private sealed class SettingInput
     {
         public string? Name { get; set; }
 
         public string? Value { get; set; }
 
-        public static EntryInput FromEntry(ConfigurationStoreRuntimeEntry entry) =>
+        public static SettingInput FromSetting(ConfigurationStoreRuntimeSetting setting) =>
             new()
             {
-                Name = entry.Name,
-                Value = entry.Value
+                Name = setting.Name,
+                Value = setting.Value
             };
     }
 }

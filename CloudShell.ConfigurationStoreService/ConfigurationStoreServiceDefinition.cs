@@ -4,10 +4,10 @@ public sealed record ConfigurationStoreDefinition
 {
     public string Id { get; init; } = string.Empty;
 
-    public IReadOnlyList<ConfigurationEntry> Entries { get; init; } = [];
+    public IReadOnlyList<ConfigurationSetting> Settings { get; init; } = [];
 }
 
-public sealed record ConfigurationEntry(
+public sealed record ConfigurationSetting(
     string Name,
     string Value);
 

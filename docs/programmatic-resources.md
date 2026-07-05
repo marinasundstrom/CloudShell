@@ -248,7 +248,7 @@ dependencies, DNS zone declaration, name mapping DNS-zone/target
 dependencies, load balancer host/backend dependencies, and host configuration
 source declaration. Configuration and secrets builders can declare service
 endpoints and participate in dependencies, but they intentionally do not
-author configuration entries or secret values as graph attributes. Those
+author configuration settings or secret values as graph attributes. Those
 values remain provider/runtime data.
 
 Display names are optional presentation labels. Use `.WithDisplayName(...)`
@@ -929,7 +929,7 @@ resources:
 - CloudShell owns the core resource registration, group assignment, and
   dependency metadata.
 - Providers own resource-specific configuration such as executable command
-  settings or configuration entries.
+  settings or Configuration Store settings.
 
 `Persist()` writes both sides through their existing stores. Without `Persist()`,
 CloudShell does not create core registration rows for the declaration, and

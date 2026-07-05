@@ -36,7 +36,7 @@ func TestBuildsGoAppTemplate(t *testing.T) {
 		WithDisplayName("Go API").
 		WithServiceDiscovery().
 		WithEnvironmentVariable("PORT", "5186").
-		WithConfigurationEntry("Sample__Message", settings.Setting("Sample--Message")).
+		WithConfigurationSetting("Sample__Message", settings.Setting("Sample--Message")).
 		WithSecret("Sample__ApiKey", secrets.Secret("Sample--ApiKey")).
 		WithReference(settings).
 		WithReference(secrets).
@@ -129,7 +129,7 @@ func TestBuildsGoAppTemplate(t *testing.T) {
 	project := goResource["project"].(map[string]any)
 	environment := project["environmentVariables"].(map[string]any)
 	assertNestedEqual(t, "env literal", "5186", environment, "PORT", "value")
-	assertNestedEqual(t, "env configuration ref", "configuration.store:settings", environment, "Sample__Message", "configurationEntryRef", "storeResourceId")
+	assertNestedEqual(t, "env configuration ref", "configuration.store:settings", environment, "Sample__Message", "configurationSettingRef", "storeResourceId")
 	assertNestedEqual(t, "env secret ref", "secrets.vault:secrets", environment, "Sample__ApiKey", "secretRef", "vaultResourceId")
 
 	health := goResource["health"].(map[string]any)

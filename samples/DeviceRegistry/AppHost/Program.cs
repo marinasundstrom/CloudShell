@@ -45,7 +45,7 @@ app.DefineResources(resources =>
                 .RequireClaim("manufacturer", "cloudshell")
                 .GrantAccess(
                     settings,
-                    ConfigurationStoreResourceOperationPermissions.ReadEntries);
+                    ConfigurationStoreResourceOperationPermissions.ReadSettings);
         });
 });
 

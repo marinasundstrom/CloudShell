@@ -96,7 +96,7 @@ public sealed class JavaScriptAppProcessCommandFactory
                 continue;
             }
 
-            if (variable.ConfigurationEntryRef is not null ||
+            if (variable.ConfigurationSettingRef is not null ||
                 variable.SecretRef is not null)
             {
                 continue;

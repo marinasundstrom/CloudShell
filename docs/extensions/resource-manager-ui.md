@@ -193,8 +193,6 @@ The default Resource Manager tab groups are:
 | `networking` | Networking | Connectivity, reachability, endpoint exposure, DNS, names, and routing. | Endpoints, DNS |
 | `storage` | Storage | Volumes, mounts, storage ownership, and storage-provider details. | Storage, Volumes |
 | `environment` | Environment | Resource-provided environment, settings, or value-collection views when they are the resource's primary domain. | Provider-specific environment views |
-| `entries` | Entries | Configuration-store entry collections. | Entries |
-| `secrets` | Secrets | Secrets-vault secret collections and vault-owned secret management. | Secrets |
 | `runtime` | Runtime | Provider/runtime implementation detail views that are useful for inspection but are not the stable resource contract. | Containers, replicas, provider runtime views |
 | `telemetry` | Telemetry | Runtime/application signals emitted by or collected for the resource. | Logs, Traces, Metrics |
 | `management` | Management | Control-plane and operational management concerns such as identity, access control, monitoring, activity, and generated environment editing. | Identity, Access control, Monitoring, Environment, Activity |

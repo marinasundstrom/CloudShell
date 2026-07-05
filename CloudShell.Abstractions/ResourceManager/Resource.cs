@@ -295,7 +295,7 @@ public static class ResourceAttributeNames
     public const string DatabaseSource = "database.source";
     public const string DatabaseEnsureCreated = "database.ensureCreated";
     public const string EndpointCount = "endpoints.count";
-    public const string ConfigurationEntryCount = "configuration.entries";
+    public const string ConfigurationSettingCount = "configuration.entries";
     public const string InfrastructureKind = "infrastructure.kind";
     public const string InternetReachability = "internet.reachability";
     public const string NetworkKind = "network.kind";

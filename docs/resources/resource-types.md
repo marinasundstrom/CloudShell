@@ -95,7 +95,7 @@ resources:
   - type: configuration.store
     name: settings
     seed:
-      entries:
+      settings:
         - name: App--Message
           value: Hello from CloudShell
 
@@ -706,16 +706,16 @@ resources:
 
 Use for a Configuration Store service. Seed settings are create-only and are
 not retained as accepted graph state. The ResourceDefinition attribute remains
-`seed.entries` because the protected service API exposes entries, but builder
+`seed.settings` because the protected service API exposes settings, but builder
 APIs should present them as settings.
 
 Common optional attributes:
 
 - `kind`
 - `endpoint`
-- `seed.entries`
+- `seed.settings`
 
-Do not author `entryCount`; it is provider-managed.
+Do not author `settingCount`; it is provider-managed.
 
 ```yaml
 resources:
@@ -723,7 +723,7 @@ resources:
     name: settings
     endpoint: http://localhost:5101
     seed:
-      entries:
+      settings:
         - name: App--Message
           value: Hello from CloudShell
 ```
@@ -731,7 +731,7 @@ resources:
 ### `configuration.host`
 
 Use for a host configuration source when the host wants to project
-configuration entries into the resource graph. This is usually host-authored
+configuration settings into the resource graph. This is usually host-authored
 or provider-authored.
 
 Common optional attributes:
@@ -739,7 +739,7 @@ Common optional attributes:
 - `configuration.kind`
 - `configuration.source`
 
-Do not author `configuration.entries.count`; it is provider-managed.
+Do not author `configuration.settings.count`; it is provider-managed.
 
 ```yaml
 resources:
@@ -1256,7 +1256,7 @@ resources:
     name: settings
     endpoint: http://localhost:5101
     seed:
-      entries:
+      settings:
         - name: App--Message
           value: Hello from CloudShell
 

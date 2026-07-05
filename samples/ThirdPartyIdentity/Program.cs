@@ -82,7 +82,7 @@ var cloudShell = builder.AddCloudShellControlPlaneApplication(
                     .WithEnvironmentVariable(
                         "CLOUDSHELL_CONFIGURATION_SERVICE_NAME",
                         "third-party-identity");
-                configurationResource.Allow(apiResource, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+                configurationResource.Allow(apiResource, ConfigurationStoreResourceOperationPermissions.ReadSettings);
             },
             projectState: AddProjectionState);
         controlPlane.AddIdentityProvider(CreateKeycloakIdentityProviderDefinition(
@@ -99,7 +99,7 @@ cloudShell
         runtime.ServiceBearerIssuer = authority;
         runtime.ServiceBearerRequireHttpsMetadata =
             builder.Configuration.GetValue("Authentication:OpenIdConnect:RequireHttpsMetadata", true);
-        runtime.Entries.Add(new(
+        runtime.Settings.Add(new(
             "Sample:Message",
             "Hello from a Keycloak-provisioned resource identity"));
     });
@@ -187,6 +187,6 @@ GraphResourceState AddProjectionState(GraphResourceState state)
     }
 
     var attributes = state.ResourceAttributeValues.ToDictionary();
-    attributes[ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] = 1;
+    attributes[ConfigurationStoreResourceTypeProvider.Attributes.SettingCount] = 1;
     return state with { Attributes = new ResourceAttributeValueMap(attributes) };
 }

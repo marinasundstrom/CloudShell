@@ -13,7 +13,7 @@ var settingsServiceEndpoint = app.Configuration["JavaScriptApp:SettingsEndpoint"
     ?? "http://localhost:5101";
 var settingsResourceId = "configuration.store:javascript-app-settings";
 var settingsApiEndpoint =
-    $"{settingsServiceEndpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(settingsResourceId)}/entries";
+    $"{settingsServiceEndpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(settingsResourceId)}/settings";
 
 app.DefineResources(resources =>
 {

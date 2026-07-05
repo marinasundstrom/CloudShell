@@ -16,7 +16,7 @@ const dataDir = readArgumentValue("--data-dir") ??
 const settingsServiceEndpoint = "http://localhost:5101";
 const settingsResourceId = "configuration.store:typescript-app-settings";
 const settingsApiEndpoint =
-  `${settingsServiceEndpoint}/api/configuration/stores/${encodeURIComponent(settingsResourceId)}/entries`;
+  `${settingsServiceEndpoint}/api/configuration/stores/${encodeURIComponent(settingsResourceId)}/settings`;
 const secretsServiceEndpoint = "http://localhost:6101";
 const secretsResourceId = "secrets.vault:typescript-app-secrets";
 
@@ -53,7 +53,7 @@ app
     "CLOUDSHELL_SETTINGS_ENDPOINT",
     settingsApiEndpoint)
   .withEnvironmentVariable("Sample__Message", {
-    configurationEntryRef: settings.setting("Sample--Message")
+    configurationSettingRef: settings.setting("Sample--Message")
   })
   .withEnvironmentVariable("Sample__ApiKey", {
     secretRef: secrets.secret("Sample--ApiKey")

@@ -15,8 +15,8 @@ public sealed class ConfigurationStoreResourceTypeProvider :
     {
         public static readonly ResourceAttributeId Kind = "kind";
         public static readonly ResourceAttributeId Endpoint = "endpoint";
-        public static readonly ResourceAttributeId Entries = "seed.entries";
-        public static readonly ResourceAttributeId EntryCount = "entryCount";
+        public static readonly ResourceAttributeId Settings = "seed.settings";
+        public static readonly ResourceAttributeId SettingCount = "settingCount";
     }
 
     public static class Operations
@@ -40,21 +40,21 @@ public sealed class ConfigurationStoreResourceTypeProvider :
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.Endpoint] = new(
                 ValueType: ResourceAttributeValueType.String),
-            [Attributes.Entries] = ResourceAttributeDefinition.Collection(
+            [Attributes.Settings] = ResourceAttributeDefinition.Collection(
                 ResourceAttributeValueType.ComplexType,
                 itemShape: new(new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
                 {
                     ["name"] = new(
                         Required: true,
-                        RequiredMessage: "Setting entry name is required.",
+                        RequiredMessage: "Setting name is required.",
                         ValueType: ResourceAttributeValueType.String),
                     ["value"] = new(
                         Required: true,
-                        RequiredMessage: "Setting entry value is required.",
+                        RequiredMessage: "Setting value is required.",
                         ValueType: ResourceAttributeValueType.String)
                 }),
-                description: "Create-only setting entries used to seed a new Configuration Store resource."),
-            [Attributes.EntryCount] = new(
+                description: "Create-only settings used to seed a new Configuration Store resource."),
+            [Attributes.SettingCount] = new(
                 DefaultValue: 0,
                 ValueType: ResourceAttributeValueType.Integer,
                 ReadOnly: true,
@@ -70,10 +70,10 @@ public sealed class ConfigurationStoreResourceTypeProvider :
                 [
                     ResourceHealthCheckDefinition.Http(
                         "/healthz",
-                        endpointName: "entries"),
+                        endpointName: "settings"),
                     ResourceHealthCheckDefinition.HttpLiveness(
                         "/healthz",
-                        endpointName: "entries")
+                        endpointName: "settings")
                 ])))
         ],
         Operations:
@@ -104,14 +104,14 @@ public sealed class ConfigurationStoreResourceTypeProvider :
     {
         var diagnostics = new List<ResourceDefinitionDiagnostic>(changes.Diagnostics);
         diagnostics.AddRange(ValidateExplicitState(changes.ProposedState));
-        ValidateCreateOnlyEntries(changes, diagnostics);
+        ValidateCreateOnlySettings(changes, diagnostics);
 
         return ValueTask.FromResult(diagnostics.Any(diagnostic =>
             diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error)
                 ? ResourceChangeApplyResult.Rejected(changes, diagnostics)
                 : new ResourceChangeApplyResult(
                     changes,
-                    StripSeedEntries(changes.ProposedState),
+                    StripSeedSettings(changes.ProposedState),
                     diagnostics));
     }
 
@@ -143,8 +143,8 @@ public sealed class ConfigurationStoreResourceTypeProvider :
         Resource resource)
     {
         var diagnostics = new List<ResourceDefinitionDiagnostic>();
-        ValidateEntryCount(
-            resource.Attributes.GetString(Attributes.EntryCount),
+        ValidateSettingCount(
+            resource.Attributes.GetString(Attributes.SettingCount),
             diagnostics);
         return diagnostics;
     }
@@ -154,84 +154,84 @@ public sealed class ConfigurationStoreResourceTypeProvider :
     {
         var diagnostics = new List<ResourceDefinitionDiagnostic>();
 
-        if (state.ResourceAttributes.TryGetValue(Attributes.EntryCount, out var entryCount))
+        if (state.ResourceAttributes.TryGetValue(Attributes.SettingCount, out var settingCount))
         {
-            ValidateEntryCount(entryCount, diagnostics);
+            ValidateSettingCount(settingCount, diagnostics);
         }
 
-        if (state.ResourceAttributeValues.ContainsKey(Attributes.Entries))
+        if (state.ResourceAttributeValues.ContainsKey(Attributes.Settings))
         {
-            ValidateSeedEntries(state, diagnostics);
+            ValidateSeedSettings(state, diagnostics);
         }
 
         return diagnostics;
     }
 
-    private static void ValidateCreateOnlyEntries(
+    private static void ValidateCreateOnlySettings(
         ResourceChangeSet changes,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
         if (!changes.IsNewResource &&
-            changes.ProposedState.ResourceAttributeValues.ContainsKey(Attributes.Entries))
+            changes.ProposedState.ResourceAttributeValues.ContainsKey(Attributes.Settings))
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                "configuration.store.entriesSeedUpdateNotAllowed",
-                "Setting entries can only be supplied when creating a Configuration Store resource.",
-                Attributes.Entries));
+                "configuration.store.settingsSeedUpdateNotAllowed",
+                "Settings can only be supplied when creating a Configuration Store resource.",
+                Attributes.Settings));
         }
     }
 
-    private static void ValidateSeedEntries(
+    private static void ValidateSeedSettings(
         ResourceState state,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
-        var entries = state.ResourceAttributeValues.GetObject<ConfigurationStoreSeedSetting[]>(
-            Attributes.Entries) ?? [];
+        var settings = state.ResourceAttributeValues.GetObject<ConfigurationStoreSeedSetting[]>(
+            Attributes.Settings) ?? [];
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var entry in entries)
+        foreach (var setting in settings)
         {
-            if (string.IsNullOrWhiteSpace(entry.Name))
+            if (string.IsNullOrWhiteSpace(setting.Name))
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                    "configuration.store.seedEntryNameRequired",
-                    "Configuration Store setting entry name is required.",
-                    Attributes.Entries));
+                    "configuration.store.seedSettingNameRequired",
+                    "Configuration Store setting name is required.",
+                    Attributes.Settings));
             }
 
-            if (entry.Value is null)
+            if (setting.Value is null)
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                    "configuration.store.seedEntryValueRequired",
-                    "Configuration Store setting entry value is required.",
-                    Attributes.Entries));
+                    "configuration.store.seedSettingValueRequired",
+                    "Configuration Store setting value is required.",
+                    Attributes.Settings));
             }
 
-            if (!string.IsNullOrWhiteSpace(entry.Name) &&
-                !names.Add(entry.Name.Trim()))
+            if (!string.IsNullOrWhiteSpace(setting.Name) &&
+                !names.Add(setting.Name.Trim()))
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                    "configuration.store.seedEntryDuplicate",
-                    $"Configuration Store setting entry '{entry.Name}' is declared more than once.",
-                    Attributes.Entries));
+                    "configuration.store.seedSettingDuplicate",
+                    $"Configuration Store setting '{setting.Name}' is declared more than once.",
+                    Attributes.Settings));
             }
         }
     }
 
-    private static ResourceState StripSeedEntries(
+    private static ResourceState StripSeedSettings(
         ResourceState state)
     {
-        if (!state.ResourceAttributeValues.ContainsKey(Attributes.Entries))
+        if (!state.ResourceAttributeValues.ContainsKey(Attributes.Settings))
         {
             return state;
         }
 
-        var entries = state.ResourceAttributeValues.GetObject<ConfigurationStoreSeedSetting[]>(
-            Attributes.Entries) ?? [];
+        var settings = state.ResourceAttributeValues.GetObject<ConfigurationStoreSeedSetting[]>(
+            Attributes.Settings) ?? [];
         var attributes = state.ResourceAttributeValues
-            .Where(attribute => attribute.Key != Attributes.Entries)
+            .Where(attribute => attribute.Key != Attributes.Settings)
             .ToDictionary(attribute => attribute.Key, attribute => attribute.Value);
-        attributes[Attributes.EntryCount] = ResourceAttributeValue.Integer(entries.Length);
+        attributes[Attributes.SettingCount] = ResourceAttributeValue.Integer(settings.Length);
 
         return state with
         {
@@ -239,17 +239,17 @@ public sealed class ConfigurationStoreResourceTypeProvider :
         };
     }
 
-    private static void ValidateEntryCount(
-        string? entryCount,
+    private static void ValidateSettingCount(
+        string? settingCount,
         List<ResourceDefinitionDiagnostic> diagnostics)
     {
-        if (!string.IsNullOrWhiteSpace(entryCount) &&
-            (!int.TryParse(entryCount, out var count) || count < 0))
+        if (!string.IsNullOrWhiteSpace(settingCount) &&
+            (!int.TryParse(settingCount, out var count) || count < 0))
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                "configuration.store.entryCountInvalid",
-                "Configuration Store setting entry count must be a non-negative integer.",
-                Attributes.EntryCount));
+                "configuration.store.settingCountInvalid",
+                "Configuration Store setting count must be a non-negative integer.",
+                Attributes.SettingCount));
         }
     }
 }

@@ -239,8 +239,8 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
                 GoAppEnvironmentReferenceResolver>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
-                IConfigurationEntryReferenceResolver,
-                ConfigurationStoreRuntimeEntryReferenceResolver>());
+                IConfigurationSettingReferenceResolver,
+                ConfigurationStoreRuntimeSettingReferenceResolver>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 ISecretReferenceResolver,

@@ -804,14 +804,14 @@ public sealed class SampleSmokeTests
         var graphApi = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application.aspnet-core-project:application-topology-api");
 
-        var graphSettingsEndpoint = GetEndpointAddress(graphSettings, "entries");
+        var graphSettingsEndpoint = GetEndpointAddress(graphSettings, "settings");
         var graphSecretsEndpointAddress = GetEndpointAddress(graphSecrets, "secrets");
         Assert.StartsWith(
             graphConfigurationEndpoint,
             graphSettingsEndpoint,
             StringComparison.Ordinal);
         Assert.EndsWith(
-            $"/api/configuration/stores/{Uri.EscapeDataString("configuration.store:application-topology-settings")}/entries",
+            $"/api/configuration/stores/{Uri.EscapeDataString("configuration.store:application-topology-settings")}/settings",
             graphSettingsEndpoint,
             StringComparison.Ordinal);
         Assert.StartsWith(
@@ -843,14 +843,14 @@ public sealed class SampleSmokeTests
         using var graphSettingsDocument = JsonDocument.Parse(graphSettingsJson);
         Assert.Contains(
             graphSettingsDocument.RootElement.EnumerateArray(),
-            entry =>
-                entry.GetProperty("name").GetString() == "ApplicationTopology:Message" &&
-                entry.GetProperty("value").GetString() == "Hello from CloudShell resource configuration.");
+            setting =>
+                setting.GetProperty("name").GetString() == "ApplicationTopology:Message" &&
+                setting.GetProperty("value").GetString() == "Hello from CloudShell resource configuration.");
         Assert.Contains(
             graphSettingsDocument.RootElement.EnumerateArray(),
-            entry =>
-                entry.GetProperty("name").GetString() == "ApplicationTopology:Mode" &&
-                entry.GetProperty("value").GetString() == "Resource model");
+            setting =>
+                setting.GetProperty("name").GetString() == "ApplicationTopology:Mode" &&
+                setting.GetProperty("value").GetString() == "Resource model");
 
         var graphSecretJson = await host.GetAbsoluteStringAsync(
             $"{graphSecretsEndpointAddress.TrimEnd('/')}/ApplicationTopology--ExternalApiKey",
@@ -969,7 +969,7 @@ public sealed class SampleSmokeTests
             graphHostConfiguration.GetProperty("attributes").GetProperty("configuration.source").GetString());
         Assert.Equal(
             "0",
-            graphHostConfiguration.GetProperty("attributes").GetProperty("configuration.entries.count").GetString());
+            graphHostConfiguration.GetProperty("attributes").GetProperty("configuration.settings.count").GetString());
         Assert.True(
             graphHostConfiguration.GetProperty("resourceActions")
                 .TryGetProperty(HostConfigurationSourceResourceTypeProvider.Operations.Inspect.ToString(), out _));
@@ -1330,7 +1330,7 @@ public sealed class SampleSmokeTests
         Assert.Equal(apiEndpoint, GetPrimaryEndpointAddress(api));
         Assert.Equal(
             "2",
-            settings.GetProperty("attributes").GetProperty("entryCount").GetString());
+            settings.GetProperty("attributes").GetProperty("settingCount").GetString());
         Assert.Equal(
             "1",
             secrets.GetProperty("attributes").GetProperty("secretCount").GetString());
@@ -1420,7 +1420,7 @@ public sealed class SampleSmokeTests
                     new
                     {
                         id = configurationResourceId,
-                        entries = new[]
+                        settings = new[]
                         {
                             new
                             {
@@ -1473,7 +1473,7 @@ public sealed class SampleSmokeTests
                                     new
                                     {
                                         targetResourceId = configurationResourceId,
-                                        permission = ConfigurationStoreResourceOperationPermissions.ReadEntries
+                                        permission = ConfigurationStoreResourceOperationPermissions.ReadSettings
                                     }
                                 }
                             }
@@ -1849,7 +1849,7 @@ public sealed class SampleSmokeTests
         Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
         Assert.Equal("Third-party Identity Settings", settings.GetProperty("displayName").GetString());
         Assert.Equal("http://localhost:5138", settingsAttributes.GetProperty("endpoint").GetString());
-        Assert.Equal("1", settingsAttributes.GetProperty("entryCount").GetString());
+        Assert.Equal("1", settingsAttributes.GetProperty("settingCount").GetString());
         Assert.Equal("application.aspnet-core-project", api.GetProperty("typeId").GetString());
         Assert.Equal("Keycloak Provisioned API", api.GetProperty("displayName").GetString());
         Assert.EndsWith(

@@ -104,7 +104,7 @@ app.Run();
 static Uri BuildConfigurationSettingsEndpoint(
     string configurationEndpoint,
     string configurationResourceId) =>
-    new($"{configurationEndpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(configurationResourceId)}/entries");
+    new($"{configurationEndpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(configurationResourceId)}/settings");
 
 static async Task<string> RequestAccessTokenAsync(
     DeviceEnrollmentResponse enrollment,

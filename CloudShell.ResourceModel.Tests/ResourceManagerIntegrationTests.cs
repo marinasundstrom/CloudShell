@@ -1595,7 +1595,7 @@ resources:
           providerId: identity:development
           sourceResourceId: application.executable:api
           sourceIdentityName: api-service
-        permission: CloudShell.Configuration/stores/entries/read/action
+        permission: CloudShell.Configuration/stores/settings/read/action
 """);
 
         var result = await service.ApplyTemplateAsync(
@@ -1617,7 +1617,7 @@ resources:
 
         var grant = Assert.Single(declarations.GetPermissionGrants());
         Assert.Equal("configuration.store:settings", grant.TargetResourceId);
-        Assert.Equal(ConfigurationStoreResourceOperationPermissions.ReadEntries, grant.Permission);
+        Assert.Equal(ConfigurationStoreResourceOperationPermissions.ReadSettings, grant.Permission);
         Assert.Equal(ResourcePrincipalKind.ResourceIdentity, grant.Principal.Kind);
         Assert.Equal("application.executable:api/identities/api-service", grant.Principal.Id);
         Assert.Equal("identity:development", grant.Principal.ProviderId);
@@ -1841,25 +1841,25 @@ resources:
 
         Assert.False(create.HasErrors, FormatDiagnostics(create.Diagnostics));
         Assert.True(create.IsCommitted);
-        var entry = Assert.Single(await serviceProvider
-            .GetRequiredService<IConfigurationStoreRuntimeEntryManager>()
-            .ListEntriesAsync(store.EffectiveResourceId));
-        Assert.Equal("Sample--Message", entry.Name);
-        Assert.Equal("Hello from template", entry.Value);
+        var setting = Assert.Single(await serviceProvider
+            .GetRequiredService<IConfigurationStoreRuntimeSettingManager>()
+            .ListSettingsAsync(store.EffectiveResourceId));
+        Assert.Equal("Sample--Message", setting.Name);
+        Assert.Equal("Hello from template", setting.Value);
 
         var committed = Assert.Single(create.Commit.Snapshot!.Resources);
         Assert.False(committed.ResourceAttributeValues.ContainsKey(
-            ConfigurationStoreResourceTypeProvider.Attributes.Entries));
+            ConfigurationStoreResourceTypeProvider.Attributes.Settings));
         Assert.Equal("1", committed.ResourceAttributes[
-            ConfigurationStoreResourceTypeProvider.Attributes.EntryCount]);
+            ConfigurationStoreResourceTypeProvider.Attributes.SettingCount]);
 
         var export = await templates.ExportTemplateAsync("configuration-store-export");
         Assert.False(export.HasErrors, FormatDiagnostics(export.Diagnostics));
         var exportedStore = Assert.Single(export.Template.Resources);
         Assert.False(exportedStore.ResourceAttributeValues.ContainsKey(
-            ConfigurationStoreResourceTypeProvider.Attributes.Entries));
+            ConfigurationStoreResourceTypeProvider.Attributes.Settings));
         Assert.False(exportedStore.ResourceAttributeValues.ContainsKey(
-            ConfigurationStoreResourceTypeProvider.Attributes.EntryCount));
+            ConfigurationStoreResourceTypeProvider.Attributes.SettingCount));
 
         var update = await apply.ApplyTemplateAsync(
             new ResourceTemplate("configuration-store-update", [store]),
@@ -1870,7 +1870,7 @@ resources:
         Assert.True(update.HasErrors);
         Assert.False(update.IsCommitted);
         Assert.Contains(update.Diagnostics, diagnostic =>
-            diagnostic.Code == "configuration.store.entriesSeedUpdateNotAllowed");
+            diagnostic.Code == "configuration.store.settingsSeedUpdateNotAllowed");
     }
 
     [Fact]
@@ -3958,7 +3958,7 @@ resources:
         Assert.Equal(ConfigurationStoreResourceTypeProvider.ProviderId, projectedStore.Provider);
         Assert.Equal("store", projectedStore.ResourceAttributes["kind"]);
         Assert.Equal("http://localhost:5138", projectedStore.ResourceAttributes["endpoint"]);
-        Assert.Equal("0", projectedStore.ResourceAttributes["entryCount"]);
+        Assert.Equal("0", projectedStore.ResourceAttributes["settingCount"]);
         Assert.Contains(projectedStore.ResourceCapabilities, capability =>
             capability.Id == ResourceCapabilityIds.EndpointSource);
         Assert.Contains(projectedStore.ResourceCapabilities, capability =>
@@ -3967,7 +3967,7 @@ resources:
             capability.Id == ResourceHealthCheckCapabilityIds.HealthChecks.ToString());
         Assert.Contains(projectedStore.ResourceCapabilities, capability =>
             capability.Id == ResourceHealthCheckCapabilityIds.Liveness.ToString());
-        AssertServiceHealthAndLiveness(projectedStore, "entries");
+        AssertServiceHealthAndLiveness(projectedStore, "settings");
         var inspect = Assert.Single(projectedStore.ResourceActions, action =>
             action.Id == ConfigurationStoreResourceTypeProvider.Operations.Inspect.ToString());
 
@@ -3982,7 +3982,7 @@ resources:
                 .GetResourceProjectionAsync(
                     resolution.Target!,
                     new ResourceProjectionContext("local", "developer")));
-        Assert.Equal(0, projection.EntryCount);
+        Assert.Equal(0, projection.SettingCount);
 
         var procedure = new ResourceProcedureContext(
             projectedStore,
@@ -4034,7 +4034,7 @@ resources:
         Assert.Equal(HostConfigurationSourceResourceTypeProvider.ProviderId, projectedSource.Provider);
         Assert.Equal("host", projectedSource.ResourceAttributes["configuration.kind"]);
         Assert.Equal("host", projectedSource.ResourceAttributes["configuration.source"]);
-        Assert.Equal("0", projectedSource.ResourceAttributes["configuration.entries.count"]);
+        Assert.Equal("0", projectedSource.ResourceAttributes["configuration.settings.count"]);
         var inspect = Assert.Single(projectedSource.ResourceActions, action =>
             action.Id == HostConfigurationSourceResourceTypeProvider.Operations.Inspect.ToString());
 
@@ -6298,7 +6298,7 @@ resources:
             serviceDiscoveryVariables["services__application-topology-sql-server__tds__0"]);
         Assert.Equal(
             "http://localhost:5138",
-            serviceDiscoveryVariables["services__application-topology-settings__entries__0"]);
+            serviceDiscoveryVariables["services__application-topology-settings__settings__0"]);
         Assert.Equal(
             "http://localhost:6138",
             serviceDiscoveryVariables["services__application-topology-secrets__secrets__0"]);
@@ -6419,13 +6419,13 @@ resources:
         Assert.Equal(ResourceManagerClass.Infrastructure, projectedIdentity.ResourceClass);
         Assert.Equal(ResourceManagerClass.Configuration, projectedSettings.ResourceClass);
         Assert.Equal(ResourceManagerClass.SecretsVault, projectedSecrets.ResourceClass);
-        AssertServiceHealthAndLiveness(projectedSettings, "entries");
+        AssertServiceHealthAndLiveness(projectedSettings, "settings");
         var settingsEndpoint = Assert.Single(projectedSettings.Endpoints);
-        Assert.Equal("entries", settingsEndpoint.Name);
+        Assert.Equal("settings", settingsEndpoint.Name);
         Assert.Equal("http", settingsEndpoint.Protocol);
         Assert.Equal(5138, settingsEndpoint.TargetPort);
         Assert.Equal(
-            $"http://localhost:5138/api/configuration/stores/{Uri.EscapeDataString(settings.EffectiveResourceId)}/entries",
+            $"http://localhost:5138/api/configuration/stores/{Uri.EscapeDataString(settings.EffectiveResourceId)}/settings",
             Assert.Single(projectedSettings.ResourceEndpointNetworkMappings).Address);
         AssertServiceHealthAndLiveness(projectedSecrets, "secrets");
         var secretsEndpoint = Assert.Single(projectedSecrets.Endpoints);

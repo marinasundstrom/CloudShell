@@ -71,7 +71,7 @@ public sealed class ConfigurationStoreInspectOperation(
         new(
             Resource,
             Resource.Attributes.GetString(ConfigurationStoreResourceTypeProvider.Attributes.Endpoint),
-            GetEntryCount(Resource));
+            GetSettingCount(Resource));
 
     public async ValueTask<ResourceOperationExecutionResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
@@ -99,15 +99,15 @@ public sealed class ConfigurationStoreInspectOperation(
             diagnostics);
     }
 
-    private static int GetEntryCount(Resource resource) =>
+    private static int GetSettingCount(Resource resource) =>
         int.TryParse(
-            resource.Attributes.GetString(ConfigurationStoreResourceTypeProvider.Attributes.EntryCount),
-            out var entryCount)
-                ? entryCount
+            resource.Attributes.GetString(ConfigurationStoreResourceTypeProvider.Attributes.SettingCount),
+            out var settingCount)
+                ? settingCount
                 : 0;
 }
 
 public sealed record ConfigurationStoreInspectionPlan(
     Resource Resource,
     string? Endpoint,
-    int EntryCount);
+    int SettingCount);

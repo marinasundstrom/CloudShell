@@ -2,26 +2,26 @@ using System.Text.Json;
 
 namespace CloudShell.ControlPlane.Providers;
 
-public interface IConfigurationStoreRuntimeEntryManager
+public interface IConfigurationStoreRuntimeSettingManager
 {
-    ValueTask<IReadOnlyList<ConfigurationStoreRuntimeEntry>> ListEntriesAsync(
+    ValueTask<IReadOnlyList<ConfigurationStoreRuntimeSetting>> ListSettingsAsync(
         string resourceId,
         CancellationToken cancellationToken = default);
 
-    ValueTask UpdateEntriesAsync(
+    ValueTask UpdateSettingsAsync(
         ProviderRuntimeResourceContext resource,
-        IReadOnlyList<ConfigurationStoreRuntimeEntry> entries,
+        IReadOnlyList<ConfigurationStoreRuntimeSetting> settings,
         CancellationToken cancellationToken = default);
 }
 
-public sealed class ConfigurationStoreRuntimeEntryManager(
-    ConfigurationStoreRuntimeOptions options) : IConfigurationStoreRuntimeEntryManager
+public sealed class ConfigurationStoreRuntimeSettingManager(
+    ConfigurationStoreRuntimeOptions options) : IConfigurationStoreRuntimeSettingManager
 {
     private readonly ConfigurationStoreRuntimeOptions _options = options;
     private readonly object _gate = new();
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
-    public ValueTask<IReadOnlyList<ConfigurationStoreRuntimeEntry>> ListEntriesAsync(
+    public ValueTask<IReadOnlyList<ConfigurationStoreRuntimeSetting>> ListSettingsAsync(
         string resourceId,
         CancellationToken cancellationToken = default)
     {
@@ -30,31 +30,31 @@ public sealed class ConfigurationStoreRuntimeEntryManager(
 
         lock (_gate)
         {
-            return ValueTask.FromResult<IReadOnlyList<ConfigurationStoreRuntimeEntry>>(
-                _options.Entries
-                    .OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+            return ValueTask.FromResult<IReadOnlyList<ConfigurationStoreRuntimeSetting>>(
+                _options.Settings
+                    .OrderBy(setting => setting.Name, StringComparer.OrdinalIgnoreCase)
                     .ToArray());
         }
     }
 
-    public ValueTask UpdateEntriesAsync(
+    public ValueTask UpdateSettingsAsync(
         ProviderRuntimeResourceContext resource,
-        IReadOnlyList<ConfigurationStoreRuntimeEntry> entries,
+        IReadOnlyList<ConfigurationStoreRuntimeSetting> settings,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(resource);
-        ArgumentNullException.ThrowIfNull(entries);
+        ArgumentNullException.ThrowIfNull(settings);
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (_gate)
         {
-            _options.Entries.Clear();
-            foreach (var entry in entries)
+            _options.Settings.Clear();
+            foreach (var setting in settings)
             {
-                _options.Entries.Add(entry);
+                _options.Settings.Add(setting);
             }
 
-            WriteDefinition(resource, _options.Entries.ToArray());
+            WriteDefinition(resource, _options.Settings.ToArray());
         }
 
         return ValueTask.CompletedTask;
@@ -62,7 +62,7 @@ public sealed class ConfigurationStoreRuntimeEntryManager(
 
     private void WriteDefinition(
         ProviderRuntimeResourceContext resource,
-        IReadOnlyList<ConfigurationStoreRuntimeEntry> entries)
+        IReadOnlyList<ConfigurationStoreRuntimeSetting> settings)
     {
         var directory = Path.Combine(_options.DefinitionsDirectory, SanitizeFileName(resource.ResourceId));
         Directory.CreateDirectory(directory);
@@ -76,10 +76,10 @@ public sealed class ConfigurationStoreRuntimeEntryManager(
                 name = resource.Name,
                 displayName = resource.DisplayName,
                 endpoint = resource.Endpoint,
-                entries = entries.Select(entry => new
+                settings = settings.Select(setting => new
                 {
-                    entry.Name,
-                    entry.Value
+                    setting.Name,
+                    setting.Value
                 }).ToArray(),
                 healthChecks = Array.Empty<object>()
             }

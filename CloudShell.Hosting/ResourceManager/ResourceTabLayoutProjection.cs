@@ -83,8 +83,6 @@ internal static class ResourceTabLayoutProjection
                 ResourceTabGroupIds.Telemetry => ResourceTabGroupTitles.Telemetry,
                 ResourceTabGroupIds.Management => ResourceTabGroupTitles.Management,
                 ResourceTabGroupIds.Runtime => ResourceTabGroupTitles.Runtime,
-                ResourceTabGroupIds.Entries => ResourceTabGroupTitles.Entries,
-                ResourceTabGroupIds.Secrets => ResourceTabGroupTitles.Secrets,
                 _ => tab.GroupId
             };
 

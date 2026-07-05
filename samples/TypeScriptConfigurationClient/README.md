@@ -12,7 +12,7 @@ Run against an injected or explicit endpoint:
 
 ```bash
 npm install
-CLOUDSHELL_CONFIGURATION_APP_SETTINGS_ENDPOINT=http://localhost:5138/api/configuration/stores/configuration.store%3Aapp-settings/entries \
+CLOUDSHELL_CONFIGURATION_APP_SETTINGS_ENDPOINT=http://localhost:5138/api/configuration/stores/configuration.store%3Aapp-settings/settings \
 CLOUDSHELL_TOKEN=<token> \
 npm run read
 ```

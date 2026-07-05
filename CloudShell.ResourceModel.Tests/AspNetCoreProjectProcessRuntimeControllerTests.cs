@@ -129,7 +129,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             environmentVariables: new Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>
             {
                 ["SAMPLE_MESSAGE"] = new(
-                    ConfigurationEntryRef: new(
+                    ConfigurationSettingRef: new(
                         "configuration.store:sample-app",
                         "Sample:Message")),
                 ["SAMPLE_API_KEY"] = new(
@@ -139,7 +139,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
                 ["LITERAL"] = new("literal")
             });
         var resolver = new AspNetCoreProjectEnvironmentReferenceResolver(
-            [new FixedConfigurationEntryReferenceResolver()],
+            [new FixedConfigurationSettingReferenceResolver()],
             [new FixedSecretReferenceResolver()]);
 
         var values = await resolver.ResolveAsync(resource);
@@ -237,10 +237,10 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
 
         Assert.Equal(
             "http://127.0.0.1:5138",
-            variables["services__graph-settings__entries__0"]);
+            variables["services__graph-settings__settings__0"]);
         Assert.Equal(
             "http://127.0.0.1:5138",
-            variables["services__configuration.store-graph-settings__entries__0"]);
+            variables["services__configuration.store-graph-settings__settings__0"]);
         Assert.Equal(
             "graph-settings",
             variables["CLOUDSHELL_CONFIGURATION_SERVICE_NAME"]);
@@ -248,10 +248,10 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             configurationResourceId,
             variables["CLOUDSHELL_CONFIGURATION_GRAPH_SETTINGS_STORE_ID"]);
         Assert.Equal(
-            "http://127.0.0.1:5138/api/configuration/stores/configuration.store%3Agraph-settings/entries",
+            "http://127.0.0.1:5138/api/configuration/stores/configuration.store%3Agraph-settings/settings",
             variables["CLOUDSHELL_CONFIGURATION_GRAPH_SETTINGS_ENDPOINT"]);
         Assert.Equal(
-            "http://127.0.0.1:5138/api/configuration/stores/configuration.store%3Agraph-settings/entries",
+            "http://127.0.0.1:5138/api/configuration/stores/configuration.store%3Agraph-settings/settings",
             variables["CLOUDSHELL_CONFIGURATION_CONFIGURATION_STORE_GRAPH_SETTINGS_ENDPOINT"]);
         Assert.Equal(
             "http://127.0.0.1:6138",
@@ -642,18 +642,18 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             ValueTask.FromResult(variables);
     }
 
-    private sealed class FixedConfigurationEntryReferenceResolver : IConfigurationEntryReferenceResolver
+    private sealed class FixedConfigurationSettingReferenceResolver : IConfigurationSettingReferenceResolver
     {
-        public ResourceSettingResolutionResult ResolveConfigurationEntry(
-            ConfigurationEntryReference reference,
+        public ResourceSettingResolutionResult ResolveConfigurationSetting(
+            ConfigurationSettingReference reference,
             ResourceSettingResolutionContext context) =>
             reference is
             {
                 StoreResourceId: "configuration.store:sample-app",
-                EntryName: "Sample:Message"
+                SettingName: "Sample:Message"
             }
                 ? ResourceSettingResolutionResult.Resolved("Hello from configuration")
-                : ResourceSettingResolutionResult.Failed("Configuration entry not found.");
+                : ResourceSettingResolutionResult.Failed("Configuration setting not found.");
     }
 
     private sealed class FixedSecretReferenceResolver : ISecretReferenceResolver

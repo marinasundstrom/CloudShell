@@ -8,7 +8,7 @@ import {
 test("sends bearer token and reads settings", async () => {
   const requests: Request[] = [];
   const client = new ConfigurationStoreClient(
-    "http://localhost/api/configuration/stores/configuration%3Aapp/entries",
+    "http://localhost/api/configuration/stores/configuration%3Aapp/settings",
     {
       credential: new StaticTokenCredential("configuration-token"),
       fetch: async (request, init) => {
@@ -30,7 +30,7 @@ test("sends bearer token and reads settings", async () => {
 test("builds setting endpoint and preserves query string", async () => {
   const requestedUrls: string[] = [];
   const client = new ConfigurationStoreClient(
-    "http://localhost/api/configuration/entries?resourceId=configuration%3Aapp",
+    "http://localhost/api/configuration/settings?resourceId=configuration%3Aapp",
     {
       credential: "configuration-token",
       fetch: async request => {
@@ -47,12 +47,12 @@ test("builds setting endpoint and preserves query string", async () => {
   assert.equal(setting?.value, "Development");
   assert.equal(
     requestedUrls[0],
-    "http://localhost/api/configuration/entries/Sample%3AMode?resourceId=configuration%3Aapp");
+    "http://localhost/api/configuration/settings/Sample%3AMode?resourceId=configuration%3Aapp");
 });
 
 test("returns undefined for missing setting", async () => {
   const client = new ConfigurationStoreClient(
-    "http://localhost/api/configuration/stores/configuration%3Aapp/entries",
+    "http://localhost/api/configuration/stores/configuration%3Aapp/settings",
     {
       credential: "configuration-token",
       fetch: async () => new Response("", { status: 404 })
@@ -76,7 +76,7 @@ test("discovers endpoint from environment by service name", () => {
 
 test("maps portable hierarchy separator to configuration keys", async () => {
   const client = new ConfigurationStoreClient(
-    "http://localhost/api/configuration/stores/configuration%3Aapp/entries",
+    "http://localhost/api/configuration/stores/configuration%3Aapp/settings",
     {
       credential: "configuration-token",
       fetch: async () => Response.json([

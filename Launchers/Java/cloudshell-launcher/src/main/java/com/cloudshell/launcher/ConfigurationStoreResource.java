@@ -10,7 +10,7 @@ import java.util.List;
 
 public final class ConfigurationStoreResource extends ResourceBuilder<ConfigurationStoreResource> {
     private String endpoint;
-    private final List<ConfigurationSeedSetting> entries = new ArrayList<>();
+    private final List<ConfigurationSeedSetting> settings = new ArrayList<>();
 
     ConfigurationStoreResource(String name) {
         super(name, "configuration.store", "configuration");
@@ -24,17 +24,17 @@ public final class ConfigurationStoreResource extends ResourceBuilder<Configurat
     public ConfigurationStoreResource withSeed(Consumer<ConfigurationStoreSeed> configure) {
         ConfigurationStoreSeed seed = new ConfigurationStoreSeed();
         configure.accept(seed);
-        this.entries.clear();
-        this.entries.addAll(seed.settings);
+        this.settings.clear();
+        this.settings.addAll(seed.settings);
         return this;
     }
 
-    public ConfigurationEntryReference setting(String name) {
+    public ConfigurationSettingReference setting(String name) {
         return setting(name, null);
     }
 
-    public ConfigurationEntryReference setting(String name, String version) {
-        return new ConfigurationEntryReference(resourceId(), name, version);
+    public ConfigurationSettingReference setting(String name, String version) {
+        return new ConfigurationSettingReference(resourceId(), name, version);
     }
 
     @Override
@@ -42,10 +42,10 @@ public final class ConfigurationStoreResource extends ResourceBuilder<Configurat
         StringBuilder builder = new StringBuilder();
         line(builder, indent, "{");
         appendCommon(builder, indent + 1);
-        property(builder, indent + 1, "endpoint", json(endpoint), !entries.isEmpty());
-        if (!entries.isEmpty()) {
+        property(builder, indent + 1, "endpoint", json(endpoint), !settings.isEmpty());
+        if (!settings.isEmpty()) {
             line(builder, indent + 1, "\"seed\": {");
-            appendEntries(builder, indent + 2);
+            appendSettings(builder, indent + 2);
             line(builder, indent + 1, "}");
         }
 
@@ -53,14 +53,14 @@ public final class ConfigurationStoreResource extends ResourceBuilder<Configurat
         return builder.toString();
     }
 
-    private void appendEntries(StringBuilder builder, int indent) {
-        line(builder, indent, "\"entries\": [");
-        for (int index = 0; index < entries.size(); index++) {
-            ConfigurationSeedSetting entry = entries.get(index);
+    private void appendSettings(StringBuilder builder, int indent) {
+        line(builder, indent, "\"settings\": [");
+        for (int index = 0; index < settings.size(); index++) {
+            ConfigurationSeedSetting setting = settings.get(index);
             line(builder, indent + 1, "{");
-            property(builder, indent + 2, "name", json(entry.name()), true);
-            property(builder, indent + 2, "value", json(entry.value()), false);
-            line(builder, indent + 1, "}" + (index < entries.size() - 1 ? "," : ""));
+            property(builder, indent + 2, "name", json(setting.name()), true);
+            property(builder, indent + 2, "value", json(setting.value()), false);
+            line(builder, indent + 1, "}" + (index < settings.size() - 1 ? "," : ""));
         }
 
         line(builder, indent, "]");
@@ -83,6 +83,6 @@ public final class ConfigurationStoreResource extends ResourceBuilder<Configurat
     public record ConfigurationSeedSetting(String name, String value) {
     }
 
-    public record ConfigurationEntryReference(String storeResourceId, String name, String version) {
+    public record ConfigurationSettingReference(String storeResourceId, String name, String version) {
     }
 }

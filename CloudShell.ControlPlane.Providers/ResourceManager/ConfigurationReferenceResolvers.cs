@@ -2,15 +2,15 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class ConfigurationStoreRuntimeEntryReferenceResolver(
+public sealed class ConfigurationStoreRuntimeSettingReferenceResolver(
     ConfigurationStoreRuntimeOptions? options = null) :
-    IConfigurationEntryReferenceResolver
+    IConfigurationSettingReferenceResolver
 {
     private readonly ConfigurationStoreRuntimeOptions _options =
         options ?? new ConfigurationStoreRuntimeOptions();
 
-    public ResourceSettingResolutionResult ResolveConfigurationEntry(
-        ConfigurationEntryReference reference,
+    public ResourceSettingResolutionResult ResolveConfigurationSetting(
+        ConfigurationSettingReference reference,
         ResourceSettingResolutionContext context)
     {
         ArgumentNullException.ThrowIfNull(reference);
@@ -18,15 +18,15 @@ public sealed class ConfigurationStoreRuntimeEntryReferenceResolver(
         if (!string.IsNullOrWhiteSpace(reference.Version))
         {
             return ResourceSettingResolutionResult.Failed(
-                $"Configuration entry '{reference.EntryName}' from '{reference.StoreResourceId}' requested version '{reference.Version}', but versioned configuration entries are not supported by the graph runtime resolver.");
+                $"Configuration setting '{reference.SettingName}' from '{reference.StoreResourceId}' requested version '{reference.Version}', but versioned configuration settings are not supported by the graph runtime resolver.");
         }
 
-        var entry = _options.Entries.FirstOrDefault(entry =>
-            string.Equals(entry.Name, reference.EntryName, StringComparison.OrdinalIgnoreCase));
-        return entry is null
+        var setting = _options.Settings.FirstOrDefault(setting =>
+            string.Equals(setting.Name, reference.SettingName, StringComparison.OrdinalIgnoreCase));
+        return setting is null
             ? ResourceSettingResolutionResult.Failed(
-                $"Configuration entry '{reference.EntryName}' from '{reference.StoreResourceId}' was not found.")
-            : ResourceSettingResolutionResult.Resolved(entry.Value);
+                $"Configuration setting '{reference.SettingName}' from '{reference.StoreResourceId}' was not found.")
+            : ResourceSettingResolutionResult.Resolved(setting.Value);
     }
 }
 

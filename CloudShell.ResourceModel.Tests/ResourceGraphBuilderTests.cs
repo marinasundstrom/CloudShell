@@ -20,7 +20,7 @@ public sealed class ResourceGraphBuilderTests
                     .WithDisplayName("App Network");
                 resources
                     .AddConfigurationStore("settings")
-                    .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/entries");
+                    .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/settings");
             });
 
         var graphDefinition = graph.BuildGraph();
@@ -141,7 +141,7 @@ public sealed class ResourceGraphBuilderTests
     }
 
     [Fact]
-    public void ResourceGraphBuilder_BuildsConfigurationStoreEntriesAsAttributes()
+    public void ResourceGraphBuilder_BuildsConfigurationStoreSettingsAsAttributes()
     {
         var graph = new ResourceGraphBuilder()
             .DefineResources(resources =>
@@ -152,11 +152,11 @@ public sealed class ResourceGraphBuilderTests
             });
 
         var definition = Assert.Single(graph.BuildGraph().Resources);
-        var entry = Assert.Single(definition.ResourceAttributeValues.GetObject<ConfigurationStoreSeedSetting[]>(
-            ConfigurationStoreResourceTypeProvider.Attributes.Entries) ?? []);
+        var setting = Assert.Single(definition.ResourceAttributeValues.GetObject<ConfigurationStoreSeedSetting[]>(
+            ConfigurationStoreResourceTypeProvider.Attributes.Settings) ?? []);
 
-        Assert.Equal("Api:BaseUrl", entry.Name);
-        Assert.Equal("http://localhost:5000", entry.Value);
+        Assert.Equal("Api:BaseUrl", setting.Name);
+        Assert.Equal("http://localhost:5000", setting.Value);
     }
 
     [Fact]
@@ -219,7 +219,7 @@ public sealed class ResourceGraphBuilderTests
                             .RequireClaim("manufacturer", "acme")
                             .GrantAccess(
                                 settings,
-                                ConfigurationStoreResourceOperationPermissions.ReadEntries);
+                                ConfigurationStoreResourceOperationPermissions.ReadSettings);
                     });
             });
 
@@ -239,7 +239,7 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal("manufacturer", claim.Name);
         Assert.Equal("acme", claim.Value);
         Assert.Equal("configuration.store:device-settings", grant.TargetResourceId);
-        Assert.Equal(ConfigurationStoreResourceOperationPermissions.ReadEntries, grant.Permission);
+        Assert.Equal(ConfigurationStoreResourceOperationPermissions.ReadSettings, grant.Permission);
     }
 
     [Fact]
@@ -323,7 +323,7 @@ public sealed class ResourceGraphBuilderTests
                 app = resources.AddNetwork("api");
                 resources
                     .AddConfigurationStore("settings")
-                    .Allow(app, "configuration.entries.read");
+                    .Allow(app, "configuration.settings.read");
             });
         using var serviceProvider = services.BuildServiceProvider();
         var declarations = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
@@ -367,10 +367,10 @@ public sealed class ResourceGraphBuilderTests
         Assert.False(declarations.ShouldAutoStart(declaration.ResourceId));
         Assert.False(declarations.ShouldAutoStartAsDependency(declaration.ResourceId));
         Assert.Equal("configuration.store:settings", grant.TargetResourceId);
-        Assert.Equal("configuration.entries.read", grant.Permission);
+        Assert.Equal("configuration.settings.read", grant.Permission);
         Assert.Equal(ResourcePrincipalKind.ResourceIdentity, grant.Principal.Kind);
         Assert.Equal("cloudshell.network:api", grant.Principal.SourceResourceId);
-        Assert.Equal("configuration.entries.read", grantAttribute.Permission);
+        Assert.Equal("configuration.settings.read", grantAttribute.Permission);
         Assert.Equal(ResourcePrincipalAttributeKinds.ResourceIdentity, grantAttribute.Principal.Kind);
         Assert.Equal("cloudshell.network:api", grantAttribute.Principal.SourceResourceId);
     }
@@ -652,7 +652,7 @@ public sealed class ResourceGraphBuilderTests
         graph
             .AddConfigurationStore("settings")
             .WithDisplayName("Settings")
-            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/entries")
+            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/settings")
             .DependsOn(network);
         graph
             .AddSecretsVault("secrets")
@@ -672,7 +672,7 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal(ConfigurationStoreResourceTypeProvider.ProviderId, settings.ProviderId);
         Assert.Equal("Settings", settings.DisplayName);
         Assert.Equal(
-            "http://localhost:5101/api/configuration/stores/settings/entries",
+            "http://localhost:5101/api/configuration/stores/settings/settings",
             settings.ResourceAttributeValues[
                 ConfigurationStoreResourceTypeProvider.Attributes.Endpoint].StringValue);
         var settingsDependency = Assert.Single(settings.StartupDependencies);
@@ -1186,7 +1186,7 @@ public sealed class ResourceGraphBuilderTests
             path: "./Data/storage/app");
         var settings = graph
             .AddConfigurationStore("settings")
-            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/entries");
+            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/settings");
 
         graph
             .AddExecutableApplication("worker")
@@ -1337,7 +1337,7 @@ public sealed class ResourceGraphBuilderTests
         var graph = new ResourceGraphBuilder();
         var settings = graph
             .AddConfigurationStore("settings")
-            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/entries");
+            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/settings");
 
         graph
             .AddJavaScriptApp("frontend", "src/frontend")
@@ -1500,7 +1500,7 @@ public sealed class ResourceGraphBuilderTests
         var graph = new ResourceGraphBuilder();
         var settings = graph
             .AddConfigurationStore("settings")
-            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/entries");
+            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/settings");
 
         graph
             .AddJavaMavenApp("api", "src/api", "target/app.jar", "clean package -DskipTests")
