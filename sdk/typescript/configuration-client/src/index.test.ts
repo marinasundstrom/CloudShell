@@ -9,6 +9,7 @@ import {
   ConfigurationStoreClient,
   DefaultCloudShellCredential,
   EnvironmentTokenCredential,
+  SecretsVaultClient,
   StaticTokenCredential
 } from "./index.js";
 
@@ -94,6 +95,76 @@ test("maps portable hierarchy separator to configuration keys", async () => {
   assert.deepEqual(await client.toObject(), {
     "Orders:Api:BaseUrl": "http://localhost:5080"
   });
+});
+
+test("secrets client sends bearer token and reads secrets", async () => {
+  const requests: Request[] = [];
+  const client = new SecretsVaultClient(
+    "http://localhost/api/secrets/vaults/secrets%3Aapp/secrets",
+    {
+      credential: new StaticTokenCredential("secrets-token"),
+      fetch: async (request, init) => {
+        requests.push(request instanceof Request ? request : new Request(request, init));
+        return Response.json([
+          { name: "Sample--ApiKey", version: "v1" }
+        ]);
+      }
+    });
+
+  const secrets = await client.getSecrets();
+
+  assert.equal(secrets.length, 1);
+  assert.equal(secrets[0]!.name, "Sample--ApiKey");
+  assert.equal(secrets[0]!.version, "v1");
+  assert.equal(requests[0]!.headers.get("authorization"), "Bearer secrets-token");
+});
+
+test("secrets client builds versioned secret endpoint and preserves query string", async () => {
+  const requestedUrls: string[] = [];
+  const client = new SecretsVaultClient(
+    "http://localhost/api/secrets?resourceId=secrets%3Aapp",
+    {
+      credential: "secrets-token",
+      fetch: async request => {
+        requestedUrls.push(request.toString());
+        return Response.json({
+          name: "Sample--ApiKey",
+          value: "secret-value",
+          version: "v1"
+        });
+      }
+    });
+
+  const secret = await client.getSecret("Sample--ApiKey", { version: "v1" });
+
+  assert.equal(secret?.value, "secret-value");
+  assert.equal(
+    requestedUrls[0],
+    "http://localhost/api/secrets/Sample--ApiKey?resourceId=secrets%3Aapp&version=v1");
+});
+
+test("secrets client returns undefined for missing secret", async () => {
+  const client = new SecretsVaultClient(
+    "http://localhost/api/secrets/vaults/secrets%3Aapp/secrets",
+    {
+      credential: "secrets-token",
+      fetch: async () => new Response("", { status: 404 })
+    });
+
+  assert.equal(await client.getSecret("Missing"), undefined);
+});
+
+test("discovers secrets endpoint from environment by vault name", () => {
+  const client = SecretsVaultClient.fromEnvironment({
+    vaultName: "app-vault",
+    credential: "secrets-token",
+    environment: {
+      CLOUDSHELL_SECRETS_OTHER_ENDPOINT: "http://localhost/other",
+      CLOUDSHELL_SECRETS_APP_VAULT_ENDPOINT: "http://localhost/app-vault"
+    }
+  });
+
+  assert.equal(client.secretsEndpoint.toString(), "http://localhost/app-vault");
 });
 
 test("profile credential reads active profile static bearer token", async () => {

@@ -69,6 +69,10 @@ public static class PythonAppResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IPythonAppRuntimeEnvironmentProvider,
+                ProjectResourceIdentityEnvironmentResolver>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IPythonAppRuntimeEnvironmentProvider,
                 PythonAppServiceDiscoveryEnvironmentResolver>());
         services.TryAddSingleton<PythonAppProcessRuntimeController>();
         services.TryAddSingleton<IPythonAppRuntimeController>(

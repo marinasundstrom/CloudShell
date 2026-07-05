@@ -5,11 +5,26 @@ using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource
 
 namespace CloudShell.ControlPlane.Providers;
 
-public sealed class ContainerApplicationResourceModelGraphDeploymentDescriptor :
+public sealed class ContainerApplicationResourceModelGraphDeploymentDescriptor(
+    IEnumerable<IAspNetCoreProjectRuntimeEnvironmentProvider>? aspNetCoreEnvironmentProviders = null,
+    IEnumerable<IJavaScriptAppRuntimeEnvironmentProvider>? javaScriptEnvironmentProviders = null,
+    IEnumerable<IJavaAppRuntimeEnvironmentProvider>? javaEnvironmentProviders = null,
+    IEnumerable<IGoAppRuntimeEnvironmentProvider>? goEnvironmentProviders = null,
+    IEnumerable<IPythonAppRuntimeEnvironmentProvider>? pythonEnvironmentProviders = null) :
     IResourceModelGraphDeploymentDescriptor
 {
     private const string DefaultOrchestratorId = "default";
     private const string DefaultNetworkName = "cloudshell";
+    private readonly IReadOnlyList<IAspNetCoreProjectRuntimeEnvironmentProvider> aspNetCoreEnvironmentProviders =
+        aspNetCoreEnvironmentProviders?.ToArray() ?? [];
+    private readonly IReadOnlyList<IJavaScriptAppRuntimeEnvironmentProvider> javaScriptEnvironmentProviders =
+        javaScriptEnvironmentProviders?.ToArray() ?? [];
+    private readonly IReadOnlyList<IJavaAppRuntimeEnvironmentProvider> javaEnvironmentProviders =
+        javaEnvironmentProviders?.ToArray() ?? [];
+    private readonly IReadOnlyList<IGoAppRuntimeEnvironmentProvider> goEnvironmentProviders =
+        goEnvironmentProviders?.ToArray() ?? [];
+    private readonly IReadOnlyList<IPythonAppRuntimeEnvironmentProvider> pythonEnvironmentProviders =
+        pythonEnvironmentProviders?.ToArray() ?? [];
 
     public bool CanDescribeDeployment(
         ResourceManagerResource resource,
@@ -55,7 +70,9 @@ public sealed class ContainerApplicationResourceModelGraphDeploymentDescriptor :
                 ContainerHostId: container.ContainerHostResourceId,
                 Replicas: container.Replicas,
                 ReplicasEnabled: container.Replicas > 1,
-                EnvironmentVariables: ContainerizedProjectEnvironmentVariables.Read(context.GraphResource),
+                EnvironmentVariables: await ResolveEnvironmentVariablesAsync(
+                    context.GraphResource,
+                    cancellationToken),
                 Ports: ToServicePorts(container),
                 VolumeMounts: ToVolumeMounts(await container.GetVolumesAsync(cancellationToken))),
             DependsOn: context.GraphResource.State.ResourceDependencyIds,
@@ -117,6 +134,71 @@ public sealed class ContainerApplicationResourceModelGraphDeploymentDescriptor :
         }
 
         return inputs;
+    }
+
+    private async ValueTask<IReadOnlyList<EnvironmentVariableAssignment>> ResolveEnvironmentVariablesAsync(
+        Resource resource,
+        CancellationToken cancellationToken)
+    {
+        var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var variable in ContainerizedProjectEnvironmentVariables.Read(resource))
+        {
+            Add(variables, variable.Name, variable.Value);
+        }
+
+        await AddResolvedAsync(variables, aspNetCoreEnvironmentProviders, resource, cancellationToken);
+        await AddResolvedAsync(variables, javaScriptEnvironmentProviders, resource, cancellationToken);
+        await AddResolvedAsync(variables, javaEnvironmentProviders, resource, cancellationToken);
+        await AddResolvedAsync(variables, goEnvironmentProviders, resource, cancellationToken);
+        await AddResolvedAsync(variables, pythonEnvironmentProviders, resource, cancellationToken);
+
+        return variables
+            .Select(variable => new EnvironmentVariableAssignment(variable.Key, variable.Value))
+            .ToArray();
+    }
+
+    private static async ValueTask AddResolvedAsync<TProvider>(
+        Dictionary<string, string> variables,
+        IReadOnlyList<TProvider> providers,
+        Resource resource,
+        CancellationToken cancellationToken)
+        where TProvider : class
+    {
+        foreach (var provider in providers)
+        {
+            IReadOnlyDictionary<string, string> resolved = provider switch
+            {
+                IAspNetCoreProjectRuntimeEnvironmentProvider typed =>
+                    await typed.ResolveAsync(resource, cancellationToken),
+                IJavaScriptAppRuntimeEnvironmentProvider typed =>
+                    await typed.ResolveAsync(resource, cancellationToken),
+                IJavaAppRuntimeEnvironmentProvider typed =>
+                    await typed.ResolveAsync(resource, cancellationToken),
+                IGoAppRuntimeEnvironmentProvider typed =>
+                    await typed.ResolveAsync(resource, cancellationToken),
+                IPythonAppRuntimeEnvironmentProvider typed =>
+                    await typed.ResolveAsync(resource, cancellationToken),
+                _ => new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            };
+
+            foreach (var (name, value) in resolved)
+            {
+                Add(variables, name, value);
+            }
+        }
+    }
+
+    private static void Add(
+        Dictionary<string, string> variables,
+        string name,
+        string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(name) &&
+            value is not null)
+        {
+            variables[name.Trim()] = value;
+        }
     }
 
     private static IReadOnlyList<ServicePort> ToServicePorts(

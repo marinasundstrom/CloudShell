@@ -85,6 +85,13 @@ on `git blame --follow`, and then by the broad type of change.
   default credential order and a Configuration Store client. The Go app sample
   now exposes a `/configuration` route that uses the SDK against the injected
   Configuration Store endpoint.
+- Extended the experimental TypeScript, Go, and Python runtime SDKs so each
+  provides basic Configuration Store and Secrets Vault clients backed by the
+  shared CloudShell identity, environment-token, and profile credential chain.
+- Projected CloudShell resource identity environment variables through the
+  normal runtime environment path for JavaScript, Java, Go, Python, ASP.NET
+  Core, and container app workloads so containerized apps can use the same
+  credential contract as local app resources.
 - Added `samples/GoContainerApp`, a Go launcher sample that declares a Go app
   as an `application.container-app`, seeds a Configuration Store, and proves
   the launched container workload can read settings through the Go SDK default

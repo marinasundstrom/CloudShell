@@ -1,14 +1,16 @@
-# CloudShell Configuration Client For TypeScript
+# CloudShell Runtime Clients For TypeScript
 
-This package is an experimental TypeScript client for the CloudShell
-Configuration Store service. It is separate from the TypeScript hosting POC:
-the hosting package declares resources, while this package is used by a running
-application to read configuration settings from a Configuration Store endpoint.
+This package is an experimental TypeScript runtime SDK for CloudShell
+Configuration Store and Secrets Vault services. It is separate from the
+TypeScript hosting POC: the hosting package declares resources, while this
+package is used by a running application to read configuration settings and
+secrets from injected service endpoints.
 
 ```ts
 import {
   ConfigurationStoreClient,
-  CloudShellProfileCredential
+  CloudShellProfileCredential,
+  SecretsVaultClient
 } from "@cloudshell/configuration-client";
 
 const client = new ConfigurationStoreClient(
@@ -19,13 +21,19 @@ const client = new ConfigurationStoreClient(
 
 const settings = await client.getSettings();
 const mode = await client.getSetting("Sample:Mode");
+
+const vault = SecretsVaultClient.fromEnvironment({
+  credential: new CloudShellProfileCredential()
+});
+const apiKey = await vault.getSecret("Sample--ApiKey");
 ```
 
-The client can also discover the first injected endpoint from environment
+The clients can also discover the first injected endpoint from environment
 variables shaped like:
 
 ```text
 CLOUDSHELL_CONFIGURATION_<SERVICE_NAME>_ENDPOINT
+CLOUDSHELL_SECRETS_<VAULT_NAME>_ENDPOINT
 ```
 
 ```ts
@@ -50,6 +58,7 @@ The legacy environment token credential checks these variables in order:
 
 ```text
 CLOUDSHELL_CONFIGURATION_TOKEN
+CLOUDSHELL_SECRETS_TOKEN
 CLOUDSHELL_CONTROL_PLANE_TOKEN
 CLOUDSHELL_TOKEN
 ```
@@ -60,10 +69,9 @@ selects a profile. The first supported credential kind is `staticBearer`, using
 either `accessToken` for short-lived tests or `accessTokenPath` for a local
 token file relative to the profile directory.
 
-Each service call sends the acquired token as `Authorization: Bearer ...`.
-`getSettings()` reads the full settings collection, `getSetting(name)` reads a
-single setting, and `toObject()` maps portable `--` setting names to `:` keys for
-configuration-style lookup.
+Each service call sends the acquired token as `Authorization: Bearer ...`. The
+configuration client exposes `getSettings()`, `getSetting(name)`, and
+`toObject()`. The secrets client exposes `getSecrets()` and `getSecret(name)`.
 
 Run the package tests:
 

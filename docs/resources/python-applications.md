@@ -88,6 +88,7 @@ samples/PythonAppHost/cloudshell.sh start-app
 ```
 
 The launcher package is still experimental. It covers ResourceTemplate
-authoring, template/apply/start/run verbs, and the Python app sample. A Python
-runtime SDK for Configuration Store or Secrets Vault clients remains separate
-future work.
+authoring, template/apply/start/run verbs, and the Python app sample. The
+experimental runtime SDK under `sdk/python/cloudshell` provides Configuration
+Store and Secrets Vault clients for Python workloads that receive injected
+service endpoints and CloudShell identity variables.

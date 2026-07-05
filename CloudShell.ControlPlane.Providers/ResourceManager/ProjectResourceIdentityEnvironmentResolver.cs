@@ -7,7 +7,10 @@ public sealed class ProjectResourceIdentityEnvironmentResolver(
     ResourceIdentityProviderCatalog? identityProviders = null,
     ResourceDeclarationStore? declarations = null) :
     IAspNetCoreProjectRuntimeEnvironmentProvider,
-    IJavaAppRuntimeEnvironmentProvider
+    IJavaScriptAppRuntimeEnvironmentProvider,
+    IJavaAppRuntimeEnvironmentProvider,
+    IGoAppRuntimeEnvironmentProvider,
+    IPythonAppRuntimeEnvironmentProvider
 {
     private const string DefaultScope = "ControlPlane.Access";
     private readonly IReadOnlyList<IResourceIdentityCredentialEnvironmentProvider> credentialEnvironmentProviders =
@@ -69,7 +72,11 @@ public sealed class ProjectResourceIdentityEnvironmentResolver(
 
     private static bool IsSupportedProjectResource(Resource resource) =>
         resource.Type.TypeId == AspNetCoreProjectResourceTypeProvider.ResourceTypeId ||
-        resource.Type.TypeId == JavaAppResourceTypeProvider.ResourceTypeId;
+        resource.Type.TypeId == JavaScriptAppResourceTypeProvider.ResourceTypeId ||
+        resource.Type.TypeId == JavaAppResourceTypeProvider.ResourceTypeId ||
+        resource.Type.TypeId == GoAppResourceTypeProvider.ResourceTypeId ||
+        resource.Type.TypeId == PythonAppResourceTypeProvider.ResourceTypeId ||
+        resource.Type.TypeId == ContainerApplicationResourceTypeProvider.ResourceTypeId;
 
     private ResourceIdentityBinding? GetIdentityBinding(Resource resource)
     {

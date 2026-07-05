@@ -9,6 +9,17 @@ export interface CloudShellConfigurationSetting {
   value: string;
 }
 
+export interface CloudShellSecretProperties {
+  name: string;
+  version?: string;
+}
+
+export interface CloudShellSecretValue {
+  name: string;
+  value: string;
+  version?: string;
+}
+
 export interface AccessToken {
   token: string;
   expiresOnTimestamp?: number;
@@ -26,6 +37,14 @@ export interface ConfigurationStoreClientOptions {
 
 export interface ConfigurationStoreEnvironmentOptions extends ConfigurationStoreClientOptions {
   serviceName?: string;
+  environment?: Record<string, string | undefined>;
+}
+
+export interface SecretsVaultClientOptions extends ConfigurationStoreClientOptions {
+}
+
+export interface SecretsVaultEnvironmentOptions extends SecretsVaultClientOptions {
+  vaultName?: string;
   environment?: Record<string, string | undefined>;
 }
 
@@ -59,6 +78,7 @@ export class EnvironmentTokenCredential implements TokenCredential {
   public constructor(
     private readonly variableNames: string[] = [
       "CLOUDSHELL_CONFIGURATION_TOKEN",
+      "CLOUDSHELL_SECRETS_TOKEN",
       "CLOUDSHELL_CONTROL_PLANE_TOKEN",
       "CLOUDSHELL_TOKEN"
     ],
@@ -278,6 +298,7 @@ export class ConfigurationStoreClient {
   public static tryFromEnvironment(
     options: ConfigurationStoreEnvironmentOptions = {}): ConfigurationStoreClient | undefined {
     const endpoint = findEndpoint(
+      "CLOUDSHELL_CONFIGURATION_",
       options.serviceName,
       options.environment ?? process.env);
     return endpoint
@@ -361,7 +382,111 @@ export class ConfigurationStoreClient {
   }
 }
 
+export class SecretsVaultClient {
+  private readonly credential: TokenCredential | (() => Promise<string | null | undefined>) | string;
+  private readonly scopes: string[];
+  private readonly fetchImpl: typeof fetch;
+
+  public constructor(
+    public readonly secretsEndpoint: string | URL,
+    options: SecretsVaultClientOptions = {}) {
+    this.credential = options.credential ?? new DefaultCloudShellCredential();
+    this.scopes = options.scopes ?? [defaultConfigurationScope];
+    this.fetchImpl = options.fetch ?? fetch;
+  }
+
+  public static fromEnvironment(
+    options: SecretsVaultEnvironmentOptions = {}): SecretsVaultClient {
+    const client = this.tryFromEnvironment(options);
+    if (!client) {
+      throw new Error("No CloudShell Secrets Vault endpoint was found in the environment.");
+    }
+
+    return client;
+  }
+
+  public static tryFromEnvironment(
+    options: SecretsVaultEnvironmentOptions = {}): SecretsVaultClient | undefined {
+    const endpoint = findEndpoint(
+      "CLOUDSHELL_SECRETS_",
+      options.vaultName,
+      options.environment ?? process.env);
+    return endpoint
+      ? new SecretsVaultClient(endpoint, options)
+      : undefined;
+  }
+
+  public async getSecrets(): Promise<CloudShellSecretProperties[]> {
+    const response = await this.send(new URL(this.secretsEndpoint));
+    return await response.json() as CloudShellSecretProperties[];
+  }
+
+  public async getSecret(
+    name: string,
+    options: { version?: string } = {}): Promise<CloudShellSecretValue | undefined> {
+    assertNotBlank(name, "Secret name is required.");
+
+    const response = await this.send(this.buildSecretEndpoint(name, options.version));
+    if (response.status === 404) {
+      return undefined;
+    }
+
+    return await response.json() as CloudShellSecretValue;
+  }
+
+  public buildSecretEndpoint(name: string, version?: string): URL {
+    assertNotBlank(name, "Secret name is required.");
+
+    const endpoint = new URL(this.secretsEndpoint);
+    endpoint.pathname = `${endpoint.pathname.replace(/\/+$/, "")}/${encodeURIComponent(name)}`;
+    if (version && version.trim().length > 0) {
+      endpoint.searchParams.set("version", version.trim());
+    }
+
+    return endpoint;
+  }
+
+  private async send(url: URL): Promise<Response> {
+    const token = await this.getAccessToken();
+    const response = await this.fetchImpl(url, {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${token}`
+      }
+    });
+
+    if (response.ok || response.status === 404) {
+      return response;
+    }
+
+    const detail = await response.text();
+    throw new Error(
+      detail.trim().length === 0
+        ? `CloudShell Secrets Vault returned ${response.status}.`
+        : `CloudShell Secrets Vault returned ${response.status}. ${detail}`);
+  }
+
+  private async getAccessToken(): Promise<string> {
+    const credential = this.credential;
+    const token = typeof credential === "string"
+      ? credential
+      : typeof credential === "function"
+        ? await credential()
+        : await credential.getToken(this.scopes);
+
+    const tokenValue = typeof token === "string"
+      ? token
+      : token?.token;
+    if (!tokenValue || tokenValue.trim().length === 0) {
+      throw new Error("CloudShell secrets credential returned no access token.");
+    }
+
+    return tokenValue.trim();
+  }
+}
+
 function findEndpoint(
+  prefix: string,
   serviceName: string | undefined,
   environment: Record<string, string | undefined>): string | undefined {
   const normalizedServiceName = serviceName
@@ -371,10 +496,10 @@ function findEndpoint(
   return Object.entries(environment)
     .filter(([key, value]) =>
       value &&
-      key.toUpperCase().startsWith("CLOUDSHELL_CONFIGURATION_") &&
+      key.toUpperCase().startsWith(prefix) &&
       key.toUpperCase().endsWith("_ENDPOINT") &&
       (!normalizedServiceName ||
-        key.toUpperCase().includes(`CLOUDSHELL_CONFIGURATION_${normalizedServiceName}_`)))
+        key.toUpperCase().includes(`${prefix}${normalizedServiceName}_`)))
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([, value]) => value)
     .find(value => isAbsoluteUrl(value));

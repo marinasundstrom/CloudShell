@@ -22,16 +22,22 @@ request/response contracts.
 - `CloudShell.Configuration.Client`: Configuration Store SDK client. It
   references `CloudShell.Client`, not the full Control Plane abstractions, and
   owns the Microsoft `IConfiguration` integration for configuration settings.
-- `sdk/typescript/configuration-client`: experimental TypeScript
-  Configuration Store client. It is separate from the TypeScript hosting
-  package and is used by Node.js applications at runtime to call a
-  Configuration Store endpoint.
-- `sdk/go/cloudshell`: experimental Go runtime SDK. It is separate from the Go
-  launcher package and is used by Go applications at runtime to call
-  CloudShell-protected service endpoints.
 - `CloudShell.Secrets.Client`: Secrets Vault SDK client. It references
   `CloudShell.Client`, not the full Control Plane abstractions, and owns the
   Microsoft `IConfiguration` integration for vault secrets.
+- `sdk/typescript/configuration-client`: experimental TypeScript runtime
+  clients for Configuration Store and Secrets Vault. It is separate from the
+  TypeScript hosting package and is used by Node.js applications at runtime to
+  call CloudShell-protected service endpoints.
+- `sdk/java/cloudshell`: experimental Java runtime clients for Configuration
+  Store and Secrets Vault.
+- `sdk/go/cloudshell`: experimental Go runtime clients for Configuration Store
+  and Secrets Vault. It is separate from the Go launcher package and is used by
+  Go applications at runtime to call CloudShell-protected service endpoints.
+- `sdk/python/cloudshell`: experimental Python runtime clients for
+  Configuration Store and Secrets Vault. It is separate from the Python
+  launcher package and is used by Python applications at runtime to call
+  CloudShell-protected service endpoints.
 - `CloudShell.RabbitMQ.Client`: RabbitMQ credential and connection helper. It
   resolves provider-owned RabbitMQ username, password, and virtual-host access
   from a CloudShell resource identity credential and can produce normal
@@ -157,9 +163,9 @@ as `accessToken` for short-lived tests, or in `accessTokenPath`; relative token
 paths are resolved from the profile directory. Token files are still credential
 material and must not be checked in, logged, projected through Resource Manager,
 or copied into resource attributes. The profile format is language-neutral; the
-TypeScript, Java, and Go clients and the CLI now read it, and future Python and
-generated clients should use the same active profile contract before calling the
-Control Plane or resource-backed service endpoints.
+TypeScript, Java, Go, and Python clients and the CLI now read it. Future
+generated clients should use the same active profile contract before calling
+the Control Plane or resource-backed service endpoints.
 
 Credentials resolved from CloudShell-protected service endpoints should be
 treated as access material for opening native client connections. Do not
@@ -331,6 +337,22 @@ declares a Configuration Store resource, starts the Go container app, and the
 app reads settings through its `/configuration` endpoint using the Go SDK
 default credential chain.
 
+The experimental Python client follows the same runtime boundary:
+
+```python
+from cloudshell_sdk import ConfigurationStoreClient
+
+configuration = ConfigurationStoreClient.from_environment()
+settings = configuration.get_settings()
+values = configuration.to_dict(map_portable_hierarchy_separator=True)
+```
+
+The Python default credential checks injected `CLOUDSHELL_IDENTITY_*` workload
+identity, environment bearer tokens, then the active CloudShell profile. The
+Python runtime SDK lives under `sdk/python/cloudshell`; the Python launcher
+package remains under `Launchers/Python/cloudshell` for ResourceTemplate
+authoring.
+
 ## Secrets Vault Client
 
 Use `CloudShell.Secrets.Client` for direct Secrets Vault service calls:
@@ -398,10 +420,10 @@ String secret = secrets
     .orElse("");
 ```
 
-Java clients read `CLOUDSHELL_CONFIGURATION_*_ENDPOINT` and
-`CLOUDSHELL_SECRETS_*_ENDPOINT` variables and use
-`CLOUDSHELL_CONFIGURATION_TOKEN`, `CLOUDSHELL_SECRETS_TOKEN`,
-`CLOUDSHELL_CONTROL_PLANE_TOKEN`, or `CLOUDSHELL_TOKEN` for bearer tokens.
+The TypeScript, Java, Go, and Python runtime SDKs also include
+`SecretsVaultClient` equivalents that read `CLOUDSHELL_SECRETS_*_ENDPOINT`
+variables, use the same default credential chain as their Configuration Store
+clients, and expose collection and single-secret reads.
 
 ## SQL Server Client
 

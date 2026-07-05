@@ -1,7 +1,7 @@
 # CloudShell Go SDK
 
 This experimental Go SDK provides runtime service clients for Go workloads.
-The first client covers Configuration Store.
+The first clients cover Configuration Store and Secrets Vault.
 
 The SDK is separate from the Go launcher package in `Launchers/Go/cloudshell`.
 Launcher code declares resources and applies templates; this package runs
@@ -13,7 +13,8 @@ By default, `DefaultCredential` resolves credentials in this order:
    `CLOUDSHELL_IDENTITY_CLIENT_SECRET`, and optional
    `CLOUDSHELL_IDENTITY_SCOPE`.
 2. Environment bearer tokens such as `CLOUDSHELL_CONFIGURATION_TOKEN`,
-   `CLOUDSHELL_CONTROL_PLANE_TOKEN`, or `CLOUDSHELL_TOKEN`.
+   `CLOUDSHELL_SECRETS_TOKEN`, `CLOUDSHELL_CONTROL_PLANE_TOKEN`, or
+   `CLOUDSHELL_TOKEN`.
 3. The active CloudShell profile from `~/.cloudshell/config.json` or
    `CLOUDSHELL_CONFIG_DIR`, with `CLOUDSHELL_PROFILE` selecting a profile.
 
@@ -26,4 +27,13 @@ if err != nil {
 }
 
 settings, err := client.GetSettings(context.Background())
+```
+
+```go
+vault, err := cloudshell.SecretsVaultFromEnvironment("", nil)
+if err != nil {
+    return err
+}
+
+secret, err := vault.GetSecret(context.Background(), "Sample--ApiKey")
 ```

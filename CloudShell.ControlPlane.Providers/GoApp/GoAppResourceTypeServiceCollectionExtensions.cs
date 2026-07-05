@@ -69,6 +69,10 @@ public static class GoAppResourceTypeServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IGoAppRuntimeEnvironmentProvider,
+                ProjectResourceIdentityEnvironmentResolver>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IGoAppRuntimeEnvironmentProvider,
                 GoAppServiceDiscoveryEnvironmentResolver>());
         services.TryAddSingleton<GoAppProcessRuntimeController>();
         services.TryAddSingleton<IGoAppRuntimeController>(

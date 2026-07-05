@@ -66,6 +66,10 @@ public static class JavaScriptAppResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 IJavaScriptAppRuntimeEnvironmentProvider,
                 JavaScriptAppEnvironmentReferenceResolver>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IJavaScriptAppRuntimeEnvironmentProvider,
+                ProjectResourceIdentityEnvironmentResolver>());
         services.TryAddSingleton<JavaScriptAppProcessRuntimeController>();
         services.TryAddSingleton<IJavaScriptAppRuntimeController>(
             serviceProvider => serviceProvider.GetRequiredService<JavaScriptAppProcessRuntimeController>());

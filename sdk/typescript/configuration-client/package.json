@@ -1,7 +1,7 @@
 {
   "name": "@cloudshell/configuration-client",
   "version": "0.0.0-poc",
-  "description": "Experimental TypeScript client for CloudShell Configuration Store.",
+  "description": "Experimental TypeScript clients for CloudShell Configuration Store and Secrets Vault.",
   "type": "module",
   "private": true,
   "main": "./dist/index.js",

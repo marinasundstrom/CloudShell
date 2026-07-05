@@ -20,6 +20,9 @@ internal static class ContainerizedProjectEnvironmentVariables
             ProjectEnvironmentVariableReader.ReadAspNetCoreProject(resource.Attributes));
         Add(
             environment,
+            ProjectEnvironmentVariableReader.ReadGoApp(resource.Attributes));
+        Add(
+            environment,
             ProjectEnvironmentVariableReader.ReadPythonApp(resource.Attributes));
         return environment;
     }
@@ -57,6 +60,21 @@ internal static class ContainerizedProjectEnvironmentVariables
     private static void Add(
         List<EnvironmentVariableAssignment> environment,
         IReadOnlyDictionary<string, AspNetCoreProjectEnvironmentVariableValue>? values)
+    {
+        if (values is null)
+        {
+            return;
+        }
+
+        foreach (var (name, value) in values)
+        {
+            AddLiteral(environment, name, value.Value);
+        }
+    }
+
+    private static void Add(
+        List<EnvironmentVariableAssignment> environment,
+        IReadOnlyDictionary<string, GoAppEnvironmentVariableValue>? values)
     {
         if (values is null)
         {

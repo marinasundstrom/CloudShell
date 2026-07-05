@@ -251,16 +251,32 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
                 JavaScriptAppEnvironmentReferenceResolver>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
+                IJavaScriptAppRuntimeEnvironmentProvider,
+                ProjectResourceIdentityEnvironmentResolver>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
                 IJavaAppRuntimeEnvironmentProvider,
                 JavaAppEnvironmentReferenceResolver>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IJavaAppRuntimeEnvironmentProvider,
+                ProjectResourceIdentityEnvironmentResolver>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IGoAppRuntimeEnvironmentProvider,
                 GoAppEnvironmentReferenceResolver>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
+                IGoAppRuntimeEnvironmentProvider,
+                ProjectResourceIdentityEnvironmentResolver>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
                 IPythonAppRuntimeEnvironmentProvider,
                 PythonAppEnvironmentReferenceResolver>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IPythonAppRuntimeEnvironmentProvider,
+                ProjectResourceIdentityEnvironmentResolver>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IConfigurationSettingReferenceResolver,
