@@ -63,10 +63,12 @@ on `git blame --follow`, and then by the broad type of change.
   `CLOUDSHELL_CONFIG_DIR`, with `CLOUDSHELL_PROFILE` profile selection and a
   first `staticBearer` credential kind for inline test tokens or local token
   files; see ADR-20260705-002.
-- Added matching TypeScript and Java profile credential resolvers so their
-  default SDK credential chains check environment tokens first, then the shared
-  CloudShell profile. The TypeScript Configuration Store sample now relies on
-  that default chain instead of hand-picking token environment variables.
+- Added matching TypeScript and Java workload identity and profile credential
+  resolvers so their default SDK credential chains check injected
+  `CLOUDSHELL_IDENTITY_*` client credentials first, then environment bearer
+  tokens, then the shared CloudShell profile. The TypeScript Configuration Store
+  sample now relies on that default chain instead of hand-picking token
+  environment variables.
 - Updated the CloudShell CLI Control Plane API calls and daemon readiness checks
   to fall back to the active CloudShell profile when no explicit bearer token or
   `CLOUDSHELL_CONTROL_PLANE_TOKEN` is supplied.

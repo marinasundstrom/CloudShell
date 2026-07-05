@@ -4,7 +4,7 @@ public final class DefaultCloudShellTokenCredential implements CloudShellTokenCr
     private final CloudShellTokenCredential[] credentials;
 
     public DefaultCloudShellTokenCredential() {
-        this(new EnvironmentTokenCredential(), new ProfileTokenCredential());
+        this(new IdentityTokenCredential(), new EnvironmentTokenCredential(), new ProfileTokenCredential());
     }
 
     public DefaultCloudShellTokenCredential(CloudShellTokenCredential... credentials) {

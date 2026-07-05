@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
+  CloudShellIdentityCredential,
   CloudShellProfileCredential,
   ConfigurationStoreClient,
   DefaultCloudShellCredential,
@@ -125,6 +126,54 @@ test("profile credential reads active profile static bearer token", async () => 
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test("identity credential requests client credentials token from injected environment", async () => {
+  const requests: Request[] = [];
+  const credential = new CloudShellIdentityCredential({
+    environment: {
+      CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT: "http://localhost/token",
+      CLOUDSHELL_IDENTITY_CLIENT_ID: "application:api/api-service",
+      CLOUDSHELL_IDENTITY_CLIENT_SECRET: "local-development-secret"
+    },
+    fetch: async (request, init) => {
+      requests.push(request instanceof Request ? request : new Request(request, init));
+      return Response.json({
+        access_token: "identity-token",
+        expires_in: 3600
+      });
+    }
+  });
+
+  const token = await credential.getToken(["ControlPlane.Access"]);
+
+  assert.equal(token?.token, "identity-token");
+  assert.equal(requests[0]!.url, "http://localhost/token");
+  assert.equal(requests[0]!.method, "POST");
+  const body = await requests[0]!.text();
+  assert.equal(body, "grant_type=client_credentials&client_id=application%3Aapi%2Fapi-service&client_secret=local-development-secret&scope=ControlPlane.Access");
+});
+
+test("default credential prefers identity token before static environment token", async () => {
+  const credential = new DefaultCloudShellCredential([
+    new CloudShellIdentityCredential({
+      environment: {
+        CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT: "http://localhost/token",
+        CLOUDSHELL_IDENTITY_CLIENT_ID: "application:api/api-service",
+        CLOUDSHELL_IDENTITY_CLIENT_SECRET: "local-development-secret"
+      },
+      fetch: async () => Response.json({
+        access_token: "identity-token"
+      })
+    }),
+    new EnvironmentTokenCredential(undefined, {
+      CLOUDSHELL_TOKEN: "environment-token"
+    })
+  ]);
+
+  const token = await credential.getToken(["ControlPlane.Access"]);
+
+  assert.deepEqual(token, { token: "identity-token", expiresOnTimestamp: undefined });
 });
 
 test("profile credential reads relative token file", async () => {

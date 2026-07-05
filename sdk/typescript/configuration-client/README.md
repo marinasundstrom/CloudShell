@@ -34,9 +34,19 @@ const client = ConfigurationStoreClient.fromEnvironment({
 });
 ```
 
-If no credential is supplied, `DefaultCloudShellCredential` checks environment
-tokens first, then the active CloudShell profile. The environment credential
-checks these variables in order:
+If no credential is supplied, `DefaultCloudShellCredential` checks the
+CloudShell workload identity contract first, then environment bearer tokens,
+then the active CloudShell profile. Container apps started by CloudShell should
+use the workload identity variables:
+
+```text
+CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT
+CLOUDSHELL_IDENTITY_CLIENT_ID
+CLOUDSHELL_IDENTITY_CLIENT_SECRET
+CLOUDSHELL_IDENTITY_SCOPE
+```
+
+The legacy environment token credential checks these variables in order:
 
 ```text
 CLOUDSHELL_CONFIGURATION_TOKEN

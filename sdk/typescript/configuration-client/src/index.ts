@@ -36,6 +36,16 @@ export interface CloudShellProfileCredentialOptions {
   environment?: Record<string, string | undefined>;
 }
 
+export interface CloudShellIdentityCredentialOptions {
+  tokenEndpoint?: string;
+  clientId?: string;
+  clientSecret?: string;
+  scope?: string;
+  defaultScope?: string;
+  environment?: Record<string, string | undefined>;
+  fetch?: typeof fetch;
+}
+
 export class StaticTokenCredential implements TokenCredential {
   public constructor(private readonly token: string) {
   }
@@ -64,6 +74,85 @@ export class EnvironmentTokenCredential implements TokenCredential {
     }
 
     return null;
+  }
+}
+
+export class CloudShellIdentityCredential implements TokenCredential {
+  public static readonly tokenEndpointEnvironmentVariable = "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT";
+  public static readonly clientIdEnvironmentVariable = "CLOUDSHELL_IDENTITY_CLIENT_ID";
+  public static readonly clientSecretEnvironmentVariable = "CLOUDSHELL_IDENTITY_CLIENT_SECRET";
+  public static readonly scopeEnvironmentVariable = "CLOUDSHELL_IDENTITY_SCOPE";
+
+  private readonly environment: Record<string, string | undefined>;
+  private readonly fetchImpl: typeof fetch;
+  private cachedToken?: AccessToken;
+
+  public constructor(private readonly options: CloudShellIdentityCredentialOptions = {}) {
+    this.environment = options.environment ?? process.env;
+    this.fetchImpl = options.fetch ?? fetch;
+  }
+
+  public async getToken(scopes: string[] = []): Promise<AccessToken | null> {
+    if (this.cachedToken?.expiresOnTimestamp &&
+      this.cachedToken.expiresOnTimestamp > Date.now() + 60_000) {
+      return this.cachedToken;
+    }
+
+    const tokenEndpoint = firstNotBlank(
+      this.options.tokenEndpoint,
+      this.environment[CloudShellIdentityCredential.tokenEndpointEnvironmentVariable]);
+    const clientId = firstNotBlank(
+      this.options.clientId,
+      this.environment[CloudShellIdentityCredential.clientIdEnvironmentVariable]);
+    const clientSecret = firstNotBlank(
+      this.options.clientSecret,
+      this.environment[CloudShellIdentityCredential.clientSecretEnvironmentVariable]);
+    if (!tokenEndpoint || !clientId || !clientSecret) {
+      return null;
+    }
+
+    const response = await this.fetchImpl(tokenEndpoint, {
+      method: "POST",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded"
+      },
+      body: new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: clientId,
+        client_secret: clientSecret,
+        scope: this.resolveScope(scopes)
+      })
+    });
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error(
+        detail.trim().length === 0
+          ? `CloudShell identity token endpoint returned ${response.status}.`
+          : `CloudShell identity token endpoint returned ${response.status}. ${detail}`);
+    }
+
+    const token = await response.json() as CloudShellIdentityTokenResponse;
+    if (!token.access_token || token.access_token.trim().length === 0) {
+      throw new Error("CloudShell identity token endpoint returned no access token.");
+    }
+
+    this.cachedToken = {
+      token: token.access_token,
+      expiresOnTimestamp: token.expires_in === undefined
+        ? undefined
+        : Date.now() + Math.max(0, token.expires_in) * 1000
+    };
+    return this.cachedToken;
+  }
+
+  private resolveScope(scopes: string[]): string {
+    return scopes.length > 0
+      ? scopes.join(" ")
+      : firstNotBlank(
+        this.options.scope,
+        this.environment[CloudShellIdentityCredential.scopeEnvironmentVariable],
+        this.options.defaultScope,
+        defaultConfigurationScope)!;
   }
 }
 
@@ -142,6 +231,7 @@ export class CloudShellProfileCredential implements TokenCredential {
 export class DefaultCloudShellCredential implements TokenCredential {
   public constructor(
     private readonly credentials: TokenCredential[] = [
+      new CloudShellIdentityCredential(),
       new EnvironmentTokenCredential(),
       new CloudShellProfileCredential()
     ]) {
@@ -383,4 +473,9 @@ interface CloudShellProfileCredentialDefinition {
   accessToken?: string;
   accessTokenPath?: string;
   expiresOn?: string;
+}
+
+interface CloudShellIdentityTokenResponse {
+  access_token?: string;
+  expires_in?: number;
 }

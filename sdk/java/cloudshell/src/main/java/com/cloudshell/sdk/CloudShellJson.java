@@ -75,6 +75,13 @@ final class CloudShellJson {
         return matcher.find() && Boolean.parseBoolean(matcher.group(1));
     }
 
+    static String numberProperty(String json, String name) {
+        Pattern pattern = Pattern.compile(
+            "\"" + Pattern.quote(name) + "\"\\s*:\\s*(-?\\d+)");
+        Matcher matcher = pattern.matcher(json);
+        return matcher.find() ? matcher.group(1) : null;
+    }
+
     private static String objectProperty(String json, String name, boolean ignoreCase) {
         Pattern pattern = Pattern.compile("\"((?:\\\\.|[^\"])*)\"\\s*:\\s*\\{");
         Matcher matcher = pattern.matcher(json);

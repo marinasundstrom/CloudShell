@@ -14,6 +14,10 @@ by other language integrations:
 ```text
 CLOUDSHELL_CONFIGURATION_<SERVICE_NAME>_ENDPOINT
 CLOUDSHELL_SECRETS_<VAULT_NAME>_ENDPOINT
+CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT
+CLOUDSHELL_IDENTITY_CLIENT_ID
+CLOUDSHELL_IDENTITY_CLIENT_SECRET
+CLOUDSHELL_IDENTITY_SCOPE
 CLOUDSHELL_CONFIGURATION_TOKEN
 CLOUDSHELL_SECRETS_TOKEN
 CLOUDSHELL_CONTROL_PLANE_TOKEN
@@ -41,12 +45,14 @@ String secret = secrets
 ```
 
 By default, clients use `DefaultCloudShellTokenCredential`. It checks the
-environment token variables first, then reads the active CloudShell profile from
-`~/.cloudshell/config.json`. `CLOUDSHELL_CONFIG_DIR` overrides the profile
-directory, and `CLOUDSHELL_PROFILE` selects a named profile. The first supported
-profile credential kind is `staticBearer`, using either `accessToken` for
-short-lived tests or `accessTokenPath` for a local token file relative to the
-profile directory.
+CloudShell workload identity variables first, then environment bearer tokens,
+then reads the active CloudShell profile from `~/.cloudshell/config.json`.
+Container apps started by CloudShell should use the `CLOUDSHELL_IDENTITY_*`
+contract. `CLOUDSHELL_CONFIG_DIR` overrides the profile directory, and
+`CLOUDSHELL_PROFILE` selects a named profile. The first supported profile
+credential kind is `staticBearer`, using either `accessToken` for short-lived
+tests or `accessTokenPath` for a local token file relative to the profile
+directory.
 
 For framework integration, `ConfigurationStoreClient.toProperties(true)` maps
 portable CloudShell hierarchy names such as `Sample--Message` to Java-style

@@ -149,9 +149,10 @@ and `CLOUDSHELL_PROFILE` selects a named profile. The first supported file is
 as `accessToken` for short-lived tests, or in `accessTokenPath`; relative token
 paths are resolved from the profile directory. Token files are still credential
 material and must not be checked in, logged, projected through Resource Manager,
-or copied into resource attributes. The profile format is language-neutral so
-future TypeScript, Java, Python, and CLI clients can resolve the same active
-profile before calling the Control Plane or resource-backed service endpoints.
+or copied into resource attributes. The profile format is language-neutral; the
+TypeScript and Java clients and the CLI now read it, and future Python, Go, and
+generated clients should use the same active profile contract before calling the
+Control Plane or resource-backed service endpoints.
 
 Credentials resolved from CloudShell-protected service endpoints should be
 treated as access material for opening native client connections. Do not
@@ -266,7 +267,8 @@ const values = await configuration.toObject();
 This client reads the injected
 `CLOUDSHELL_CONFIGURATION_<SERVICE_NAME>_ENDPOINT` variables, sends
 `Authorization: Bearer ...`, and can map `--` in setting names to `:` keys.
-Its default credential checks environment tokens first, then the active
+Its default credential checks the injected `CLOUDSHELL_IDENTITY_*` workload
+identity contract first, then environment bearer tokens, then the active
 CloudShell profile using the same `~/.cloudshell/config.json`,
 `CLOUDSHELL_CONFIG_DIR`, and `CLOUDSHELL_PROFILE` contract as the C# client. It
 does not declare resources or launch hosts; that remains the responsibility of
@@ -294,7 +296,8 @@ String message = configuration
 `ConfigurationStoreClient.toProperties(true)` maps portable CloudShell
 hierarchy names such as `Sample--Message` into Java property names such as
 `Sample.Message`. Java service clients use `DefaultCloudShellTokenCredential`
-by default, which checks environment tokens first, then the active CloudShell
+by default, which checks the injected `CLOUDSHELL_IDENTITY_*` workload identity
+contract first, then environment bearer tokens, then the active CloudShell
 profile using the same shared profile contract as the C# and TypeScript
 clients.
 
