@@ -28,6 +28,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Hardened Device Registry MQTT publish handling so invalid sessions, unknown
   registry topics, missing registries/devices, revoked devices, and malformed
   JSON payloads are rejected without mutating device state.
+- Added MQTT response-topic sync support so Device Registry devices can receive
+  the same desired-state response payload over MQTT that HTTP sync returns.
 - Projected configured Device Registry MQTT endpoints into Resource Manager
   endpoint details alongside the HTTP registry endpoint.
 - Added an explicit `Microsoft.OpenApi` 3.7.0 dependency for OpenAPI-enabled

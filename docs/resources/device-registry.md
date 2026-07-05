@@ -130,13 +130,13 @@ state.
 
 The twin model intentionally does not imply that CloudShell has an always-on
 connection to the device. It supports low-power devices that periodically wake,
-report their current state, receive desired state, then disconnect. HTTP pull
-remains the MVP path when a device needs the latest desired state response.
-Device Registry can also expose an experimental embedded MQTT endpoint for
-publish-style heartbeat and reported-state sync messages using the same device
-identity credentials. MQTT messages update the same registry-owned metadata and
-twin reported state as HTTP calls, but MQTT request/response desired-state pull
-is intentionally deferred.
+report their current state, receive desired state, then disconnect. HTTP pull is
+the baseline path when a device needs the latest desired state response. Device
+Registry can also expose an experimental embedded MQTT endpoint for heartbeat
+and sync messages using the same device identity credentials. MQTT sync messages
+update the same registry-owned metadata and twin reported state as HTTP calls,
+and MQTT 5 clients can provide a response topic to receive the same
+`DeviceSyncResponse` desired-state payload.
 
 The MQTT topic contract is:
 
@@ -230,6 +230,5 @@ store with a stronger database while keeping the resource model stable.
 - Device telemetry and device-submitted logs should be integrated with
   CloudShell observability under the Device Registry resource and global
   observability views in a future slice.
-- MQTT request/response desired-state pull, external broker integration, TLS
-  listener configuration, retained messages, and richer microcontroller
-  provisioning remain future work.
+- External broker integration, TLS listener configuration, retained messages,
+  and richer microcontroller provisioning remain future work for MQTT.

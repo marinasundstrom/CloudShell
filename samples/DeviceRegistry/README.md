@@ -26,7 +26,7 @@ The scenario uses these CloudShell features:
 | Enrollment profile | Matches devices by subject/claims and grants the resulting device identity access to selected resources. |
 | Built-in identity provider | Issues the device identity credentials and bearer tokens used by the sample device app. |
 | Configuration Store | Provides a setting that the enrolled device reads remotely using its own identity. |
-| Device client API | Enrolls the current machine, sends heartbeat, performs optional device twin sync, and publishes an MQTT reported-state update. |
+| Device client API | Enrolls the current machine, sends heartbeat, performs optional device twin sync, and synchronizes state over MQTT. |
 | Resource Manager UI | Shows enrolled devices, reported properties, presence, enrollment profiles, and editable desired twin state. |
 
 The end-to-end flow is:
@@ -41,16 +41,17 @@ The end-to-end flow is:
 5. The device requests a token with its issued credentials and reads a
    Configuration Store setting.
 6. The device sends heartbeat and sync calls so the registry records presence,
-   reported properties, and reported twin state. It also publishes one MQTT
-   sync update to the registry's embedded MQTT endpoint. Twin sync is optional
-   in the Device Registry model; this sample uses it to simulate a low-power
-   device check-in.
+   reported properties, and reported twin state. It also sends one MQTT sync to
+   the registry's embedded MQTT endpoint and receives the current desired state
+   response. Twin sync is optional in the Device Registry model; this sample
+   uses it to simulate a low-power device check-in.
 7. Operators can inspect the device in Resource Manager, update desired twin
    state, revoke access, or remove the device record.
 
-HTTP remains the enrollment, configuration, and desired-state pull transport in
-this sample. MQTT is used for an experimental publish-style reported-state sync
-after enrollment, using the same device identity credentials.
+HTTP remains the enrollment and configuration transport in this sample. MQTT is
+used for an experimental follow-up sync after enrollment, using the same device
+identity credentials and returning the same desired-state response shape as the
+HTTP sync endpoint.
 
 ## Components
 
@@ -113,10 +114,10 @@ Call the device app to enroll the current machine and read configuration with
 the issued device identity. The app also sends a heartbeat check-in after it
 receives a device token, then performs a device twin sync so the registry
 records reported state and returns desired state. If the MQTT endpoint is
-configured, it also publishes a follow-up MQTT sync message that records the
-MQTT transport on the device record. The device app logs each CloudShell
-contact so the local run shows enrollment, heartbeat, HTTP sync, MQTT sync, and
-configuration reads:
+configured, it also sends a follow-up MQTT sync message that records the MQTT
+transport on the device record and receives the current desired state response.
+The device app logs each CloudShell contact so the local run shows enrollment,
+heartbeat, HTTP sync, MQTT sync, and configuration reads:
 
 ```bash
 ./cloudshell.sh enroll
@@ -132,10 +133,11 @@ configures a five-minute heartbeat stale-after window so the registry can show
 device presence as `online` or `stale` based on the most recent heartbeat.
 The same identity can call the sync endpoint when a device wakes to report its
 current state and fetch the latest desired state version. The same identity can
-authenticate to the embedded MQTT endpoint with its client id and secret to
-publish heartbeat or reported-state sync messages. Devices that do not need
-state reconciliation can ignore the twin APIs and still use their provisioned
-identity to access allowed CloudShell services.
+authenticate to the embedded MQTT endpoint with its client id and secret to send
+heartbeat or sync messages; MQTT sync can receive the latest desired state when
+the client provides a response topic. Devices that do not need state
+reconciliation can ignore the twin APIs and still use their provisioned identity
+to access allowed CloudShell services.
 
 The generic device client sends basic device properties during enrollment,
 including platform, operating system, architecture, framework description,

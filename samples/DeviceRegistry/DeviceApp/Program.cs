@@ -66,6 +66,7 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
     CloudShellConfigurationSetting? configuration = null;
     DeviceMetadataResponse? heartbeat = null;
     DeviceSyncResponse? sync = null;
+    DeviceSyncResponse? mqttSync = null;
     var mqttSyncPublished = false;
     if (!string.IsNullOrWhiteSpace(configurationEndpoint))
     {
@@ -151,7 +152,7 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
         app.Logger.LogInformation(
             "Synchronizing CloudShell Device Registry twin state over MQTT for device {DeviceId}.",
             enrollment.DeviceId);
-        await mqttClient.PublishSyncAsync(
+        mqttSync = await mqttClient.SyncDeviceAsync(
             registryResourceId,
             enrollment.DeviceId,
             enrollment.ClientId,
@@ -171,8 +172,10 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
             cancellationToken: cancellationToken);
         mqttSyncPublished = true;
         app.Logger.LogInformation(
-            "CloudShell Device Registry MQTT twin sync was published for device {DeviceId}.",
-            enrollment.DeviceId);
+            "CloudShell Device Registry MQTT twin sync completed for device {DeviceId}; desired state version {DesiredVersion}, changed {DesiredStateChanged}.",
+            enrollment.DeviceId,
+            mqttSync.Desired.Version,
+            mqttSync.DesiredStateChanged);
     }
 
     return Results.Ok(new
@@ -180,6 +183,7 @@ app.MapPost("/enroll-current-device", async (CancellationToken cancellationToken
         enrollment,
         heartbeat,
         sync,
+        mqttSync,
         mqttSyncPublished,
         configuration
     });

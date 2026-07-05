@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Threading.Channels;
 using Microsoft.Extensions.Options;
 using MQTTnet;
 using MQTTnet.Protocol;
@@ -13,7 +14,16 @@ public sealed class DeviceRegistryMqttHostedService(
     ILogger<DeviceRegistryMqttHostedService> logger) : IHostedService
 {
     private const string SessionDeviceClientIdKey = "cloudshell.device.clientId";
+    private const string ServerClientId = "cloudshell-device-registry";
     private readonly DeviceRegistryServiceOptions _options = options.Value;
+    private readonly Channel<PendingMqttMessage> _outboundMessages =
+        Channel.CreateUnbounded<PendingMqttMessage>(
+            new UnboundedChannelOptions
+            {
+                SingleReader = true
+            });
+    private CancellationTokenSource? _publisherCancellation;
+    private Task? _publisherTask;
     private MqttServer? _server;
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -36,6 +46,8 @@ public sealed class DeviceRegistryMqttHostedService(
         _server.InterceptingPublishAsync += InterceptPublishAsync;
 
         await _server.StartAsync();
+        _publisherCancellation = new CancellationTokenSource();
+        _publisherTask = PublishOutboundMessagesAsync(_publisherCancellation.Token);
         logger.LogInformation(
             "CloudShell Device Registry MQTT endpoint is listening on {MqttEndpoint}.",
             _options.MqttEndpoint);
@@ -43,6 +55,11 @@ public sealed class DeviceRegistryMqttHostedService(
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
+        if (_publisherCancellation is not null)
+        {
+            await _publisherCancellation.CancelAsync();
+        }
+
         if (_server is null)
         {
             return;
@@ -50,6 +67,20 @@ public sealed class DeviceRegistryMqttHostedService(
 
         await _server.StopAsync();
         _server = null;
+        if (_publisherTask is not null)
+        {
+            try
+            {
+                await _publisherTask;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        _publisherCancellation?.Dispose();
+        _publisherCancellation = null;
+        _publisherTask = null;
     }
 
     private Task ValidateConnectionAsync(ValidatingConnectionEventArgs args)
@@ -71,6 +102,12 @@ public sealed class DeviceRegistryMqttHostedService(
 
     private async Task InterceptPublishAsync(InterceptingPublishEventArgs args)
     {
+        if (string.Equals(args.ClientId, ServerClientId, StringComparison.Ordinal))
+        {
+            args.ProcessPublish = true;
+            return;
+        }
+
         args.ProcessPublish = false;
         if (!args.SessionItems.Contains(SessionDeviceClientIdKey) ||
             args.SessionItems[SessionDeviceClientIdKey] is not string clientId)
@@ -151,6 +188,7 @@ public sealed class DeviceRegistryMqttHostedService(
                         break;
                     }
 
+                    EnqueueSyncResponse(args.ApplicationMessage.ResponseTopic, registry, syncResult, timestamp);
                     break;
             }
         }
@@ -161,6 +199,114 @@ public sealed class DeviceRegistryMqttHostedService(
                 MqttPubAckReasonCode.PayloadFormatInvalid,
                 $"Invalid Device Registry MQTT payload. {exception.Message}");
         }
+    }
+
+    private void EnqueueSyncResponse(
+        string? responseTopic,
+        DeviceRegistryDefinition registry,
+        DeviceSyncMutationResult syncResult,
+        DateTimeOffset timestamp)
+    {
+        if (string.IsNullOrWhiteSpace(responseTopic) ||
+            !syncResult.IsAccepted ||
+            syncResult.Device is null)
+        {
+            return;
+        }
+
+        var response = new DeviceSyncResponse(
+            ToMetadataResponse(registry, syncResult.Device, timestamp),
+            syncResult.Device.Twin.Desired,
+            syncResult.Device.Twin.Reported,
+            syncResult.DesiredStateChanged,
+            syncResult.Device.Twin.LastSyncedAt);
+        _outboundMessages.Writer.TryWrite(
+            new PendingMqttMessage(
+                responseTopic,
+                JsonSerializer.Serialize(response, DeviceRegistryMqttJson.SerializerOptions)));
+    }
+
+    private async Task PublishOutboundMessagesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await foreach (var message in _outboundMessages.Reader.ReadAllAsync(cancellationToken))
+            {
+                var server = _server;
+                if (server is null)
+                {
+                    continue;
+                }
+
+                await server.InjectApplicationMessage(
+                    new InjectedMqttApplicationMessage(
+                        new MqttApplicationMessageBuilder()
+                            .WithTopic(message.Topic)
+                            .WithPayload(message.Payload)
+                            .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)
+                            .Build())
+                    {
+                        SenderClientId = ServerClientId
+                    },
+                    cancellationToken);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Device Registry MQTT response publisher stopped unexpectedly.");
+        }
+    }
+
+    private DeviceMetadataResponse ToMetadataResponse(
+        DeviceRegistryDefinition registry,
+        DeviceRecord device,
+        DateTimeOffset timestamp) =>
+        new(
+            device.Id,
+            device.Subject,
+            device.IdentityCategory,
+            store.CreatePrincipal(device),
+            device.IdentityProviderId,
+            device.IdentityResourceId,
+            device.IdentityName,
+            device.ClientId,
+            device.Claims,
+            device.Properties,
+            device.EnrolledAt,
+            device.Status,
+            device.LastSeenAt,
+            device.LastSeenSource,
+            device.RevokedAt,
+            device.RevokedReason,
+            ResolvePresence(registry, device, timestamp),
+            device.EnrollmentProfileName,
+            device.EnrollmentProfileKind);
+
+    private static string ResolvePresence(
+        DeviceRegistryDefinition registry,
+        DeviceRecord device,
+        DateTimeOffset timestamp)
+    {
+        if (string.Equals(device.Status, DeviceRecordStatuses.Revoked, StringComparison.OrdinalIgnoreCase) ||
+            device.RevokedAt is not null)
+        {
+            return DevicePresenceStatuses.Revoked;
+        }
+
+        if (device.LastSeenAt is null)
+        {
+            return DevicePresenceStatuses.Unknown;
+        }
+
+        return registry.HeartbeatStaleAfterSeconds is > 0 &&
+            timestamp - device.LastSeenAt.Value > TimeSpan.FromSeconds(registry.HeartbeatStaleAfterSeconds.Value)
+                ? DevicePresenceStatuses.Stale
+                : DevicePresenceStatuses.Online;
     }
 
     private static void RejectPublish(
@@ -237,6 +383,10 @@ internal sealed record DeviceRegistryMqttTopic(
     string RegistryId,
     string DeviceId,
     string Operation);
+
+internal sealed record PendingMqttMessage(
+    string Topic,
+    string Payload);
 
 internal static class DeviceRegistryMqttJson
 {

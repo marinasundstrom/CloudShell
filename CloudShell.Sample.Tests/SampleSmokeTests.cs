@@ -1557,6 +1557,11 @@ public sealed class SampleSmokeTests
             .Deserialize<DeviceSyncResponse>(
                 new JsonSerializerOptions(JsonSerializerDefaults.Web)) ??
             throw new JsonException("Device Registry sample returned no sync response.");
+        var mqttSync = enrollmentDocument.RootElement
+            .GetProperty("mqttSync")
+            .Deserialize<DeviceSyncResponse>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)) ??
+            throw new JsonException("Device Registry sample returned no MQTT sync response.");
         var mqttSyncPublished = enrollmentDocument.RootElement
             .GetProperty("mqttSyncPublished")
             .GetBoolean();
@@ -1605,6 +1610,12 @@ public sealed class SampleSmokeTests
         Assert.Equal("running", sync.Reported.State["mode"].GetString());
         Assert.Equal("Device:Mode", sync.Reported.State["configurationSetting"].GetString());
         Assert.True(mqttSyncPublished);
+        Assert.Equal(enrollment.DeviceId, mqttSync.Device.DeviceId);
+        Assert.Equal("sample-app-mqtt", mqttSync.Device.LastSeenSource);
+        Assert.False(mqttSync.DesiredStateChanged);
+        Assert.Equal(0, mqttSync.Desired.Version);
+        Assert.Equal(2, mqttSync.Reported.Version);
+        Assert.Equal("mqtt", mqttSync.Reported.State["transport"].GetString());
         Assert.Equal("Device:Mode", configurationSetting.GetProperty("name").GetString());
         Assert.Equal("factory-online", configurationSetting.GetProperty("value").GetString());
 
@@ -1693,25 +1704,24 @@ public sealed class SampleSmokeTests
         Assert.Equal(1, desired.Desired.Version);
         Assert.Equal("eco", desired.Desired.State["mode"].GetString());
 
-        var deviceToken = await RequestClientCredentialsTokenAsync(
-            enrollment.TokenEndpoint,
-            enrollment.ClientId,
-            enrollment.ClientSecret);
-        var followUpSync = await registryClient.SyncDeviceAsync(
-            registryResourceId,
-            enrollment.DeviceId,
-            deviceToken,
-            new DeviceSyncRequest(
-                new Dictionary<string, JsonElement>
-                {
-                    ["mode"] = JsonSerializer.SerializeToElement("running")
-                },
-                Source: "sample-follow-up",
-                LastKnownDesiredVersion: 0));
-        Assert.True(followUpSync.DesiredStateChanged);
-        Assert.Equal(1, followUpSync.Desired.Version);
-        Assert.Equal("eco", followUpSync.Desired.State["mode"].GetString());
-        Assert.Equal("running", followUpSync.Reported.State["mode"].GetString());
+        var followUpMqttSync = await new DeviceRegistryMqttClient(new Uri(registryMqttEndpoint))
+            .SyncDeviceAsync(
+                registryResourceId,
+                enrollment.DeviceId,
+                enrollment.ClientId,
+                enrollment.ClientSecret,
+                new DeviceSyncRequest(
+                    new Dictionary<string, JsonElement>
+                    {
+                        ["mode"] = JsonSerializer.SerializeToElement("running")
+                    },
+                    Source: "sample-mqtt-follow-up",
+                    LastKnownDesiredVersion: 0));
+        Assert.True(followUpMqttSync.DesiredStateChanged);
+        Assert.Equal(1, followUpMqttSync.Desired.Version);
+        Assert.Equal("eco", followUpMqttSync.Desired.State["mode"].GetString());
+        Assert.Equal(3, followUpMqttSync.Reported.Version);
+        Assert.Equal("running", followUpMqttSync.Reported.State["mode"].GetString());
 
         var revoked = await registryClient.RevokeDeviceAsync(
             registryResourceId,
