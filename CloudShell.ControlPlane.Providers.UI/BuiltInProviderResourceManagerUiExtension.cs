@@ -6,6 +6,8 @@ using CloudShell.ControlPlane.Providers;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ContainerAppPages = CloudShell.ControlPlane.Providers.UI.ContainerApplication.Pages;
 using ConfigurationPages = CloudShell.ControlPlane.Providers.UI.Configuration.Pages;
+using DeviceRegistryPages = CloudShell.ControlPlane.Providers.UI.DeviceRegistry.Pages;
+using EventBrokerPages = CloudShell.ControlPlane.Providers.UI.EventBroker.Pages;
 using RabbitMQPages = CloudShell.ControlPlane.Providers.UI.RabbitMQ.Pages;
 using SharedPages = CloudShell.ControlPlane.Providers.UI.Shared.Pages;
 using SqlServerPages = CloudShell.ControlPlane.Providers.UI.SqlServer.Pages;
@@ -28,7 +30,9 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
             "resource-ui.application.go-app",
             "resource-ui.application.sql-server",
             "resource-ui.application.rabbitmq",
-            "resource-ui.application.container-app"
+            "resource-ui.application.container-app",
+            "resource-ui.service.event-broker",
+            "resource-ui.service.device-registry"
         ],
         ["resource-manager.resources"]);
 
@@ -161,137 +165,172 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 27,
                 resourceClass: ResourceManagerResourceClass.Service)
             .AddResourceType<SharedPages.RegisterResource>(
+                EventBrokerResourceTypeProvider.ResourceTypeId.ToString(),
+                "Event Broker",
+                "Inspect event broker resources declared through Resource Manager.",
+                "queue",
+                28,
+                resourceClass: ResourceManagerResourceClass.Service)
+            .AddResourceType<SharedPages.RegisterResource>(
                 SqlDatabaseResourceTypeProvider.ResourceTypeId.ToString(),
                 "SQL Database",
                 "Inspect SQL database child resources declared through Resource Manager.",
                 "database-item",
-                28,
+                29,
                 resourceClass: ResourceManagerResourceClass.Service)
             .AddResourceType<SharedPages.RegisterResource>(
                 ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(),
                 "Configuration Store",
                 "Inspect configuration store resources declared through Resource Manager.",
                 "settings",
-                29,
+                30,
                 resourceClass: ResourceManagerResourceClass.Configuration)
             .AddResourceType<SharedPages.RegisterResource>(
                 SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),
                 "Secrets Vault",
                 "Inspect secrets vault resources declared through Resource Manager.",
                 "key",
-                30,
+                31,
                 resourceClass: ResourceManagerResourceClass.SecretsVault)
-            .AddResourceTab<ConfigurationPages.ConfigurationStoreEntries>(
+            .AddResourceType<SharedPages.RegisterResource>(
+                DeviceRegistryResourceTypeProvider.ResourceTypeId.ToString(),
+                "Device Registry",
+                "Inspect device registry resources declared through Resource Manager.",
+                "devices",
+                32,
+                resourceClass: ResourceManagerResourceClass.Service)
+            .AddResourceTab<ConfigurationPages.ConfigurationStoreSettings>(
                 ConfigurationStoreResourceTypeProvider.ResourceTypeId.ToString(),
-                new ResourceViewId(ResourceTabGroupIds.Entries, "entries"),
-                "Entries",
+                new ResourceViewId(ResourceTabGroupIds.General, "settings"),
+                "Settings",
                 20,
                 showsApplyButton: true,
-                groupTitle: ResourceTabGroupTitles.Entries,
-                icon: "entries")
+                groupTitle: ResourceTabGroupTitles.General,
+                icon: "settings")
             .AddResourceTab<ConfigurationPages.SecretsVaultSecrets>(
                 SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),
-                new ResourceViewId(ResourceTabGroupIds.Secrets, "secrets"),
+                new ResourceViewId(ResourceTabGroupIds.General, "secrets"),
                 "Secrets",
                 20,
                 showsApplyButton: true,
-                groupTitle: ResourceTabGroupTitles.Secrets,
+                groupTitle: ResourceTabGroupTitles.General,
                 icon: "secrets")
             .AddResourceTab<ConfigurationPages.SecretsVaultCertificates>(
                 SecretsVaultResourceTypeProvider.ResourceTypeId.ToString(),
-                new ResourceViewId(ResourceTabGroupIds.Secrets, "certificates"),
+                new ResourceViewId(ResourceTabGroupIds.General, "certificates"),
                 "Certificates",
                 30,
                 showsApplyButton: true,
-                groupTitle: ResourceTabGroupTitles.Secrets,
+                groupTitle: ResourceTabGroupTitles.General,
                 icon: "certificates")
+            .AddResourceTab<DeviceRegistryPages.DeviceRegistryDevices>(
+                DeviceRegistryResourceTypeProvider.ResourceTypeId.ToString(),
+                new ResourceViewId(ResourceTabGroupIds.General, "enrolled-devices"),
+                "Devices",
+                20,
+                groupTitle: ResourceTabGroupTitles.General,
+                icon: "devices")
+            .AddResourceTab<DeviceRegistryPages.DeviceRegistryEnrollmentProfiles>(
+                DeviceRegistryResourceTypeProvider.ResourceTypeId.ToString(),
+                new ResourceViewId(ResourceTabGroupIds.General, "enrollment-profiles"),
+                "Enrollment profiles",
+                30,
+                groupTitle: ResourceTabGroupTitles.General,
+                icon: "identity")
+            .AddResourceTab<EventBrokerPages.EventBrokerStreams>(
+                EventBrokerResourceTypeProvider.ResourceTypeId.ToString(),
+                new ResourceViewId(ResourceTabGroupIds.General, "streams"),
+                "Streams",
+                20,
+                groupTitle: ResourceTabGroupTitles.General,
+                icon: "queue")
             .AddResourceType<SharedPages.RegisterResource>(
                 IdentityProvisioningResourceTypeProvider.ResourceTypeId.ToString(),
                 "Identity Provisioning",
                 "Inspect identity provisioning resources declared through Resource Manager.",
                 "identity",
-                31,
+                33,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 ContainerHostResourceTypeProvider.ResourceTypeId.ToString(),
                 "Container Host",
                 "Inspect container host resources declared through Resource Manager.",
                 "container-host",
-                32,
+                34,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 DockerHostResourceTypeProvider.ResourceTypeId.ToString(),
                 "Docker Host",
                 "Inspect Docker host resources declared through Resource Manager.",
                 "container-host",
-                33,
+                35,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 DockerContainerResourceTypeProvider.ResourceTypeId.ToString(),
                 "Docker Container",
                 "Inspect Docker container resources declared through Resource Manager.",
                 "container",
-                34,
+                36,
                 resourceClass: ResourceManagerResourceClass.Container)
             .AddResourceType<SharedPages.RegisterResource>(
                 HostConfigurationSourceResourceTypeProvider.ResourceTypeId.ToString(),
                 "Host Configuration Source",
                 "Inspect host configuration source resources declared through Resource Manager.",
                 "settings",
-                35,
+                37,
                 resourceClass: ResourceManagerResourceClass.Configuration)
             .AddResourceType<SharedPages.RegisterResource>(
                 VirtualNetworkResourceTypeProvider.ResourceTypeId.ToString(),
                 "Virtual Network",
                 "Inspect virtual network resources declared through Resource Manager.",
                 "network",
-                36,
+                38,
                 resourceClass: ResourceManagerResourceClass.Network)
             .AddResourceType<SharedPages.RegisterResource>(
                 LocalHostNetworkResourceTypeProvider.ResourceTypeId.ToString(),
                 "Local Host Networking",
                 "Inspect local host networking resources declared through Resource Manager.",
                 "network",
-                37,
+                39,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 MacOSHostNetworkResourceTypeProvider.ResourceTypeId.ToString(),
                 "macOS Host Networking",
                 "Inspect macOS host networking resources declared through Resource Manager.",
                 "network",
-                38,
+                40,
                 resourceClass: ResourceManagerResourceClass.Infrastructure)
             .AddResourceType<SharedPages.RegisterResource>(
                 LocalVolumeResourceTypeProvider.ResourceTypeId.ToString(),
                 "Local Volume",
                 "Inspect local volume resources declared through Resource Manager.",
                 "storage",
-                39,
+                41,
                 resourceClass: ResourceManagerResourceClass.Storage)
             .AddResourceTypeEndpoint(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourceEndpointDescriptor.Http())
+                ResourceEndpointDescriptor.Http(defaultAssignment: ResourceEndpointAssignment.Auto))
             .AddResourceTypeEndpoint(
                 JavaScriptAppResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourceEndpointDescriptor.Http())
+                ResourceEndpointDescriptor.Http(defaultAssignment: ResourceEndpointAssignment.Auto))
             .AddResourceTypeEndpoint(
                 JavaAppResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourceEndpointDescriptor.Http())
+                ResourceEndpointDescriptor.Http(defaultAssignment: ResourceEndpointAssignment.Auto))
             .AddResourceTypeEndpoint(
                 GoAppResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourceEndpointDescriptor.Http())
+                ResourceEndpointDescriptor.Http(defaultAssignment: ResourceEndpointAssignment.Auto))
             .AddResourceTypeEndpoint(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourceEndpointDescriptor.Http())
+                ResourceEndpointDescriptor.Http(defaultAssignment: ResourceEndpointAssignment.Auto))
             .AddResourceTypeEndpoint(
                 SqlServerResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourceEndpointDescriptor.Tcp("tds", 1433))
+                ResourceEndpointDescriptor.Tcp("tds", 1433, supportsPortRemapping: false))
             .AddResourceTypeEndpoint(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourceEndpointDescriptor.Tcp("amqp", 5672))
+                ResourceEndpointDescriptor.Tcp("amqp", 5672, supportsPortRemapping: false))
             .AddResourceTypeEndpoint(
                 RabbitMQResourceTypeProvider.ResourceTypeId.ToString(),
-                ResourceEndpointDescriptor.Http("management", 15672))
+                ResourceEndpointDescriptor.Http("management", 15672, supportsPortRemapping: false))
             .AddResourceTab<SharedPages.ApplicationConfiguration>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 ResourcePredefinedViewIds.Configuration,

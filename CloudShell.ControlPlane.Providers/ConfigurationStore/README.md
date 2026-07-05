@@ -9,7 +9,7 @@
 
 ## Ported
 
-- Configuration class/type defaults, endpoint attribute, and read-only entry-count summary attribute.
+- Configuration class/type defaults, endpoint attribute, and read-only setting-count summary attribute.
 - Health and liveness declarations for the `/healthz` endpoint.
 - Start, stop, and restart operations backed by a provider-local process controller that runs the existing service web app.
 - Type-level runtime monitoring support, with Resource Manager process metric
@@ -20,15 +20,15 @@
   service to accept tokens from a non-built-in identity provider.
 - Inspect operation with a runtime-backed inspector that reports configured counts without exposing values.
 - Typed wrapper plus Resource Manager bridge projection and execution.
-- Resource Manager Entries tab for managing provider-owned runtime settings.
+- Resource Manager Settings tab for managing provider-owned runtime settings.
   Setting values stay in provider runtime state and sidecar definition files, not
   Resource graph attributes.
 - Manual `ResourceGraphBuilder.AddConfigurationStore(...)` builder
   for code-first resource and endpoint declaration, including create-only
-  `seed.entries` attributes for development templates. Seeded
+  `seed.settings` attributes for development templates. Seeded
   settings materialize into provider-owned runtime state and are stripped from
   accepted graph state before normal template export.
-- SettingsAndSecrets smoke coverage for endpoint projection, inspect execution, authorized entry reads, and API consumption through the graph-backed endpoint.
+- SettingsAndSecrets smoke coverage for endpoint projection, inspect execution, authorized setting reads, and API consumption through the graph-backed endpoint.
 - ThirdPartyIdentity Docker smoke coverage for a Keycloak-protected
   graph-backed Configuration Store consumed by a graph-backed ASP.NET Core API.
 
@@ -36,7 +36,7 @@
 
 This is the persisted/exported interchange shape for a graph-backed
 Configuration Store resource. Create-only templates may additionally include
-`seed.entries`; accepted graph state and default template export omit
+`seed.settings`; accepted graph state and default template export omit
 those seeded values.
 
 ```json
@@ -60,7 +60,7 @@ Create-only seed example:
   "providerId": "configuration",
   "endpoint": "http://localhost:5101",
   "seed": {
-    "entries": [
+    "settings": [
       {
         "name": "Sample--Message",
         "value": "Hello from template"
@@ -75,7 +75,7 @@ Create-only seed example:
 Ready to integrate for graph-declared configuration stores in the selected
 samples. The graph path starts the backing service, projects endpoint/count,
 supports inspect, monitoring, health/liveness, built-in authorization, and
-external bearer validation for the Keycloak sample. Runtime entries can be
+external bearer validation for the Keycloak sample. Runtime settings can be
 managed through Resource Manager when the UI host has access to the provider
 runtime manager. Durable setting storage, log streaming, permission-protected
 import/export, setting versioning, and full registration/update flows remain

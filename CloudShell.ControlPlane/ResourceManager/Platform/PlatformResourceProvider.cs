@@ -231,7 +231,7 @@ public sealed class PlatformResourceProvider(
         IResourceRegistrationStore registrations,
         CancellationToken cancellationToken = default)
     {
-        var normalized = NormalizeNetwork(definition);
+        var normalized = AllocateNetworkEndpointPorts(NormalizeNetwork(definition));
         ValidatePlatformEndpointAssignments(
             normalized.Id,
             CreateNetworkEndpointMappings(normalized));
@@ -249,7 +249,7 @@ public sealed class PlatformResourceProvider(
         IResourceRegistrationStore registrations,
         CancellationToken cancellationToken = default)
     {
-        var normalized = NormalizeService(definition);
+        var normalized = AllocateServiceEndpointPorts(NormalizeService(definition));
         ValidatePlatformEndpointAssignments(
             normalized.Id,
             CreateEndpointNetworkMappings(normalized));
@@ -687,17 +687,14 @@ public sealed class PlatformResourceProvider(
             string.Equals(network.Definition.Id, declaration.ResourceId, StringComparison.OrdinalIgnoreCase));
         if (declaredNetwork is not null)
         {
-            var normalized = NormalizeNetwork(declaredNetwork.Definition);
+            var normalized = AllocateNetworkEndpointPorts(NormalizeNetwork(declaredNetwork.Definition));
             ValidatePlatformEndpointAssignments(
                 normalized.Id,
                 CreateNetworkEndpointMappings(normalized));
 
-            if (declaration.Persistence == ResourceDeclarationPersistence.Persisted)
-            {
-                store.SaveNetwork(
-                    normalized,
-                    persist: true);
-            }
+            store.SaveNetwork(
+                normalized,
+                persist: declaration.Persistence == ResourceDeclarationPersistence.Persisted);
 
             return registrations.RegisterAsync(
                 Id,
@@ -712,16 +709,13 @@ public sealed class PlatformResourceProvider(
 
         if (declaredService is not null)
         {
-            var normalized = NormalizeService(declaredService.Definition);
+            var normalized = AllocateServiceEndpointPorts(NormalizeService(declaredService.Definition));
             ValidatePlatformEndpointAssignments(
                 normalized.Id,
                 CreateEndpointNetworkMappings(normalized));
-            if (declaration.Persistence == ResourceDeclarationPersistence.Persisted)
-            {
-                store.SaveService(
-                    normalized,
-                    persist: true);
-            }
+            store.SaveService(
+                normalized,
+                persist: declaration.Persistence == ResourceDeclarationPersistence.Persisted);
 
             return registrations.RegisterAsync(
                 Id,
@@ -2494,6 +2488,64 @@ public sealed class PlatformResourceProvider(
             .Where(mapping => !string.IsNullOrWhiteSpace(mapping.Address))
             .ToArray();
 
+    private NetworkResourceDefinition AllocateNetworkEndpointPorts(NetworkResourceDefinition definition)
+    {
+        var candidates = new List<EndpointAssignment>();
+        var endpoints = definition.NetworkEndpoints
+            .Select(endpoint =>
+            {
+                var networkResourceId = ResolveEndpointNetworkResourceId(definition, endpoint);
+                if (endpoint.Port is not null)
+                {
+                    return endpoint with
+                    {
+                        NetworkResourceId = networkResourceId
+                    };
+                }
+
+                if (
+                    endpoint.Assignment is not ResourceEndpointAssignment.Auto and
+                        not ResourceEndpointAssignment.ProviderDefault)
+                {
+                    return endpoint with
+                    {
+                        NetworkResourceId = networkResourceId
+                    };
+                }
+
+                if (endpoint.Assignment == ResourceEndpointAssignment.ProviderDefault &&
+                    endpoint.TargetPort is not > 0)
+                {
+                    return endpoint with
+                    {
+                        NetworkResourceId = networkResourceId
+                    };
+                }
+
+                var host = FirstNonEmpty(endpoint.IPAddress, endpoint.Host, hostLocalNetwork.DefaultHost)!;
+                var port = AllocateEndpointPort(
+                    definition.Id,
+                    endpoint.Name,
+                    endpoint.ProtocolName,
+                    host,
+                    networkResourceId,
+                    endpoint.TargetPort,
+                    candidates,
+                    allowAutomaticFallback: endpoint.Assignment == ResourceEndpointAssignment.Auto);
+                return endpoint with
+                {
+                    Port = port,
+                    NetworkResourceId = networkResourceId
+                };
+            })
+            .ToArray();
+
+        return definition with
+        {
+            Endpoints = endpoints
+        };
+    }
+
     private ResourceEndpointNetworkMapping ResolveNetworkEndpoint(
         string networkId,
         ResourceEndpointRequest request) =>
@@ -2522,6 +2574,80 @@ public sealed class PlatformResourceProvider(
                 options.AutoLocalPortEnd))
             .Where(mapping => !string.IsNullOrWhiteSpace(mapping.Address))
             .ToArray();
+
+    private ServiceResourceDefinition AllocateServiceEndpointPorts(ServiceResourceDefinition definition)
+    {
+        var candidates = new List<EndpointAssignment>();
+        var ports = definition.Ports
+            .Select(port =>
+            {
+                var networkResourceId = ResolveEndpointNetworkResourceId(definition, port);
+                if (port.Port is not null)
+                {
+                    return port with
+                    {
+                        NetworkResourceId = networkResourceId
+                    };
+                }
+
+                if (
+                    port.Assignment is not ResourceEndpointAssignment.Auto and
+                        not ResourceEndpointAssignment.ProviderDefault)
+                {
+                    return port with
+                    {
+                        NetworkResourceId = networkResourceId
+                    };
+                }
+
+                if (port.Assignment == ResourceEndpointAssignment.ProviderDefault &&
+                    port.TargetPort <= 0)
+                {
+                    return port with
+                    {
+                        NetworkResourceId = networkResourceId
+                    };
+                }
+
+                var host = FirstNonEmpty(port.IPAddress, port.Host, hostLocalNetwork.DefaultHost)!;
+                var exposedPort = AllocateEndpointPort(
+                    definition.Id,
+                    port.Name,
+                    port.Protocol,
+                    host,
+                    networkResourceId,
+                    port.TargetPort,
+                    candidates,
+                    allowAutomaticFallback: port.Assignment == ResourceEndpointAssignment.Auto);
+                return port with
+                {
+                    Port = exposedPort,
+                    NetworkResourceId = networkResourceId
+                };
+            })
+            .ToArray();
+
+        return definition with
+        {
+            Ports = ports
+        };
+    }
+
+    private static string ResolveEndpointNetworkResourceId(
+        NetworkResourceDefinition definition,
+        ResourceEndpointRequest endpoint) =>
+        NormalizeNullable(endpoint.NetworkResourceId) ?? definition.Id;
+
+    private string ResolveEndpointNetworkResourceId(
+        ServiceResourceDefinition definition,
+        ServicePort port) =>
+        NormalizeNullable(port.NetworkResourceId) ??
+        definition.NetworkIds.FirstOrDefault() ??
+        GetDefaultEndpointNetworkResourceId();
+
+    private string GetDefaultEndpointNetworkResourceId() =>
+        store.GetNetworks().FirstOrDefault(network => network.IsDefault)?.Id ??
+        HostNetworkResourceId;
 
     private static IReadOnlyList<ResourceEndpoint> CreateLoadBalancerEndpoints(
         LoadBalancerResourceDefinition definition) =>
@@ -2565,6 +2691,90 @@ public sealed class PlatformResourceProvider(
             .ToArray();
 
         ValidatePlatformEndpointAssignments(ownerResourceId, candidates);
+    }
+
+    private int AllocateEndpointPort(
+        string ownerResourceId,
+        string endpointName,
+        string protocol,
+        string host,
+        string? networkResourceId,
+        int? preferredPort,
+        List<EndpointAssignment> candidates,
+        bool allowAutomaticFallback)
+    {
+        var occupied = GetPlatformEndpointAssignments(ownerResourceId).ToList();
+        foreach (var port in EnumerateEndpointPortCandidates(
+            ownerResourceId,
+            endpointName,
+            preferredPort,
+            allowAutomaticFallback))
+        {
+            var candidate = CreateEndpointAssignment(
+                ownerResourceId,
+                endpointName,
+                protocol,
+                host,
+                networkResourceId,
+                port);
+            if (occupied.Any(assignment =>
+                    string.Equals(assignment.SocketIdentity, candidate.SocketIdentity, StringComparison.OrdinalIgnoreCase)) ||
+                candidates.Any(assignment =>
+                    string.Equals(assignment.SocketIdentity, candidate.SocketIdentity, StringComparison.OrdinalIgnoreCase)) ||
+                !IsHostPortAvailable(candidate.Host, candidate.Port))
+            {
+                continue;
+            }
+
+            candidates.Add(candidate);
+            return port;
+        }
+
+        var range = GetAutoLocalPortRange();
+        var conventionalPort = preferredPort?.ToString(CultureInfo.InvariantCulture) ?? "none";
+        var reason = allowAutomaticFallback
+            ? $"Conventional port '{conventionalPort}' was not available and no free port was found in the automatic range {range.Start.ToString(CultureInfo.InvariantCulture)}-{range.End.ToString(CultureInfo.InvariantCulture)}."
+            : $"Conventional port '{conventionalPort}' is not available. Set an explicit endpoint port or use automatic endpoint assignment for resources that support port remapping.";
+        throw new InvalidOperationException(
+            $"Resource '{ownerResourceId}' endpoint '{endpointName}' could not be assigned a local endpoint port. {reason}");
+    }
+
+    private IEnumerable<int> EnumerateEndpointPortCandidates(
+        string ownerResourceId,
+        string endpointName,
+        int? preferredPort,
+        bool allowAutomaticFallback)
+    {
+        if (preferredPort is > 0)
+        {
+            yield return preferredPort.Value;
+        }
+
+        if (!allowAutomaticFallback)
+        {
+            yield break;
+        }
+
+        var range = GetAutoLocalPortRange();
+        var count = range.End - range.Start + 1;
+        var offset = (int)(StableHash($"{ownerResourceId}:{endpointName}") % (uint)count);
+        for (var index = 0; index < count; index++)
+        {
+            var port = range.Start + ((offset + index) % count);
+            if (preferredPort == port)
+            {
+                continue;
+            }
+
+            yield return port;
+        }
+    }
+
+    private (int Start, int End) GetAutoLocalPortRange()
+    {
+        var start = Math.Max(1, options.AutoLocalPortStart);
+        var end = Math.Max(start, options.AutoLocalPortEnd);
+        return (start, end);
     }
 
     private void ValidatePlatformEndpointAssignments(
@@ -2690,22 +2900,48 @@ public sealed class PlatformResourceProvider(
             resourceId,
             mapping.Name,
             $"{uri.Scheme.ToLowerInvariant()}://{host}:{port.ToString(CultureInfo.InvariantCulture)}",
-            $"{CreateSocketHostIdentity(host)}:{port.ToString(CultureInfo.InvariantCulture)}",
+            $"{CreateSocketScopeIdentity(mapping.NetworkResourceId, host)}:{port.ToString(CultureInfo.InvariantCulture)}",
             host,
             port);
     }
 
-    private static string CreateSocketHostIdentity(string host)
+    private static EndpointAssignment CreateEndpointAssignment(
+        string resourceId,
+        string endpointName,
+        string protocol,
+        string host,
+        string? networkResourceId,
+        int port)
+    {
+        var normalizedProtocol = NormalizeProtocol(protocol);
+        var normalizedHost = NormalizeEndpointHost(host);
+        return new EndpointAssignment(
+            resourceId,
+            endpointName,
+            $"{normalizedProtocol}://{normalizedHost}:{port.ToString(CultureInfo.InvariantCulture)}",
+            $"{CreateSocketScopeIdentity(networkResourceId, normalizedHost)}:{port.ToString(CultureInfo.InvariantCulture)}",
+            normalizedHost,
+            port);
+    }
+
+    private static string CreateSocketScopeIdentity(
+        string? networkResourceId,
+        string host)
     {
         if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase))
         {
             return "localhost";
         }
 
-        return IPAddress.TryParse(host, out var address) &&
-            (IPAddress.IsLoopback(address) || IsAnyAddress(address))
-                ? "localhost"
-                : host;
+        if (IPAddress.TryParse(host, out var address) &&
+            (IPAddress.IsLoopback(address) || IsAnyAddress(address)))
+        {
+            return "localhost";
+        }
+
+        return string.IsNullOrWhiteSpace(networkResourceId)
+            ? host
+            : $"{networkResourceId.Trim().ToLowerInvariant()}:{host}";
     }
 
     private static bool IsHostPortAvailable(string host, int port)
@@ -3126,6 +3362,21 @@ public sealed class PlatformResourceProvider(
 
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
+
+    private static uint StableHash(string value)
+    {
+        const uint offset = 2166136261;
+        const uint prime = 16777619;
+
+        var hash = offset;
+        foreach (var character in value)
+        {
+            hash ^= character;
+            hash *= prime;
+        }
+
+        return hash;
+    }
 
     private static string NormalizeResourceId(
         string resourceId,

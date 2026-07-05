@@ -48,7 +48,7 @@ clients discover the service endpoints injected by the dependent
 
 The sample also declares a built-in development identity provider. The Web API
 resource has a `settings-secrets-api` identity. The configuration store grants
-that identity `ConfigurationStoreResourceOperationPermissions.ReadEntries`, and
+that identity `ConfigurationStoreResourceOperationPermissions.ReadSettings`, and
 the Secrets Vault grants it
 `SecretsVaultResourceOperationPermissions.ReadSecrets`. In this first flow the
 Web API identity is provisioned automatically when the Control Plane starts.
@@ -58,9 +58,9 @@ configuration store and vault are protected target resources; they do not need
 their own identities unless they later call another resource or provider.
 
 The sample declares Resource model Configuration Store and Secrets Vault
-resources. These resources project endpoint and `*.entries.count`
+resources. These resources project endpoint and `*.settings.count`
 summary attributes through the Resource Manager bridge, but the actual
-configuration entries, secrets, grants, and backing services remain owned by
+configuration settings, secrets, grants, and backing services remain owned by
 the provider-owned runtime integrations. The runtime integrations currently
 start local C# service projects; a future provider implementation can back the
 same resource shapes with containers.

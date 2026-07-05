@@ -14,7 +14,7 @@ public sealed class ConfigurationStoreRuntimeOptions
 
     public TimeSpan StartupTimeout { get; set; } = TimeSpan.FromSeconds(60);
 
-    public IList<ConfigurationStoreRuntimeEntry> Entries { get; } = [];
+    public IList<ConfigurationStoreRuntimeSetting> Settings { get; } = [];
 
     public string? ServiceAuthenticationIssuer { get; set; }
 
@@ -35,10 +35,9 @@ public sealed class ConfigurationStoreRuntimeOptions
     public string? ServiceBearerSigningKeyPem { get; set; }
 }
 
-public sealed record ConfigurationStoreRuntimeEntry(
+public sealed record ConfigurationStoreRuntimeSetting(
     string Name,
-    string Value,
-    bool IsSecret = false);
+    string Value);
 
 public interface IConfigurationStoreRuntimeController
 {
@@ -115,11 +114,10 @@ public sealed class ConfigurationStoreProcessRuntimeController(
             name = resource.Name,
             displayName = resource.State.DisplayName,
             endpoint,
-            entries = _options.Entries.Select(entry => new
+            settings = _options.Settings.Select(setting => new
             {
-                entry.Name,
-                entry.Value,
-                entry.IsSecret
+                setting.Name,
+                setting.Value
             }).ToArray(),
             healthChecks = Array.Empty<object>()
         };

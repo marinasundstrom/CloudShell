@@ -44,14 +44,23 @@ public static class StorageVolumeResourceOperationPermissions
 
 public static class ConfigurationStoreResourceOperationPermissions
 {
-    public const string ReadEntries =
-        "CloudShell.Configuration/stores/entries/read/action";
+    public const string ReadSettings =
+        "CloudShell.Configuration/stores/settings/read/action";
 }
 
 public static class SecretsVaultResourceOperationPermissions
 {
     public const string ReadSecrets =
         "CloudShell.Secrets/vaults/secrets/read/action";
+}
+
+public static class DeviceRegistryResourceOperationPermissions
+{
+    public const string EnrollDevices =
+        "CloudShell.IoT/deviceRegistries/devices/enroll/action";
+
+    public const string ManageDevices =
+        "CloudShell.IoT/deviceRegistries/devices/manage/action";
 }
 
 public static class DatabaseResourceOperationPermissions
@@ -179,7 +188,7 @@ public static class CloudShellPermissions
         public static class Actions
         {
             public const string Read =
-                ConfigurationStoreResourceOperationPermissions.ReadEntries;
+                ConfigurationStoreResourceOperationPermissions.ReadSettings;
         }
     }
 
@@ -189,6 +198,18 @@ public static class CloudShellPermissions
         {
             public const string ProvisionIdentities =
                 ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities;
+        }
+    }
+
+    public static class IoT
+    {
+        public static class Actions
+        {
+            public const string EnrollDevices =
+                DeviceRegistryResourceOperationPermissions.EnrollDevices;
+
+            public const string ManageDevices =
+                DeviceRegistryResourceOperationPermissions.ManageDevices;
         }
     }
 

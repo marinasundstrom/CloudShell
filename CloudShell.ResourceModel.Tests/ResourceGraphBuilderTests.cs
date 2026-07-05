@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
@@ -19,7 +20,7 @@ public sealed class ResourceGraphBuilderTests
                     .WithDisplayName("App Network");
                 resources
                     .AddConfigurationStore("settings")
-                    .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/entries");
+                    .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/settings");
             });
 
         var graphDefinition = graph.BuildGraph();
@@ -140,7 +141,7 @@ public sealed class ResourceGraphBuilderTests
     }
 
     [Fact]
-    public void ResourceGraphBuilder_BuildsConfigurationStoreEntriesAsAttributes()
+    public void ResourceGraphBuilder_BuildsConfigurationStoreSettingsAsAttributes()
     {
         var graph = new ResourceGraphBuilder()
             .DefineResources(resources =>
@@ -151,11 +152,103 @@ public sealed class ResourceGraphBuilderTests
             });
 
         var definition = Assert.Single(graph.BuildGraph().Resources);
-        var entry = Assert.Single(definition.ResourceAttributeValues.GetObject<ConfigurationStoreSeedSetting[]>(
-            ConfigurationStoreResourceTypeProvider.Attributes.Entries) ?? []);
+        var setting = Assert.Single(definition.ResourceAttributeValues.GetObject<ConfigurationStoreSeedSetting[]>(
+            ConfigurationStoreResourceTypeProvider.Attributes.Settings) ?? []);
 
-        Assert.Equal("Api:BaseUrl", entry.Name);
-        Assert.Equal("http://localhost:5000", entry.Value);
+        Assert.Equal("Api:BaseUrl", setting.Name);
+        Assert.Equal("http://localhost:5000", setting.Value);
+    }
+
+    [Fact]
+    public void ResourceGraphBuilder_BuildsDeviceRegistryTrustAndEnrollmentPolicyAsAttributes()
+    {
+        var graph = new ResourceGraphBuilder()
+            .DefineResources(resources =>
+            {
+                var vault = resources
+                    .AddSecretsVault("vault")
+                    .WithSeed(seed => seed.Certificate("factory-ca", "certificate"));
+
+                resources
+                    .AddDeviceRegistry("devices")
+                    .WithMqttEndpoint("mqtt://localhost:7154")
+                    .WithHeartbeatStaleAfter(TimeSpan.FromMinutes(5))
+                    .TrustCertificate(vault.Certificate("factory-ca"))
+                    .UseEnrollmentPolicy(policy =>
+                    {
+                        policy.AllowSubjectPrefix("device/");
+                        policy.RequireClaim("manufacturer", "acme");
+                    });
+            });
+
+        var definition = Assert.Single(
+            graph.BuildGraph().Resources,
+            resource => resource.TypeId == DeviceRegistryResourceTypeProvider.ResourceTypeId);
+        var certificate = Assert.Single(definition.ResourceAttributeValues
+            .GetObject<ResourceCertificateReference[]>(
+                DeviceRegistryResourceTypeProvider.Attributes.TrustedCertificates) ?? []);
+        var prefix = Assert.Single(definition.ResourceAttributeValues
+            .GetObject<string[]>(
+                DeviceRegistryResourceTypeProvider.Attributes.AllowedSubjectPrefixes) ?? []);
+        var claim = Assert.Single(definition.ResourceAttributeValues
+            .GetObject<DeviceEnrollmentRequiredClaim[]>(
+                DeviceRegistryResourceTypeProvider.Attributes.RequiredClaims) ?? []);
+        var dependency = Assert.Single(definition.StartupDependencies);
+
+        Assert.Equal("secrets.vault:vault", certificate.VaultResourceId);
+        Assert.Equal("factory-ca", certificate.Name);
+        Assert.Equal("device/", prefix);
+        Assert.Equal(
+            300,
+            definition.ResourceAttributeValues[
+                DeviceRegistryResourceTypeProvider.Attributes.HeartbeatStaleAfterSeconds].IntegerValue);
+        Assert.Equal(
+            "mqtt://localhost:7154",
+            definition.ResourceAttributes[DeviceRegistryResourceTypeProvider.Attributes.MqttEndpoint]);
+        Assert.Equal("manufacturer", claim.Name);
+        Assert.Equal("acme", claim.Value);
+        Assert.True(dependency.TryGetDependsOnResourceId(out var dependencyResourceId));
+        Assert.Equal("secrets.vault:vault", dependencyResourceId);
+    }
+
+    [Fact]
+    public void ResourceGraphBuilder_BuildsDeviceRegistryEnrollmentProfileAsProvisioningPolicy()
+    {
+        var graph = new ResourceGraphBuilder()
+            .DefineResources(resources =>
+            {
+                var settings = resources.AddConfigurationStore("device-settings");
+
+                resources
+                    .AddDeviceRegistry("devices")
+                    .UseEnrollmentProfile(profile =>
+                    {
+                        profile
+                            .AsIndividualEnrollment("device/test-pc")
+                            .RequireClaim("manufacturer", "acme")
+                            .GrantAccess(
+                                settings,
+                                ConfigurationStoreResourceOperationPermissions.ReadSettings);
+                    });
+            });
+
+        var definition = Assert.Single(
+            graph.BuildGraph().Resources,
+            resource => resource.TypeId == DeviceRegistryResourceTypeProvider.ResourceTypeId);
+        var profile = Assert.Single(definition.ResourceAttributeValues
+            .GetObject<DeviceEnrollmentProfile[]>(
+                DeviceRegistryResourceTypeProvider.Attributes.EnrollmentProfiles) ?? []);
+        var subject = Assert.Single(profile.Policy.Subjects);
+        var claim = Assert.Single(profile.Policy.RequiredClaims);
+        var grant = Assert.Single(profile.PermissionGrants);
+
+        Assert.Equal("default", profile.Name);
+        Assert.Equal(DeviceEnrollmentProfileKinds.Individual, profile.Kind);
+        Assert.Equal("device/test-pc", subject);
+        Assert.Equal("manufacturer", claim.Name);
+        Assert.Equal("acme", claim.Value);
+        Assert.Equal("configuration.store:device-settings", grant.TargetResourceId);
+        Assert.Equal(ConfigurationStoreResourceOperationPermissions.ReadSettings, grant.Permission);
     }
 
     [Fact]
@@ -239,7 +332,7 @@ public sealed class ResourceGraphBuilderTests
                 app = resources.AddNetwork("api");
                 resources
                     .AddConfigurationStore("settings")
-                    .Allow(app, "configuration.entries.read");
+                    .Allow(app, "configuration.settings.read");
             });
         using var serviceProvider = services.BuildServiceProvider();
         var declarations = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
@@ -283,10 +376,10 @@ public sealed class ResourceGraphBuilderTests
         Assert.False(declarations.ShouldAutoStart(declaration.ResourceId));
         Assert.False(declarations.ShouldAutoStartAsDependency(declaration.ResourceId));
         Assert.Equal("configuration.store:settings", grant.TargetResourceId);
-        Assert.Equal("configuration.entries.read", grant.Permission);
+        Assert.Equal("configuration.settings.read", grant.Permission);
         Assert.Equal(ResourcePrincipalKind.ResourceIdentity, grant.Principal.Kind);
         Assert.Equal("cloudshell.network:api", grant.Principal.SourceResourceId);
-        Assert.Equal("configuration.entries.read", grantAttribute.Permission);
+        Assert.Equal("configuration.settings.read", grantAttribute.Permission);
         Assert.Equal(ResourcePrincipalAttributeKinds.ResourceIdentity, grantAttribute.Principal.Kind);
         Assert.Equal("cloudshell.network:api", grantAttribute.Principal.SourceResourceId);
     }
@@ -568,7 +661,7 @@ public sealed class ResourceGraphBuilderTests
         graph
             .AddConfigurationStore("settings")
             .WithDisplayName("Settings")
-            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/entries")
+            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/settings")
             .DependsOn(network);
         graph
             .AddSecretsVault("secrets")
@@ -588,7 +681,7 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal(ConfigurationStoreResourceTypeProvider.ProviderId, settings.ProviderId);
         Assert.Equal("Settings", settings.DisplayName);
         Assert.Equal(
-            "http://localhost:5101/api/configuration/stores/settings/entries",
+            "http://localhost:5101/api/configuration/stores/settings/settings",
             settings.ResourceAttributeValues[
                 ConfigurationStoreResourceTypeProvider.Attributes.Endpoint].StringValue);
         var settingsDependency = Assert.Single(settings.StartupDependencies);
@@ -1102,7 +1195,7 @@ public sealed class ResourceGraphBuilderTests
             path: "./Data/storage/app");
         var settings = graph
             .AddConfigurationStore("settings")
-            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/entries");
+            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/settings");
 
         graph
             .AddExecutableApplication("worker")
@@ -1253,7 +1346,7 @@ public sealed class ResourceGraphBuilderTests
         var graph = new ResourceGraphBuilder();
         var settings = graph
             .AddConfigurationStore("settings")
-            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/entries");
+            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/settings");
 
         graph
             .AddJavaScriptApp("frontend", "src/frontend")
@@ -1416,7 +1509,7 @@ public sealed class ResourceGraphBuilderTests
         var graph = new ResourceGraphBuilder();
         var settings = graph
             .AddConfigurationStore("settings")
-            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/entries");
+            .WithEndpoint("http://localhost:5101/api/configuration/stores/settings/settings");
 
         graph
             .AddJavaMavenApp("api", "src/api", "target/app.jar", "clean package -DskipTests")

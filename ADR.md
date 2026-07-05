@@ -9,7 +9,71 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-07-05
+
+### ADR-20260705-001: Keep event transport separate from device management and operation queues
+
+CloudShell should offer managed event transport as an `event.broker` service
+resource instead of folding broker protocols into Device Registry or copying a
+provider-specific IoT product boundary. Device Registry owns device identity,
+enrollment, trust, desired state, reported state, last-seen metadata,
+capabilities, and lifecycle. Event Broker transports and can retain event facts
+such as telemetry, sensor readings, device check-ins, lifecycle events, and
+audit events. A future Service Bus or operation-queue resource should deliver
+work or commands that have intended recipients, acknowledgement, retries, and
+completion tracking.
+
+This keeps CloudShell consistent across protocols and providers when an
+environment chooses the CloudShell-managed event path. MQTT, HTTP, AMQP, Kafka,
+Azure Event Hubs, NATS, or other transports can implement or project the same
+event-broker concept without changing the device management model. Device apps
+and specialized device clients may still connect to custom brokers or
+device-specific endpoints outside this resource when needed. Event Broker can
+feed CloudShell observability and future OpenTelemetry integration, but
+observability remains the query, correlation, and storage surface for logs,
+traces, metrics, and telemetry.
+
+The first implementation validates declared protocol endpoints, accepts the
+resource definition, exposes a C# `AddEventBroker(...)` builder, projects
+endpoints into Resource Manager, and provides a built-in local HTTP retained
+event log. Publishers append immutable events to named streams, and consumers
+query retained events by sequence number through a separate `EventBrokerClient`.
+Broker-native permission reconciliation, live subscriptions, telemetry
+ingestion, Device Registry broker bridging, MQTT broker runtime, retention
+policy controls, and operation queues remain future work.
+
 ## 2026-07-04
+
+### ADR-20260704-002: Treat enrolled devices as device identities backed by a Device Registry
+
+CloudShell should model IoT onboarding through a `iot.device-registry`
+service resource that owns enrollment policy, trusted factory certificate
+references, registry lifecycle, and registry-owned device metadata. An
+enrolled device establishes a `deviceIdentity` principal category. Device
+identity credentials can use the same built-in authority mechanics as app and
+resource identities for the first implementation, but the principal category
+must remain distinct so access control, API projection, diagnostics, and future
+Resource Manager views can tell device identities apart from application
+resource identities.
+
+The Device Registry service owns a separate device database for enrolled
+device metadata. Device identities are provisioned into the built-in identity
+provider boundary for now so devices can obtain CloudShell-compatible client
+credentials and later access selected services through normal resource
+permission grants. The enrollment profile is the provisioning policy for
+device identities: it decides which devices may enroll and which resource
+access grants the resulting device principal receives. Profiles distinguish
+individual enrollment from group enrollment so CloudShell can later expose
+per-device and criteria-based enrollment management without changing the
+device principal contract. Device presence is registry-owned metadata:
+enrollment and explicit heartbeat update `lastSeenAt`, while revocation marks
+the device record revoked and disables future built-in token issuance for that
+device credential. Removing a device record is a cleanup operation that also
+unregisters the built-in device identity client, while revocation remains the
+explicit audit-friendly denial state. Projecting enrolled devices as CloudShell
+resources, resolving factory certificates for proof validation, credential
+rotation, per-application identities, and provider-backed identity systems
+remain future work.
 
 ### ADR-20260704-001: Model certificates as typed vault-backed references
 

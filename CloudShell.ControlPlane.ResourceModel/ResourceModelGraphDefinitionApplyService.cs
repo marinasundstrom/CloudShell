@@ -191,6 +191,7 @@ public sealed class ResourceModelGraphDefinitionApplyService(
             "managedidentity" => ResourcePrincipalKind.ManagedIdentity,
             "workloadidentity" => ResourcePrincipalKind.WorkloadIdentity,
             "external" => ResourcePrincipalKind.External,
+            "deviceidentity" => ResourcePrincipalKind.DeviceIdentity,
             _ => Enum.TryParse<ResourcePrincipalKind>(kind, ignoreCase: true, out var parsed)
                 ? parsed
                 : throw new ArgumentException($"Unknown resource principal kind '{kind}'.", nameof(kind))

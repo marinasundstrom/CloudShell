@@ -80,7 +80,7 @@ public sealed class AuthorizationTests
         const string issuer = "https://identity.example.test/realms/cloudshell";
         const string audience = "cloudshell-services";
         const string resourceId = "configuration:third-party-identity";
-        const string permission = "CloudShell.Configuration/stores/entries/read/action";
+        const string permission = "CloudShell.Configuration/stores/settings/read/action";
         using var issuerTokens = new BuiltInAuthorityTokenService(Options.Create(
             new CloudShellAuthenticationOptions
             {

@@ -13,10 +13,98 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-07-05
+
+#### Changed
+
+- Moved Resource Manager Device Registry device inspection into a dedicated
+  device details view.
+- Added sample device app logs for enrollment, heartbeat, twin sync, and
+  Configuration Store reads.
+- Added an experimental Device Registry MQTT publish path for device heartbeat
+  and reported-state sync messages, including an optional embedded MQTT
+  endpoint, device identity credential validation, C# client helpers, sample
+  wiring, and smoke coverage.
+- Hardened Device Registry MQTT publish handling so invalid sessions, unknown
+  registry topics, missing registries/devices, revoked devices, and malformed
+  JSON payloads are rejected without mutating device state.
+- Added MQTT response-topic sync support so Device Registry devices can receive
+  the same desired-state response payload over MQTT that HTTP sync returns.
+- Recorded Device Registry last-seen transport for HTTP and MQTT contacts and
+  showed device presence with a colored indicator dot in the device list and
+  details views.
+- Added reversible Device Registry disable/enable lifecycle operations that
+  block token issuance and MQTT authentication while keeping revoke as the
+  terminal access removal path.
+- Added an Event Broker resource model slice with `event.broker`,
+  `AddEventBroker(...)`, protocol endpoint projection for MQTT, HTTP, AMQP,
+  Kafka, Event Hubs, and NATS style transports, generic Resource Manager
+  registration, a local HTTP retained event log, a separate `EventBrokerClient`,
+  a Resource Manager Streams tab, and Device Registry sample publisher/consumer
+  coverage for the event-transport boundary; see ADR-20260705-001.
+- Projected configured Device Registry MQTT endpoints into Resource Manager
+  endpoint details alongside the HTTP registry endpoint.
+- Added an explicit `Microsoft.OpenApi` 3.7.0 dependency for OpenAPI-enabled
+  hosts so the vulnerable transitive 3.3.1 package is no longer resolved.
+- Recorded the enrollment profile name and kind on enrolled Device Registry
+  devices and surfaced that attribution through API/client responses and the
+  Resource Manager device list.
+- Added Resource Manager Device Registry twin details and desired-state editing
+  for enrolled devices.
+- Added an MVP Device Registry twin sync path with desired/reported state
+  versions so low-power devices can wake, report state, and pull updated
+  desired state through the device identity.
+- Added an opt-in Device Registry heartbeat stale-after policy and computed
+  device presence values for registry responses and Resource Manager device
+  listings.
+- Added a read-only Resource Manager Enrollment profiles tab for Device
+  Registry resources and moved Device Registry tabs into the General section.
+- Completed the Configuration Store terminology migration from entries to
+  settings across the service API, resource attributes, permissions, runtime
+  manager, app/environment references, launchers, samples, Resource Manager UI,
+  and SDK documentation. Configuration Store settings are plain name/value data
+  without an `isSecret` marker; sensitive values belong in Secrets Vault.
+- Moved the Configuration Store Settings tab and Secrets Vault content tabs
+  into the Resource Manager General section instead of giving each small
+  collection view its own same-named section.
+
 ### 2026-07-04
 
 #### Changed
 
+- Added host-local endpoint allocation policy for conventional and automatic
+  ports. `ProviderDefault` endpoints now use the resource's conventional port
+  and fail when it is unavailable, while `Auto` endpoints can fall back to the
+  configured automatic port range. Endpoint allocation now scopes conflicts by
+  network, address, and port for virtual bindings while preserving host-local
+  loopback conflicts, and built-in endpoint descriptors mark app-style
+  resources as remappable while SQL Server and RabbitMQ stay conventional-port
+  first.
+- Added the first Device Registry MVP: `iot.device-registry` resource type,
+  C# `AddDeviceRegistry(...)` builder, certificate trust references,
+  enrollment policy attributes, lifecycle-backed standalone
+  `CloudShell.DeviceRegistryService`, a separate enrolled-device store,
+  built-in authority device credential registration, and public
+  `DeviceIdentity` principal-kind support. Added a generic Device Registry
+  client and sample app that enrolls the current machine, reports basic
+  platform/runtime properties, and reads Configuration Store settings with the
+  issued device identity. Added a Resource Manager Devices tab for enrolled
+  device identity metadata, claims, and reported properties. Enrollment
+  profiles now distinguish individual and group enrollment intent and carry
+  the target resource permissions provisioned for matching devices; see
+  ADR-20260704-002.
+- Added Device Registry presence and revocation support. Enrolled device
+  records now track status, last-seen timestamp/source, and revocation
+  metadata; device clients can send authenticated heartbeat check-ins; registry
+  operators with device-management permission can revoke a device identity; and
+  revocation unregisters the built-in device identity client so future token
+  requests are rejected. The Device Registry sample now exercises enrollment,
+  heartbeat, configuration access, revocation, and post-revocation token
+  denial.
+- Added Device Registry device-management cleanup. The registry service,
+  client, launcher runtime manager, and Resource Manager Devices tab now
+  support removing enrolled-device records, while the Devices tab also exposes
+  revoke access for the selected device through the running registry service.
 - Added typed Secrets Vault certificate support for future TLS/HTTPS flows:
   `CertificateReference` and resolver contracts, create-only
   `seed.certificates` resource-template input, provider-owned runtime

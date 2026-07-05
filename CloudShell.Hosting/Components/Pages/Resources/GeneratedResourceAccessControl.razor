@@ -43,7 +43,7 @@
 
     private static readonly IReadOnlyList<PermissionOption> AllPermissionOptions =
     [
-        new("Configuration entries: read", ConfigurationStoreResourceOperationPermissions.ReadEntries, PermissionOptionTarget.ConfigurationStore),
+        new("Configuration settings: read", ConfigurationStoreResourceOperationPermissions.ReadSettings, PermissionOptionTarget.ConfigurationStore),
         new("Secrets: read", SecretsVaultResourceOperationPermissions.ReadSecrets, PermissionOptionTarget.SecretsVault),
         new("Volume mount: read", StorageVolumeResourceOperationPermissions.MountRead, PermissionOptionTarget.Volume),
         new("Volume mount: write", StorageVolumeResourceOperationPermissions.MountWrite, PermissionOptionTarget.Volume),
@@ -622,6 +622,7 @@
             ResourcePrincipalKind.ManagedIdentity => "Managed identity",
             ResourcePrincipalKind.WorkloadIdentity => "Workload identity",
             ResourcePrincipalKind.External => "External principal",
+            ResourcePrincipalKind.DeviceIdentity => "Device identity",
             _ => Principal.Kind.ToString()
         };
     }

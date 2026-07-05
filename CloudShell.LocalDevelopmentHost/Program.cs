@@ -25,9 +25,24 @@ var secretsVaultServiceProjectPath = Path.Combine(
     repositoryRootPath,
     "CloudShell.SecretsVaultService",
     "CloudShell.SecretsVaultService.csproj");
+var deviceRegistryServiceProjectPath = Path.Combine(
+    repositoryRootPath,
+    "CloudShell.DeviceRegistryService",
+    "CloudShell.DeviceRegistryService.csproj");
+var eventBrokerServiceProjectPath = Path.Combine(
+    repositoryRootPath,
+    "CloudShell.EventBrokerService",
+    "CloudShell.EventBrokerService.csproj");
 var cloudShellDataDirectory = ResolveCloudShellDataDirectory(
     builder.Configuration,
     builder.Environment.ContentRootPath);
+var serviceAuthenticationIssuer =
+    builder.Configuration["Authentication:BuiltInAuthority:Issuer"];
+var serviceAuthenticationAudience =
+    builder.Configuration["Authentication:BuiltInAuthority:Audience"] ??
+    "cloudshell-control-plane";
+var serviceAuthenticationSigningKeyPem =
+    builder.Configuration["Authentication:BuiltInAuthority:SigningKeyPem"];
 
 var cloudShell = builder.AddCloudShellControlPlaneApplication(
     configureBuiltInResourceModelProviders: null);
@@ -41,6 +56,9 @@ cloudShell
         runtime.DefinitionsDirectory = Path.Combine(
             cloudShellDataDirectory,
             "configuration-store-definitions");
+        runtime.ServiceAuthenticationIssuer = serviceAuthenticationIssuer;
+        runtime.ServiceAuthenticationAudience = serviceAuthenticationAudience;
+        runtime.ServiceAuthenticationSigningKeyPem = serviceAuthenticationSigningKeyPem;
     })
     .UseSecretsVaultResourceProvider(runtime =>
     {
@@ -49,6 +67,28 @@ cloudShell
         runtime.DefinitionsDirectory = Path.Combine(
             cloudShellDataDirectory,
             "secrets-vault-definitions");
+        runtime.ServiceAuthenticationIssuer = serviceAuthenticationIssuer;
+        runtime.ServiceAuthenticationAudience = serviceAuthenticationAudience;
+        runtime.ServiceAuthenticationSigningKeyPem = serviceAuthenticationSigningKeyPem;
+    })
+    .UseDeviceRegistryResourceProvider(runtime =>
+    {
+        runtime.ServiceProjectPath = deviceRegistryServiceProjectPath;
+        runtime.ServiceWorkingDirectory = repositoryRootPath;
+        runtime.DefinitionsDirectory = Path.Combine(
+            cloudShellDataDirectory,
+            "device-registry-definitions");
+        runtime.ServiceAuthenticationIssuer = serviceAuthenticationIssuer;
+        runtime.ServiceAuthenticationAudience = serviceAuthenticationAudience;
+        runtime.ServiceAuthenticationSigningKeyPem = serviceAuthenticationSigningKeyPem;
+    })
+    .UseEventBrokerResourceProvider(runtime =>
+    {
+        runtime.ServiceProjectPath = eventBrokerServiceProjectPath;
+        runtime.ServiceWorkingDirectory = repositoryRootPath;
+        runtime.DefinitionsDirectory = Path.Combine(
+            cloudShellDataDirectory,
+            "event-broker-definitions");
     });
 builder.Services.AddLocalRabbitMQDockerRuntime();
 

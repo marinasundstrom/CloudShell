@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using CloudShell.Abstractions.Authorization;
@@ -17,11 +18,16 @@ using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ControlPlane.ResourceModel;
+using CloudShell.DeviceRegistry.Client;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using MQTTnet;
+using MQTTnet.Client;
+using MQTTnet.Formatter;
+using MQTTnet.Protocol;
 using ResourceAttributeId = CloudShell.ResourceModel.ResourceAttributeId;
 using ResourceAttributeValue = CloudShell.ResourceModel.ResourceAttributeValue;
 using ResourceCapabilityId = CloudShell.ResourceModel.ResourceCapabilityId;
@@ -249,6 +255,11 @@ public sealed class SampleSmokeTests
         yield return new object[]
         {
             "samples/ProjectReference/AppHost/CloudShell.ProjectReferenceAppHost.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
+            "samples/DeviceRegistry/AppHost/CloudShell.DeviceRegistryAppHost.csproj",
             resourceHostPaths
         };
         yield return new object[]
@@ -797,14 +808,14 @@ public sealed class SampleSmokeTests
         var graphApi = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application.aspnet-core-project:application-topology-api");
 
-        var graphSettingsEndpoint = GetEndpointAddress(graphSettings, "entries");
+        var graphSettingsEndpoint = GetEndpointAddress(graphSettings, "settings");
         var graphSecretsEndpointAddress = GetEndpointAddress(graphSecrets, "secrets");
         Assert.StartsWith(
             graphConfigurationEndpoint,
             graphSettingsEndpoint,
             StringComparison.Ordinal);
         Assert.EndsWith(
-            $"/api/configuration/stores/{Uri.EscapeDataString("configuration.store:application-topology-settings")}/entries",
+            $"/api/configuration/stores/{Uri.EscapeDataString("configuration.store:application-topology-settings")}/settings",
             graphSettingsEndpoint,
             StringComparison.Ordinal);
         Assert.StartsWith(
@@ -836,14 +847,14 @@ public sealed class SampleSmokeTests
         using var graphSettingsDocument = JsonDocument.Parse(graphSettingsJson);
         Assert.Contains(
             graphSettingsDocument.RootElement.EnumerateArray(),
-            entry =>
-                entry.GetProperty("name").GetString() == "ApplicationTopology:Message" &&
-                entry.GetProperty("value").GetString() == "Hello from CloudShell resource configuration.");
+            setting =>
+                setting.GetProperty("name").GetString() == "ApplicationTopology:Message" &&
+                setting.GetProperty("value").GetString() == "Hello from CloudShell resource configuration.");
         Assert.Contains(
             graphSettingsDocument.RootElement.EnumerateArray(),
-            entry =>
-                entry.GetProperty("name").GetString() == "ApplicationTopology:Mode" &&
-                entry.GetProperty("value").GetString() == "Resource model");
+            setting =>
+                setting.GetProperty("name").GetString() == "ApplicationTopology:Mode" &&
+                setting.GetProperty("value").GetString() == "Resource model");
 
         var graphSecretJson = await host.GetAbsoluteStringAsync(
             $"{graphSecretsEndpointAddress.TrimEnd('/')}/ApplicationTopology--ExternalApiKey",
@@ -1323,7 +1334,7 @@ public sealed class SampleSmokeTests
         Assert.Equal(apiEndpoint, GetPrimaryEndpointAddress(api));
         Assert.Equal(
             "2",
-            settings.GetProperty("attributes").GetProperty("entryCount").GetString());
+            settings.GetProperty("attributes").GetProperty("settingCount").GetString());
         Assert.Equal(
             "1",
             secrets.GetProperty("attributes").GetProperty("secretCount").GetString());
@@ -1351,10 +1362,10 @@ public sealed class SampleSmokeTests
             "connected",
             configurationDocument.RootElement.GetProperty("status").GetString());
         Assert.Contains(
-            configurationDocument.RootElement.GetProperty("entries").EnumerateArray(),
-            entry =>
-                entry.GetProperty("name").GetString() == "Sample:Message" &&
-                entry.GetProperty("value").GetString() == "Hello from a configuration entry");
+            configurationDocument.RootElement.GetProperty("settings").EnumerateArray(),
+            setting =>
+                setting.GetProperty("name").GetString() == "Sample:Message" &&
+                setting.GetProperty("value").GetString() == "Hello from a configuration setting");
 
         var secretJson = await host.GetAbsoluteStringAsync(
             $"{apiEndpoint.TrimEnd('/')}/secrets/sample-api-key");
@@ -1365,6 +1376,591 @@ public sealed class SampleSmokeTests
         Assert.Equal(
             "local-development-api-key",
             secretDocument.RootElement.GetProperty("value").GetString());
+    }
+
+    [Fact]
+    public async Task DeviceRegistrySample_EnrollsCurrentDevice()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            $"cloudshell-device-registry-sample-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            await DeviceRegistrySample_EnrollsCurrentDeviceCore(directory);
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+            catch
+            {
+                // Test cleanup should not hide the original failure.
+            }
+        }
+    }
+
+    private static async Task DeviceRegistrySample_EnrollsCurrentDeviceCore(string directory)
+    {
+        var registryEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var registryMqttEndpoint = $"mqtt://127.0.0.1:{await GetFreePortAsync()}";
+        var configurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
+        var deviceAppPort = await GetFreePortAsync();
+        var deviceAppEndpoint = $"http://127.0.0.1:{deviceAppPort}";
+        const string registryResourceId = "iot.device-registry:devices";
+        const string configurationResourceId = "configuration.store:device-settings";
+        const string registryAdminClientId = "device-registry-admin";
+        const string registryAdminClientSecret = "device-registry-admin-secret";
+        var signingKeyPem = CreateDevelopmentSigningKeyPem();
+        var configurationDefinitionsPath = Path.Combine(directory, "configuration-stores.json");
+        var registryDefinitionsPath = Path.Combine(directory, "device-registries.json");
+
+        await File.WriteAllTextAsync(
+            configurationDefinitionsPath,
+            JsonSerializer.Serialize(
+                new[]
+                {
+                    new
+                    {
+                        id = configurationResourceId,
+                        settings = new[]
+                        {
+                            new
+                            {
+                                name = "Device:Mode",
+                                value = "factory-online"
+                            }
+                        }
+                    }
+                },
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        await File.WriteAllTextAsync(
+            registryDefinitionsPath,
+            JsonSerializer.Serialize(
+                new[]
+                {
+                    new
+                    {
+                        id = registryResourceId,
+                        heartbeatStaleAfterSeconds = 300,
+                        enrollmentPolicy = new
+                        {
+                            subjectPrefixes = new[] { "device/" },
+                            requiredClaims = new[]
+                            {
+                                new
+                                {
+                                    name = "manufacturer",
+                                    value = "cloudshell"
+                                }
+                            }
+                        },
+                        enrollmentProfiles = new[]
+                        {
+                            new
+                            {
+                                name = "default",
+                                policy = new
+                                {
+                                    subjectPrefixes = new[] { "device/" },
+                                    requiredClaims = new[]
+                                    {
+                                        new
+                                        {
+                                            name = "manufacturer",
+                                            value = "cloudshell"
+                                        }
+                                    }
+                                },
+                                permissionGrants = new[]
+                                {
+                                    new
+                                    {
+                                        targetResourceId = configurationResourceId,
+                                        permission = ConfigurationStoreResourceOperationPermissions.ReadSettings
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+
+        using var configurationService = await SampleProcess.StartAsync(
+            "CloudShell.ConfigurationStoreService/CloudShell.ConfigurationStoreService.csproj",
+            new Uri(configurationEndpoint).Port,
+            CreateServiceEnvironment(
+                signingKeyPem,
+                "CloudShell__ConfigurationStoreService__DefinitionsPath",
+                configurationDefinitionsPath,
+                "CloudShell__ConfigurationStoreService__ResourceId",
+                configurationResourceId));
+        using var registryService = await SampleProcess.StartAsync(
+            "CloudShell.DeviceRegistryService/CloudShell.DeviceRegistryService.csproj",
+            new Uri(registryEndpoint).Port,
+            CreateServiceEnvironment(
+                signingKeyPem,
+                "CloudShell__DeviceRegistryService__DefinitionsPath",
+                registryDefinitionsPath,
+                "CloudShell__DeviceRegistryService__ResourceId",
+                registryResourceId,
+                [
+                    ("CloudShell__DeviceRegistryService__MqttEndpoint", registryMqttEndpoint),
+                    ("Authentication__BuiltInAuthority__Clients__device-registry-admin__Secret", registryAdminClientSecret),
+                    ("Authentication__BuiltInAuthority__Clients__device-registry-admin__Scopes__0", "ControlPlane.Access"),
+                    ("Authentication__BuiltInAuthority__Clients__device-registry-admin__ResourcePermissions__0__ResourceId", registryResourceId),
+                    ("Authentication__BuiltInAuthority__Clients__device-registry-admin__ResourcePermissions__0__Permission", DeviceRegistryResourceOperationPermissions.ManageDevices)
+                ]));
+        await configurationService.WaitForHttpOkAsync("/healthz", StartupTimeout);
+        await registryService.WaitForHttpOkAsync("/healthz", StartupTimeout);
+
+        using var deviceApp = await SampleProcess.StartAsync(
+            "samples/DeviceRegistry/DeviceApp/CloudShell.DeviceRegistry.DeviceApp.csproj",
+            deviceAppPort,
+            [
+                ("CLOUDSHELL_DEVICE_REGISTRY_ENDPOINT", registryEndpoint),
+                ("CLOUDSHELL_DEVICE_REGISTRY_RESOURCE_ID", registryResourceId),
+                ("CLOUDSHELL_DEVICE_REGISTRY_MQTT_ENDPOINT", registryMqttEndpoint),
+                ("CLOUDSHELL_CONFIGURATION_STORE_ENDPOINT", configurationEndpoint),
+                ("CLOUDSHELL_CONFIGURATION_STORE_RESOURCE_ID", configurationResourceId),
+                ("CLOUDSHELL_CONFIGURATION_SETTING_NAME", "Device:Mode"),
+                ("DEVICE_MANUFACTURER", "cloudshell")
+            ]);
+        await deviceApp.WaitForHttpOkAsync("/health", StartupTimeout);
+
+        using var enrollmentClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(10)
+        };
+        using var enrollmentResponse = await enrollmentClient.PostAsync(
+            $"{deviceAppEndpoint.TrimEnd('/')}/enroll-current-device",
+            content: null);
+        var enrollmentJson = await enrollmentResponse.Content.ReadAsStringAsync();
+        Assert.True(
+            enrollmentResponse.IsSuccessStatusCode,
+            $"Device app enrollment returned {(int)enrollmentResponse.StatusCode} {enrollmentResponse.ReasonPhrase}: {enrollmentJson}");
+        using var enrollmentDocument = JsonDocument.Parse(enrollmentJson);
+        var enrollment = enrollmentDocument.RootElement
+            .GetProperty("enrollment")
+            .Deserialize<DeviceEnrollmentResponse>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)) ??
+            throw new JsonException("Device Registry sample returned no enrollment response.");
+        var heartbeat = enrollmentDocument.RootElement
+            .GetProperty("heartbeat")
+            .Deserialize<DeviceMetadataResponse>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)) ??
+            throw new JsonException("Device Registry sample returned no heartbeat response.");
+        var sync = enrollmentDocument.RootElement
+            .GetProperty("sync")
+            .Deserialize<DeviceSyncResponse>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)) ??
+            throw new JsonException("Device Registry sample returned no sync response.");
+        var mqttSync = enrollmentDocument.RootElement
+            .GetProperty("mqttSync")
+            .Deserialize<DeviceSyncResponse>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web)) ??
+            throw new JsonException("Device Registry sample returned no MQTT sync response.");
+        var mqttSyncPublished = enrollmentDocument.RootElement
+            .GetProperty("mqttSyncPublished")
+            .GetBoolean();
+        var configurationSetting = enrollmentDocument.RootElement.GetProperty("configuration");
+
+        Assert.Equal("iot.device-registry:devices", enrollment.RegistryId);
+        Assert.StartsWith("device/", enrollment.Subject);
+        Assert.Equal("deviceIdentity", enrollment.IdentityCategory);
+        Assert.Equal(ResourcePrincipalKind.DeviceIdentity, enrollment.Principal.Kind);
+        Assert.Equal("built-in", enrollment.Principal.ProviderId);
+        Assert.Equal("iot.device-registry:devices", enrollment.Principal.SourceResourceId);
+        Assert.Equal(enrollment.DeviceId, enrollment.Principal.SourceIdentityName);
+        Assert.Equal("built-in", enrollment.IdentityProviderId);
+        Assert.Equal("iot.device-registry:devices", enrollment.IdentityResourceId);
+        Assert.Equal(enrollment.DeviceId, enrollment.IdentityName);
+        Assert.Equal(
+            $"iot.device-registry:devices/{enrollment.DeviceId}",
+            enrollment.ClientId);
+        Assert.False(string.IsNullOrWhiteSpace(enrollment.ClientSecret));
+        Assert.Equal("cloudshell", enrollment.Claims["manufacturer"]);
+        Assert.False(string.IsNullOrWhiteSpace(enrollment.Properties["platform"]));
+        Assert.False(string.IsNullOrWhiteSpace(enrollment.Properties["osDescription"]));
+        Assert.False(string.IsNullOrWhiteSpace(enrollment.Properties["frameworkDescription"]));
+        Assert.Equal("active", enrollment.Status);
+        Assert.Equal("online", enrollment.Presence);
+        Assert.Equal("default", enrollment.EnrollmentProfileName);
+        Assert.Equal("group", enrollment.EnrollmentProfileKind);
+        Assert.NotNull(enrollment.LastSeenAt);
+        Assert.Equal("enrollment", enrollment.LastSeenSource);
+        Assert.Equal("http", enrollment.LastSeenTransport);
+        Assert.Equal(enrollment.DeviceId, heartbeat.DeviceId);
+        Assert.Equal("active", heartbeat.Status);
+        Assert.Equal("online", heartbeat.Presence);
+        Assert.Equal("default", heartbeat.EnrollmentProfileName);
+        Assert.Equal("group", heartbeat.EnrollmentProfileKind);
+        Assert.NotNull(heartbeat.LastSeenAt);
+        Assert.Equal("sample-app", heartbeat.LastSeenSource);
+        Assert.Equal("http", heartbeat.LastSeenTransport);
+        Assert.Equal("device-app", heartbeat.Properties["sample.app"]);
+        Assert.Equal(enrollment.DeviceId, sync.Device.DeviceId);
+        Assert.Equal("default", sync.Device.EnrollmentProfileName);
+        Assert.Equal("group", sync.Device.EnrollmentProfileKind);
+        Assert.Equal("sample-app", sync.Device.LastSeenSource);
+        Assert.Equal("http", sync.Device.LastSeenTransport);
+        Assert.Equal("device-app", sync.Device.Properties["sample.sync"]);
+        Assert.False(sync.DesiredStateChanged);
+        Assert.Equal(0, sync.Desired.Version);
+        Assert.Equal(1, sync.Reported.Version);
+        Assert.Equal("running", sync.Reported.State["mode"].GetString());
+        Assert.Equal("Device:Mode", sync.Reported.State["configurationSetting"].GetString());
+        Assert.True(mqttSyncPublished);
+        Assert.Equal(enrollment.DeviceId, mqttSync.Device.DeviceId);
+        Assert.Equal("sample-app-mqtt", mqttSync.Device.LastSeenSource);
+        Assert.Equal("mqtt", mqttSync.Device.LastSeenTransport);
+        Assert.False(mqttSync.DesiredStateChanged);
+        Assert.Equal(0, mqttSync.Desired.Version);
+        Assert.Equal(2, mqttSync.Reported.Version);
+        Assert.Equal("mqtt", mqttSync.Reported.State["transport"].GetString());
+        Assert.Equal("Device:Mode", configurationSetting.GetProperty("name").GetString());
+        Assert.Equal("factory-online", configurationSetting.GetProperty("value").GetString());
+
+        using var tokenClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(10)
+        };
+        using var tokenResponse = await tokenClient.PostAsync(
+            enrollment.TokenEndpoint,
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = "client_credentials",
+                ["client_id"] = enrollment.ClientId,
+                ["client_secret"] = enrollment.ClientSecret,
+                ["scope"] = "ControlPlane.Access"
+            }));
+        var tokenJson = await tokenResponse.Content.ReadAsStringAsync();
+        Assert.True(
+            tokenResponse.IsSuccessStatusCode,
+            $"Device identity token request returned {(int)tokenResponse.StatusCode} {tokenResponse.ReasonPhrase}: {tokenJson}");
+        using var tokenDocument = JsonDocument.Parse(tokenJson);
+        Assert.False(string.IsNullOrWhiteSpace(
+            tokenDocument.RootElement.GetProperty("access_token").GetString()));
+
+        var adminToken = await RequestClientCredentialsTokenAsync(
+            enrollment.TokenEndpoint,
+            registryAdminClientId,
+            registryAdminClientSecret);
+        var registryClient = new DeviceRegistryClient(new Uri(registryEndpoint), tokenClient);
+        var devicesAfterMqttSync = await registryClient.GetDevicesAsync(
+            registryResourceId,
+            adminToken);
+        var deviceAfterMqttSync = Assert.Single(devicesAfterMqttSync);
+        Assert.Equal(enrollment.DeviceId, deviceAfterMqttSync.DeviceId);
+        Assert.Equal("sample-app-mqtt", deviceAfterMqttSync.LastSeenSource);
+        Assert.Equal("mqtt", deviceAfterMqttSync.LastSeenTransport);
+        Assert.Equal("device-app", deviceAfterMqttSync.Properties["sample.mqttSync"]);
+
+        Assert.Equal(
+            MqttClientConnectResultCode.BadUserNameOrPassword,
+            await ConnectDeviceRegistryMqttAsync(
+                registryMqttEndpoint,
+                enrollment.DeviceId,
+                enrollment.ClientId,
+                "invalid-secret"));
+
+        _ = await PublishDeviceRegistryMqttAsync(
+            registryMqttEndpoint,
+            enrollment.DeviceId,
+            enrollment.ClientId,
+            enrollment.ClientSecret,
+            DeviceRegistryMqttTopicNames.BuildSyncTopic(
+                registryResourceId,
+                enrollment.DeviceId),
+            "{");
+
+        _ = await PublishDeviceRegistryMqttAsync(
+            registryMqttEndpoint,
+            enrollment.DeviceId,
+            enrollment.ClientId,
+            enrollment.ClientSecret,
+            $"cloudshell/device-registries/{Uri.EscapeDataString(registryResourceId)}/devices/{enrollment.DeviceId}/unsupported",
+            "{}");
+
+        var devicesAfterRejectedMqttPublishes = await registryClient.GetDevicesAsync(
+            registryResourceId,
+            adminToken);
+        var deviceAfterRejectedMqttPublishes = Assert.Single(devicesAfterRejectedMqttPublishes);
+        Assert.Equal("sample-app-mqtt", deviceAfterRejectedMqttPublishes.LastSeenSource);
+        Assert.Equal("mqtt", deviceAfterRejectedMqttPublishes.LastSeenTransport);
+        Assert.Equal("device-app", deviceAfterRejectedMqttPublishes.Properties["sample.mqttSync"]);
+        var twinAfterRejectedMqttPublishes = await registryClient.GetDeviceTwinAsync(
+            registryResourceId,
+            enrollment.DeviceId,
+            adminToken);
+        Assert.Equal(2, twinAfterRejectedMqttPublishes.Reported.Version);
+        Assert.Equal("mqtt", twinAfterRejectedMqttPublishes.Reported.State["transport"].GetString());
+
+        var desired = await registryClient.SetDesiredStateAsync(
+            registryResourceId,
+            enrollment.DeviceId,
+            adminToken,
+            new DeviceDesiredStateRequest(
+                new Dictionary<string, JsonElement>
+                {
+                    ["mode"] = JsonSerializer.SerializeToElement("eco")
+                }));
+        Assert.Equal(1, desired.Desired.Version);
+        Assert.Equal("eco", desired.Desired.State["mode"].GetString());
+
+        var followUpMqttSync = await new DeviceRegistryMqttClient(new Uri(registryMqttEndpoint))
+            .SyncDeviceAsync(
+                registryResourceId,
+                enrollment.DeviceId,
+                enrollment.ClientId,
+                enrollment.ClientSecret,
+                new DeviceSyncRequest(
+                    new Dictionary<string, JsonElement>
+                    {
+                        ["mode"] = JsonSerializer.SerializeToElement("running")
+                    },
+                    Source: "sample-mqtt-follow-up",
+                    LastKnownDesiredVersion: 0));
+        Assert.True(followUpMqttSync.DesiredStateChanged);
+        Assert.Equal(1, followUpMqttSync.Desired.Version);
+        Assert.Equal("eco", followUpMqttSync.Desired.State["mode"].GetString());
+        Assert.Equal("mqtt", followUpMqttSync.Device.LastSeenTransport);
+        Assert.Equal(3, followUpMqttSync.Reported.Version);
+        Assert.Equal("running", followUpMqttSync.Reported.State["mode"].GetString());
+
+        var disabled = await registryClient.DisableDeviceAsync(
+            registryResourceId,
+            enrollment.DeviceId,
+            adminToken,
+            "sample maintenance");
+        Assert.Equal("disabled", disabled.Status);
+        Assert.Equal("disabled", disabled.Presence);
+        Assert.NotNull(disabled.DisabledAt);
+        Assert.Equal("sample maintenance", disabled.DisabledReason);
+        Assert.Equal(
+            MqttClientConnectResultCode.BadUserNameOrPassword,
+            await ConnectDeviceRegistryMqttAsync(
+                registryMqttEndpoint,
+                enrollment.DeviceId,
+                enrollment.ClientId,
+                enrollment.ClientSecret));
+
+        using var disabledTokenResponse = await tokenClient.PostAsync(
+            enrollment.TokenEndpoint,
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = "client_credentials",
+                ["client_id"] = enrollment.ClientId,
+                ["client_secret"] = enrollment.ClientSecret,
+                ["scope"] = "ControlPlane.Access"
+            }));
+        Assert.Equal(HttpStatusCode.Unauthorized, disabledTokenResponse.StatusCode);
+
+        var enabled = await registryClient.EnableDeviceAsync(
+            registryResourceId,
+            enrollment.DeviceId,
+            adminToken);
+        Assert.Equal("active", enabled.Status);
+        Assert.Equal("online", enabled.Presence);
+        Assert.Null(enabled.DisabledAt);
+        Assert.Null(enabled.DisabledReason);
+        Assert.Equal(
+            MqttClientConnectResultCode.Success,
+            await ConnectDeviceRegistryMqttAsync(
+                registryMqttEndpoint,
+                enrollment.DeviceId,
+                enrollment.ClientId,
+                enrollment.ClientSecret));
+        var enabledDeviceToken = await RequestClientCredentialsTokenAsync(
+            enrollment.TokenEndpoint,
+            enrollment.ClientId,
+            enrollment.ClientSecret);
+        Assert.False(string.IsNullOrWhiteSpace(enabledDeviceToken));
+
+        var revoked = await registryClient.RevokeDeviceAsync(
+            registryResourceId,
+            enrollment.DeviceId,
+            adminToken,
+            "sample cleanup");
+        Assert.Equal("revoked", revoked.Status);
+        Assert.Equal("revoked", revoked.Presence);
+        Assert.NotNull(revoked.RevokedAt);
+        Assert.Equal("sample cleanup", revoked.RevokedReason);
+        Assert.Equal(
+            MqttClientConnectResultCode.BadUserNameOrPassword,
+            await ConnectDeviceRegistryMqttAsync(
+                registryMqttEndpoint,
+                enrollment.DeviceId,
+                enrollment.ClientId,
+                enrollment.ClientSecret));
+
+        using var revokedTokenResponse = await tokenClient.PostAsync(
+            enrollment.TokenEndpoint,
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = "client_credentials",
+                ["client_id"] = enrollment.ClientId,
+                ["client_secret"] = enrollment.ClientSecret,
+                ["scope"] = "ControlPlane.Access"
+            }));
+        Assert.Equal(HttpStatusCode.Unauthorized, revokedTokenResponse.StatusCode);
+
+        await registryClient.RemoveDeviceAsync(
+            registryResourceId,
+            enrollment.DeviceId,
+            adminToken);
+        var remainingDevices = await registryClient.GetDevicesAsync(
+            registryResourceId,
+            adminToken);
+        Assert.DoesNotContain(
+            remainingDevices,
+            device => string.Equals(
+                device.DeviceId,
+                enrollment.DeviceId,
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static async Task<MqttClientConnectResultCode> ConnectDeviceRegistryMqttAsync(
+        string endpoint,
+        string deviceId,
+        string clientId,
+        string clientSecret)
+    {
+        var factory = new MqttFactory();
+        using var client = factory.CreateMqttClient();
+        var result = await client.ConnectAsync(
+            CreateMqttClientOptions(endpoint, deviceId, clientId, clientSecret)
+                .WithoutThrowOnNonSuccessfulConnectResponse()
+                .Build());
+        if (client.IsConnected)
+        {
+            await client.DisconnectAsync(new());
+        }
+
+        return result.ResultCode;
+    }
+
+    private static async Task<MqttClientPublishResult> PublishDeviceRegistryMqttAsync(
+        string endpoint,
+        string deviceId,
+        string clientId,
+        string clientSecret,
+        string topic,
+        string payload)
+    {
+        var factory = new MqttFactory();
+        using var client = factory.CreateMqttClient();
+        await client.ConnectAsync(
+            CreateMqttClientOptions(endpoint, deviceId, clientId, clientSecret)
+                .Build());
+        var result = await client.PublishAsync(
+            new MqttApplicationMessageBuilder()
+                .WithTopic(topic)
+                .WithPayload(payload)
+                .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)
+                .Build());
+        await client.DisconnectAsync(new());
+        return result;
+    }
+
+    private static MqttClientOptionsBuilder CreateMqttClientOptions(
+        string endpoint,
+        string deviceId,
+        string clientId,
+        string clientSecret)
+    {
+        var uri = new Uri(endpoint);
+        return new MqttClientOptionsBuilder()
+            .WithTcpServer(uri.Host, uri.Port > 0 ? uri.Port : 1883)
+            .WithClientId($"cloudshell-sample-{deviceId}-{Guid.NewGuid():N}")
+            .WithCredentials(clientId, clientSecret)
+            .WithProtocolVersion(MqttProtocolVersion.V500)
+            .WithCleanSession();
+    }
+
+    private static async Task<string> RequestClientCredentialsTokenAsync(
+        string tokenEndpoint,
+        string clientId,
+        string clientSecret)
+    {
+        using var tokenClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(10)
+        };
+        using var tokenResponse = await tokenClient.PostAsync(
+            tokenEndpoint,
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = "client_credentials",
+                ["client_id"] = clientId,
+                ["client_secret"] = clientSecret,
+                ["scope"] = "ControlPlane.Access"
+            }));
+        var tokenJson = await tokenResponse.Content.ReadAsStringAsync();
+        Assert.True(
+            tokenResponse.IsSuccessStatusCode,
+            $"Client credentials token request returned {(int)tokenResponse.StatusCode} {tokenResponse.ReasonPhrase}: {tokenJson}");
+        using var tokenDocument = JsonDocument.Parse(tokenJson);
+        return tokenDocument.RootElement.GetProperty("access_token").GetString() ??
+            throw new JsonException("Token response did not include an access token.");
+    }
+
+    private static IReadOnlyList<(string Key, string Value)> CreateServiceEnvironment(
+        string signingKeyPem,
+        string definitionsVariableName,
+        string definitionsPath,
+        string resourceIdVariableName,
+        string resourceId,
+        IReadOnlyList<(string Key, string Value)>? additionalVariables = null)
+    {
+        var variables = new List<(string Key, string Value)>
+        {
+            ("Authentication__BuiltInAuthority__Enabled", "true"),
+            ("Authentication__BuiltInAuthority__Issuer", "http://localhost"),
+            ("Authentication__BuiltInAuthority__Audience", "cloudshell-control-plane"),
+            ("Authentication__BuiltInAuthority__SigningKeyPem", signingKeyPem),
+            (definitionsVariableName, definitionsPath),
+            (resourceIdVariableName, resourceId)
+        };
+        if (additionalVariables is not null)
+        {
+            variables.AddRange(additionalVariables);
+        }
+
+        return variables;
+    }
+
+    private static string CreateDevelopmentSigningKeyPem()
+    {
+        using var rsa = RSA.Create(2048);
+        return rsa.ExportRSAPrivateKeyPem();
+    }
+
+    private static string CreateCurrentDeviceSubject()
+    {
+        var machineName = Environment.MachineName;
+        if (string.IsNullOrWhiteSpace(machineName))
+        {
+            machineName = "current";
+        }
+
+        var characters = machineName
+            .Trim()
+            .Select(character => char.IsLetterOrDigit(character) ? char.ToLowerInvariant(character) : '-')
+            .ToArray();
+        var normalized = new string(characters).Trim('-');
+
+        return $"device/{(string.IsNullOrWhiteSpace(normalized) ? "current" : normalized)}";
+    }
+
+    private static string CreateDeviceId(
+        string registryId,
+        string subject)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"{registryId}\u001f{subject}"));
+        return $"device-{Convert.ToHexString(bytes)[..24].ToLowerInvariant()}";
     }
 
     private static void AssertGraphHealthRefreshSucceeded(
@@ -1497,7 +2093,7 @@ public sealed class SampleSmokeTests
         Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
         Assert.Equal("Third-party Identity Settings", settings.GetProperty("displayName").GetString());
         Assert.Equal("http://localhost:5138", settingsAttributes.GetProperty("endpoint").GetString());
-        Assert.Equal("1", settingsAttributes.GetProperty("entryCount").GetString());
+        Assert.Equal("1", settingsAttributes.GetProperty("settingCount").GetString());
         Assert.Equal("application.aspnet-core-project", api.GetProperty("typeId").GetString());
         Assert.Equal("Keycloak Provisioned API", api.GetProperty("displayName").GetString());
         Assert.EndsWith(
@@ -1615,10 +2211,10 @@ public sealed class SampleSmokeTests
         Assert.Equal("connected", configurationRoot.GetProperty("status").GetString());
         Assert.Equal("keycloak-provisioned-api", configurationRoot.GetProperty("clientId").GetString());
         Assert.Contains(
-            configurationRoot.GetProperty("entries").EnumerateArray(),
-            entry =>
-                entry.GetProperty("name").GetString() == "Sample:Message" &&
-                entry.GetProperty("value").GetString() == "Hello from a Keycloak-provisioned resource identity");
+            configurationRoot.GetProperty("settings").EnumerateArray(),
+            setting =>
+                setting.GetProperty("name").GetString() == "Sample:Message" &&
+                setting.GetProperty("value").GetString() == "Hello from a Keycloak-provisioned resource identity");
 
         keycloakStack.Dispose();
         Assert.True(
@@ -3261,6 +3857,15 @@ public sealed class SampleSmokeTests
             environment.Add(("ProjectReference__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
             environment.Add(("ProjectReference__ApiEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
         }
+        else if (sampleName == "DeviceRegistry")
+        {
+            environment.Add(("Samples__DeviceRegistry__RegistryEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("Samples__DeviceRegistry__SecretsEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("Samples__DeviceRegistry__ConfigurationEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("Samples__DeviceRegistry__MqttEndpoint", $"mqtt://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("Samples__DeviceRegistry__EventBrokerMqttEndpoint", $"mqtt://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("Samples__DeviceRegistry__EventBrokerHttpEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+        }
         else if (sampleName == "RabbitMQMessaging")
         {
             environment.Add(("RabbitMQMessaging__DotNetEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
@@ -3333,6 +3938,11 @@ public sealed class SampleSmokeTests
         if (projectPath.Contains("/ProjectReference/", StringComparison.OrdinalIgnoreCase))
         {
             return "ProjectReference";
+        }
+
+        if (projectPath.Contains("/DeviceRegistry/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "DeviceRegistry";
         }
 
         if (projectPath.Contains("/RabbitMQMessaging/", StringComparison.OrdinalIgnoreCase))
@@ -5320,6 +5930,17 @@ public sealed class SampleSmokeTests
                 [
                     "configuration.store:javascript-app-settings",
                     "application.javascript-app:javascript-frontend"
+                ];
+            }
+
+            if (projectPath.Contains("/DeviceRegistry/", StringComparison.OrdinalIgnoreCase))
+            {
+                return
+                [
+                    "configuration.store:device-settings",
+                    "event.broker:events",
+                    "secrets.vault:factory",
+                    "iot.device-registry:devices"
                 ];
             }
 

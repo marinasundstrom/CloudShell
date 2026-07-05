@@ -156,13 +156,13 @@ public sealed class JavaAppResourceDefinitionBuilder(string name) :
 
     public JavaAppResourceDefinitionBuilder WithEnvironmentVariable(
         string name,
-        ResourceConfigurationEntryReference configurationEntry)
+        ResourceConfigurationSettingReference configurationSetting)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentNullException.ThrowIfNull(configurationEntry);
+        ArgumentNullException.ThrowIfNull(configurationSetting);
 
         _environmentVariables[name.Trim()] = new(
-            ConfigurationEntryRef: configurationEntry);
+            ConfigurationSettingRef: configurationSetting);
         return SetObjectAttribute(
             JavaAppResourceTypeProvider.Attributes.EnvironmentVariables,
             _environmentVariables);
@@ -394,5 +394,5 @@ public sealed record JavaAppEnvironmentVariableValue(
     [property: System.Text.Json.Serialization.JsonConverter(
         typeof(ApplicationEnvironmentVariableValueJsonConverter))]
     string? Value = null,
-    ResourceConfigurationEntryReference? ConfigurationEntryRef = null,
+    ResourceConfigurationSettingReference? ConfigurationSettingRef = null,
     ResourceSecretReference? SecretRef = null);

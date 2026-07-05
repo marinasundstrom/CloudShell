@@ -150,13 +150,13 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
 
     public AspNetCoreProjectResourceDefinitionBuilder WithEnvironmentVariable(
         string name,
-        ResourceConfigurationEntryReference configurationEntry)
+        ResourceConfigurationSettingReference configurationSetting)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentNullException.ThrowIfNull(configurationEntry);
+        ArgumentNullException.ThrowIfNull(configurationSetting);
 
         _environmentVariables[name.Trim()] = new(
-            ConfigurationEntryRef: configurationEntry);
+            ConfigurationSettingRef: configurationSetting);
         return SetObjectAttribute(
             AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables,
             _environmentVariables);

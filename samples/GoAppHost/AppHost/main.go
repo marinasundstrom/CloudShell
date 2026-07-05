@@ -56,7 +56,7 @@ func buildTemplate(goAppRoot string) *cloudshell.App {
 		WithServiceDiscovery().
 		WithEnvironmentVariable("PORT", "5187").
 		WithEnvironmentVariable("OTEL_SERVICE_NAME", "go-launcher-api").
-		WithConfigurationEntry("Sample__Message", settings.Setting("Sample--Message")).
+		WithConfigurationSetting("Sample__Message", settings.Setting("Sample--Message")).
 		WithSecret("Sample__ApiKey", secrets.Secret("Sample--ApiKey")).
 		WithReference(settings).
 		WithReference(secrets).

@@ -744,6 +744,18 @@ assignment mode. Manual assignments require the caller to provide the concrete
 address details. Auto or provider-default assignments let a networking provider
 resource choose an address from its configured policy. Endpoint requests are
 resolved against endpoint descriptors by a network, runtime, or provider.
+For resource types where an endpoint is part of the expected shape, the
+absence of endpoint requests does not necessarily mean the resource has no
+endpoint. The resource can bind to a network and let Resource Manager or the
+network controller assign an endpoint from the endpoint descriptor and
+environment policy. Resource types that do not declare expected endpoint
+descriptors should continue treating missing endpoint requests as no endpoint
+assignment intent.
+Once assigned, the chosen endpoint is managed state. Consumers should use the
+projected resource endpoint and endpoint network mapping instead of treating
+the original endpoint request as the source of truth for the current address.
+The network binding is the allocation and tracking boundary for that address,
+even when the caller supplied a requested endpoint.
 
 Endpoint network mappings connect a resource endpoint to a topology and provide
 the current resolved address for that topology. Resources project these

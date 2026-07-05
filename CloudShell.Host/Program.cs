@@ -19,6 +19,9 @@ var configurationStoreServiceProjectPath = Path.GetFullPath(
 var secretsVaultServiceProjectPath = Path.GetFullPath(
     "../CloudShell.SecretsVaultService/CloudShell.SecretsVaultService.csproj",
     builder.Environment.ContentRootPath);
+var eventBrokerServiceProjectPath = Path.GetFullPath(
+    "../CloudShell.EventBrokerService/CloudShell.EventBrokerService.csproj",
+    builder.Environment.ContentRootPath);
 var repositoryRootPath = Path.GetFullPath("..", builder.Environment.ContentRootPath);
 
 var cloudShell = builder.AddCloudShellControlPlaneApplication(
@@ -47,12 +50,17 @@ cloudShell
     {
         runtime.ServiceProjectPath = configurationStoreServiceProjectPath;
         runtime.ServiceWorkingDirectory = repositoryRootPath;
-        runtime.Entries.Add(new("SampleMessage", "Hello from CloudShell configuration"));
-        runtime.Entries.Add(new("SampleMode", "Development"));
+        runtime.Settings.Add(new("SampleMessage", "Hello from CloudShell configuration"));
+        runtime.Settings.Add(new("SampleMode", "Development"));
     })
     .UseSecretsVaultResourceProvider(runtime =>
     {
         runtime.ServiceProjectPath = secretsVaultServiceProjectPath;
+        runtime.ServiceWorkingDirectory = repositoryRootPath;
+    })
+    .UseEventBrokerResourceProvider(runtime =>
+    {
+        runtime.ServiceProjectPath = eventBrokerServiceProjectPath;
         runtime.ServiceWorkingDirectory = repositoryRootPath;
     });
 

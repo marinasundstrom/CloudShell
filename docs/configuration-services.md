@@ -2,7 +2,7 @@
 
 CloudShell includes a configuration provider that contributes `configuration.store`
 resources. Each resource is a separate local configuration store with its own
-entries, endpoint, resource identity metadata, and resource group assignment.
+settings, endpoint, resource identity metadata, and resource group assignment.
 Each store owns the runtime process that serves its HTTP API; it does not
 register that process as a separate application resource.
 
@@ -41,7 +41,7 @@ controlPlane.DefineResources(resources =>
 Configuration Store settings, secret values, and certificate payloads are
 provider/runtime data.
 Templates may include create-only seed attributes for local development:
-`seed.entries` on a new Configuration Store, and `seed.secrets` or
+`seed.settings` on a new Configuration Store, and `seed.secrets` or
 `seed.certificates` on a new Secrets Vault. The `seed` hierarchy is reserved
 for create-time input and is not accepted when updating an existing resource.
 The Control Plane materializes those values into provider-owned runtime state
@@ -53,14 +53,12 @@ Each store stores key-value settings:
 
 - `Name`: the setting name.
 - `Value`: the stored value.
-- `Secret`: legacy sensitive-entry marker. New authoring should prefer
-  Secrets Vault references for credentials and other secret values.
 
 The built-in Configuration Store accepts broad App Configuration-style setting
 names. Empty names, `%`, `.`, `..`, and control characters are rejected. Both
 `Orders:Api:BaseUrl` and the portable `Orders--Api--BaseUrl` hierarchy form
 are accepted; the CloudShell `IConfiguration` client maps `--` to `:` when it
-loads entries.
+loads settings.
 
 Secrets Vault uses Key Vault-style secret names: 1-127 ASCII letters, digits,
 and hyphens. Use names such as `Orders--Api--ClientSecret` for hierarchical
@@ -72,7 +70,7 @@ deployment targets may apply their own character and length restrictions.
 
 ## Resource Manager Management
 
-Graph-backed Configuration Store resources contribute an **Entries** tab in
+Graph-backed Configuration Store resources contribute a **Settings** tab in
 Resource Manager when the UI host has access to the provider runtime manager.
 That tab manages provider-owned runtime settings and rewrites the sidecar
 definition file used by the backing Configuration Store service. Setting values
@@ -109,11 +107,11 @@ The create-only seed path is intended for development launchers, samples, and
 local environments. Production or on-premise hosts should treat seeded secret
 values as sensitive template input and prefer a permission-protected
 secret-import path when that workflow is added. Secrets Vault secret and
-certificate entries carry a `Version`, and references may request a specific
+certificate settings carry a `Version`, and references may request a specific
 version. If a runtime write omits the version, CloudShell generates one. If a
 write changes the payload for an existing version, the previous payload is kept
 and the changed payload is stored as a new generated version. When a reference
-omits the version, the runtime resolves the last matching entry for that name.
+omits the version, the runtime resolves the last matching setting for that name.
 Durable retention policy, activation/disabled state, soft-delete, and
 import/export semantics remain future vault work. Configuration Store setting
 versioning is not supported yet.
@@ -174,7 +172,7 @@ what keeps each process scoped to one configuration service instance.
 
 Configuration services expose their own resource log in the Logs view. The log
 uses the same local process runner as executable applications, so stdout,
-stderr, and lifecycle entries are available without modeling the service as an
+stderr, and lifecycle settings are available without modeling the service as an
 `application.executable` resource.
 
 The runtime is intentionally an implementation detail of the configuration
@@ -227,8 +225,8 @@ integrations use that credential chain internally.
 Applications fetch settings from:
 
 ```text
-GET <configuration-service-endpoint>/api/configuration/stores/{resource-id}/entries
-GET <configuration-service-endpoint>/api/configuration/stores/{resource-id}/entries/{name}
+GET <configuration-service-endpoint>/api/configuration/stores/{resource-id}/settings
+GET <configuration-service-endpoint>/api/configuration/stores/{resource-id}/settings/{name}
 ```
 
 The query-string route remains available for compatibility, but projected
@@ -243,7 +241,7 @@ Authorization: Bearer <token>
 
 The configuration service runtime validates the token and requires a matching
 resource-permission grant for
-`ConfigurationStoreResourceOperationPermissions.ReadEntries` on the target
+`ConfigurationStoreResourceOperationPermissions.ReadSettings` on the target
 configuration store resource. Missing tokens return `401`; invalid tokens,
 missing services, or missing grants return an unavailable or access-denied
 result from the caller's perspective.
@@ -255,7 +253,7 @@ See [SDK clients](sdk-clients.md) for package boundaries and client usage.
 The experimental TypeScript package under
 `sdk/typescript/configuration-client` mirrors the same direct client shape for
 Node.js applications: it discovers injected Configuration Store endpoints,
-sends bearer tokens, reads all entries or a single entry, and can map portable
+sends bearer tokens, reads all settings or a single setting, and can map portable
 `--` setting names to `:` configuration keys.
 The `samples/TypeScriptConfigurationClient` sample shows the same flow from a
 Node.js application by setting
@@ -277,7 +275,7 @@ certificate values from the sibling protected certificate collection. See
 [SDK clients](sdk-clients.md).
 Both the direct client and resource graph references support optional
 versioned secret and certificate reads; omitting the version resolves the
-current last matching vault entry.
+current last matching vault setting.
 
 In this model, the caller owns a resource identity, obtains authentication evidence through
 the selected identity provider, and the protected service validates that
@@ -313,14 +311,14 @@ builder.Configuration.AddCloudShellConfigurationStore(options =>
 });
 ```
 
-Loaded entries are available through normal `IConfiguration` lookup:
+Loaded settings are available through normal `IConfiguration` lookup:
 
 ```csharp
 var value = builder.Configuration["SampleMessage"];
 ```
 
 Provider diagnostics are exposed under `CloudShell:ConfigurationStore:*`,
-including `Status`, `Detail`, `Source`, `LoadedKeys`, and `SecretKeys`. The
+including `Status`, `Detail`, `Source`, and `LoadedKeys`. The
 provider does not throw when the service is unavailable; it records
 unavailable status so the application can continue running and log the state.
 
@@ -353,7 +351,8 @@ http://localhost:5127/configuration
 ```
 
 The sample returns the provider status and loaded keys from `IConfiguration`.
-Secret values are masked in the response.
+Secrets are read through the separate Secrets Vault client and masked in that
+response.
 
 See [Programmatic resources](programmatic-resources.md) for the declaration and
 persistence model.
@@ -361,6 +360,6 @@ persistence model.
 ## Templates
 
 Configuration services support resource group templates. Export includes
-non-secret entry values. Secret entries are exported as placeholders with an
-empty value so templates do not leak secrets by default. Import creates a new
+setting values because Configuration Store settings are not secret material.
+Secrets should be stored in Secrets Vault resources. Import creates a new
 configuration service and generates a fresh access token.

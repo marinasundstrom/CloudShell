@@ -11,6 +11,4 @@ public static class ResourceTabGroupTitles
     public const string Environment = "Environment";
     public const string Telemetry = "Telemetry";
     public const string Management = "Management";
-    public const string Entries = "Entries";
-    public const string Secrets = "Secrets";
 }

@@ -5,8 +5,8 @@ public static class AspNetCoreProjectShapeIds
     public static readonly ResourceAttributeValueShapeId EnvironmentVariableValue =
         "application.aspNetCoreProject.environmentVariableValue";
 
-    public static readonly ResourceAttributeValueShapeId ConfigurationEntryReference =
-        "application.configurationEntryReference";
+    public static readonly ResourceAttributeValueShapeId ConfigurationSettingReference =
+        "application.configurationSettingReference";
 
     public static readonly ResourceAttributeValueShapeId SecretReference =
         "application.secretReference";
@@ -25,16 +25,16 @@ public static class AspNetCoreProjectShapes
             new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
             {
                 ["value"] = new(ValueType: ResourceAttributeValueType.String),
-                ["configurationEntryRef"] = new(
+                ["configurationSettingRef"] = new(
                     ValueType: ResourceAttributeValueType.ComplexType,
-                    ValueShapeId: AspNetCoreProjectShapeIds.ConfigurationEntryReference),
+                    ValueShapeId: AspNetCoreProjectShapeIds.ConfigurationSettingReference),
                 ["secretRef"] = new(
                     ValueType: ResourceAttributeValueType.ComplexType,
                     ValueShapeId: AspNetCoreProjectShapeIds.SecretReference)
             }),
         "ASP.NET Core project process environment variable value shape.");
 
-    public static ResourceAttributeValueShapeDefinition ConfigurationEntryReference { get; } = new(
+    public static ResourceAttributeValueShapeDefinition ConfigurationSettingReference { get; } = new(
         new(
             new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
             {
@@ -48,7 +48,7 @@ public static class AspNetCoreProjectShapes
                     ValueType: ResourceAttributeValueType.String),
                 ["version"] = new(ValueType: ResourceAttributeValueType.String)
             }),
-        "Configuration entry reference shape.");
+        "Configuration setting reference shape.");
 
     public static ResourceAttributeValueShapeDefinition SecretReference { get; } = new(
         new(
@@ -70,7 +70,7 @@ public static class AspNetCoreProjectShapes
         new Dictionary<ResourceAttributeValueShapeId, ResourceAttributeValueShapeDefinition>
         {
             [AspNetCoreProjectShapeIds.EnvironmentVariableValue] = EnvironmentVariableValue,
-            [AspNetCoreProjectShapeIds.ConfigurationEntryReference] = ConfigurationEntryReference,
+            [AspNetCoreProjectShapeIds.ConfigurationSettingReference] = ConfigurationSettingReference,
             [AspNetCoreProjectShapeIds.SecretReference] = SecretReference
         };
 }
@@ -79,10 +79,10 @@ public sealed record AspNetCoreProjectEnvironmentVariableValue(
     [property: System.Text.Json.Serialization.JsonConverter(
         typeof(ApplicationEnvironmentVariableValueJsonConverter))]
     string? Value = null,
-    ResourceConfigurationEntryReference? ConfigurationEntryRef = null,
+    ResourceConfigurationSettingReference? ConfigurationSettingRef = null,
     ResourceSecretReference? SecretRef = null);
 
-public sealed record ResourceConfigurationEntryReference(
+public sealed record ResourceConfigurationSettingReference(
     string StoreResourceId,
     string Name,
     string? Version = null);

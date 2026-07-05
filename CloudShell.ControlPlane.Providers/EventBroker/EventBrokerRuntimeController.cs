@@ -1,0 +1,114 @@
+namespace CloudShell.ControlPlane.Providers;
+
+public sealed class EventBrokerRuntimeOptions
+{
+    public string ServiceProjectPath { get; set; } =
+        "CloudShell.EventBrokerService/CloudShell.EventBrokerService.csproj";
+
+    public string? ServiceWorkingDirectory { get; set; }
+
+    public string DefinitionsDirectory { get; set; } = Path.Combine(
+        Path.GetTempPath(),
+        "CloudShell.ResourceModel",
+        "EventBroker");
+
+    public TimeSpan StartupTimeout { get; set; } = TimeSpan.FromSeconds(60);
+}
+
+public interface IEventBrokerRuntimeController
+{
+    ResourceWebAppRuntimeStatus GetStatus(Resource resource);
+
+    ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
+        Resource resource,
+        ResourceOperationId operationId,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IEventBrokerRuntimeMonitor
+{
+    ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class EventBrokerProcessRuntimeController(
+    EventBrokerRuntimeOptions? options = null) :
+    IEventBrokerRuntimeController,
+    IEventBrokerRuntimeMonitor,
+    IDisposable,
+    IAsyncDisposable
+{
+    private readonly EventBrokerRuntimeOptions _options =
+        options ?? new EventBrokerRuntimeOptions();
+    private readonly ResourceWebAppProcessRuntime _runtime = new();
+
+    public ResourceWebAppRuntimeStatus GetStatus(Resource resource) =>
+        _runtime.GetStatus(resource);
+
+    public async ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default) =>
+        await _runtime.GetMonitoringSnapshotAsync(resourceId, cancellationToken);
+
+    public async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
+        Resource resource,
+        ResourceOperationId operationId,
+        CancellationToken cancellationToken = default) =>
+        await _runtime.ExecuteAsync(
+            resource,
+            operationId,
+            EventBrokerResourceTypeProvider.Attributes.Endpoint,
+            new ResourceWebAppProcessOptions(
+                _options.ServiceProjectPath,
+                "CloudShell__EventBrokerService__DefinitionsPath",
+                "CloudShell__EventBrokerService__ResourceId",
+                "event-brokers.json",
+                _options.StartupTimeout)
+            {
+                ServiceWorkingDirectory = _options.ServiceWorkingDirectory,
+                DefinitionsDirectory = _options.DefinitionsDirectory
+            },
+            CreateDefinition,
+            "event.broker",
+            "Event Broker",
+            cancellationToken);
+
+    public async ValueTask DisposeAsync() =>
+        await _runtime.DisposeAsync();
+
+    public void Dispose() =>
+        _runtime.Dispose();
+
+    private static object CreateDefinition(
+        Resource resource,
+        string? endpoint) =>
+        new
+        {
+            id = resource.EffectiveResourceId,
+            name = resource.Name,
+            displayName = resource.State.DisplayName,
+            endpoint,
+            protocols = resource.Attributes.GetObject<EventBrokerProtocolEndpoint[]>(
+                EventBrokerResourceTypeProvider.Attributes.Protocols) ?? []
+        };
+}
+
+public sealed class NoopEventBrokerRuntimeController :
+    IEventBrokerRuntimeController,
+    IEventBrokerRuntimeMonitor
+{
+    public ResourceWebAppRuntimeStatus GetStatus(Resource resource) =>
+        ResourceWebAppRuntimeStatus.Unknown;
+
+    public ValueTask<ResourceProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<ResourceProcessMonitoringSnapshot?>(null);
+
+    public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteAsync(
+        Resource resource,
+        ResourceOperationId operationId,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}

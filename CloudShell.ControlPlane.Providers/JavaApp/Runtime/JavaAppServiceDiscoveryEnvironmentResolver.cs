@@ -64,7 +64,7 @@ public sealed class JavaAppServiceDiscoveryEnvironmentResolver(
             variables,
             ConfigurationStoreResourceTypeProvider.ResourceTypeId,
             ConfigurationStoreResourceTypeProvider.Attributes.Endpoint,
-            "entries");
+            "settings");
         AddConfigurationStoreClientVariables(resource, variables);
         AddEndpointAttribute(
             resource,
@@ -149,15 +149,15 @@ public sealed class JavaAppServiceDiscoveryEnvironmentResolver(
             return;
         }
 
-        var entriesEndpoint =
-            $"{baseEndpoint.ToString().TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(resource.EffectiveResourceId)}/entries";
+        var settingsEndpoint =
+            $"{baseEndpoint.ToString().TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(resource.EffectiveResourceId)}/settings";
         variables.TryAdd("CLOUDSHELL_CONFIGURATION_SERVICE_NAME", resource.Name);
         foreach (var segment in ResolveCloudShellClientEnvironmentSegments(resource))
         {
             variables[$"CLOUDSHELL_CONFIGURATION_{segment}_STORE_ID"] =
                 resource.EffectiveResourceId;
             variables[$"CLOUDSHELL_CONFIGURATION_{segment}_ENDPOINT"] =
-                entriesEndpoint;
+                settingsEndpoint;
         }
     }
 

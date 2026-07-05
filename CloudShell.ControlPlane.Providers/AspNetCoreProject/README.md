@@ -37,7 +37,7 @@
   for code-first project definition authoring with endpoint requests,
   environment variables, service-discovery references, volume mounts, log
   sources, and health-check attributes. Environment variables are authored as a
-  keyed map and may use literal values, configuration-entry references, or
+  keyed map and may use literal values, configuration-setting references, or
   secret references; the Resource Manager bridge resolves references when the
   project resource starts.
 
@@ -74,7 +74,7 @@ explicit startup-order hint and should not be used as the discovery mechanism.
         "value": "Development"
       },
       "SAMPLE_MESSAGE": {
-        "configurationEntryRef": {
+        "configurationSettingRef": {
           "storeResourceId": "configuration.store:sample-app",
           "name": "Sample:Message"
         }

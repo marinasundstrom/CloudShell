@@ -22,11 +22,11 @@ resources into environment variables that bind to the .NET configuration
 services__<resource-name-or-id>__<endpoint-name-or-scheme>__0=<endpoint-address>
 ```
 
-For example, a resource named `Sample App Settings` with an `entries` endpoint
+For example, a resource named `Sample App Settings` with an `settings` endpoint
 can be projected as:
 
 ```text
-services__sample-app-settings__entries__0=http://localhost:5138/api/configuration/stores/configuration%3Asample-app/entries
+services__sample-app-settings__settings__0=http://localhost:5138/api/configuration/stores/configuration%3Asample-app/settings
 ```
 
 CloudShell emits names based on both the referenced resource display name and
@@ -100,7 +100,7 @@ a specific endpoint from a multi-endpoint resource:
 https+http://_<endpoint-name>.<service-name>
 ```
 
-For example, `_entries.sample-app-settings` selects the `entries` endpoint on
+For example, `_settings.sample-app-settings` selects the `settings` endpoint on
 `sample-app-settings`. It is valid, but it is noisier than necessary when the
 service name alone already resolves to the intended endpoint.
 
@@ -109,7 +109,7 @@ Applications can also read the projected endpoint value directly from
 `CloudShell.Configuration`:
 
 ```csharp
-var endpoint = builder.Configuration.GetResourceUri("sample-app-settings", "entries");
+var endpoint = builder.Configuration.GetResourceUri("sample-app-settings", "settings");
 ```
 
 The helper only reads configuration. It does not replace Microsoft's service
@@ -128,7 +128,7 @@ treated like any other referenced service:
   endpoint in the local/programmatic flow.
 - `WithIdentity(...)` or `RequireIdentity()` assigns the calling resource
   identity.
-- Resource grants such as `ReadEntries` or `ReadSecrets` authorize the identity
+- Resource grants such as `ReadSettings` or `ReadSecrets` authorize the identity
   against the target resource.
 
 The current Configuration Store and Secrets Vault SDK clients still support

@@ -137,7 +137,7 @@ public sealed class AspNetCoreProjectProcessCommandFactory
                 continue;
             }
 
-            if (variable.ConfigurationEntryRef is not null ||
+            if (variable.ConfigurationSettingRef is not null ||
                 variable.SecretRef is not null)
             {
                 continue;

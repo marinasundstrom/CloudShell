@@ -7,7 +7,7 @@ uses the CloudShell CLI to apply it to the local development host profile. The
 launcher declares a Java app plus
 Configuration Store and Secrets Vault references so the running JVM process can
 consume the same service-binding variables as other language integrations.
-It also seeds development Configuration Store entries and Secrets Vault secrets
+It also seeds development Configuration Store settings and Secrets Vault secrets
 through create-only resource-definition attributes.
 
 The Java launcher package is intentionally separate from the runtime clients in

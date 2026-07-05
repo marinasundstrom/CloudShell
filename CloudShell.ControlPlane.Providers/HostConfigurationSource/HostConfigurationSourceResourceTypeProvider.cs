@@ -131,7 +131,7 @@ public sealed class HostConfigurationSourceResourceTypeProvider :
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                 "configuration.host.entryCountInvalid",
-                "Host configuration entry count must be a non-negative integer.",
+                "Host configuration setting count must be a non-negative integer.",
                 Attributes.EntryCount));
         }
     }

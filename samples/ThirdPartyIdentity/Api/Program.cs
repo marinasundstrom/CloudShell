@@ -32,23 +32,22 @@ app.MapGet("/configuration", async (
                 status = "unavailable",
                 detail = "No CloudShell configuration store endpoint was injected.",
                 source = (string?)null,
-                entries = Array.Empty<object>()
+                settings = Array.Empty<object>()
             });
         }
 
-        var entries = await client.GetEntriesAsync(cancellationToken);
+        var settings = await client.GetSettingsAsync(cancellationToken);
         return Results.Ok(new
         {
             status = "connected",
             detail = (string?)null,
-            source = client.EntriesEndpoint.ToString(),
+            source = client.SettingsEndpoint.ToString(),
             clientId = Environment.GetEnvironmentVariable(
                 EnvironmentCloudShellResourceCredential.ClientIdEnvironmentVariable),
-            entries = entries.Select(entry => new
+            settings = settings.Select(setting => new
             {
-                entry.Name,
-                Value = entry.IsSecret ? "Secret" : entry.Value,
-                entry.IsSecret
+                setting.Name,
+                setting.Value
             })
         });
     }
@@ -70,7 +69,7 @@ app.MapGet("/configuration", async (
                 .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
                 .Select(Environment.GetEnvironmentVariable)
                 .FirstOrDefault(),
-            entries = Array.Empty<object>()
+            settings = Array.Empty<object>()
         });
     }
 });

@@ -212,7 +212,7 @@ Useful routes:
 - `/resources/docker-engine`: Docker Engine detail view.
 - `/extensions`: installed extensions and contributed resource types.
 - `/api/control-plane/v1`: versioned Control Plane API.
-- `<configuration-service-endpoint>/api/configuration/entries?resourceId=...`: token-authenticated configuration service API.
+- `<configuration-service-endpoint>/api/configuration/settings?resourceId=...`: token-authenticated configuration service API.
 - `/openapi/control-plane-v1.json`: OpenAPI document for generated clients.
 
 Local-development host and launcher samples are also available:

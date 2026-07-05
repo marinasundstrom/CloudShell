@@ -66,8 +66,8 @@ public static class ConfigurationStoreResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceProjectionProvider, ConfigurationStoreResourceProjectionProvider>());
         services.TryAddSingleton<ConfigurationStoreRuntimeOptions>();
         services.TryAddSingleton<
-            IConfigurationStoreRuntimeEntryManager,
-            ConfigurationStoreRuntimeEntryManager>();
+            IConfigurationStoreRuntimeSettingManager,
+            ConfigurationStoreRuntimeSettingManager>();
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceModelGraphApplyReconciler, ConfigurationStoreSeedReconciler>());
         services.TryAddSingleton<ConfigurationStoreProcessRuntimeController>();

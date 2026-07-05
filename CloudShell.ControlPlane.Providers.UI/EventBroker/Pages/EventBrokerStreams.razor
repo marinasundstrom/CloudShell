@@ -1,0 +1,200 @@
+@using CloudShell.EventBroker.Client
+@using CloudShell.ResourceModel
+@inject IResourceManager ResourceManager
+
+@if (Resource is null)
+{
+    <EmptyState Title="Event Broker is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
+}
+else
+{
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Protocols</h3>
+                <p>@GetProtocolSummary()</p>
+            </div>
+        </div>
+
+        @if (ProtocolRows.Count == 0)
+        {
+            <EmptyState Title="No protocols"
+                        Message="This broker does not declare protocol endpoints." />
+        }
+        else
+        {
+            <ResourceTable AriaLabel="Event Broker protocols">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Protocol</th>
+                        <th>Endpoint</th>
+                        <th>Format</th>
+                        <th>Capabilities</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var protocol in ProtocolRows)
+                    {
+                        <tr>
+                            <td><strong>@protocol.Name</strong></td>
+                            <td>@protocol.Protocol</td>
+                            <td>@FormatOptional(protocol.Address)</td>
+                            <td>@FormatOptional(protocol.EventFormat)</td>
+                            <td>@FormatValues(protocol.Capabilities)</td>
+                        </tr>
+                    }
+                </tbody>
+            </ResourceTable>
+        }
+    </section>
+
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Streams</h3>
+                <p>@GetStreamSummary()</p>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Error))
+        {
+            <EmptyState Title="Streams unavailable"
+                        Message="@Error" />
+        }
+        else if (Streams.Count == 0)
+        {
+            <EmptyState Title="No retained events"
+                        Message="Streams appear after publishers append events to this broker." />
+        }
+        else
+        {
+            <ResourceTable AriaLabel="Event Broker streams">
+                <thead>
+                    <tr>
+                        <th>Stream</th>
+                        <th>Events</th>
+                        <th>Last sequence</th>
+                        <th>Last event</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var stream in Streams)
+                    {
+                        <tr>
+                            <td><strong>@stream.Name</strong></td>
+                            <td>@stream.EventCount</td>
+                            <td>@stream.LastSequence</td>
+                            <td>@FormatOptionalTimestamp(stream.LastEventAt)</td>
+                        </tr>
+                    }
+                </tbody>
+            </ResourceTable>
+        }
+    </section>
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private CloudShell.Abstractions.ResourceManager.Resource? Resource { get; set; }
+    private IReadOnlyList<EventBrokerProtocolRow> ProtocolRows { get; set; } = [];
+    private List<EventBrokerStreamSummary> Streams { get; } = [];
+    private string? Error { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Resource = null;
+        ProtocolRows = [];
+        Streams.Clear();
+        Error = null;
+
+        if (string.IsNullOrWhiteSpace(ResourceId))
+        {
+            return;
+        }
+
+        Resource = await ResourceManager.GetResourceAsync(ResourceId);
+        if (Resource is null)
+        {
+            return;
+        }
+
+        ProtocolRows = CreateProtocolRows(Resource);
+        var endpoint = GetHttpEndpoint();
+        if (string.IsNullOrWhiteSpace(endpoint))
+        {
+            Error = "This broker does not declare an HTTP event endpoint.";
+            return;
+        }
+
+        try
+        {
+            var client = new EventBrokerClient(new Uri(endpoint));
+            Streams.AddRange(await client.ListStreamsAsync(Resource.Id));
+        }
+        catch (Exception exception)
+        {
+            Error = exception.Message;
+        }
+    }
+
+    private string GetProtocolSummary() =>
+        ProtocolRows.Count == 1
+            ? "1 protocol endpoint is declared for this broker."
+            : $"{ProtocolRows.Count} protocol endpoints are declared for this broker.";
+
+    private string GetStreamSummary() =>
+        Streams.Count == 1
+            ? "1 retained stream is available on this broker."
+            : $"{Streams.Count} retained streams are available on this broker.";
+
+    private string? GetHttpEndpoint() =>
+        ProtocolRows.FirstOrDefault(protocol =>
+            string.Equals(protocol.Protocol, EventBrokerProtocols.Http, StringComparison.OrdinalIgnoreCase))
+            ?.Address;
+
+    private static IReadOnlyList<EventBrokerProtocolRow> CreateProtocolRows(
+        CloudShell.Abstractions.ResourceManager.Resource resource)
+    {
+        var mappings = resource.EndpointNetworkMappings ?? [];
+        return resource.Endpoints
+            .Select(endpoint =>
+            {
+                var mapping = mappings.FirstOrDefault(candidate =>
+                    candidate.MatchesEndpoint(endpoint.Name));
+                return new EventBrokerProtocolRow(
+                    endpoint.Name,
+                    endpoint.Protocol,
+                    mapping?.Address,
+                    string.Equals(endpoint.Protocol, EventBrokerProtocols.Http, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(endpoint.Protocol, EventBrokerProtocols.Mqtt, StringComparison.OrdinalIgnoreCase)
+                        ? "json"
+                        : null,
+                    []);
+            })
+            .ToArray();
+    }
+
+    private static string FormatValues(IReadOnlyList<string> values) =>
+        values.Count == 0
+            ? "-"
+            : string.Join(", ", values);
+
+    private static string FormatOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "-" : value;
+
+    private static string FormatOptionalTimestamp(DateTimeOffset? timestamp) =>
+        timestamp is null
+            ? "-"
+            : timestamp.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+
+    private sealed record EventBrokerProtocolRow(
+        string Name,
+        string Protocol,
+        string? Address,
+        string? EventFormat,
+        IReadOnlyList<string> Capabilities);
+}

@@ -32,10 +32,10 @@ test("builds a resource template with JavaScript app and configuration store", (
     .withReference(settings)
     .withReference(secrets)
     .withEnvironmentVariable("CLOUDSHELL_SETTINGS_ENDPOINT", {
-      value: "http://localhost:5101/api/configuration/stores/configuration.store%3Atypescript-settings/entries"
+      value: "http://localhost:5101/api/configuration/stores/configuration.store%3Atypescript-settings/settings"
     })
     .withEnvironmentVariable("Sample__Message", {
-      configurationEntryRef: settings.setting("Sample--Message")
+      configurationSettingRef: settings.setting("Sample--Message")
     })
     .withEnvironmentVariable("Sample__ApiKey", {
       secretRef: secrets.secret("Sample--ApiKey")
@@ -65,7 +65,7 @@ test("builds a resource template with JavaScript app and configuration store", (
   const settingsResource = template.resources.find(resource => resource.name === "typescript-settings")!;
   assert.equal(settingsResource.endpoint, "http://localhost:5101");
   assert.deepEqual(settingsResource.seed, {
-    entries: [
+    settings: [
       {
         name: "Sample--Message",
         value: "Hello from TypeScript"
@@ -130,10 +130,10 @@ test("builds a resource template with JavaScript app and configuration store", (
     ],
     environmentVariables: {
       CLOUDSHELL_SETTINGS_ENDPOINT: {
-        value: "http://localhost:5101/api/configuration/stores/configuration.store%3Atypescript-settings/entries"
+        value: "http://localhost:5101/api/configuration/stores/configuration.store%3Atypescript-settings/settings"
       },
       Sample__Message: {
-        configurationEntryRef: {
+        configurationSettingRef: {
           storeResourceId: "configuration.store:typescript-settings",
           name: "Sample--Message"
         }

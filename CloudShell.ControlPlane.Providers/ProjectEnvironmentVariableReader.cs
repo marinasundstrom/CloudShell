@@ -19,7 +19,7 @@ internal static class ProjectEnvironmentVariableReader
                 variable => variable.Key,
                 variable => new AspNetCoreProjectEnvironmentVariableValue(
                     variable.Value.Value,
-                    variable.Value.ConfigurationEntryRef,
+                    variable.Value.ConfigurationSettingRef,
                     variable.Value.SecretRef),
                 StringComparer.OrdinalIgnoreCase);
     }
@@ -41,7 +41,7 @@ internal static class ProjectEnvironmentVariableReader
                 variable => variable.Key,
                 variable => new JavaScriptAppEnvironmentVariableValue(
                     variable.Value.Value,
-                    variable.Value.ConfigurationEntryRef,
+                    variable.Value.ConfigurationSettingRef,
                     variable.Value.SecretRef),
                 StringComparer.OrdinalIgnoreCase);
     }
@@ -63,7 +63,7 @@ internal static class ProjectEnvironmentVariableReader
                 variable => variable.Key,
                 variable => new JavaAppEnvironmentVariableValue(
                     variable.Value.Value,
-                    variable.Value.ConfigurationEntryRef,
+                    variable.Value.ConfigurationSettingRef,
                     variable.Value.SecretRef),
                 StringComparer.OrdinalIgnoreCase);
     }
@@ -85,7 +85,7 @@ internal static class ProjectEnvironmentVariableReader
                 variable => variable.Key,
                 variable => new GoAppEnvironmentVariableValue(
                     variable.Value.Value,
-                    variable.Value.ConfigurationEntryRef,
+                    variable.Value.ConfigurationSettingRef,
                     variable.Value.SecretRef),
                 StringComparer.OrdinalIgnoreCase);
     }
@@ -112,11 +112,11 @@ internal static class ProjectEnvironmentVariableReader
                 continue;
             }
 
-            if (TryReadPath(path, ".configurationEntryRef.", out variableName, out var configurationProperty) &&
+            if (TryReadPath(path, ".configurationSettingRef.", out variableName, out var configurationProperty) &&
                 attribute.Value is { Length: > 0 } configurationValue)
             {
                 var parts = GetParts(variables, variableName);
-                var reference = parts.ConfigurationEntryRef ?? new ResourceConfigurationEntryReference(
+                var reference = parts.ConfigurationSettingRef ?? new ResourceConfigurationSettingReference(
                     string.Empty,
                     string.Empty);
                 reference = configurationProperty switch
@@ -126,7 +126,7 @@ internal static class ProjectEnvironmentVariableReader
                     "version" => reference with { Version = configurationValue },
                     _ => reference
                 };
-                variables[variableName] = parts with { ConfigurationEntryRef = reference };
+                variables[variableName] = parts with { ConfigurationSettingRef = reference };
                 continue;
             }
 
@@ -179,6 +179,6 @@ internal static class ProjectEnvironmentVariableReader
 
     private sealed record EnvironmentVariableParts(
         string? Value = null,
-        ResourceConfigurationEntryReference? ConfigurationEntryRef = null,
+        ResourceConfigurationSettingReference? ConfigurationSettingRef = null,
         ResourceSecretReference? SecretRef = null);
 }

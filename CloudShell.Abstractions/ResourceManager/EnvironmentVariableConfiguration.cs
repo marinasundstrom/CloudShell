@@ -20,13 +20,13 @@ public interface IResourceEnvironmentVariableConfigurationProvider
 public sealed record EnvironmentVariableAssignment(
     string Name,
     string Value,
-    ConfigurationEntryReference? ConfigurationEntry = null,
+    ConfigurationSettingReference? ConfigurationSetting = null,
     SecretReference? Secret = null)
 {
     public static EnvironmentVariableAssignment FromConfiguration(
         string name,
-        ConfigurationEntryReference configurationEntry) =>
-        new(name, string.Empty, ConfigurationEntry: configurationEntry);
+        ConfigurationSettingReference configurationSetting) =>
+        new(name, string.Empty, ConfigurationSetting: configurationSetting);
 
     public static EnvironmentVariableAssignment FromSecret(
         string name,

@@ -124,6 +124,14 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerEndpointProjectionProvider,
+                DeviceRegistryResourceManagerEndpointProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerEndpointProjectionProvider,
+                EventBrokerResourceManagerEndpointProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerEndpointProjectionProvider,
                 SqlServerResourceManagerEndpointProjectionProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
@@ -165,6 +173,14 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerStateProvider,
                 SecretsVaultResourceManagerStateProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerStateProvider,
+                DeviceRegistryResourceManagerStateProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceModelResourceManagerStateProvider,
+                EventBrokerResourceManagerStateProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IResourceModelResourceManagerStateProvider,
@@ -231,8 +247,8 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
                 GoAppEnvironmentReferenceResolver>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
-                IConfigurationEntryReferenceResolver,
-                ConfigurationStoreRuntimeEntryReferenceResolver>());
+                IConfigurationSettingReferenceResolver,
+                ConfigurationStoreRuntimeSettingReferenceResolver>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 ISecretReferenceResolver,
@@ -269,6 +285,14 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 IResourceMonitoringProvider,
                 SecretsVaultResourceManagerMonitoringProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceMonitoringProvider,
+                DeviceRegistryResourceManagerMonitoringProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IResourceMonitoringProvider,
+                EventBrokerResourceMonitoringProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 ILogProvider,

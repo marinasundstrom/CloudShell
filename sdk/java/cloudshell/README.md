@@ -27,8 +27,8 @@ ConfigurationStoreClient configuration =
     ConfigurationStoreClient.fromEnvironment();
 
 String message = configuration
-    .getEntry("Sample--Message")
-    .map(CloudShellConfigurationEntry::value)
+    .getSetting("Sample--Message")
+    .map(CloudShellConfigurationSetting::value)
     .orElse("Default message");
 
 SecretsVaultClient secrets = SecretsVaultClient.fromEnvironment();

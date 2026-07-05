@@ -31,10 +31,10 @@ const web = app
   .withReference(settings)
   .withReference(secrets)
   .withEnvironmentVariable("CLOUDSHELL_SETTINGS_ENDPOINT", {
-    value: "http://localhost:5101/api/configuration/stores/configuration.store%3Aorders-settings/entries"
+    value: "http://localhost:5101/api/configuration/stores/configuration.store%3Aorders-settings/settings"
   })
   .withEnvironmentVariable("Orders__Message", {
-    configurationEntryRef: settings.setting("Orders--Message")
+    configurationSettingRef: settings.setting("Orders--Message")
   })
   .withEnvironmentVariable("Orders__ApiKey", {
     secretRef: secrets.secret("Orders--ApiKey")

@@ -4,7 +4,7 @@ This sample shows the launcher-style C# hosting pattern. The `AppHost` project
 declares the distributed application with the same Resource Model builders used
 by in-process C# hosts, but it does not reference or compose the Control Plane
 directly.
-The sample also seeds development Configuration Store entries and Secrets Vault
+The sample also seeds development Configuration Store settings and Secrets Vault
 secrets through create-only resource-definition attributes.
 
 The launcher defaults to `CloudShell.LocalDevelopmentHost`, the stable

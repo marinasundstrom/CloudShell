@@ -24,7 +24,7 @@ public sealed class ConfigurationStoreResourceManagerEndpointProjectionProvider 
             Endpoints:
             [
                 ResourceEndpoint.Contract(
-                    "entries",
+                    "settings",
                     "http",
                     ResourceExposureScope.Local,
                     ResourceEndpoint.TryGetPort(endpoint, out var port) ? port : null)
@@ -33,15 +33,15 @@ public sealed class ConfigurationStoreResourceManagerEndpointProjectionProvider 
             [
                 ResourceEndpointNetworkMapping.ForEndpoint(
                     resource.EffectiveResourceId,
-                    "entries",
-                    ToEntriesEndpoint(endpoint, resource.EffectiveResourceId),
+                    "settings",
+                    ToSettingsEndpoint(endpoint, resource.EffectiveResourceId),
                     ResourceExposureScope.Local,
-                    sourceEndpointName: "entries")
+                    sourceEndpointName: "settings")
             ]);
     }
 
-    private static string ToEntriesEndpoint(
+    private static string ToSettingsEndpoint(
         string endpoint,
         string resourceId) =>
-        $"{endpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(resourceId)}/entries";
+        $"{endpoint.TrimEnd('/')}/api/configuration/stores/{Uri.EscapeDataString(resourceId)}/settings";
 }

@@ -73,11 +73,11 @@ export type EnvironmentVariableValue =
   | string
   | {
       value?: string;
-      configurationEntryRef?: ConfigurationEntryReference;
+      configurationSettingRef?: ConfigurationSettingReference;
       secretRef?: SecretReference;
     };
 
-export interface ConfigurationEntryReference {
+export interface ConfigurationSettingReference {
   storeResourceId: string;
   name: string;
   version?: string;
@@ -513,7 +513,7 @@ export class NetworkResourceBuilder extends ResourceBuilder {
 }
 
 export class ConfigurationStoreResourceBuilder extends ResourceBuilder {
-  private readonly entries: ConfigurationSeedSetting[] = [];
+  private readonly settings: ConfigurationSeedSetting[] = [];
 
   public constructor(name: string) {
     super(name, "configuration.store", "configuration");
@@ -526,19 +526,19 @@ export class ConfigurationStoreResourceBuilder extends ResourceBuilder {
   public withSeed(configure: (seed: ConfigurationStoreSeedBuilder) => void): this {
     const seed = new ConfigurationStoreSeedBuilder();
     configure(seed);
-    this.entries.splice(0, this.entries.length);
-    this.entries.push(...seed.settings);
+    this.settings.splice(0, this.settings.length);
+    this.settings.push(...seed.settings);
 
-    return this.withAttribute("seed.entries", this.entries);
+    return this.withAttribute("seed.settings", this.settings);
   }
 
-  public setting(name: string, version?: string): ConfigurationEntryReference {
+  public setting(name: string, version?: string): ConfigurationSettingReference {
     assertNotBlank(name, "Configuration setting name is required.");
     return pruneUndefined({
       storeResourceId: this.effectiveResourceId,
       name: name.trim(),
       version: normalizeOptionalString(version)
-    }) as ConfigurationEntryReference;
+    }) as ConfigurationSettingReference;
   }
 }
 

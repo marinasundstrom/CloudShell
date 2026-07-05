@@ -34,7 +34,7 @@ they project HTTP, HTTPS, TCP, UDP, or logical endpoints.
 
 The resource supports configured environment variables. Resource Manager can
 use this capability with `IResourceEnvironmentVariableConfigurationProvider` to
-assign literal values, configuration-entry references, or Secrets Vault
+assign literal values, configuration-setting references, or Secrets Vault
 references to the resource.
 
 This capability is not limited to application resources. Any provider can

@@ -155,7 +155,7 @@ public sealed class ResourceIdentityProvisioningServiceTests
         declarations.AddPermissionGrant(new ResourcePermissionGrant(
             ResourcePrincipalReference.ForResourceIdentity("api", "api-service"),
             "configuration:app",
-            ConfigurationStoreResourceOperationPermissions.ReadEntries));
+            ConfigurationStoreResourceOperationPermissions.ReadSettings));
         declarations.AddPermissionGrant(new ResourcePermissionGrant(
             new ResourcePrincipalReference(
                 ResourcePrincipalKind.User,
@@ -177,7 +177,7 @@ public sealed class ResourceIdentityProvisioningServiceTests
         var grant = Assert.Single(request.PermissionGrants);
         Assert.Equal(ResourcePrincipalKind.ResourceIdentity, grant.Principal.Kind);
         Assert.Equal("api", grant.Principal.SourceResourceId);
-        Assert.Equal(ConfigurationStoreResourceOperationPermissions.ReadEntries, grant.Permission);
+        Assert.Equal(ConfigurationStoreResourceOperationPermissions.ReadSettings, grant.Permission);
     }
 
     [Fact]
@@ -271,7 +271,7 @@ public sealed class ResourceIdentityProvisioningServiceTests
                     new ResourcePermissionGrant(
                         identity.ToPrincipal(),
                         "configuration:app",
-                        ConfigurationStoreResourceOperationPermissions.ReadEntries)
+                        ConfigurationStoreResourceOperationPermissions.ReadSettings)
                 ]));
 
         var result = await provisioner.QueryDirectoryAsync(

@@ -110,7 +110,7 @@ else
             return new(property.Name, "literal", FormatLiteralValue(property.Name, property.Value.ToString()));
         }
 
-        if (property.Value.TryGetProperty("configurationEntryRef", out var configurationRef))
+        if (property.Value.TryGetProperty("configurationSettingRef", out var configurationRef))
         {
             return new(
                 property.Name,

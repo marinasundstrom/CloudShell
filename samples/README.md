@@ -34,6 +34,7 @@ target `CloudShell.LocalDevelopmentHost`.
 | Sample | Primary scenario | Status |
 | --- | --- | --- |
 | `CSharpAppHost` | C# launcher authoring with Resource Model builders. | Preferred C# app-authoring sample. |
+| `DeviceRegistry` | C# launcher authoring for device enrollment, device identity, and configuration access. | Preferred IoT/device identity sample. |
 | `TypeScriptAppHost` | TypeScript launcher authoring and template apply. | Experimental launcher sample. |
 | `JavaAppHost` | Java launcher authoring and template apply. | Experimental launcher sample. |
 | `GoAppHost` | Go launcher authoring and template apply. | Experimental launcher sample. |

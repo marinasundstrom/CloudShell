@@ -32,10 +32,13 @@ public sealed class HostLocalNetworkEnvironment : IHostLocalNetworkEnvironment
     {
         var protocol = request.ProtocolName;
         var host = FirstNonEmpty(request.IPAddress, request.Host, DefaultHost)!;
-        var port = request.Port ??
-            (request.Assignment is ResourceEndpointAssignment.Auto or ResourceEndpointAssignment.ProviderDefault
-                ? AssignLocalPort(networkId, request.Name, autoLocalPortStart, autoLocalPortEnd)
-                : null);
+        var port = request.Port ?? request.Assignment switch
+        {
+            ResourceEndpointAssignment.Auto =>
+                request.TargetPort ?? AssignLocalPort(networkId, request.Name, autoLocalPortStart, autoLocalPortEnd),
+            ResourceEndpointAssignment.ProviderDefault => request.TargetPort,
+            _ => null
+        };
         var address = port is null
             ? $"{protocol}://{host}"
             : $"{protocol}://{host}:{port.Value.ToString(CultureInfo.InvariantCulture)}";
@@ -56,13 +59,24 @@ public sealed class HostLocalNetworkEnvironment : IHostLocalNetworkEnvironment
         int autoLocalPortEnd)
     {
         var host = FirstNonEmpty(port.IPAddress, port.Host, DefaultHost)!;
-        var exposedPort = port.Port ??
-            AssignLocalPort(serviceId, port.Name, autoLocalPortStart, autoLocalPortEnd);
+        var exposedPort = port.Port ?? port.Assignment switch
+        {
+            ResourceEndpointAssignment.Auto =>
+                port.TargetPort > 0
+                    ? port.TargetPort
+                    : AssignLocalPort(serviceId, port.Name, autoLocalPortStart, autoLocalPortEnd),
+            ResourceEndpointAssignment.ProviderDefault => port.TargetPort,
+            _ => null
+        };
+        var address = exposedPort is null
+            ? $"{port.Protocol}://{host}"
+            : $"{port.Protocol}://{host}:{exposedPort.Value.ToString(CultureInfo.InvariantCulture)}";
         return ResourceEndpointNetworkMapping.ForEndpoint(
             serviceId,
             port.Name,
-            $"{port.Protocol}://{host}:{exposedPort.ToString(CultureInfo.InvariantCulture)}",
+            address,
             port.Exposure,
+            networkResourceId: port.NetworkResourceId,
             sourceEndpointName: port.Name);
     }
 

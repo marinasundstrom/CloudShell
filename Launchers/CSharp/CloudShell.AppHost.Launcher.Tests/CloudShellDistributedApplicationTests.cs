@@ -59,7 +59,7 @@ public sealed class CloudShellDistributedApplicationTests
         var settings = Assert.Single(template.Resources, resource =>
             resource.EffectiveResourceId == "configuration.store:settings");
         var entry = Assert.Single(settings.ResourceAttributeValues.GetObject<ConfigurationStoreSeedSetting[]>(
-            ConfigurationStoreResourceTypeProvider.Attributes.Entries)!);
+            ConfigurationStoreResourceTypeProvider.Attributes.Settings)!);
         Assert.Equal("Sample--Message", entry.Name);
         Assert.Equal("Hello from C#", entry.Value);
 

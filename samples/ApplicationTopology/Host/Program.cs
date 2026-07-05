@@ -258,7 +258,7 @@ var cloudShell = builder.AddCloudShellControlPlaneApplication(
                     name: "alive");
 
             sqlServerResource.Allow(apiResource, DatabaseResourceOperationPermissions.ReadWrite);
-            settingsResource.Allow(apiResource, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+            settingsResource.Allow(apiResource, ConfigurationStoreResourceOperationPermissions.ReadSettings);
             secretsResource.Allow(apiResource, SecretsVaultResourceOperationPermissions.ReadSecrets);
 
             resources
@@ -298,8 +298,8 @@ cloudShell
         runtime.ServiceAuthenticationIssuer = identityIssuer;
         runtime.ServiceAuthenticationAudience = identityAudience;
         runtime.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
-        runtime.Entries.Add(new("ApplicationTopology:Message", "Hello from CloudShell resource configuration."));
-        runtime.Entries.Add(new("ApplicationTopology:Mode", "Resource model"));
+        runtime.Settings.Add(new("ApplicationTopology:Message", "Hello from CloudShell resource configuration."));
+        runtime.Settings.Add(new("ApplicationTopology:Mode", "Resource model"));
     })
     .UseSecretsVaultResourceProvider(runtime =>
     {
@@ -342,7 +342,7 @@ CloudShell.ResourceModel.ResourceState AddGraphProjectionState(
     var attributes = state.ResourceAttributeValues.ToDictionary();
     if (state.EffectiveResourceId == settingsResourceId)
     {
-        attributes[ConfigurationStoreResourceTypeProvider.Attributes.EntryCount] = 2;
+        attributes[ConfigurationStoreResourceTypeProvider.Attributes.SettingCount] = 2;
     }
     else
     {

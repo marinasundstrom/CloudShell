@@ -18,7 +18,8 @@ public sealed class BuiltInResourceIdentityRegistry
     public void Register(
         ResourceIdentityProviderDefinition provider,
         ResourceIdentityProvisioningEntry entry,
-        IReadOnlyList<ResourcePermissionGrant> grants)
+        IReadOnlyList<ResourcePermissionGrant> grants,
+        ResourcePrincipalReference? principal = null)
     {
         ArgumentNullException.ThrowIfNull(provider);
         ArgumentNullException.ThrowIfNull(entry);
@@ -65,7 +66,8 @@ public sealed class BuiltInResourceIdentityRegistry
             registrations[clientId] = new BuiltInResourceIdentityRegistration(
                 entry.Identity,
                 provider.Id,
-                clientId);
+                clientId,
+                principal);
         }
     }
 
@@ -78,6 +80,21 @@ public sealed class BuiltInResourceIdentityRegistry
             return clients.TryGetValue(clientId, out client!);
         }
     }
+
+    public bool Unregister(string clientId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientId);
+
+        lock (gate)
+        {
+            var removedClient = clients.Remove(clientId);
+            var removedRegistration = registrations.Remove(clientId);
+            return removedClient || removedRegistration;
+        }
+    }
+
+    public bool Unregister(ResourceIdentityReference identity) =>
+        Unregister(CreateClientId(identity));
 
     public bool Contains(ResourceIdentityReference identity) =>
         TryGetClient(CreateClientId(identity), out _);
@@ -130,7 +147,8 @@ public sealed class BuiltInResourceIdentityRegistry
 public sealed record BuiltInResourceIdentityRegistration(
     ResourceIdentityReference Identity,
     string ProviderId,
-    string ClientId);
+    string ClientId,
+    ResourcePrincipalReference? Principal = null);
 
 public sealed class BuiltInResourceIdentityProvisioner(
     BuiltInResourceIdentityRegistry registry,
@@ -213,6 +231,7 @@ public sealed class BuiltInResourceIdentityProvisioner(
                 request.Provider.Id,
                 StringComparison.OrdinalIgnoreCase))
             .Select(registration => new ResourcePrincipal(
+                registration.Principal ??
                 registration.Identity.ToPrincipal(
                     registration.Identity.ResourceId,
                     registration.ProviderId),

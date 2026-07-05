@@ -96,6 +96,8 @@ for their own resource types. Current provider methods include:
 - `AddConfigurationStore(...)` from the configuration-store built-in
   provider.
 - `AddSecretsVault(...)` from the secrets-vault built-in provider.
+- `AddEventBroker(...)` from the Event Broker built-in provider.
+- `AddDeviceRegistry(...)` from the Device Registry built-in provider.
 - `AddExecutableApplication(...)` from the executable application built-in
   provider.
 - `AddAspNetCoreProject(...)` from the ASP.NET Core project built-in
@@ -247,7 +249,7 @@ dependencies, DNS zone declaration, name mapping DNS-zone/target
 dependencies, load balancer host/backend dependencies, and host configuration
 source declaration. Configuration and secrets builders can declare service
 endpoints and participate in dependencies, but they intentionally do not
-author configuration entries or secret values as graph attributes. Those
+author configuration settings or secret values as graph attributes. Those
 values remain provider/runtime data.
 
 Display names are optional presentation labels. Use `.WithDisplayName(...)`
@@ -404,6 +406,23 @@ the local-development provider can resolve those requests to stable localhost
 ports from the Control Plane auto-port range. Endpoint mappings connect a
 network-owned endpoint to a target resource endpoint. When no provider is
 specified, the network resource itself is the endpoint-mapping provider:
+
+Some resource types also expect their own endpoint. For those types,
+programmatic declarations do not need to choose a concrete host port when the
+caller only cares that the resource is reachable somewhere in the selected
+topology. The resource binds to the selected network and the network can assign
+the endpoint.
+Other resource types should leave endpoints absent until the declaration asks
+for one.
+After assignment, application code and operators should read the projected
+endpoint or endpoint network mapping instead of depending on the original
+endpoint request.
+For local development, network-managed assignment may use the conventional port
+declared by the resource type when it is free. Endpoints that opt into `Auto`
+assignment can fall back to a generated or mapped port when another resource or
+process already occupies the conventional port. `ProviderDefault` endpoints use
+the conventional port and fail if it is not available unless the declaration
+asks for another concrete port.
 
 ```csharp
 var appNetwork = resources
@@ -911,7 +930,7 @@ resources:
 - CloudShell owns the core resource registration, group assignment, and
   dependency metadata.
 - Providers own resource-specific configuration such as executable command
-  settings or configuration entries.
+  settings or Configuration Store settings.
 
 `Persist()` writes both sides through their existing stores. Without `Persist()`,
 CloudShell does not create core registration rows for the declaration, and

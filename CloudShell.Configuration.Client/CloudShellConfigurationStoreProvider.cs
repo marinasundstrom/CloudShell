@@ -31,27 +31,19 @@ internal sealed class CloudShellConfigurationStoreProvider(
                 options.Credential ?? CreateExplicitCredential(options),
                 httpClient,
                 [options.IdentityScope]);
-            var entries = client
-                .GetEntriesAsync()
+            var settings = client
+                .GetSettingsAsync()
                 .GetAwaiter()
                 .GetResult();
 
-            foreach (var entry in entries)
+            foreach (var setting in settings)
             {
-                if (!options.LoadSecretValues && entry.IsSecret)
-                {
-                    continue;
-                }
-
-                Data[ToConfigurationKey(entry.Name)] = entry.Value;
+                Data[ToConfigurationKey(setting.Name)] = setting.Value;
             }
 
             ClearMetadata("Detail");
             SetMetadata("Status", "connected");
-            SetMetadata("LoadedKeys", string.Join(',', entries.Select(entry => ToConfigurationKey(entry.Name))));
-            SetMetadata("SecretKeys", string.Join(
-                ',',
-                entries.Where(entry => entry.IsSecret).Select(entry => ToConfigurationKey(entry.Name))));
+            SetMetadata("LoadedKeys", string.Join(',', settings.Select(setting => ToConfigurationKey(setting.Name))));
         }
         catch (Exception exception) when (
             exception is CloudShellCredentialUnavailableException or
@@ -71,10 +63,10 @@ internal sealed class CloudShellConfigurationStoreProvider(
     private void ClearMetadata(string name) =>
         Data.Remove($"{options.MetadataPrefix}:{name}");
 
-    private string ToConfigurationKey(string entryName) =>
+    private string ToConfigurationKey(string settingName) =>
         string.IsNullOrEmpty(options.KeyDelimiterReplacement)
-            ? entryName
-            : entryName.Replace(
+            ? settingName
+            : settingName.Replace(
                 options.KeyDelimiterReplacement,
                 ConfigurationPath.KeyDelimiter,
                 StringComparison.Ordinal);

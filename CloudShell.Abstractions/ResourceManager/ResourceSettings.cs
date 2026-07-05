@@ -3,7 +3,7 @@ namespace CloudShell.Abstractions.ResourceManager;
 public sealed record AppSetting(
     string Name,
     string? Value = null,
-    ConfigurationEntryReference? ConfigurationEntry = null,
+    ConfigurationSettingReference? ConfigurationSetting = null,
     SecretReference? Secret = null)
 {
     public static AppSetting Literal(string name, string value) =>
@@ -11,8 +11,8 @@ public sealed record AppSetting(
 
     public static AppSetting FromConfiguration(
         string name,
-        ConfigurationEntryReference configurationEntry) =>
-        new(name, ConfigurationEntry: configurationEntry);
+        ConfigurationSettingReference configurationSetting) =>
+        new(name, ConfigurationSetting: configurationSetting);
 
     public static AppSetting FromSecret(
         string name,
@@ -20,9 +20,9 @@ public sealed record AppSetting(
         new(name, Secret: secret);
 }
 
-public sealed record ConfigurationEntryReference(
+public sealed record ConfigurationSettingReference(
     string StoreResourceId,
-    string EntryName,
+    string SettingName,
     string? Version = null);
 
 public sealed record SecretReference(
@@ -84,10 +84,10 @@ public sealed class ResourceSettingResolutionException : InvalidOperationExcepti
     public string ReferenceKind { get; }
 }
 
-public interface IConfigurationEntryReferenceResolver
+public interface IConfigurationSettingReferenceResolver
 {
-    ResourceSettingResolutionResult ResolveConfigurationEntry(
-        ConfigurationEntryReference reference,
+    ResourceSettingResolutionResult ResolveConfigurationSetting(
+        ConfigurationSettingReference reference,
         ResourceSettingResolutionContext context);
 }
 

@@ -439,6 +439,37 @@ public enum ResourceEndpointAssignment
 Endpoint requests are intent, not observed state. They ask a network or
 provider to assign, reserve, or use an address for an endpoint.
 
+A resource type may expect an endpoint even when the declaration does not
+contain endpoint requests. In that case, the resource can bind to the selected
+network and let Resource Manager or the network controller allocate an
+endpoint from the resource type's endpoint descriptor and environment policy.
+This is a resource-type expectation, not a universal networking rule: resource
+types without required or default endpoint descriptors should treat missing
+endpoint requests as "no endpoint requested."
+
+Local development endpoint assignment has three common inputs: the
+conventional port declared by the resource type, a requested endpoint supplied
+by the author or operator, and an automatically assigned endpoint from the
+network. `ProviderDefault` assignment uses the resource type's conventional
+port and fails when that port is unavailable unless the declaration supplies a
+different concrete endpoint. `Auto` assignment may use the conventional port
+when it is available, then fall back to a generated or mapped endpoint inside
+the network when that port is already occupied, so multiple instances of a
+remappable resource type can coexist on the Host network. Virtual networks can
+also reuse the same conventional port on different virtual addresses because
+the allocation key includes the network and address.
+
+When no endpoint request names a network, the binding uses the resource-level
+network if the resource has one, then the host or environment default network,
+and finally the Host network fallback for local development. Explicit endpoint
+network requests remain authoritative for that endpoint.
+
+After an endpoint is assigned, the assigned endpoint belongs to managed
+resource state, not to the original request. Resource Manager and network
+controllers should track the current assignment through resource endpoints and
+endpoint network mappings so callers can use the resolved address without
+caring which request, default, or network policy produced it.
+
 When endpoint requests are stored in the Resource graph/configuration model,
 they should also be provider-contributed complex attribute values.
 Assignment-specific fields such as host, port, IP address, assignment mode,

@@ -11,12 +11,12 @@ public sealed class ResourcePermissionClaimAuthorizationTests
     {
         var user = CreateUser(ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
             "configuration:sample-app",
-            ConfigurationStoreResourceOperationPermissions.ReadEntries));
+            ConfigurationStoreResourceOperationPermissions.ReadSettings));
 
         Assert.True(ResourcePermissionClaimAuthorization.HasResourcePermission(
             user,
             "configuration:sample-app",
-            ConfigurationStoreResourceOperationPermissions.ReadEntries));
+            ConfigurationStoreResourceOperationPermissions.ReadSettings));
         Assert.False(ResourcePermissionClaimAuthorization.HasResourcePermission(
             user,
             "secrets-vault:sample-app",
@@ -28,7 +28,7 @@ public sealed class ResourcePermissionClaimAuthorizationTests
     {
         var wildcardResource = CreateUser(ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
             CloudShellPermissions.All,
-            ConfigurationStoreResourceOperationPermissions.ReadEntries));
+            ConfigurationStoreResourceOperationPermissions.ReadSettings));
         var wildcardPermission = CreateUser(ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
             "configuration:sample-app",
             CloudShellPermissions.All));
@@ -36,11 +36,11 @@ public sealed class ResourcePermissionClaimAuthorizationTests
         Assert.True(ResourcePermissionClaimAuthorization.HasResourcePermission(
             wildcardResource,
             "configuration:sample-app",
-            ConfigurationStoreResourceOperationPermissions.ReadEntries));
+            ConfigurationStoreResourceOperationPermissions.ReadSettings));
         Assert.True(ResourcePermissionClaimAuthorization.HasResourcePermission(
             wildcardPermission,
             "configuration:sample-app",
-            ConfigurationStoreResourceOperationPermissions.ReadEntries));
+            ConfigurationStoreResourceOperationPermissions.ReadSettings));
         Assert.False(ResourcePermissionClaimAuthorization.HasResourcePermission(
             wildcardResource,
             "configuration:sample-app",
@@ -52,7 +52,7 @@ public sealed class ResourcePermissionClaimAuthorizationTests
     {
         var resourcePermission = ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
             "configuration:sample-app",
-            ConfigurationStoreResourceOperationPermissions.ReadEntries);
+            ConfigurationStoreResourceOperationPermissions.ReadSettings);
         var user = new ClaimsPrincipal(new ClaimsIdentity(
             [
                 new Claim(
@@ -67,7 +67,7 @@ public sealed class ResourcePermissionClaimAuthorizationTests
         Assert.True(ResourcePermissionClaimAuthorization.HasResourcePermission(
             user,
             "configuration:sample-app",
-            ConfigurationStoreResourceOperationPermissions.ReadEntries));
+            ConfigurationStoreResourceOperationPermissions.ReadSettings));
         Assert.False(ResourcePermissionClaimAuthorization.HasResourcePermission(
             user,
             "secrets-vault:sample-app",
@@ -83,13 +83,13 @@ public sealed class ResourcePermissionClaimAuthorizationTests
                     CloudShellAuthorizationClaimTypes.ResourcePermission,
                     ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
                         "configuration:sample-app",
-                        ConfigurationStoreResourceOperationPermissions.ReadEntries))
+                        ConfigurationStoreResourceOperationPermissions.ReadSettings))
             ]));
 
         Assert.False(ResourcePermissionClaimAuthorization.HasResourcePermission(
             user,
             "configuration:sample-app",
-            ConfigurationStoreResourceOperationPermissions.ReadEntries));
+            ConfigurationStoreResourceOperationPermissions.ReadSettings));
     }
 
     private static ClaimsPrincipal CreateUser(string resourcePermissionClaim) =>

@@ -55,6 +55,10 @@ mcr.microsoft.com/mssql/server:2022-latest
 ```
 
 The resource exposes a `tds` endpoint with container target port `1433`.
+For local development, `1433` is the preferred host mapping when it is
+available. When another SQL Server or local process already uses that port,
+the network binding should assign a different mapped host port and project the
+chosen address through the resource endpoint network mapping.
 
 Programmatic declarations should use the provider-owned SQL Server builder:
 

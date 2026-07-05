@@ -25,6 +25,16 @@ The domain separates related but distinct concepts:
 
 - An identity provider is an environment capability. It belongs to the cloud
   plane and determines whether resource identity can be resolved at all.
+- A user principal represents an authenticated human or operator.
+- A resource principal represents a CloudShell resource acting through a
+  resource identity binding.
+- An app principal is the common resource-principal case for executable,
+  project, container app, or managed application resources. It is not a
+  separate credential mechanism; it is a resource identity attached to an app
+  resource.
+- A device principal represents a device enrolled through a Device Registry.
+  It is backed by a `deviceIdentity` principal category so devices can be
+  granted access without pretending they are application resources.
 - A resource identity binding is per-resource intent. It says that a resource
   has, or requires, an identity that can later be resolved and provisioned by a
   provider.
@@ -511,7 +521,7 @@ current resource, groups assigned permissions by principal, and can revoke
 those grants. When the current resource itself has an identity, that identity
 is not included in the assignment picker. The permission picker is filtered to
 operations that are relevant to the current target resource, such as
-configuration-entry reads for Configuration Store resources, secret reads for
+configuration-setting reads for Configuration Store resources, secret reads for
 Secrets Vault resources, mount permissions for volumes, networking
 reconciliation for network resources, and resource-action permissions where the
 target advertises actions. User, group, service account, and provider-owned
@@ -606,7 +616,7 @@ members remain compatibility aliases.
 | --- | --- | --- |
 | Any resource with standard lifecycle actions | `start`, `stop`, `pause`, `restart` | `CommonResourceOperationPermissions.LifecycleAction` |
 | Any resource with a custom action and no narrower declared operation | custom action execution | `CommonResourceOperationPermissions.ExecuteCustomAction` |
-| `configuration.store` and `ResourceClass.Configuration` | configuration entry read | `ConfigurationStoreResourceOperationPermissions.ReadEntries` |
+| `configuration.store` and `ResourceClass.Configuration` | configuration setting read | `ConfigurationStoreResourceOperationPermissions.ReadSettings` |
 | `cloudshell.network` and `cloudshell.virtualNetwork` | `reconcileEndpointMappings` | `NetworkResourceOperationPermissions.ReconcileEndpointMappings` |
 | `cloudshell.loadBalancer` | `applyLoadBalancerConfiguration` | `LoadBalancerResourceOperationPermissions.ApplyConfiguration` |
 | `secrets.vault` and `ResourceClass.SecretsVault` | secret value read | `SecretsVaultResourceOperationPermissions.ReadSecrets` |

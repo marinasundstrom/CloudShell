@@ -197,7 +197,7 @@ public interface IExecutableResourceBuilder :
 
     IExecutableResourceBuilder WithEnvironment(
         string name,
-        ConfigurationEntryReference configurationEntry);
+        ConfigurationSettingReference configurationSetting);
 
     IExecutableResourceBuilder WithEnvironment(
         string name,
@@ -209,7 +209,7 @@ public interface IExecutableResourceBuilder :
 
     IExecutableResourceBuilder WithAppSetting(
         string name,
-        ConfigurationEntryReference configurationEntry);
+        ConfigurationSettingReference configurationSetting);
 
     IExecutableResourceBuilder WithAppSetting(
         string name,
@@ -317,7 +317,7 @@ public interface IProjectResourceBuilder :
 
     IProjectResourceBuilder WithEnvironment(
         string name,
-        ConfigurationEntryReference configurationEntry);
+        ConfigurationSettingReference configurationSetting);
 
     IProjectResourceBuilder WithEnvironment(
         string name,
@@ -329,7 +329,7 @@ public interface IProjectResourceBuilder :
 
     IProjectResourceBuilder WithAppSetting(
         string name,
-        ConfigurationEntryReference configurationEntry);
+        ConfigurationSettingReference configurationSetting);
 
     IProjectResourceBuilder WithAppSetting(
         string name,
@@ -469,7 +469,7 @@ public interface IContainerResourceBuilder :
 
     IContainerResourceBuilder WithEnvironment(
         string name,
-        ConfigurationEntryReference configurationEntry);
+        ConfigurationSettingReference configurationSetting);
 
     IContainerResourceBuilder WithEnvironment(
         string name,
@@ -481,7 +481,7 @@ public interface IContainerResourceBuilder :
 
     IContainerResourceBuilder WithAppSetting(
         string name,
-        ConfigurationEntryReference configurationEntry);
+        ConfigurationSettingReference configurationSetting);
 
     IContainerResourceBuilder WithAppSetting(
         string name,

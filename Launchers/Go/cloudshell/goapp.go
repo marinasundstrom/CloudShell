@@ -3,9 +3,9 @@ package cloudshell
 import "strings"
 
 type EnvironmentVariableValue struct {
-	Value                 string                       `json:"value,omitempty"`
-	ConfigurationEntryRef *ConfigurationEntryReference `json:"configurationEntryRef,omitempty"`
-	SecretRef             *SecretReference             `json:"secretRef,omitempty"`
+	Value                   string                         `json:"value,omitempty"`
+	ConfigurationSettingRef *ConfigurationSettingReference `json:"configurationSettingRef,omitempty"`
+	SecretRef               *SecretReference               `json:"secretRef,omitempty"`
 }
 
 type EndpointRequest struct {
@@ -157,9 +157,9 @@ func (r *GoAppResource) WithEnvironmentVariable(name string, value string) *GoAp
 	return r
 }
 
-func (r *GoAppResource) WithConfigurationEntry(name string, reference ConfigurationEntryReference) *GoAppResource {
+func (r *GoAppResource) WithConfigurationSetting(name string, reference ConfigurationSettingReference) *GoAppResource {
 	r.environment[requireNotBlank(name, "environment variable name")] = EnvironmentVariableValue{
-		ConfigurationEntryRef: &reference,
+		ConfigurationSettingRef: &reference,
 	}
 	return r
 }

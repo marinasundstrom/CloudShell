@@ -24,6 +24,8 @@
     <ProjectReference Include="..\samples\CloudShell.ResourceHost\CloudShell.ResourceHost.csproj" />
     <ProjectReference Include="..\samples\CertificateLoadBalancer\CloudShell.CertificateLoadBalancer.csproj" />
     <ProjectReference Include="..\samples\ContainerAppDeployment\CloudShell.ContainerAppDeployment.csproj" />
+    <ProjectReference Include="..\samples\DeviceRegistry\AppHost\CloudShell.DeviceRegistryAppHost.csproj" />
+    <ProjectReference Include="..\samples\DeviceRegistry\DeviceApp\CloudShell.DeviceRegistry.DeviceApp.csproj" />
     <ProjectReference Include="..\samples\ReplicatedContainerHealth\CloudShell.ReplicatedContainerHealth.csproj" />
     <ProjectReference Include="..\samples\SignalRContainerApp\CloudShell.SignalRContainerApp.csproj" />
     <ProjectReference Include="..\samples\HostVirtualNetwork\CloudShell.HostVirtualNetwork.csproj" />
@@ -36,6 +38,7 @@
     <ProjectReference Include="..\samples\SplitHosting\UI\CloudShell.SplitHosting.UI.csproj" />
     <ProjectReference Include="..\samples\ThirdPartyIdentity\CloudShell.ThirdPartyIdentity.csproj" />
     <ProjectReference Include="..\samples\ThirdPartyIdentity\Api\CloudShell.ThirdPartyIdentity.Api.csproj" />
+    <ProjectReference Include="..\CloudShell.DeviceRegistry.Client\CloudShell.DeviceRegistry.Client.csproj" />
   </ItemGroup>
 
 </Project>

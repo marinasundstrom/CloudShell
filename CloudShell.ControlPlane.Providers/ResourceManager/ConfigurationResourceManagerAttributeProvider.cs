@@ -14,8 +14,8 @@ public sealed class ConfigurationStoreResourceManagerAttributeProvider(
         resource.Type.TypeId == ConfigurationStoreResourceTypeProvider.ResourceTypeId
             ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                [ConfigurationStoreResourceTypeProvider.Attributes.EntryCount.ToString()] =
-                    _options.Entries.Count.ToString(CultureInfo.InvariantCulture)
+                [ConfigurationStoreResourceTypeProvider.Attributes.SettingCount.ToString()] =
+                    _options.Settings.Count.ToString(CultureInfo.InvariantCulture)
             }
             : null;
 }

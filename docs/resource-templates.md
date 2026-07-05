@@ -104,7 +104,7 @@ resources:
             providerId: identity:development
             sourceResourceId: application.executable:api
             sourceIdentityName: api-service
-          permission: CloudShell.Configuration/stores/entries/read/action
+          permission: CloudShell.Configuration/stores/settings/read/action
 ```
 
 These attributes are CloudShell Resource Manager declaration metadata. They do
@@ -242,7 +242,7 @@ appear as resource attributes, or as provider-owned configuration fields when
 attributes are not the right shape. A capability may define and validate the
 attribute contract, but resource-owned values should still live under
 `attributes`. Secret material must not be exported. References to
-configuration entries or secrets can be exported when they are non-secret
+configuration settings or secrets can be exported when they are non-secret
 intent.
 
 ## Relationship To Orchestration

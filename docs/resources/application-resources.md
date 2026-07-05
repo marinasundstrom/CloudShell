@@ -418,7 +418,7 @@ plain values.
 
 Before Start or Restart dispatches, application action availability resolves
 configured app settings and environment variables through the registered
-configuration-entry and secret resolvers. Missing stores, vaults, entries,
+configuration-setting and secret resolvers. Missing stores, vaults, entries,
 secrets, or read grants report stable action-unavailable reasons before the
 provider starts the workload, without displaying resolved values.
 

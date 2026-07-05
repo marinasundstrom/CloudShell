@@ -46,17 +46,16 @@ app.MapGet("/configuration", async (
     try
     {
         var client = clients.CreateConfigurationStoreClient();
-        var entries = await client.GetEntriesAsync(cancellationToken);
+        var settings = await client.GetSettingsAsync(cancellationToken);
         return Results.Ok(new
         {
             status = "connected",
             detail = (string?)null,
-            source = client.EntriesEndpoint.ToString(),
-            entries = entries.Select(entry => new
+            source = client.SettingsEndpoint.ToString(),
+            settings = settings.Select(setting => new
             {
-                entry.Name,
-                Value = entry.IsSecret ? "Secret" : entry.Value,
-                entry.IsSecret
+                setting.Name,
+                setting.Value
             })
         });
     }
@@ -78,21 +77,15 @@ app.MapGet("/configuration", async (
         var loadedKeys = configuration["CloudShell:ConfigurationStore:LoadedKeys"]?
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             ?? [];
-        var secretKeys = configuration["CloudShell:ConfigurationStore:SecretKeys"]?
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase)
-            ?? [];
-
         return Results.Ok(new
         {
             status = configuration["CloudShell:ConfigurationStore:Status"] ?? "unavailable",
             detail = exception.Message,
             source = configuration["CloudShell:ConfigurationStore:Source"],
-            entries = loadedKeys.Select(key => new
+            settings = loadedKeys.Select(key => new
             {
                 Name = key,
-                Value = secretKeys.Contains(key) ? "Secret" : configuration[key],
-                IsSecret = secretKeys.Contains(key)
+                Value = configuration[key]
             })
         });
     }
@@ -113,19 +106,18 @@ app.MapGet("/service-discovery/configuration", async (
     var httpClient = httpClientFactory.CreateClient();
     using var response = await httpClient.SendAsync(request, cancellationToken);
     response.EnsureSuccessStatusCode();
-    var entries = await response.Content.ReadFromJsonAsync<IReadOnlyList<CloudShellConfigurationEntry>>(
+    var settings = await response.Content.ReadFromJsonAsync<IReadOnlyList<CloudShellConfigurationSetting>>(
         cancellationToken: cancellationToken) ?? [];
 
     return Results.Ok(new
     {
         status = "connected",
         source = logicalEndpoint,
-        entries = entries.Select(entry => new
-        {
-            entry.Name,
-            Value = entry.IsSecret ? "Secret" : entry.Value,
-            entry.IsSecret
-        })
+    settings = settings.Select(setting => new
+    {
+        setting.Name,
+        setting.Value
+    })
     });
 });
 
@@ -144,7 +136,7 @@ app.MapGet("/service-discovery/configuration-store", async (
     }
 
     var logicalEndpoint =
-        $"https+http://configuration.store-sample-app/api/configuration/stores/{Uri.EscapeDataString(storeId)}/entries";
+        $"https+http://configuration.store-sample-app/api/configuration/stores/{Uri.EscapeDataString(storeId)}/settings";
     var token = await credential.GetTokenAsync(
         new CloudShellResourceTokenRequest([ConfigurationStoreClient.DefaultScope]),
         cancellationToken);
@@ -154,19 +146,18 @@ app.MapGet("/service-discovery/configuration-store", async (
     var httpClient = httpClientFactory.CreateClient();
     using var response = await httpClient.SendAsync(request, cancellationToken);
     response.EnsureSuccessStatusCode();
-    var entries = await response.Content.ReadFromJsonAsync<IReadOnlyList<CloudShellConfigurationEntry>>(
+    var settings = await response.Content.ReadFromJsonAsync<IReadOnlyList<CloudShellConfigurationSetting>>(
         cancellationToken: cancellationToken) ?? [];
 
     return Results.Ok(new
     {
         status = "connected",
         source = logicalEndpoint,
-        entries = entries.Select(entry => new
-        {
-            entry.Name,
-            Value = entry.IsSecret ? "Secret" : entry.Value,
-            entry.IsSecret
-        })
+    settings = settings.Select(setting => new
+    {
+        setting.Name,
+        setting.Value
+    })
     });
 });
 

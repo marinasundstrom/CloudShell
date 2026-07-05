@@ -73,7 +73,7 @@ Current smoke coverage verifies:
 
 The local DNS resource maps `app.application-topology.cloudshell.local` to the
 frontend HTTP endpoint. Set `CLOUDSHELL_LOCAL_HOSTS_FILE` to inspect generated
-host entries without modifying the system hosts file.
+host settings without modifying the system hosts file.
 
 Runtime state is stored under `samples/ApplicationTopology/Host/Data/` and is
 ignored by git.

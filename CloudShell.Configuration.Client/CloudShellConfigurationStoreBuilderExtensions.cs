@@ -3,13 +3,13 @@ using Microsoft.Extensions.Configuration;
 namespace CloudShell.Configuration.Client;
 
 /// <summary>
-/// Registers CloudShell Configuration Store entries as a
+/// Registers CloudShell Configuration Store settings as a
 /// <see cref="IConfigurationBuilder"/> source.
 /// </summary>
 /// <remarks>
 /// Public preview API. The provider authenticates with
 /// <see cref="CloudShell.Client.Authentication.CloudShellResourceCredential"/>
-/// and reads entries from the protected Configuration Store service.
+/// and reads settings from the protected Configuration Store service.
 /// </remarks>
 public static class CloudShellConfigurationStoreBuilderExtensions
 {
