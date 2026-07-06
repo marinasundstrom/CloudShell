@@ -12,6 +12,7 @@ control_plane_url="${CLOUDSHELL_CONTROL_PLANE_URL:-http://127.0.0.1:7165}"
 backend_endpoint="${MOWER_BACKEND_URL:-http://localhost:7161}"
 frontend_endpoint="${MOWER_FRONTEND_URL:-http://localhost:7162}"
 registry_endpoint="${CLOUDSHELL_DEVICE_REGISTRY_ENDPOINT:-http://localhost:7160}"
+registry_mqtt_endpoint="${CLOUDSHELL_DEVICE_REGISTRY_MQTT_ENDPOINT:-mqtt://localhost:7163}"
 registry_resource_id="${CLOUDSHELL_DEVICE_REGISTRY_RESOURCE_ID:-${CLOUDSHELL_REGISTRY_RESOURCE_ID:-iot.device-registry:park-devices}}"
 enrollment_token="${CLOUDSHELL_DEVICE_REGISTRY_ENROLLMENT_TOKEN:-local-development-mower-enrollment-token}"
 backend_resource_id="${CLOUDSHELL_BACKEND_RESOURCE_ID:-application.container-app:mower-backend}"
@@ -40,6 +41,7 @@ Environment:
   MOWER_BACKEND_URL                         Backend ingress URL. Default: $backend_endpoint
   MOWER_FRONTEND_URL                        Frontend URL. Default: $frontend_endpoint
   CLOUDSHELL_DEVICE_REGISTRY_ENDPOINT       Device Registry endpoint. Default: $registry_endpoint
+  CLOUDSHELL_DEVICE_REGISTRY_MQTT_ENDPOINT  Device Registry MQTT endpoint. Default: $registry_mqtt_endpoint
   CLOUDSHELL_DEVICE_REGISTRY_ENROLLMENT_TOKEN  Device enrollment proof token.
   MOWER_ID                                  Mower simulator id. Default: mower-001
 USAGE
@@ -116,6 +118,7 @@ case "$command" in
     (
       cd "$script_dir/DeviceApp"
       CLOUDSHELL_DEVICE_REGISTRY_ENDPOINT="$registry_endpoint" \
+      CLOUDSHELL_DEVICE_REGISTRY_MQTT_ENDPOINT="$registry_mqtt_endpoint" \
       CLOUDSHELL_DEVICE_REGISTRY_RESOURCE_ID="$registry_resource_id" \
       CLOUDSHELL_DEVICE_REGISTRY_ENROLLMENT_TOKEN="$enrollment_token" \
       MOWER_BACKEND_URL="$backend_endpoint" \

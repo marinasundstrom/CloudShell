@@ -141,6 +141,30 @@ public sealed class ResourceGraphBuilderTests
     }
 
     [Fact]
+    public void ResourceGraphBuilder_BuildsContainerApplicationEnvironmentVariablesAsAttributes()
+    {
+        var graph = new ResourceGraphBuilder()
+            .DefineResources(resources =>
+            {
+                resources
+                    .AddContainerApplication("api")
+                    .WithProjectPath("src/api.csproj")
+                    .WithEnvironmentVariable("Sample__Mode", "Development");
+            });
+
+        var definition = Assert.Single(
+            graph.BuildGraph().Resources,
+            resource => resource.TypeId == ContainerApplicationResourceTypeProvider.ResourceTypeId);
+        var variables = definition.ResourceAttributeValues
+            .GetObject<Dictionary<string, AspNetCoreProjectEnvironmentVariableValue>>(
+                AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables);
+
+        Assert.NotNull(variables);
+        Assert.True(variables.TryGetValue("Sample__Mode", out var variable));
+        Assert.Equal("Development", variable.Value);
+    }
+
+    [Fact]
     public void ResourceGraphBuilder_BuildsConfigurationStoreSettingsAsAttributes()
     {
         var graph = new ResourceGraphBuilder()

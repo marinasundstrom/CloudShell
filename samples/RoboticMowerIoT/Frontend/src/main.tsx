@@ -9,6 +9,8 @@ interface MowerSnapshot {
   parkName: string;
   deviceId: string | null;
   enrollmentStatus: string;
+  presence: string;
+  lastSeenTransport: string;
   mode: string;
   bladeEnabled: boolean;
   latitude: number;
@@ -16,14 +18,25 @@ interface MowerSnapshot {
   heading: number;
   batteryPercent: number;
   lastCommand: string;
+  mowingPattern: string;
   lastUpdated: string;
-  activeConnectionCount: number;
+  reportedVersion: number;
+  desiredVersion: number;
   backendReplica: string;
 }
 
 interface MowerCommand {
   mowerId: string;
   command: string;
+  pattern: string;
+  requestedBy: string;
+  timestamp: string;
+  backendReplica: string;
+}
+
+interface MowerPatternChange {
+  mowerId: string;
+  pattern: string;
   requestedBy: string;
   timestamp: string;
   backendReplica: string;
@@ -65,6 +78,16 @@ function App() {
     });
     nextConnection.on("MowerCommandIssued", (command: MowerCommand) => {
       setCommands(current => [command, ...current].slice(0, 8));
+    });
+    nextConnection.on("MowerPatternIssued", (change: MowerPatternChange) => {
+      setCommands(current => [{
+        mowerId: change.mowerId,
+        command: "pattern",
+        pattern: change.pattern,
+        requestedBy: change.requestedBy,
+        timestamp: change.timestamp,
+        backendReplica: change.backendReplica
+      }, ...current].slice(0, 8));
     });
     nextConnection.onreconnecting((error?: Error) => {
       setConnectionState("Reconnecting");
@@ -108,6 +131,14 @@ function App() {
     }
 
     await connection.invoke("SetMowerCommand", mowerId, command, "park-operator");
+  }
+
+  async function sendPattern(mowerId: string, pattern: "lanes" | "spiral" | "wander") {
+    if (!connection || connection.state !== HubConnectionState.Connected) {
+      return;
+    }
+
+    await connection.invoke("SetMowerPattern", mowerId, pattern, "park-operator");
   }
 
   return (
@@ -157,8 +188,16 @@ function App() {
                       <dd>{mower.bladeEnabled ? "On" : "Off"}</dd>
                     </div>
                     <div>
-                      <dt>Connections</dt>
-                      <dd>{mower.activeConnectionCount}</dd>
+                      <dt>Pattern</dt>
+                      <dd>{formatPattern(mower.mowingPattern)}</dd>
+                    </div>
+                    <div>
+                      <dt>Presence</dt>
+                      <dd>{mower.presence}</dd>
+                    </div>
+                    <div>
+                      <dt>Transport</dt>
+                      <dd>{mower.lastSeenTransport}</dd>
                     </div>
                     <div>
                       <dt>Replica</dt>
@@ -173,6 +212,18 @@ function App() {
                       Stop
                     </button>
                   </div>
+                  <div className="pattern-actions" aria-label={`Mowing pattern for ${mower.displayName}`}>
+                    {(["lanes", "spiral", "wander"] as const).map(pattern => (
+                      <button
+                        className={mower.mowingPattern === pattern ? "selected" : undefined}
+                        key={pattern}
+                        type="button"
+                        onClick={() => void sendPattern(mower.mowerId, pattern)}
+                      >
+                        {formatPattern(pattern)}
+                      </button>
+                    ))}
+                  </div>
                 </article>
               ))}
             </div>
@@ -182,7 +233,12 @@ function App() {
         <section className="status-strip">
           <Metric label="Selected" value={selectedMower?.displayName ?? "None"} />
           <Metric label="Last command" value={selectedMower?.lastCommand ?? "None"} />
+          <Metric label="Pattern" value={selectedMower ? formatPattern(selectedMower.mowingPattern) : "Pending"} />
           <Metric label="Device id" value={selectedMower?.deviceId ?? "Not enrolled"} />
+          <Metric
+            label="Twin"
+            value={selectedMower ? `R${selectedMower.reportedVersion} / D${selectedMower.desiredVersion}` : "Pending"}
+          />
           <Metric
             label="Updated"
             value={selectedMower ? new Date(selectedMower.lastUpdated).toLocaleTimeString() : "Pending"}
@@ -195,13 +251,25 @@ function App() {
             <p className="empty">No operator commands yet.</p>
           ) : commands.map(command => (
             <p key={`${command.mowerId}-${command.timestamp}`}>
-              <strong>{command.command}</strong> sent to {command.mowerId} through replica {command.backendReplica}
+              <strong>{command.command === "pattern" ? formatPattern(command.pattern) : command.command}</strong>
+              {" "}sent to {command.mowerId} through replica {command.backendReplica}
             </p>
           ))}
         </section>
       </section>
     </main>
   );
+}
+
+function formatPattern(pattern: string) {
+  switch (pattern) {
+    case "spiral":
+      return "Spiral";
+    case "wander":
+      return "Wander";
+    default:
+      return "Lanes";
+  }
 }
 
 function ParkMap({ mowers }: { mowers: MowerSnapshot[] }) {

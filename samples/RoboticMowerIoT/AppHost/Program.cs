@@ -15,6 +15,15 @@ var frontendEndpoint = new Uri(app.Configuration["RoboticMowerIoT:FrontendEndpoi
     "http://localhost:7162");
 var registryEndpoint = app.Configuration["RoboticMowerIoT:DeviceRegistryEndpoint"] ??
     "http://localhost:7160";
+var backendRegistryEndpoint = app.Configuration["RoboticMowerIoT:BackendDeviceRegistryEndpoint"] ??
+    "http://host.docker.internal:7160";
+var registryMqttEndpoint = app.Configuration["RoboticMowerIoT:DeviceRegistryMqttEndpoint"] ??
+    "mqtt://localhost:7163";
+var registryResourceId = "iot.device-registry:park-devices";
+var registryManagementClientId = app.Configuration["RoboticMowerIoT:RegistryManagementClientId"] ??
+    "device-registry-admin";
+var registryManagementClientSecret = app.Configuration["RoboticMowerIoT:RegistryManagementClientSecret"] ??
+    "local-development-device-registry-admin-secret";
 var backendEndpoint = $"http://localhost:{backendPort.ToString(CultureInfo.InvariantCulture)}";
 var backendProjectPath = app.ResolvePath("..", "Backend", "CloudShell.RoboticMowerIoT.Backend.csproj");
 var frontendProjectPath = app.ResolvePath("..", "Frontend");
@@ -28,6 +37,7 @@ app.DefineResources(resources =>
         .AddDeviceRegistry("park-devices")
         .WithDisplayName("Park Device Registry")
         .WithEndpoint(registryEndpoint)
+        .WithMqttEndpoint(registryMqttEndpoint)
         .WithHeartbeatStaleAfter(TimeSpan.FromMinutes(5))
         .UseEnrollmentProfile(profile =>
         {
@@ -50,6 +60,21 @@ app.DefineResources(resources =>
             targetPort: 8080,
             host: "localhost",
             port: backendPort)
+        .WithEnvironmentVariable(
+            "MowerRegistry__Endpoint",
+            backendRegistryEndpoint)
+        .WithEnvironmentVariable(
+            "MowerRegistry__ResourceId",
+            registryResourceId)
+        .WithEnvironmentVariable(
+            "MowerRegistry__ManagementClientId",
+            registryManagementClientId)
+        .WithEnvironmentVariable(
+            "MowerRegistry__ManagementClientSecret",
+            registryManagementClientSecret)
+        .WithEnvironmentVariable(
+            "MowerRegistry__PollIntervalSeconds",
+            "1")
         .WithHttpHealthCheck(
             "/health",
             endpointName: "http")

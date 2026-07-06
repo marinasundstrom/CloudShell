@@ -222,10 +222,28 @@ dd {
   padding: 10px 12px;
 }
 
+.pattern-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pattern-actions button {
+  background: #f2f5f3;
+  color: #25332f;
+  font-size: 0.82rem;
+  padding: 8px 10px;
+}
+
+.pattern-actions button.selected {
+  background: #213d47;
+  color: #ffffff;
+}
+
 .status-strip {
   display: grid;
   gap: 1px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   overflow: hidden;
 }
 

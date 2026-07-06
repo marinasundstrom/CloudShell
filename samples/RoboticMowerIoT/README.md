@@ -6,34 +6,48 @@ This sample models a small public-park mower fleet:
 - `application.container-app:mower-backend` is an ASP.NET Core SignalR backend
   running as a local container app.
 - `iot.device-registry:park-devices` enrolls simulated mower devices and
-  records their device identities.
+  records their device identities, presence, desired state, and reported state.
 - `DeviceApp` is a standalone simulated mower process. It enrolls through the
-  Device Registry API, connects to the backend as a mower client, reports
-  coordinates inside a fixed park area, and receives start/stop commands.
+  Device Registry API, reports coordinates inside a fixed park area by
+  publishing Device Registry MQTT sync messages, and receives start/stop
+  commands and mowing pattern changes as desired state in the MQTT sync
+  response.
 
 The CloudShell resource graph is declared by the C# launcher in `AppHost`.
 The launcher targets `CloudShell.LocalDevelopmentHost`; this sample does not
 define its own CloudShell host.
 
 The frontend does not talk directly to mower devices. It connects to the
-backend SignalR hub, sends commands to the backend, and receives mower
-telemetry that the backend relays from connected mower clients.
+backend SignalR hub, sends commands to the backend, and receives fleet updates
+that the backend observes from Device Registry reported twin state. The device
+app does not use SignalR and does not host a web server.
 
-The sample keeps backend state in memory and does not add RabbitMQ, Redis, or
-another SignalR backplane. The backend treats `mowerId` as the device identity
-and each SignalR connection as a transient attachment to that identity.
-Multiple mower simulator processes can enroll as the same mower and connect at
-the same time; the UI shows the number of active backend connections for that
-mower.
+The command path is intentionally registry-backed:
 
-In a larger IoT architecture, durable device ownership would move behind a
-device stream or telemetry collector service. That service would listen to all
-device sessions, persist location and health streams, raise notifications such
-as crash or slip events, and provide a shared command/desired-state surface.
-Replicated backend services would then scale operator/API load while reading
-from and writing through that device service instead of owning device
-connections as durable state. This sample intentionally uses one backend
-replica so that the focus stays on enrollment, telemetry, and command flow.
+1. The operator clicks **Start**, **Stop**, or changes the mowing pattern in
+   the frontend.
+2. The frontend calls the backend SignalR hub.
+3. The backend uses the registry management identity to write the mower command
+   or pattern into Device Registry desired state.
+4. The mower simulator publishes its next MQTT sync message with reported
+   position and state.
+5. Device Registry returns the latest desired state in the MQTT response.
+6. The mower applies the command or pattern and reports the resulting state in
+   subsequent MQTT sync messages.
+
+The sample uses one backend replica and does not add RabbitMQ, Redis, or a
+SignalR backplane. The important scaling boundary is that the backend does not
+own durable device connections. Multiple browser clients can manage the same
+mower because commands target the mower's registry twin, not a backend-local
+SignalR connection.
+
+Device Registry is enough for the current fleet overview: enrolled devices,
+presence, last-seen transport, desired state, and reported state. A larger IoT
+solution would add an Event Broker or telemetry ingestion service for
+historical streams and event facts such as position samples, crashes, slips,
+blade stalls, and notifications. That broker should complement the registry;
+it should not become the owner of device identity, presence, or desired-state
+reconciliation.
 
 ## Run
 
@@ -96,9 +110,15 @@ MOWER_ID=mower-001 MOWER_NAME="Mower 001 / B" ./cloudshell.sh run-mower
 | --- | --- |
 | CloudShell UI and Control Plane | `http://127.0.0.1:7165` |
 | Device Registry | `http://localhost:7160` |
+| Device Registry MQTT | `mqtt://localhost:7163` |
 | Mower backend ingress | `http://localhost:7161` |
 | React frontend | `http://localhost:7162` |
 
-Override the backend, frontend, or registry endpoints with
-`RoboticMowerIoT:BackendPort`, `RoboticMowerIoT:FrontendEndpoint`, and
-`RoboticMowerIoT:DeviceRegistryEndpoint` when the defaults are already in use.
+Override the backend, frontend, registry HTTP, or registry MQTT endpoints with
+`RoboticMowerIoT:BackendPort`, `RoboticMowerIoT:FrontendEndpoint`,
+`RoboticMowerIoT:DeviceRegistryEndpoint`, and
+`RoboticMowerIoT:DeviceRegistryMqttEndpoint` when the defaults are already in
+use. The backend container receives
+`RoboticMowerIoT:BackendDeviceRegistryEndpoint`, which defaults to
+`http://host.docker.internal:7160` so it can reach the host-running Device
+Registry service from Docker.

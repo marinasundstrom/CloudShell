@@ -3903,9 +3903,12 @@ public sealed class SampleSmokeTests
         }
         else if (sampleName == "RoboticMowerIoT")
         {
+            var registryPort = await GetFreePortAsync();
             environment.Add(("RoboticMowerIoT__BackendPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
             environment.Add(("RoboticMowerIoT__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
-            environment.Add(("RoboticMowerIoT__DeviceRegistryEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("RoboticMowerIoT__DeviceRegistryEndpoint", $"http://localhost:{registryPort}"));
+            environment.Add(("RoboticMowerIoT__BackendDeviceRegistryEndpoint", $"http://host.docker.internal:{registryPort}"));
+            environment.Add(("RoboticMowerIoT__DeviceRegistryMqttEndpoint", $"mqtt://localhost:{await GetFreePortAsync()}"));
         }
         else if (sampleName == "SettingsAndSecrets")
         {

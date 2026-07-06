@@ -8,6 +8,8 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
     ResourceDefinitionBuilder<ContainerApplicationResourceDefinitionBuilder>(name)
 {
     private readonly List<NetworkingEndpointRequestValue> _endpointRequests = [];
+    private readonly Dictionary<string, AspNetCoreProjectEnvironmentVariableValue> _environmentVariables =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly List<VolumeMountDefinition> _volumeMounts = [];
     private readonly List<ResourceHealthCheckDefinition> _healthChecks = [];
 
@@ -99,6 +101,19 @@ public sealed class ContainerApplicationResourceDefinitionBuilder(string name) :
         return SetObjectAttribute(
             ResourceLogSourceAttributeIds.LogSources,
             ResourceLogSourceDefinitionSet.DefaultConsole(format.Trim()));
+    }
+
+    public ContainerApplicationResourceDefinitionBuilder WithEnvironmentVariable(
+        string name,
+        string? value = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        _environmentVariables[name.Trim()] = new(
+            string.IsNullOrWhiteSpace(value) ? null : value.Trim());
+        return SetObjectAttribute(
+            AspNetCoreProjectResourceTypeProvider.Attributes.EnvironmentVariables,
+            _environmentVariables);
     }
 
     public ContainerApplicationResourceDefinitionBuilder UseContainerHost(

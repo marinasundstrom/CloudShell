@@ -7,6 +7,6 @@
     "start": "node mower-simulator.js"
   },
   "dependencies": {
-    "@microsoft/signalr": "^9.0.6"
+    "mqtt": "^5.10.3"
   }
 }
