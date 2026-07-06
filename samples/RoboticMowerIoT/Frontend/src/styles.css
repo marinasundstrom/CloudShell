@@ -1,0 +1,324 @@
+:root {
+  color: #172033;
+  background: #eef3f0;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+button {
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.app-shell {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 28px;
+}
+
+.workspace {
+  display: grid;
+  gap: 18px;
+  margin: 0 auto;
+  max-width: 1440px;
+}
+
+.topbar,
+.status-strip,
+.command-log {
+  background: #ffffff;
+  border: 1px solid #d7e0dc;
+  border-radius: 8px;
+}
+
+.topbar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  padding: 20px 24px;
+}
+
+.eyebrow {
+  color: #5c6b68;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  font-size: 2rem;
+  line-height: 1.1;
+  margin-bottom: 0;
+}
+
+h2 {
+  font-size: 1.05rem;
+  margin-bottom: 0;
+}
+
+h3 {
+  font-size: 1rem;
+  margin-bottom: 0;
+}
+
+.connection {
+  align-items: center;
+  color: #4d5d59;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.92rem;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.indicator {
+  background: #c78f2f;
+  border-radius: 999px;
+  display: inline-block;
+  height: 10px;
+  width: 10px;
+}
+
+.indicator.ok {
+  background: #27845f;
+}
+
+.content-grid {
+  align-items: stretch;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+}
+
+.map-panel,
+.fleet-panel {
+  background: #ffffff;
+  border: 1px solid #d7e0dc;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.map-panel svg {
+  display: block;
+  height: 100%;
+  min-height: 560px;
+  width: 100%;
+}
+
+.map-label {
+  fill: #3f5f3a;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.mower-label {
+  fill: #172033;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.fleet-panel {
+  display: grid;
+  gap: 14px;
+  grid-template-rows: auto 1fr;
+  padding: 18px;
+}
+
+.panel-heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.panel-heading span {
+  background: #e5f1e7;
+  border-radius: 999px;
+  color: #295c3c;
+  font-weight: 800;
+  min-width: 28px;
+  padding: 5px 10px;
+  text-align: center;
+}
+
+.mower-list {
+  display: grid;
+  gap: 12px;
+}
+
+.mower-card {
+  border: 1px solid #dde5e1;
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.mower-card > div:first-child {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.mower-card > div:first-child span {
+  color: #4f665e;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+dl {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+}
+
+dt {
+  color: #66756f;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+dd {
+  font-weight: 700;
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.actions button:first-child {
+  background: #2d7a51;
+  color: #ffffff;
+  padding: 10px 12px;
+}
+
+.actions button:last-child {
+  background: #e9eeeb;
+  color: #25332f;
+  padding: 10px 12px;
+}
+
+.pattern-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pattern-actions button {
+  background: #f2f5f3;
+  color: #25332f;
+  font-size: 0.82rem;
+  padding: 8px 10px;
+}
+
+.pattern-actions button.selected {
+  background: #213d47;
+  color: #ffffff;
+}
+
+.status-strip {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  overflow: hidden;
+}
+
+.status-strip div {
+  background: #ffffff;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px 18px;
+}
+
+.status-strip span {
+  color: #66756f;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.status-strip strong {
+  overflow-wrap: anywhere;
+}
+
+.command-log {
+  padding: 18px;
+}
+
+.command-log h2 {
+  margin-bottom: 12px;
+}
+
+.command-log p {
+  margin-bottom: 8px;
+}
+
+.empty,
+.error {
+  color: #6a7773;
+  margin-bottom: 0;
+}
+
+.error {
+  color: #a13232;
+}
+
+@media (max-width: 960px) {
+  .app-shell {
+    padding: 18px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    display: grid;
+    gap: 12px;
+  }
+
+  .connection {
+    justify-content: flex-start;
+  }
+
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .map-panel svg {
+    min-height: 420px;
+  }
+
+  .status-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .status-strip,
+  dl {
+    grid-template-columns: 1fr;
+  }
+}

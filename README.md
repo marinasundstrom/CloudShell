@@ -228,6 +228,7 @@ Local-development host and launcher samples are also available:
 - `samples/GoAppHost`: declares a Go app, Configuration Store, and Secrets Vault from a Go launcher program, then applies the template through the CLI.
 - `samples/PythonAppHost`: declares a Python app, Configuration Store, and Secrets Vault from a Python launcher script, then applies the template through the CLI.
 - `samples/JavaScriptContainerApp`: wraps a JavaScript app as a Dockerfile-backed container app with replica scaling.
+- `samples/RoboticMowerIoT`: declares a robotic mower IoT app from a C# launcher, with a React frontend, a SignalR container backend, Device Registry enrollment, and a simulated mower device.
 - `samples/CloudShell.UiExtensionHost`: hosts only the CloudShell UI and a custom UI extension.
 - `samples/CloudShell.ResourceHost`: hosts CloudShell UI and Control Plane together with a sample resource provider.
 - `samples/ProjectReference`: declares two ASP.NET Core project resources from a C# launcher where one references the other in an Aspire-style dev loop.

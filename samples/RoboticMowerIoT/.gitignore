@@ -1,0 +1,4 @@
+Data/
+.cloudshell/
+device-registry-definitions/
+Frontend/tsconfig.tsbuildinfo
