@@ -170,7 +170,25 @@ Current launcher and runtime-client parity:
 | TypeScript/JavaScript | `Launchers/TypeScript/cloudshell` | JavaScript app and Java app builders | Yes | Yes | JavaScript and Java app builders | `sdk/typescript/configuration-client` |
 | Java | `Launchers/Java/cloudshell-launcher` | Java app builder | Yes | Yes | Java app builder | `sdk/java/cloudshell` |
 | Go | `Launchers/Go/cloudshell` | Go app builder | Yes | Yes | Go app builder | `sdk/go/cloudshell` |
-| Python | `Launchers/Python/cloudshell` | Python app builder | Yes | Yes | Not implemented yet | `sdk/python/cloudshell` |
+| Python | `Launchers/Python/cloudshell` | Python app builder | Yes | Yes | Python app builder | `sdk/python/cloudshell` |
+
+## New Language Support Checklist
+
+Use this checklist when adding or evaluating a new language integration. A
+language is not at parity until the missing items are either implemented or
+listed as known gaps in [Integration story](integration-story.md).
+
+| Area | Minimum parity expectation |
+| --- | --- |
+| Launcher package | Native package under `Launchers/<Language>/` with `template` or `toJson`, `apply`, `start`, and foreground `run` behavior. |
+| App resource provider | Built-in `application.<language>-app` provider or a documented reuse of an existing provider, with runtime start/stop/restart, logs, health/liveness, endpoint requests, and Resource Manager projection. |
+| Resource builders | Native builder for the app resource plus Configuration Store, Secrets Vault, references, dependencies, endpoint requests, environment variables, health/liveness checks, log source metadata, identity, grants, and `AsContainerApp`/equivalent container projection. |
+| Service discovery | Runtime environment resolver that projects referenced app endpoints, Configuration Store endpoint variables, Secrets Vault endpoint variables, and workload identity variables for both process and container-projected resources. |
+| Runtime SDK | Separate runtime package under `sdk/<language>/...` for Configuration Store and Secrets Vault, using a default credential chain of workload identity, environment bearer token, then CloudShell profile. |
+| Container sample | Language-owned sample app that runs as `application.container-app`, reads Configuration Store and Secrets Vault through the runtime SDK from `/configuration`, proves identity grants, and does not return secret values. |
+| Version documentation | Sample README records the runtime/toolchain versions that affect the container image or build, such as Node, Java, Maven, Gradle, Go, or Python. |
+| Tests | Focused launcher/resource-template tests, runtime SDK tests, service-discovery resolver tests, and at least one sample template/build validation path. |
+| Known gaps | Missing generated Control Plane clients, launcher-authored samples, packaging, or service-specific SDKs are documented in the parity matrix instead of implied complete. |
 
 `CloudShell.AppHost.Launcher` is the current C# launcher authoring package. It
 reuses Resource Model builders, emits a `ResourceTemplate`, and owns the

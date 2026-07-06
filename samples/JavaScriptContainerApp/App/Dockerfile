@@ -1,7 +1,11 @@
 FROM node:22-alpine
 
-WORKDIR /app
-COPY package.json server.js ./
+WORKDIR /src
+COPY sdk/typescript/configuration-client ./sdk/typescript/configuration-client
+COPY samples/JavaScriptContainerApp/App ./samples/JavaScriptContainerApp/App
+
+WORKDIR /src/samples/JavaScriptContainerApp/App
+RUN npm ci --omit=dev
 
 ENV HOST=0.0.0.0
 ENV PORT=8080

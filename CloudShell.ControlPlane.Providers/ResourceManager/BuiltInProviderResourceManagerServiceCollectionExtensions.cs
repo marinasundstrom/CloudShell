@@ -252,6 +252,10 @@ public static class BuiltInProviderResourceManagerServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<
                 IJavaScriptAppRuntimeEnvironmentProvider,
+                JavaScriptAppServiceDiscoveryEnvironmentResolver>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IJavaScriptAppRuntimeEnvironmentProvider,
                 ProjectResourceIdentityEnvironmentResolver>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<

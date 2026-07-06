@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "$script_dir/../.." && pwd)"
+
+app_host_java="${CLOUDSHELL_APP_HOST_JAVA:-$script_dir/AppHost/AppHost.java}"
+launcher_sdk_dir="${CLOUDSHELL_JAVA_LAUNCHER_DIR:-$repo_root/Launchers/Java/cloudshell-launcher}"
+cli_project="${CLOUDSHELL_CLI_PROJECT:-$repo_root/CloudShell.Cli/CloudShell.Cli.csproj}"
+host_project="${CLOUDSHELL_HOST_PROJECT:-$repo_root/CloudShell.LocalDevelopmentHost/CloudShell.LocalDevelopmentHost.csproj}"
+state_dir="${CLOUDSHELL_STATE_DIR:-$script_dir/.cloudshell}"
+launcher_classes_dir="${CLOUDSHELL_JAVA_LAUNCHER_CLASSES_DIR:-$state_dir/java-launcher-classes}"
+data_dir="${CLOUDSHELL_DATA_DIR:-$state_dir}"
+control_plane_url="${CLOUDSHELL_CONTROL_PLANE_URL:-http://127.0.0.1:5112}"
+app_resource_id="${CLOUDSHELL_APP_RESOURCE_ID:-application.container-app:java-container-api}"
+
+usage() {
+  cat <<USAGE
+Usage: ./cloudshell.sh <command> [options]
+
+Commands:
+  build-app      Compile the Java workload jar used by the container image.
+  template       Print the Java-authored ResourceTemplate JSON.
+  apply          Apply the template to the configured Control Plane.
+  run            Run the local development host in the foreground, apply the
+                 template, and keep the host tied to the launcher lifetime.
+  run-no-auth    Run the foreground host with authentication disabled.
+  start          Start or reuse the local development host daemon, then apply the template.
+  start-no-auth  Start or reuse the daemon with authentication disabled
+                 when a new host process is launched, then apply the template.
+  stop           Stop the recorded host process.
+  reset          Stop the recorded host process and remove generated sample state.
+  open           Open the configured host URL in the default browser.
+  resources      List resources from the configured Control Plane.
+  start-app      Build and start the Java container app resource.
+  stop-app       Stop the Java container app resource.
+  restart-app    Build and restart the Java container app resource.
+
+Environment:
+  CLOUDSHELL_CONTROL_PLANE_URL  Host URL. Default: $control_plane_url
+  CLOUDSHELL_STATE_DIR          Launcher state directory. Default: $state_dir
+  CLOUDSHELL_DATA_DIR           CloudShell host data directory. Default: $data_dir
+  CLOUDSHELL_HOST_PROJECT       Host project path. Default: $host_project
+  CLOUDSHELL_APP_HOST_JAVA      Java launcher source. Default: $app_host_java
+  CLOUDSHELL_JAVA_LAUNCHER_DIR  Java launcher SDK path. Default: $launcher_sdk_dir
+  CLOUDSHELL_CLI_PROJECT        CLI project path. Default: $cli_project
+  CLOUDSHELL_APP_RESOURCE_ID    App resource id. Default: $app_resource_id
+USAGE
+}
+
+build_launcher() {
+  rm -rf "$launcher_classes_dir"
+  mkdir -p "$launcher_classes_dir"
+  javac -d "$launcher_classes_dir" \
+    $(find "$launcher_sdk_dir/src/main/java" -name '*.java' | sort) \
+    "$app_host_java"
+}
+
+run_launcher() {
+  build_launcher
+  CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" \
+  CLOUDSHELL_STATE_DIR="$state_dir" \
+  CLOUDSHELL_DATA_DIR="$data_dir" \
+  CLOUDSHELL_CLI_PROJECT="$cli_project" \
+  CLOUDSHELL_HOST_PROJECT="$host_project" \
+  java -cp "$launcher_classes_dir" AppHost "$@"
+}
+
+run_cli() {
+  dotnet run --project "$cli_project" -- "$@"
+}
+
+build_app() {
+  "$script_dir/App/build.sh" >/dev/null
+}
+
+command="${1:-help}"
+if [[ $# -gt 0 ]]; then
+  shift
+fi
+
+case "$command" in
+  build-app)
+    "$script_dir/App/build.sh"
+    ;;
+  template)
+    run_launcher "$@"
+    ;;
+  apply)
+    build_app
+    run_launcher --apply "$@"
+    ;;
+  run)
+    build_app
+    run_launcher --run "$@"
+    ;;
+  run-no-auth)
+    build_app
+    Authentication__Enabled=false run_launcher --run "$@"
+    ;;
+  start)
+    build_app
+    run_launcher --start "$@"
+    ;;
+  start-no-auth)
+    build_app
+    Authentication__Enabled=false run_launcher --start "$@"
+    ;;
+  stop)
+    run_cli control-plane stop \
+      --state-dir "$state_dir" \
+      "$@"
+    ;;
+  reset)
+    run_cli control-plane stop \
+      --state-dir "$state_dir" || true
+    rm -rf "$state_dir" "$script_dir/App/target"
+    ;;
+  open)
+    run_cli ui open \
+      --url "$control_plane_url" \
+      "$@"
+    ;;
+  resources)
+    run_cli resource list \
+      --control-plane "$control_plane_url" \
+      "$@"
+    ;;
+  start-app)
+    build_app
+    run_cli resource action execute "$app_resource_id" start \
+      --control-plane "$control_plane_url" \
+      --start-dependencies \
+      "$@"
+    ;;
+  stop-app)
+    run_cli resource action execute "$app_resource_id" stop \
+      --control-plane "$control_plane_url" \
+      "$@"
+    ;;
+  restart-app)
+    build_app
+    run_cli resource action execute "$app_resource_id" restart \
+      --control-plane "$control_plane_url" \
+      --start-dependencies \
+      "$@"
+    ;;
+  help|--help|-h)
+    usage
+    ;;
+  *)
+    echo "Unknown command: $command" >&2
+    echo >&2
+    usage >&2
+    exit 2
+    ;;
+esac

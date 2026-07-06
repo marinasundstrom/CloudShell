@@ -102,3 +102,10 @@ environment-discovered clients.
 `samples/JavaAppHost` demonstrates a Java launcher source file that emits a
 ResourceTemplate and applies it through the CloudShell CLI/local-development
 host profile.
+
+`samples/JavaContainerApp` demonstrates the launcher-authored container path.
+The Java launcher declares a Configuration Store, Secrets Vault, read grants,
+and a Java app projected as `application.container-app`. The sample app is a
+Maven project, the Dockerfile builds it with Maven 3.9.9 on Java 21 before
+packaging the runtime image, and `/configuration` reads both services through
+`sdk/java/cloudshell` without returning secret values.

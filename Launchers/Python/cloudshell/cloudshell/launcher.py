@@ -45,6 +45,23 @@ def _add_option(args: list[str], name: str, value: str | int | None) -> None:
         args.extend([name, text])
 
 
+def _default_container_image(language: str, name: str, tag: str | None = None) -> str:
+    characters: list[str] = []
+    for character in name.strip():
+        if "a" <= character <= "z" or "0" <= character <= "9":
+            characters.append(character)
+        elif "A" <= character <= "Z":
+            characters.append(character.lower())
+        else:
+            characters.append("-")
+    normalized = "".join(characters).strip("-")
+    while "--" in normalized:
+        normalized = normalized.replace("--", "-")
+    if not normalized:
+        normalized = "app"
+    return f"cloudshell-{language}-{normalized}:{tag or 'dev'}"
+
+
 def _reference(
     resource: ResourceHandle | str,
     relationship: str,
@@ -496,6 +513,7 @@ class ProjectApplicationResource(ResourceBuilder):
         self.health_checks: list[dict[str, Any]] = []
         self.console_logs = False
         self.attributes: dict[str, Any] = {}
+        self.container: dict[str, Any] | None = None
 
     def with_project_path(self, project_path: str | Path) -> "ProjectApplicationResource":
         self.project_path = _require(project_path, "project path")
@@ -631,19 +649,55 @@ class ProjectApplicationResource(ResourceBuilder):
         self.attributes["consoleLogFormat"] = log_format
         return self
 
+    def as_container_app(
+        self,
+        *,
+        image: str | None = None,
+        registry: str | None = None,
+        tag: str | None = None,
+        build_context: str | Path | None = None,
+        dockerfile: str | None = None,
+        replicas: int = 1,
+    ) -> "ProjectApplicationResource":
+        previous_default_resource_id = f"{self.resource_type}:{self.name}"
+        language = self.resource_type.removeprefix("application.").removesuffix("-app")
+        self.resource_type = "application.container-app"
+        self.provider_id = "applications.container-app"
+        if self.effective_resource_id.lower() == previous_default_resource_id.lower():
+            self.effective_resource_id = f"{self.resource_type}:{self.name}"
+        self.container = _prune(
+            {
+                "image": image or _default_container_image(language, self.name, tag),
+                "replicas": replicas if replicas > 0 else 1,
+                "registry": registry,
+                "buildContext": _require(
+                    build_context or self.project_path,
+                    "container build context",
+                ),
+                "dockerfile": dockerfile,
+            }
+        )
+        return self
+
     def build(self) -> dict[str, Any]:
         document = self._common_document()
+        endpoint_requests = None if self.container is not None else self.endpoints
         project = _prune(
             {
                 "path": self.project_path,
                 "serviceDiscoveryName": self.service_discovery_name,
                 "environmentVariables": self.environment_variables,
                 "references": self.references,
-                "endpointRequests": self.endpoints,
+                "endpointRequests": endpoint_requests,
             }
         )
         if project:
             document["project"] = project
+        if self.container is not None:
+            container = dict(self.container)
+            if self.endpoints:
+                container["endpointRequests"] = self.endpoints
+            document["container"] = _prune(container)
         if self.health_checks:
             document["health"] = {"checks": self.health_checks}
         if self.console_logs:

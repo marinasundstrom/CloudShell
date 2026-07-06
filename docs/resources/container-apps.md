@@ -88,10 +88,15 @@ resources
     .WithReplicas(3);
 ```
 
-The `samples/GoContainerApp` sample shows the same app-as-container pattern
-from the Go launcher. It declares a Go app as an `application.container-app`,
-builds it from a Dockerfile, and reads a launcher-declared Configuration Store
-from inside the launched container.
+The language-specific container samples show the same app-as-container pattern
+across current runtimes:
+
+| Runtime | Sample | Proof |
+| --- | --- | --- |
+| JavaScript/TypeScript | `samples/JavaScriptContainerApp` | C# host-composition sample for a Node.js container app that reads Configuration Store and Secrets Vault through the TypeScript runtime SDK. A TypeScript-launcher-authored container sample remains a known gap. |
+| Java | `samples/JavaContainerApp` | Java launcher sample for a Maven-built container app that reads Configuration Store and Secrets Vault through the Java runtime SDK. |
+| Go | `samples/GoContainerApp` | Go launcher sample for a Dockerfile-backed container app that reads Configuration Store and Secrets Vault through the Go runtime SDK. |
+| Python | `samples/PythonContainerApp` | Python launcher sample for a Dockerfile-backed container app that reads Configuration Store and Secrets Vault through the Python runtime SDK. |
 
 Docker is the initial local container runtime target for this flow. The
 resource contract remains a container app plus container host intent so Podman

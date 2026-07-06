@@ -45,13 +45,22 @@ func buildTemplate(repoRoot string, goAppRoot string) *cloudshell.App {
 			seed.Setting("Sample--Mode", "container")
 		})
 
-	app.AddGoApp("go-container-api", goAppRoot).
+	secrets := app.AddSecretsVault("go-container-secrets").
+		WithDisplayName("Go Container Secrets").
+		WithEndpoint("http://localhost:6109").
+		WithSeed(func(seed *cloudshell.SecretsVaultSeed) {
+			seed.Secret("Sample--ApiKey", "go-container-secret", "v1")
+		})
+
+	api := app.AddGoApp("go-container-api", goAppRoot).
 		WithDisplayName("Go Container API").
 		WithServiceDiscovery().
 		WithEnvironmentVariable("PORT", "8080").
 		WithEnvironmentVariable("OTEL_SERVICE_NAME", "go-container-api").
 		WithReference(settings).
+		WithReference(secrets).
 		DependsOn(settings).
+		DependsOn(secrets).
 		WithHttpEndpoint("localhost", 5188, 8080, hostNetwork).
 		WithHttpHealthCheck("/healthz").
 		WithHttpLivenessCheck("/alive").
@@ -61,7 +70,18 @@ func buildTemplate(repoRoot string, goAppRoot string) *cloudshell.App {
 			BuildContext: repoRoot,
 			Dockerfile:   filepath.Join("samples", "GoContainerApp", "App", "Dockerfile"),
 			Replicas:     2,
-		})
+		}).
+		RequireIdentity("go-container-api").
+		ProvisionIdentityOnStartup()
+
+	settings.AllowResourceIdentity(
+		api,
+		"CloudShell.Configuration/stores/settings/read/action",
+		cloudshell.ResourceIdentityGrantOptions{IdentityName: "go-container-api"})
+	secrets.AllowResourceIdentity(
+		api,
+		"CloudShell.Secrets/vaults/secrets/read/action",
+		cloudshell.ResourceIdentityGrantOptions{IdentityName: "go-container-api"})
 
 	return app
 }

@@ -62,6 +62,16 @@ The projection changes the Resource Manager resource to
 `project.path`, `python.command`, `python.scriptPath`, `python.module`, and
 `python.arguments`.
 
+Python launcher declarations use the Python-native `as_container_app(...)`
+method for the same projection:
+
+```python
+resources.add_python_app("api", "src/api").as_container_app(
+    tag="dev",
+    dockerfile="Dockerfile",
+)
+```
+
 ## Samples
 
 `samples/PythonAppHost` demonstrates Python-native launcher authoring. It uses
@@ -72,6 +82,11 @@ the experimental package under `Launchers/Python/cloudshell` to declare:
 - a resource identity and read grants used by the Python runtime SDK
 - endpoint, health, logs, monitoring, and environment projection through
   Resource Manager
+
+`samples/PythonContainerApp` uses the same Python launcher package to declare a
+Dockerfile-backed `application.container-app` with Configuration Store, Secrets
+Vault, resource identity grants, and a `/configuration` endpoint that reads
+both services through the Python runtime SDK.
 
 Run the launcher-owned local development host in a foreground terminal:
 

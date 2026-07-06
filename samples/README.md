@@ -38,9 +38,11 @@ target `CloudShell.LocalDevelopmentHost`.
 | `TypeScriptAppHost` | TypeScript launcher authoring and template apply. | Experimental launcher sample. |
 | `ReactTypeScriptApp` | TypeScript launcher authoring for a React frontend, Node backend, Configuration Store, and load-balancer resource. | Experimental launcher sample. |
 | `JavaAppHost` | Java launcher authoring and template apply. | Experimental launcher sample. |
+| `JavaContainerApp` | Java launcher authoring for a Maven-built, Dockerfile-backed container app that reads Configuration Store and Secrets Vault through the Java runtime SDK. | Experimental launcher sample. |
 | `GoAppHost` | Go launcher authoring and template apply. | Experimental launcher sample. |
-| `GoContainerApp` | Go launcher authoring for a Dockerfile-backed container app that reads Configuration Store settings through the Go runtime SDK. | Experimental launcher sample. |
+| `GoContainerApp` | Go launcher authoring for a Dockerfile-backed container app that reads Configuration Store and Secrets Vault through the Go runtime SDK. | Experimental launcher sample. |
 | `PythonAppHost` | Python launcher authoring for a Python app, Configuration Store, and Secrets Vault. | Experimental launcher sample. |
+| `PythonContainerApp` | Python launcher authoring for a Dockerfile-backed container app that reads Configuration Store and Secrets Vault through the Python runtime SDK. | Experimental launcher sample. |
 | `RabbitMQMessaging` | C# launcher authoring for a RabbitMQ broker with .NET and Java app resources exchanging fan-out events. | Preferred broker-backed app topology sample. |
 
 ## Host composition samples
@@ -48,6 +50,19 @@ target `CloudShell.LocalDevelopmentHost`.
 These samples intentionally define CloudShell hosts because the host itself, a
 split-hosting topology, or sample-local host registration is part of what they
 prove.
+
+| Sample | Primary scenario | Status |
+| --- | --- | --- |
+| `JavaScriptContainerApp` | C# host-composition sample for a JavaScript app projected as a container app; reads Configuration Store and Secrets Vault through the TypeScript runtime SDK. | Runtime proof exists; still needs a TypeScript-launcher-authored container sample for launcher parity. |
+
+## Container App Runtime Proof Matrix
+
+| Runtime | Sample | Authoring surface | SDK proof | Tooling version notes |
+| --- | --- | --- | --- | --- |
+| JavaScript/TypeScript | `JavaScriptContainerApp` | C# host composition. | `sdk/typescript/configuration-client` reads Configuration Store and Secrets Vault from `/configuration`. | Node.js 22 image; local SDK `file:` dependency. |
+| Java | `JavaContainerApp` | Java launcher. | `sdk/java/cloudshell` reads Configuration Store and Secrets Vault from `/configuration`. | Java 21 runtime/compiler target; Maven 3.9.9 Docker build stage. |
+| Go | `GoContainerApp` | Go launcher. | `sdk/go/cloudshell` reads Configuration Store and Secrets Vault from `/configuration`. | Go 1.22 build image and module version. |
+| Python | `PythonContainerApp` | Python launcher. | `sdk/python/cloudshell` reads Configuration Store and Secrets Vault from `/configuration`. | Python 3.12 runtime image. |
 
 ## Supported sample status
 

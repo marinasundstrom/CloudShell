@@ -37,7 +37,12 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleConfiguration(w http.ResponseWriter, r *http.Request) {
-	client, err := cloudshell.ConfigurationStoreFromEnvironment("", nil)
+	configuration, err := cloudshell.ConfigurationStoreFromEnvironment("", nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	secrets, err := cloudshell.SecretsVaultFromEnvironment("", nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
@@ -46,15 +51,33 @@ func handleConfiguration(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), defaultRequestTimeout)
 	defer cancel()
 
-	settings, err := client.GetSettings(ctx)
+	setting, err := configuration.GetSetting(ctx, "Sample--Message")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	secret, err := secrets.GetSecret(ctx, "Sample--ApiKey")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
 
+	message := ""
+	if setting != nil {
+		message = setting.Value
+	}
+	secretName := ""
+	if secret != nil {
+		secretName = secret.Name
+	}
+
 	writeJSON(w, map[string]any{
-		"settingCount": len(settings),
-		"settings":     settings,
+		"source":       "cloudshell-sdk",
+		"message":      message,
+		"hasApiKey":    secret != nil && strings.TrimSpace(secret.Value) != "",
+		"secretName":   secretName,
+		"resourceId":   os.Getenv("CLOUDSHELL_RESOURCE_ID"),
+		"resourceName": os.Getenv("CLOUDSHELL_RESOURCE_NAME"),
 	})
 }
 

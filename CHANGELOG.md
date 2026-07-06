@@ -97,6 +97,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added resource identity and access-grant declaration helpers to the
   TypeScript, Java, Go, and Python launchers so Configuration Store and Secrets
   Vault read grants can be authored consistently outside the C# launcher path.
+- Added Python launcher container app projection so Python-authored app graphs
+  can emit `application.container-app` resources with container image, build
+  metadata, replicas, and endpoint requests.
 - Updated `samples/PythonAppHost` so the launched Python workload declares a
   resource identity, receives Configuration Store and Secrets Vault endpoint
   variables, and reads both services through the Python runtime SDK.
@@ -104,6 +107,21 @@ on `git blame --follow`, and then by the broad type of change.
   as an `application.container-app`, seeds a Configuration Store, and proves
   the launched container workload can read settings through the Go SDK default
   credential chain.
+- Extended `samples/GoContainerApp` with a Secrets Vault, resource identity
+  provisioning, read grants, and SDK-backed secret resolution from the launched
+  container without returning secret values.
+- Added JavaScript app service-discovery environment projection so JavaScript
+  process and container-projected workloads receive referenced Configuration
+  Store and Secrets Vault SDK endpoint variables like the other app providers.
+- Updated `samples/JavaScriptContainerApp` so the Node.js container app reads
+  Configuration Store and Secrets Vault through the TypeScript runtime SDK
+  using injected service-discovery and workload identity variables.
+- Added `samples/PythonContainerApp` and `samples/JavaContainerApp` as
+  language-specific container app proofs for Configuration Store, Secrets
+  Vault, resource identity grants, and runtime SDK credential resolution. The
+  Java container sample builds the app with Maven before packaging the image.
+- Documented container app sample parity, runtime/tooling versions, and the
+  new-language support checklist for SDK and launcher integrations.
 - Updated the CloudShell CLI Control Plane API calls and daemon readiness checks
   to fall back to the active CloudShell profile when no explicit bearer token or
   `CLOUDSHELL_CONTROL_PLANE_TOKEN` is supplied.

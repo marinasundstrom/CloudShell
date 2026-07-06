@@ -6,5 +6,8 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js"
+  },
+  "dependencies": {
+    "@cloudshell/configuration-client": "file:../../../sdk/typescript/configuration-client"
   }
 }

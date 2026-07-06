@@ -25,7 +25,7 @@ request/response contracts.
 - `CloudShell.Secrets.Client`: Secrets Vault SDK client. It references
   `CloudShell.Client`, not the full Control Plane abstractions, and owns the
   Microsoft `IConfiguration` integration for vault secrets.
-- `sdk/typescript/configuration-client`: experimental TypeScript runtime
+- `sdk/typescript/configuration-client`: experimental TypeScript/JavaScript runtime
   clients for Configuration Store and Secrets Vault. It is separate from the
   TypeScript hosting package and is used by Node.js applications at runtime to
   call CloudShell-protected service endpoints.
@@ -177,10 +177,10 @@ access-refused failure, or a provider-driven reconnect.
 
 Service endpoints are a separate concern. Configuration Store, Secrets Vault,
 and other resource-backed services should be discovered through the same
-service discovery and networking model as other services. Until network-level
-service discovery is available, applications configure the SDK endpoint
-variables explicitly or receive them from the current local development host
-integration.
+service discovery and networking model as other services. Current ASP.NET
+Core, JavaScript, Java, Go, and Python app providers derive the SDK endpoint
+variables from referenced Configuration Store and Secrets Vault resources for
+local process starts and container-projected workloads.
 
 The credential contract is public preview. Future sources can add managed
 identity endpoints, federated workload identity, refreshable developer
@@ -289,7 +289,10 @@ the TypeScript hosting package and the CloudShell CLI.
 
 See `samples/TypeScriptConfigurationClient` for a minimal Node.js application
 that reads a Configuration Store endpoint from the environment and calls it
-with a bearer token.
+with a bearer token. `samples/JavaScriptContainerApp` proves the container
+runtime path: the app references Configuration Store and Secrets Vault,
+receives endpoint and identity variables from CloudShell service discovery,
+and reads both services through the TypeScript SDK default credential chain.
 
 The experimental Java client follows the same boundary with Java-native
 classes under `sdk/java/cloudshell`:
@@ -333,9 +336,10 @@ environment bearer tokens, then the active CloudShell profile. The Go runtime
 SDK lives under `sdk/go/cloudshell`; the Go launcher package remains under
 `Launchers/Go/cloudshell` for ResourceTemplate authoring. See
 `samples/GoContainerApp` for the launcher-integrated flow: the launcher
-declares a Configuration Store resource, starts the Go container app, and the
-app reads settings through its `/configuration` endpoint using the Go SDK
-default credential chain.
+declares Configuration Store and Secrets Vault resources, starts the Go
+container app with a resource identity and read grants, and the app reads both
+services through its `/configuration` endpoint using the Go SDK default
+credential chain.
 
 The experimental Python client follows the same runtime boundary:
 
@@ -352,6 +356,12 @@ identity, environment bearer tokens, then the active CloudShell profile. The
 Python runtime SDK lives under `sdk/python/cloudshell`; the Python launcher
 package remains under `Launchers/Python/cloudshell` for ResourceTemplate
 authoring.
+
+`samples/PythonContainerApp` and `samples/JavaContainerApp` provide the same
+container runtime proof for Python and Java respectively: each sample declares
+Configuration Store, Secrets Vault, a workload identity, read grants, and a
+`/configuration` endpoint that reports secret availability without returning
+the secret value.
 
 ## Secrets Vault Client
 

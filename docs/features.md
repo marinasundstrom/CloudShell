@@ -34,6 +34,7 @@ checklist:
 | Projection requirements | Explains how the feature appears through Resource Manager, Control Plane API/client DTOs, generated UI tabs, and extension points. |
 | Provider parity expectations | Lists the minimum behavior a new provider should support to be considered equivalent, and which advanced behavior is optional. |
 | Launcher/language parity expectations | Identifies which builder helpers, template output, CLI calls, environment variables, and SDK clients need matching support across C#, TypeScript/JavaScript, Java, and future languages. |
+| Language sample parity | Identifies the required proof sample for each supported language, including launcher shape, container projection, Configuration Store, Secrets Vault, resource identity grants, runtime SDK usage, and documented runtime/toolchain versions. |
 | Security and secret handling | States which fields must never expose secrets and which permission checks apply. |
 | Diagnostics and readiness | Documents action-unavailable reasons, validation diagnostics, preflight checks, health/liveness, monitoring, logs, traces, and activity behavior. |
 | Persistence and lifecycle | Records what is persisted, what is in-memory, what is host-scoped, and how cleanup/recovery behaves. |

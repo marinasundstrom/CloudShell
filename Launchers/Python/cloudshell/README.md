@@ -16,6 +16,16 @@ app.define_resources(define_resources)
 raise SystemExit(app.run())
 ```
 
+Python apps can also be projected as container apps while keeping their Python
+project metadata:
+
+```python
+resources.add_python_app("api", "src/api").as_container_app(
+    tag="dev",
+    dockerfile="Dockerfile",
+)
+```
+
 The launcher supports the shared verbs used by other CloudShell launchers:
 
 - `template` prints the ResourceTemplate JSON.

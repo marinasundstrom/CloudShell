@@ -258,12 +258,21 @@ sends bearer tokens, reads all settings or a single setting, and can map portabl
 The `samples/TypeScriptConfigurationClient` sample shows the same flow from a
 Node.js application by setting
 `CLOUDSHELL_CONFIGURATION_<SERVICE_NAME>_ENDPOINT` and a bearer token.
+JavaScript app resources now also derive Configuration Store and Secrets Vault
+SDK endpoint variables from graph references, including resources projected as
+`application.container-app`. `samples/JavaScriptContainerApp` uses that path
+from a Node.js container app and reads both services through
+`sdk/typescript/configuration-client` using the injected workload identity.
 The experimental Go package under `sdk/go/cloudshell` provides the same direct
 Configuration Store client shape for Go workloads, using the default credential
 chain documented in [SDK clients](sdk-clients.md). The
-`samples/GoContainerApp` launcher sample shows the same flow by declaring a
-Configuration Store resource and launching a Go container app that reads it
-from the `/configuration` endpoint.
+`samples/GoContainerApp` launcher sample shows the same flow by declaring
+Configuration Store and Secrets Vault resources, granting a container app
+identity read access, and launching a Go container app that reads both services
+from the `/configuration` endpoint without returning secret values.
+`samples/JavaContainerApp` and `samples/PythonContainerApp` provide the same
+Configuration Store, Secrets Vault, and identity proof for Java and Python
+container apps.
 
 Applications that depend on a Secrets Vault receive:
 

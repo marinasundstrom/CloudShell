@@ -68,12 +68,16 @@ project-owned Dockerfile. Docker is the first local runtime target; the
 resource model stores container intent so other OCI-compatible targets such as
 Podman can be added behind the container host boundary.
 
-Future JavaScript client packages can build on this resource type by giving
-Node.js applications typed access to CloudShell services such as Configuration
-Store, logs, traces, or service discovery. Those clients should stay separate
-from the resource type: the resource type describes how the app participates in
-the graph, while client packages make it easier for the running app to consume
-CloudShell-managed services.
+When a JavaScript app references Configuration Store or Secrets Vault
+resources, the provider derives `CLOUDSHELL_CONFIGURATION_*` and
+`CLOUDSHELL_SECRETS_*` binding variables for the running process. The same
+resolver is used for JavaScript apps projected as `application.container-app`.
+Node.js code consumes those bindings through the TypeScript runtime SDK under
+`sdk/typescript/configuration-client`.
+
+Runtime client packages stay separate from the resource type: the resource type
+describes how the app participates in the graph, while client packages make it
+easier for the running app to consume CloudShell-managed services.
 
 ## Frontend Applications And TypeScript
 
@@ -140,7 +144,14 @@ The `samples/JavaScriptContainerApp` sample covers the separate container
 wrapping use case. It declares a JavaScript app, projects it as an
 `application.container-app`, builds the image from `App/Dockerfile`, and
 declares three replicas so the container app deployment and scale views can be
-tested without changing the basic process sample.
+tested without changing the basic process sample. It also declares
+Configuration Store, Secrets Vault, resource identity, and read grants; the
+container app reads both services through
+`sdk/typescript/configuration-client` from `/configuration`.
+
+The remaining JavaScript parity gap is authoring the same container sample
+from the TypeScript launcher. `samples/JavaScriptContainerApp` is still a C#
+host-composition sample.
 
 The `samples/ReactTypeScriptApp` sample covers a browser frontend with a
 backend. A TypeScript launcher declares a React/Vite frontend, a Node backend

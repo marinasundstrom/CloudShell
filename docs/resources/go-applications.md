@@ -84,9 +84,10 @@ The projection changes the Resource Manager resource to
 `go.arguments`.
 
 `samples/GoContainerApp` demonstrates this path from the Go launcher. It
-declares a Go app as an `application.container-app`, seeds a Configuration
-Store, and uses the Go runtime SDK from the launched container's
-`/configuration` endpoint.
+declares a Go app as an `application.container-app`, seeds Configuration Store
+and Secrets Vault resources, grants the container app identity read access,
+and uses the Go runtime SDK from the launched container's `/configuration`
+endpoint.
 
 ## Samples
 
