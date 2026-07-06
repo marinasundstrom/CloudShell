@@ -46,7 +46,18 @@ test("builds a resource template with JavaScript app and configuration store", (
       targetPort: 5173
     })
     .withHttpHealthCheck("/healthz", { endpointName: "http" })
-    .withHttpLivenessCheck("/alive", { endpointName: "http" });
+    .withHttpLivenessCheck("/alive", { endpointName: "http" })
+    .requireIdentity({ name: "typescript-frontend" })
+    .provisionIdentityOnStartup();
+
+  settings.allowResourceIdentity(
+    frontendResource,
+    "CloudShell.Configuration/stores/settings/read/action",
+    { identityName: "typescript-frontend" });
+  secrets.allowResourceIdentity(
+    frontendResource,
+    "CloudShell.Secrets/vaults/secrets/read/action",
+    { identityName: "typescript-frontend" });
 
   const defaultNetwork = app.getDefaultNetwork();
   app
@@ -64,6 +75,19 @@ test("builds a resource template with JavaScript app and configuration store", (
 
   const settingsResource = template.resources.find(resource => resource.name === "typescript-settings")!;
   assert.equal(settingsResource.endpoint, "http://localhost:5101");
+  assert.deepEqual(settingsResource.attributes, {
+    "access.grants": [
+      {
+        principal: {
+          kind: "resourceIdentity",
+          id: "application.javascript-app:typescript-frontend/identities/typescript-frontend",
+          sourceResourceId: "application.javascript-app:typescript-frontend",
+          sourceIdentityName: "typescript-frontend"
+        },
+        permission: "CloudShell.Configuration/stores/settings/read/action"
+      }
+    ]
+  });
   assert.deepEqual(settingsResource.seed, {
     settings: [
       {
@@ -104,6 +128,11 @@ test("builds a resource template with JavaScript app and configuration store", (
   const frontend = template.resources.find(resource => resource.name === "typescript-frontend")!;
   assert.equal(frontend.type, "application.javascript-app");
   assert.equal(frontend.resourceId, "application.javascript-app:typescript-frontend");
+  assert.deepEqual(frontend.attributes, {
+    "identity.kind": "required",
+    "identity.name": "typescript-frontend",
+    "identity.provisionOnStartup": true
+  });
   assert.deepEqual(frontend.javascript, {
     engine: "node",
     packageManager: "npm",

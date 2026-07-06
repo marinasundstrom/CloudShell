@@ -37,6 +37,11 @@ settings_api_endpoint = (
     f"{settings_endpoint.rstrip('/')}"
     f"/api/configuration/stores/{quote(settings_resource_id, safe='')}/settings"
 )
+secrets_resource_id = "secrets.vault:python-app-secrets"
+secrets_api_endpoint = (
+    f"{secrets_endpoint.rstrip('/')}"
+    f"/api/secrets/vaults/{quote(secrets_resource_id, safe='')}/secrets"
+)
 
 app_endpoint = urlparse(
     app.configuration.get("PythonAppHost:AppEndpoint")
@@ -71,7 +76,7 @@ def define_resources(resources):
         )
     )
 
-    (
+    api = (
         resources.add_python_app("python-api", python_app_path)
         .with_display_name("Python API")
         .with_service_discovery()
@@ -86,8 +91,16 @@ def define_resources(resources):
         )
         .with_environment_variable("PORT", str(app_endpoint.port))
         .with_environment_variable(
-            "CLOUDSHELL_SETTINGS_ENDPOINT",
+            "PYTHONPATH",
+            str(repo_root / "sdk" / "python" / "cloudshell"),
+        )
+        .with_environment_variable(
+            "CLOUDSHELL_CONFIGURATION_PYTHON_APP_SETTINGS_ENDPOINT",
             settings_api_endpoint,
+        )
+        .with_environment_variable(
+            "CLOUDSHELL_SECRETS_PYTHON_APP_SECRETS_ENDPOINT",
+            secrets_api_endpoint,
         )
         .with_environment_variable(
             "Sample__Message",
@@ -100,6 +113,18 @@ def define_resources(resources):
         .with_environment_variable("OTEL_SERVICE_NAME", "python-api")
         .with_http_health_check("/healthz", endpoint_name="http")
         .with_http_liveness_check("/alive", endpoint_name="http")
+        .require_identity(name="python-api")
+        .provision_identity_on_startup()
+    )
+    settings.allow_resource_identity(
+        api,
+        "CloudShell.Configuration/stores/settings/read/action",
+        identity_name="python-api",
+    )
+    secrets.allow_resource_identity(
+        api,
+        "CloudShell.Secrets/vaults/secrets/read/action",
+        identity_name="python-api",
     )
 
 

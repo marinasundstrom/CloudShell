@@ -197,6 +197,7 @@ class ResourceBuilder(ResourceHandle):
         self.display_name: str | None = None
         self.dependencies: list[dict[str, Any]] = []
         self.metadata: dict[str, str] = {}
+        self.declaration_attributes: dict[str, Any] = {}
         self.auto_start: bool | None = None
         self.dependency_auto_start: bool | None = None
         self._graph: CloudShellDistributedApplication | None = None
@@ -224,6 +225,83 @@ class ResourceBuilder(ResourceHandle):
         self.dependency_auto_start = bool(enabled)
         return self
 
+    def with_identity(
+        self,
+        provider_id: str | None = None,
+        *,
+        name: str | None = None,
+        subject: str | None = None,
+        scopes: list[str] | None = None,
+        claims: dict[str, str] | None = None,
+        required: bool = False,
+    ) -> "ResourceBuilder":
+        self.declaration_attributes["identity.kind"] = "required" if required else "provider"
+        if provider_id:
+            self.declaration_attributes["identity.providerId"] = provider_id
+        if name:
+            self.declaration_attributes["identity.name"] = name
+        if subject:
+            self.declaration_attributes["identity.subject"] = subject
+        if scopes:
+            self.declaration_attributes["identity.scopes"] = scopes
+        if claims:
+            self.declaration_attributes["identity.claims"] = claims
+        return self
+
+    def require_identity(
+        self,
+        *,
+        name: str | None = None,
+        scopes: list[str] | None = None,
+        claims: dict[str, str] | None = None,
+    ) -> "ResourceBuilder":
+        return self.with_identity(
+            name=name,
+            scopes=scopes,
+            claims=claims,
+            required=True,
+        )
+
+    def provision_identity_on_startup(
+        self,
+        enabled: bool = True,
+    ) -> "ResourceBuilder":
+        self.declaration_attributes["identity.provisionOnStartup"] = bool(enabled)
+        return self
+
+    def allow_resource_identity(
+        self,
+        resource: ResourceHandle | str,
+        permission: str,
+        *,
+        identity_name: str | None = None,
+        display_name: str | None = None,
+        provider_id: str | None = None,
+    ) -> "ResourceBuilder":
+        resource_id = resource.effective_resource_id if isinstance(resource, ResourceHandle) else _require(resource, "resource id")
+        principal_id = (
+            f"{resource_id}/identities/{identity_name}"
+            if identity_name
+            else resource_id
+        )
+        grants = self.declaration_attributes.setdefault("access.grants", [])
+        grants.append(
+            _prune(
+                {
+                    "principal": {
+                        "kind": "resourceIdentity",
+                        "id": principal_id,
+                        "displayName": display_name,
+                        "providerId": provider_id,
+                        "sourceResourceId": resource_id,
+                        "sourceIdentityName": identity_name,
+                    },
+                    "permission": _require(permission, "permission"),
+                }
+            )
+        )
+        return self
+
     def depends_on(self, resource: ResourceHandle | str) -> "ResourceBuilder":
         self.dependencies.append(_reference(resource, "dependsOn"))
         return self
@@ -237,6 +315,7 @@ class ResourceBuilder(ResourceHandle):
                 "providerId": self.provider_id,
                 "displayName": self.display_name,
                 "dependsOn": self.dependencies,
+                "attributes": self.declaration_attributes,
                 "metadata": self.metadata,
             }
         )

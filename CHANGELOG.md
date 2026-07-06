@@ -94,6 +94,12 @@ on `git blame --follow`, and then by the broad type of change.
   normal runtime environment path for JavaScript, Java, Go, Python, ASP.NET
   Core, and container app workloads so containerized apps can use the same
   credential contract as local app resources.
+- Added resource identity and access-grant declaration helpers to the
+  TypeScript, Java, Go, and Python launchers so Configuration Store and Secrets
+  Vault read grants can be authored consistently outside the C# launcher path.
+- Updated `samples/PythonAppHost` so the launched Python workload declares a
+  resource identity, receives Configuration Store and Secrets Vault endpoint
+  variables, and reads both services through the Python runtime SDK.
 - Added `samples/GoContainerApp`, a Go launcher sample that declares a Go app
   as an `application.container-app`, seeds a Configuration Store, and proves
   the launched container workload can read settings through the Go SDK default

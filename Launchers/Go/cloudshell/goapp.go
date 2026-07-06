@@ -124,6 +124,26 @@ func (r *GoAppResource) WithServiceDiscoveryName(name string) *GoAppResource {
 	return r
 }
 
+func (r *GoAppResource) WithIdentity(providerID string, options ResourceIdentityOptions) *GoAppResource {
+	r.withIdentity(providerID, options)
+	return r
+}
+
+func (r *GoAppResource) RequireIdentity(name string) *GoAppResource {
+	r.requireIdentity(name)
+	return r
+}
+
+func (r *GoAppResource) ProvisionIdentityOnStartup(enabled ...bool) *GoAppResource {
+	provision := true
+	if len(enabled) > 0 {
+		provision = enabled[0]
+	}
+
+	r.provisionIdentityOnStartup(provision)
+	return r
+}
+
 func (r *GoAppResource) AsContainerApp(options ContainerAppOptions) *GoAppResource {
 	r.projectAsContainerApp()
 	r.containerApp = true

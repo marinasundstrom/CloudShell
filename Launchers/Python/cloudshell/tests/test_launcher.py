@@ -40,6 +40,18 @@ class CloudShellPythonLauncherTests(unittest.TestCase):
                 .with_environment_variable("Sample__ApiKey", secrets.secret("Sample--ApiKey"))
                 .with_http_health_check("/healthz", endpoint_name="http")
                 .with_http_liveness_check("/alive", endpoint_name="http")
+                .require_identity(name="api")
+                .provision_identity_on_startup()
+            )
+            settings.allow_resource_identity(
+                "application.python-app:api",
+                "CloudShell.Configuration/stores/settings/read/action",
+                identity_name="api",
+            )
+            secrets.allow_resource_identity(
+                "application.python-app:api",
+                "CloudShell.Secrets/vaults/secrets/read/action",
+                identity_name="api",
             )
 
         app.define_resources(define)
@@ -78,6 +90,18 @@ class CloudShellPythonLauncherTests(unittest.TestCase):
             "secrets.vault:vault",
             api["project"]["environmentVariables"]["Sample__ApiKey"]
             ["secretRef"]["vaultResourceId"],
+        )
+        self.assertEqual("required", api["attributes"]["identity.kind"])
+        self.assertEqual("api", api["attributes"]["identity.name"])
+        self.assertTrue(api["attributes"]["identity.provisionOnStartup"])
+        settings = template["resources"][0]
+        self.assertEqual(
+            "CloudShell.Configuration/stores/settings/read/action",
+            settings["attributes"]["access.grants"][0]["permission"],
+        )
+        self.assertEqual(
+            "application.python-app:api/identities/api",
+            settings["attributes"]["access.grants"][0]["principal"]["id"],
         )
         self.assertEqual(2, len(api["health"]["checks"]))
         self.assertEqual("network:host", api["project"]["endpointRequests"][0]["network"]["resourceId"])

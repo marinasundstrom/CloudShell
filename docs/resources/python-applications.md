@@ -69,6 +69,7 @@ the experimental package under `Launchers/Python/cloudshell` to declare:
 
 - an `application.python-app` API rooted at `samples/PythonAppHost/App`
 - Configuration Store and Secrets Vault resources referenced by the Python app
+- a resource identity and read grants used by the Python runtime SDK
 - endpoint, health, logs, monitoring, and environment projection through
   Resource Manager
 
@@ -91,4 +92,5 @@ The launcher package is still experimental. It covers ResourceTemplate
 authoring, template/apply/start/run verbs, and the Python app sample. The
 experimental runtime SDK under `sdk/python/cloudshell` provides Configuration
 Store and Secrets Vault clients for Python workloads that receive injected
-service endpoints and CloudShell identity variables.
+service endpoints and CloudShell identity variables; `samples/PythonAppHost`
+uses that SDK from the launched app instead of hand-building service calls.

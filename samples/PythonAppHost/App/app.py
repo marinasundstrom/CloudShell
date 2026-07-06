@@ -1,7 +1,12 @@
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
+from pathlib import Path
+import sys
 
+sdk_path = Path(__file__).resolve().parents[3] / "sdk" / "python" / "cloudshell"
+if sdk_path.exists():
+    sys.path.insert(0, str(sdk_path))
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -11,8 +16,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if self.path == "/configuration":
             self.send_json({
-                "message": os.environ.get("Sample__Message", ""),
-                "hasApiKey": bool(os.environ.get("Sample__ApiKey")),
+                **read_configuration(),
                 "resourceId": os.environ.get("CLOUDSHELL_RESOURCE_ID", ""),
                 "resourceName": os.environ.get("CLOUDSHELL_RESOURCE_NAME", "")
             })
@@ -42,6 +46,29 @@ def main():
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     print(f"Python sample listening on http://127.0.0.1:{port}", flush=True)
     server.serve_forever()
+
+
+def read_configuration():
+    try:
+        from cloudshell_sdk import ConfigurationStoreClient, SecretsVaultClient
+
+        configuration = ConfigurationStoreClient.from_environment("python-app-settings")
+        secrets = SecretsVaultClient.from_environment("python-app-secrets")
+        setting = configuration.get_setting("Sample--Message")
+        secret = secrets.get_secret("Sample--ApiKey")
+        return {
+            "source": "cloudshell-sdk",
+            "message": setting.value if setting else "",
+            "hasApiKey": bool(secret and secret.value),
+            "secretName": secret.name if secret else ""
+        }
+    except Exception as exception:
+        return {
+            "source": "environment",
+            "message": os.environ.get("Sample__Message", ""),
+            "hasApiKey": bool(os.environ.get("Sample__ApiKey")),
+            "sdkError": str(exception)
+        }
 
 
 if __name__ == "__main__":

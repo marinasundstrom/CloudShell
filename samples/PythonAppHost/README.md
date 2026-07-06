@@ -31,7 +31,8 @@ http://localhost:5188
 http://localhost:5188/configuration
 ```
 
-The sample seeds Configuration Store and Secrets Vault resources, then resolves
-those references into process environment variables when the Python app starts.
-The app reports whether an API key was present without printing the secret
-value.
+The sample seeds Configuration Store and Secrets Vault resources, declares a
+resource identity for the Python app, grants that identity read access, and
+injects the protected service endpoints. The app uses the experimental Python
+runtime SDK to read the setting and secret through `DefaultCloudShellCredential`
+and reports whether an API key was present without printing the secret value.

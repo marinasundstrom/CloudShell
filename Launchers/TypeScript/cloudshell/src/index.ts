@@ -43,6 +43,20 @@ export interface ResourceHandle {
   readonly effectiveResourceId: string;
 }
 
+export interface ResourceIdentityOptions {
+  name?: string;
+  subject?: string;
+  scopes?: string[];
+  claims?: Record<string, string>;
+  required?: boolean;
+}
+
+export interface ResourceIdentityGrantOptions {
+  identityName?: string;
+  displayName?: string;
+  providerId?: string;
+}
+
 export interface TemplateOptions {
   environmentId?: string;
   metadata?: Record<string, string>;
@@ -336,6 +350,7 @@ export class ResourceBuilder implements ResourceHandle {
   private providerIdValue?: string;
   private readonly dependencies: ResourceReferenceDocument[] = [];
   private readonly attributes: Record<string, unknown> = {};
+  private readonly declarationAttributes: Record<string, unknown> = {};
   private readonly capabilities: Record<string, unknown> = {};
   private readonly operations: Record<string, unknown> = {};
   private readonly metadata: Record<string, string> = {};
@@ -388,6 +403,70 @@ export class ResourceBuilder implements ResourceHandle {
     return this;
   }
 
+  public withIdentity(
+    providerId?: string,
+    options: ResourceIdentityOptions = {}): this {
+    this.declarationAttributes["identity.kind"] = options.required ? "required" : "provider";
+    if (providerId) {
+      this.declarationAttributes["identity.providerId"] = providerId;
+    }
+
+    if (options.name) {
+      this.declarationAttributes["identity.name"] = options.name;
+    }
+
+    if (options.subject) {
+      this.declarationAttributes["identity.subject"] = options.subject;
+    }
+
+    if (options.scopes && options.scopes.length > 0) {
+      this.declarationAttributes["identity.scopes"] = options.scopes;
+    }
+
+    if (options.claims && Object.keys(options.claims).length > 0) {
+      this.declarationAttributes["identity.claims"] = options.claims;
+    }
+
+    return this;
+  }
+
+  public requireIdentity(options: Omit<ResourceIdentityOptions, "required"> = {}): this {
+    return this.withIdentity(undefined, { ...options, required: true });
+  }
+
+  public provisionIdentityOnStartup(enabled: boolean = true): this {
+    this.declarationAttributes["identity.provisionOnStartup"] = enabled;
+    return this;
+  }
+
+  public allowResourceIdentity(
+    resource: ResourceHandle | string,
+    permission: string,
+    options: ResourceIdentityGrantOptions = {}): this {
+    assertNotBlank(permission, "Permission is required.");
+    const resourceId = typeof resource === "string"
+      ? resource.trim()
+      : resource.effectiveResourceId;
+    assertNotBlank(resourceId, "Resource id is required.");
+    const grants = this.declarationAttributes["access.grants"];
+    const grantList = Array.isArray(grants) ? grants : [];
+    grantList.push(pruneUndefined({
+      principal: {
+        kind: "resourceIdentity",
+        id: options.identityName
+          ? `${resourceId}/identities/${options.identityName}`
+          : resourceId,
+        displayName: options.displayName,
+        providerId: options.providerId,
+        sourceResourceId: resourceId,
+        sourceIdentityName: options.identityName
+      },
+      permission: permission.trim()
+    }));
+    this.declarationAttributes["access.grants"] = grantList;
+    return this;
+  }
+
   public withCapability(capabilityId: string, value: unknown = {}): this {
     assertNotBlank(capabilityId, "Capability id is required.");
     this.capabilities[capabilityId.trim()] = value;
@@ -414,6 +493,7 @@ export class ResourceBuilder implements ResourceHandle {
       providerId: this.providerId,
       displayName: this.displayName,
       dependsOn: this.dependencies.length === 0 ? undefined : this.dependencies,
+      attributes: isEmpty(this.declarationAttributes) ? undefined : this.declarationAttributes,
       capabilities: isEmpty(this.capabilities) ? undefined : this.capabilities,
       operations: isEmpty(this.operations) ? undefined : this.operations,
       metadata: isEmpty(this.metadata) ? undefined : this.metadata

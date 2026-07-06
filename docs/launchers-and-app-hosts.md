@@ -162,6 +162,16 @@ folder:
 - `Launchers/Go/cloudshell`
 - `Launchers/Python/cloudshell`
 
+Current launcher and runtime-client parity:
+
+| Language | Launcher | App resources | Configuration Store and Secrets Vault authoring | Resource identity and grants | Container app projection | Runtime service clients |
+| --- | --- | --- | --- | --- | --- | --- |
+| C# | `CloudShell.AppHost.Launcher` | Broad built-in app/resource builders | Yes | Yes | Yes | `CloudShell.Configuration.Client` and `CloudShell.Secrets.Client` |
+| TypeScript/JavaScript | `Launchers/TypeScript/cloudshell` | JavaScript app and Java app builders | Yes | Yes | JavaScript and Java app builders | `sdk/typescript/configuration-client` |
+| Java | `Launchers/Java/cloudshell-launcher` | Java app builder | Yes | Yes | Java app builder | `sdk/java/cloudshell` |
+| Go | `Launchers/Go/cloudshell` | Go app builder | Yes | Yes | Go app builder | `sdk/go/cloudshell` |
+| Python | `Launchers/Python/cloudshell` | Python app builder | Yes | Yes | Not implemented yet | `sdk/python/cloudshell` |
+
 `CloudShell.AppHost.Launcher` is the current C# launcher authoring package. It
 reuses Resource Model builders, emits a `ResourceTemplate`, and owns the
 developer gesture of starting or targeting a host and applying the graph. It

@@ -6,13 +6,42 @@ import (
 )
 
 type baseResource struct {
-	app         *App
-	name        string
-	typeID      string
-	providerID  string
-	resourceID  string
-	displayName string
-	dependsOn   []ResourceReference
+	app                   *App
+	name                  string
+	typeID                string
+	providerID            string
+	resourceID            string
+	displayName           string
+	dependsOn             []ResourceReference
+	declarationAttributes map[string]any
+}
+
+type ResourceIdentityOptions struct {
+	Name     string
+	Subject  string
+	Scopes   []string
+	Claims   map[string]string
+	Required bool
+}
+
+type ResourceIdentityGrantOptions struct {
+	IdentityName string
+	DisplayName  string
+	ProviderID   string
+}
+
+type resourceIdentityPrincipal struct {
+	Kind               string `json:"kind"`
+	ID                 string `json:"id"`
+	DisplayName        string `json:"displayName,omitempty"`
+	ProviderID         string `json:"providerId,omitempty"`
+	SourceResourceID   string `json:"sourceResourceId"`
+	SourceIdentityName string `json:"sourceIdentityName,omitempty"`
+}
+
+type resourceIdentityGrant struct {
+	Principal  resourceIdentityPrincipal `json:"principal"`
+	Permission string                    `json:"permission"`
 }
 
 func newBaseResource(name string, typeID string, providerID string) baseResource {
@@ -77,6 +106,84 @@ func (r *baseResource) dependsOnResourceID(resourceID string) {
 	})
 }
 
+func (r *baseResource) withIdentity(providerID string, options ResourceIdentityOptions) {
+	if r.declarationAttributes == nil {
+		r.declarationAttributes = map[string]any{}
+	}
+
+	if options.Required {
+		r.declarationAttributes["identity.kind"] = "required"
+	} else {
+		r.declarationAttributes["identity.kind"] = "provider"
+	}
+
+	if providerID != "" {
+		r.declarationAttributes["identity.providerId"] = providerID
+	}
+
+	if options.Name != "" {
+		r.declarationAttributes["identity.name"] = options.Name
+	}
+
+	if options.Subject != "" {
+		r.declarationAttributes["identity.subject"] = options.Subject
+	}
+
+	if len(options.Scopes) > 0 {
+		r.declarationAttributes["identity.scopes"] = options.Scopes
+	}
+
+	if len(options.Claims) > 0 {
+		r.declarationAttributes["identity.claims"] = options.Claims
+	}
+}
+
+func (r *baseResource) requireIdentity(name string) {
+	r.withIdentity("", ResourceIdentityOptions{
+		Name:     name,
+		Required: true,
+	})
+}
+
+func (r *baseResource) provisionIdentityOnStartup(enabled bool) {
+	if r.declarationAttributes == nil {
+		r.declarationAttributes = map[string]any{}
+	}
+
+	r.declarationAttributes["identity.provisionOnStartup"] = enabled
+}
+
+func (r *baseResource) allowResourceIdentity(
+	resource ResourceHandle,
+	permission string,
+	options ResourceIdentityGrantOptions,
+) {
+	requireNotNil(resource, "resource")
+	resourceID := requireNotBlank(resource.ResourceID(), "resource id")
+	principalID := resourceID
+	if options.IdentityName != "" {
+		principalID = resourceID + "/identities/" + options.IdentityName
+	}
+
+	if r.declarationAttributes == nil {
+		r.declarationAttributes = map[string]any{}
+	}
+
+	grants, _ := r.declarationAttributes["access.grants"].([]resourceIdentityGrant)
+	grants = append(grants, resourceIdentityGrant{
+		Principal: resourceIdentityPrincipal{
+			Kind:               "resourceIdentity",
+			ID:                 principalID,
+			DisplayName:        options.DisplayName,
+			ProviderID:         options.ProviderID,
+			SourceResourceID:   resourceID,
+			SourceIdentityName: options.IdentityName,
+		},
+		Permission: requireNotBlank(permission, "permission"),
+	})
+	r.declarationAttributes["access.grants"] = grants
+}
+
 func (r *baseResource) projectAsContainerApp() {
 	previousDefaultResourceID := r.typeID + ":" + r.name
 	r.typeID = "application.container-app"
@@ -103,6 +210,10 @@ func (r *baseResource) commonDocument() map[string]any {
 
 	if len(r.dependsOn) > 0 {
 		document["dependsOn"] = r.dependsOn
+	}
+
+	if len(r.declarationAttributes) > 0 {
+		document["attributes"] = r.declarationAttributes
 	}
 
 	return document
@@ -209,6 +320,15 @@ func (r *ConfigurationStoreResource) WithEndpoint(endpoint string) *Configuratio
 	return r
 }
 
+func (r *ConfigurationStoreResource) AllowResourceIdentity(
+	resource ResourceHandle,
+	permission string,
+	options ResourceIdentityGrantOptions,
+) *ConfigurationStoreResource {
+	r.allowResourceIdentity(resource, permission, options)
+	return r
+}
+
 func (r *ConfigurationStoreResource) WithSeed(configure func(seed *ConfigurationStoreSeed)) *ConfigurationStoreResource {
 	requireNotNil(configure, "configuration store seed configure")
 
@@ -307,6 +427,15 @@ func (r *SecretsVaultResource) WithDisplayName(displayName string) *SecretsVault
 
 func (r *SecretsVaultResource) WithEndpoint(endpoint string) *SecretsVaultResource {
 	r.endpoint = endpoint
+	return r
+}
+
+func (r *SecretsVaultResource) AllowResourceIdentity(
+	resource ResourceHandle,
+	permission string,
+	options ResourceIdentityGrantOptions,
+) *SecretsVaultResource {
+	r.allowResourceIdentity(resource, permission, options)
 	return r
 }
 

@@ -48,7 +48,18 @@ public final class CloudShellAppTest {
             .withHttpEndpoint("localhost", 5186, 5186, network)
             .withHttpHealthCheck("/ready")
             .withHttpLivenessCheck("/live")
-            .withDefaultConsoleLogSource();
+            .withDefaultConsoleLogSource()
+            .requireIdentity("api")
+            .provisionIdentityOnStartup();
+
+        settings.allowResourceIdentity(
+            api,
+            "CloudShell.Configuration/stores/settings/read/action",
+            "api");
+        secrets.allowResourceIdentity(
+            api,
+            "CloudShell.Secrets/vaults/secrets/read/action",
+            "api");
 
         app.addLoadBalancer("edge")
             .withDisplayName("Edge")
@@ -78,6 +89,13 @@ public final class CloudShellAppTest {
         assertContains(json, "\"contentType\": \"application/x-pem-file\"");
         assertContains(json, "\"configurationSettingRef\": { \"storeResourceId\": \"configuration.store:settings\", \"name\": \"Sample--Message\" }");
         assertContains(json, "\"secretRef\": { \"vaultResourceId\": \"secrets.vault:secrets\", \"name\": \"Sample--ApiKey\" }");
+        assertContains(json, "\"identity.kind\": \"required\"");
+        assertContains(json, "\"identity.name\": \"api\"");
+        assertContains(json, "\"identity.provisionOnStartup\": true");
+        assertContains(json, "\"access.grants\": [");
+        assertContains(json, "\"id\": \"application.java-app:api/identities/api\"");
+        assertContains(json, "\"permission\": \"CloudShell.Configuration/stores/settings/read/action\"");
+        assertContains(json, "\"permission\": \"CloudShell.Secrets/vaults/secrets/read/action\"");
         assertContains(json, "\"path\": \"/ready\"");
         assertContains(json, "\"path\": \"/live\"");
         assertContains(json, "\"capabilities\": [\"read\", \"stream\"]");

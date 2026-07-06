@@ -45,7 +45,18 @@ func TestBuildsGoAppTemplate(t *testing.T) {
 		WithHttpEndpoint("localhost", 5186, 5186, network).
 		WithHttpHealthCheck("/ready").
 		WithHttpLivenessCheck("/live").
-		WithDefaultConsoleLogSource()
+		WithDefaultConsoleLogSource().
+		RequireIdentity("api").
+		ProvisionIdentityOnStartup()
+
+	settings.AllowResourceIdentity(
+		api,
+		"CloudShell.Configuration/stores/settings/read/action",
+		ResourceIdentityGrantOptions{IdentityName: "api"})
+	secrets.AllowResourceIdentity(
+		api,
+		"CloudShell.Secrets/vaults/secrets/read/action",
+		ResourceIdentityGrantOptions{IdentityName: "api"})
 
 	app.AddLoadBalancer("edge").
 		WithDisplayName("Edge").
@@ -121,6 +132,15 @@ func TestBuildsGoAppTemplate(t *testing.T) {
 	assertEqual(t, "application.go-app", goResource["type"])
 	assertEqual(t, "applications.go-app", goResource["providerId"])
 	assertEqual(t, "application.go-app:api", goResource["resourceId"])
+	assertNestedEqual(t, "identity kind", "required", goResource, "attributes", "identity.kind")
+	assertNestedEqual(t, "identity name", "api", goResource, "attributes", "identity.name")
+	assertNestedEqual(t, "identity provision", true, goResource, "attributes", "identity.provisionOnStartup")
+	settingsAttributes := settingsResource(t, template)["attributes"].(map[string]any)
+	grants := settingsAttributes["access.grants"].([]any)
+	grant := grants[0].(map[string]any)
+	assertEqual(t, "CloudShell.Configuration/stores/settings/read/action", grant["permission"])
+	principal := grant["principal"].(map[string]any)
+	assertEqual(t, "application.go-app:api/identities/api", principal["id"])
 	assertNestedEqual(t, "go.command", "go", goResource, "go", "command")
 	assertNestedEqual(t, "go.packagePath", ".", goResource, "go", "packagePath")
 	assertNestedEqual(t, "project.path", "samples/GoApp/App", goResource, "project", "path")
@@ -176,6 +196,19 @@ func TestBuildsGoAppTemplate(t *testing.T) {
 	targetResource := target["resource"].(map[string]any)
 	assertEqual(t, "application.go-app:api", targetResource["resourceId"])
 	assertEqual(t, "reference", targetResource["relationship"])
+}
+
+func settingsResource(t *testing.T, template ResourceTemplate) map[string]any {
+	t.Helper()
+
+	for _, resource := range template.Resources {
+		if resource["name"] == "settings" {
+			return resource
+		}
+	}
+
+	t.Fatal("Settings resource was not emitted")
+	return nil
 }
 
 func TestBuildsGoAppAsContainerAppTemplate(t *testing.T) {
