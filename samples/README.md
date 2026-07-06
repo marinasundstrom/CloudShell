@@ -36,6 +36,7 @@ target `CloudShell.LocalDevelopmentHost`.
 | `CSharpAppHost` | C# launcher authoring with Resource Model builders. | Preferred C# app-authoring sample. |
 | `DeviceRegistry` | C# launcher authoring for device enrollment, device identity, and configuration access. | Preferred IoT/device identity sample. |
 | `TypeScriptAppHost` | TypeScript launcher authoring and template apply. | Experimental launcher sample. |
+| `TypeScriptContainerApp` | TypeScript launcher authoring for a Dockerfile-backed Node.js container app that reads Configuration Store and Secrets Vault through the TypeScript runtime SDK. | Experimental launcher sample. |
 | `ReactTypeScriptApp` | TypeScript launcher authoring for a React frontend, Node backend, Configuration Store, and load-balancer resource. | Experimental launcher sample. |
 | `RoboticMowerIoT` | C# launcher authoring for a React frontend, SignalR container backend, Device Registry MQTT sync, and a standalone simulated mower device. | IoT launcher sample with enrolled device control. |
 | `JavaAppHost` | Java launcher authoring and template apply. | Experimental launcher sample. |
@@ -54,13 +55,13 @@ prove.
 
 | Sample | Primary scenario | Status |
 | --- | --- | --- |
-| `JavaScriptContainerApp` | C# host-composition sample for a JavaScript app projected as a container app; reads Configuration Store and Secrets Vault through the TypeScript runtime SDK. | Runtime proof exists; still needs a TypeScript-launcher-authored container sample for launcher parity. |
+| `JavaScriptContainerApp` | C# host-composition sample for a JavaScript app projected as a container app; reads Configuration Store and Secrets Vault through the TypeScript runtime SDK. | Provider and host-composition coverage; launcher parity is covered by `TypeScriptContainerApp`. |
 
 ## Container App Runtime Proof Matrix
 
 | Runtime | Sample | Authoring surface | SDK proof | Tooling version notes |
 | --- | --- | --- | --- | --- |
-| JavaScript/TypeScript | `JavaScriptContainerApp` | C# host composition. | `sdk/typescript/configuration-client` reads Configuration Store and Secrets Vault from `/configuration`. | Node.js 22 image; local SDK `file:` dependency. |
+| JavaScript/TypeScript | `TypeScriptContainerApp` | TypeScript launcher. | `sdk/typescript/configuration-client` reads Configuration Store and Secrets Vault from `/configuration`. | TypeScript 5.9.3 launcher lockfile; Node.js 22 image; local SDK `file:` dependency. |
 | Java | `JavaContainerApp` | Java launcher. | `sdk/java/cloudshell` reads Configuration Store and Secrets Vault from `/configuration`. | Java 21 runtime/compiler target; Maven 3.9.9 Docker build stage. |
 | Go | `GoContainerApp` | Go launcher. | `sdk/go/cloudshell` reads Configuration Store and Secrets Vault from `/configuration`. | Go 1.22 build image and module version. |
 | Python | `PythonContainerApp` | Python launcher. | `sdk/python/cloudshell` reads Configuration Store and Secrets Vault from `/configuration`. | Python 3.12 runtime image. |

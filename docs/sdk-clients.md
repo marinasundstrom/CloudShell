@@ -289,10 +289,11 @@ the TypeScript hosting package and the CloudShell CLI.
 
 See `samples/TypeScriptConfigurationClient` for a minimal Node.js application
 that reads a Configuration Store endpoint from the environment and calls it
-with a bearer token. `samples/JavaScriptContainerApp` proves the container
-runtime path: the app references Configuration Store and Secrets Vault,
-receives endpoint and identity variables from CloudShell service discovery,
-and reads both services through the TypeScript SDK default credential chain.
+with a bearer token. `samples/TypeScriptContainerApp` proves the launcher-owned
+container runtime path: the app references Configuration Store and Secrets
+Vault, receives endpoint and identity variables from CloudShell service
+discovery, and reads both services through the TypeScript SDK default
+credential chain.
 
 The experimental Java client follows the same boundary with Java-native
 classes under `sdk/java/cloudshell`:
@@ -357,11 +358,12 @@ Python runtime SDK lives under `sdk/python/cloudshell`; the Python launcher
 package remains under `Launchers/Python/cloudshell` for ResourceTemplate
 authoring.
 
-`samples/PythonContainerApp` and `samples/JavaContainerApp` provide the same
-container runtime proof for Python and Java respectively: each sample declares
-Configuration Store, Secrets Vault, a workload identity, read grants, and a
-`/configuration` endpoint that reports secret availability without returning
-the secret value.
+`samples/TypeScriptContainerApp`, `samples/JavaContainerApp`,
+`samples/GoContainerApp`, and `samples/PythonContainerApp` provide the same
+container runtime proof for TypeScript/JavaScript, Java, Go, and Python
+respectively: each sample declares Configuration Store, Secrets Vault, a
+workload identity, read grants, and a `/configuration` endpoint that reports
+secret availability without returning the secret value.
 
 ## Secrets Vault Client
 

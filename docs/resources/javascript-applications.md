@@ -140,18 +140,17 @@ cd samples/JavaScriptApp/App
 npm run dev
 ```
 
-The `samples/JavaScriptContainerApp` sample covers the separate container
-wrapping use case. It declares a JavaScript app, projects it as an
-`application.container-app`, builds the image from `App/Dockerfile`, and
-declares three replicas so the container app deployment and scale views can be
-tested without changing the basic process sample. It also declares
+The `samples/TypeScriptContainerApp` sample covers the launcher-authored
+container wrapping use case. It uses the TypeScript launcher to declare a
+JavaScript app, project it as an `application.container-app`, build the image
+from `App/Dockerfile`, and declare two replicas. It also declares
 Configuration Store, Secrets Vault, resource identity, and read grants; the
 container app reads both services through
 `sdk/typescript/configuration-client` from `/configuration`.
 
-The remaining JavaScript parity gap is authoring the same container sample
-from the TypeScript launcher. `samples/JavaScriptContainerApp` is still a C#
-host-composition sample.
+The `samples/JavaScriptContainerApp` sample keeps the same runtime SDK proof in
+a C# host-composition sample so provider registration and host-owned behavior
+remain covered separately from launcher authoring.
 
 The `samples/ReactTypeScriptApp` sample covers a browser frontend with a
 backend. A TypeScript launcher declares a React/Vite frontend, a Node backend

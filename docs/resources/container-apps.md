@@ -93,7 +93,7 @@ across current runtimes:
 
 | Runtime | Sample | Proof |
 | --- | --- | --- |
-| JavaScript/TypeScript | `samples/JavaScriptContainerApp` | C# host-composition sample for a Node.js container app that reads Configuration Store and Secrets Vault through the TypeScript runtime SDK. A TypeScript-launcher-authored container sample remains a known gap. |
+| JavaScript/TypeScript | `samples/TypeScriptContainerApp` | TypeScript launcher sample for a Dockerfile-backed Node.js container app that reads Configuration Store and Secrets Vault through the TypeScript runtime SDK. `samples/JavaScriptContainerApp` remains the C# host-composition coverage sample. |
 | Java | `samples/JavaContainerApp` | Java launcher sample for a Maven-built container app that reads Configuration Store and Secrets Vault through the Java runtime SDK. |
 | Go | `samples/GoContainerApp` | Go launcher sample for a Dockerfile-backed container app that reads Configuration Store and Secrets Vault through the Go runtime SDK. |
 | Python | `samples/PythonContainerApp` | Python launcher sample for a Dockerfile-backed container app that reads Configuration Store and Secrets Vault through the Python runtime SDK. |

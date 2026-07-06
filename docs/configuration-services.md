@@ -260,9 +260,10 @@ Node.js application by setting
 `CLOUDSHELL_CONFIGURATION_<SERVICE_NAME>_ENDPOINT` and a bearer token.
 JavaScript app resources now also derive Configuration Store and Secrets Vault
 SDK endpoint variables from graph references, including resources projected as
-`application.container-app`. `samples/JavaScriptContainerApp` uses that path
-from a Node.js container app and reads both services through
-`sdk/typescript/configuration-client` using the injected workload identity.
+`application.container-app`. `samples/TypeScriptContainerApp` uses that path
+from a TypeScript-launcher-authored Node.js container app and reads both
+services through `sdk/typescript/configuration-client` using the injected
+workload identity.
 The experimental Go package under `sdk/go/cloudshell` provides the same direct
 Configuration Store client shape for Go workloads, using the default credential
 chain documented in [SDK clients](sdk-clients.md). The

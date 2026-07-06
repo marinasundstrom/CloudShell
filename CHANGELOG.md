@@ -137,6 +137,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Updated `samples/JavaScriptContainerApp` so the Node.js container app reads
   Configuration Store and Secrets Vault through the TypeScript runtime SDK
   using injected service-discovery and workload identity variables.
+- Added `samples/TypeScriptContainerApp`, a TypeScript launcher-authored
+  JavaScript container app sample that uses the TypeScript runtime SDK,
+  service discovery, resource identity provisioning, and Configuration
+  Store/Secrets Vault read grants from inside the launched container.
 - Added `samples/PythonContainerApp` and `samples/JavaContainerApp` as
   language-specific container app proofs for Configuration Store, Secrets
   Vault, resource identity grants, and runtime SDK credential resolution. The
