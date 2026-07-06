@@ -1,0 +1,12 @@
+{
+  "name": "cloudshell-robotic-mower-device",
+  "version": "0.0.0-poc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node mower-simulator.js"
+  },
+  "dependencies": {
+    "@microsoft/signalr": "^9.0.6"
+  }
+}

@@ -13,6 +13,19 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-07-06
+
+#### Changed
+
+- Added `samples/RoboticMowerIoT`, a C# launcher-authored CloudShell IoT
+  sample with a React operator frontend, a SignalR container backend, a Device
+  Registry resource, and a standalone simulated mower device that enrolls
+  through the registry API before reporting telemetry. The backend models mower
+  identity separately from transient SignalR connections so duplicate simulator
+  clients can attach to the same mower id. `CloudShell.LocalDevelopmentHost`
+  now registers the local Docker container-app runtime so launcher-authored
+  container app samples can start through the shared host.
+
 ### 2026-07-05
 
 #### Changed

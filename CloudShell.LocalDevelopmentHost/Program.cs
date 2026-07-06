@@ -96,6 +96,22 @@ cloudShell
         runtime.ServiceAuthenticationSigningKeyPem = serviceAuthenticationSigningKeyPem;
     });
 builder.Services.AddLocalRabbitMQDockerRuntime();
+builder.Services.AddLocalDockerContainerApplicationRuntime(options =>
+{
+    options.AddApplication(
+        "application.container-app:mower-backend",
+        Path.Combine(
+            repositoryRootPath,
+            "samples",
+            "RoboticMowerIoT",
+            "Backend",
+            "CloudShell.RoboticMowerIoT.Backend.csproj"),
+        runtime =>
+        {
+            runtime.ReplicaProbePortStart =
+                builder.Configuration.GetValue<int?>("RoboticMowerIoT:BackendPort") ?? 7161;
+        });
+});
 
 builder.AddCloudShellUi(ui =>
 {

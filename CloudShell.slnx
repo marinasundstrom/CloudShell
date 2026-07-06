@@ -35,6 +35,7 @@
   <Folder Name="/samples/ContainerAppDeployment/">
     <Project Path="samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj" />
   </Folder>
+  <Folder Name="/samples/DeviceRegistry/" />
   <Folder Name="/samples/DeviceRegistry/AppHost/">
     <Project Path="samples/DeviceRegistry/AppHost/CloudShell.DeviceRegistryAppHost.csproj" />
   </Folder>
@@ -114,6 +115,10 @@
   </Folder>
   <Folder Name="/samples/ProjectReference/ServiceDefaults/">
     <Project Path="samples/ProjectReference/ServiceDefaults/CloudShell.ProjectReference.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/samples/RoboticMowerIoT/" />
+  <Folder Name="/samples/RoboticMowerIoT/Backend/">
+    <Project Path="samples/RoboticMowerIoT/Backend/CloudShell.RoboticMowerIoT.Backend.csproj" />
   </Folder>
   <Folder Name="/samples/RabbitMQMessaging/" />
   <Folder Name="/samples/RabbitMQMessaging/AppHost/">

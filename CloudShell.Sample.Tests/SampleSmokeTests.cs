@@ -274,6 +274,11 @@ public sealed class SampleSmokeTests
         };
         yield return new object[]
         {
+            "samples/RoboticMowerIoT/AppHost/CloudShell.RoboticMowerIoTAppHost.csproj",
+            resourceHostPaths
+        };
+        yield return new object[]
+        {
             "samples/SignalRContainerApp/CloudShell.SignalRContainerApp.csproj",
             resourceHostPaths
         };
@@ -3896,6 +3901,12 @@ public sealed class SampleSmokeTests
             environment.Add(("SignalRContainerApp__ApiPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
             environment.Add(("SignalRContainerApp__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
         }
+        else if (sampleName == "RoboticMowerIoT")
+        {
+            environment.Add(("RoboticMowerIoT__BackendPort", (await GetFreePortAsync()).ToString(CultureInfo.InvariantCulture)));
+            environment.Add(("RoboticMowerIoT__FrontendEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+            environment.Add(("RoboticMowerIoT__DeviceRegistryEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
+        }
         else if (sampleName == "SettingsAndSecrets")
         {
             environment.Add(("Samples__SettingsAndSecrets__ConfigurationServiceEndpoint", $"http://localhost:{await GetFreePortAsync()}"));
@@ -3983,6 +3994,11 @@ public sealed class SampleSmokeTests
         if (projectPath.Contains("/SignalRContainerApp/", StringComparison.OrdinalIgnoreCase))
         {
             return "SignalRContainerApp";
+        }
+
+        if (projectPath.Contains("/RoboticMowerIoT/", StringComparison.OrdinalIgnoreCase))
+        {
+            return "RoboticMowerIoT";
         }
 
         if (projectPath.Contains("/SettingsAndSecrets/", StringComparison.OrdinalIgnoreCase))
@@ -4076,6 +4092,12 @@ public sealed class SampleSmokeTests
             [
                 "application:signalr-api",
                 "application:signalr-frontend"
+            ],
+            "RoboticMowerIoT" =>
+            [
+                "application:mower-backend",
+                "application:mower-frontend",
+                "iot:park-devices"
             ],
             "SettingsAndSecrets" =>
             [
