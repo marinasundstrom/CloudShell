@@ -40,6 +40,7 @@ target `CloudShell.LocalDevelopmentHost`.
 | `JavaAppHost` | Java launcher authoring and template apply. | Experimental launcher sample. |
 | `GoAppHost` | Go launcher authoring and template apply. | Experimental launcher sample. |
 | `GoContainerApp` | Go launcher authoring for a Dockerfile-backed container app that reads Configuration Store settings through the Go runtime SDK. | Experimental launcher sample. |
+| `PythonAppHost` | Python launcher authoring for a Python app, Configuration Store, and Secrets Vault. | Experimental launcher sample. |
 | `RabbitMQMessaging` | C# launcher authoring for a RabbitMQ broker with .NET and Java app resources exchanging fan-out events. | Preferred broker-backed app topology sample. |
 
 ## Host composition samples
@@ -77,11 +78,11 @@ migrate to launcher form when their remaining sample-local host seams are
 available through `CloudShell.LocalDevelopmentHost` or through first-class
 template/control-plane APIs.
 
-The `ProjectReference`, `JavaScriptApp`, `JavaApp`, and `GoApp` samples now use
-C# launcher AppHosts because they primarily exercise resource types and
-configuration. Their source projects depend on launcher/resource builder
-packages, while the CloudShell host project is selected at runtime by the
-launcher configuration.
+The `ProjectReference`, `JavaScriptApp`, `JavaApp`, `GoApp`, and
+`PythonAppHost` samples now use launcher AppHosts because they primarily
+exercise resource types and configuration. Their source or launcher projects
+depend on launcher/resource builder packages, while the CloudShell host project
+is selected at runtime by the launcher configuration.
 
 ## Creating a new sample
 

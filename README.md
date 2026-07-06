@@ -36,6 +36,7 @@ with an operational experience inspired by the .NET Aspire Dashboard.
 | JavaScript/TypeScript launchers | Active work; experimental until default run behavior, packaging, and samples are stable. |
 | Java launchers | Active work; experimental until default run behavior, packaging, and samples are stable. |
 | Go launchers | Experimental initial ResourceTemplate builder and local host launcher sample. |
+| Python launchers | Experimental ResourceTemplate builder and local host launcher sample. |
 | Control Plane API and remote client | Available for automation, split hosting, and integrations. |
 | Runtime service clients | Configuration, secrets, and SQL client paths exist for workloads that consume CloudShell-managed services. |
 
@@ -44,7 +45,7 @@ with an operational experience inspired by the .NET Aspire Dashboard.
 | Mode | Use when | Status |
 | --- | --- | --- |
 | Resource Manager UI | You want to inspect resources, follow relationships, run actions, and diagnose local environments visually. | Implemented; first major shell experience. |
-| Launcher | You are developing an app and want the CloudShell graph to live with that project. | C# most complete; JavaScript/TypeScript and Java experimental. |
+| Launcher | You are developing an app and want the CloudShell graph to live with that project. | C# most complete; JavaScript/TypeScript, Java, Go, and Python experimental. |
 | CLI | You need automation, resource operations, template apply, local host-name mappings, or scripts/CI workflows. | Implemented; see [CloudShell CLI](docs/cli.md). |
 | Daemon hosting | You want a persistent local CloudShell instance installed on the machine for tools, scripts, users, or launchers to attach to. | Implemented for local Control Plane process reuse. |
 | Custom or split host | You are building an internal platform, provider package, UI extension, or self-hosted environment. | Supported architecture; still stabilizing. |
@@ -63,6 +64,7 @@ Plane API.
 | JavaScript/TypeScript app | `application.javascript-app` | Implemented for Node.js/package-manager local apps; framework-specific helpers are future work. |
 | Java/JVM app | `application.java-app` | Implemented for local JVM processes and samples; Java service-client and launcher support remain experimental. |
 | Go app | `application.go-app` | Implemented for local Go services through the C# provider model; Go launcher support is experimental. |
+| Python app | `application.python-app` | Implemented for local Python services with C# and Python launcher authoring; Python launcher support is experimental. |
 | Executable application | `application.executable` | Implemented for generic host-local commands, workers, tools, and emulators. |
 | Container app | `application.container-app` | Implemented for local container workloads; Docker is the first runtime target and orchestration diagnostics are still hardening. |
 | SQL Server | `application.sql-server` and `application.sql-database` | Implemented for local SQL Server in a container with volumes and database children; reusable non-local SQL support is future work. |
@@ -146,8 +148,8 @@ resources
 
 Applications, infrastructure, networking, and operational capabilities are
 represented through the same resource graph. For full launcher examples, see
-`samples/CSharpAppHost`, `samples/TypeScriptAppHost`, and
-`samples/JavaAppHost`.
+`samples/CSharpAppHost`, `samples/TypeScriptAppHost`, `samples/JavaAppHost`,
+`samples/GoAppHost`, and `samples/PythonAppHost`.
 
 ## Projects
 
@@ -223,6 +225,8 @@ Local-development host and launcher samples are also available:
 - `samples/JavaScriptApp`: declares a Node.js app resource from a C# launcher and runs it as a local process managed by CloudShell.
 - `samples/JavaApp`: declares a Java app resource from a C# launcher and runs it as a local JVM process managed by CloudShell.
 - `samples/JavaAppHost`: declares a Java app, Configuration Store, and Secrets Vault from a Java launcher source file, then applies the template through the CLI.
+- `samples/GoAppHost`: declares a Go app, Configuration Store, and Secrets Vault from a Go launcher program, then applies the template through the CLI.
+- `samples/PythonAppHost`: declares a Python app, Configuration Store, and Secrets Vault from a Python launcher script, then applies the template through the CLI.
 - `samples/JavaScriptContainerApp`: wraps a JavaScript app as a Dockerfile-backed container app with replica scaling.
 - `samples/CloudShell.UiExtensionHost`: hosts only the CloudShell UI and a custom UI extension.
 - `samples/CloudShell.ResourceHost`: hosts CloudShell UI and Control Plane together with a sample resource provider.
@@ -254,5 +258,8 @@ dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj -
 - [Persistence](docs/persistence.md)
 - [Programmatic resources](docs/programmatic-resources.md)
 - [Resource templates](docs/resource-templates.md)
+- [Built-in resource types](docs/resources/resource-types.md)
+- [Application resources](docs/resources/application-resources.md)
+- [Python applications](docs/resources/python-applications.md)
 - [Configuration services](docs/configuration-services.md)
 - [Executable applications](docs/resources/executable-applications.md)

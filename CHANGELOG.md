@@ -26,6 +26,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a shared JavaScript-app launcher parity fixture, covered it from the
   C# and Python launcher tests, and corrected the Python Secrets Vault provider
   id to `secrets-vault`.
+- Updated the root and samples README files to include the Python launcher,
+  `application.python-app`, and `samples/PythonAppHost`.
 - Added a Python app resource model slice with `application.python-app`,
   `AddPythonApp(...)`, process lifecycle/log/monitoring support, Resource
   Manager projection, sample coverage, and resource documentation.
