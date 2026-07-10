@@ -63,6 +63,9 @@ public sealed class DeploymentArtifactStoreTests
 
         var loaded = await store.GetRevisionAsync(revision.ArtifactId, revision.RevisionId);
         Assert.Equal(revision, loaded);
+        await using var content = await store.OpenRevisionContentAsync(revision.ArtifactId, revision.RevisionId);
+        using var reader = new StreamReader(content, Encoding.UTF8);
+        Assert.Equal("print('hello')", await reader.ReadToEndAsync());
         Assert.False(Directory.Exists(Path.Combine(contentRoot, "Data", "deployment-artifacts", ".staging", upload.UploadId)));
     }
 

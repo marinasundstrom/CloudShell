@@ -1,3 +1,5 @@
+using CloudShell.ResourceModel;
+
 namespace CloudShell.Abstractions.ResourceManager;
 
 public static class DeploymentArtifactSourceKinds
@@ -39,3 +41,25 @@ public sealed record DeploymentArtifactRevision(
     string ContentSha256,
     long SizeBytes,
     DateTimeOffset CreatedAt);
+
+public sealed record DeploymentArtifactValidationContext(
+    string ResourceType,
+    string ResourceName,
+    string ArtifactId,
+    string RevisionId,
+    string PackageKind,
+    string ContentSha256,
+    long SizeBytes,
+    string? EntryPath = null);
+
+public interface IDeploymentArtifactValidationProvider
+{
+    string Id { get; }
+
+    bool CanValidate(DeploymentArtifactValidationContext context);
+
+    ValueTask<ResourceDefinitionValidationResult> ValidateDeploymentArtifactAsync(
+        DeploymentArtifactValidationContext context,
+        Stream artifactContent,
+        CancellationToken cancellationToken = default);
+}

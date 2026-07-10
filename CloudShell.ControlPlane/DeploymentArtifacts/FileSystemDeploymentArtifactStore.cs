@@ -169,6 +169,20 @@ public sealed class FileSystemDeploymentArtifactStore(
             cancellationToken);
     }
 
+    public async Task<Stream> OpenRevisionContentAsync(
+        string artifactId,
+        string revisionId,
+        CancellationToken cancellationToken = default)
+    {
+        var revision = await GetRevisionAsync(artifactId, revisionId, cancellationToken) ??
+            throw new FileNotFoundException(
+                $"Deployment artifact revision '{artifactId}/revisions/{revisionId}' was not found.");
+        var path = Path.Combine(
+            GetRevisionDirectory(artifactId, revisionId),
+            GetPackageFileName(revision.PackageKind));
+        return File.OpenRead(path);
+    }
+
     private DeploymentArtifactStoreOptions GetStoreOptions() => options.Value.Store;
 
     private DeploymentArtifactStoreOptions RequireFileSystemStore()

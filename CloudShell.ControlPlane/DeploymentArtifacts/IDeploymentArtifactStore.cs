@@ -23,4 +23,9 @@ public interface IDeploymentArtifactStore
         string artifactId,
         string revisionId,
         CancellationToken cancellationToken = default);
+
+    Task<Stream> OpenRevisionContentAsync(
+        string artifactId,
+        string revisionId,
+        CancellationToken cancellationToken = default);
 }

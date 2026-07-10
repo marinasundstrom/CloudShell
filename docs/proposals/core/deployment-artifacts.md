@@ -131,6 +131,36 @@ Docker build context, or other package means. The resource provider validates
 the artifact layout for its resource type and decides whether it builds,
 copies, extracts, runs, or rejects that artifact.
 
+## Provider Validation
+
+The Control Plane artifact store validates generic storage concerns:
+
+- whether artifact upload is enabled
+- allowed package kinds
+- maximum upload size
+- upload session expiry
+- content hash
+- safe staging and revision identity
+
+Resource providers validate deployment meaning. A provider that accepts a
+deployment artifact should be able to inspect the committed artifact stream and
+return resource-definition diagnostics before a resource definition that
+references the artifact is accepted. Examples:
+
+- a .NET web app provider checks for a project file, published output, entry
+  assembly, or provider-supported package layout
+- a Java provider checks for a JAR, classpath layout, Maven or Gradle project,
+  or expected main-class metadata
+- a Python provider checks for an entry module, script, requirements file, or
+  supported web server convention
+- a container app provider checks for a Dockerfile, OCI image reference, or
+  build context shape when that mode is supported
+
+Provider validation should return the same diagnostic shape Resource Manager
+already shows for resource-definition validation in the create/edit workflow.
+The generic artifact store must not decide that one package layout is valid
+for every resource type.
+
 ## Project Resources and Hosted App Resources
 
 The existing project resource types, such as
@@ -253,7 +283,7 @@ sequenceDiagram
     CP->>Store: Commit artifact revision
     CP->>UI: Artifact revision reference
     UI->>CP: Apply ResourceDefinition with artifact revision
-    CP->>Provider: Validate and accept deployment artifact
+    CP->>Provider: Validate artifact layout and accept deployment artifact
     UI->>CP: Optional Start, Restart, or Deploy
     Provider->>Runtime: Materialize accepted revision
 ```
@@ -372,17 +402,19 @@ Resource providers that support uploaded deployment artifacts should document:
    lookup, validation, and cleanup semantics.
 3. Project upload APIs through the Control Plane HTTP surface and remote
    client.
-4. Add a common deployment artifact descriptor shape with Control Plane
+4. Add a provider validation hook that can inspect committed artifact content
+   before accepting a ResourceDefinition update.
+5. Add a common deployment artifact descriptor shape with Control Plane
    validation for `localPath` host mode and host-path authoring permission.
-5. Support
+6. Support
    `uploadedArtifact` for one narrow provider, preferably Python or executable
    applications because their runtime mapping is simpler than ASP.NET Core
    build semantics.
-6. Add Resource Manager create/edit deployment mode UI that can use local
+7. Add Resource Manager create/edit deployment mode UI that can use local
    source mode or uploaded deployment artifact mode.
-7. Add start/restart-after-update workflow wiring while keeping upload,
+8. Add start/restart-after-update workflow wiring while keeping upload,
    apply, and lifecycle actions distinct.
-8. Extend the model to .NET web apps, JavaScript, Java, Go, Python, and
+9. Extend the model to .NET web apps, JavaScript, Java, Go, Python, and
    container app deployment artifacts after the first provider proves the
    contract.
 
