@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -38,6 +39,10 @@ public static class JavaScriptAppResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceChangeApplyProvider, JavaScriptAppResourceTypeProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionApplyProvider, JavaScriptAppResourceTypeProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IDeploymentArtifactLayoutProvider, JavaScriptAppArtifactLayoutProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IDeploymentArtifactValidationProvider, ApplicationArtifactValidationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceCapabilityProvider, VolumeConsumerCapabilityProvider>());
         services.TryAddEnumerable(

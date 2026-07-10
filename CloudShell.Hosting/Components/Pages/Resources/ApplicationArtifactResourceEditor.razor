@@ -1,0 +1,631 @@
+@using System.Text.Json
+@using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource
+@using CloudShell.ResourceModel
+@inject IDeploymentArtifactManager Artifacts
+@inject IResourceTemplateManager Templates
+@inject IResourceManager ResourceManager
+@inject NavigationManager Navigation
+
+@if (IsCreateMode)
+{
+    <div class="type-registration">
+        <FormPanel>
+            <ResourceIdentityFields ResourceIdInputId="@($"{EditorId}-resource-id")"
+                                    ResourceIdPlaceholder="api"
+                                    @bind-ResourceId="ResourceIdInput" />
+
+            <ResourceGroupSelect Id="@($"{EditorId}-group")"
+                                 ResourceGroups="ResourceGroups"
+                                 @bind-Value="SelectedGroupId" />
+
+            @UploadFields()
+
+            @if (StatusMessage is not null)
+            {
+                <ProcedureMessage Compact="true">@StatusMessage</ProcedureMessage>
+            }
+
+            @if (ErrorMessage is not null)
+            {
+                <div class="provider-error">@ErrorMessage</div>
+            }
+
+            @if (ValidationSignals.Count > 0)
+            {
+                <ResourceProcedureSignals Signals="ValidationSignals" />
+            }
+
+            <FormPrimaryAction IconStart="@(new Icons.Regular.Size20.AddCircle())"
+                               Text="@(IsBusy ? "Uploading" : "Create")"
+                               Disabled="@(!CanSubmitCreate)"
+                               OnClick="CreateResourceAsync" />
+        </FormPanel>
+    </div>
+}
+else if (ExistingResource is null)
+{
+    <EmptyState Title="Resource unavailable"
+                Message="The resource may have been removed or is no longer visible." />
+}
+else if (!CanEditExistingResource)
+{
+    <ProcedureMessage Severity="ResourceSignalSeverity.Info">
+        This resource was declared by a launcher, graph builder, or host-owned resource graph. Its application source is read-only in Resource Manager.
+    </ProcedureMessage>
+    <FormPanel>
+        <ResourceEditorSection Title="Current source">
+            <dl class="resource-summary-grid">
+                <dt>Source kind</dt>
+                <dd>@GetCurrentSourceKind()</dd>
+                <dt>Artifacts enabled</dt>
+                <dd>@GetCurrentArtifactsEnabled()</dd>
+                <dt>Artifact</dt>
+                <dd>@GetCurrentArtifactLabel()</dd>
+                <dt>Project path</dt>
+                <dd>@GetAttribute(ResourceAttributeNames.ProjectPath, "not projected")</dd>
+            </dl>
+        </ResourceEditorSection>
+    </FormPanel>
+}
+else
+{
+    <div class="type-registration">
+        <FormPanel>
+            <ResourceEditorSection Title="Current artifact">
+                <dl class="resource-summary-grid">
+                    <dt>Source kind</dt>
+                    <dd>@GetCurrentSourceKind()</dd>
+                    <dt>Artifacts enabled</dt>
+                    <dd>@GetCurrentArtifactsEnabled()</dd>
+                    <dt>Artifact</dt>
+                    <dd>@GetCurrentArtifactLabel()</dd>
+                </dl>
+            </ResourceEditorSection>
+
+            @UploadFields()
+
+            @if (StatusMessage is not null)
+            {
+                <ProcedureMessage Compact="true">@StatusMessage</ProcedureMessage>
+            }
+
+            @if (ErrorMessage is not null)
+            {
+                <div class="provider-error">@ErrorMessage</div>
+            }
+
+            @if (ValidationSignals.Count > 0)
+            {
+                <ResourceProcedureSignals Signals="ValidationSignals" />
+            }
+        </FormPanel>
+    </div>
+}
+
+@code {
+    private const long BrowserFileOpenLimit = 1024L * 1024L * 1024L;
+    private const string ResourceModelProviderId = "resource-model";
+    private const string SourceOwnerAttribute = ResourceAttributeNames.ApplicationSourceOwner;
+    private const string SourceKindAttribute = ResourceAttributeNames.ApplicationSourceKind;
+    private const string ArtifactsEnabledAttribute = ResourceAttributeNames.ArtifactsEnabled;
+    private const string ArtifactsSourceAttribute = ResourceAttributeNames.ArtifactsSource;
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    [CascadingParameter]
+    public ResourceTypeContribution? ResourceType { get; set; }
+
+    [CascadingParameter]
+    public ResourceRegistrationNavigationContext? RegistrationNavigation { get; set; }
+
+    [CascadingParameter]
+    public ResourceConfigurationContext? Configuration { get; set; }
+
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private string EditorId => IsCreateMode ? "application-artifact-create" : "application-artifact-update";
+    private bool IsCreateMode => string.IsNullOrWhiteSpace(ResourceId);
+    private string? EffectiveResourceTypeId => IsCreateMode
+        ? ResourceType?.Id
+        : ExistingResource?.EffectiveTypeId;
+
+    private ResourceManagerResource? ExistingResource { get; set; }
+    private ResourceGroup? ExistingResourceGroup { get; set; }
+    private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
+    private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
+    private IReadOnlyList<DeploymentArtifactLayoutDescriptor> Layouts { get; set; } = [];
+    private DeploymentArtifactStoreStatus? StoreStatus { get; set; }
+    private IBrowserFile? SelectedFile { get; set; }
+    private string ResourceIdInput { get; set; } = string.Empty;
+    private string NameInput { get; set; } = string.Empty;
+    private string SelectedGroupId { get; set; } = string.Empty;
+    private string SelectedLayoutKind { get; set; } = string.Empty;
+    private string SelectedPackageKind { get; set; } = string.Empty;
+    private string EntryPath { get; set; } = ".";
+    private string? StatusMessage { get; set; }
+    private string? ErrorMessage { get; set; }
+    private IReadOnlyList<ResourceProcedureSignal> ValidationSignals { get; set; } = [];
+    private bool IsBusy { get; set; }
+
+    private bool CanEditExistingResource =>
+        ExistingResource is not null &&
+        string.Equals(
+            ExistingResource.ResourceAttributes.GetValueOrDefault(SourceOwnerAttribute),
+            ApplicationArtifactAttributeIds.ResourceManagerUiSourceOwner,
+            StringComparison.OrdinalIgnoreCase);
+
+    private bool CanSubmitCreate =>
+        !IsBusy &&
+        StoreStatus?.IsEnabled == true &&
+        !string.IsNullOrWhiteSpace(ResourceIdInput) &&
+        !string.IsNullOrWhiteSpace(EffectiveResourceTypeId) &&
+        Layouts.Count > 0;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
+
+        if (!IsCreateMode && !string.IsNullOrWhiteSpace(ResourceId))
+        {
+            ExistingResource = await ResourceManager.GetResourceAsync(ResourceId);
+            ExistingResourceGroup = ExistingResource is null
+                ? null
+                : await ResourceManager.GetResourceGroupForResourceAsync(ExistingResource.Id);
+            SelectedGroupId = ExistingResourceGroup?.Id ?? string.Empty;
+        }
+
+        await LoadArtifactOptionsAsync();
+
+        if (Configuration is not null &&
+            CanEditExistingResource &&
+            !ReferenceEquals(Configuration, RegisteredConfiguration))
+        {
+            Configuration.SetApplyHandler(ApplyExistingResourceAsync);
+            RegisteredConfiguration = Configuration;
+        }
+    }
+
+    private async Task LoadArtifactOptionsAsync()
+    {
+        var resourceTypeId = EffectiveResourceTypeId;
+        if (string.IsNullOrWhiteSpace(resourceTypeId))
+        {
+            return;
+        }
+
+        var resourceId = ResolveResourceIdForArtifactScope();
+        StoreStatus = await Artifacts.GetDeploymentArtifactStoreStatusAsync(resourceId);
+        Layouts = await Artifacts.ListDeploymentArtifactLayoutsAsync(
+            resourceId,
+            new DeploymentArtifactLayoutQuery(resourceTypeId));
+
+        var selectedLayout = Layouts.FirstOrDefault(layout =>
+            string.Equals(layout.Kind, SelectedLayoutKind, StringComparison.OrdinalIgnoreCase)) ??
+            Layouts.FirstOrDefault();
+        SelectedLayoutKind = selectedLayout?.Kind ?? string.Empty;
+        SelectedPackageKind = selectedLayout?.DefaultPackageKind ??
+            selectedLayout?.PackageKinds.FirstOrDefault() ??
+            StoreStatus?.AllowedPackageKinds.FirstOrDefault() ??
+            string.Empty;
+        EntryPath = string.IsNullOrWhiteSpace(selectedLayout?.DefaultEntryPath)
+            ? "."
+            : selectedLayout.DefaultEntryPath;
+    }
+
+    private RenderFragment UploadFields() => @<text>
+        @if (StoreStatus?.IsEnabled != true)
+        {
+            <ProcedureMessage Severity="ResourceSignalSeverity.Warning">
+                Application artifact upload is not enabled for this Control Plane host.
+            </ProcedureMessage>
+        }
+        else if (Layouts.Count == 0)
+        {
+            <ProcedureMessage Severity="ResourceSignalSeverity.Warning">
+                This resource type does not announce supported application artifact layouts.
+            </ProcedureMessage>
+        }
+        else
+        {
+            @if (IsCreateMode)
+            {
+                <label for="@($"{EditorId}-name")">Display name</label>
+                <FluentTextField Id="@($"{EditorId}-name")" @bind-Value="NameInput" Placeholder="API" />
+            }
+
+            <label for="@($"{EditorId}-layout")">Artifact layout</label>
+            <FluentSelect TOption="string"
+                          Id="@($"{EditorId}-layout")"
+                          @bind-Value="SelectedLayoutKind"
+                          Appearance="Appearance.Outline">
+                @foreach (var artifactLayout in Layouts)
+                {
+                    <FluentOption TOption="string" Value="@artifactLayout.Kind">@artifactLayout.DisplayName</FluentOption>
+                }
+            </FluentSelect>
+
+            <label for="@($"{EditorId}-package")">Package kind</label>
+            <FluentSelect TOption="string"
+                          Id="@($"{EditorId}-package")"
+                          @bind-Value="SelectedPackageKind"
+                          Appearance="Appearance.Outline">
+                @foreach (var packageKind in GetSelectedLayoutPackageKinds())
+                {
+                    <FluentOption TOption="string" Value="@packageKind">@packageKind</FluentOption>
+                }
+            </FluentSelect>
+
+            <label for="@($"{EditorId}-entry")">Entry path</label>
+            <FluentTextField Id="@($"{EditorId}-entry")" @bind-Value="EntryPath" Placeholder="." />
+
+            <label for="@($"{EditorId}-file")">Package</label>
+            <InputFile id="@($"{EditorId}-file")" OnChange="SelectFile" />
+            @if (SelectedFile is not null)
+            {
+                <small>@SelectedFile.Name (@SelectedFile.Size bytes)</small>
+            }
+        }
+    </text>;
+
+    private void SelectFile(InputFileChangeEventArgs args)
+    {
+        SelectedFile = args.File;
+        ErrorMessage = null;
+        StatusMessage = null;
+        ValidationSignals = [];
+    }
+
+    private async Task CreateResourceAsync()
+    {
+        if (!CanSubmitCreate)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            var resourceId = ResourceNameNormalizer.Normalize(ResourceIdInput, "app");
+            var resourceName = string.IsNullOrWhiteSpace(NameInput)
+                ? ResourceDisplayNameDefaults.Resolve(ResourceIdInput)
+                : NameInput.Trim();
+            var revision = SelectedFile is null
+                ? null
+                : await UploadAndValidateAsync(resourceId, resourceName);
+            if (SelectedFile is not null && revision is null)
+            {
+                return;
+            }
+
+            var template = CreateTemplate(
+                resourceId,
+                resourceName,
+                revision);
+            var result = await Templates.ApplyResourceTemplateAsync(
+                new ResourceTemplateApplyRequest(template, ResourceDefinitionApplyMode.CreateOnly));
+            ValidationSignals = ToSignals(result.Diagnostics);
+            if (result.HasErrors || !result.IsCommitted)
+            {
+                ErrorMessage = "Application resource was not created.";
+                return;
+            }
+
+            StatusMessage = revision is null
+                ? "Application resource created. Upload an artifact before starting it."
+                : $"Application resource created with artifact revision {revision.RevisionId}.";
+            Navigation.NavigateTo(
+                RegistrationNavigation?.GetReturnUrlOrDefault() ??
+                $"/resources/{Uri.EscapeDataString(resourceId)}");
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            ErrorMessage = exception.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task<ResourceProcedureResult> ApplyExistingResourceAsync(CancellationToken cancellationToken)
+    {
+        if (ExistingResource is null)
+        {
+            return ResourceProcedureResult.Completed("Application resource is unavailable.");
+        }
+
+        if (!CanEditExistingResource)
+        {
+            return new ResourceProcedureResult(
+                "Application source is read-only for this resource.",
+                signals:
+                [
+                    ResourceProcedureSignal.Warning(
+                        "Resources declared by launchers, graph builders, or the host cannot change source artifacts from Resource Manager.")
+                ]);
+        }
+
+        if (SelectedFile is null)
+        {
+            return ResourceProcedureResult.Completed("Select an application artifact package before applying.");
+        }
+
+        IsBusy = true;
+        try
+        {
+            var revision = await UploadAndValidateAsync(
+                ExistingResource.Id,
+                ExistingResource.Name,
+                cancellationToken);
+            if (revision is null)
+            {
+                return new ResourceProcedureResult(
+                    "Application artifact validation failed.",
+                    signals: ValidationSignals);
+            }
+
+            var template = CreateTemplate(
+                ExistingResource.Id,
+                ExistingResource.DisplayName ?? ExistingResource.Name,
+                revision,
+                ExistingResource);
+            var result = await Templates.ApplyResourceTemplateAsync(
+                new ResourceTemplateApplyRequest(template, ResourceDefinitionApplyMode.UpdateExisting),
+                cancellationToken);
+            var signals = ToSignals(result.Diagnostics);
+            return result.HasErrors || !result.IsCommitted
+                ? new ResourceProcedureResult("Application artifact was not accepted.", signals: signals)
+                : ResourceProcedureResult.CompletedWithRestartRequired(
+                    "Application artifact accepted.",
+                    ExistingResource.Id,
+                    "Restart the resource to materialize the accepted artifact revision.") with
+                    {
+                        Signals = signals
+                    };
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return new ResourceProcedureResult(
+                $"Application artifact update failed: {exception.Message}",
+                signals: [ResourceProcedureSignal.Error(exception.Message)]);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task<DeploymentArtifactRevision?> UploadAndValidateAsync(
+        string resourceId,
+        string resourceName,
+        CancellationToken cancellationToken = default)
+    {
+        if (SelectedFile is null || string.IsNullOrWhiteSpace(EffectiveResourceTypeId))
+        {
+            ErrorMessage = "Select an application artifact package.";
+            return null;
+        }
+
+        var layout = GetSelectedLayout();
+        if (layout is null)
+        {
+            ErrorMessage = "Select an artifact layout.";
+            return null;
+        }
+
+        StatusMessage = "Uploading application artifact...";
+        ErrorMessage = null;
+        ValidationSignals = [];
+        var upload = await Artifacts.CreateDeploymentArtifactUploadSessionAsync(
+            new CreateDeploymentArtifactUploadSessionCommand(
+                EffectiveResourceTypeId,
+                resourceName,
+                SelectedPackageKind,
+                SelectedFile.Name,
+                SelectedFile.Size,
+                ArtifactLayoutKind: layout.Kind,
+                ResourceId: resourceId),
+            cancellationToken);
+
+        await using var stream = SelectedFile.OpenReadStream(GetMaxUploadBytes(), cancellationToken);
+        await Artifacts.UploadDeploymentArtifactContentAsync(
+            resourceId,
+            upload.UploadId,
+            stream,
+            cancellationToken);
+        var revision = await Artifacts.CompleteDeploymentArtifactUploadAsync(
+            resourceId,
+            new CompleteDeploymentArtifactUploadCommand(upload.UploadId),
+            cancellationToken);
+
+        StatusMessage = "Validating application artifact...";
+        var validation = await Artifacts.ValidateDeploymentArtifactAsync(
+            resourceId,
+            new ValidateDeploymentArtifactCommand(
+                EffectiveResourceTypeId,
+                resourceName,
+                revision.ArtifactId,
+                revision.RevisionId,
+                NormalizeNullable(EntryPath),
+                layout.Kind),
+            cancellationToken);
+        ValidationSignals = ToSignals(validation.Diagnostics);
+        if (validation.HasErrors)
+        {
+            ErrorMessage = "Application artifact validation failed.";
+            return null;
+        }
+
+        StatusMessage = $"Accepted artifact revision {revision.RevisionId}.";
+        return revision;
+    }
+
+    private ResourceTemplate CreateTemplate(
+        string resourceId,
+        string resourceName,
+        DeploymentArtifactRevision? revision,
+        ResourceManagerResource? existingResource = null)
+    {
+        var attributes = existingResource is null
+            ? new Dictionary<ResourceAttributeId, ResourceAttributeValue>()
+            : ParseProjectedAttributes(existingResource);
+        attributes[ApplicationArtifactAttributeIds.SourceKind] =
+            ResourceAttributeValue.String(DeploymentArtifactSourceKinds.UploadedArtifact);
+        attributes[ApplicationArtifactAttributeIds.SourceOwner] =
+            ResourceAttributeValue.String(ApplicationArtifactAttributeIds.ResourceManagerUiSourceOwner);
+        attributes[ApplicationArtifactAttributeIds.Enabled] =
+            ResourceAttributeValue.Boolean(true);
+        if (revision is not null)
+        {
+            attributes[ApplicationArtifactAttributeIds.Source] =
+                ResourceAttributeValue.FromObject(
+                    ApplicationArtifactReference.FromRevision(
+                        revision,
+                        NormalizeNullable(EntryPath)));
+        }
+
+        var template = new ResourceTemplate(
+            $"application-artifact:{resourceId}",
+            [
+                new ResourceDefinition(
+                    resourceName,
+                    EffectiveResourceTypeId!,
+                    resourceId,
+                    GetProviderId(EffectiveResourceTypeId!),
+                    resourceName,
+                    Attributes: new ResourceAttributeValueMap(attributes))
+            ],
+            Metadata: string.IsNullOrWhiteSpace(SelectedGroupId)
+                ? null
+                : new Dictionary<string, string> { ["resourceGroup.id"] = SelectedGroupId });
+        return template;
+    }
+
+    private Dictionary<ResourceAttributeId, ResourceAttributeValue> ParseProjectedAttributes(ResourceManagerResource resource)
+    {
+        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>();
+        foreach (var (name, value) in resource.ResourceAttributes)
+        {
+            if (IsProjectionOnlyAttribute(name))
+            {
+                continue;
+            }
+
+            var attributeId = ResourceAttributeId.Create(name);
+            attributes[attributeId] = TryParseAttributeValue(value, out var parsed)
+                ? parsed
+                : ResourceAttributeValue.String(value);
+        }
+
+        return attributes;
+    }
+
+    private static bool TryParseAttributeValue(
+        string value,
+        out ResourceAttributeValue attribute)
+    {
+        attribute = null!;
+        if (string.IsNullOrWhiteSpace(value) ||
+            value[0] is not ('{' or '['))
+        {
+            return false;
+        }
+
+        try
+        {
+            attribute = JsonSerializer.Deserialize<ResourceAttributeValue>(value, JsonOptions)!;
+            return attribute is not null;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsProjectionOnlyAttribute(string name) =>
+        string.Equals(name, ResourceAttributeNames.ResourceGraphMembership, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(name, ResourceAttributeNames.DeclarationPersistence, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(name, ResourceAttributeNames.DeclarationOverwritePersistedState, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(name, "resourceModel.bridgeProviderId", StringComparison.OrdinalIgnoreCase);
+
+    private IReadOnlyList<string> GetSelectedLayoutPackageKinds()
+    {
+        var layout = GetSelectedLayout();
+        return layout?.PackageKinds.Count > 0
+            ? layout.PackageKinds
+            : StoreStatus?.AllowedPackageKinds ?? [];
+    }
+
+    private DeploymentArtifactLayoutDescriptor? GetSelectedLayout() =>
+        Layouts.FirstOrDefault(layout =>
+            string.Equals(layout.Kind, SelectedLayoutKind, StringComparison.OrdinalIgnoreCase)) ??
+        Layouts.FirstOrDefault();
+
+    private string ResolveResourceIdForArtifactScope() =>
+        IsCreateMode
+            ? string.IsNullOrWhiteSpace(ResourceIdInput)
+                ? "__new__"
+                : ResourceNameNormalizer.Normalize(ResourceIdInput, "app")
+            : ExistingResource?.Id ?? ResourceId ?? "__missing__";
+
+    private long GetMaxUploadBytes() =>
+        StoreStatus is { MaxUploadBytes: > 0 } status
+            ? Math.Min(status.MaxUploadBytes, BrowserFileOpenLimit)
+            : BrowserFileOpenLimit;
+
+    private static IReadOnlyList<ResourceProcedureSignal> ToSignals(
+        IReadOnlyList<ResourceDefinitionDiagnostic> diagnostics) =>
+        diagnostics
+            .Select(diagnostic => new ResourceProcedureSignal(
+                ToSignalSeverity(diagnostic.Severity),
+                diagnostic.Message))
+            .ToArray();
+
+    private static ResourceSignalSeverity ToSignalSeverity(ResourceDefinitionDiagnosticSeverity severity) =>
+        severity switch
+        {
+            ResourceDefinitionDiagnosticSeverity.Error => ResourceSignalSeverity.Error,
+            ResourceDefinitionDiagnosticSeverity.Warning => ResourceSignalSeverity.Warning,
+            _ => ResourceSignalSeverity.Info
+        };
+
+    private string GetCurrentSourceKind() =>
+        GetAttribute(SourceKindAttribute, "localPath");
+
+    private string GetCurrentArtifactsEnabled() =>
+        GetAttribute(ArtifactsEnabledAttribute, "false");
+
+    private string GetCurrentArtifactLabel()
+    {
+        var artifact = ExistingResource?.ResourceAttributes.GetValueOrDefault(ArtifactsSourceAttribute);
+        if (string.IsNullOrWhiteSpace(artifact))
+        {
+            return "none";
+        }
+
+        return TryParseAttributeValue(artifact, out var value)
+            ? value.ToObject<ApplicationArtifactReference>() is { } reference
+                ? $"{reference.ArtifactId} / {reference.RevisionId}"
+                : "not projected"
+            : artifact;
+    }
+
+    private string GetAttribute(string name, string fallback) =>
+        ExistingResource?.ResourceAttributes.GetValueOrDefault(name) ?? fallback;
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string GetProviderId(string resourceTypeId) =>
+        resourceTypeId switch
+        {
+            "application.aspnet-core-project" => "applications.aspnet-core-project",
+            "application.python-app" => "applications.python-app",
+            "application.java-app" => "applications.java-app",
+            "application.javascript-app" => "applications.javascript-app",
+            "application.go-app" => "applications.go-app",
+            _ => ResourceModelProviderId
+        };
+
+}

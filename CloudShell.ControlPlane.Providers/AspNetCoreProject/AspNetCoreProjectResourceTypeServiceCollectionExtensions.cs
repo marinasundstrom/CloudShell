@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -40,6 +41,10 @@ public static class AspNetCoreProjectResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceChangeApplyProvider, AspNetCoreProjectResourceTypeProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionApplyProvider, AspNetCoreProjectResourceTypeProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IDeploymentArtifactLayoutProvider, AspNetCoreProjectArtifactLayoutProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IDeploymentArtifactValidationProvider, ApplicationArtifactValidationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceCapabilityProvider, VolumeConsumerCapabilityProvider>());
         services.TryAddEnumerable(

@@ -1,3 +1,5 @@
+using CloudShell.Abstractions.ResourceManager;
+
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class JavaAppResourceTypeProvider :
@@ -44,9 +46,15 @@ public sealed class JavaAppResourceTypeProvider :
         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
         {
             [Attributes.ProjectPath] = new(
-                Required: true,
-                RequiredMessage: "Java app project path is required.",
                 ValueType: ResourceAttributeValueType.String),
+            [ApplicationArtifactAttributeIds.SourceKind] = new(
+                ValueType: ResourceAttributeValueType.String),
+            [ApplicationArtifactAttributeIds.SourceOwner] = new(
+                ValueType: ResourceAttributeValueType.String),
+            [ApplicationArtifactAttributeIds.Enabled] = new(
+                ValueType: ResourceAttributeValueType.Boolean),
+            [ApplicationArtifactAttributeIds.Source] = new(
+                ValueType: ResourceAttributeValueType.ComplexType),
             [Attributes.Command] = new(
                 DefaultValue: "java",
                 ValueType: ResourceAttributeValueType.String),
@@ -102,16 +110,19 @@ public sealed class JavaAppResourceTypeProvider :
         CancellationToken cancellationToken = default)
     {
         var diagnostics = new List<ResourceDefinitionDiagnostic>();
-        ValidateProjectPath(
-            resource.Attributes.GetString(Attributes.ProjectPath),
+        ValidateSource(
+            resource.Attributes,
             diagnostics);
-        ValidateLaunchTarget(
-            resource.Attributes.GetString(Attributes.ArtifactPath),
-            resource.Attributes.GetString(Attributes.MainClass),
-            diagnostics);
-        ValidateBuildTool(
-            resource.Attributes.GetString(Attributes.BuildTool),
-            diagnostics);
+        if (!ApplicationArtifactResourceValidation.UsesUploadedArtifact(resource.Attributes))
+        {
+            ValidateLaunchTarget(
+                resource.Attributes.GetString(Attributes.ArtifactPath),
+                resource.Attributes.GetString(Attributes.MainClass),
+                diagnostics);
+            ValidateBuildTool(
+                resource.Attributes.GetString(Attributes.BuildTool),
+                diagnostics);
+        }
 
         return ValueTask.FromResult(
             ResourceDefinitionValidationResult.FromDiagnostics(diagnostics));
@@ -126,16 +137,19 @@ public sealed class JavaAppResourceTypeProvider :
         CancellationToken cancellationToken = default)
     {
         var diagnostics = new List<ResourceDefinitionDiagnostic>(changes.Diagnostics);
-        ValidateProjectPath(
-            changes.ProposedState.ResourceAttributes.GetValueOrDefault(Attributes.ProjectPath),
+        ValidateSource(
+            changes.ProposedState.ResourceAttributeValues,
             diagnostics);
-        ValidateLaunchTarget(
-            changes.ProposedState.ResourceAttributes.GetValueOrDefault(Attributes.ArtifactPath),
-            changes.ProposedState.ResourceAttributes.GetValueOrDefault(Attributes.MainClass),
-            diagnostics);
-        ValidateBuildTool(
-            changes.ProposedState.ResourceAttributes.GetValueOrDefault(Attributes.BuildTool),
-            diagnostics);
+        if (!ApplicationArtifactResourceValidation.UsesUploadedArtifact(changes.ProposedState.ResourceAttributeValues))
+        {
+            ValidateLaunchTarget(
+                changes.ProposedState.ResourceAttributes.GetValueOrDefault(Attributes.ArtifactPath),
+                changes.ProposedState.ResourceAttributes.GetValueOrDefault(Attributes.MainClass),
+                diagnostics);
+            ValidateBuildTool(
+                changes.ProposedState.ResourceAttributes.GetValueOrDefault(Attributes.BuildTool),
+                diagnostics);
+        }
 
         return ValueTask.FromResult(diagnostics.Any(diagnostic =>
             diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Error)
@@ -167,18 +181,25 @@ public sealed class JavaAppResourceTypeProvider :
             ],
             []));
 
-    private static void ValidateProjectPath(
-        string? projectPath,
-        List<ResourceDefinitionDiagnostic> diagnostics)
-    {
-        if (string.IsNullOrWhiteSpace(projectPath))
-        {
-            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                "application.javaApp.pathRequired",
-                "Java app project path is required.",
-                Attributes.ProjectPath));
-        }
-    }
+    private static void ValidateSource(
+        ResourceAttributeSet attributes,
+        List<ResourceDefinitionDiagnostic> diagnostics) =>
+        ApplicationArtifactResourceValidation.ValidateSource(
+            attributes,
+            Attributes.ProjectPath,
+            "application.javaApp.pathRequired",
+            "Java app project path is required.",
+            diagnostics);
+
+    private static void ValidateSource(
+        ResourceAttributeValueMap attributes,
+        List<ResourceDefinitionDiagnostic> diagnostics) =>
+        ApplicationArtifactResourceValidation.ValidateSource(
+            attributes,
+            Attributes.ProjectPath,
+            "application.javaApp.pathRequired",
+            "Java app project path is required.",
+            diagnostics);
 
     private static void ValidateLaunchTarget(
         string? artifactPath,

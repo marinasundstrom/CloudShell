@@ -10,8 +10,9 @@
   [ResourceDefinition structure](../../resource-definition-structure.md),
   [Resource model providers](../../resource-model-providers.md), and
   [Orchestration and Deployments](../../orchestration-and-deployments.md).
-- Remaining action: Wire one application resource provider and the Resource
-  Manager create/edit UI to the landed resource-scoped artifact upload API.
+- Remaining action: Add runtime materialization for accepted application
+  artifact revisions, enforce host-path permissions for local source mode, and
+  add future artifact-source download/pull transfer modes.
 - Out of scope: general object storage, source control hosting, CI systems,
   public rollout history, and provider-native deployment package formats.
 
@@ -29,9 +30,10 @@ CloudShell should store deployment artifacts and expose stable artifact
 revision references while keeping the physical artifact store behind Control
 Plane host configuration. The resource definition should choose either local
 source mode or deployment-artifact mode. In deployment-artifact mode, the
-definition references an accepted artifact revision. The resource provider,
-not the generic artifact store, owns what that artifact means and how it is
-materialized during start, restart, or deployment.
+definition carries an allocation flag for the host-managed artifact/data folder
+and may optionally reference the currently accepted artifact revision. The
+resource provider, not the generic artifact store, owns what that artifact
+means and how it is materialized during start, restart, or deployment.
 
 The public route shape is resource-scoped and uses `/resources/{resourceId}/artifacts/...`.
 The current contracts still use deployment-artifact names internally. A later
@@ -106,7 +108,8 @@ modes for resource types that support both:
 | Mode | Meaning | Normal authoring surface |
 | --- | --- | --- |
 | Local source | The runtime host can read source, project, script, or build files directly from a path. The provider owns the path fields and local runner behavior. | Programmatic declarations, launchers, local-development host profiles, or trusted host-path automation. |
-| Deployment artifact | The caller provides package bytes or another deployment input through a Control Plane artifact flow. The resource stores an accepted artifact revision reference. The provider owns artifact interpretation and materialization. | Resource Manager create/edit UI, remote clients, hosted/team-owned environments, and automation that cannot rely on host-local paths. |
+| Application artifact | The resource activates host-managed artifact/data-folder allocation. The caller may provide package bytes through a Control Plane artifact upload flow, and the resource stores an accepted artifact revision reference when one exists. The provider owns artifact interpretation and materialization. | Resource Manager create/edit UI, remote clients, hosted/team-owned environments, and automation that cannot rely on host-local paths. |
+| External artifact source | The provider or Control Plane can later download or pull application artifacts from a supported source into a supported host target. | Future source-control, object-store, registry, or CI artifact integrations. |
 
 A resource type may support both modes, but a single resource definition should
 select one. For example, a .NET web app resource might run from a local
@@ -131,7 +134,7 @@ mode or when the current actor has permission to reference files on that host.
 In a shared or hosted environment, ordinary application editors should use
 `uploadedArtifact`, `git`, or `containerImage` instead of host paths.
 
-`uploadedArtifact` is the first deployment-artifact kind this proposal targets.
+`uploadedArtifact` is the first application-artifact kind this proposal targets.
 The store does not define what a ZIP, tarball, JAR, DLL, static-site bundle,
 Docker build context, or other package means. The package kind describes the
 container format, such as `zip` or `tar.gz`; the artifact layout kind describes
@@ -139,6 +142,20 @@ provider-owned meaning, such as a .NET published output package or a .NET
 source project directory. The resource provider validates the artifact layout
 for its resource type and decides whether it builds, copies, extracts, runs, or
 rejects that artifact.
+
+An artifact-mode resource can exist before the first artifact upload. That
+state is useful because the Control Plane can allocate the resource artifact
+folder and Resource Manager can later upload a replacement package through the
+same resource-scoped API. The resource definition is valid, but lifecycle
+operations that need runnable application bytes must fail or report not-ready
+until a valid artifact revision has been accepted.
+
+The common resource attributes for this mode are:
+
+- `artifacts.enabled`: `true` when the resource uses a host-managed artifact or
+  data folder instead of a provider-owned local source path.
+- `artifacts.source`: optional current artifact source reference, populated
+  after an artifact revision has been uploaded, validated, and accepted.
 
 ## Package Kind and Artifact Layout
 
@@ -250,7 +267,9 @@ materialize that revision on the runtime host.
 ## Artifact Store Configuration
 
 The artifact store is configured by the Control Plane host. It is not part of
-the application resource definition.
+the application resource definition and it is not entered in the Resource
+Manager UI. In uploaded-artifact mode, the host-provided store location is the
+direct upload target behind the Control Plane artifact API.
 
 An initial filesystem-backed configuration could look like:
 
@@ -281,21 +300,26 @@ then enable or disable upload UI without knowing the concrete store path.
 
 ## ResourceDefinition Shape
 
-The resource definition should carry only the selected mode and deployment
-artifact reference, not the store location. A sketch:
+The resource definition should carry only the selected mode, the host-managed
+artifact allocation flag, and optional deployment artifact reference, not the
+store location. A sketch:
 
 ```yaml
 resources:
   - type: application.python-app
     name: api
-    deployment:
-      mode: artifact
-      artifactKind: uploadedArtifact
-      artifactRevision: deployment-artifact:api/revisions/20260711T120000Z
-      packageKind: zip
-      artifactLayoutKind: pythonSourceDirectory
-      contentSha256: 4f6b...
-      entryPath: .
+    attributes:
+      application.source.kind: uploadedArtifact
+      application.source.owner: resource-manager-ui
+      artifacts.enabled: true
+      artifacts.source:
+        artifactId: artifact-api
+        revisionId: 20260711T120000Z
+        packageKind: zip
+        artifactLayoutKind: pythonSourceDirectory
+        contentSha256: 4f6b...
+        sizeBytes: 20480
+        entryPath: .
     python:
       module: app
     endpoints:
@@ -303,9 +327,22 @@ resources:
         targetPort: 8000
 ```
 
-The exact field placement may remain provider-owned while the common artifact
-reference is being proven. The important contract is that the resource points
-to an artifact revision identity accepted by the Control Plane, not to
+Before the first upload, the same artifact-mode resource can omit
+`artifacts.source`:
+
+```yaml
+resources:
+  - type: application.python-app
+    name: api
+    attributes:
+      application.source.kind: uploadedArtifact
+      application.source.owner: resource-manager-ui
+      artifacts.enabled: true
+```
+
+The exact provider-specific fields can evolve while the common artifact
+reference is being proven. The important contract is that `artifacts.source`
+points to an artifact revision identity accepted by the Control Plane, not to
 `Data/deployment-artifacts/...`.
 
 For app resources such as future .NET web apps or hosted Python apps, the
@@ -313,9 +350,12 @@ deployment descriptor chooses the mode:
 
 - local source mode uses provider-owned path fields, such as project path,
   script path, or working directory
-- deployment artifact mode gives the provider an artifact revision and optional
-  artifact layout and entry path from which type-specific build or run settings
-  are resolved
+- application artifact mode gives the provider an artifact revision and
+  optional artifact layout and entry path when an artifact has been accepted;
+  the physical host storage path remains Control Plane-owned
+- external artifact source mode is deferred and will describe where the host
+  can download or pull artifacts from before storing them in a supported host
+  target
 
 ## Upload API Flow
 
@@ -421,6 +461,12 @@ section:
 The UI should call domain/API operations. It should not inspect or write the
 artifact store path directly, even in a combined host.
 
+For resources declared by launchers or host graph builders, source settings are
+host-owned. Resource Manager should show the selected source mode, project path,
+or accepted artifact revision as read-only and must not offer upload or path
+editing unless the resource was created through Resource Manager artifact mode
+or another caller explicitly marked the source as Resource Manager-owned.
+
 ## Security and Authorization
 
 Artifact upload requires its own authorization checks. A user who can edit a
@@ -485,17 +531,17 @@ Resource providers that support uploaded deployment artifacts should document:
    provider-owned artifact layout kind, provider-announced layout descriptors,
    and Control Plane validation for `localPath` host mode and host-path
    authoring permission.
-6. Support
-   `uploadedArtifact` for one narrow provider, preferably Python or executable
-   applications because their runtime mapping is simpler than ASP.NET Core
-   build semantics.
-7. Add Resource Manager create/edit deployment mode UI that can use local
-   source mode or uploaded deployment artifact mode.
-8. Add start/restart-after-update workflow wiring while keeping upload,
+6. Support `uploadedArtifact` validation descriptors across the application
+   resource providers and preserve local source validation for local mode.
+7. Add Resource Manager create/edit upload UI for Resource Manager-owned
+   application artifact resources while keeping launcher/graph-builder sources
+   read-only.
+8. Add runtime materialization and start/restart-after-update workflow wiring
+   while keeping upload,
    apply, and lifecycle actions distinct.
-9. Extend the model to .NET web apps, JavaScript, Java, Go, Python, and
-   container app deployment artifacts after the first provider proves the
-   contract.
+9. Add future external artifact source transfer modes for pulling artifacts
+   from repositories, object stores, registries, or CI artifact systems into
+   a supported host target.
 
 ## Open Questions
 

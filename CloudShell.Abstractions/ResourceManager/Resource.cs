@@ -225,6 +225,10 @@ public static class ResourceAttributeNames
     public const string ExecutableArguments = "executable.arguments";
     public const string WorkingDirectory = "executable.workingDirectory";
     public const string ProjectPath = "project.path";
+    public const string ApplicationSourceKind = "application.source.kind";
+    public const string ApplicationSourceOwner = "application.source.owner";
+    public const string ArtifactsEnabled = "artifacts.enabled";
+    public const string ArtifactsSource = "artifacts.source";
     public const string ProjectArguments = "project.arguments";
     public const string ProjectHotReload = "project.hotReload";
     public const string ContainerImage = "container.image";

@@ -46,15 +46,24 @@ mode, but a single resource definition chooses one mode. Local-source mode is
 for local development and trusted host-path automation where the runtime host
 can read a project, script, Dockerfile, or other local path. Deployment-artifact
 mode is the normal Resource Manager create/edit path for hosted or team-owned
-environments. Host-readable local paths must be accepted only when the target
-host advertises local-development mode or the actor has explicit host-path
-authoring permission.
+environments: the Control Plane host writes uploaded package bytes to its
+configured artifact store, and resource definitions keep only an accepted
+artifact/data-folder allocation flag and optional accepted artifact revision
+reference rather than the store path. An artifact-mode resource may be created
+before its first artifact is uploaded, but it cannot run until a valid artifact
+has been accepted in the host-managed artifact folder. Future source modes can
+describe where a host should download or pull artifacts from before importing
+them into a supported host target. Host-readable local paths must be accepted
+only when the target host advertises local-development mode or the actor has
+explicit host-path authoring permission.
 
 The first implementation introduces a disabled-by-default deployment artifact
 store configuration, a filesystem-backed store contract, provider validation
 hooks, provider-announced artifact layout descriptors, and resource-scoped HTTP
-upload APIs. Provider materialization and Resource Manager create/edit UI
-remain follow-up slices.
+upload APIs. Resource Manager-created artifact resources are marked as
+Resource Manager-owned so they can accept replacement uploads; launcher-authored
+and host graph-builder resources keep source and path settings read-only in
+Resource Manager. Provider materialization remains a follow-up slice.
 
 ## 2026-07-05
 

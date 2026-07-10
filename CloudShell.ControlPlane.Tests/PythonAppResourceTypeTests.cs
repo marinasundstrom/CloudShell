@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Providers;
 using CloudShell.ResourceModel;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,6 +7,77 @@ namespace CloudShell.ControlPlane.Tests;
 
 public sealed class PythonAppResourceTypeTests
 {
+    [Fact]
+    public async Task ValidateAsync_RequiresProjectPathForLocalSourceMode()
+    {
+        var provider = new PythonAppResourceTypeProvider();
+        var validation = await provider.ValidateAsync(
+            Resolve(new ResourceDefinition(
+                "api",
+                PythonAppResourceTypeProvider.ResourceTypeId,
+                ProviderId: PythonAppResourceTypeProvider.ProviderId)),
+            new ResourceProviderContext());
+
+        Assert.True(validation.HasErrors);
+        Assert.Contains(validation.Diagnostics, diagnostic =>
+            diagnostic.Code == "application.pythonApp.pathRequired");
+    }
+
+    [Fact]
+    public async Task ValidateAsync_AcceptsUploadedArtifactWithoutProjectPath()
+    {
+        var provider = new PythonAppResourceTypeProvider();
+        var validation = await provider.ValidateAsync(
+            Resolve(new ResourceDefinition(
+                "api",
+                PythonAppResourceTypeProvider.ResourceTypeId,
+                ProviderId: PythonAppResourceTypeProvider.ProviderId,
+                Attributes: new ResourceAttributeValueMap(
+                    new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+                    {
+                        [ApplicationArtifactAttributeIds.SourceKind] =
+                            ResourceAttributeValue.String(DeploymentArtifactSourceKinds.UploadedArtifact),
+                        [ApplicationArtifactAttributeIds.SourceOwner] =
+                            ResourceAttributeValue.String(ApplicationArtifactAttributeIds.ResourceManagerUiSourceOwner),
+                        [ApplicationArtifactAttributeIds.Source] =
+                            ResourceAttributeValue.FromObject(new ApplicationArtifactReference(
+                                "artifact-api",
+                                "rev-1",
+                                "zip",
+                                "sha256:123",
+                                1024,
+                                ".",
+                                "pythonSourceDirectory"))
+                    }))),
+            new ResourceProviderContext());
+
+        Assert.False(validation.HasErrors);
+    }
+
+    [Fact]
+    public async Task ValidateAsync_AcceptsArtifactModeWithoutCurrentArtifact()
+    {
+        var provider = new PythonAppResourceTypeProvider();
+        var validation = await provider.ValidateAsync(
+            Resolve(new ResourceDefinition(
+                "api",
+                PythonAppResourceTypeProvider.ResourceTypeId,
+                ProviderId: PythonAppResourceTypeProvider.ProviderId,
+                Attributes: new ResourceAttributeValueMap(
+                    new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+                    {
+                        [ApplicationArtifactAttributeIds.SourceKind] =
+                            ResourceAttributeValue.String(DeploymentArtifactSourceKinds.UploadedArtifact),
+                        [ApplicationArtifactAttributeIds.SourceOwner] =
+                            ResourceAttributeValue.String(ApplicationArtifactAttributeIds.ResourceManagerUiSourceOwner),
+                        [ApplicationArtifactAttributeIds.Enabled] =
+                            ResourceAttributeValue.Boolean(true)
+                    }))),
+            new ResourceProviderContext());
+
+        Assert.False(validation.HasErrors);
+    }
+
     [Fact]
     public async Task AddPythonApp_EmitsExpectedResourceDefinition()
     {
@@ -106,7 +178,7 @@ public sealed class PythonAppResourceTypeTests
         Assert.Equal(["-m", "sample.api", "--port", "5188"], startInfo.ArgumentList);
     }
 
-    private static Resource Resolve(ResourceDefinition definition)
+    private static CloudShell.ResourceModel.Resource Resolve(ResourceDefinition definition)
     {
         var provider = new PythonAppResourceTypeProvider();
         var resolver = new ResourceResolver(

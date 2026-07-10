@@ -29,6 +29,12 @@ on `git blame --follow`, and then by the broad type of change.
   status, provider layout discovery, upload session creation, content upload,
   completion, revision lookup, and provider validation over completed artifact
   revisions.
+- Added Resource Manager application artifact upload UI for .NET, Python,
+  Java, JavaScript, and Go app resources, including provider-announced layout
+  choices, resource-scoped upload/validate/apply flow, Resource Manager-owned
+  artifact allocation markers, optional current artifact revision references,
+  and read-only source display for launcher-authored or host graph-builder
+  resources.
 
 ### 2026-07-10
 

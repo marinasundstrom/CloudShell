@@ -10,6 +10,38 @@ public static class DeploymentArtifactSourceKinds
     public const string ContainerImage = "containerImage";
 }
 
+public static class ApplicationArtifactAttributeIds
+{
+    public static readonly ResourceAttributeId SourceKind = ResourceAttributeNames.ApplicationSourceKind;
+    public static readonly ResourceAttributeId SourceOwner = ResourceAttributeNames.ApplicationSourceOwner;
+    public static readonly ResourceAttributeId Enabled = ResourceAttributeNames.ArtifactsEnabled;
+    public static readonly ResourceAttributeId Source = ResourceAttributeNames.ArtifactsSource;
+
+    public const string ResourceManagerUiSourceOwner = "resource-manager-ui";
+}
+
+public sealed record ApplicationArtifactReference(
+    string ArtifactId,
+    string RevisionId,
+    string PackageKind,
+    string ContentSha256,
+    long SizeBytes,
+    string? EntryPath = null,
+    string? ArtifactLayoutKind = null)
+{
+    public static ApplicationArtifactReference FromRevision(
+        DeploymentArtifactRevision revision,
+        string? entryPath = null) =>
+        new(
+            revision.ArtifactId,
+            revision.RevisionId,
+            revision.PackageKind,
+            revision.ContentSha256,
+            revision.SizeBytes,
+            string.IsNullOrWhiteSpace(entryPath) ? null : entryPath.Trim(),
+            revision.ArtifactLayoutKind);
+}
+
 public sealed record DeploymentArtifactStoreStatus(
     bool IsEnabled,
     string Kind,

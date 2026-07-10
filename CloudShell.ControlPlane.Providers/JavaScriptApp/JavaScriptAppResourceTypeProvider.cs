@@ -1,3 +1,5 @@
+using CloudShell.Abstractions.ResourceManager;
+
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class JavaScriptAppResourceTypeProvider :
@@ -40,9 +42,15 @@ public sealed class JavaScriptAppResourceTypeProvider :
         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
         {
             [Attributes.ProjectPath] = new(
-                Required: true,
-                RequiredMessage: "JavaScript app project path is required.",
                 ValueType: ResourceAttributeValueType.String),
+            [ApplicationArtifactAttributeIds.SourceKind] = new(
+                ValueType: ResourceAttributeValueType.String),
+            [ApplicationArtifactAttributeIds.SourceOwner] = new(
+                ValueType: ResourceAttributeValueType.String),
+            [ApplicationArtifactAttributeIds.Enabled] = new(
+                ValueType: ResourceAttributeValueType.Boolean),
+            [ApplicationArtifactAttributeIds.Source] = new(
+                ValueType: ResourceAttributeValueType.ComplexType),
             [Attributes.Engine] = new(
                 DefaultValue: "node",
                 ValueType: ResourceAttributeValueType.String),
@@ -90,8 +98,8 @@ public sealed class JavaScriptAppResourceTypeProvider :
         CancellationToken cancellationToken = default)
     {
         var diagnostics = new List<ResourceDefinitionDiagnostic>();
-        ValidateProjectPath(
-            resource.Attributes.GetString(Attributes.ProjectPath),
+        ValidateSource(
+            resource.Attributes,
             diagnostics);
 
         return ValueTask.FromResult(
@@ -107,8 +115,8 @@ public sealed class JavaScriptAppResourceTypeProvider :
         CancellationToken cancellationToken = default)
     {
         var diagnostics = new List<ResourceDefinitionDiagnostic>(changes.Diagnostics);
-        ValidateProjectPath(
-            changes.ProposedState.ResourceAttributes.GetValueOrDefault(Attributes.ProjectPath),
+        ValidateSource(
+            changes.ProposedState.ResourceAttributeValues,
             diagnostics);
 
         return ValueTask.FromResult(diagnostics.Any(diagnostic =>
@@ -141,16 +149,23 @@ public sealed class JavaScriptAppResourceTypeProvider :
             ],
             []));
 
-    private static void ValidateProjectPath(
-        string? projectPath,
-        List<ResourceDefinitionDiagnostic> diagnostics)
-    {
-        if (string.IsNullOrWhiteSpace(projectPath))
-        {
-            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                "application.javascriptApp.pathRequired",
-                "JavaScript app project path is required.",
-                Attributes.ProjectPath));
-        }
-    }
+    private static void ValidateSource(
+        ResourceAttributeSet attributes,
+        List<ResourceDefinitionDiagnostic> diagnostics) =>
+        ApplicationArtifactResourceValidation.ValidateSource(
+            attributes,
+            Attributes.ProjectPath,
+            "application.javaScriptApp.pathRequired",
+            "JavaScript app project path is required.",
+            diagnostics);
+
+    private static void ValidateSource(
+        ResourceAttributeValueMap attributes,
+        List<ResourceDefinitionDiagnostic> diagnostics) =>
+        ApplicationArtifactResourceValidation.ValidateSource(
+            attributes,
+            Attributes.ProjectPath,
+            "application.javascriptApp.pathRequired",
+            "JavaScript app project path is required.",
+            diagnostics);
 }

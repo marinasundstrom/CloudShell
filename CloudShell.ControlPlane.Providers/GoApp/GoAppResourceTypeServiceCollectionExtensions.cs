@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -38,6 +39,10 @@ public static class GoAppResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceChangeApplyProvider, GoAppResourceTypeProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceDefinitionApplyProvider, GoAppResourceTypeProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IDeploymentArtifactLayoutProvider, GoAppArtifactLayoutProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IDeploymentArtifactValidationProvider, ApplicationArtifactValidationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceCapabilityProvider, VolumeConsumerCapabilityProvider>());
         services.TryAddEnumerable(

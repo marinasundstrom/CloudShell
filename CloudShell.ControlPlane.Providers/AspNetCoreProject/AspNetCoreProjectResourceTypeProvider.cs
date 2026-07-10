@@ -1,3 +1,5 @@
+using CloudShell.Abstractions.ResourceManager;
+
 namespace CloudShell.ControlPlane.Providers;
 
 public sealed class AspNetCoreProjectResourceTypeProvider(
@@ -44,9 +46,15 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
         {
             [Attributes.ProjectPath] = new(
-                Required: true,
-                RequiredMessage: "ASP.NET Core project path is required.",
                 ValueType: ResourceAttributeValueType.String),
+            [ApplicationArtifactAttributeIds.SourceKind] = new(
+                ValueType: ResourceAttributeValueType.String),
+            [ApplicationArtifactAttributeIds.SourceOwner] = new(
+                ValueType: ResourceAttributeValueType.String),
+            [ApplicationArtifactAttributeIds.Enabled] = new(
+                ValueType: ResourceAttributeValueType.Boolean),
+            [ApplicationArtifactAttributeIds.Source] = new(
+                ValueType: ResourceAttributeValueType.ComplexType),
             [Attributes.ProjectArguments] = new(
                 ValueType: ResourceAttributeValueType.String),
             [Attributes.HotReload] = new(
@@ -88,8 +96,8 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
         CancellationToken cancellationToken = default)
     {
         var diagnostics = new List<ResourceDefinitionDiagnostic>();
-        ValidateProjectPath(
-            resource.Attributes.GetString(Attributes.ProjectPath),
+        ValidateSource(
+            resource.Attributes,
             diagnostics);
 
         return ValueTask.FromResult(
@@ -105,8 +113,8 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
         CancellationToken cancellationToken = default)
     {
         var diagnostics = new List<ResourceDefinitionDiagnostic>(changes.Diagnostics);
-        ValidateProjectPath(
-            changes.ProposedState.ResourceAttributes.GetValueOrDefault(Attributes.ProjectPath),
+        ValidateSource(
+            changes.ProposedState.ResourceAttributeValues,
             diagnostics);
         AddRestartRequiredDiagnostic(changes, diagnostics);
 
@@ -168,16 +176,23 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
             change.AttributeId == Attributes.ServiceDiscoveryName ||
             change.AttributeId == Attributes.References);
 
-    private static void ValidateProjectPath(
-        string? projectPath,
-        List<ResourceDefinitionDiagnostic> diagnostics)
-    {
-        if (string.IsNullOrWhiteSpace(projectPath))
-        {
-            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
-                "application.aspNetCoreProject.pathRequired",
-                "ASP.NET Core project path is required.",
-                Attributes.ProjectPath));
-        }
-    }
+    private static void ValidateSource(
+        ResourceAttributeSet attributes,
+        List<ResourceDefinitionDiagnostic> diagnostics) =>
+        ApplicationArtifactResourceValidation.ValidateSource(
+            attributes,
+            Attributes.ProjectPath,
+            "application.aspNetCoreProject.pathRequired",
+            "ASP.NET Core project path is required.",
+            diagnostics);
+
+    private static void ValidateSource(
+        ResourceAttributeValueMap attributes,
+        List<ResourceDefinitionDiagnostic> diagnostics) =>
+        ApplicationArtifactResourceValidation.ValidateSource(
+            attributes,
+            Attributes.ProjectPath,
+            "application.aspNetCoreProject.pathRequired",
+            "ASP.NET Core project path is required.",
+            diagnostics);
 }
