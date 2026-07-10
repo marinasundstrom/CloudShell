@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+PYTHONPATH="$script_dir${PYTHONPATH:+:$PYTHONPATH}" \
+  python3 -m unittest discover \
+    -s "$script_dir/tests" \
+    -p 'test_*.py'

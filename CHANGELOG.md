@@ -44,6 +44,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a `template` command to the TypeScript AppHost sample helper and made
   its npm-backed commands run from the sample directory so they work when
   invoked from the repository root.
+- Added a `sdk/python/cloudshell/test.sh` entrypoint for the Python runtime SDK
+  so its Configuration Store, Secrets Vault, endpoint discovery, and
+  credential-chain tests can run without a `pytest` dependency.
 
 ### 2026-07-06
 

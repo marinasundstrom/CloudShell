@@ -21,3 +21,9 @@ By default, clients use `DefaultCloudShellCredential`. It checks injected
 `CLOUDSHELL_IDENTITY_*` workload identity variables first, then environment
 bearer tokens, then the active CloudShell profile from
 `~/.cloudshell/config.json`.
+
+Run the package tests with the standard library `unittest` runner:
+
+```bash
+./sdk/python/cloudshell/test.sh
+```
