@@ -66,14 +66,15 @@ keep only the delta that affects remaining work.
 | 12 | [Load balancer resource](networking/load-balancer-resource.md) | In progress | High; required for explicit public routing and replicated app scenarios. | Continue provider selection, validation, host readiness, lifecycle, and public endpoint UX. |
 | 13 | [DNS and name mapping](networking/dns-and-name-mapping-resource.md) | In progress | High for MVP naming; provider-backed DNS is later. | Finish name-mapping update/delete UI and local hostname diagnostics; defer provider-backed DNS propagation until network providers are stronger. |
 | 14 | [Storage and volume mappings](storage/volume-mappings.md) | In progress | High; required for stateful local apps. | Continue provider-backed materialization, host/storage compatibility diagnostics, relationship visibility, and usage integration. |
-| 15 | [Remote Docker hosts](containers/remote-docker-hosts.md) | Partially implemented | Medium; useful but should not block local/default host MVP. | Keep behind shared host abstraction. Take concrete slices only when they validate the host boundary or unblock samples. |
-| 16 | [Provider-created and runtime-managed resources](core/provider-created-and-runtime-managed-resources.md) | In progress | High; supports replica/resource diagnostics and cleanup. | Use [Provider-created and runtime-managed resources](../runtime-managed-resources.md) as the landed spec. Continue provider-observed IDs, health, placement, ownership traversal, and materialization diagnostics. |
-| 17 | [Orchestrator deployments and environment revisions](deployment/deployments-and-revisions.md) | In progress | High for container app internals; later for public rollout history. | Finish controller/reconciliation boundary for first start, routing rebinding, service tear-down, and cleanup. Keep rich rollout history deferred. |
-| 18 | [UI composition library](core/ui-composition.md) | Current implementation working document | Medium-high; active only where it stabilizes current UI surfaces. | Avoid broadening for MVP. Use it to reduce current shell, Settings, and Resource Manager drift; keep generic library behavior in [UI composition](../ui-composition.md). |
-| 19 | [Resource graph and runtime separation](core/resource-graph-and-runtime-separation.md) | Migration in progress; active migration anchor | High; foundational to templates, graph apply, and orchestration. | Continue ResourceDefinition-based templates, graph-backed provider migration, and retirement of obsolete provider-template paths. |
-| 20 | [Cross-language local development](core/cross-language-local-development.md) | In progress | High; required to keep CloudShell ecosystem-neutral. | Prioritize the installed CLI plus default local-development host daemon path, then keep launcher/profile, TypeScript/JavaScript, Java, and SDK hardening aligned with that boundary. |
-| 21 | [Managed SQL Server resource](resources/managed-sql-server.md) | Partially implemented | Medium-high; valuable after MVP storage, identity, and database access stabilize. | Keep current SQL Server local-development bridge stable. Defer full managed database surface until provider-backed grants, storage, and backup/restore value are clear. |
-| 22 | [Intent-first resource authoring](core/intent-first-resource-authoring.md) | Proposed | Medium-high; broadens authoring without making CloudShell code-centric. | Defer until ResourceDefinition apply, provider diagnostics, and Resource Manager review/apply surfaces are stable; then start with draft-template review rather than autonomous apply. |
+| 15 | [Application source artifacts](core/application-source-artifacts.md) | Proposed | High; required for create/edit UI that works when the Control Plane and workload host are remote. | Define the Control Plane artifact-store contract, upload API, source-reference shape, and first Resource Manager source section before broad app create/edit UX. |
+| 16 | [Remote Docker hosts](containers/remote-docker-hosts.md) | Partially implemented | Medium; useful but should not block local/default host MVP. | Keep behind shared host abstraction. Take concrete slices only when they validate the host boundary or unblock samples. |
+| 17 | [Provider-created and runtime-managed resources](core/provider-created-and-runtime-managed-resources.md) | In progress | High; supports replica/resource diagnostics and cleanup. | Use [Provider-created and runtime-managed resources](../runtime-managed-resources.md) as the landed spec. Continue provider-observed IDs, health, placement, ownership traversal, and materialization diagnostics. |
+| 18 | [Orchestrator deployments and environment revisions](deployment/deployments-and-revisions.md) | In progress | High for container app internals; later for public rollout history. | Finish controller/reconciliation boundary for first start, routing rebinding, service tear-down, and cleanup. Keep rich rollout history deferred. |
+| 19 | [UI composition library](core/ui-composition.md) | Current implementation working document | Medium-high; active only where it stabilizes current UI surfaces. | Avoid broadening for MVP. Use it to reduce current shell, Settings, and Resource Manager drift; keep generic library behavior in [UI composition](../ui-composition.md). |
+| 20 | [Resource graph and runtime separation](core/resource-graph-and-runtime-separation.md) | Migration in progress; active migration anchor | High; foundational to templates, graph apply, and orchestration. | Continue ResourceDefinition-based templates, graph-backed provider migration, and retirement of obsolete provider-template paths. |
+| 21 | [Cross-language local development](core/cross-language-local-development.md) | In progress | High; required to keep CloudShell ecosystem-neutral. | Prioritize the installed CLI plus default local-development host daemon path, then keep launcher/profile, TypeScript/JavaScript, Java, and SDK hardening aligned with that boundary. |
+| 22 | [Managed SQL Server resource](resources/managed-sql-server.md) | Partially implemented | Medium-high; valuable after MVP storage, identity, and database access stabilize. | Keep current SQL Server local-development bridge stable. Defer full managed database surface until provider-backed grants, storage, and backup/restore value are clear. |
+| 23 | [Intent-first resource authoring](core/intent-first-resource-authoring.md) | Proposed | Medium-high; broadens authoring without making CloudShell code-centric. | Defer until ResourceDefinition apply, provider diagnostics, and Resource Manager review/apply surfaces are stable; then start with draft-template review rather than autonomous apply. |
 
 ## Deferred Strategy Notes
 
@@ -182,7 +183,13 @@ hardening.
     installed CLI starting or reusing the default local-development host
     daemon; launcher packages remain optional authoring layers over that same
     CLI/API path.
-15. Intent-first resource authoring through
+15. Application source artifact loading through
+    [Application source artifacts](core/application-source-artifacts.md) before
+    broad Resource Manager create/edit UI for application resources. The first
+    slice should define the Control Plane artifact-store setting, upload API,
+    source revision reference, and local path versus uploaded artifact UX
+    boundary.
+16. Intent-first resource authoring through
     [Intent-first resource authoring](core/intent-first-resource-authoring.md)
     only after the ResourceDefinition apply, provider diagnostics, and
     Resource Manager review/apply path are stable enough to make generated

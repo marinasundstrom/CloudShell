@@ -32,6 +32,7 @@ Useful references:
 - [Storage and Volumes](resources/storage-and-volumes.md)
 - [Refactoring tracker](refactoring.md)
 - [Cross-language local development proposal](proposals/core/cross-language-local-development.md)
+- [Application source artifacts proposal](proposals/core/application-source-artifacts.md)
 - [Intent-first resource authoring proposal](proposals/core/intent-first-resource-authoring.md)
 - [Container applications proposal](proposals/containers/container-applications.md)
 - [Future directions](future/)
@@ -50,7 +51,7 @@ app-development loop before broader platform expansion.
 | 4 | Readiness and capability reasons | Supported actions should fail early with clear reasons. | Tighten host, credential, route, port, storage, identity, grant, and provider-readiness diagnostics for paths already exposed. |
 | 5 | Container app orchestration and runtime diagnostics | Container apps are the hardest proof of the resource/runtime boundary. | Consolidate first start, image update, replica-slot reconciliation, routing rebinding, cleanup, and readable failure diagnostics only where current samples expose them. |
 | 6 | ResourceDefinition apply/export convergence | The old provider path has mostly been retired; remaining compatibility should be explicit. | Remove or document remaining obsolete template/runtime bridges where graph-backed providers can round-trip definitions. |
-| 7 | Ecosystem-neutral authoring boundary | CloudShell should not become a C#-only local-development tool, but launchers and assistant drafting should not distract from MVP stabilization. | Keep CLI, launcher/profile, TypeScript/JavaScript, Java, SDK, and future intent-first authoring aligned with the same ResourceDefinition and Control Plane boundary; defer packaging polish and generated-draft workflows that do not improve supported local runs. |
+| 7 | Ecosystem-neutral authoring boundary | CloudShell should not become a C#-only local-development tool, but launchers, source artifact loading, and assistant drafting should not distract from MVP stabilization. | Keep CLI, launcher/profile, TypeScript/JavaScript, Java, SDK, application artifact sources, and future intent-first authoring aligned with the same ResourceDefinition and Control Plane boundary; defer packaging polish and generated-draft workflows that do not improve supported local runs. |
 | 8 | UI composition and shell structure | Useful only when it reduces current Resource Manager, Settings, or shell drift. | Pause broad shell-platform work except for regressions, current-surface stabilization, or extraction from proven patterns. |
 
 ## Authoritative Milestones
