@@ -53,6 +53,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Corrected the Python runtime SDK package metadata to require Python 3.10 or
   later, matching its type-hint syntax and avoiding an unsupported Python 3.9
   install claim.
+- Added TypeScript launcher coverage for the shared JavaScript app parity
+  fixture so the TypeScript builder is compared against the same
+  ResourceTemplate shape as the C# and Python launchers.
 
 ### 2026-07-06
 

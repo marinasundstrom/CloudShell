@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { cloudshell, formatHostUrlMessage } from "./index.js";
 
 test("builds a resource template with JavaScript app and configuration store", () => {
@@ -270,6 +273,53 @@ test("rejects duplicate resource ids", () => {
     /already defined/);
 });
 
+test("matches shared JavaScript app parity fixture", () => {
+  const app = cloudshell("launcher-parity-javascript", {
+    metadata: {
+      "cloudshell.parity": "javascript-app"
+    }
+  });
+
+  const settings = app
+    .addConfigurationStore("settings")
+    .withDisplayName("Settings")
+    .withEndpoint("http://localhost:5101")
+    .withSeed(seed => seed.setting("Sample--Message", "Hello from launcher parity"));
+
+  const secrets = app
+    .addSecretsVault("secrets")
+    .withDisplayName("Secrets")
+    .withEndpoint("http://localhost:6101")
+    .withSeed(seed => seed.secret("Sample--ApiKey", "parity-secret", "v1"));
+
+  app
+    .addJavaScriptApp("frontend", "samples/LauncherParity/App")
+    .withDisplayName("Frontend")
+    .withServiceDiscovery()
+    .withReference(settings)
+    .withReference(secrets)
+    .dependsOn(settings)
+    .dependsOn(secrets)
+    .withEnvironmentVariable("PORT", "5173")
+    .withEnvironmentVariable("Sample__Message", {
+      configurationSettingRef: settings.setting("Sample--Message")
+    })
+    .withEnvironmentVariable("Sample__ApiKey", {
+      secretRef: secrets.secret("Sample--ApiKey")
+    })
+    .withHttpEndpoint({
+      host: "localhost",
+      port: 5173,
+      targetPort: 5173
+    })
+    .withHttpHealthCheck("/healthz", { endpointName: "http" })
+    .withHttpLivenessCheck("/alive", { endpointName: "http" });
+
+  assert.deepEqual(
+    normalizeTemplate(app.buildTemplate()),
+    normalizeTemplate(loadParityFixture("javascript-app-parity.json")));
+});
+
 test("formats host URL message", () => {
   assert.equal(
     formatHostUrlMessage("http://127.0.0.1:5100/"),
@@ -382,3 +432,54 @@ test("builds Java Maven app as a container app", () => {
   });
   assert.equal((java.project as { endpointRequests?: unknown }).endpointRequests, undefined);
 });
+
+function loadParityFixture(name: string): unknown {
+  const testdataPath = join(
+    dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "..",
+    "..",
+    "testdata",
+    name);
+  return JSON.parse(readFileSync(testdataPath, "utf8")) as unknown;
+}
+
+function normalizeTemplate(value: unknown): unknown {
+  const normalized = normalizeValue(value);
+  if (!isRecord(normalized) || !Array.isArray(normalized.resources)) {
+    return normalized;
+  }
+
+  return {
+    ...normalized,
+    resources: [...normalized.resources].sort((left, right) =>
+      resourceId(left).localeCompare(resourceId(right)))
+  };
+}
+
+function normalizeValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(item => normalizeValue(item));
+  }
+
+  if (isRecord(value)) {
+    if ("resourceId" in value && !("name" in value) && !("type" in value)) {
+      return { resourceId: value.resourceId };
+    }
+
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, normalizeValue(item)]));
+  }
+
+  return value;
+}
+
+function resourceId(value: unknown): string {
+  return isRecord(value) && typeof value.resourceId === "string"
+    ? value.resourceId
+    : "";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
