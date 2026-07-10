@@ -4,6 +4,7 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Usage;
 using System.Text.Json;
 using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
+using ResourceDefinitionValidationResult = CloudShell.ResourceModel.ResourceDefinitionValidationResult;
 
 namespace CloudShell.Abstractions.ControlPlane;
 
@@ -185,6 +186,10 @@ public interface IDeploymentArtifactManager
     Task<DeploymentArtifactRevision?> GetDeploymentArtifactRevisionAsync(
         string artifactId,
         string revisionId,
+        CancellationToken cancellationToken = default);
+
+    Task<ResourceDefinitionValidationResult> ValidateDeploymentArtifactAsync(
+        ValidateDeploymentArtifactCommand command,
         CancellationToken cancellationToken = default);
 }
 

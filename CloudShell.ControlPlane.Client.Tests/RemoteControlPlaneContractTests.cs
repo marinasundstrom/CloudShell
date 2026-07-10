@@ -22,7 +22,9 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using ResourceDefinitionApplyMode = CloudShell.ResourceModel.ResourceDefinitionApplyMode;
+using ResourceDefinitionDiagnostic = CloudShell.ResourceModel.ResourceDefinitionDiagnostic;
 using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
+using ResourceDefinitionValidationResult = CloudShell.ResourceModel.ResourceDefinitionValidationResult;
 using ResourceTypeId = CloudShell.ResourceModel.ResourceTypeId;
 
 namespace CloudShell.ControlPlane.Client.Tests;
@@ -1357,6 +1359,14 @@ public sealed class RemoteControlPlaneContractTests
         var loaded = await controlPlane.GetDeploymentArtifactRevisionAsync(
             revision.ArtifactId,
             revision.RevisionId);
+        var validation = await controlPlane.ValidateDeploymentArtifactAsync(
+            new ValidateDeploymentArtifactCommand(
+                "application.dotnet-web-app",
+                "api",
+                revision.ArtifactId,
+                revision.RevisionId,
+                EntryPath: ".",
+                ArtifactLayoutKind: layout.Kind));
 
         Assert.Equal("deployment-artifact:api", revision.ArtifactId);
         Assert.Equal("zip", revision.PackageKind);
@@ -1364,6 +1374,7 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(package.Length, revision.SizeBytes);
         Assert.False(string.IsNullOrWhiteSpace(revision.ContentSha256));
         Assert.Equal(revision, loaded);
+        Assert.Empty(validation.Diagnostics);
     }
 
     [Fact]
@@ -1592,6 +1603,7 @@ public sealed class RemoteControlPlaneContractTests
         builder.Services.AddSingleton<IResourceIdentityProviderSetupHandler>(serviceProvider =>
             serviceProvider.GetRequiredService<ContractIdentityProviderSetupHandler>());
         builder.Services.AddSingleton<IDeploymentArtifactLayoutProvider, ContractDeploymentArtifactLayoutProvider>();
+        builder.Services.AddSingleton<IDeploymentArtifactValidationProvider, ContractDeploymentArtifactValidationProvider>();
         if (includeLifecycleResource)
         {
             builder.Services.AddSingleton<IResourceProvider, ContractLifecycleResourceProvider>();
@@ -2134,6 +2146,36 @@ public sealed class RemoteControlPlaneContractTests
                     DefaultEntryPath: ".",
                     IsDefault: true)
             ]);
+    }
+
+    private sealed class ContractDeploymentArtifactValidationProvider : IDeploymentArtifactValidationProvider
+    {
+        public string Id => "contract.deployment-artifacts.validation";
+
+        public bool CanValidate(DeploymentArtifactValidationContext context) =>
+            string.Equals(context.ResourceType, "application.dotnet-web-app", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(context.ArtifactLayoutKind, "dotnetPublishedOutput", StringComparison.OrdinalIgnoreCase);
+
+        public async ValueTask<ResourceDefinitionValidationResult> ValidateDeploymentArtifactAsync(
+            DeploymentArtifactValidationContext context,
+            Stream artifactContent,
+            CancellationToken cancellationToken = default)
+        {
+            using var reader = new StreamReader(artifactContent);
+            var content = await reader.ReadToEndAsync(cancellationToken);
+            if (content.Contains("compiled output", StringComparison.OrdinalIgnoreCase))
+            {
+                return ResourceDefinitionValidationResult.Success;
+            }
+
+            return ResourceDefinitionValidationResult.FromDiagnostics(
+            [
+                ResourceDefinitionDiagnostic.Error(
+                    "contract.deploymentArtifact.invalidPackage",
+                    "The uploaded package did not contain compiled output.",
+                    context.ArtifactId)
+            ]);
+        }
     }
 
     private sealed class ContractRuntimeResourceProvider : IResourceProvider

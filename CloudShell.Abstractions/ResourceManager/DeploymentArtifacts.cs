@@ -78,6 +78,14 @@ public sealed record DeploymentArtifactValidationContext(
     string? EntryPath = null,
     string? ArtifactLayoutKind = null);
 
+public sealed record ValidateDeploymentArtifactCommand(
+    string ResourceType,
+    string ResourceName,
+    string ArtifactId,
+    string RevisionId,
+    string? EntryPath = null,
+    string? ArtifactLayoutKind = null);
+
 public interface IDeploymentArtifactValidationProvider
 {
     string Id { get; }

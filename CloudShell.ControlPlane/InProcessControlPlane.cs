@@ -21,6 +21,7 @@ using ResourceDefinition = CloudShell.ResourceModel.ResourceDefinition;
 using ResourceDefinitionDiagnostic = CloudShell.ResourceModel.ResourceDefinitionDiagnostic;
 using ResourceDefinitionDiagnosticSeverity = CloudShell.ResourceModel.ResourceDefinitionDiagnosticSeverity;
 using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
+using ResourceDefinitionValidationResult = CloudShell.ResourceModel.ResourceDefinitionValidationResult;
 using ResourceGraphCommitContext = CloudShell.ResourceModel.ResourceGraphCommitContext;
 
 namespace CloudShell.ControlPlane;
@@ -54,7 +55,8 @@ public sealed class InProcessControlPlane(
     IEnumerable<IResourcePermissionGrantStatusProvider>? permissionGrantStatusProviders = null,
     ResourceOrchestratorDeploymentCleanupCoordinator? deploymentCleanup = null,
     IDeploymentArtifactStore? deploymentArtifacts = null,
-    IEnumerable<IDeploymentArtifactLayoutProvider>? deploymentArtifactLayoutProviders = null) : IControlPlane
+    IEnumerable<IDeploymentArtifactLayoutProvider>? deploymentArtifactLayoutProviders = null,
+    IEnumerable<IDeploymentArtifactValidationProvider>? deploymentArtifactValidationProviders = null) : IControlPlane
 {
     private const string PreferredUsernameClaimType = "preferred_username";
     private const string UnauthenticatedRequestActor = "user";
@@ -76,6 +78,8 @@ public sealed class InProcessControlPlane(
         deploymentCleanup ?? new ResourceOrchestratorDeploymentCleanupCoordinator(resourceEvents);
     private readonly IReadOnlyList<IDeploymentArtifactLayoutProvider> deploymentArtifactLayoutProviders =
         (deploymentArtifactLayoutProviders ?? []).ToArray();
+    private readonly IReadOnlyList<IDeploymentArtifactValidationProvider> deploymentArtifactValidationProviders =
+        (deploymentArtifactValidationProviders ?? []).ToArray();
 
     public Task<IReadOnlyList<ResourceGroup>> ListResourceGroupsAsync(
         CancellationToken cancellationToken = default)
@@ -1184,6 +1188,62 @@ public sealed class InProcessControlPlane(
     {
         EnsureCanReadDeploymentArtifacts();
         return RequireDeploymentArtifactStore().GetRevisionAsync(artifactId, revisionId, cancellationToken);
+    }
+
+    public async Task<ResourceDefinitionValidationResult> ValidateDeploymentArtifactAsync(
+        ValidateDeploymentArtifactCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        EnsureCanReadDeploymentArtifacts();
+
+        var store = RequireDeploymentArtifactStore();
+        var artifactId = RequireValue(command.ArtifactId, nameof(command.ArtifactId));
+        var revisionId = RequireValue(command.RevisionId, nameof(command.RevisionId));
+        var revision = await store.GetRevisionAsync(artifactId, revisionId, cancellationToken);
+        if (revision is null)
+        {
+            return ResourceDefinitionValidationResult.FromDiagnostics(
+            [
+                ResourceDefinitionDiagnostic.Error(
+                    "deploymentArtifact.revisionMissing",
+                    $"Deployment artifact revision '{artifactId}/revisions/{revisionId}' was not found.",
+                    command.ArtifactId)
+            ]);
+        }
+
+        var context = new DeploymentArtifactValidationContext(
+            RequireValue(command.ResourceType, nameof(command.ResourceType)),
+            RequireValue(command.ResourceName, nameof(command.ResourceName)),
+            revision.ArtifactId,
+            revision.RevisionId,
+            revision.PackageKind,
+            revision.ContentSha256,
+            revision.SizeBytes,
+            NormalizeOptional(command.EntryPath),
+            NormalizeOptional(command.ArtifactLayoutKind) ?? revision.ArtifactLayoutKind);
+
+        var provider = deploymentArtifactValidationProviders.FirstOrDefault(provider =>
+            provider.CanValidate(context));
+        if (provider is null)
+        {
+            return ResourceDefinitionValidationResult.FromDiagnostics(
+            [
+                ResourceDefinitionDiagnostic.Error(
+                    "deploymentArtifact.validationProviderMissing",
+                    $"No deployment artifact validation provider is registered for resource type '{context.ResourceType}' and artifact layout '{context.ArtifactLayoutKind ?? "default"}'.",
+                    context.ResourceType)
+            ]);
+        }
+
+        await using var content = await store.OpenRevisionContentAsync(
+            revision.ArtifactId,
+            revision.RevisionId,
+            cancellationToken);
+        return await provider.ValidateDeploymentArtifactAsync(
+            context,
+            content,
+            cancellationToken);
     }
 
     private async Task RegisterAppliedDefinitionsAsync(

@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
+using ResourceDefinitionValidationResult = CloudShell.ResourceModel.ResourceDefinitionValidationResult;
 
 namespace CloudShell.ControlPlane.Api;
 
@@ -229,6 +230,13 @@ public static class CloudShellControlPlaneApiExtensions
             .WithName("CloudShellControlPlane_GetDeploymentArtifactRevision")
             .Produces<DeploymentArtifactRevisionResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
+
+        api.MapPost("/deployment-artifacts/validate", ValidateDeploymentArtifact)
+            .WithName("CloudShellControlPlane_ValidateDeploymentArtifact")
+            .Accepts<ValidateDeploymentArtifactRequest>("application/json")
+            .Produces<ResourceDefinitionValidationResult>(StatusCodes.Status200OK)
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
             .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
 
@@ -1235,6 +1243,31 @@ public static class CloudShellControlPlaneApiExtensions
                 : Results.Ok(revision.ToResponse());
         }
         catch (Exception exception) when (exception is ControlPlaneException or ControlPlaneAccessDeniedException or ArgumentException or InvalidOperationException)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> ValidateDeploymentArtifact(
+        ValidateDeploymentArtifactRequest request,
+        IDeploymentArtifactManager artifacts,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await artifacts.ValidateDeploymentArtifactAsync(
+                new ValidateDeploymentArtifactCommand(
+                    RequireValue(request.ResourceType, nameof(request.ResourceType)),
+                    RequireValue(request.ResourceName, nameof(request.ResourceName)),
+                    RequireValue(request.ArtifactId, nameof(request.ArtifactId)),
+                    RequireValue(request.RevisionId, nameof(request.RevisionId)),
+                    NormalizeOptional(request.EntryPath),
+                    NormalizeOptional(request.ArtifactLayoutKind)),
+                cancellationToken);
+
+            return Results.Ok(result);
+        }
+        catch (Exception exception) when (exception is ControlPlaneException or ControlPlaneAccessDeniedException or ArgumentException or FileNotFoundException or InvalidDataException or InvalidOperationException)
         {
             return ToProblem(exception);
         }

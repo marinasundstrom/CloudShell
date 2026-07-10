@@ -11,6 +11,7 @@ using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
+using ResourceDefinitionValidationResult = CloudShell.ResourceModel.ResourceDefinitionValidationResult;
 
 namespace CloudShell.ControlPlane.Client;
 
@@ -620,6 +621,25 @@ public sealed class RemoteControlPlane : IControlPlane
             $"deployment-artifacts/{Escape(artifactId)}/revisions/{Escape(revisionId)}",
             cancellationToken);
         return response?.ToDeploymentArtifactRevision();
+    }
+
+    public async Task<ResourceDefinitionValidationResult> ValidateDeploymentArtifactAsync(
+        ValidateDeploymentArtifactCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsJsonAsync(
+            BuildUri("deployment-artifacts/validate"),
+            new ValidateDeploymentArtifactRequest(
+                command.ResourceType,
+                command.ResourceName,
+                command.ArtifactId,
+                command.RevisionId,
+                command.EntryPath,
+                command.ArtifactLayoutKind),
+            SerializerOptions,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await ReadRequiredAsync<ResourceDefinitionValidationResult>(response, cancellationToken);
     }
 
     public async Task<IReadOnlyList<LogSource>> ListLogSourcesAsync(
@@ -1461,6 +1481,14 @@ file sealed record DeploymentArtifactRevisionResponse(
     string ContentSha256,
     long SizeBytes,
     DateTimeOffset CreatedAt,
+    string? ArtifactLayoutKind = null);
+
+file sealed record ValidateDeploymentArtifactRequest(
+    string ResourceType,
+    string ResourceName,
+    string ArtifactId,
+    string RevisionId,
+    string? EntryPath = null,
     string? ArtifactLayoutKind = null);
 
 file sealed record LogSourceResponse(

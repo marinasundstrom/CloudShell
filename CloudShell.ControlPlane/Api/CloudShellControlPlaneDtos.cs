@@ -381,6 +381,14 @@ public sealed record DeploymentArtifactRevisionResponse(
     DateTimeOffset CreatedAt,
     string? ArtifactLayoutKind = null);
 
+public sealed record ValidateDeploymentArtifactRequest(
+    string ResourceType,
+    string ResourceName,
+    string ArtifactId,
+    string RevisionId,
+    string? EntryPath = null,
+    string? ArtifactLayoutKind = null);
+
 public sealed record LogSourceResponse(
     string Id,
     string Name,

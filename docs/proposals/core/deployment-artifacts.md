@@ -349,6 +349,7 @@ POST /api/control-plane/v1/deployment-artifacts/uploads
 PUT  /api/control-plane/v1/deployment-artifacts/uploads/{uploadId}/content
 POST /api/control-plane/v1/deployment-artifacts/uploads/{uploadId}/complete
 GET  /api/control-plane/v1/deployment-artifacts/{artifactId}/revisions/{revisionId}
+POST /api/control-plane/v1/deployment-artifacts/validate
 ```
 
 For the first slice, the host-configured artifact store is the direct upload
@@ -359,6 +360,12 @@ into a supported host target, or returning direct upload affordances such as a
 single-use signed URL. Those are later transfer modes. Resource Manager and
 remote clients should still treat the Control Plane as the authority that
 creates, completes, and accepts artifact revisions.
+
+Validation runs after upload completion against the committed artifact revision.
+The Control Plane loads the revision content from the configured host store and
+dispatches to the resource type provider's deployment-artifact validator. The
+result uses normal resource-definition diagnostics so Resource Manager can show
+the same validation UI used by template apply and resource editing.
 
 ## Apply and Lifecycle Boundary
 

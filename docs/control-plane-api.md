@@ -96,6 +96,7 @@ POST /api/control-plane/v1/deployment-artifacts/uploads
 PUT  /api/control-plane/v1/deployment-artifacts/uploads/{uploadId}/content
 POST /api/control-plane/v1/deployment-artifacts/uploads/{uploadId}/complete
 GET  /api/control-plane/v1/deployment-artifacts/{artifactId}/revisions/{revisionId}
+POST /api/control-plane/v1/deployment-artifacts/validate
 ```
 
 The first implementation treats the configured Control Plane host artifact
@@ -104,6 +105,8 @@ artifact sources into a supported host target, but the Control Plane remains
 the authority for artifact revisions. Resource type providers announce the
 supported artifact layouts for each resource type, and a resource definition
 chooses either local-source mode or deployment-artifact mode, not both.
+Artifact validation runs against a completed revision and returns the standard
+resource-definition diagnostics shape.
 
 Resource procedure responses return a primary `message`, optional restart
 metadata, and a `signals` collection. Signals use the shared Resource Manager
