@@ -28,6 +28,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Made Application Topology honor `CLOUDSHELL_LOCAL_HOSTS_FILE` for local DNS
   name-mapping reconciliation and added smoke coverage for the generated hosts
   entry.
+- Clarified the deferred container app runtime bridge so mapped apps report
+  unknown runtime state and lifecycle actions return a warning instead of
+  appearing to start without materialization.
 
 ### 2026-07-06
 

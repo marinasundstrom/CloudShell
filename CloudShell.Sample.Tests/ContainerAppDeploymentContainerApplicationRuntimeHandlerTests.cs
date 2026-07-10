@@ -12,7 +12,7 @@ public sealed class DeferredContainerApplicationRuntimeHandlerTests
         var handler = CreateHandler();
         var resource = await CreateAppResourceAsync();
 
-        Assert.Equal(ContainerApplicationRuntimeStatus.Stopped, handler.GetStatus(resource));
+        Assert.Equal(ContainerApplicationRuntimeStatus.Unknown, handler.GetStatus(resource));
 
         var lifecycleDiagnostics = await handler.ExecuteLifecycleAsync(
             resource,
@@ -21,7 +21,8 @@ public sealed class DeferredContainerApplicationRuntimeHandlerTests
         var replicaDiagnostics = await handler.ApplyReplicasAsync(resource);
 
         Assert.Contains(lifecycleDiagnostics, diagnostic =>
-            diagnostic.Code == "application.container.deferredRuntime");
+            diagnostic.Code == "application.container.deferredRuntime" &&
+            diagnostic.Severity == ResourceDefinitionDiagnosticSeverity.Warning);
         Assert.Contains(imageDiagnostics, diagnostic =>
             diagnostic.Code == "application.container.deferredRuntimeImageAccepted");
         Assert.Contains(replicaDiagnostics, diagnostic =>

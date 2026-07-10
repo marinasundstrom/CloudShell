@@ -10,7 +10,8 @@ public sealed class ContainerApplicationResourceModelGraphDeploymentDescriptor(
     IEnumerable<IJavaScriptAppRuntimeEnvironmentProvider>? javaScriptEnvironmentProviders = null,
     IEnumerable<IJavaAppRuntimeEnvironmentProvider>? javaEnvironmentProviders = null,
     IEnumerable<IGoAppRuntimeEnvironmentProvider>? goEnvironmentProviders = null,
-    IEnumerable<IPythonAppRuntimeEnvironmentProvider>? pythonEnvironmentProviders = null) :
+    IEnumerable<IPythonAppRuntimeEnvironmentProvider>? pythonEnvironmentProviders = null,
+    IEnumerable<IDeferredContainerApplicationRuntimeSelector>? deferredRuntimeSelectors = null) :
     IResourceModelGraphDeploymentDescriptor
 {
     private const string DefaultOrchestratorId = "default";
@@ -25,11 +26,14 @@ public sealed class ContainerApplicationResourceModelGraphDeploymentDescriptor(
         goEnvironmentProviders?.ToArray() ?? [];
     private readonly IReadOnlyList<IPythonAppRuntimeEnvironmentProvider> pythonEnvironmentProviders =
         pythonEnvironmentProviders?.ToArray() ?? [];
+    private readonly IReadOnlyList<IDeferredContainerApplicationRuntimeSelector> deferredRuntimeSelectors =
+        deferredRuntimeSelectors?.ToArray() ?? [];
 
     public bool CanDescribeDeployment(
         ResourceManagerResource resource,
         Resource graphResource) =>
-        graphResource.Type.TypeId == ContainerApplicationResourceTypeProvider.ResourceTypeId;
+        graphResource.Type.TypeId == ContainerApplicationResourceTypeProvider.ResourceTypeId &&
+        !deferredRuntimeSelectors.Any(selector => selector.IsDeferredRuntimeResource(graphResource));
 
     public async ValueTask<ResourceOrchestratorDeployment?> DescribeDeploymentAsync(
         ResourceModelGraphDeploymentDescriptionContext context,

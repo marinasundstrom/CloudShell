@@ -17,6 +17,13 @@ public sealed class DeferredContainerApplicationRuntimeOptions
     }
 }
 
+public interface IDeferredContainerApplicationRuntimeSelector
+{
+    bool IsDeferredRuntimeResource(Resource resource);
+
+    bool IsDeferredRuntimeResourceId(string resourceId);
+}
+
 public sealed class DeferredContainerApplicationRuntimeHandler(
     IOptions<DeferredContainerApplicationRuntimeOptions> options) : IContainerApplicationRuntimeHandler
 {
@@ -29,18 +36,16 @@ public sealed class DeferredContainerApplicationRuntimeHandler(
     private readonly DeferredContainerApplicationRuntimeOptions options = options.Value;
 
     public ContainerApplicationRuntimeStatus GetStatus(Resource resource) =>
-        CanHandle(resource)
-            ? ContainerApplicationRuntimeStatus.Stopped
-            : ContainerApplicationRuntimeStatus.Unknown;
+        ContainerApplicationRuntimeStatus.Unknown;
 
     public ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> ExecuteLifecycleAsync(
         Resource resource,
         ResourceOperationId operationId,
         CancellationToken cancellationToken = default) =>
         CanHandle(resource)
-            ? AcceptedAsync(
+            ? WarningAsync(
                 RuntimeDeferredDiagnosticCode,
-                $"Container app operation '{operationId}' was accepted without runtime materialization.",
+                $"Container app lifecycle operation '{operationId}' was not materialized because this host uses the deferred container app runtime bridge.",
                 resource)
             : EmptyAsync();
 
@@ -80,6 +85,33 @@ public sealed class DeferredContainerApplicationRuntimeHandler(
                 resource.EffectiveResourceId)
         ]);
 
+    private static ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> WarningAsync(
+        string code,
+        string message,
+        Resource resource) =>
+        ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>(
+        [
+            new(
+                ResourceDefinitionDiagnosticSeverity.Warning,
+                code,
+                message,
+                resource.EffectiveResourceId)
+        ]);
+
     private static ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> EmptyAsync() =>
         ValueTask.FromResult<IReadOnlyList<ResourceDefinitionDiagnostic>>([]);
+}
+
+public sealed class DeferredContainerApplicationRuntimeSelector(
+    IOptions<DeferredContainerApplicationRuntimeOptions> options) :
+    IDeferredContainerApplicationRuntimeSelector
+{
+    private readonly DeferredContainerApplicationRuntimeOptions options = options.Value;
+
+    public bool IsDeferredRuntimeResource(Resource resource) =>
+        resource.Type.TypeId == ContainerApplicationResourceTypeProvider.ResourceTypeId &&
+        options.ResourceIds.Contains(resource.EffectiveResourceId);
+
+    public bool IsDeferredRuntimeResourceId(string resourceId) =>
+        options.ResourceIds.Contains(resourceId);
 }

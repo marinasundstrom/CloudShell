@@ -108,7 +108,9 @@ implementation.
 
 The provider also includes a deferred runtime adapter for migration scenarios
 that need graph image/replica changes to be accepted without materializing a
-real container app runtime.
+real container app runtime. Deferred runtime handlers report unknown runtime
+state and return a warning for lifecycle actions so hosts do not present them
+as running app runtimes.
 
 ```csharp
 services
@@ -160,9 +162,10 @@ The ContainerAppDeployment sample uses the provider-owned deferred runtime
 adapter for `application.container-app:sample-api`. It accepts image and
 replica updates through the existing Resource Manager deployment and replicas
 APIs without registering the old application-provider resource. Those
-operations are migration adapter hooks; in the current API path, deployment and
-scale remain Control Plane workflows, and the durable container runtime provider
-remains future work.
+operations are migration adapter hooks; lifecycle actions report deferred
+runtime materialization. In the current API path, deployment and scale remain
+Control Plane workflows, and the durable container runtime provider remains
+future work.
 
 ## Example ResourceDefinition
 

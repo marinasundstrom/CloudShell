@@ -2579,6 +2579,17 @@ public sealed class SampleSmokeTests
         Assert.Equal(sampleImage, appAttributes.GetProperty("container.image").GetString());
         Assert.Equal(registryAddress, appAttributes.GetProperty("container.registry").GetString());
 
+        var startAction = app
+            .GetProperty("resourceActions")
+            .GetProperty(ContainerApplicationResourceTypeProvider.Operations.Start.Value);
+        var startHref = startAction.GetProperty("href").GetString() ??
+            throw new InvalidOperationException("The container app start action did not include an href.");
+        var startJson = await host.SendAsync(HttpMethod.Post, startHref);
+        using var startDocument = JsonDocument.Parse(startJson);
+        Assert.Contains(
+            "deferred container app runtime bridge",
+            startDocument.RootElement.GetProperty("message").GetString());
+
         var updateJson = await host.SendJsonAsync(
             HttpMethod.Post,
             $"/api/container-apps/v1/{Uri.EscapeDataString(containerAppResourceId)}/deployments",

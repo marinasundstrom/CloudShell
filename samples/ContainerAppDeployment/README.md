@@ -30,6 +30,9 @@ The sample keeps the registry and app stopped by default. That makes the
 revision flow safe to run even when the mock image has not actually been pushed.
 When you do start the resources, Docker expects the referenced image tags to
 exist in the configured registry address.
+The container app itself uses the deferred runtime bridge: image and replica
+requests update graph state, but lifecycle actions report that runtime
+materialization is deferred instead of starting a container app.
 
 For local runs, use `create-registry.sh` to materialize the registry container
 in Docker before pushing images to it. The declared Docker container resource
@@ -54,6 +57,8 @@ The sample no longer declares the old application/Docker provider resources.
 The deployment and replica APIs update the Resource graph resource directly and
 execute the provider-owned deferred container app runtime adapter, which
 accepts the state change without materializing a real container app runtime yet.
+Lifecycle actions on the container app return a warning diagnostic because this
+sample does not provide a runtime capable of starting the app.
 This is a switch-readiness gate for the API and graph apply path; real
 container-app materialization remains a provider runtime follow-up.
 

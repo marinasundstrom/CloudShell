@@ -140,9 +140,10 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
             services.Configure(configure);
         }
 
-        services.Replace(ServiceDescriptor.Singleton<
-            IContainerApplicationRuntimeHandler,
-            DeferredContainerApplicationRuntimeHandler>());
+        services.TryAddSingleton<DeferredContainerApplicationRuntimeHandler>();
+        services.TryAddSingleton<IDeferredContainerApplicationRuntimeSelector, DeferredContainerApplicationRuntimeSelector>();
+        services.Replace(ServiceDescriptor.Singleton<IContainerApplicationRuntimeHandler>(
+            serviceProvider => serviceProvider.GetRequiredService<DeferredContainerApplicationRuntimeHandler>()));
 
         return services;
     }

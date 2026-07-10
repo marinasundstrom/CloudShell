@@ -6,12 +6,15 @@ namespace CloudShell.ControlPlane.Providers;
 
 public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
     IContainerApplicationRuntimeHandler? runtimeHandler = null,
-    IContainerApplicationOrchestratorRuntimeHandler? orchestratorRuntimeHandler = null) : IResourceModelGraphOrchestratorServiceExecutor
+    IContainerApplicationOrchestratorRuntimeHandler? orchestratorRuntimeHandler = null,
+    IEnumerable<IDeferredContainerApplicationRuntimeSelector>? deferredRuntimeSelectors = null) : IResourceModelGraphOrchestratorServiceExecutor
 {
     private readonly IContainerApplicationRuntimeHandler _runtimeHandler =
         runtimeHandler ?? new NoopContainerApplicationRuntimeHandler();
     private readonly IContainerApplicationOrchestratorRuntimeHandler? _orchestratorRuntimeHandler =
         orchestratorRuntimeHandler;
+    private readonly IReadOnlyList<IDeferredContainerApplicationRuntimeSelector> _deferredRuntimeSelectors =
+        deferredRuntimeSelectors?.ToArray() ?? [];
 
     public bool CanExecuteOrchestratorService(
         ResourceManagerResource resource,
@@ -20,7 +23,8 @@ public sealed class ContainerApplicationResourceModelGraphServiceExecutor(
             resource.TypeId,
             ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
             StringComparison.OrdinalIgnoreCase) &&
-        action.Kind is ResourceActionKind.Start or ResourceActionKind.Stop;
+        action.Kind is ResourceActionKind.Start or ResourceActionKind.Stop &&
+        !_deferredRuntimeSelectors.Any(selector => selector.IsDeferredRuntimeResourceId(resource.Id));
 
     public async ValueTask PrepareOrchestratorServiceAsync(
         ResourceModelGraphOrchestratorServiceProcedureContext context,
