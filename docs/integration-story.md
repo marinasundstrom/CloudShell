@@ -221,7 +221,7 @@ from inside the launched workload.
 | Configuration Store .NET client | `CloudShell.Configuration.Client` provides direct service calls and `IConfiguration` integration. |
 | Secrets Vault .NET client | `CloudShell.Secrets.Client` provides direct service calls and `IConfiguration` integration. |
 | TypeScript runtime clients | `sdk/typescript/configuration-client` is experimental, covers Configuration Store and Secrets Vault, and is separate from the TypeScript launcher package. |
-| Java runtime clients | `sdk/java/cloudshell` provides experimental Configuration Store and Secrets Vault clients for Java workloads. |
+| Java runtime clients | `sdk/java/cloudshell` provides experimental Configuration Store and Secrets Vault clients for Java workloads, ships a Maven package descriptor, and includes a dependency-free SDK self-test. |
 | Go runtime clients | `sdk/go/cloudshell` provides experimental Configuration Store and Secrets Vault clients and the default credential chain for Go workloads; `samples/GoContainerApp` demonstrates launcher-integrated Configuration Store and Secrets Vault usage from a containerized Go app. |
 | Python runtime clients | `sdk/python/cloudshell` provides experimental Configuration Store and Secrets Vault clients and the default credential chain for Python workloads. |
 

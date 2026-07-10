@@ -31,6 +31,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Clarified the deferred container app runtime bridge so mapped apps report
   unknown runtime state and lifecycle actions return a warning instead of
   appearing to start without materialization.
+- Added a Maven descriptor and dependency-free self-test for the experimental
+  Java runtime SDK so its Configuration Store, Secrets Vault, endpoint
+  discovery, and credential-chain behavior can be verified like the other
+  language SDKs.
 
 ### 2026-07-06
 

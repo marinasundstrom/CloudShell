@@ -316,7 +316,9 @@ hierarchy names such as `Sample--Message` into Java property names such as
 by default, which checks the injected `CLOUDSHELL_IDENTITY_*` workload identity
 contract first, then environment bearer tokens, then the active CloudShell
 profile using the same shared profile contract as the C# and TypeScript
-clients.
+clients. The package has a Maven descriptor under `sdk/java/cloudshell/pom.xml`
+and a dependency-free self-test under `src/test/java` for local JDK-only
+verification.
 
 The experimental Go client follows the same runtime boundary:
 

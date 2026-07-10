@@ -57,3 +57,19 @@ directory.
 For framework integration, `ConfigurationStoreClient.toProperties(true)` maps
 portable CloudShell hierarchy names such as `Sample--Message` to Java-style
 property names such as `Sample.Message`.
+
+Build the package with Maven when Maven is available:
+
+```bash
+mvn -f sdk/java/cloudshell/pom.xml package
+```
+
+The repository also keeps a dependency-free SDK self-test so the package can be
+verified with only a JDK:
+
+```bash
+javac --release 21 --add-modules jdk.httpserver -d /tmp/cloudshell-java-sdk-test \
+  $(find sdk/java/cloudshell/src/main/java sdk/java/cloudshell/src/test/java -name '*.java')
+java --add-modules jdk.httpserver -cp /tmp/cloudshell-java-sdk-test \
+  com.cloudshell.sdk.CloudShellSdkSelfTest
+```
