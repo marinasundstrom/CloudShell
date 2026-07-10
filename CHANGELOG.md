@@ -22,6 +22,9 @@ on `git blame --follow`, and then by the broad type of change.
   endpoint, projected that endpoint into ASP.NET Core project environments
   when they reference SQL Server resources, and documented the remaining
   supported sample MVP seams.
+- Removed Application Topology's hand-authored `CLOUDSHELL_IDENTITY_*`
+  workload variables so the API receives its built-in identity credential
+  environment through the normal `WithIdentity(...)` runtime resolver.
 
 ### 2026-07-06
 

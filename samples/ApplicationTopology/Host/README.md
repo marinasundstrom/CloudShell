@@ -53,6 +53,9 @@ The sample keeps focused runtime seams where behavior is still sample-specific:
   with a matching CloudShell resource identity grant. The API receives
   `CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT` through its SQL Server resource
   reference instead of hard-coding the provider route in the sample.
+- The API receives standard `CLOUDSHELL_IDENTITY_*` workload credential
+  variables through its declared `WithIdentity(...)` binding instead of
+  hand-authoring those variables in the sample resource definition.
 - Configuration Store and Secrets Vault start through provider-owned runtime
   controllers with seeded sample data.
 - ASP.NET Core API and frontend resources start through the Resource model

@@ -1013,8 +1013,8 @@ public sealed class SampleSmokeTests
         var graphApiEnvironmentHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Environment.Value)}");
         Assert.Contains("Environment variables", graphApiEnvironmentHtml);
-        Assert.Contains("CLOUDSHELL_IDENTITY_CLIENT_SECRET", graphApiEnvironmentHtml);
-        Assert.Contains("redacted", graphApiEnvironmentHtml);
+        Assert.Contains("CLOUDSHELL_TRACE_INGEST_ENDPOINT", graphApiEnvironmentHtml);
+        Assert.DoesNotContain("CLOUDSHELL_IDENTITY_CLIENT_SECRET", graphApiEnvironmentHtml);
 
         var graphSqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.sql-server:application-topology-sql-server")}/details");

@@ -33,7 +33,6 @@ var identityAudience = builder.Configuration["Authentication:BuiltInAuthority:Au
     "cloudshell-control-plane";
 var identitySigningKeyPem = builder.Configuration["Authentication:BuiltInAuthority:SigningKeyPem"] ??
     CreateDevelopmentSigningKeyPem();
-var identityTokenEndpoint = $"{cloudShellEndpoint}/api/auth/v1/token";
 var traceIngestEndpoint = builder.Configuration["Observability:TraceIngestEndpoint"]
     ?? $"{cloudShellEndpoint}/api/control-plane/v1/traces/ingest";
 var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndpoint"]
@@ -84,6 +83,7 @@ builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
     ["Authentication:BuiltInAuthority:Issuer"] = identityIssuer,
     ["Authentication:BuiltInAuthority:Audience"] = identityAudience,
     ["Authentication:BuiltInAuthority:SigningKeyPem"] = identitySigningKeyPem,
+    ["CloudShell:PublicEndpoint"] = cloudShellEndpoint,
     [SqlServerResourceDefaults.AdministratorPasswordConfigurationKey] = sqlPassword
 });
 
@@ -161,7 +161,6 @@ var cloudShell = builder.AddCloudShellControlPlaneApplication(
                 .WithSource("application-topology");
             var apiResource = resources
                 .AddAspNetCoreProject("application-topology-api", apiProjectPath);
-            var apiIdentityClientId = apiResource.IdentityClientId(apiIdentityName);
             apiResource
                 .WithDisplayName("API")
                 .WithResourceGroup(resourceGroup)
@@ -183,18 +182,6 @@ var cloudShell = builder.AddCloudShellControlPlaneApplication(
                 .WithEnvironmentVariable(
                     "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
                     metricIngestEndpoint ?? string.Empty)
-                .WithEnvironmentVariable(
-                    "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT",
-                    identityTokenEndpoint)
-                .WithEnvironmentVariable(
-                    "CLOUDSHELL_IDENTITY_CLIENT_ID",
-                    apiIdentityClientId)
-                .WithEnvironmentVariable(
-                    "CLOUDSHELL_IDENTITY_CLIENT_SECRET",
-                    "local-development-application-topology-api-secret")
-                .WithEnvironmentVariable(
-                    "CLOUDSHELL_IDENTITY_SCOPE",
-                    "ControlPlane.Access")
                 .WithEnvironmentVariable(
                     "ApplicationTopology__SqlServer__Authentication",
                     "CloudShell")

@@ -28,7 +28,9 @@
   defaults without registering old application-provider stores or update forms.
 - ProjectReference and SettingsAndSecrets sample coverage for runtime startup, Resource model service-to-service calls, logs, metrics, traces, health, and ResourceDefinition apply/update.
 - ApplicationTopology-inspired graph coverage for explicit SQL Server, Configuration Store, and Secrets Vault service-discovery references without using `DependsOn` for discovery.
-- ApplicationTopology graph API identity declaration and SQL read/write grant setup through Resource Manager declarations.
+- ApplicationTopology graph API identity declaration, runtime identity
+  credential environment projection, and SQL read/write grant setup through
+  Resource Manager declarations.
 - ApplicationTopology graph API `/database` coverage through the provider-owned
   SQL credential endpoint projected from the graph SQL Server reference.
 - ApplicationTopology Docker-backed graph frontend `/upstream` coverage through
