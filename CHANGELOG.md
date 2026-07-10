@@ -25,6 +25,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Removed Application Topology's hand-authored `CLOUDSHELL_IDENTITY_*`
   workload variables so the API receives its built-in identity credential
   environment through the normal `WithIdentity(...)` runtime resolver.
+- Made Application Topology honor `CLOUDSHELL_LOCAL_HOSTS_FILE` for local DNS
+  name-mapping reconciliation and added smoke coverage for the generated hosts
+  entry.
 
 ### 2026-07-06
 

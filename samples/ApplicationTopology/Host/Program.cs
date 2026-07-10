@@ -15,6 +15,14 @@ using CloudShell.ControlPlane.ResourceModel;
 using System.Security.Cryptography;
 
 var builder = CloudShellApplication.CreateBuilder(args);
+var localHostsFilePath = Environment.GetEnvironmentVariable("CLOUDSHELL_LOCAL_HOSTS_FILE");
+if (!string.IsNullOrWhiteSpace(localHostsFilePath))
+{
+    builder.Services
+        .GetOrAddPlatformResourceOptions()
+        .LocalHostNameHostsFilePath = localHostsFilePath;
+}
+
 var repositoryRootPath = Path.GetFullPath("../../..", builder.Environment.ContentRootPath);
 var sampleRootPath = Path.Combine(repositoryRootPath, "samples", "ApplicationTopology");
 var configurationStoreServiceProjectPath = Path.Combine(

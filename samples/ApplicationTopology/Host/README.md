@@ -30,7 +30,7 @@ The host declares these Resource Definitions-backed resources:
 - `configuration.host:application-topology-host-settings`
 - `application.aspnet-core-project:application-topology-api`
 - `application.aspnet-core-project:application-topology-frontend`
-- `dns:application-topology-local`
+- `cloudshell.dnsZone:application-topology-local`
 
 The old application, configuration, secrets, storage, volume, and SQL resource
 records are no longer declared by this sample. The old side-by-side comparison
@@ -75,6 +75,7 @@ Current smoke coverage verifies:
 - API settings/secrets consumption through CloudShell clients.
 - SQL credential materialization and API `/database` access.
 - Frontend-to-API service discovery through `/upstream`.
+- Local DNS name-mapping reconciliation to a configured hosts file.
 - SQL Docker container cleanup on stop and graceful host shutdown.
 
 The local DNS resource maps `app.application-topology.cloudshell.local` to the

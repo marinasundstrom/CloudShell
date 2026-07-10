@@ -901,6 +901,9 @@ public sealed class SampleSmokeTests
         var graphConfigurationEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
         var graphSecretsEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
         var sqlPort = await GetFreePortAsync();
+        var hostsFilePath = Path.Combine(
+            Path.GetTempPath(),
+            $"cloudshell-application-topology-hosts-{Guid.NewGuid():N}");
         var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
         var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
         using var host = await SampleProcess.StartAsync(
@@ -913,7 +916,8 @@ public sealed class SampleSmokeTests
                 ("ApplicationTopology__SecretsServiceEndpoint", graphSecretsEndpoint),
                 ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
                 ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
-                ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
+                ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture)),
+                ("CLOUDSHELL_LOCAL_HOSTS_FILE", hostsFilePath)
             ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
@@ -937,6 +941,8 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "application.aspnet-core-project:application-topology-frontend");
         var graphHostConfiguration = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "configuration.host:application-topology-host-settings");
+        var graphDnsZone = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "cloudshell.dnsZone:application-topology-local");
         var nameMapping = Assert.Single(resources, resource =>
             resource.GetProperty("typeId").GetString() == NameMappingResourceTypeProvider.ResourceTypeId.ToString()
             && resource.GetProperty("attributes")
@@ -969,6 +975,18 @@ public sealed class SampleSmokeTests
             nameMapping.GetProperty("attributes")
                 .GetProperty("nameMapping.targetResourceId")
                 .GetString());
+        var dnsReconcileAction = graphDnsZone
+            .GetProperty("resourceActions")
+            .GetProperty("reconcileNameMappings");
+        var dnsReconcileHref = dnsReconcileAction.GetProperty("href").GetString() ??
+            throw new InvalidOperationException("The DNS zone reconcile action did not include an href.");
+        var dnsReconcileJson = await host.SendAsync(HttpMethod.Post, dnsReconcileHref);
+        using var dnsReconcileDocument = JsonDocument.Parse(dnsReconcileJson);
+        Assert.Contains(
+            "Published 1 local host name mapping(s)",
+            dnsReconcileDocument.RootElement.GetProperty("message").GetString());
+        var hostsFile = await File.ReadAllTextAsync(hostsFilePath);
+        Assert.Contains("127.0.0.1 app.application-topology.cloudshell.local", hostsFile);
         Assert.Equal("cloudshell.volume", graphVolume.GetProperty("typeId").GetString());
         Assert.Equal("application.sql-server", graphSqlServer.GetProperty("typeId").GetString());
         Assert.Equal("application.sql-database", graphDatabase.GetProperty("typeId").GetString());
