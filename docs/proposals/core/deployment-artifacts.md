@@ -159,6 +159,25 @@ target framework compatibility, and any supported build requirements. The UI
 should present these layouts as different upload choices when a provider
 advertises both.
 
+Supported artifact layouts are announced by the resource type provider. The
+Resource Manager UI should not hard-code layout names or infer support from a
+resource type string. A provider descriptor for a layout should include:
+
+- resource type id
+- layout kind
+- display name and description
+- supported package kinds
+- default package kind when more than one package kind is supported
+- optional default entry path and whether entry path is required
+- optional metadata for provider-specific UI hints
+
+Resource Manager should combine this provider descriptor with the Control
+Plane artifact-store status. For example, if a .NET web app provider supports
+`dotnetPublishedOutput` in `zip` or `tar.gz`, but the configured store only
+allows `zip`, the UI should offer that layout with `zip` only. If no provider
+layout and store package-kind intersection exists, upload mode should be
+disabled for that resource type with a clear validation message.
+
 ## Provider Validation
 
 The Control Plane artifact store validates generic storage concerns:
@@ -415,7 +434,8 @@ the results should be summarized as non-secret metadata and diagnostics.
 Resource providers that support uploaded deployment artifacts should document:
 
 - supported modes and artifact kinds
-- package kinds and provider-owned artifact layout kinds
+- package kinds and provider-owned artifact layout kinds, surfaced through the
+  provider's artifact-layout descriptor
 - how package entry paths map to project paths, scripts, Dockerfiles, build
   files, or executable paths
 - whether the provider builds from source, runs from source, or expects a
@@ -438,8 +458,9 @@ Resource providers that support uploaded deployment artifacts should document:
 4. Add a provider validation hook that can inspect committed artifact content
    before accepting a ResourceDefinition update.
 5. Add a common deployment artifact descriptor shape with package kind,
-   provider-owned artifact layout kind, and Control Plane validation for
-   `localPath` host mode and host-path authoring permission.
+   provider-owned artifact layout kind, provider-announced layout descriptors,
+   and Control Plane validation for `localPath` host mode and host-path
+   authoring permission.
 6. Support
    `uploadedArtifact` for one narrow provider, preferably Python or executable
    applications because their runtime mapping is simpler than ASP.NET Core
@@ -461,8 +482,9 @@ Resource providers that support uploaded deployment artifacts should document:
 - How long should staged but incomplete uploads be retained?
 - Should package extraction happen at upload completion, provider
   materialization time, or both?
-- How should providers advertise supported artifact layouts and their UI labels,
-  required package kinds, entry path rules, and validation expectations?
+- Should provider artifact-layout descriptors be exposed through the core
+  Control Plane resource-type metadata endpoint, a dedicated deployment
+  artifact capability endpoint, or both?
 - How should artifact revisions integrate with deployment records for
   process-backed resources that do not yet use the container app deployment
   coordinator?

@@ -16,6 +16,29 @@ public sealed record DeploymentArtifactStoreStatus(
     long MaxUploadBytes,
     IReadOnlyList<string> AllowedPackageKinds);
 
+public sealed record DeploymentArtifactLayoutDescriptor(
+    ResourceTypeId ResourceTypeId,
+    string Kind,
+    string DisplayName,
+    string Description,
+    IReadOnlyList<string> PackageKinds,
+    string? DefaultPackageKind = null,
+    string? DefaultEntryPath = null,
+    bool EntryPathRequired = false,
+    bool IsDefault = false,
+    IReadOnlyDictionary<string, string>? Metadata = null)
+{
+    public IReadOnlyList<string> SupportedPackageKinds => PackageKinds;
+
+    public IReadOnlyDictionary<string, string> LayoutMetadata => Metadata ?? new Dictionary<string, string>();
+}
+
+public sealed record DeploymentArtifactLayoutQuery(
+    ResourceTypeId ResourceTypeId,
+    string? ProviderId = null,
+    string? EnvironmentId = null,
+    string? PrincipalId = null);
+
 public sealed record CreateDeploymentArtifactUploadSessionCommand(
     string ResourceType,
     string ResourceName,
@@ -64,5 +87,14 @@ public interface IDeploymentArtifactValidationProvider
     ValueTask<ResourceDefinitionValidationResult> ValidateDeploymentArtifactAsync(
         DeploymentArtifactValidationContext context,
         Stream artifactContent,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IDeploymentArtifactLayoutProvider
+{
+    ResourceTypeId TypeId { get; }
+
+    ValueTask<IReadOnlyList<DeploymentArtifactLayoutDescriptor>> GetDeploymentArtifactLayoutsAsync(
+        DeploymentArtifactLayoutQuery query,
         CancellationToken cancellationToken = default);
 }

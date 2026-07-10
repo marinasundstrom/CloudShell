@@ -28,6 +28,9 @@ one ZIP containing already published output and another ZIP containing a source
 project directory. The provider validates the selected layout: published
 output validation checks runnable application output, while source-project
 validation checks project files and any provider-supported build requirements.
+Resource type providers announce the artifact layouts they support for each
+resource type so Resource Manager can offer the right upload choices instead of
+hard-coding provider package semantics in the shell.
 
 Resource types may support both local-source mode and deployment-artifact
 mode, but a single resource definition chooses one mode. Local-source mode is

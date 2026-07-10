@@ -22,7 +22,8 @@ on `git blame --follow`, and then by the broad type of change.
   deployment-artifact mode, and introduced the first disabled-by-default
   Control Plane filesystem artifact store contracts, revision metadata, upload
   size/package validation, provider validation hook, provider-owned artifact
-  layout metadata, and permission constants; see ADR-20260711-001.
+  layout metadata and layout descriptor contract, and permission constants; see
+  ADR-20260711-001.
 
 ### 2026-07-10
 
