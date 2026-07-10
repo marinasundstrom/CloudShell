@@ -22,6 +22,13 @@ artifact means for its resource type, including package layout, build or run
 behavior, materialization, diagnostics, and whether a new revision requires
 restart or deployment.
 
+The package container format, such as `zip` or `tar.gz`, is distinct from the
+provider-owned artifact layout. For example, a .NET web app provider may accept
+one ZIP containing already published output and another ZIP containing a source
+project directory. The provider validates the selected layout: published
+output validation checks runnable application output, while source-project
+validation checks project files and any provider-supported build requirements.
+
 Resource types may support both local-source mode and deployment-artifact
 mode, but a single resource definition chooses one mode. Local-source mode is
 for local development and trusted host-path automation where the runtime host

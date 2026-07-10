@@ -69,8 +69,8 @@ not a UI-only convenience and not a path string in resource attributes.
 - Keep the physical artifact store configured by the Control Plane host, not
   authored into resource definitions.
 - Give resources stable artifact references such as an artifact revision id,
-  content hash, package kind, and optional entry path, without exposing the
-  store root path.
+  content hash, package kind, provider-owned artifact layout kind, and optional
+  entry path, without exposing the store root path.
 - Make upload, validation, apply, and restart/deploy distinct domain steps so
   failed uploads do not affect the currently accepted application revision.
 - Support split hosting and remote Control Plane clients through the same API
@@ -127,9 +127,37 @@ In a shared or hosted environment, ordinary application editors should use
 
 `uploadedArtifact` is the first deployment-artifact kind this proposal targets.
 The store does not define what a ZIP, tarball, JAR, DLL, static-site bundle,
-Docker build context, or other package means. The resource provider validates
-the artifact layout for its resource type and decides whether it builds,
-copies, extracts, runs, or rejects that artifact.
+Docker build context, or other package means. The package kind describes the
+container format, such as `zip` or `tar.gz`; the artifact layout kind describes
+provider-owned meaning, such as a .NET published output package or a .NET
+source project directory. The resource provider validates the artifact layout
+for its resource type and decides whether it builds, copies, extracts, runs, or
+rejects that artifact.
+
+## Package Kind and Artifact Layout
+
+CloudShell should keep package transport separate from provider deployment
+meaning:
+
+| Concept | Owner | Examples |
+| --- | --- | --- |
+| Source kind | Common resource descriptor | `localPath`, `uploadedArtifact`, `git`, `containerImage` |
+| Package kind | Artifact store | `zip`, `tar.gz` |
+| Artifact layout kind | Resource provider | `dotnetPublishedOutput`, `dotnetSourceProject`, `pythonSourceDirectory`, `containerBuildContext` |
+
+This distinction matters for .NET app resources. The normal hosted upload flow
+should accept a compiled/published .NET application package. In that layout,
+the provider validates runnable output, such as the entry assembly, dependency
+metadata, runtime configuration, static web assets where relevant, and the
+selected entry path. It should not require a project file because the build has
+already happened.
+
+A provider may also support uploading an entire source directory package. That
+is a different artifact layout. In that layout, the provider validates source
+shape, such as a `.csproj` or `.fsproj` file, solution/project selection rules,
+target framework compatibility, and any supported build requirements. The UI
+should present these layouts as different upload choices when a provider
+advertises both.
 
 ## Provider Validation
 
@@ -147,8 +175,9 @@ deployment artifact should be able to inspect the committed artifact stream and
 return resource-definition diagnostics before a resource definition that
 references the artifact is accepted. Examples:
 
-- a .NET web app provider checks for a project file, published output, entry
-  assembly, or provider-supported package layout
+- a .NET web app provider checks runnable published output when the selected
+  layout is published output, or checks project files and build requirements
+  when the selected layout is source project
 - a Java provider checks for a JAR, classpath layout, Maven or Gradle project,
   or expected main-class metadata
 - a Python provider checks for an entry module, script, requirements file, or
@@ -239,6 +268,7 @@ resources:
       artifactKind: uploadedArtifact
       artifactRevision: deployment-artifact:api/revisions/20260711T120000Z
       packageKind: zip
+      artifactLayoutKind: pythonSourceDirectory
       contentSha256: 4f6b...
       entryPath: .
     python:
@@ -259,7 +289,8 @@ deployment descriptor chooses the mode:
 - local source mode uses provider-owned path fields, such as project path,
   script path, or working directory
 - deployment artifact mode gives the provider an artifact revision and optional
-  entry path from which type-specific build or run settings are resolved
+  artifact layout and entry path from which type-specific build or run settings
+  are resolved
 
 ## Upload API Flow
 
@@ -274,7 +305,7 @@ sequenceDiagram
     participant Provider as Application provider
     participant Runtime as Runtime host
 
-    UI->>CP: Create upload session(resource type, app name, package kind)
+    UI->>CP: Create upload session(resource type, app name, package kind, artifact layout)
     CP->>UI: Upload session id and upload affordance
     UI->>CP: Upload package bytes
     CP->>Store: Store staged package
@@ -331,6 +362,8 @@ The application create/edit UI should present deployment mode as an explicit
 section:
 
 - Mode: local source, uploaded deployment artifact, image, or future Git.
+- Upload layout: provider-supported layouts such as compiled/published app
+  package or source directory package.
 - For host-readable paths, show path fields and a note that the target host
   must be able to read them. Hide or disable this option unless the host is a
   local-development host or the actor has host-path authoring permission.
@@ -382,7 +415,7 @@ the results should be summarized as non-secret metadata and diagnostics.
 Resource providers that support uploaded deployment artifacts should document:
 
 - supported modes and artifact kinds
-- package kinds and expected layout
+- package kinds and provider-owned artifact layout kinds
 - how package entry paths map to project paths, scripts, Dockerfiles, build
   files, or executable paths
 - whether the provider builds from source, runs from source, or expects a
@@ -404,8 +437,9 @@ Resource providers that support uploaded deployment artifacts should document:
    client.
 4. Add a provider validation hook that can inspect committed artifact content
    before accepting a ResourceDefinition update.
-5. Add a common deployment artifact descriptor shape with Control Plane
-   validation for `localPath` host mode and host-path authoring permission.
+5. Add a common deployment artifact descriptor shape with package kind,
+   provider-owned artifact layout kind, and Control Plane validation for
+   `localPath` host mode and host-path authoring permission.
 6. Support
    `uploadedArtifact` for one narrow provider, preferably Python or executable
    applications because their runtime mapping is simpler than ASP.NET Core
@@ -427,6 +461,8 @@ Resource providers that support uploaded deployment artifacts should document:
 - How long should staged but incomplete uploads be retained?
 - Should package extraction happen at upload completion, provider
   materialization time, or both?
+- How should providers advertise supported artifact layouts and their UI labels,
+  required package kinds, entry path rules, and validation expectations?
 - How should artifact revisions integrate with deployment records for
   process-backed resources that do not yet use the container app deployment
   coordinator?

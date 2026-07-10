@@ -22,7 +22,8 @@ public sealed record CreateDeploymentArtifactUploadSessionCommand(
     string PackageKind,
     string? FileName = null,
     long? ContentLength = null,
-    string? ContentSha256 = null);
+    string? ContentSha256 = null,
+    string? ArtifactLayoutKind = null);
 
 public sealed record DeploymentArtifactUploadSession(
     string UploadId,
@@ -40,7 +41,8 @@ public sealed record DeploymentArtifactRevision(
     string PackageKind,
     string ContentSha256,
     long SizeBytes,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string? ArtifactLayoutKind = null);
 
 public sealed record DeploymentArtifactValidationContext(
     string ResourceType,
@@ -50,7 +52,8 @@ public sealed record DeploymentArtifactValidationContext(
     string PackageKind,
     string ContentSha256,
     long SizeBytes,
-    string? EntryPath = null);
+    string? EntryPath = null,
+    string? ArtifactLayoutKind = null);
 
 public interface IDeploymentArtifactValidationProvider
 {

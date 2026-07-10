@@ -46,6 +46,7 @@ public sealed class FileSystemDeploymentArtifactStore(
             NormalizeNullable(command.FileName),
             command.ContentLength,
             NormalizeNullable(command.ContentSha256)?.ToLowerInvariant(),
+            NormalizeNullable(command.ArtifactLayoutKind),
             now,
             now.AddMinutes(NormalizeTimeoutMinutes(store.UploadSessionTimeoutMinutes)));
 
@@ -137,7 +138,8 @@ public sealed class FileSystemDeploymentArtifactStore(
             metadata.PackageKind,
             hash,
             sizeBytes,
-            createdAt);
+            createdAt,
+            metadata.ArtifactLayoutKind);
         await WriteJsonAsync(
             Path.Combine(revisionDirectory, "revision.json"),
             revision,
@@ -378,6 +380,7 @@ public sealed class FileSystemDeploymentArtifactStore(
         string? FileName,
         long? ContentLength,
         string? ContentSha256,
+        string? ArtifactLayoutKind,
         DateTimeOffset CreatedAt,
         DateTimeOffset ExpiresAt);
 }

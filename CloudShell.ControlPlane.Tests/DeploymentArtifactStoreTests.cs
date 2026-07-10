@@ -46,7 +46,8 @@ public sealed class DeploymentArtifactStoreTests
                 "application.python-app",
                 "api",
                 "zip",
-                ContentLength: bytes.Length));
+                ContentLength: bytes.Length,
+                ArtifactLayoutKind: "pythonSourceDirectory"));
         await store.WriteUploadContentAsync(
             upload.UploadId,
             new MemoryStream(bytes));
@@ -55,6 +56,7 @@ public sealed class DeploymentArtifactStoreTests
 
         Assert.Equal("deployment-artifact:api", revision.ArtifactId);
         Assert.Equal("zip", revision.PackageKind);
+        Assert.Equal("pythonSourceDirectory", revision.ArtifactLayoutKind);
         Assert.Equal(bytes.Length, revision.SizeBytes);
         Assert.Equal(
             "96f43d529af3430cb6b0e2c02f6b38ef1a121e8a31d2d09a3ebb716f2f35c9de",
