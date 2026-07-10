@@ -336,6 +336,51 @@ public sealed record ResourceProcedureSignalResponse(
     string Severity,
     string Message);
 
+public sealed record DeploymentArtifactStoreStatusResponse(
+    bool IsEnabled,
+    string Kind,
+    long MaxUploadBytes,
+    IReadOnlyList<string> AllowedPackageKinds);
+
+public sealed record DeploymentArtifactLayoutResponse(
+    string ResourceTypeId,
+    string Kind,
+    string DisplayName,
+    string Description,
+    IReadOnlyList<string> PackageKinds,
+    string? DefaultPackageKind,
+    string? DefaultEntryPath,
+    bool EntryPathRequired,
+    bool IsDefault,
+    IReadOnlyDictionary<string, string> Metadata);
+
+public sealed record CreateDeploymentArtifactUploadSessionRequest(
+    string ResourceType,
+    string ResourceName,
+    string PackageKind,
+    string? FileName = null,
+    long? ContentLength = null,
+    string? ContentSha256 = null,
+    string? ArtifactLayoutKind = null);
+
+public sealed record DeploymentArtifactUploadSessionResponse(
+    string UploadId,
+    DateTimeOffset ExpiresAt,
+    long MaxUploadBytes,
+    IReadOnlyList<string> AllowedPackageKinds);
+
+public sealed record CompleteDeploymentArtifactUploadRequest(
+    string? ContentSha256 = null);
+
+public sealed record DeploymentArtifactRevisionResponse(
+    string ArtifactId,
+    string RevisionId,
+    string PackageKind,
+    string ContentSha256,
+    long SizeBytes,
+    DateTimeOffset CreatedAt,
+    string? ArtifactLayoutKind = null);
+
 public sealed record LogSourceResponse(
     string Id,
     string Name,
@@ -771,6 +816,47 @@ internal static class CloudShellControlPlaneDtoMapper
             capability.ActionId,
             capability.CanExecute,
             capability.Reason);
+
+    public static DeploymentArtifactStoreStatusResponse ToResponse(
+        this DeploymentArtifactStoreStatus status) =>
+        new(
+            status.IsEnabled,
+            status.Kind,
+            status.MaxUploadBytes,
+            status.AllowedPackageKinds);
+
+    public static DeploymentArtifactLayoutResponse ToResponse(
+        this DeploymentArtifactLayoutDescriptor layout) =>
+        new(
+            layout.ResourceTypeId.ToString(),
+            layout.Kind,
+            layout.DisplayName,
+            layout.Description,
+            layout.PackageKinds,
+            layout.DefaultPackageKind,
+            layout.DefaultEntryPath,
+            layout.EntryPathRequired,
+            layout.IsDefault,
+            layout.LayoutMetadata);
+
+    public static DeploymentArtifactUploadSessionResponse ToResponse(
+        this DeploymentArtifactUploadSession session) =>
+        new(
+            session.UploadId,
+            session.ExpiresAt,
+            session.MaxUploadBytes,
+            session.AllowedPackageKinds);
+
+    public static DeploymentArtifactRevisionResponse ToResponse(
+        this DeploymentArtifactRevision revision) =>
+        new(
+            revision.ArtifactId,
+            revision.RevisionId,
+            revision.PackageKind,
+            revision.ContentSha256,
+            revision.SizeBytes,
+            revision.CreatedAt,
+            revision.ArtifactLayoutKind);
 
     public static LogSourceResponse ToResponse(this LogSource source) =>
         new(

@@ -108,6 +108,8 @@ A resource type may support both modes, but a single resource definition should
 select one. For example, a .NET web app resource might run from a local
 project file in local source mode or from an uploaded ZIP in deployment
 artifact mode. The resource provider decides how to build or run each mode.
+This preserves the existing project-file and local-path authoring flows while
+making the selected input mode unambiguous for a given resource instance.
 
 The common reference kinds should be:
 
@@ -341,16 +343,22 @@ sequenceDiagram
 The first HTTP API can be simple and Control Plane-hosted:
 
 ```http
+GET  /api/control-plane/v1/deployment-artifacts/status
+GET  /api/control-plane/v1/deployment-artifacts/layouts?resourceTypeId=application.dotnet-web-app
 POST /api/control-plane/v1/deployment-artifacts/uploads
 PUT  /api/control-plane/v1/deployment-artifacts/uploads/{uploadId}/content
 POST /api/control-plane/v1/deployment-artifacts/uploads/{uploadId}/complete
 GET  /api/control-plane/v1/deployment-artifacts/{artifactId}/revisions/{revisionId}
 ```
 
-Provider-backed stores may later return direct upload affordances, such as a
-single-use signed URL, but the Resource Manager and remote client model should
-still treat the Control Plane as the authority that creates, completes, and
-accepts artifact revisions.
+For the first slice, the host-configured artifact store is the direct upload
+target. The client streams package bytes to the Control Plane, and the Control
+Plane writes them to the configured host store. Future providers may support
+pulling artifacts from repositories, object stores, or other artifact systems
+into a supported host target, or returning direct upload affordances such as a
+single-use signed URL. Those are later transfer modes. Resource Manager and
+remote clients should still treat the Control Plane as the authority that
+creates, completes, and accepts artifact revisions.
 
 ## Apply and Lifecycle Boundary
 
@@ -363,6 +371,11 @@ The intended flow is:
 3. Apply a `ResourceDefinition` update that references the new artifact
    revision.
 4. Optionally start, restart, or deploy the resource.
+
+Any accepted application artifact must eventually be materialized onto the
+runtime host or into the host's runtime substrate before the app can run. Direct
+upload only changes how bytes enter the host artifact store; provider
+materialization still owns how a revision becomes a runnable app.
 
 Resource Manager can expose this as one guided workflow, but the domain steps
 should stay separate. This avoids replacing a known-good artifact revision with a

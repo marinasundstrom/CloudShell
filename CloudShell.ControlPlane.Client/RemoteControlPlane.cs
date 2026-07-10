@@ -541,6 +541,87 @@ public sealed class RemoteControlPlane : IControlPlane
         return await ReadRequiredAsync<ResourceTemplateApplyResult>(response, cancellationToken);
     }
 
+    public async Task<DeploymentArtifactStoreStatus> GetDeploymentArtifactStoreStatusAsync(
+        CancellationToken cancellationToken = default) =>
+        (await GetRequiredAsync<DeploymentArtifactStoreStatusResponse>(
+            "deployment-artifacts/status",
+            cancellationToken))
+        .ToDeploymentArtifactStoreStatus();
+
+    public async Task<IReadOnlyList<DeploymentArtifactLayoutDescriptor>> ListDeploymentArtifactLayoutsAsync(
+        DeploymentArtifactLayoutQuery query,
+        CancellationToken cancellationToken = default) =>
+        (await GetRequiredAsync<IReadOnlyList<DeploymentArtifactLayoutResponse>>(
+            "deployment-artifacts/layouts",
+            cancellationToken,
+            ("resourceTypeId", query.ResourceTypeId.ToString()),
+            ("providerId", query.ProviderId),
+            ("environmentId", query.EnvironmentId),
+            ("principalId", query.PrincipalId)))
+        .Select(response => response.ToDeploymentArtifactLayoutDescriptor())
+        .ToArray();
+
+    public async Task<DeploymentArtifactUploadSession> CreateDeploymentArtifactUploadSessionAsync(
+        CreateDeploymentArtifactUploadSessionCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsJsonAsync(
+            BuildUri("deployment-artifacts/uploads"),
+            new CreateDeploymentArtifactUploadSessionRequest(
+                command.ResourceType,
+                command.ResourceName,
+                command.PackageKind,
+                command.FileName,
+                command.ContentLength,
+                command.ContentSha256,
+                command.ArtifactLayoutKind),
+            SerializerOptions,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await ReadRequiredAsync<DeploymentArtifactUploadSessionResponse>(response, cancellationToken))
+            .ToDeploymentArtifactUploadSession();
+    }
+
+    public async Task UploadDeploymentArtifactContentAsync(
+        string uploadId,
+        Stream content,
+        CancellationToken cancellationToken = default)
+    {
+        using var requestContent = new StreamContent(content);
+        requestContent.Headers.ContentType =
+            new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+        var response = await httpClient.PutAsync(
+            BuildUri($"deployment-artifacts/uploads/{Escape(uploadId)}/content"),
+            requestContent,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    public async Task<DeploymentArtifactRevision> CompleteDeploymentArtifactUploadAsync(
+        CompleteDeploymentArtifactUploadCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsJsonAsync(
+            BuildUri($"deployment-artifacts/uploads/{Escape(command.UploadId)}/complete"),
+            new CompleteDeploymentArtifactUploadRequest(command.ContentSha256),
+            SerializerOptions,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await ReadRequiredAsync<DeploymentArtifactRevisionResponse>(response, cancellationToken))
+            .ToDeploymentArtifactRevision();
+    }
+
+    public async Task<DeploymentArtifactRevision?> GetDeploymentArtifactRevisionAsync(
+        string artifactId,
+        string revisionId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await GetOptionalAsync<DeploymentArtifactRevisionResponse>(
+            $"deployment-artifacts/{Escape(artifactId)}/revisions/{Escape(revisionId)}",
+            cancellationToken);
+        return response?.ToDeploymentArtifactRevision();
+    }
+
     public async Task<IReadOnlyList<LogSource>> ListLogSourcesAsync(
         LogQuery? query = null,
         CancellationToken cancellationToken = default) =>
@@ -1337,6 +1418,51 @@ file sealed record ResourceProcedureSignalResponse(
     string Severity,
     string Message);
 
+file sealed record DeploymentArtifactStoreStatusResponse(
+    bool IsEnabled,
+    string Kind,
+    long MaxUploadBytes,
+    IReadOnlyList<string> AllowedPackageKinds);
+
+file sealed record DeploymentArtifactLayoutResponse(
+    string ResourceTypeId,
+    string Kind,
+    string DisplayName,
+    string Description,
+    IReadOnlyList<string> PackageKinds,
+    string? DefaultPackageKind,
+    string? DefaultEntryPath,
+    bool EntryPathRequired,
+    bool IsDefault,
+    IReadOnlyDictionary<string, string>? Metadata);
+
+file sealed record CreateDeploymentArtifactUploadSessionRequest(
+    string ResourceType,
+    string ResourceName,
+    string PackageKind,
+    string? FileName = null,
+    long? ContentLength = null,
+    string? ContentSha256 = null,
+    string? ArtifactLayoutKind = null);
+
+file sealed record DeploymentArtifactUploadSessionResponse(
+    string UploadId,
+    DateTimeOffset ExpiresAt,
+    long MaxUploadBytes,
+    IReadOnlyList<string> AllowedPackageKinds);
+
+file sealed record CompleteDeploymentArtifactUploadRequest(
+    string? ContentSha256 = null);
+
+file sealed record DeploymentArtifactRevisionResponse(
+    string ArtifactId,
+    string RevisionId,
+    string PackageKind,
+    string ContentSha256,
+    long SizeBytes,
+    DateTimeOffset CreatedAt,
+    string? ArtifactLayoutKind = null);
+
 file sealed record LogSourceResponse(
     string Id,
     string Name,
@@ -1818,6 +1944,47 @@ file static class RemoteControlPlaneMapper
                     ResourceSignalSeverityParser.FromName(signal.Severity),
                     signal.Message))
                 .ToArray());
+
+    public static DeploymentArtifactStoreStatus ToDeploymentArtifactStoreStatus(
+        this DeploymentArtifactStoreStatusResponse response) =>
+        new(
+            response.IsEnabled,
+            response.Kind,
+            response.MaxUploadBytes,
+            response.AllowedPackageKinds);
+
+    public static DeploymentArtifactLayoutDescriptor ToDeploymentArtifactLayoutDescriptor(
+        this DeploymentArtifactLayoutResponse response) =>
+        new(
+            response.ResourceTypeId,
+            response.Kind,
+            response.DisplayName,
+            response.Description,
+            response.PackageKinds,
+            response.DefaultPackageKind,
+            response.DefaultEntryPath,
+            response.EntryPathRequired,
+            response.IsDefault,
+            response.Metadata);
+
+    public static DeploymentArtifactUploadSession ToDeploymentArtifactUploadSession(
+        this DeploymentArtifactUploadSessionResponse response) =>
+        new(
+            response.UploadId,
+            response.ExpiresAt,
+            response.MaxUploadBytes,
+            response.AllowedPackageKinds);
+
+    public static DeploymentArtifactRevision ToDeploymentArtifactRevision(
+        this DeploymentArtifactRevisionResponse response) =>
+        new(
+            response.ArtifactId,
+            response.RevisionId,
+            response.PackageKind,
+            response.ContentSha256,
+            response.SizeBytes,
+            response.CreatedAt,
+            response.ArtifactLayoutKind);
 
     public static LogSource ToLogSource(this LogSourceResponse response) =>
         new(

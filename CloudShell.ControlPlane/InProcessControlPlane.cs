@@ -4,6 +4,7 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Usage;
+using CloudShell.ControlPlane.DeploymentArtifacts;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Deployment;
 using CloudShell.ControlPlane.ResourceManager.Health;
@@ -51,7 +52,9 @@ public sealed class InProcessControlPlane(
     ResourceIdentityProviderCatalog? identityProviders = null,
     IEnumerable<IResourceIdentityDirectoryProvider>? identityDirectoryProviders = null,
     IEnumerable<IResourcePermissionGrantStatusProvider>? permissionGrantStatusProviders = null,
-    ResourceOrchestratorDeploymentCleanupCoordinator? deploymentCleanup = null) : IControlPlane
+    ResourceOrchestratorDeploymentCleanupCoordinator? deploymentCleanup = null,
+    IDeploymentArtifactStore? deploymentArtifacts = null,
+    IEnumerable<IDeploymentArtifactLayoutProvider>? deploymentArtifactLayoutProviders = null) : IControlPlane
 {
     private const string PreferredUsernameClaimType = "preferred_username";
     private const string UnauthenticatedRequestActor = "user";
@@ -71,6 +74,8 @@ public sealed class InProcessControlPlane(
         (permissionGrantStatusProviders ?? []).ToArray();
     private readonly ResourceOrchestratorDeploymentCleanupCoordinator deploymentCleanup =
         deploymentCleanup ?? new ResourceOrchestratorDeploymentCleanupCoordinator(resourceEvents);
+    private readonly IReadOnlyList<IDeploymentArtifactLayoutProvider> deploymentArtifactLayoutProviders =
+        (deploymentArtifactLayoutProviders ?? []).ToArray();
 
     public Task<IReadOnlyList<ResourceGroup>> ListResourceGroupsAsync(
         CancellationToken cancellationToken = default)
@@ -1118,6 +1123,67 @@ public sealed class InProcessControlPlane(
             apply.Template,
             apply.IsCommitted,
             diagnostics);
+    }
+
+    public Task<DeploymentArtifactStoreStatus> GetDeploymentArtifactStoreStatusAsync(
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(RequireDeploymentArtifactStore().GetStatus());
+    }
+
+    public async Task<IReadOnlyList<DeploymentArtifactLayoutDescriptor>> ListDeploymentArtifactLayoutsAsync(
+        DeploymentArtifactLayoutQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var layouts = new List<DeploymentArtifactLayoutDescriptor>();
+        foreach (var provider in deploymentArtifactLayoutProviders.Where(provider =>
+            provider.TypeId == query.ResourceTypeId))
+        {
+            layouts.AddRange(await provider.GetDeploymentArtifactLayoutsAsync(query, cancellationToken));
+        }
+
+        return layouts
+            .OrderByDescending(layout => layout.IsDefault)
+            .ThenBy(layout => layout.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    public Task<DeploymentArtifactUploadSession> CreateDeploymentArtifactUploadSessionAsync(
+        CreateDeploymentArtifactUploadSessionCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureCanUploadDeploymentArtifacts();
+        return RequireDeploymentArtifactStore().CreateUploadSessionAsync(command, cancellationToken);
+    }
+
+    public Task UploadDeploymentArtifactContentAsync(
+        string uploadId,
+        Stream content,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureCanUploadDeploymentArtifacts();
+        return RequireDeploymentArtifactStore().WriteUploadContentAsync(uploadId, content, cancellationToken);
+    }
+
+    public Task<DeploymentArtifactRevision> CompleteDeploymentArtifactUploadAsync(
+        CompleteDeploymentArtifactUploadCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureCanUploadDeploymentArtifacts();
+        return RequireDeploymentArtifactStore().CompleteUploadAsync(command, cancellationToken);
+    }
+
+    public Task<DeploymentArtifactRevision?> GetDeploymentArtifactRevisionAsync(
+        string artifactId,
+        string revisionId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureCanReadDeploymentArtifacts();
+        return RequireDeploymentArtifactStore().GetRevisionAsync(artifactId, revisionId, cancellationToken);
     }
 
     private async Task RegisterAppliedDefinitionsAsync(
@@ -2688,6 +2754,36 @@ public sealed class InProcessControlPlane(
         EnsureHasAnyPermission(
             UsageAuthorization.UsageReadPermissions,
             "usage");
+
+    private void EnsureCanUploadDeploymentArtifacts()
+    {
+        if (authorization.HasPermission(CloudShellPermissions.Deployments.Artifacts.Upload))
+        {
+            return;
+        }
+
+        throw new ControlPlaneAccessDeniedException(new ControlPlaneError(
+            ControlPlaneErrorCodes.InsufficientPermission,
+            $"The '{CloudShellPermissions.Deployments.Artifacts.Upload}' permission is required to upload deployment artifacts."));
+    }
+
+    private void EnsureCanReadDeploymentArtifacts()
+    {
+        if (authorization.HasPermission(CloudShellPermissions.Deployments.Artifacts.Read) ||
+            authorization.HasPermission(CloudShellPermissions.Deployments.Artifacts.Upload))
+        {
+            return;
+        }
+
+        throw new ControlPlaneAccessDeniedException(new ControlPlaneError(
+            ControlPlaneErrorCodes.InsufficientPermission,
+            $"The '{CloudShellPermissions.Deployments.Artifacts.Read}' or '{CloudShellPermissions.Deployments.Artifacts.Upload}' permission is required to read deployment artifact revisions."));
+    }
+
+    private IDeploymentArtifactStore RequireDeploymentArtifactStore() =>
+        deploymentArtifacts ??
+        throw new InvalidOperationException(
+            "No deployment artifact store is registered for this Control Plane host.");
 
     private void EnsureHasAnyPermission(
         IReadOnlyList<string> permissions,

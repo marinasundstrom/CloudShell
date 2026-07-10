@@ -195,6 +195,43 @@ public static class CloudShellControlPlaneApiExtensions
             .WithName("CloudShellControlPlane_ListResourceDeployments")
             .Produces<ResourceDeploymentRecordResponse[]>(StatusCodes.Status200OK);
 
+        api.MapGet("/deployment-artifacts/status", GetDeploymentArtifactStoreStatus)
+            .WithName("CloudShellControlPlane_GetDeploymentArtifactStoreStatus")
+            .Produces<DeploymentArtifactStoreStatusResponse>(StatusCodes.Status200OK);
+
+        api.MapGet("/deployment-artifacts/layouts", ListDeploymentArtifactLayouts)
+            .WithName("CloudShellControlPlane_ListDeploymentArtifactLayouts")
+            .Produces<DeploymentArtifactLayoutResponse[]>(StatusCodes.Status200OK)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
+
+        api.MapPost("/deployment-artifacts/uploads", CreateDeploymentArtifactUploadSession)
+            .WithName("CloudShellControlPlane_CreateDeploymentArtifactUploadSession")
+            .Accepts<CreateDeploymentArtifactUploadSessionRequest>("application/json")
+            .Produces<DeploymentArtifactUploadSessionResponse>(StatusCodes.Status201Created)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
+
+        api.MapPut("/deployment-artifacts/uploads/{uploadId}/content", UploadDeploymentArtifactContent)
+            .WithName("CloudShellControlPlane_UploadDeploymentArtifactContent")
+            .Accepts<byte[]>("application/octet-stream")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
+
+        api.MapPost("/deployment-artifacts/uploads/{uploadId}/complete", CompleteDeploymentArtifactUpload)
+            .WithName("CloudShellControlPlane_CompleteDeploymentArtifactUpload")
+            .Accepts<CompleteDeploymentArtifactUploadRequest>("application/json")
+            .Produces<DeploymentArtifactRevisionResponse>(StatusCodes.Status200OK)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
+
+        api.MapGet("/deployment-artifacts/{artifactId}/revisions/{revisionId}", GetDeploymentArtifactRevision)
+            .WithName("CloudShellControlPlane_GetDeploymentArtifactRevision")
+            .Produces<DeploymentArtifactRevisionResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
+
         api.MapGet("/replica-slot-states", ListReplicaSlotStates)
             .WithName("CloudShellControlPlane_ListReplicaSlotStates")
             .Produces<ResourceReplicaSlotStateResponse[]>(StatusCodes.Status200OK);
@@ -1074,6 +1111,134 @@ public static class CloudShellControlPlaneApiExtensions
                 cancellationToken))
             .Select(deployment => deployment.ToResponse())
             .ToArray());
+
+    private static async Task<IResult> GetDeploymentArtifactStoreStatus(
+        IDeploymentArtifactManager artifacts,
+        CancellationToken cancellationToken)
+    {
+        var status = await artifacts.GetDeploymentArtifactStoreStatusAsync(cancellationToken);
+        return Results.Ok(status.ToResponse());
+    }
+
+    private static async Task<IResult> ListDeploymentArtifactLayouts(
+        string resourceTypeId,
+        string? providerId,
+        string? environmentId,
+        string? principalId,
+        IDeploymentArtifactManager artifacts,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var layouts = await artifacts.ListDeploymentArtifactLayoutsAsync(
+                new DeploymentArtifactLayoutQuery(
+                    RequireValue(resourceTypeId, nameof(resourceTypeId)),
+                    NormalizeOptional(providerId),
+                    NormalizeOptional(environmentId),
+                    NormalizeOptional(principalId)),
+                cancellationToken);
+
+            return Results.Ok(layouts.Select(layout => layout.ToResponse()).ToArray());
+        }
+        catch (Exception exception) when (exception is ControlPlaneException or ArgumentException)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> CreateDeploymentArtifactUploadSession(
+        CreateDeploymentArtifactUploadSessionRequest request,
+        IDeploymentArtifactManager artifacts,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var session = await artifacts.CreateDeploymentArtifactUploadSessionAsync(
+                new CreateDeploymentArtifactUploadSessionCommand(
+                    RequireValue(request.ResourceType, nameof(request.ResourceType)),
+                    RequireValue(request.ResourceName, nameof(request.ResourceName)),
+                    RequireValue(request.PackageKind, nameof(request.PackageKind)),
+                    NormalizeOptional(request.FileName),
+                    request.ContentLength,
+                    NormalizeOptional(request.ContentSha256),
+                    NormalizeOptional(request.ArtifactLayoutKind)),
+                cancellationToken);
+
+            return Results.Created(
+                $"{CloudShellControlPlaneApiDefaults.RoutePrefix}/deployment-artifacts/uploads/{Uri.EscapeDataString(session.UploadId)}",
+                session.ToResponse());
+        }
+        catch (Exception exception) when (exception is ControlPlaneException or ControlPlaneAccessDeniedException or ArgumentException or InvalidDataException or InvalidOperationException)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> UploadDeploymentArtifactContent(
+        string uploadId,
+        HttpRequest request,
+        IDeploymentArtifactManager artifacts,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await artifacts.UploadDeploymentArtifactContentAsync(
+                RequireValue(uploadId, nameof(uploadId)),
+                request.Body,
+                cancellationToken);
+
+            return Results.NoContent();
+        }
+        catch (Exception exception) when (exception is ControlPlaneException or ControlPlaneAccessDeniedException or ArgumentException or FileNotFoundException or InvalidDataException or InvalidOperationException)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> CompleteDeploymentArtifactUpload(
+        string uploadId,
+        CompleteDeploymentArtifactUploadRequest request,
+        IDeploymentArtifactManager artifacts,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var revision = await artifacts.CompleteDeploymentArtifactUploadAsync(
+                new CompleteDeploymentArtifactUploadCommand(
+                    RequireValue(uploadId, nameof(uploadId)),
+                    NormalizeOptional(request.ContentSha256)),
+                cancellationToken);
+
+            return Results.Ok(revision.ToResponse());
+        }
+        catch (Exception exception) when (exception is ControlPlaneException or ControlPlaneAccessDeniedException or ArgumentException or FileNotFoundException or InvalidDataException or InvalidOperationException)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> GetDeploymentArtifactRevision(
+        string artifactId,
+        string revisionId,
+        IDeploymentArtifactManager artifacts,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var revision = await artifacts.GetDeploymentArtifactRevisionAsync(
+                RequireValue(artifactId, nameof(artifactId)),
+                RequireValue(revisionId, nameof(revisionId)),
+                cancellationToken);
+
+            return revision is null
+                ? Results.NotFound()
+                : Results.Ok(revision.ToResponse());
+        }
+        catch (Exception exception) when (exception is ControlPlaneException or ControlPlaneAccessDeniedException or ArgumentException or InvalidOperationException)
+        {
+            return ToProblem(exception);
+        }
+    }
 
     private static async Task<IResult> ListReplicaSlotStates(
         string? resourceId,

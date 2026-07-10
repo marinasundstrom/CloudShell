@@ -31,6 +31,10 @@ validation checks project files and any provider-supported build requirements.
 Resource type providers announce the artifact layouts they support for each
 resource type so Resource Manager can offer the right upload choices instead of
 hard-coding provider package semantics in the shell.
+For the first API slice, the configured Control Plane host artifact store is
+the direct upload target; future transfer modes can pull from other artifact
+sources into a supported host target without changing the provider-owned
+revision validation boundary.
 
 Resource types may support both local-source mode and deployment-artifact
 mode, but a single resource definition chooses one mode. Local-source mode is

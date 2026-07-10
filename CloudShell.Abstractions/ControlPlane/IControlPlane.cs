@@ -19,7 +19,8 @@ public interface IControlPlane :
     IUsageManager,
     IResourceHealthManager,
     IResourceRecoveryManager,
-    IResourceMonitoringManager;
+    IResourceMonitoringManager,
+    IDeploymentArtifactManager;
 
 public interface IResourceManager
 {
@@ -157,6 +158,34 @@ public interface IResourceTemplateManager
         ApplyResourceTemplateAsync(
             new ResourceTemplateApplyRequest(template),
             cancellationToken);
+}
+
+public interface IDeploymentArtifactManager
+{
+    Task<DeploymentArtifactStoreStatus> GetDeploymentArtifactStoreStatusAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DeploymentArtifactLayoutDescriptor>> ListDeploymentArtifactLayoutsAsync(
+        DeploymentArtifactLayoutQuery query,
+        CancellationToken cancellationToken = default);
+
+    Task<DeploymentArtifactUploadSession> CreateDeploymentArtifactUploadSessionAsync(
+        CreateDeploymentArtifactUploadSessionCommand command,
+        CancellationToken cancellationToken = default);
+
+    Task UploadDeploymentArtifactContentAsync(
+        string uploadId,
+        Stream content,
+        CancellationToken cancellationToken = default);
+
+    Task<DeploymentArtifactRevision> CompleteDeploymentArtifactUploadAsync(
+        CompleteDeploymentArtifactUploadCommand command,
+        CancellationToken cancellationToken = default);
+
+    Task<DeploymentArtifactRevision?> GetDeploymentArtifactRevisionAsync(
+        string artifactId,
+        string revisionId,
+        CancellationToken cancellationToken = default);
 }
 
 public interface ILogManager

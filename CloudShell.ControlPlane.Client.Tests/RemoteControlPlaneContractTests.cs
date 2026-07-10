@@ -23,6 +23,7 @@ using System.Net;
 using System.Net.Http.Json;
 using ResourceDefinitionApplyMode = CloudShell.ResourceModel.ResourceDefinitionApplyMode;
 using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
+using ResourceTypeId = CloudShell.ResourceModel.ResourceTypeId;
 
 namespace CloudShell.ControlPlane.Client.Tests;
 
@@ -1323,6 +1324,49 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_UploadsDeploymentArtifactToConfiguredHostStore()
+    {
+        await using var app = await CreateAppAsync();
+        var controlPlane = CreateClient(app);
+
+        var status = await controlPlane.GetDeploymentArtifactStoreStatusAsync();
+        var layouts = await controlPlane.ListDeploymentArtifactLayoutsAsync(
+            new DeploymentArtifactLayoutQuery("application.dotnet-web-app"));
+
+        Assert.True(status.IsEnabled);
+        Assert.Equal(["tar.gz", "zip"], status.AllowedPackageKinds);
+        var layout = Assert.Single(layouts);
+        Assert.Equal("application.dotnet-web-app", layout.ResourceTypeId.ToString());
+        Assert.Equal("dotnetPublishedOutput", layout.Kind);
+        Assert.Equal(["zip"], layout.PackageKinds);
+
+        var package = "compiled output package"u8.ToArray();
+        var upload = await controlPlane.CreateDeploymentArtifactUploadSessionAsync(
+            new CreateDeploymentArtifactUploadSessionCommand(
+                "application.dotnet-web-app",
+                "api",
+                "zip",
+                FileName: "api.zip",
+                ContentLength: package.Length,
+                ArtifactLayoutKind: layout.Kind));
+
+        await controlPlane.UploadDeploymentArtifactContentAsync(
+            upload.UploadId,
+            new MemoryStream(package));
+        var revision = await controlPlane.CompleteDeploymentArtifactUploadAsync(new(upload.UploadId));
+        var loaded = await controlPlane.GetDeploymentArtifactRevisionAsync(
+            revision.ArtifactId,
+            revision.RevisionId);
+
+        Assert.Equal("deployment-artifact:api", revision.ArtifactId);
+        Assert.Equal("zip", revision.PackageKind);
+        Assert.Equal("dotnetPublishedOutput", revision.ArtifactLayoutKind);
+        Assert.Equal(package.Length, revision.SizeBytes);
+        Assert.False(string.IsNullOrWhiteSpace(revision.ContentSha256));
+        Assert.Equal(revision, loaded);
+    }
+
+    [Fact]
     public async Task ControlPlaneApi_ReturnsProblemForInvalidCreateResourceGroupRequest()
     {
         await using var app = await CreateAppAsync();
@@ -1530,7 +1574,9 @@ public sealed class RemoteControlPlaneContractTests
             ["Persistence:Provider"] = "Sqlite",
             ["Persistence:ConnectionString"] = "Data Source=Data/cloudshell-client-contract.db",
             ["Identity:BuiltIn:Persistence:Provider"] = "Sqlite",
-            ["Identity:BuiltIn:Persistence:ConnectionString"] = "Data Source=Data/identity-client-contract.db"
+            ["Identity:BuiltIn:Persistence:ConnectionString"] = "Data Source=Data/identity-client-contract.db",
+            ["DeploymentArtifacts:Store:Kind"] = "FileSystem",
+            ["DeploymentArtifacts:Store:RootPath"] = "Data/deployment-artifacts"
         });
 
         var controlPlane = builder.AddCloudShellControlPlane();
@@ -1545,6 +1591,7 @@ public sealed class RemoteControlPlaneContractTests
         builder.Services.AddSingleton<ContractIdentityProviderSetupHandler>();
         builder.Services.AddSingleton<IResourceIdentityProviderSetupHandler>(serviceProvider =>
             serviceProvider.GetRequiredService<ContractIdentityProviderSetupHandler>());
+        builder.Services.AddSingleton<IDeploymentArtifactLayoutProvider, ContractDeploymentArtifactLayoutProvider>();
         if (includeLifecycleResource)
         {
             builder.Services.AddSingleton<IResourceProvider, ContractLifecycleResourceProvider>();
@@ -2066,6 +2113,27 @@ public sealed class RemoteControlPlaneContractTests
                 TypeId: "contract.stateless",
                 ResourceClass: ResourceClass.Infrastructure)
         ];
+    }
+
+    private sealed class ContractDeploymentArtifactLayoutProvider : IDeploymentArtifactLayoutProvider
+    {
+        public ResourceTypeId TypeId => "application.dotnet-web-app";
+
+        public ValueTask<IReadOnlyList<DeploymentArtifactLayoutDescriptor>> GetDeploymentArtifactLayoutsAsync(
+            DeploymentArtifactLayoutQuery query,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<IReadOnlyList<DeploymentArtifactLayoutDescriptor>>(
+            [
+                new(
+                    TypeId,
+                    "dotnetPublishedOutput",
+                    ".NET published output",
+                    "A compiled .NET app package that is ready to run on the host.",
+                    ["zip"],
+                    DefaultPackageKind: "zip",
+                    DefaultEntryPath: ".",
+                    IsDefault: true)
+            ]);
     }
 
     private sealed class ContractRuntimeResourceProvider : IResourceProvider

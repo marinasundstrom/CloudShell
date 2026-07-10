@@ -225,6 +225,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         builder.Services.AddScoped<IResourceMonitoringManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
+        builder.Services.AddScoped<IDeploymentArtifactManager>(
+            serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         builder.Services.AddScoped<ControlPlaneUserSettingsProvider>();
         builder.Services.AddScoped<ICloudShellControlPlaneUserSettingsProvider>(
             serviceProvider => serviceProvider.GetRequiredService<ControlPlaneUserSettingsProvider>());

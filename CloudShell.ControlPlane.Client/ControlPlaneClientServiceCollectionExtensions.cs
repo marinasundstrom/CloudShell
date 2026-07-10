@@ -146,5 +146,7 @@ public static class ControlPlaneClientServiceCollectionExtensions
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         services.AddScoped<IResourceMonitoringManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
+        services.AddScoped<IDeploymentArtifactManager>(
+            serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
     }
 }
