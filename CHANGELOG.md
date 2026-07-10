@@ -41,6 +41,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Suppressed npm wrapper logs and made npm execution directory-independent in
   the TypeScript container app sample helper so `./cloudshell.sh template`
   emits machine-readable JSON like the other language container samples.
+- Added a `template` command to the TypeScript AppHost sample helper and made
+  its npm-backed commands run from the sample directory so they work when
+  invoked from the repository root.
 
 ### 2026-07-06
 

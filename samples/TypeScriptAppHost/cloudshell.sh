@@ -30,6 +30,7 @@ Commands:
   start-app      Start the TypeScript-declared JavaScript app resource.
   stop-app       Stop the TypeScript-declared JavaScript app resource.
   restart-app    Restart the TypeScript-declared JavaScript app resource.
+  template       Build and print the TypeScript-authored resource template.
   apply          Build and apply the TypeScript-authored resource template to
                  the configured Control Plane URL.
   apply-start    Build and apply the template, starting the daemon if needed.
@@ -67,10 +68,10 @@ fi
 
 case "$command" in
   run)
-    CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" npm run apply -- --run "$@"
+    (cd "$script_dir" && CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" npm run --silent apply -- --run "$@")
     ;;
   run-no-auth)
-    Authentication__Enabled=false CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" npm run apply -- --run "$@"
+    (cd "$script_dir" && Authentication__Enabled=false CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" npm run --silent apply -- --run "$@")
     ;;
   start)
     run_cli control-plane start \
@@ -130,11 +131,14 @@ case "$command" in
       --start-dependencies \
       "$@"
     ;;
+  template)
+    (cd "$script_dir" && npm run --silent template -- "$@")
+    ;;
   apply)
-    CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" npm run apply -- "$@"
+    (cd "$script_dir" && CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" npm run --silent apply -- "$@")
     ;;
   apply-start)
-    CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" npm run apply -- --start "$@"
+    (cd "$script_dir" && CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" npm run --silent apply -- --start "$@")
     ;;
   help|--help|-h)
     usage
