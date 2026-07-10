@@ -35,6 +35,9 @@ on `git blame --follow`, and then by the broad type of change.
   Java runtime SDK so its Configuration Store, Secrets Vault, endpoint
   discovery, and credential-chain behavior can be verified like the other
   language SDKs.
+- Restored the Java container app sample's missing `App/build.sh` helper so
+  `./cloudshell.sh build-app`, `run`, `apply`, and app lifecycle helpers can
+  compile the workload jar before invoking the launcher.
 
 ### 2026-07-06
 

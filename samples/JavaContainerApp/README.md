@@ -44,6 +44,12 @@ before packaging the runtime image, so the sample verifies the same build step
 that produces the container artifact. The container listens on port `8080`;
 CloudShell maps it to host port `5191` and starts two local replicas.
 
+For local helper commands, `./cloudshell.sh build-app` uses the JDK-only
+`App/build.sh` script to compile the same app and SDK sources into
+`App/target/cloudshell-java-container-app-sample.jar`. This keeps the sample
+launcher usable on machines without Maven while the Dockerfile remains the
+Maven container packaging proof.
+
 ## Language and SDK versions
 
 - Java 21 is the sample runtime and compiler target.
