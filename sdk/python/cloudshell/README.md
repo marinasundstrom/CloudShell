@@ -2,7 +2,7 @@
 
 This experimental Python SDK provides runtime clients for Python workloads
 that consume CloudShell-managed services. The first clients cover Configuration
-Store and Secrets Vault.
+Store and Secrets Vault. The package targets Python 3.10 or later.
 
 Launcher authoring remains separate under `Launchers/Python/cloudshell`; this
 package is for code running inside an app or container.

@@ -50,6 +50,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Pinned the TypeScript launcher and runtime SDK sample manifests to the
   documented TypeScript 5.9.3 compiler version so fresh installs do not drift
   from the checked-in lockfiles.
+- Corrected the Python runtime SDK package metadata to require Python 3.10 or
+  later, matching its type-hint syntax and avoiding an unsupported Python 3.9
+  install claim.
 
 ### 2026-07-06
 

@@ -359,7 +359,8 @@ identity, environment bearer tokens, then the active CloudShell profile. The
 Python runtime SDK lives under `sdk/python/cloudshell`; the Python launcher
 package remains under `Launchers/Python/cloudshell` for ResourceTemplate
 authoring. Its tests run through the standard library `unittest` entrypoint in
-`sdk/python/cloudshell/test.sh`.
+`sdk/python/cloudshell/test.sh`, and the package metadata requires Python 3.10
+or later to match the SDK source syntax.
 
 `samples/TypeScriptContainerApp`, `samples/JavaContainerApp`,
 `samples/GoContainerApp`, and `samples/PythonContainerApp` provide the same
