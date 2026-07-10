@@ -70,6 +70,7 @@ await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellUiAsync();
 app.MapCloudShellControlPlane();
 app.MapCloudShellRabbitMQCredentialApi();
+app.MapCloudShellSqlServerCredentialApi();
 app.MapCloudShellUi<App>();
 
 app.Run();

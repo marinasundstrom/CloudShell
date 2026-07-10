@@ -73,6 +73,25 @@ provider path. The remaining seams are runtime/control-plane bridges that keep
 the samples functional while provider runtime behavior is moved behind the new
 provider boundaries.
 
+## MVP seam triage
+
+The MVP loose-end pass tracks only seams that are visible in supported local
+runs, required by smoke coverage, or likely to confuse contributors. Classify
+each seam as `Fix now`, `Accepted MVP bridge`, or `Post-MVP deferred` before
+opening a broader platform capability.
+
+| Sample | Visible seam or bridge | Classification | Next action |
+| --- | --- | --- | --- |
+| `ApplicationTopology` | SQL credentials are resolved through the provider-owned `/api/sql-server/v1/credentials` endpoint, while the full SQL/database identity model remains experimental. | Accepted MVP bridge | Keep the endpoint permission-gated and documented; defer Azure-like database identity semantics until the SQL/database identity proposal is active. |
+| `ApplicationTopology` | Local DNS/name mapping is written through the local host-name publisher when requested. | Accepted MVP bridge | Keep explicit and opt-in; use `CLOUDSHELL_LOCAL_HOSTS_FILE` for non-mutating validation. |
+| `SettingsAndSecrets` | Configuration Store and Secrets Vault backing services run as local C# service projects. | Accepted MVP bridge | Keep as the current service-integration proof while preserving provider ownership of values, grants, and service endpoints. |
+| `ThirdPartyIdentity` | Keycloak setup and workload credential environment materialization use sample-local adapter classes. | Accepted MVP bridge | Keep as the external OIDC validation proof; do not treat the Keycloak adapter as a built-in provider contract. |
+| `ReplicatedContainerHealth` | Local Docker/Traefik bridge materializes replicas and ingress while the durable orchestrator is still evolving. | Accepted MVP bridge | Keep covered by smoke tests; defer richer startup states and runtime-resource-specific generated details unless the app page becomes misleading. |
+| `ContainerAppDeployment` | Image and replica update APIs apply graph state through deferred/sample runtime bridges; real build-server image production is out of scope. | Accepted MVP bridge | Keep this as the graph-apply/API proof; avoid presenting it as finished deployment orchestration. |
+| `HostVirtualNetwork` | CoreDNS file publishing proves DNS/name intent without OS-native virtual adapters or isolation. | Accepted MVP bridge | Keep provider gaps explicit; improve diagnostics only where the reconcile action leaves users without a next step. |
+| `LoadBalancer` | Traefik runtime management still uses the existing provider path while graph DNS and route reconciliation are provider-owned. | Accepted MVP bridge | Keep the bridge documented; move runtime management only if current Resource Manager actions or smoke tests expose confusing behavior. |
+| `SplitHosting` | The UI sample uses a local-development client credential to call the protected Control Plane API. | Accepted MVP bridge | Keep the local-only secret warning; use this sample as the remote-client projection gate, not a production auth template. |
+
 | Sample | Primary scenario | Current Resource model status |
 | --- | --- | --- |
 | `ProjectReference` | ASP.NET Core project-to-project service discovery, logs, health, and traces. | Uses a C# launcher AppHost against `CloudShell.LocalDevelopmentHost`; old application-provider project records are no longer declared. |

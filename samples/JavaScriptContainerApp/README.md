@@ -49,9 +49,9 @@ The `/configuration` endpoint reports whether the secret was available without
 returning the secret value.
 
 This sample intentionally remains a C# host-composition sample because it
-validates JavaScript app provider behavior inside a full host. The remaining
-parity gap is a TypeScript-launcher-authored JavaScript container sample with
-the same Configuration Store, Secrets Vault, and identity proof.
+validates JavaScript app provider behavior inside a full host. TypeScript
+launcher parity for the same Configuration Store, Secrets Vault, and identity
+proof is covered by `samples/TypeScriptContainerApp`.
 
 ## Language and SDK versions
 

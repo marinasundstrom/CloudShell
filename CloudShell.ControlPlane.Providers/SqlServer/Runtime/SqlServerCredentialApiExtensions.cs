@@ -2,35 +2,39 @@ using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceModel;
-using CloudShell.ControlPlane.Providers;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using ResourceModelResource = CloudShell.ResourceModel.Resource;
 using ResourceModelResourceState = CloudShell.ResourceModel.ResourceState;
 
-namespace CloudShell.ApplicationTopologyHost;
+namespace CloudShell.ControlPlane.Providers;
 
-internal static class ResourceModelSqlCredentialApiExtensions
+public static class SqlServerCredentialApiExtensions
 {
-    public static RouteGroupBuilder MapApplicationTopologyResourceModelSqlCredentialApi(
+    public static RouteGroupBuilder MapCloudShellSqlServerCredentialApi(
         this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
         var api = endpoints
-            .MapGroup("/api/application-topology/sql-server/v1")
-            .WithTags("ApplicationTopology SQL Server");
+            .MapGroup("/api/sql-server/v1")
+            .WithTags("SQL Server");
 
         api.MapPost("/credentials", ResolveCredential)
-            .WithName("ApplicationTopologyResourceModelSqlServer_ResolveCredential")
+            .WithName("CloudShellSqlServer_ResolveCredential")
             .Accepts<ResolveSqlServerCredentialRequest>("application/json")
             .Produces<ResolveSqlServerCredentialResponse>(StatusCodes.Status200OK)
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
             .Produces<ProblemDetails>(StatusCodes.Status401Unauthorized)
-            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+            .RequireAuthorization();
 
         return api;
     }

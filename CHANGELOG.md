@@ -13,6 +13,14 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-07-10
+
+#### Changed
+
+- Moved the Application Topology SQL credential exchange from a sample-local
+  endpoint into the SQL Server provider-owned `/api/sql-server/v1/credentials`
+  endpoint, and documented the remaining supported sample MVP seams.
+
 ### 2026-07-06
 
 #### Changed
@@ -1956,10 +1964,10 @@ on `git blame --follow`, and then by the broad type of change.
 - ApplicationTopology now declares a built-in resource identity for the
   graph-backed API resource and grants it read/write access to the graph SQL
   Server resource, preparing the graph SQL credential runtime slice.
-- ApplicationTopology now maps a sample-local graph SQL credential endpoint
-  that validates graph resource identity grants, creates SQL login/user access,
-  and lets the graph-backed API exercise `/database` against the graph SQL
-  Server target in the Docker-backed smoke path.
+- ApplicationTopology now maps a graph SQL credential endpoint that validates
+  graph resource identity grants, creates SQL login/user access, and lets the
+  graph-backed API exercise `/database` against the graph SQL Server target in
+  the Docker-backed smoke path.
 - ApplicationTopology Docker smoke coverage now starts the graph-backed
   frontend and verifies its `/upstream` path through the graph API, graph
   settings, and graph SQL credential flow.

@@ -48,8 +48,9 @@ The sample keeps focused runtime seams where behavior is still sample-specific:
 - The provider-owned local SQL Server Docker runtime starts the SQL Server
   container for the `application.sql-server` resource and resolves the
   storage-backed volume declaration into a bind mount.
-- `ResourceModelSqlCredentialApiExtensions` exposes the sample-local SQL credential
-  endpoint used by the API.
+- The provider-owned SQL Server credential endpoint at
+  `/api/sql-server/v1/credentials` issues short-lived SQL logins for callers
+  with a matching CloudShell resource identity grant.
 - Configuration Store and Secrets Vault start through provider-owned runtime
   controllers with seeded sample data.
 - ASP.NET Core API and frontend resources start through the Resource model

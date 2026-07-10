@@ -1,7 +1,6 @@
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ApplicationTopologyHost;
 using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
@@ -186,7 +185,7 @@ var cloudShell = builder.AddCloudShellControlPlaneApplication(
                     metricIngestEndpoint ?? string.Empty)
                 .WithEnvironmentVariable(
                     "CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT",
-                    $"{cloudShellEndpoint}/api/application-topology/sql-server/v1/credentials")
+                    $"{cloudShellEndpoint}/api/sql-server/v1/credentials")
                 .WithEnvironmentVariable(
                     "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT",
                     identityTokenEndpoint)
@@ -324,7 +323,7 @@ var app = builder.Build();
 
 await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellUiAsync();
-app.MapApplicationTopologyResourceModelSqlCredentialApi();
+app.MapCloudShellSqlServerCredentialApi();
 app.MapCloudShellControlPlane();
 app.MapCloudShellUi<App>();
 

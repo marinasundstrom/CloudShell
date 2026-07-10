@@ -31,9 +31,9 @@
   storage-backed volume declarations into bind mounts, projects lifecycle
   status, and optionally waits for SQL readiness.
 - ApplicationTopology graph API read/write grant declaration against a graph SQL Server resource.
-- ApplicationTopology sample-local graph SQL credential endpoint that validates
-  graph resource identity grants and materializes SQL login/user access for
-  the graph API `/database` path.
+- Provider-owned `/api/sql-server/v1/credentials` endpoint that validates graph
+  resource identity grants and materializes SQL login/user access for the graph
+  API `/database` path.
 - Manual `ResourceGraphBuilder.AddSqlServer(...)` builder for
   code-first SQL Server definition authoring, declared database configuration,
   and volume mount capability setup.
@@ -104,14 +104,16 @@ Ready to integrate for graph SQL workloads where the host opts into the local
 Docker runtime adapter. ApplicationTopology and ContainerHost prove graph SQL
 startup, storage-backed volume materialization, endpoint projection,
 service-discovery environment projection, database creation, readiness, and
-cleanup without old SQL resource records. A durable non-local SQL runtime and
-reusable credential/grant reconciliation remain post-switch work.
+cleanup without old SQL resource records. The provider-owned credential
+endpoint proves the current managed-identity-shaped local SQL access path. A
+durable non-local SQL runtime and reusable provider grant reconciliation remain
+post-switch work.
 
 ## Remaining
 
 - Durable non-local SQL runtime integration behind the lifecycle runtime
   handler.
 - Default/preferred container-host resolution.
-- Reusable provider-owned credential/grant reconciliation for graph-backed SQL
-  Server resources outside the ApplicationTopology sample-local endpoint.
+- Reusable provider grant reconciliation beyond the current on-demand
+  credential endpoint.
 - Database child projections and editable/provider-specific UI tabs.

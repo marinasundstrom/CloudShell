@@ -245,7 +245,7 @@ var api = resources
     .WithReference(sqlServerResource)
     .WithEnvironmentVariable(
         "CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT",
-        $"{cloudShellEndpoint}/api/application-topology/sql-server/v1/credentials")
+        $"{cloudShellEndpoint}/api/sql-server/v1/credentials")
     .WithEnvironmentVariable(
         "ApplicationTopology__SqlServer__Authentication",
         "CloudShell")
@@ -307,14 +307,13 @@ The response contains the SQL-native connection string and optional expiry:
 }
 ```
 
-The broad `ApplicationTopology` sample currently hosts the SQL credential
-endpoint in `ResourceModelSqlCredentialApiExtensions`. That endpoint is a
-sample-local bridge while the reusable SQL credential broker is moved fully
-behind the provider. The workload-side client pattern is the intended shape:
-CloudShell validates the resource identity, checks declared SQL grants,
-materializes or reconciles SQL-contained database access, records the
-credential request as a resource event, and returns provider-owned SQL
-connection material without exposing the bootstrap administrator password.
+The SQL Server provider exposes the credential endpoint at
+`/api/sql-server/v1/credentials`. The broad `ApplicationTopology` sample uses
+that route as the current managed-identity-shaped SQL access proof. CloudShell
+validates the resource identity, checks declared SQL grants, materializes or
+reconciles SQL database login/user access, records the credential request as a
+resource event, and returns provider-owned SQL connection material without
+exposing the bootstrap administrator password.
 
 ### Connections, Pooling, And Rotation
 
