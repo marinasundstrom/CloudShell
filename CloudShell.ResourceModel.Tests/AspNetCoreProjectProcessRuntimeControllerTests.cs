@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Providers;
+using Microsoft.Extensions.Configuration;
 using ResourceGraphState = CloudShell.ResourceModel.ResourceState;
 
 namespace CloudShell.ResourceModel.Tests;
@@ -314,6 +315,45 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         Assert.Equal(
             "127.0.0.1:14334",
             variables["services__application.sql-server-application-topology-sql-server__tcp__0"]);
+    }
+
+    [Fact]
+    public async Task SqlServerCredentialEnvironmentResolver_DerivesCredentialEndpointFromReferencedSqlServer()
+    {
+        const string sqlResourceId = "application.sql-server:application-topology-sql-server";
+        var sqlState = new ResourceGraphState(
+            "application-topology-sql-server",
+            SqlServerResourceTypeProvider.ResourceTypeId,
+            ResourceId: sqlResourceId);
+        var api = CreateResource(
+            "src/Api/Api.csproj",
+            references:
+            [
+                ResourceReference.ReferenceResourceId(
+                    sqlResourceId,
+                    typeId: SqlServerResourceTypeProvider.ResourceTypeId)
+            ]);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["CloudShell:PublicEndpoint"] = "http://localhost:5104"
+            })
+            .Build();
+        var resolver = new AspNetCoreProjectSqlServerCredentialEnvironmentResolver(
+            configuration,
+            new ResourceGraphModel(new InMemoryResourceStateProvider([sqlState])));
+
+        var variables = await resolver.ResolveAsync(api);
+
+        Assert.Equal(
+            "http://localhost:5104/api/sql-server/v1/credentials",
+            variables["CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT"]);
+        Assert.Equal(
+            "http://localhost:5104/api/sql-server/v1/credentials",
+            variables["CLOUDSHELL_SQL_APPLICATION_TOPOLOGY_SQL_SERVER_CREDENTIAL_ENDPOINT"]);
+        Assert.Equal(
+            "http://localhost:5104/api/sql-server/v1/credentials",
+            variables["CLOUDSHELL_SQL_APPLICATION_SQL_SERVER_APPLICATION_TOPOLOGY_SQL_SERVER_CREDENTIAL_ENDPOINT"]);
     }
 
     [Fact]

@@ -486,8 +486,8 @@ For the next run, prefer these loose-end slices in order:
    ReplicatedContainerHealth, ContainerAppDeployment, HostVirtualNetwork,
    LoadBalancer, ThirdPartyIdentity, SettingsAndSecrets, and SplitHosting.
    Record only seams that are visible to users, required by smoke coverage, or
-   likely to confuse contributors: sample-local SQL credentials, sample-local
-   DNS/CoreDNS publishing, sample-local Traefik/load-balancer materialization,
+   likely to confuse contributors: sample-local DNS/CoreDNS publishing,
+   sample-local Traefik/load-balancer materialization,
    deferred container-app runtimes, compatibility routes, legacy link shapes,
    experimental launcher/package labels, and provider README gaps.
 2. **Classify every seam.** Mark each one as fix-now, accepted MVP bridge, or
@@ -498,10 +498,10 @@ For the next run, prefer these loose-end slices in order:
 3. **Tie off Application Topology first.** Keep the sample as the broad proof
    for storage-backed SQL, Configuration Store, Secrets Vault, identity grants,
    project-backed apps, local exposure, DNS/name mapping, logs, traces,
-   metrics, failure responses, and host shutdown cleanup. Replace the
-   sample-local SQL credential endpoint with a provider-owned seam if it is
-   becoming product behavior; otherwise document why it is sample-local for
-   MVP.
+   metrics, failure responses, and host shutdown cleanup. The SQL credential
+   endpoint is now provider-owned and injected from graph references, so focus
+   the next pass on DNS/name mapping, local exposure, and any remaining
+   sample-local identity bridges.
 4. **Make container-app runtime behavior coherent where exposed.** Keep rich
    rollout history, autoscaling, traffic splitting, and public deployment
    semantics deferred, but do not leave start, stop, restart, image update,

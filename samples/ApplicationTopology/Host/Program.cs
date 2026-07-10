@@ -184,9 +184,6 @@ var cloudShell = builder.AddCloudShellControlPlaneApplication(
                     "CLOUDSHELL_METRIC_INGEST_ENDPOINT",
                     metricIngestEndpoint ?? string.Empty)
                 .WithEnvironmentVariable(
-                    "CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT",
-                    $"{cloudShellEndpoint}/api/sql-server/v1/credentials")
-                .WithEnvironmentVariable(
                     "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT",
                     identityTokenEndpoint)
                 .WithEnvironmentVariable(

@@ -50,7 +50,9 @@ The sample keeps focused runtime seams where behavior is still sample-specific:
   storage-backed volume declaration into a bind mount.
 - The provider-owned SQL Server credential endpoint at
   `/api/sql-server/v1/credentials` issues short-lived SQL logins for callers
-  with a matching CloudShell resource identity grant.
+  with a matching CloudShell resource identity grant. The API receives
+  `CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT` through its SQL Server resource
+  reference instead of hard-coding the provider route in the sample.
 - Configuration Store and Secrets Vault start through provider-owned runtime
   controllers with seeded sample data.
 - ASP.NET Core API and frontend resources start through the Resource model

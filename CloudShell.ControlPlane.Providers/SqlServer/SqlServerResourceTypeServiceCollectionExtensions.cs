@@ -79,6 +79,10 @@ public static class SqlServerResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOperationProjector, SqlServerReconcileAccessOperationProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProjectionProvider, SqlServerResourceProjectionProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<
+                IAspNetCoreProjectRuntimeEnvironmentProvider,
+                AspNetCoreProjectSqlServerCredentialEnvironmentResolver>());
         services.TryAddSingleton<
             ISqlServerRuntimeHandler,
             NoopSqlServerRuntimeHandler>();

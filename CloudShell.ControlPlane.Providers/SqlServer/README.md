@@ -34,6 +34,9 @@
 - Provider-owned `/api/sql-server/v1/credentials` endpoint that validates graph
   resource identity grants and materializes SQL login/user access for the graph
   API `/database` path.
+- ASP.NET Core project runtime environment projection of
+  `CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT` for projects that reference a graph SQL
+  Server resource.
 - Manual `ResourceGraphBuilder.AddSqlServer(...)` builder for
   code-first SQL Server definition authoring, declared database configuration,
   and volume mount capability setup.
@@ -105,9 +108,9 @@ Docker runtime adapter. ApplicationTopology and ContainerHost prove graph SQL
 startup, storage-backed volume materialization, endpoint projection,
 service-discovery environment projection, database creation, readiness, and
 cleanup without old SQL resource records. The provider-owned credential
-endpoint proves the current managed-identity-shaped local SQL access path. A
-durable non-local SQL runtime and reusable provider grant reconciliation remain
-post-switch work.
+endpoint and ASP.NET Core environment projection prove the current
+managed-identity-shaped local SQL access path. A durable non-local SQL runtime
+and reusable provider grant reconciliation remain post-switch work.
 
 ## Remaining
 

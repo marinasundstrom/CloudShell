@@ -29,8 +29,8 @@
 - ProjectReference and SettingsAndSecrets sample coverage for runtime startup, Resource model service-to-service calls, logs, metrics, traces, health, and ResourceDefinition apply/update.
 - ApplicationTopology-inspired graph coverage for explicit SQL Server, Configuration Store, and Secrets Vault service-discovery references without using `DependsOn` for discovery.
 - ApplicationTopology graph API identity declaration and SQL read/write grant setup through Resource Manager declarations.
-- ApplicationTopology graph API `/database` coverage through a sample-local
-  graph SQL credential endpoint.
+- ApplicationTopology graph API `/database` coverage through the provider-owned
+  SQL credential endpoint projected from the graph SQL Server reference.
 - ApplicationTopology Docker-backed graph frontend `/upstream` coverage through
   the graph API, graph settings, and graph SQL credential flow.
 - Manual `ResourceGraphBuilder.AddAspNetCoreProject(...)` builder
@@ -157,8 +157,8 @@ documented post-switch cleanup item.
 
 - Launch settings parsing and richer process diagnostics.
 - Reusable service-discovery/environment-variable conventions if more providers prove the need.
-- Reusable graph SQL credential/grant integration outside the
-  ApplicationTopology sample-local endpoint.
+- Reusable graph SQL credential/grant reconciliation beyond the current
+  provider-owned on-demand credential endpoint.
 - Graph-backed environment-variable configuration provider support for
   editable Resource Manager Environment tab projection.
 - First-class graph identity/provisioning projection if Resource model work proves it belongs in the graph model.

@@ -19,7 +19,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 - Moved the Application Topology SQL credential exchange from a sample-local
   endpoint into the SQL Server provider-owned `/api/sql-server/v1/credentials`
-  endpoint, and documented the remaining supported sample MVP seams.
+  endpoint, projected that endpoint into ASP.NET Core project environments
+  when they reference SQL Server resources, and documented the remaining
+  supported sample MVP seams.
 
 ### 2026-07-06
 
