@@ -164,9 +164,11 @@ public interface IResourceTemplateManager
 public interface IDeploymentArtifactManager
 {
     Task<DeploymentArtifactStoreStatus> GetDeploymentArtifactStoreStatusAsync(
+        string resourceId,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<DeploymentArtifactLayoutDescriptor>> ListDeploymentArtifactLayoutsAsync(
+        string resourceId,
         DeploymentArtifactLayoutQuery query,
         CancellationToken cancellationToken = default);
 
@@ -175,20 +177,24 @@ public interface IDeploymentArtifactManager
         CancellationToken cancellationToken = default);
 
     Task UploadDeploymentArtifactContentAsync(
+        string resourceId,
         string uploadId,
         Stream content,
         CancellationToken cancellationToken = default);
 
     Task<DeploymentArtifactRevision> CompleteDeploymentArtifactUploadAsync(
+        string resourceId,
         CompleteDeploymentArtifactUploadCommand command,
         CancellationToken cancellationToken = default);
 
     Task<DeploymentArtifactRevision?> GetDeploymentArtifactRevisionAsync(
+        string resourceId,
         string artifactId,
         string revisionId,
         CancellationToken cancellationToken = default);
 
     Task<ResourceDefinitionValidationResult> ValidateDeploymentArtifactAsync(
+        string resourceId,
         ValidateDeploymentArtifactCommand command,
         CancellationToken cancellationToken = default);
 }

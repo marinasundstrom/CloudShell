@@ -196,44 +196,44 @@ public static class CloudShellControlPlaneApiExtensions
             .WithName("CloudShellControlPlane_ListResourceDeployments")
             .Produces<ResourceDeploymentRecordResponse[]>(StatusCodes.Status200OK);
 
-        api.MapGet("/deployment-artifacts/status", GetDeploymentArtifactStoreStatus)
+        api.MapGet("/resources/{resourceId}/artifacts/status", GetDeploymentArtifactStoreStatus)
             .WithName("CloudShellControlPlane_GetDeploymentArtifactStoreStatus")
             .Produces<DeploymentArtifactStoreStatusResponse>(StatusCodes.Status200OK);
 
-        api.MapGet("/deployment-artifacts/layouts", ListDeploymentArtifactLayouts)
+        api.MapGet("/resources/{resourceId}/artifacts/layouts", ListDeploymentArtifactLayouts)
             .WithName("CloudShellControlPlane_ListDeploymentArtifactLayouts")
             .Produces<DeploymentArtifactLayoutResponse[]>(StatusCodes.Status200OK)
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
 
-        api.MapPost("/deployment-artifacts/uploads", CreateDeploymentArtifactUploadSession)
+        api.MapPost("/resources/{resourceId}/artifacts/upload", CreateDeploymentArtifactUploadSession)
             .WithName("CloudShellControlPlane_CreateDeploymentArtifactUploadSession")
             .Accepts<CreateDeploymentArtifactUploadSessionRequest>("application/json")
             .Produces<DeploymentArtifactUploadSessionResponse>(StatusCodes.Status201Created)
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
             .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
 
-        api.MapPut("/deployment-artifacts/uploads/{uploadId}/content", UploadDeploymentArtifactContent)
+        api.MapPut("/resources/{resourceId}/artifacts/uploads/{uploadId}/content", UploadDeploymentArtifactContent)
             .WithName("CloudShellControlPlane_UploadDeploymentArtifactContent")
             .Accepts<byte[]>("application/octet-stream")
             .Produces(StatusCodes.Status204NoContent)
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
             .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
 
-        api.MapPost("/deployment-artifacts/uploads/{uploadId}/complete", CompleteDeploymentArtifactUpload)
+        api.MapPost("/resources/{resourceId}/artifacts/uploads/{uploadId}/complete", CompleteDeploymentArtifactUpload)
             .WithName("CloudShellControlPlane_CompleteDeploymentArtifactUpload")
             .Accepts<CompleteDeploymentArtifactUploadRequest>("application/json")
             .Produces<DeploymentArtifactRevisionResponse>(StatusCodes.Status200OK)
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
             .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
 
-        api.MapGet("/deployment-artifacts/{artifactId}/revisions/{revisionId}", GetDeploymentArtifactRevision)
+        api.MapGet("/resources/{resourceId}/artifacts/{artifactId}/revisions/{revisionId}", GetDeploymentArtifactRevision)
             .WithName("CloudShellControlPlane_GetDeploymentArtifactRevision")
             .Produces<DeploymentArtifactRevisionResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound)
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
             .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
 
-        api.MapPost("/deployment-artifacts/validate", ValidateDeploymentArtifact)
+        api.MapPost("/resources/{resourceId}/artifacts/validate", ValidateDeploymentArtifact)
             .WithName("CloudShellControlPlane_ValidateDeploymentArtifact")
             .Accepts<ValidateDeploymentArtifactRequest>("application/json")
             .Produces<ResourceDefinitionValidationResult>(StatusCodes.Status200OK)
@@ -1121,14 +1121,18 @@ public static class CloudShellControlPlaneApiExtensions
             .ToArray());
 
     private static async Task<IResult> GetDeploymentArtifactStoreStatus(
+        string resourceId,
         IDeploymentArtifactManager artifacts,
         CancellationToken cancellationToken)
     {
-        var status = await artifacts.GetDeploymentArtifactStoreStatusAsync(cancellationToken);
+        var status = await artifacts.GetDeploymentArtifactStoreStatusAsync(
+            RequireValue(resourceId, nameof(resourceId)),
+            cancellationToken);
         return Results.Ok(status.ToResponse());
     }
 
     private static async Task<IResult> ListDeploymentArtifactLayouts(
+        string resourceId,
         string resourceTypeId,
         string? providerId,
         string? environmentId,
@@ -1139,6 +1143,7 @@ public static class CloudShellControlPlaneApiExtensions
         try
         {
             var layouts = await artifacts.ListDeploymentArtifactLayoutsAsync(
+                RequireValue(resourceId, nameof(resourceId)),
                 new DeploymentArtifactLayoutQuery(
                     RequireValue(resourceTypeId, nameof(resourceTypeId)),
                     NormalizeOptional(providerId),
@@ -1155,12 +1160,14 @@ public static class CloudShellControlPlaneApiExtensions
     }
 
     private static async Task<IResult> CreateDeploymentArtifactUploadSession(
+        string resourceId,
         CreateDeploymentArtifactUploadSessionRequest request,
         IDeploymentArtifactManager artifacts,
         CancellationToken cancellationToken)
     {
         try
         {
+            var routeResourceId = RequireValue(resourceId, nameof(resourceId));
             var session = await artifacts.CreateDeploymentArtifactUploadSessionAsync(
                 new CreateDeploymentArtifactUploadSessionCommand(
                     RequireValue(request.ResourceType, nameof(request.ResourceType)),
@@ -1169,11 +1176,12 @@ public static class CloudShellControlPlaneApiExtensions
                     NormalizeOptional(request.FileName),
                     request.ContentLength,
                     NormalizeOptional(request.ContentSha256),
-                    NormalizeOptional(request.ArtifactLayoutKind)),
+                    NormalizeOptional(request.ArtifactLayoutKind),
+                    routeResourceId),
                 cancellationToken);
 
             return Results.Created(
-                $"{CloudShellControlPlaneApiDefaults.RoutePrefix}/deployment-artifacts/uploads/{Uri.EscapeDataString(session.UploadId)}",
+                $"{CloudShellControlPlaneApiDefaults.RoutePrefix}/resources/{Uri.EscapeDataString(routeResourceId)}/artifacts/uploads/{Uri.EscapeDataString(session.UploadId)}",
                 session.ToResponse());
         }
         catch (Exception exception) when (exception is ControlPlaneException or ControlPlaneAccessDeniedException or ArgumentException or InvalidDataException or InvalidOperationException)
@@ -1183,6 +1191,7 @@ public static class CloudShellControlPlaneApiExtensions
     }
 
     private static async Task<IResult> UploadDeploymentArtifactContent(
+        string resourceId,
         string uploadId,
         HttpRequest request,
         IDeploymentArtifactManager artifacts,
@@ -1191,6 +1200,7 @@ public static class CloudShellControlPlaneApiExtensions
         try
         {
             await artifacts.UploadDeploymentArtifactContentAsync(
+                RequireValue(resourceId, nameof(resourceId)),
                 RequireValue(uploadId, nameof(uploadId)),
                 request.Body,
                 cancellationToken);
@@ -1204,6 +1214,7 @@ public static class CloudShellControlPlaneApiExtensions
     }
 
     private static async Task<IResult> CompleteDeploymentArtifactUpload(
+        string resourceId,
         string uploadId,
         CompleteDeploymentArtifactUploadRequest request,
         IDeploymentArtifactManager artifacts,
@@ -1212,6 +1223,7 @@ public static class CloudShellControlPlaneApiExtensions
         try
         {
             var revision = await artifacts.CompleteDeploymentArtifactUploadAsync(
+                RequireValue(resourceId, nameof(resourceId)),
                 new CompleteDeploymentArtifactUploadCommand(
                     RequireValue(uploadId, nameof(uploadId)),
                     NormalizeOptional(request.ContentSha256)),
@@ -1226,6 +1238,7 @@ public static class CloudShellControlPlaneApiExtensions
     }
 
     private static async Task<IResult> GetDeploymentArtifactRevision(
+        string resourceId,
         string artifactId,
         string revisionId,
         IDeploymentArtifactManager artifacts,
@@ -1234,6 +1247,7 @@ public static class CloudShellControlPlaneApiExtensions
         try
         {
             var revision = await artifacts.GetDeploymentArtifactRevisionAsync(
+                RequireValue(resourceId, nameof(resourceId)),
                 RequireValue(artifactId, nameof(artifactId)),
                 RequireValue(revisionId, nameof(revisionId)),
                 cancellationToken);
@@ -1249,6 +1263,7 @@ public static class CloudShellControlPlaneApiExtensions
     }
 
     private static async Task<IResult> ValidateDeploymentArtifact(
+        string resourceId,
         ValidateDeploymentArtifactRequest request,
         IDeploymentArtifactManager artifacts,
         CancellationToken cancellationToken)
@@ -1256,6 +1271,7 @@ public static class CloudShellControlPlaneApiExtensions
         try
         {
             var result = await artifacts.ValidateDeploymentArtifactAsync(
+                RequireValue(resourceId, nameof(resourceId)),
                 new ValidateDeploymentArtifactCommand(
                     RequireValue(request.ResourceType, nameof(request.ResourceType)),
                     RequireValue(request.ResourceName, nameof(request.ResourceName)),

@@ -1330,9 +1330,11 @@ public sealed class RemoteControlPlaneContractTests
     {
         await using var app = await CreateAppAsync();
         var controlPlane = CreateClient(app);
+        const string resourceId = "application.dotnet-web-app:api";
 
-        var status = await controlPlane.GetDeploymentArtifactStoreStatusAsync();
+        var status = await controlPlane.GetDeploymentArtifactStoreStatusAsync(resourceId);
         var layouts = await controlPlane.ListDeploymentArtifactLayoutsAsync(
+            resourceId,
             new DeploymentArtifactLayoutQuery("application.dotnet-web-app"));
 
         Assert.True(status.IsEnabled);
@@ -1350,16 +1352,20 @@ public sealed class RemoteControlPlaneContractTests
                 "zip",
                 FileName: "api.zip",
                 ContentLength: package.Length,
-                ArtifactLayoutKind: layout.Kind));
+                ArtifactLayoutKind: layout.Kind,
+                ResourceId: resourceId));
 
         await controlPlane.UploadDeploymentArtifactContentAsync(
+            resourceId,
             upload.UploadId,
             new MemoryStream(package));
-        var revision = await controlPlane.CompleteDeploymentArtifactUploadAsync(new(upload.UploadId));
+        var revision = await controlPlane.CompleteDeploymentArtifactUploadAsync(resourceId, new(upload.UploadId));
         var loaded = await controlPlane.GetDeploymentArtifactRevisionAsync(
+            resourceId,
             revision.ArtifactId,
             revision.RevisionId);
         var validation = await controlPlane.ValidateDeploymentArtifactAsync(
+            resourceId,
             new ValidateDeploymentArtifactCommand(
                 "application.dotnet-web-app",
                 "api",
@@ -1368,7 +1374,7 @@ public sealed class RemoteControlPlaneContractTests
                 EntryPath: ".",
                 ArtifactLayoutKind: layout.Kind));
 
-        Assert.Equal("deployment-artifact:api", revision.ArtifactId);
+        Assert.Equal("deployment-artifact:application.dotnet-web-app:api", revision.ArtifactId);
         Assert.Equal("zip", revision.PackageKind);
         Assert.Equal("dotnetPublishedOutput", revision.ArtifactLayoutKind);
         Assert.Equal(package.Length, revision.SizeBytes);

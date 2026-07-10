@@ -49,10 +49,11 @@ public sealed class DeploymentArtifactStoreTests
                 ContentLength: bytes.Length,
                 ArtifactLayoutKind: "pythonSourceDirectory"));
         await store.WriteUploadContentAsync(
+            "api",
             upload.UploadId,
             new MemoryStream(bytes));
 
-        var revision = await store.CompleteUploadAsync(new(upload.UploadId));
+        var revision = await store.CompleteUploadAsync("api", new(upload.UploadId));
 
         Assert.Equal("deployment-artifact:api", revision.ArtifactId);
         Assert.Equal("zip", revision.PackageKind);
@@ -63,9 +64,9 @@ public sealed class DeploymentArtifactStoreTests
             revision.ContentSha256);
         Assert.DoesNotContain(contentRoot, revision.ArtifactId, StringComparison.OrdinalIgnoreCase);
 
-        var loaded = await store.GetRevisionAsync(revision.ArtifactId, revision.RevisionId);
+        var loaded = await store.GetRevisionAsync("api", revision.ArtifactId, revision.RevisionId);
         Assert.Equal(revision, loaded);
-        await using var content = await store.OpenRevisionContentAsync(revision.ArtifactId, revision.RevisionId);
+        await using var content = await store.OpenRevisionContentAsync("api", revision.ArtifactId, revision.RevisionId);
         using var reader = new StreamReader(content, Encoding.UTF8);
         Assert.Equal("print('hello')", await reader.ReadToEndAsync());
         Assert.False(Directory.Exists(Path.Combine(contentRoot, "Data", "deployment-artifacts", ".staging", upload.UploadId)));
@@ -90,8 +91,32 @@ public sealed class DeploymentArtifactStoreTests
 
         await Assert.ThrowsAsync<InvalidDataException>(() =>
             store.WriteUploadContentAsync(
+                "tool",
                 upload.UploadId,
                 new MemoryStream(Encoding.UTF8.GetBytes("12345"))));
+    }
+
+    [Fact]
+    public async Task UploadOperations_RejectResourceMismatch()
+    {
+        var store = CreateStore(
+            new DeploymentArtifactOptions
+            {
+                Store = new()
+                {
+                    Kind = DeploymentArtifactStoreKinds.FileSystem,
+                    RootPath = "artifacts",
+                    AllowedPackageKinds = ["zip"]
+                }
+            });
+        var upload = await store.CreateUploadSessionAsync(
+            new("application.executable", "tool", "zip", ResourceId: "application.executable:tool"));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            store.WriteUploadContentAsync(
+                "application.executable:other",
+                upload.UploadId,
+                new MemoryStream(Encoding.UTF8.GetBytes("123"))));
     }
 
     [Fact]

@@ -25,9 +25,10 @@ on `git blame --follow`, and then by the broad type of change.
   layout metadata and layout descriptor contract, and permission constants; see
   ADR-20260711-001.
 - Added the first Control Plane and remote client deployment-artifact API
-  surface for direct host-store uploads, including store status, provider
-  layout discovery, upload session creation, content upload, completion, and
-  revision lookup, and provider validation over completed artifact revisions.
+  surface for resource-scoped direct host-store uploads, including store
+  status, provider layout discovery, upload session creation, content upload,
+  completion, revision lookup, and provider validation over completed artifact
+  revisions.
 
 ### 2026-07-10
 

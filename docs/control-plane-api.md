@@ -86,17 +86,20 @@ derived from accepted resource state. It is not a user-authored deployment
 template API. See
 [Orchestration and Deployments](orchestration-and-deployments.md).
 
-Deployment artifact upload is exposed as a Control Plane capability for
-Resource Manager create/edit workflows:
+Application artifact upload is exposed as a resource-scoped Control Plane
+capability for Resource Manager create/edit workflows. The implementation
+still uses deployment-artifact contracts internally; the public route shape is
+resource-first so the UI can treat the artifact as owned by the resource being
+created or edited.
 
 ```text
-GET  /api/control-plane/v1/deployment-artifacts/status
-GET  /api/control-plane/v1/deployment-artifacts/layouts
-POST /api/control-plane/v1/deployment-artifacts/uploads
-PUT  /api/control-plane/v1/deployment-artifacts/uploads/{uploadId}/content
-POST /api/control-plane/v1/deployment-artifacts/uploads/{uploadId}/complete
-GET  /api/control-plane/v1/deployment-artifacts/{artifactId}/revisions/{revisionId}
-POST /api/control-plane/v1/deployment-artifacts/validate
+GET  /api/control-plane/v1/resources/{resourceId}/artifacts/status
+GET  /api/control-plane/v1/resources/{resourceId}/artifacts/layouts
+POST /api/control-plane/v1/resources/{resourceId}/artifacts/upload
+PUT  /api/control-plane/v1/resources/{resourceId}/artifacts/uploads/{uploadId}/content
+POST /api/control-plane/v1/resources/{resourceId}/artifacts/uploads/{uploadId}/complete
+GET  /api/control-plane/v1/resources/{resourceId}/artifacts/{artifactId}/revisions/{revisionId}
+POST /api/control-plane/v1/resources/{resourceId}/artifacts/validate
 ```
 
 The first implementation treats the configured Control Plane host artifact
@@ -104,7 +107,7 @@ store as the direct upload target. Future transfer modes may pull from other
 artifact sources into a supported host target, but the Control Plane remains
 the authority for artifact revisions. Resource type providers announce the
 supported artifact layouts for each resource type, and a resource definition
-chooses either local-source mode or deployment-artifact mode, not both.
+chooses either local-source mode or application-artifact mode, not both.
 Artifact validation runs against a completed revision and returns the standard
 resource-definition diagnostics shape.
 

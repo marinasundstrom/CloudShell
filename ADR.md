@@ -35,6 +35,11 @@ For the first API slice, the configured Control Plane host artifact store is
 the direct upload target; future transfer modes can pull from other artifact
 sources into a supported host target without changing the provider-owned
 revision validation boundary.
+HTTP artifact operations are scoped under
+`/resources/{resourceId}/artifacts/...` so the API and Resource Manager UI treat
+uploaded bytes as owned by the resource being created or edited. The current
+contract names use deployment-artifact terminology; a later rename may call the
+broader resource-owned concept resource artifacts.
 
 Resource types may support both local-source mode and deployment-artifact
 mode, but a single resource definition chooses one mode. Local-source mode is
@@ -46,9 +51,10 @@ host advertises local-development mode or the actor has explicit host-path
 authoring permission.
 
 The first implementation introduces a disabled-by-default deployment artifact
-store configuration and a filesystem-backed store contract. HTTP upload APIs,
-ResourceDefinition validation, provider materialization, and Resource Manager
-create/edit UI remain follow-up slices.
+store configuration, a filesystem-backed store contract, provider validation
+hooks, provider-announced artifact layout descriptors, and resource-scoped HTTP
+upload APIs. Provider materialization and Resource Manager create/edit UI
+remain follow-up slices.
 
 ## 2026-07-05
 

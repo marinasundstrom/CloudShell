@@ -543,17 +543,19 @@ public sealed class RemoteControlPlane : IControlPlane
     }
 
     public async Task<DeploymentArtifactStoreStatus> GetDeploymentArtifactStoreStatusAsync(
+        string resourceId,
         CancellationToken cancellationToken = default) =>
         (await GetRequiredAsync<DeploymentArtifactStoreStatusResponse>(
-            "deployment-artifacts/status",
+            BuildResourceArtifactPath(resourceId, "status"),
             cancellationToken))
         .ToDeploymentArtifactStoreStatus();
 
     public async Task<IReadOnlyList<DeploymentArtifactLayoutDescriptor>> ListDeploymentArtifactLayoutsAsync(
+        string resourceId,
         DeploymentArtifactLayoutQuery query,
         CancellationToken cancellationToken = default) =>
         (await GetRequiredAsync<IReadOnlyList<DeploymentArtifactLayoutResponse>>(
-            "deployment-artifacts/layouts",
+            BuildResourceArtifactPath(resourceId, "layouts"),
             cancellationToken,
             ("resourceTypeId", query.ResourceTypeId.ToString()),
             ("providerId", query.ProviderId),
@@ -566,8 +568,9 @@ public sealed class RemoteControlPlane : IControlPlane
         CreateDeploymentArtifactUploadSessionCommand command,
         CancellationToken cancellationToken = default)
     {
+        var resourceId = RequireValue(command.ResourceId, nameof(command.ResourceId));
         var response = await httpClient.PostAsJsonAsync(
-            BuildUri("deployment-artifacts/uploads"),
+            BuildUri(BuildResourceArtifactPath(resourceId, "upload")),
             new CreateDeploymentArtifactUploadSessionRequest(
                 command.ResourceType,
                 command.ResourceName,
@@ -584,6 +587,7 @@ public sealed class RemoteControlPlane : IControlPlane
     }
 
     public async Task UploadDeploymentArtifactContentAsync(
+        string resourceId,
         string uploadId,
         Stream content,
         CancellationToken cancellationToken = default)
@@ -592,18 +596,19 @@ public sealed class RemoteControlPlane : IControlPlane
         requestContent.Headers.ContentType =
             new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
         var response = await httpClient.PutAsync(
-            BuildUri($"deployment-artifacts/uploads/{Escape(uploadId)}/content"),
+            BuildUri(BuildResourceArtifactPath(resourceId, $"uploads/{Escape(uploadId)}/content")),
             requestContent,
             cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task<DeploymentArtifactRevision> CompleteDeploymentArtifactUploadAsync(
+        string resourceId,
         CompleteDeploymentArtifactUploadCommand command,
         CancellationToken cancellationToken = default)
     {
         var response = await httpClient.PostAsJsonAsync(
-            BuildUri($"deployment-artifacts/uploads/{Escape(command.UploadId)}/complete"),
+            BuildUri(BuildResourceArtifactPath(resourceId, $"uploads/{Escape(command.UploadId)}/complete")),
             new CompleteDeploymentArtifactUploadRequest(command.ContentSha256),
             SerializerOptions,
             cancellationToken);
@@ -613,22 +618,24 @@ public sealed class RemoteControlPlane : IControlPlane
     }
 
     public async Task<DeploymentArtifactRevision?> GetDeploymentArtifactRevisionAsync(
+        string resourceId,
         string artifactId,
         string revisionId,
         CancellationToken cancellationToken = default)
     {
         var response = await GetOptionalAsync<DeploymentArtifactRevisionResponse>(
-            $"deployment-artifacts/{Escape(artifactId)}/revisions/{Escape(revisionId)}",
+            BuildResourceArtifactPath(resourceId, $"{Escape(artifactId)}/revisions/{Escape(revisionId)}"),
             cancellationToken);
         return response?.ToDeploymentArtifactRevision();
     }
 
     public async Task<ResourceDefinitionValidationResult> ValidateDeploymentArtifactAsync(
+        string resourceId,
         ValidateDeploymentArtifactCommand command,
         CancellationToken cancellationToken = default)
     {
         var response = await httpClient.PostAsJsonAsync(
-            BuildUri("deployment-artifacts/validate"),
+            BuildUri(BuildResourceArtifactPath(resourceId, "validate")),
             new ValidateDeploymentArtifactRequest(
                 command.ResourceType,
                 command.ResourceName,
@@ -1104,6 +1111,14 @@ public sealed class RemoteControlPlane : IControlPlane
         kinds is null || kinds.Count == 0
             ? null
             : string.Join(',', kinds.Select(kind => kind.ToString()));
+
+    private static string RequireValue(string? value, string parameterName) =>
+        string.IsNullOrWhiteSpace(value)
+            ? throw new ArgumentException("A non-empty value is required.", parameterName)
+            : value;
+
+    private static string BuildResourceArtifactPath(string resourceId, string path) =>
+        $"resources/{Escape(RequireValue(resourceId, nameof(resourceId)))}/artifacts/{path.TrimStart('/')}";
 
     private static string Escape(string value) =>
         Uri.EscapeDataString(value);

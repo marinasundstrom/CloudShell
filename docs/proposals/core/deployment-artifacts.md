@@ -10,9 +10,8 @@
   [ResourceDefinition structure](../../resource-definition-structure.md),
   [Resource model providers](../../resource-model-providers.md), and
   [Orchestration and Deployments](../../orchestration-and-deployments.md).
-- Remaining action: Define the first Control Plane artifact-store contract,
-  upload API, artifact-reference shape, and Resource Manager create/edit UI
-  flow.
+- Remaining action: Wire one application resource provider and the Resource
+  Manager create/edit UI to the landed resource-scoped artifact upload API.
 - Out of scope: general object storage, source control hosting, CI systems,
   public rollout history, and provider-native deployment package formats.
 
@@ -33,6 +32,11 @@ source mode or deployment-artifact mode. In deployment-artifact mode, the
 definition references an accepted artifact revision. The resource provider,
 not the generic artifact store, owns what that artifact means and how it is
 materialized during start, restart, or deployment.
+
+The public route shape is resource-scoped and uses `/resources/{resourceId}/artifacts/...`.
+The current contracts still use deployment-artifact names internally. A later
+rename may call these resource artifacts once the broader resource-owned
+artifact model is settled.
 
 ## Problem
 
@@ -340,16 +344,16 @@ sequenceDiagram
     Provider->>Runtime: Materialize accepted revision
 ```
 
-The first HTTP API can be simple and Control Plane-hosted:
+The first HTTP API is resource-scoped and Control Plane-hosted:
 
 ```http
-GET  /api/control-plane/v1/deployment-artifacts/status
-GET  /api/control-plane/v1/deployment-artifacts/layouts?resourceTypeId=application.dotnet-web-app
-POST /api/control-plane/v1/deployment-artifacts/uploads
-PUT  /api/control-plane/v1/deployment-artifacts/uploads/{uploadId}/content
-POST /api/control-plane/v1/deployment-artifacts/uploads/{uploadId}/complete
-GET  /api/control-plane/v1/deployment-artifacts/{artifactId}/revisions/{revisionId}
-POST /api/control-plane/v1/deployment-artifacts/validate
+GET  /api/control-plane/v1/resources/{resourceId}/artifacts/status
+GET  /api/control-plane/v1/resources/{resourceId}/artifacts/layouts?resourceTypeId=application.dotnet-web-app
+POST /api/control-plane/v1/resources/{resourceId}/artifacts/upload
+PUT  /api/control-plane/v1/resources/{resourceId}/artifacts/uploads/{uploadId}/content
+POST /api/control-plane/v1/resources/{resourceId}/artifacts/uploads/{uploadId}/complete
+GET  /api/control-plane/v1/resources/{resourceId}/artifacts/{artifactId}/revisions/{revisionId}
+POST /api/control-plane/v1/resources/{resourceId}/artifacts/validate
 ```
 
 For the first slice, the host-configured artifact store is the direct upload
@@ -473,8 +477,8 @@ Resource providers that support uploaded deployment artifacts should document:
    registration, and a no-store disabled state.
 2. Add a Control Plane artifact upload manager with create, upload, complete,
    lookup, validation, and cleanup semantics.
-3. Project upload APIs through the Control Plane HTTP surface and remote
-   client.
+3. Project upload APIs through the resource-scoped Control Plane HTTP surface
+   and remote client.
 4. Add a provider validation hook that can inspect committed artifact content
    before accepting a ResourceDefinition update.
 5. Add a common deployment artifact descriptor shape with package kind,

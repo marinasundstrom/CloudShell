@@ -66,7 +66,7 @@ keep only the delta that affects remaining work.
 | 12 | [Load balancer resource](networking/load-balancer-resource.md) | In progress | High; required for explicit public routing and replicated app scenarios. | Continue provider selection, validation, host readiness, lifecycle, and public endpoint UX. |
 | 13 | [DNS and name mapping](networking/dns-and-name-mapping-resource.md) | In progress | High for MVP naming; provider-backed DNS is later. | Finish name-mapping update/delete UI and local hostname diagnostics; defer provider-backed DNS propagation until network providers are stronger. |
 | 14 | [Storage and volume mappings](storage/volume-mappings.md) | In progress | High; required for stateful local apps. | Continue provider-backed materialization, host/storage compatibility diagnostics, relationship visibility, and usage integration. |
-| 15 | [Deployment artifacts](core/deployment-artifacts.md) | Proposed | High; required for create/edit UI that works when the Control Plane and workload host are remote. | Define the Control Plane artifact-store contract, upload API, artifact-reference shape, and first Resource Manager deployment artifact section before broad app create/edit UX. |
+| 15 | [Deployment artifacts](core/deployment-artifacts.md) | Proposed | High; required for create/edit UI that works when the Control Plane and workload host are remote. | Wire the first application resource provider and Resource Manager create/edit section to the landed resource-scoped artifact upload API before broad app create/edit UX. |
 | 16 | [Remote Docker hosts](containers/remote-docker-hosts.md) | Partially implemented | Medium; useful but should not block local/default host MVP. | Keep behind shared host abstraction. Take concrete slices only when they validate the host boundary or unblock samples. |
 | 17 | [Provider-created and runtime-managed resources](core/provider-created-and-runtime-managed-resources.md) | In progress | High; supports replica/resource diagnostics and cleanup. | Use [Provider-created and runtime-managed resources](../runtime-managed-resources.md) as the landed spec. Continue provider-observed IDs, health, placement, ownership traversal, and materialization diagnostics. |
 | 18 | [Orchestrator deployments and environment revisions](deployment/deployments-and-revisions.md) | In progress | High for container app internals; later for public rollout history. | Finish controller/reconciliation boundary for first start, routing rebinding, service tear-down, and cleanup. Keep rich rollout history deferred. |
@@ -186,9 +186,9 @@ hardening.
 15. Deployment artifact loading through
     [Deployment artifacts](core/deployment-artifacts.md) before
     broad Resource Manager create/edit UI for application resources. The first
-    slice should define the Control Plane artifact-store setting, upload API,
-    artifact revision reference, and local mode versus deployment artifact UX
-    boundary.
+    provider/UI slice should use the Control Plane artifact-store setting,
+    resource-scoped upload API, artifact revision reference, and local mode
+    versus deployment artifact UX boundary already defined by the proposal.
 16. Intent-first resource authoring through
     [Intent-first resource authoring](core/intent-first-resource-authoring.md)
     only after the ResourceDefinition apply, provider diagnostics, and

@@ -40,6 +40,7 @@ public sealed class FileSystemDeploymentArtifactStore(
         var now = DateTimeOffset.UtcNow;
         var metadata = new UploadSessionMetadata(
             uploadId,
+            NormalizeNullable(command.ResourceId),
             command.ResourceType.Trim(),
             command.ResourceName.Trim(),
             NormalizePackageKind(command.PackageKind),
@@ -64,16 +65,19 @@ public sealed class FileSystemDeploymentArtifactStore(
     }
 
     public async Task WriteUploadContentAsync(
+        string resourceId,
         string uploadId,
         Stream content,
         CancellationToken cancellationToken = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
         ArgumentException.ThrowIfNullOrWhiteSpace(uploadId);
         ArgumentNullException.ThrowIfNull(content);
 
         var store = RequireFileSystemStore();
         var metadata = await ReadUploadMetadataAsync(uploadId, cancellationToken);
         EnsureSessionActive(metadata);
+        EnsureResourceMatches(resourceId, metadata);
 
         var maxBytes = NormalizeMaxUploadBytes(store.MaxUploadBytes);
         var path = Path.Combine(GetUploadDirectory(uploadId), GetPackageFileName(metadata.PackageKind));
@@ -96,15 +100,18 @@ public sealed class FileSystemDeploymentArtifactStore(
     }
 
     public async Task<DeploymentArtifactRevision> CompleteUploadAsync(
+        string resourceId,
         CompleteDeploymentArtifactUploadCommand command,
         CancellationToken cancellationToken = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
         ArgumentNullException.ThrowIfNull(command);
         ArgumentException.ThrowIfNullOrWhiteSpace(command.UploadId);
 
         RequireFileSystemStore();
         var metadata = await ReadUploadMetadataAsync(command.UploadId, cancellationToken);
         EnsureSessionActive(metadata);
+        EnsureResourceMatches(resourceId, metadata);
 
         var uploadDirectory = GetUploadDirectory(command.UploadId);
         var packagePath = Path.Combine(uploadDirectory, GetPackageFileName(metadata.PackageKind));
@@ -126,7 +133,7 @@ public sealed class FileSystemDeploymentArtifactStore(
         }
 
         var createdAt = DateTimeOffset.UtcNow;
-        var artifactId = CreateArtifactId(metadata.ResourceName);
+        var artifactId = CreateArtifactId(metadata.ResourceId ?? metadata.ResourceName);
         var revisionId = CreateRevisionId(createdAt, hash);
         var revisionDirectory = GetRevisionDirectory(artifactId, revisionId, create: true);
         var committedPackagePath = Path.Combine(revisionDirectory, GetPackageFileName(metadata.PackageKind));
@@ -150,14 +157,21 @@ public sealed class FileSystemDeploymentArtifactStore(
     }
 
     public async Task<DeploymentArtifactRevision?> GetRevisionAsync(
+        string resourceId,
         string artifactId,
         string revisionId,
         CancellationToken cancellationToken = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
         ArgumentException.ThrowIfNullOrWhiteSpace(artifactId);
         ArgumentException.ThrowIfNullOrWhiteSpace(revisionId);
 
         RequireFileSystemStore();
+        if (!ArtifactMatchesResource(resourceId, artifactId))
+        {
+            return null;
+        }
+
         var path = Path.Combine(GetRevisionDirectory(artifactId, revisionId), "revision.json");
         if (!File.Exists(path))
         {
@@ -172,11 +186,12 @@ public sealed class FileSystemDeploymentArtifactStore(
     }
 
     public async Task<Stream> OpenRevisionContentAsync(
+        string resourceId,
         string artifactId,
         string revisionId,
         CancellationToken cancellationToken = default)
     {
-        var revision = await GetRevisionAsync(artifactId, revisionId, cancellationToken) ??
+        var revision = await GetRevisionAsync(resourceId, artifactId, revisionId, cancellationToken) ??
             throw new FileNotFoundException(
                 $"Deployment artifact revision '{artifactId}/revisions/{revisionId}' was not found.");
         var path = Path.Combine(
@@ -274,6 +289,19 @@ public sealed class FileSystemDeploymentArtifactStore(
                 $"Deployment artifact upload session '{metadata.UploadId}' has expired.");
         }
     }
+
+    private static void EnsureResourceMatches(string resourceId, UploadSessionMetadata metadata)
+    {
+        var expectedResourceId = metadata.ResourceId ?? metadata.ResourceName;
+        if (!string.Equals(resourceId.Trim(), expectedResourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Deployment artifact upload session '{metadata.UploadId}' belongs to resource '{expectedResourceId}'.");
+        }
+    }
+
+    private static bool ArtifactMatchesResource(string resourceId, string artifactId) =>
+        string.Equals(artifactId, CreateArtifactId(resourceId), StringComparison.OrdinalIgnoreCase);
 
     private static void ValidateUploadCommand(
         CreateDeploymentArtifactUploadSessionCommand command,
@@ -374,6 +402,7 @@ public sealed class FileSystemDeploymentArtifactStore(
 
     private sealed record UploadSessionMetadata(
         string UploadId,
+        string? ResourceId,
         string ResourceType,
         string ResourceName,
         string PackageKind,

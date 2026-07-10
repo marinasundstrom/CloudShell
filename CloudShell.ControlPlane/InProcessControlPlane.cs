@@ -1130,16 +1130,20 @@ public sealed class InProcessControlPlane(
     }
 
     public Task<DeploymentArtifactStoreStatus> GetDeploymentArtifactStoreStatusAsync(
+        string resourceId,
         CancellationToken cancellationToken = default)
     {
+        RequireValue(resourceId, nameof(resourceId));
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(RequireDeploymentArtifactStore().GetStatus());
     }
 
     public async Task<IReadOnlyList<DeploymentArtifactLayoutDescriptor>> ListDeploymentArtifactLayoutsAsync(
+        string resourceId,
         DeploymentArtifactLayoutQuery query,
         CancellationToken cancellationToken = default)
     {
+        RequireValue(resourceId, nameof(resourceId));
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -1160,47 +1164,58 @@ public sealed class InProcessControlPlane(
         CreateDeploymentArtifactUploadSessionCommand command,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(command);
         EnsureCanUploadDeploymentArtifacts();
-        return RequireDeploymentArtifactStore().CreateUploadSessionAsync(command, cancellationToken);
+        return RequireDeploymentArtifactStore().CreateUploadSessionAsync(
+            command with { ResourceId = RequireValue(command.ResourceId, nameof(command.ResourceId)) },
+            cancellationToken);
     }
 
     public Task UploadDeploymentArtifactContentAsync(
+        string resourceId,
         string uploadId,
         Stream content,
         CancellationToken cancellationToken = default)
     {
+        RequireValue(resourceId, nameof(resourceId));
         EnsureCanUploadDeploymentArtifacts();
-        return RequireDeploymentArtifactStore().WriteUploadContentAsync(uploadId, content, cancellationToken);
+        return RequireDeploymentArtifactStore().WriteUploadContentAsync(resourceId, uploadId, content, cancellationToken);
     }
 
     public Task<DeploymentArtifactRevision> CompleteDeploymentArtifactUploadAsync(
+        string resourceId,
         CompleteDeploymentArtifactUploadCommand command,
         CancellationToken cancellationToken = default)
     {
+        RequireValue(resourceId, nameof(resourceId));
         EnsureCanUploadDeploymentArtifacts();
-        return RequireDeploymentArtifactStore().CompleteUploadAsync(command, cancellationToken);
+        return RequireDeploymentArtifactStore().CompleteUploadAsync(resourceId, command, cancellationToken);
     }
 
     public Task<DeploymentArtifactRevision?> GetDeploymentArtifactRevisionAsync(
+        string resourceId,
         string artifactId,
         string revisionId,
         CancellationToken cancellationToken = default)
     {
+        RequireValue(resourceId, nameof(resourceId));
         EnsureCanReadDeploymentArtifacts();
-        return RequireDeploymentArtifactStore().GetRevisionAsync(artifactId, revisionId, cancellationToken);
+        return RequireDeploymentArtifactStore().GetRevisionAsync(resourceId, artifactId, revisionId, cancellationToken);
     }
 
     public async Task<ResourceDefinitionValidationResult> ValidateDeploymentArtifactAsync(
+        string resourceId,
         ValidateDeploymentArtifactCommand command,
         CancellationToken cancellationToken = default)
     {
+        RequireValue(resourceId, nameof(resourceId));
         ArgumentNullException.ThrowIfNull(command);
         EnsureCanReadDeploymentArtifacts();
 
         var store = RequireDeploymentArtifactStore();
         var artifactId = RequireValue(command.ArtifactId, nameof(command.ArtifactId));
         var revisionId = RequireValue(command.RevisionId, nameof(command.RevisionId));
-        var revision = await store.GetRevisionAsync(artifactId, revisionId, cancellationToken);
+        var revision = await store.GetRevisionAsync(resourceId, artifactId, revisionId, cancellationToken);
         if (revision is null)
         {
             return ResourceDefinitionValidationResult.FromDiagnostics(
@@ -1237,6 +1252,7 @@ public sealed class InProcessControlPlane(
         }
 
         await using var content = await store.OpenRevisionContentAsync(
+            resourceId,
             revision.ArtifactId,
             revision.RevisionId,
             cancellationToken);

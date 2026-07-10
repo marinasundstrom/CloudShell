@@ -46,7 +46,8 @@ public sealed record CreateDeploymentArtifactUploadSessionCommand(
     string? FileName = null,
     long? ContentLength = null,
     string? ContentSha256 = null,
-    string? ArtifactLayoutKind = null);
+    string? ArtifactLayoutKind = null,
+    string? ResourceId = null);
 
 public sealed record DeploymentArtifactUploadSession(
     string UploadId,
