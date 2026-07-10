@@ -47,6 +47,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a `sdk/python/cloudshell/test.sh` entrypoint for the Python runtime SDK
   so its Configuration Store, Secrets Vault, endpoint discovery, and
   credential-chain tests can run without a `pytest` dependency.
+- Pinned the TypeScript launcher and runtime SDK sample manifests to the
+  documented TypeScript 5.9.3 compiler version so fresh installs do not drift
+  from the checked-in lockfiles.
 
 ### 2026-07-06
 

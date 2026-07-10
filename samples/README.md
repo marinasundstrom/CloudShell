@@ -61,7 +61,7 @@ prove.
 
 | Runtime | Sample | Authoring surface | SDK proof | Tooling version notes |
 | --- | --- | --- | --- | --- |
-| JavaScript/TypeScript | `TypeScriptContainerApp` | TypeScript launcher. | `sdk/typescript/configuration-client` reads Configuration Store and Secrets Vault from `/configuration`. | TypeScript 5.9.3 launcher lockfile; Node.js 22 image; local SDK `file:` dependency. |
+| JavaScript/TypeScript | `TypeScriptContainerApp` | TypeScript launcher. | `sdk/typescript/configuration-client` reads Configuration Store and Secrets Vault from `/configuration`. | TypeScript 5.9.3 launcher manifest/lockfile; Node.js 22 image; local SDK `file:` dependency. |
 | Java | `JavaContainerApp` | Java launcher. | `sdk/java/cloudshell` reads Configuration Store and Secrets Vault from `/configuration`. | Java 21 runtime/compiler target; Maven 3.9.9 Docker build stage. |
 | Go | `GoContainerApp` | Go launcher. | `sdk/go/cloudshell` reads Configuration Store and Secrets Vault from `/configuration`. | Go 1.22 build image and module version. |
 | Python | `PythonContainerApp` | Python launcher. | `sdk/python/cloudshell` reads Configuration Store and Secrets Vault from `/configuration`. | Python 3.12 runtime image. |

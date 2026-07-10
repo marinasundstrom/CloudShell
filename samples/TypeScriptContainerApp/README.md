@@ -11,7 +11,7 @@ result at `/configuration` without returning secret values.
 
 ## Tooling
 
-- TypeScript 5.9.3 for the launcher app host lockfile.
+- TypeScript 5.9.3 for the launcher app host manifest and lockfile.
 - Node.js 22 for the container runtime image.
 - The runtime app consumes `@cloudshell/configuration-client` through a local
   `file:` dependency.
