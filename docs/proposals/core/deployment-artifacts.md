@@ -1,4 +1,4 @@
-# Application Source Artifacts
+# Deployment Artifacts
 
 ## Status
 
@@ -11,33 +11,35 @@
   [Resource model providers](../../resource-model-providers.md), and
   [Orchestration and Deployments](../../orchestration-and-deployments.md).
 - Remaining action: Define the first Control Plane artifact-store contract,
-  upload API, source-reference shape, and Resource Manager create/edit UI flow.
+  upload API, artifact-reference shape, and Resource Manager create/edit UI
+  flow.
 - Out of scope: general object storage, source control hosting, CI systems,
   public rollout history, and provider-native deployment package formats.
 
 ## Summary
 
-Application resources need a source-loading model that works when the
+Application resources need a deployment-artifact model that works when the
 CloudShell UI, Control Plane, and runtime host are not the same computer. A
 local project path is enough for local development when the runtime host can
-read the same filesystem path. It is not enough for hosted or team-owned
-environments where application files must be uploaded, stored, validated,
-versioned, and materialized by the Control Plane or a provider-owned runtime.
+read the same filesystem path. It is not enough for Resource Manager UI
+creation or editing in hosted or team-owned environments where package bytes
+must be uploaded, stored, validated, versioned, and handed to the resource
+provider.
 
-CloudShell should model application source as resource intent while keeping
-the physical artifact store behind Control Plane host configuration. The
-resource definition should reference a source revision, not the host's private
-storage path. The Control Plane should expose an upload API that stores
-application artifacts in the configured store, returns a stable artifact
-revision reference, and lets the application provider materialize that
-revision during start, restart, or deployment.
+CloudShell should store deployment artifacts and expose stable artifact
+revision references while keeping the physical artifact store behind Control
+Plane host configuration. The resource definition should choose either local
+source mode or deployment-artifact mode. In deployment-artifact mode, the
+definition references an accepted artifact revision. The resource provider,
+not the generic artifact store, owns what that artifact means and how it is
+materialized during start, restart, or deployment.
 
 ## Problem
 
-Current application resources are mostly local-development resources. Their
-project path, command, script, artifact path, Dockerfile path, or working
-directory assumes that the process applying the resource and the process
-running the workload can access the same files.
+Current project-style application resources are mostly local-development
+resources. Their project path, command, script, artifact path, Dockerfile path,
+or working directory assumes that the process applying the resource and the
+process running the workload can access the same files.
 
 That assumption breaks in these scenarios:
 
@@ -47,21 +49,26 @@ That assumption breaks in these scenarios:
   different machine.
 - A team-owned Control Plane needs to accept an application package from a
   user or automation client without exposing its internal filesystem layout.
-- A provider needs to validate package size, checksum, file type, or build
-  requirements before replacing the currently running source.
+- A provider needs to validate package size, checksum, file type, artifact
+  layout, or build requirements before replacing the currently running
+  deployment input.
 - Restarting an app after upload must not disturb the previous running
   revision if upload or validation fails.
 
-The source-loading workflow must therefore be a Control Plane capability, not
-a UI-only convenience and not a path string in resource attributes.
+The deployment-artifact workflow must therefore be a Control Plane capability,
+not a UI-only convenience and not a path string in resource attributes.
 
 ## Goals
 
-- Let Resource Manager create and edit application resources that use either a
-  host-readable local path or a Control Plane-managed uploaded artifact.
+- Let Resource Manager create and edit application resources that use a
+  Control Plane-managed deployment artifact.
+- Preserve the existing local-development path/project-file story for resource
+  declarations that run close to the developer's filesystem.
+- Let a resource type support both local-source mode and deployment-artifact
+  mode while requiring each resource definition to choose exactly one mode.
 - Keep the physical artifact store configured by the Control Plane host, not
   authored into resource definitions.
-- Give resources stable source references such as an artifact revision id,
+- Give resources stable artifact references such as an artifact revision id,
   content hash, package kind, and optional entry path, without exposing the
   store root path.
 - Make upload, validation, apply, and restart/deploy distinct domain steps so
@@ -76,22 +83,33 @@ a UI-only convenience and not a path string in resource attributes.
 
 ## Non-goals
 
-- Do not make mounted volumes the source artifact model. Volumes are runtime
-  storage; application artifacts are deployment inputs with revision,
+- Do not make mounted volumes the deployment artifact model. Volumes are
+  runtime storage; deployment artifacts are deployment inputs with revision,
   validation, and rollback concerns.
 - Do not expose the artifact store root path as resource state.
 - Do not make Resource Manager a source-code editor or CI/build service.
   Providers may run a build step when their resource type supports it, but the
   artifact contract only gets package bytes into a trusted store.
-- Do not require every application resource type to support uploaded artifacts
+- Do not require every resource type to support uploaded deployment artifacts
   in the first slice.
 - Do not couple the model to one provider-native package format.
 
-## Source Kinds
+## Local Source Mode and Deployment Artifact Mode
 
-Application resources should use a provider-owned source descriptor in their
-`ResourceDefinition` payload. The descriptor is resource intent and may vary by
-application type, but the common source kinds should be:
+CloudShell should treat local source and deployment artifacts as two authoring
+modes for resource types that support both:
+
+| Mode | Meaning | Normal authoring surface |
+| --- | --- | --- |
+| Local source | The runtime host can read source, project, script, or build files directly from a path. The provider owns the path fields and local runner behavior. | Programmatic declarations, launchers, local-development host profiles, or trusted host-path automation. |
+| Deployment artifact | The caller provides package bytes or another deployment input through a Control Plane artifact flow. The resource stores an accepted artifact revision reference. The provider owns artifact interpretation and materialization. | Resource Manager create/edit UI, remote clients, hosted/team-owned environments, and automation that cannot rely on host-local paths. |
+
+A resource type may support both modes, but a single resource definition should
+select one. For example, a .NET web app resource might run from a local
+project file in local source mode or from an uploaded ZIP in deployment
+artifact mode. The resource provider decides how to build or run each mode.
+
+The common reference kinds should be:
 
 | Kind | Meaning | Resource state |
 | --- | --- | --- |
@@ -107,8 +125,43 @@ mode or when the current actor has permission to reference files on that host.
 In a shared or hosted environment, ordinary application editors should use
 `uploadedArtifact`, `git`, or `containerImage` instead of host paths.
 
-`uploadedArtifact` is the first hosted-environment source kind this proposal
-targets.
+`uploadedArtifact` is the first deployment-artifact kind this proposal targets.
+The store does not define what a ZIP, tarball, JAR, DLL, static-site bundle,
+Docker build context, or other package means. The resource provider validates
+the artifact layout for its resource type and decides whether it builds,
+copies, extracts, runs, or rejects that artifact.
+
+## Project Resources and Hosted App Resources
+
+The existing project resource types, such as
+`application.aspnet-core-project`, are still valuable for local development.
+They represent a project on a host-readable filesystem and can use development
+behaviors such as `dotnet run`, `dotnet watch`, launch-settings endpoint
+loading, and source directories that change while the developer works.
+
+Hosted artifact loading should not force those project resources to become the
+general deployment model. CloudShell should introduce app resource types when
+the resource can represent an application loaded from an accepted deployment
+artifact rather than a live project directory. For .NET, that
+likely means separate types such as:
+
+| Type | Purpose |
+| --- | --- |
+| `application.dotnet-app` | A .NET application loaded from local source mode or from a provider-validated deployment artifact. |
+| `application.dotnet-web-app` | A .NET web application loaded from local source mode or from a provider-validated deployment artifact, with web endpoint defaults and ASP.NET Core runtime conventions. |
+| `application.aspnet-core-project` | A local-development project resource that runs from a host-readable project path. |
+
+The exact type IDs should be confirmed when the provider is implemented. The
+product boundary should be clear: project resources are for project-on-disk
+development, while app resources can support deployment-artifact mode. A
+hosted create/edit UI should default to the app resource type. It may still
+expose local source mode in local-development hosts or to users with host-path
+authoring permission.
+
+The same distinction can apply to other ecosystems. A Python project resource
+can remain useful for local source-on-disk development, while a hosted Python
+app resource can load from an uploaded deployment artifact or Git source and
+materialize that revision on the runtime host.
 
 ## Artifact Store Configuration
 
@@ -119,10 +172,10 @@ An initial filesystem-backed configuration could look like:
 
 ```json
 {
-  "ApplicationArtifacts": {
+  "DeploymentArtifacts": {
     "Store": {
       "Kind": "FileSystem",
-      "RootPath": "Data/application-artifacts",
+      "RootPath": "Data/deployment-artifacts",
       "MaxUploadBytes": 268435456,
       "AllowedPackageKinds": [ "zip", "tar.gz" ]
     }
@@ -144,16 +197,17 @@ then enable or disable upload UI without knowing the concrete store path.
 
 ## ResourceDefinition Shape
 
-The resource definition should carry only the source reference, not the store
-location. A sketch:
+The resource definition should carry only the selected mode and deployment
+artifact reference, not the store location. A sketch:
 
 ```yaml
 resources:
   - type: application.python-app
     name: api
-    source:
-      kind: uploadedArtifact
-      artifactRevision: app-artifact:api/revisions/20260711T120000Z
+    deployment:
+      mode: artifact
+      artifactKind: uploadedArtifact
+      artifactRevision: deployment-artifact:api/revisions/20260711T120000Z
       packageKind: zip
       contentSha256: 4f6b...
       entryPath: .
@@ -164,17 +218,18 @@ resources:
         targetPort: 8000
 ```
 
-The exact field placement may remain provider-owned while the common source
-descriptor is being proven. The important contract is that the resource points
+The exact field placement may remain provider-owned while the common artifact
+reference is being proven. The important contract is that the resource points
 to an artifact revision identity accepted by the Control Plane, not to
-`Data/application-artifacts/...`.
+`Data/deployment-artifacts/...`.
 
-For project resources such as ASP.NET Core, JavaScript, Java, Go, and Python,
-the source descriptor can replace or supplement the current project path:
+For app resources such as future .NET web apps or hosted Python apps, the
+deployment descriptor chooses the mode:
 
-- `localPath` uses `project.path` or the existing type-specific path fields.
-- `uploadedArtifact` gives the provider a package root and optional entry path
-  from which type-specific build or run settings are resolved.
+- local source mode uses provider-owned path fields, such as project path,
+  script path, or working directory
+- deployment artifact mode gives the provider an artifact revision and optional
+  entry path from which type-specific build or run settings are resolved
 
 ## Upload API Flow
 
@@ -197,8 +252,8 @@ sequenceDiagram
     UI->>CP: Complete upload session
     CP->>Store: Commit artifact revision
     CP->>UI: Artifact revision reference
-    UI->>CP: Apply ResourceDefinition with uploadedArtifact source
-    CP->>Provider: Validate and accept source revision
+    UI->>CP: Apply ResourceDefinition with artifact revision
+    CP->>Provider: Validate and accept deployment artifact
     UI->>CP: Optional Start, Restart, or Deploy
     Provider->>Runtime: Materialize accepted revision
 ```
@@ -206,10 +261,10 @@ sequenceDiagram
 The first HTTP API can be simple and Control Plane-hosted:
 
 ```http
-POST /api/control-plane/v1/application-artifacts/uploads
-PUT  /api/control-plane/v1/application-artifacts/uploads/{uploadId}/content
-POST /api/control-plane/v1/application-artifacts/uploads/{uploadId}/complete
-GET  /api/control-plane/v1/application-artifacts/{artifactId}/revisions/{revisionId}
+POST /api/control-plane/v1/deployment-artifacts/uploads
+PUT  /api/control-plane/v1/deployment-artifacts/uploads/{uploadId}/content
+POST /api/control-plane/v1/deployment-artifacts/uploads/{uploadId}/complete
+GET  /api/control-plane/v1/deployment-artifacts/{artifactId}/revisions/{revisionId}
 ```
 
 Provider-backed stores may later return direct upload affordances, such as a
@@ -230,21 +285,22 @@ The intended flow is:
 4. Optionally start, restart, or deploy the resource.
 
 Resource Manager can expose this as one guided workflow, but the domain steps
-should stay separate. This avoids replacing a known-good source revision with a
+should stay separate. This avoids replacing a known-good artifact revision with a
 failed upload and lets automation choose when to roll forward.
 
 `Restart` should restart the currently accepted revision. Applying a new
-source revision and then restarting or deploying it is a separate update
+artifact revision and then restarting or deploying it is a separate update
 workflow. Container apps may route this through deployment planning and
-environment revision records. Process-backed project resources may initially
-stop and start after accepting the new source revision, but they should still
-record which source revision is running when that state is observable.
+environment revision records. Process-backed app resources may initially stop
+and start after accepting the new artifact revision, but they should still
+record which artifact revision is running when that state is observable.
 
 ## Resource Manager Create and Edit UI
 
-The application create/edit UI should present source as an explicit section:
+The application create/edit UI should present deployment mode as an explicit
+section:
 
-- Source kind: host-readable path, upload package, image, or future Git.
+- Mode: local source, uploaded deployment artifact, image, or future Git.
 - For host-readable paths, show path fields and a note that the target host
   must be able to read them. Hide or disable this option unless the host is a
   local-development host or the actor has host-path authoring permission.
@@ -254,7 +310,7 @@ The application create/edit UI should present source as an explicit section:
 - For image-backed apps, show image reference and registry credential
   reference where supported.
 - Keep start-after-create and restart-after-update as explicit options after
-  the source has been accepted.
+  the artifact revision has been accepted.
 
 The UI should call domain/API operations. It should not inspect or write the
 artifact store path directly, even in a combined host.
@@ -293,41 +349,42 @@ the results should be summarized as non-secret metadata and diagnostics.
 
 ## Provider Parity
 
-Application resource providers that support uploaded artifacts should document:
+Resource providers that support uploaded deployment artifacts should document:
 
-- supported source kinds
+- supported modes and artifact kinds
 - package kinds and expected layout
 - how package entry paths map to project paths, scripts, Dockerfiles, build
   files, or executable paths
 - whether the provider builds from source, runs from source, or expects a
   prebuilt artifact inside the package
-- whether source updates can be applied while running or require restart
-- how the running source revision is projected
+- whether artifact updates can be applied while running or require restart
+- how the running artifact revision is projected
 - which diagnostics are returned for missing artifact revisions, incompatible
   package layout, build failure, and runtime materialization failure
 - how logs, traces, metrics, health, and deployment records identify the source
-  revision when available
+  artifact revision when available
 
 ## Implementation Slices
 
-1. Define `ApplicationArtifactStoreOptions`, filesystem-backed store
+1. Define `DeploymentArtifactStoreOptions`, filesystem-backed store
    registration, and a no-store disabled state.
 2. Add a Control Plane artifact upload manager with create, upload, complete,
    lookup, validation, and cleanup semantics.
 3. Project upload APIs through the Control Plane HTTP surface and remote
    client.
-4. Add a common application source descriptor shape with Control Plane
+4. Add a common deployment artifact descriptor shape with Control Plane
    validation for `localPath` host mode and host-path authoring permission.
 5. Support
    `uploadedArtifact` for one narrow provider, preferably Python or executable
    applications because their runtime mapping is simpler than ASP.NET Core
    build semantics.
-6. Add Resource Manager create/edit source UI that can use local path or
-   uploaded artifact source.
+6. Add Resource Manager create/edit deployment mode UI that can use local
+   source mode or uploaded deployment artifact mode.
 7. Add start/restart-after-update workflow wiring while keeping upload,
    apply, and lifecycle actions distinct.
-8. Extend the model to ASP.NET Core, JavaScript, Java, Go, and container app
-   sources after the first provider proves the contract.
+8. Extend the model to .NET web apps, JavaScript, Java, Go, Python, and
+   container app deployment artifacts after the first provider proves the
+   contract.
 
 ## Open Questions
 
@@ -341,5 +398,5 @@ Application resource providers that support uploaded artifacts should document:
 - How should artifact revisions integrate with deployment records for
   process-backed resources that do not yet use the container app deployment
   coordinator?
-- Which authorization permission names should gate upload, source apply, and
+- Which authorization permission names should gate upload, artifact apply, and
   artifact revision read?

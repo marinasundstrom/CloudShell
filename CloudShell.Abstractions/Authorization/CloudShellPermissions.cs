@@ -42,6 +42,18 @@ public static class StorageVolumeResourceOperationPermissions
         "CloudShell.Storage/volumes/mount/write/action";
 }
 
+public static class DeploymentArtifactResourceOperationPermissions
+{
+    public const string Upload =
+        "CloudShell.Deployments/artifacts/upload/action";
+
+    public const string Read =
+        "CloudShell.Deployments/artifacts/read/action";
+
+    public const string AuthorHostPath =
+        "CloudShell.Resources/sources/localPath/author/action";
+}
+
 public static class ConfigurationStoreResourceOperationPermissions
 {
     public const string ReadSettings =
@@ -181,6 +193,24 @@ public static class CloudShellPermissions
             public const string MountWrite =
                 StorageVolumeResourceOperationPermissions.MountWrite;
         }
+    }
+
+    public static class Deployments
+    {
+        public static class Artifacts
+        {
+            public const string Upload =
+                DeploymentArtifactResourceOperationPermissions.Upload;
+
+            public const string Read =
+                DeploymentArtifactResourceOperationPermissions.Read;
+        }
+    }
+
+    public static class Sources
+    {
+        public const string AuthorHostPath =
+            DeploymentArtifactResourceOperationPermissions.AuthorHostPath;
     }
 
     public static class Secrets

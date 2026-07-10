@@ -9,6 +9,33 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-07-11
+
+### ADR-20260711-001: Treat uploaded workload inputs as provider-interpreted deployment artifacts
+
+CloudShell should model UI-provided workload bytes as deployment artifacts,
+not as generic source paths, mounted volumes, or provider-neutral application
+source layouts. The Control Plane owns artifact upload sessions, configured
+artifact storage, stable artifact revision identity, size/hash validation, and
+safe handoff to resource definitions. The resource provider owns what the
+artifact means for its resource type, including package layout, build or run
+behavior, materialization, diagnostics, and whether a new revision requires
+restart or deployment.
+
+Resource types may support both local-source mode and deployment-artifact
+mode, but a single resource definition chooses one mode. Local-source mode is
+for local development and trusted host-path automation where the runtime host
+can read a project, script, Dockerfile, or other local path. Deployment-artifact
+mode is the normal Resource Manager create/edit path for hosted or team-owned
+environments. Host-readable local paths must be accepted only when the target
+host advertises local-development mode or the actor has explicit host-path
+authoring permission.
+
+The first implementation introduces a disabled-by-default deployment artifact
+store configuration and a filesystem-backed store contract. HTTP upload APIs,
+ResourceDefinition validation, provider materialization, and Resource Manager
+create/edit UI remain follow-up slices.
+
 ## 2026-07-05
 
 ### ADR-20260705-002: Resolve developer credentials from a shared CloudShell profile

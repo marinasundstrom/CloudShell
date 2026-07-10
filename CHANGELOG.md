@@ -13,6 +13,16 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-07-11
+
+#### Changed
+
+- Added a proposed deployment-artifact contract for Resource Manager-created
+  or edited workloads, distinguishing local-source mode from
+  deployment-artifact mode, and introduced the first disabled-by-default
+  Control Plane filesystem artifact store contracts, revision metadata, upload
+  size/package validation, and permission constants; see ADR-20260711-001.
+
 ### 2026-07-10
 
 #### Changed

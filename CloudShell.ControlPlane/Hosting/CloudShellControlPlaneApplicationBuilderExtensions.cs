@@ -7,6 +7,7 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Shell;
 using CloudShell.Abstractions.Usage;
 using CloudShell.ControlPlane;
+using CloudShell.ControlPlane.DeploymentArtifacts;
 using CloudShell.ControlPlane.Api;
 using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Logs;
@@ -60,6 +61,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             builder.Configuration.GetSection(UsageOptions.SectionName));
         builder.Services.Configure<UsageRecordingOptions>(
             builder.Configuration.GetSection(UsageRecordingOptions.SectionName));
+        builder.Services.Configure<DeploymentArtifactOptions>(
+            builder.Configuration.GetSection(DeploymentArtifactOptions.SectionName));
 
         ConfigurePersistence(builder);
         builder.Services.AddCloudShellAuthentication(builder.Configuration);
@@ -116,6 +119,7 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
                 ? serviceProvider.GetRequiredService<EfCoreUsageStore>()
                 : serviceProvider.GetRequiredService<InMemoryUsageStore>();
         });
+        builder.Services.TryAddSingleton<IDeploymentArtifactStore, FileSystemDeploymentArtifactStore>();
         builder.Services.TryAddSingleton<ResourceHealthRefreshCoordinator>();
         builder.Services.TryAddSingleton<InMemoryResourceHealthStore>();
         builder.Services.TryAddSingleton<IResourceRecoveryStore, InMemoryResourceRecoveryStore>();
