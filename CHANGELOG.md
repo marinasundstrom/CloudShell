@@ -38,6 +38,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Restored the Java container app sample's missing `App/build.sh` helper so
   `./cloudshell.sh build-app`, `run`, `apply`, and app lifecycle helpers can
   compile the workload jar before invoking the launcher.
+- Suppressed npm wrapper logs and made npm execution directory-independent in
+  the TypeScript container app sample helper so `./cloudshell.sh template`
+  emits machine-readable JSON like the other language container samples.
 
 ### 2026-07-06
 

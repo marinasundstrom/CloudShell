@@ -59,10 +59,10 @@ fi
 
 case "$command" in
   run)
-    CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" npm run apply -- --run "$@"
+    (cd "$script_dir" && CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" npm run --silent apply -- --run "$@")
     ;;
   run-no-auth)
-    Authentication__Enabled=false CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" npm run apply -- --run "$@"
+    (cd "$script_dir" && Authentication__Enabled=false CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" npm run --silent apply -- --run "$@")
     ;;
   start)
     run_cli control-plane start \
@@ -125,13 +125,13 @@ case "$command" in
       "$@"
     ;;
   template)
-    npm run template -- "$@"
+    (cd "$script_dir" && npm run --silent template -- "$@")
     ;;
   apply)
-    CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" npm run apply -- "$@"
+    (cd "$script_dir" && CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" npm run --silent apply -- "$@")
     ;;
   apply-start)
-    CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" npm run apply -- --start "$@"
+    (cd "$script_dir" && CLOUDSHELL_CONTROL_PLANE_URL="$control_plane_url" npm run --silent apply -- --start "$@")
     ;;
   help|--help|-h)
     usage
