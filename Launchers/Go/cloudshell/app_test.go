@@ -2,7 +2,12 @@ package cloudshell
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
+	"runtime"
+	"sort"
 	"testing"
 )
 
@@ -74,6 +79,7 @@ func TestBuildsGoAppTemplate(t *testing.T) {
 	if err := json.Unmarshal([]byte(jsonValue), &template); err != nil {
 		t.Fatal(err)
 	}
+	assertMatchesParityFixture(t, "go-app-parity.json", jsonValue)
 
 	if template.Name != "go-test" {
 		t.Fatalf("unexpected template name: %s", template.Name)
@@ -371,4 +377,112 @@ func assertDeepEqual(t *testing.T, expected any, actual any) {
 	if !reflect.DeepEqual(expected, actual) {
 		t.Fatalf("expected %#v, got %#v", expected, actual)
 	}
+}
+
+func assertMatchesParityFixture(t *testing.T, fixtureName string, actualJSON string) {
+	t.Helper()
+
+	var actual any
+	if err := json.Unmarshal([]byte(actualJSON), &actual); err != nil {
+		t.Fatal(err)
+	}
+
+	expected := loadParityFixture(t, fixtureName)
+	if !reflect.DeepEqual(normalizeTemplate(expected), normalizeTemplate(actual)) {
+		t.Fatalf(
+			"template did not match fixture %s\nexpected:\n%s\nactual:\n%s",
+			fixtureName,
+			formatJSON(t, normalizeTemplate(expected)),
+			formatJSON(t, normalizeTemplate(actual)))
+	}
+}
+
+func loadParityFixture(t *testing.T, fixtureName string) any {
+	t.Helper()
+
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("could not resolve test path")
+	}
+
+	path := filepath.Join(filepath.Dir(file), "..", "..", "testdata", fixtureName)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var value any
+	if err := json.Unmarshal(data, &value); err != nil {
+		t.Fatal(err)
+	}
+
+	return value
+}
+
+func normalizeTemplate(value any) any {
+	normalized := normalizeValue(value)
+	document, ok := normalized.(map[string]any)
+	if !ok {
+		return normalized
+	}
+
+	resources, ok := document["resources"].([]any)
+	if !ok {
+		return normalized
+	}
+
+	sortedResources := append([]any(nil), resources...)
+	sort.Slice(sortedResources, func(left int, right int) bool {
+		return resourceID(sortedResources[left]) < resourceID(sortedResources[right])
+	})
+	document["resources"] = sortedResources
+	return document
+}
+
+func normalizeValue(value any) any {
+	switch typed := value.(type) {
+	case []any:
+		items := make([]any, 0, len(typed))
+		for _, item := range typed {
+			items = append(items, normalizeValue(item))
+		}
+		return items
+	case map[string]any:
+		if _, hasResourceID := typed["resourceId"]; hasResourceID {
+			_, hasName := typed["name"]
+			_, hasType := typed["type"]
+			if !hasName && !hasType {
+				return map[string]any{"resourceId": typed["resourceId"]}
+			}
+		}
+
+		document := make(map[string]any, len(typed))
+		for key, item := range typed {
+			document[key] = normalizeValue(item)
+		}
+		return document
+	default:
+		return value
+	}
+}
+
+func resourceID(value any) string {
+	document, ok := value.(map[string]any)
+	if !ok {
+		return ""
+	}
+
+	id, _ := document["resourceId"].(string)
+	return id
+}
+
+func formatJSON(t *testing.T, value any) string {
+	t.Helper()
+
+	data, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return fmt.Sprintf("%#v", value)
+	}
+
+	return string(data)
 }

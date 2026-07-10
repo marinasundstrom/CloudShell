@@ -56,6 +56,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added TypeScript launcher coverage for the shared JavaScript app parity
   fixture so the TypeScript builder is compared against the same
   ResourceTemplate shape as the C# and Python launchers.
+- Added Go launcher coverage for a shared Go app parity fixture so the Go
+  builder compares its full ResourceTemplate shape against fixture testdata in
+  addition to focused assertions.
 
 ### 2026-07-06
 

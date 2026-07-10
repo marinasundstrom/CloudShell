@@ -236,7 +236,7 @@ should be made consistent before broader SDK stability claims:
   C#, TypeScript, Java, Go, and Python launchers
 - converge no-argument launcher execution on foreground `run`
 - extend the shared launcher parity fixtures beyond the current C#, Python,
-  and TypeScript JavaScript-app coverage so Java and Go emitted
+  TypeScript JavaScript-app coverage, and Go app coverage so Java emitted
   `ResourceTemplate` shapes are compared against matching graphs
 - define generated Control Plane client expectations for non-.NET languages
 - standardize profile and credential discovery shared by CLI commands and

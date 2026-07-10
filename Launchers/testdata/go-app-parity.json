@@ -1,0 +1,277 @@
+{
+  "name": "go-test",
+  "resources": [
+    {
+      "displayName": "Host network",
+      "name": "host",
+      "network": {
+        "hostReadiness": "hostReady",
+        "kind": "Host"
+      },
+      "providerId": "cloudshell.network",
+      "resourceId": "network:host",
+      "type": "cloudshell.network"
+    },
+    {
+      "attributes": {
+        "access.grants": [
+          {
+            "principal": {
+              "kind": "resourceIdentity",
+              "id": "application.go-app:api/identities/api",
+              "sourceResourceId": "application.go-app:api",
+              "sourceIdentityName": "api"
+            },
+            "permission": "CloudShell.Configuration/stores/settings/read/action"
+          }
+        ]
+      },
+      "displayName": "Settings",
+      "endpoint": "http://localhost:5105",
+      "name": "settings",
+      "providerId": "configuration",
+      "resourceId": "configuration.store:settings",
+      "seed": {
+        "settings": [
+          {
+            "name": "Sample--Message",
+            "value": "Hello from Go"
+          }
+        ]
+      },
+      "type": "configuration.store"
+    },
+    {
+      "attributes": {
+        "access.grants": [
+          {
+            "principal": {
+              "kind": "resourceIdentity",
+              "id": "application.go-app:api/identities/api",
+              "sourceResourceId": "application.go-app:api",
+              "sourceIdentityName": "api"
+            },
+            "permission": "CloudShell.Secrets/vaults/secrets/read/action"
+          }
+        ]
+      },
+      "displayName": "Secrets",
+      "endpoint": "http://localhost:6105",
+      "name": "secrets",
+      "providerId": "secrets-vault",
+      "resourceId": "secrets.vault:secrets",
+      "seed": {
+        "certificates": [
+          {
+            "name": "ApiTls",
+            "value": "go-certificate",
+            "version": "v1",
+            "contentType": "application/x-pem-file"
+          }
+        ],
+        "secrets": [
+          {
+            "name": "Sample--ApiKey",
+            "value": "go-secret",
+            "version": "v1"
+          }
+        ]
+      },
+      "type": "secrets.vault"
+    },
+    {
+      "attributes": {
+        "identity.kind": "required",
+        "identity.name": "api",
+        "identity.provisionOnStartup": true
+      },
+      "dependsOn": [
+        {
+          "resourceId": "configuration.store:settings",
+          "relationship": "dependsOn",
+          "addressingMode": "resourceId",
+          "typeId": "configuration.store",
+          "providerId": "configuration"
+        },
+        {
+          "resourceId": "secrets.vault:secrets",
+          "relationship": "dependsOn",
+          "addressingMode": "resourceId",
+          "typeId": "secrets.vault",
+          "providerId": "secrets-vault"
+        }
+      ],
+      "displayName": "Go API",
+      "go": {
+        "command": "go",
+        "packagePath": "."
+      },
+      "health": {
+        "checks": [
+          {
+            "name": "health",
+            "type": "health",
+            "source": {
+              "kind": "http",
+              "http": {
+                "path": "/ready",
+                "endpointName": "http"
+              }
+            }
+          },
+          {
+            "name": "alive",
+            "type": "liveness",
+            "source": {
+              "kind": "http",
+              "http": {
+                "path": "/live",
+                "endpointName": "http"
+              }
+            }
+          }
+        ]
+      },
+      "logs": {
+        "sources": [
+          {
+            "availability": "resourceRunning",
+            "capabilities": [
+              "read",
+              "stream"
+            ],
+            "description": "Provider-captured process console output.",
+            "format": "plainText",
+            "id": "console",
+            "kind": "processOutput",
+            "name": "Console logs",
+            "origin": "providerDefault",
+            "purpose": "default"
+          }
+        ]
+      },
+      "name": "api",
+      "project": {
+        "endpointRequests": [
+          {
+            "name": "http",
+            "protocol": "http",
+            "targetPort": 5186,
+            "host": "localhost",
+            "port": 5186,
+            "exposure": "Local",
+            "network": {
+              "resourceId": "network:host",
+              "relationship": "reference",
+              "addressingMode": "resourceId",
+              "typeId": "cloudshell.network",
+              "providerId": "cloudshell.network"
+            }
+          }
+        ],
+        "environmentVariables": {
+          "PORT": {
+            "value": "5186"
+          },
+          "Sample__ApiKey": {
+            "secretRef": {
+              "vaultResourceId": "secrets.vault:secrets",
+              "name": "Sample--ApiKey"
+            }
+          },
+          "Sample__Message": {
+            "configurationSettingRef": {
+              "storeResourceId": "configuration.store:settings",
+              "name": "Sample--Message"
+            }
+          }
+        },
+        "path": "samples/GoApp/App",
+        "references": [
+          {
+            "resourceId": "configuration.store:settings",
+            "relationship": "reference",
+            "addressingMode": "resourceId",
+            "typeId": "configuration.store",
+            "providerId": "configuration"
+          },
+          {
+            "resourceId": "secrets.vault:secrets",
+            "relationship": "reference",
+            "addressingMode": "resourceId",
+            "typeId": "secrets.vault",
+            "providerId": "secrets-vault"
+          }
+        ],
+        "serviceDiscoveryName": "api"
+      },
+      "providerId": "applications.go-app",
+      "resourceId": "application.go-app:api",
+      "type": "application.go-app"
+    },
+    {
+      "dependsOn": [
+        {
+          "resourceId": "network:host",
+          "relationship": "dependsOn",
+          "addressingMode": "resourceId",
+          "typeId": "cloudshell.network",
+          "providerId": "cloudshell.network"
+        },
+        {
+          "resourceId": "application.go-app:api",
+          "relationship": "dependsOn",
+          "addressingMode": "resourceId",
+          "typeId": "application.go-app",
+          "providerId": "applications.go-app"
+        }
+      ],
+      "displayName": "Edge",
+      "loadBalancer": {
+        "entrypointDefinitions": [
+          {
+            "name": "https",
+            "protocol": "Https",
+            "port": 4443,
+            "exposure": "Public",
+            "certificateRef": {
+              "vaultResourceId": "secrets.vault:secrets",
+              "name": "ApiTls"
+            }
+          }
+        ],
+        "hostResourceId": "network:host",
+        "provider": "traefik",
+        "routeDefinitions": [
+          {
+            "id": "cloudshell.loadBalancer:edge:route:api.local:application.go-app:api:5186",
+            "name": "api.local to application.go-app:api:5186",
+            "kind": "Http",
+            "entrypointName": "https",
+            "match": {
+              "host": "api.local"
+            },
+            "target": {
+              "resource": {
+                "resourceId": "application.go-app:api",
+                "relationship": "reference",
+                "addressingMode": "resourceId",
+                "typeId": "application.go-app",
+                "providerId": "applications.go-app"
+              },
+              "port": 5186
+            }
+          }
+        ]
+      },
+      "name": "edge",
+      "providerId": "cloudshell.load-balancer",
+      "resourceId": "cloudshell.loadBalancer:edge",
+      "type": "cloudshell.loadBalancer"
+    }
+  ],
+  "environmentId": "local",
+  "metadata": {
+    "cloudshell.source": "go"
+  }
+}
