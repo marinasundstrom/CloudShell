@@ -1,5 +1,4 @@
 @using System.Text.Json
-@using ResourceManagerResource = CloudShell.Abstractions.ResourceManager.Resource
 @using CloudShell.ResourceModel
 @inject IDeploymentArtifactManager Artifacts
 @inject IResourceTemplateManager Templates
@@ -111,6 +110,26 @@ else
     private const string ArtifactsSourceAttribute = ResourceAttributeNames.ArtifactsSource;
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValueType>> ProjectedAttributeTypesByResourceType =
+        new Dictionary<string, IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValueType>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["application.aspnet-core-project"] = new Dictionary<ResourceAttributeId, ResourceAttributeValueType>
+            {
+                [ApplicationArtifactAttributeIds.Enabled] = ResourceAttributeValueType.Boolean,
+                ["project.hotReload"] = ResourceAttributeValueType.Boolean,
+                ["project.useLaunchSettings"] = ResourceAttributeValueType.Boolean
+            },
+            ["application.python-app"] = CommonApplicationArtifactProjectedTypes(),
+            ["application.java-app"] = CommonApplicationArtifactProjectedTypes(),
+            ["application.javascript-app"] = CommonApplicationArtifactProjectedTypes(),
+            ["application.go-app"] = CommonApplicationArtifactProjectedTypes()
+        };
+
+    private static IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValueType> CommonApplicationArtifactProjectedTypes() =>
+        new Dictionary<ResourceAttributeId, ResourceAttributeValueType>
+        {
+            [ApplicationArtifactAttributeIds.Enabled] = ResourceAttributeValueType.Boolean
+        };
 
     [CascadingParameter]
     public ResourceTypeContribution? ResourceType { get; set; }
@@ -130,7 +149,7 @@ else
         ? ResourceType?.Id
         : ExistingResource?.EffectiveTypeId;
 
-    private ResourceManagerResource? ExistingResource { get; set; }
+    private CloudShell.Abstractions.ResourceManager.Resource? ExistingResource { get; set; }
     private ResourceGroup? ExistingResourceGroup { get; set; }
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
@@ -465,7 +484,7 @@ else
         string resourceId,
         string resourceName,
         DeploymentArtifactRevision? revision,
-        ResourceManagerResource? existingResource = null)
+        CloudShell.Abstractions.ResourceManager.Resource? existingResource = null)
     {
         var attributes = existingResource is null
             ? new Dictionary<ResourceAttributeId, ResourceAttributeValue>()
@@ -502,9 +521,13 @@ else
         return template;
     }
 
-    private Dictionary<ResourceAttributeId, ResourceAttributeValue> ParseProjectedAttributes(ResourceManagerResource resource)
+    private Dictionary<ResourceAttributeId, ResourceAttributeValue> ParseProjectedAttributes(
+        CloudShell.Abstractions.ResourceManager.Resource resource)
     {
         var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>();
+        ProjectedAttributeTypesByResourceType.TryGetValue(
+            resource.EffectiveTypeId,
+            out var projectedAttributeTypes);
         foreach (var (name, value) in resource.ResourceAttributes)
         {
             if (IsProjectionOnlyAttribute(name))
@@ -513,7 +536,10 @@ else
             }
 
             var attributeId = ResourceAttributeId.Create(name);
-            attributes[attributeId] = TryParseAttributeValue(value, out var parsed)
+            attributes[attributeId] = TryParseAttributeValue(
+                value,
+                projectedAttributeTypes?.GetValueOrDefault(attributeId),
+                out var parsed)
                 ? parsed
                 : ResourceAttributeValue.String(value);
         }
@@ -523,9 +549,39 @@ else
 
     private static bool TryParseAttributeValue(
         string value,
+        ResourceAttributeValueType? valueType,
         out ResourceAttributeValue attribute)
     {
         attribute = null!;
+        if (valueType == ResourceAttributeValueType.Boolean &&
+            bool.TryParse(value, out var booleanValue))
+        {
+            attribute = ResourceAttributeValue.Boolean(booleanValue);
+            return true;
+        }
+
+        if (valueType == ResourceAttributeValueType.Integer &&
+            long.TryParse(
+                value,
+                System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var integerValue))
+        {
+            attribute = ResourceAttributeValue.Integer(integerValue);
+            return true;
+        }
+
+        if (valueType == ResourceAttributeValueType.FloatingPoint &&
+            decimal.TryParse(
+                value,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var decimalValue))
+        {
+            attribute = ResourceAttributeValue.Decimal(decimalValue);
+            return true;
+        }
+
         if (string.IsNullOrWhiteSpace(value) ||
             value[0] is not ('{' or '['))
         {
@@ -542,6 +598,11 @@ else
             return false;
         }
     }
+
+    private static bool TryParseAttributeValue(
+        string value,
+        out ResourceAttributeValue attribute) =>
+        TryParseAttributeValue(value, valueType: null, out attribute);
 
     private static bool IsProjectionOnlyAttribute(string name) =>
         string.Equals(name, ResourceAttributeNames.ResourceGraphMembership, StringComparison.OrdinalIgnoreCase) ||

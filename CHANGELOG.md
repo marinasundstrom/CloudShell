@@ -38,6 +38,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Blocked start and restart readiness for application resources that have
   `artifacts.enabled` without an accepted `artifacts.source`, so Resource
   Manager reports a clear missing-artifact-source reason before execution.
+- Preserved typed projected attributes when Resource Manager uploads a new
+  application artifact for an existing resource, preventing scalar booleans
+  such as .NET hot-reload settings from being reapplied as strings.
 
 ### 2026-07-10
 
