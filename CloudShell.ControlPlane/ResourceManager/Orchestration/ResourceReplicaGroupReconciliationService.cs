@@ -39,6 +39,19 @@ public sealed class ResourceReplicaGroupReconciliationService(
         return Task.FromResult<IReadOnlyList<ResourceReplicaSlotState>>(states);
     }
 
+    public void ClearReplicaSlotStates(string resourceId)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId))
+        {
+            return;
+        }
+
+        foreach (var state in reconciliationStore.ListRuntimeStates(resourceId))
+        {
+            reconciliationStore.DeleteRuntimeState(state.ResourceId, state.SlotOrdinal);
+        }
+    }
+
     public void ObserveUnhealthyReplicaSlot(
         Resource resource,
         int slotOrdinal,

@@ -721,6 +721,7 @@ public sealed class InProcessControlPlane(
         if (action.Kind == ResourceActionKind.Stop)
         {
             resourceRecovery.ClearRuntimeState(resource.Id);
+            replicaGroupReconciliation.ClearReplicaSlotStates(resource.Id);
         }
 
         return result;

@@ -1000,6 +1000,35 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ExecuteResourceActionAsync_StopClearsReplicaSlotStates()
+    {
+        var provider = new TestResourceProvider();
+        var host = CreateControlPlaneHost([CreateResource("application:api", ResourceState.Running)], provider);
+        host.ReplicaGroupReconciliationStore.SetRuntimeState(new ResourceReplicaSlotRuntimeState(
+            "application:api",
+            1,
+            ResourceReplicaSlotRuntimeStatus.Materialized,
+            "Replica slot 1 is materialized.",
+            DateTimeOffset.UtcNow,
+            ServiceId: "cloudshell-application-api",
+            ReplicaGroupId: "cloudshell-application-api-replicas",
+            RuntimeRevisionId: "revision-1",
+            LastCompletedAt: DateTimeOffset.UtcNow,
+            TriggeredBy: "tests"));
+
+        var beforeStop = await host.ControlPlane.ListReplicaSlotStatesAsync(new ResourceReplicaSlotStateQuery(
+            ResourceId: "application:api"));
+        Assert.Single(beforeStop);
+
+        await host.ControlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand(
+            "application:api",
+            ResourceActionIds.Stop));
+
+        Assert.Empty(await host.ControlPlane.ListReplicaSlotStatesAsync(new ResourceReplicaSlotStateQuery(
+            ResourceId: "application:api")));
+    }
+
+    [Fact]
     public async Task ExecuteResourceActionAsync_DispatchesRegisteredResourceModelGraphResource()
     {
         var runtimeController = new RecordingAspNetCoreProjectRuntimeController(
@@ -4402,12 +4431,13 @@ public sealed class InProcessControlPlaneResourceStateTests
             resourceEventSink: resourceEventSink,
             notifications: notifications);
 
-        return new ControlPlaneTestHost(controlPlane, replicaGroupReconciliation);
+        return new ControlPlaneTestHost(controlPlane, replicaGroupReconciliation, replicaReconciliationStore);
     }
 
     private sealed record ControlPlaneTestHost(
         InProcessControlPlane ControlPlane,
-        ResourceReplicaGroupReconciliationService ReplicaGroupReconciliation);
+        ResourceReplicaGroupReconciliationService ReplicaGroupReconciliation,
+        InMemoryResourceReplicaGroupReconciliationStore ReplicaGroupReconciliationStore);
 
     private static ResourceDefinitionTemplateService CreateResourceDefinitionTemplateService()
     {
