@@ -26,6 +26,7 @@ public sealed class ResourceEventNotificationProjector(
 public sealed class DefaultResourceEventNotificationRule : IResourceEventNotificationRule
 {
     private const string LocalSystemNotificationRecipientKey = "user";
+    private const string ResourceStartMaterializationCause = "Resource start requested runtime materialization";
 
     public CreateCloudShellNotificationCommand? CreateNotification(ResourceEvent resourceEvent)
     {
@@ -40,7 +41,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             return null;
         }
 
-        var operation = GetOperation(resourceEvent.EventType);
+        var operation = GetOperation(resourceEvent);
         if (operation is null)
         {
             return null;
@@ -63,7 +64,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
 
     private static CloudShellNotificationStatus CreateStatus(ResourceEvent resourceEvent)
     {
-        var operationStatus = CreateOperationStatus(resourceEvent.EventType);
+        var operationStatus = CreateOperationStatus(resourceEvent);
         if (operationStatus is not null)
         {
             return operationStatus.Value;
@@ -79,8 +80,16 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
         };
     }
 
-    private static CloudShellNotificationStatus? CreateOperationStatus(string eventType) =>
-        eventType.Trim() switch
+    private static CloudShellNotificationStatus? CreateOperationStatus(ResourceEvent resourceEvent)
+    {
+        if (IsStartMaterializationDeploymentEvent(resourceEvent))
+        {
+            return resourceEvent.EventType.Trim() == ResourceEventTypes.Events.Deployment.Failed
+                ? CloudShellNotificationStatus.Failed
+                : CloudShellNotificationStatus.InProgress;
+        }
+
+        return resourceEvent.EventType.Trim() switch
         {
             ResourceEventTypes.Events.Lifecycle.Starting or
             ResourceEventTypes.Events.Lifecycle.Stopping or
@@ -123,6 +132,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             ResourceEventTypes.Events.ReplicaManagement.SlotLeftVacant => CloudShellNotificationStatus.NeedsAttention,
             _ => null
         };
+    }
 
     private static bool IsProgressEvent(string eventType)
     {
@@ -142,9 +152,10 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
     private static string CreateTitle(ResourceEvent resourceEvent)
     {
         var lifecycleActionId = GetLifecycleActionId(resourceEvent.EventType);
-        if (lifecycleActionId is not null)
+        if (lifecycleActionId is not null ||
+            IsStartMaterializationDeploymentEvent(resourceEvent))
         {
-            return $"{GetLifecycleActionLabel(lifecycleActionId)} resource";
+            return $"{GetLifecycleActionLabel(lifecycleActionId ?? ResourceActionIds.Start)} resource";
         }
 
         if (IsResourceCreateEvent(resourceEvent.EventType))
@@ -201,9 +212,10 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
         };
 
         var lifecycleActionId = GetLifecycleActionId(resourceEvent.EventType);
-        if (lifecycleActionId is not null)
+        if (lifecycleActionId is not null ||
+            IsStartMaterializationDeploymentEvent(resourceEvent))
         {
-            attributes["actionId"] = lifecycleActionId;
+            attributes["actionId"] = lifecycleActionId ?? ResourceActionIds.Start;
             attributes["operationKind"] = "lifecycle";
         }
         else if (IsResourceCreateEvent(resourceEvent.EventType))
@@ -282,9 +294,9 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             operationId,
             recipientKey);
 
-    private static NotificationOperation? GetOperation(string eventType)
+    private static NotificationOperation? GetOperation(ResourceEvent resourceEvent)
     {
-        var lifecycleActionId = GetLifecycleActionId(eventType);
+        var lifecycleActionId = GetLifecycleActionId(resourceEvent.EventType);
         if (lifecycleActionId is not null)
         {
             return new NotificationOperation(
@@ -293,7 +305,15 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
                 "cloudshell.resource-lifecycle-operation");
         }
 
-        if (IsResourceCreateEvent(eventType))
+        if (IsStartMaterializationDeploymentEvent(resourceEvent))
+        {
+            return new NotificationOperation(
+                "lifecycle",
+                ResourceActionIds.Start,
+                "cloudshell.resource-lifecycle-operation");
+        }
+
+        if (IsResourceCreateEvent(resourceEvent.EventType))
         {
             return new NotificationOperation(
                 "create",
@@ -301,7 +321,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
                 "cloudshell.resource-create-operation");
         }
 
-        if (GetDeploymentUpdateKind(eventType) is { } updateKind)
+        if (GetDeploymentUpdateKind(resourceEvent.EventType) is { } updateKind)
         {
             return new NotificationOperation(
                 "update",
@@ -309,7 +329,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
                 "cloudshell.resource-update-operation");
         }
 
-        if (IsResourceRecoveryNotificationEvent(eventType))
+        if (IsResourceRecoveryNotificationEvent(resourceEvent.EventType))
         {
             return new NotificationOperation(
                 "recovery",
@@ -317,7 +337,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
                 "cloudshell.resource-recovery-operation");
         }
 
-        return IsReplicaRepairNotificationEvent(eventType)
+        return IsReplicaRepairNotificationEvent(resourceEvent.EventType)
             ? new NotificationOperation(
                 "replica-repair",
                 "replica",
@@ -370,6 +390,22 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             ResourceEventTypes.Events.Deployment.ReplicasUpdateFailed => "replicas",
             _ => null
         };
+
+    private static bool IsStartMaterializationDeploymentEvent(ResourceEvent resourceEvent) =>
+        IsDeploymentMaterializationProgressEvent(resourceEvent.EventType) &&
+        resourceEvent.Message.Contains(ResourceStartMaterializationCause, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsDeploymentMaterializationProgressEvent(string eventType) =>
+        eventType.Trim() is
+            ResourceEventTypes.Events.Deployment.Applying or
+            ResourceEventTypes.Events.Deployment.ServiceReconciling or
+            ResourceEventTypes.Events.Deployment.ServiceReconciled or
+            ResourceEventTypes.Events.Deployment.ReplicaMaterializing or
+            ResourceEventTypes.Events.Deployment.ReplicaMaterialized or
+            ResourceEventTypes.Events.Deployment.RoutingUpdating or
+            ResourceEventTypes.Events.Deployment.RoutingUpdated or
+            ResourceEventTypes.Events.Deployment.Applied or
+            ResourceEventTypes.Events.Deployment.Failed;
 
     private static bool IsRecoveryNotificationEvent(string eventType) =>
         IsResourceRecoveryNotificationEvent(eventType) ||

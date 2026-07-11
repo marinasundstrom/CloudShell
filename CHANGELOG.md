@@ -95,6 +95,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added shared CoreShell notification-toast presentation selection so
   notification centers can stay compact without crowding active in-progress
   toasts out of the toast stack.
+- Coalesced start-driven deployment materialization progress into the
+  lifecycle start notification so container app startup remains one
+  in-progress toast until the resource reaches started or failed.
 - Suppressed unhandled triggered resource events from notification projection
   so deployment/activity facts do not create extra generic startup toasts.
 - Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder

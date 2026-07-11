@@ -189,6 +189,73 @@ public sealed class CloudShellNotificationStoreTests
     }
 
     [Fact]
+    public void ObservingResourceEventSink_CoalescesStartDeploymentMaterializationIntoLifecycleNotification()
+    {
+        var resourceEvents = new InMemoryResourceEventStore();
+        var notifications = new InMemoryCloudShellNotificationStore();
+        var changes = new List<CloudShellNotificationChangeKind>();
+        notifications.NotificationsChanged += (_, args) => changes.Add(args.Kind);
+        var projector = new ResourceEventNotificationProjector(
+            notifications,
+            [new DefaultResourceEventNotificationRule()]);
+        var sink = new ObservingResourceEventSink(resourceEvents, [projector]);
+
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Lifecycle.Starting,
+            "Resource is starting.",
+            DateTimeOffset.Parse("2026-07-11T09:00:00+00:00"),
+            TriggeredBy: "operator"));
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Deployment.Applying,
+            "Applying deployment 'api-deployment' for revision 'revision-1'. Cause: Resource start requested runtime materialization.",
+            DateTimeOffset.Parse("2026-07-11T09:00:01+00:00"),
+            TriggeredBy: "operator"));
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Deployment.ReplicaMaterializing,
+            "Materializing replica 1/3 'api-replica-1' for deployment 'api-deployment'. Cause: Resource start requested runtime materialization.",
+            DateTimeOffset.Parse("2026-07-11T09:00:02+00:00"),
+            TriggeredBy: "operator"));
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Deployment.RoutingUpdating,
+            "Updating routing for orchestrator service 'api' to revision 'revision-1' for deployment 'api-deployment'. Cause: Resource start requested runtime materialization.",
+            DateTimeOffset.Parse("2026-07-11T09:00:03+00:00"),
+            TriggeredBy: "operator"));
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Deployment.Applied,
+            "Applied deployment 'api-deployment' for revision 'revision-1'. Result: Applied deployment 'api-deployment' for runtime revision 'revision-1'.",
+            DateTimeOffset.Parse("2026-07-11T09:00:04+00:00"),
+            TriggeredBy: "operator"));
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Lifecycle.Started,
+            "Resource started.",
+            DateTimeOffset.Parse("2026-07-11T09:00:05+00:00"),
+            TriggeredBy: "operator",
+            Severity: ResourceSignalSeverity.Success));
+
+        Assert.Equal(6, resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "application:api")).Count);
+
+        var notification = Assert.Single(notifications.GetNotifications(new CloudShellNotificationQuery(
+            RecipientKey: "operator")));
+        Assert.Equal("Start resource", notification.Title);
+        Assert.Equal("Resource started.", notification.Message);
+        Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
+        Assert.Equal(ResourceEventTypes.Events.Lifecycle.Started, notification.EventType);
+        Assert.Equal("resource-lifecycle|application:api|start|operator", notification.CorrelationId);
+        Assert.Equal("cloudshell.resource-lifecycle-operation", notification.TemplateKey);
+        Assert.Equal("start", notification.Attributes!["actionId"]);
+        Assert.Equal("lifecycle", notification.Attributes!["operationKind"]);
+        Assert.Equal(5, changes.Count);
+        Assert.Equal(CloudShellNotificationChangeKind.Created, changes[0]);
+        Assert.All(changes.Skip(1), change => Assert.Equal(CloudShellNotificationChangeKind.Updated, change));
+    }
+
+    [Fact]
     public void ObservingResourceEventSink_CoalescesResourceCreateProgressIntoOneNotification()
     {
         var resourceEvents = new InMemoryResourceEventStore();
