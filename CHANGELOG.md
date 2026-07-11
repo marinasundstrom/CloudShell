@@ -35,6 +35,9 @@ on `git blame --follow`, and then by the broad type of change.
   artifact allocation markers, optional current artifact revision references,
   and read-only source display for launcher-authored or host graph-builder
   resources.
+- Blocked start and restart readiness for application resources that have
+  `artifacts.enabled` without an accepted `artifacts.source`, so Resource
+  Manager reports a clear missing-artifact-source reason before execution.
 
 ### 2026-07-10
 

@@ -98,11 +98,13 @@ public sealed class PythonAppLifecycleOperation(
 
     public bool IsAvailable => Definition.IsAvailable;
 
-    public string? UnavailableReason => Definition.UnavailableReason;
+    public string? UnavailableReason =>
+        Definition.UnavailableReason ??
+        ApplicationArtifactResourceValidation.GetLifecycleUnavailableReason(Resource, OperationId);
 
     public ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult(IsAvailable && CanExecuteForStatus(
+        ValueTask.FromResult(IsAvailable && string.IsNullOrWhiteSpace(UnavailableReason) && CanExecuteForStatus(
             _runtimeController.GetStatus(Resource)));
 
     public async ValueTask<ResourceOperationExecutionResult> ExecuteAsync(

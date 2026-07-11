@@ -5,6 +5,9 @@ namespace CloudShell.ControlPlane.Providers;
 
 internal static class ApplicationArtifactResourceValidation
 {
+    private const string MissingArtifactSourceReason =
+        "This application resource has artifact storage enabled but no accepted artifact source.";
+
     public static bool UsesUploadedArtifact(ResourceAttributeValueMap attributes) =>
         HasApplicationArtifactsEnabled(attributes) ||
         string.Equals(
@@ -24,6 +27,20 @@ internal static class ApplicationArtifactResourceValidation
             resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ApplicationSourceOwner),
             ApplicationArtifactAttributeIds.ResourceManagerUiSourceOwner,
             StringComparison.OrdinalIgnoreCase);
+
+    public static string? GetLifecycleUnavailableReason(
+        Resource resource,
+        ResourceOperationId operationId)
+    {
+        if (operationId.ToString() is not ("start" or "restart") ||
+            !HasApplicationArtifactsEnabled(resource.Attributes) ||
+            resource.Attributes.GetObject<ApplicationArtifactReference>(ApplicationArtifactAttributeIds.Source) is not null)
+        {
+            return null;
+        }
+
+        return MissingArtifactSourceReason;
+    }
 
     public static void ValidateSource(
         ResourceAttributeValueMap attributes,

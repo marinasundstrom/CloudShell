@@ -290,7 +290,8 @@ public sealed class ResourceModelGraphProcedureProvider :
 
         return await executableOperation.CanExecuteAsync(cancellationToken)
             ? null
-            : $"Resource model operation '{resolution.OperationId}' cannot execute.";
+            : executableOperation.UnavailableReason ??
+                $"Resource model operation '{resolution.OperationId}' cannot execute.";
     }
 
     public async Task<ResourceProcedureResult> ExecuteActionAsync(

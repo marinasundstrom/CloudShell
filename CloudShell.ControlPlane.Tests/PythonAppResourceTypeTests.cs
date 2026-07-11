@@ -178,6 +178,37 @@ public sealed class PythonAppResourceTypeTests
         Assert.Equal(["-m", "sample.api", "--port", "5188"], startInfo.ArgumentList);
     }
 
+    [Fact]
+    public async Task StartOperation_BlocksArtifactModeWithoutCurrentSource()
+    {
+        var resource = Resolve(new ResourceDefinition(
+            "api",
+            PythonAppResourceTypeProvider.ResourceTypeId,
+            ProviderId: PythonAppResourceTypeProvider.ProviderId,
+            Attributes: new ResourceAttributeValueMap(
+                new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+                {
+                    [ApplicationArtifactAttributeIds.SourceKind] =
+                        ResourceAttributeValue.String(DeploymentArtifactSourceKinds.UploadedArtifact),
+                    [ApplicationArtifactAttributeIds.SourceOwner] =
+                        ResourceAttributeValue.String(ApplicationArtifactAttributeIds.ResourceManagerUiSourceOwner),
+                    [ApplicationArtifactAttributeIds.Enabled] =
+                        ResourceAttributeValue.Boolean(true)
+                })));
+        var provider = new PythonAppStartOperationProvider();
+        var operation = resource.Operations.Resolve(PythonAppResourceTypeProvider.Operations.Start);
+        var projection = Assert.IsAssignableFrom<IResourceOperationExecutorProjection>(
+            await provider.ProjectAsync(
+                resource,
+                operation,
+                new ResourceOperationProjectionContext()));
+
+        Assert.False(await projection.CanExecuteAsync());
+        Assert.Equal(
+            "This application resource has artifact storage enabled but no accepted artifact source.",
+            projection.UnavailableReason);
+    }
+
     private static CloudShell.ResourceModel.Resource Resolve(ResourceDefinition definition)
     {
         var provider = new PythonAppResourceTypeProvider();

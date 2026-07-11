@@ -124,6 +124,8 @@ public interface IResourceOperationProjection
 
 public interface IResourceOperationExecutorProjection : IResourceOperationProjection
 {
+    string? UnavailableReason => Definition.UnavailableReason;
+
     ValueTask<bool> CanExecuteAsync(
         CancellationToken cancellationToken = default);
 
