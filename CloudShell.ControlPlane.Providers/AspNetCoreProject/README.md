@@ -39,12 +39,12 @@
   `ResourceGraphBuilder.AddDotnetProject(...)` builders for code-first .NET
   app definition authoring. `AddDotnetProject(...)` is the project-backed
   shortcut for most samples; `AddDotnetApp(...)` returns the broader fluent
-  builder for choosing the source mode. The builder supports endpoint requests,
-  environment variables, service-discovery references, volume mounts, log
-  sources, and health-check attributes. Environment variables are authored as a
-  keyed map and may use literal values, configuration-setting references, or
-  secret references; the Resource Manager bridge resolves references when the
-  project resource starts.
+  builder for choosing project or executable source mode. The builder supports
+  endpoint requests, environment variables, service-discovery references,
+  volume mounts, log sources, and health-check attributes. Environment
+  variables are authored as a keyed map and may use literal values,
+  configuration-setting references, or secret references; the Resource Manager
+  bridge resolves references when the project resource starts.
 
 ## Example ResourceDefinition
 
@@ -145,6 +145,20 @@ explicit startup-order hint and should not be used as the discovery mechanism.
         }
       ]
     }
+  }
+}
+```
+
+Executable mode uses the flat `executablePath` attribute and runs the selected
+path with `dotnet <path>`:
+
+```json
+{
+  "name": "api",
+  "typeId": "application.dotnet-app",
+  "attributes": {
+    "executablePath": "./publish/CloudShell.Sample.Api.dll",
+    "project.arguments": "--urls http://localhost:5092"
   }
 }
 ```

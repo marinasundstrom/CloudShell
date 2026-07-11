@@ -1,14 +1,15 @@
 # .NET Applications
 
-Use the .NET app resource type for local .NET web projects. These
-resources project as `application.dotnet-app` and expose project-shaped
-attributes such as project path, application arguments, and hot reload mode.
+Use the .NET app resource type for local .NET web projects and published
+assemblies. These resources project as `application.dotnet-app` and support
+either project mode through `project.path` or executable mode through the flat
+`executablePath` attribute.
 
-.NET app resources are not plain executable application resources.
-They are project resources with a provider-owned process runner. Resource
-Manager shows the project shape, while the provider hides the generated
-`dotnet build`, `dotnet run`, or `dotnet watch` command used to host the
-project.
+.NET app resources are not plain executable application resources. They are
+.NET-specific application resources with a provider-owned process runner.
+Resource Manager shows the selected source shape, while the provider hides the
+generated `dotnet build`, `dotnet run`, `dotnet watch`, or `dotnet <assembly>`
+command used to host the app.
 
 For shared application-provider behavior, see
 [Application resources](application-resources.md). For related resource types,
@@ -33,13 +34,22 @@ resources
 
 `AddDotnetApp(...)` is the broader fluent entrypoint for the same
 `application.dotnet-app` resource type. Use it when code needs to choose the
-source mode through fluent configuration, for example project mode today and
-executable mode in a later slice:
+source mode through fluent configuration:
 
 ```csharp
 resources
     .AddDotnetApp("example-web-api")
     .WithProjectPath("samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj");
+```
+
+Executable mode points at a host-readable assembly or executable path and
+starts it with `dotnet <path>`:
+
+```csharp
+resources
+    .AddDotnetApp("example-web-api")
+    .WithExecutablePath("publish/CloudShell.ExampleWebApi.dll")
+    .WithArguments("--urls http://localhost:5080");
 ```
 
 By default, CloudShell serializes .NET app builds before launch and

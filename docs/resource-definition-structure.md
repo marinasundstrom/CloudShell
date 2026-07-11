@@ -297,6 +297,11 @@ nested objects so the document is easier to scan. The `attributes` wrapper and
 full dotted names remain valid input forms for compatibility and for rare
 fixed-field name collisions:
 
+Because dotted IDs affect exported document shape, resource-type-local
+attributes should prefer flat lower-camel names such as `executablePath`.
+Use dotted IDs when the nested group is intentional, such as a shared
+capability namespace or a resource family with a stable document section.
+
 ```yaml
 container:
   image: cloudshell-signalr-api:20260630.1

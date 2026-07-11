@@ -82,6 +82,12 @@ on `git blame --follow`, and then by the broad type of change.
   common project-backed samples use the explicit project shortcut, while
   `AddDotnetApp(...)` remains the flexible `.NET app` builder entrypoint for
   fluent project or future executable configuration.
+- Added `.NET app` executable source mode through the flat `executablePath`
+  attribute and `.WithExecutablePath(...)`, starting local assemblies with
+  `dotnet <path>` while preserving the existing project mode.
+- Clarified resource attribute naming guidance so resource-type-local
+  attributes prefer flat lower-camel names and use dotted names only for
+  intentional shared namespaces or ResourceDefinition document groups.
 
 ### 2026-07-10
 

@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.IO.Compression;
+using System.Text;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Providers;
 using Microsoft.Extensions.Configuration;
@@ -400,6 +402,24 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
     }
 
     [Fact]
+    public void CommandFactory_CreatesExecutableCommand()
+    {
+        var resource = CreateResource(
+            projectPath: null,
+            executablePath: "bin/Release/net11.0/Api.dll",
+            arguments: "--urls http://localhost:5229",
+            hotReload: true,
+            useLaunchSettings: true);
+        var command = new AspNetCoreProjectProcessCommandFactory()
+            .CreateExecutableStartInfo(resource, "/repo/bin/Release/net11.0/Api.dll");
+
+        Assert.Equal("dotnet", command.FileName);
+        Assert.Equal("\"/repo/bin/Release/net11.0/Api.dll\" --urls http://localhost:5229", command.Arguments);
+        Assert.Equal("/repo/bin/Release/net11.0", command.WorkingDirectory);
+        Assert.False(command.Environment.ContainsKey(AspNetCoreProjectEnvironmentNames.DotNetWatchRestartOnRudeEdit));
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ReturnsDiagnosticWhenProjectFileIsMissing()
     {
         var resource = CreateResource("missing/CloudShell.Missing.csproj");
@@ -413,6 +433,24 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal("application.aspNetCoreProject.projectFileMissing", diagnostic.Code);
         Assert.Equal(resource.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ReturnsDiagnosticWhenExecutableFileIsMissing()
+    {
+        var resource = CreateResource(
+            projectPath: null,
+            executablePath: "missing/CloudShell.Missing.dll");
+        var controller = new AspNetCoreProjectProcessRuntimeController();
+
+        var diagnostics = await controller.ExecuteAsync(
+            resource,
+            AspNetCoreProjectResourceTypeProvider.Operations.Start);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal("application.dotnetApp.executableFileMissing", diagnostic.Code);
+        Assert.Equal(AspNetCoreProjectResourceTypeProvider.Attributes.ExecutablePath, diagnostic.Target);
     }
 
     [Fact]
@@ -570,10 +608,95 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         Assert.Equal(AspNetCoreProjectRuntimeStatus.Stopped, controller.GetStatus(resource));
     }
 
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task ExecuteAsync_StartsProjectReferenceApiFromExecutablePath()
+    {
+        var port = GetFreeTcpPort();
+        var repositoryRoot = FindRepositoryRoot();
+        var projectPath = Path.Combine(
+            repositoryRoot,
+            "samples",
+            "ProjectReference",
+            "Api",
+            "CloudShell.ProjectReferenceApi.csproj");
+        var publishDirectory = Path.Combine(
+            Path.GetTempPath(),
+            $"cloudshell-dotnet-app-executable-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(publishDirectory);
+
+        try
+        {
+            await RunProcessAsync(
+                "dotnet",
+                [
+                    "publish",
+                    projectPath,
+                    "--configuration",
+                    "Release",
+                    "--output",
+                    publishDirectory,
+                    "--no-restore"
+                ],
+                repositoryRoot,
+                TimeSpan.FromMinutes(2));
+            var resource = CreateResource(
+                projectPath: null,
+                executablePath: Path.Combine(publishDirectory, "CloudShell.ProjectReferenceApi.dll"),
+                arguments: $"--urls http://127.0.0.1:{port}");
+
+            await using var controller = new AspNetCoreProjectProcessRuntimeController(
+                environmentProviders:
+                [
+                    new FixedAspNetCoreProjectRuntimeEnvironmentProvider(
+                        new Dictionary<string, string>
+                        {
+                            ["CLOUDSHELL_PROJECT_REFERENCE_ENVIRONMENT_TAG"] =
+                                "graph-runtime-provider"
+                        })
+                ]);
+
+            var diagnostics = await controller.ExecuteAsync(
+                resource,
+                AspNetCoreProjectResourceTypeProvider.Operations.Start);
+
+            Assert.Empty(diagnostics);
+            Assert.Equal(AspNetCoreProjectRuntimeStatus.Running, controller.GetStatus(resource));
+
+            using var httpClient = new HttpClient
+            {
+                Timeout = TimeSpan.FromSeconds(2)
+            };
+            var response = await GetHealthyResponseAsync(
+                httpClient,
+                $"http://127.0.0.1:{port}/health");
+
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.Contains("\"status\":\"ok\"", body, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Project Reference API", body, StringComparison.Ordinal);
+            Assert.Contains("graph-runtime-provider", body, StringComparison.Ordinal);
+
+            var stopDiagnostics = await controller.ExecuteAsync(
+                resource,
+                AspNetCoreProjectResourceTypeProvider.Operations.Stop);
+
+            Assert.Empty(stopDiagnostics);
+            Assert.Equal(AspNetCoreProjectRuntimeStatus.Stopped, controller.GetStatus(resource));
+        }
+        finally
+        {
+            if (Directory.Exists(publishDirectory))
+            {
+                Directory.Delete(publishDirectory, recursive: true);
+            }
+        }
+    }
+
     private static Resource CreateResource(
         string? projectPath,
         string name = "api",
         string? resourceId = null,
+        string? executablePath = null,
         string? arguments = null,
         bool? hotReload = null,
         bool? useLaunchSettings = null,
@@ -595,6 +718,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             name,
             projectPath,
             resourceId,
+            executablePath,
             arguments,
             hotReload,
             useLaunchSettings,
@@ -639,6 +763,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         string name,
         string? projectPath,
         string? resourceId = null,
+        string? executablePath = null,
         string? arguments = null,
         bool? hotReload = null,
         bool? useLaunchSettings = null,
@@ -652,6 +777,11 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         if (projectPath is not null)
         {
             attributes[AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] = projectPath;
+        }
+
+        if (executablePath is not null)
+        {
+            attributes[AspNetCoreProjectResourceTypeProvider.Attributes.ExecutablePath] = executablePath;
         }
 
         if (arguments is not null)
@@ -788,6 +918,74 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         finally
         {
             listener.Stop();
+        }
+    }
+
+    private static async Task RunProcessAsync(
+        string fileName,
+        IReadOnlyList<string> arguments,
+        string workingDirectory,
+        TimeSpan timeout)
+    {
+        var startInfo = new ProcessStartInfo(fileName)
+        {
+            WorkingDirectory = workingDirectory,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        using var process = Process.Start(startInfo) ??
+            throw new InvalidOperationException($"Could not start '{fileName}'.");
+        var output = new StringBuilder();
+        process.OutputDataReceived += (_, args) =>
+        {
+            if (args.Data is not null)
+            {
+                output.AppendLine(args.Data);
+            }
+        };
+        process.ErrorDataReceived += (_, args) =>
+        {
+            if (args.Data is not null)
+            {
+                output.AppendLine(args.Data);
+            }
+        };
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+
+        try
+        {
+            await process.WaitForExitAsync().WaitAsync(timeout);
+        }
+        catch
+        {
+            TryKill(process);
+            throw;
+        }
+
+        Assert.True(
+            process.ExitCode == 0,
+            $"{fileName} {string.Join(' ', arguments)} exited with {process.ExitCode}.{Environment.NewLine}{output}");
+    }
+
+    private static void TryKill(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+        }
+        catch
+        {
+            // Best-effort cleanup for failed integration processes.
         }
     }
 

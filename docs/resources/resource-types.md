@@ -372,14 +372,16 @@ resources:
 
 ### `application.dotnet-app`
 
-Use for a local .NET app launched through the project runtime.
+Use for a local .NET app launched through the project runtime or from a
+host-readable published assembly/executable with `dotnet <path>`.
 
 Required authoring:
 
-- `project.path`
+- exactly one of `project.path` or `executablePath`
 
 Common optional attributes:
 
+- `executablePath`
 - `project.arguments`
 - `project.hotReload`
 - `project.useLaunchSettings`
@@ -407,6 +409,18 @@ resources:
       environmentVariables:
         ASPNETCORE_ENVIRONMENT:
           value: Development
+```
+
+Executable mode uses a flat resource-type-local attribute so exported
+definitions do not create an unnecessary `dotnet` document group:
+
+```yaml
+resources:
+  - type: application.dotnet-app
+    name: api
+    executablePath: ./publish/Api.dll
+    project:
+      arguments: --urls http://localhost:5080
 ```
 
 ### `application.javascript-app`

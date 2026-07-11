@@ -307,13 +307,19 @@ filtering, diagnostics, and simple orchestration hints.
 
 Implementation:
 
-- Use dotted lower-camel names. Reserve `ResourceAttributeNames` for
-  CloudShell-defined meanings.
+- Use lower-camel names. Prefer flat names for resource-type-local attributes
+  such as `executablePath`; use dotted names only when the attribute belongs to
+  an intentional shared namespace or should render as a nested
+  ResourceDefinition document group.
+- Reserve `ResourceAttributeNames` for CloudShell-defined meanings.
 - Use invariant formatting for numbers, lower-case strings for booleans, and
   stable non-localized tokens for enum-like values.
 - Put structured, lifecycle-sensitive, validated, or secret data in
   provider-owned configuration instead of attributes.
-- Prefix provider-specific attributes with a stable provider or domain prefix.
+- Do not add a provider or resource-type prefix solely for uniqueness; the
+  resource type already scopes local attributes. Prefixes change the exported
+  template shape and should be reserved for deliberate cross-provider or
+  capability-owned namespaces.
 
 Verification:
 

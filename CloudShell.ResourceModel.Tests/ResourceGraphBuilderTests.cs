@@ -620,6 +620,27 @@ public sealed class ResourceGraphBuilderTests
     }
 
     [Fact]
+    public void ResourceGraphBuilder_AddDotnetAppSupportsFluentExecutableConfiguration()
+    {
+        var graph = new ResourceGraphBuilder();
+
+        graph
+            .AddDotnetApp("api")
+            .WithExecutablePath("publish/Api.dll")
+            .WithArguments("--urls http://localhost:5010");
+
+        var resource = Assert.Single(graph.BuildTemplate("local").Resources);
+
+        Assert.Equal("application.dotnet-app:api", resource.EffectiveResourceId);
+        Assert.Equal("publish/Api.dll", resource.ResourceAttributeValues[
+            AspNetCoreProjectResourceTypeProvider.Attributes.ExecutablePath].StringValue);
+        Assert.Equal("--urls http://localhost:5010", resource.ResourceAttributeValues[
+            AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments].StringValue);
+        Assert.False(resource.ResourceAttributeValues.ContainsKey(
+            ResourceAttributeId.Create("dotnet.executablePath")));
+    }
+
+    [Fact]
     public void ResourceGraphBuilder_BuildsManualNetworkDefinition()
     {
         var graph = new ResourceGraphBuilder();

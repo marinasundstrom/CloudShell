@@ -9,6 +9,10 @@ public sealed class AspNetCoreProjectResource(
         Resource.Attributes.GetString(
             AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath);
 
+    public string? ExecutablePath =>
+        Resource.Attributes.GetString(
+            AspNetCoreProjectResourceTypeProvider.Attributes.ExecutablePath);
+
     public string? Arguments =>
         Resource.Attributes.GetString(
             AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments);

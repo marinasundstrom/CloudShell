@@ -111,6 +111,12 @@ public sealed class AspNetCoreProjectProcessCommandFactory
         return startInfo;
     }
 
+    public ProcessStartInfo CreateExecutableStartInfo(
+        Resource resource,
+        string executablePath,
+        IReadOnlyDictionary<string, string>? derivedEnvironmentVariables = null) =>
+        CreatePublishedOutputStartInfo(resource, executablePath, derivedEnvironmentVariables);
+
     private static bool GetBoolean(
         Resource resource,
         ResourceAttributeId attributeId,

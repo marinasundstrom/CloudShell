@@ -303,6 +303,73 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public async Task AddDotnetAppResourceType_AcceptsExecutablePathSourceMode()
+    {
+        var services = new ServiceCollection();
+        services.AddDotnetAppResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ExecutablePath] = "publish/Api.dll",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] = "--urls http://localhost:5010"
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphValidationPipeline>()
+            .ValidateAsync(
+                new ResourceDefinitionGraph([definition]),
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.False(validation.HasErrors);
+        var resourceValidation = Assert.Single(validation.Resources);
+        Assert.Equal("publish/Api.dll", resourceValidation.Resource.Attributes.GetString(
+            AspNetCoreProjectResourceTypeProvider.Attributes.ExecutablePath));
+
+        var projectedGraph = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphProjectionResolver>()
+            .ProjectAsync(
+                validation,
+                new ResourceProjectionContext("local", "developer"));
+        var projection = projectedGraph.Find<AspNetCoreProjectResource>(
+            definition.EffectiveResourceId);
+
+        Assert.NotNull(projection);
+        Assert.Equal("publish/Api.dll", projection.ExecutablePath);
+        Assert.Null(projection.ProjectPath);
+    }
+
+    [Fact]
+    public async Task AddDotnetAppResourceType_RejectsConflictingLocalSourceModes()
+    {
+        var services = new ServiceCollection();
+        services.AddDotnetAppResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var definition = new ResourceDefinition(
+            "api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] = "src/Api/Api.csproj",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ExecutablePath] = "publish/Api.dll"
+            });
+
+        var validation = await serviceProvider
+            .GetRequiredService<ResourceDefinitionGraphValidationPipeline>()
+            .ValidateAsync(
+                new ResourceDefinitionGraph([definition]),
+                new ResourceDefinitionValidationContext("local", "developer"));
+
+        Assert.True(validation.HasErrors);
+        Assert.Contains(validation.Resources.SelectMany(resource => resource.Diagnostics), diagnostic =>
+            diagnostic.Code == "application.dotnetApp.sourceConflict");
+    }
+
+    [Fact]
     public async Task AddLocalVolumeResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();

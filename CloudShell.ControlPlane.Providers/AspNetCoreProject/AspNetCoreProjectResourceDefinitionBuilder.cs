@@ -19,6 +19,9 @@ public sealed class AspNetCoreProjectResourceDefinitionBuilder(string name) :
     public AspNetCoreProjectResourceDefinitionBuilder WithProjectPath(string projectPath) =>
         SetScalarAttribute(AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath, projectPath);
 
+    public AspNetCoreProjectResourceDefinitionBuilder WithExecutablePath(string executablePath) =>
+        SetScalarAttribute(AspNetCoreProjectResourceTypeProvider.Attributes.ExecutablePath, executablePath);
+
     public AspNetCoreProjectResourceDefinitionBuilder WithArguments(string arguments) =>
         SetScalarAttribute(AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments, arguments);
 

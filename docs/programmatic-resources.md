@@ -102,7 +102,9 @@ for their own resource types. Current provider methods include:
   provider.
 - `AddDotnetApp(...)` and `AddDotnetProject(...)` from the .NET app built-in
   provider. `AddDotnetProject(...)` is the project-backed shortcut used by
-  most samples; `AddDotnetApp(...)` returns the broader fluent builder.
+  most samples; `AddDotnetApp(...)` returns the broader fluent builder and can
+  choose project mode with `.WithProjectPath(...)` or executable mode with
+  `.WithExecutablePath(...)`.
 - `AddContainerApplication(...)` from the container application built-in
   provider.
 - `AddJavaApp(...)` from the Java app built-in provider.

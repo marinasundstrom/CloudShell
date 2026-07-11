@@ -18,6 +18,7 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
     public static class Attributes
     {
         public static readonly ResourceAttributeId ProjectPath = "project.path";
+        public static readonly ResourceAttributeId ExecutablePath = "executablePath";
         public static readonly ResourceAttributeId ProjectArguments = "project.arguments";
         public static readonly ResourceAttributeId HotReload = "project.hotReload";
         public static readonly ResourceAttributeId UseLaunchSettings = "project.useLaunchSettings";
@@ -46,6 +47,8 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
         Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeDefinition>
         {
             [Attributes.ProjectPath] = new(
+                ValueType: ResourceAttributeValueType.String),
+            [Attributes.ExecutablePath] = new(
                 ValueType: ResourceAttributeValueType.String),
             [ApplicationArtifactAttributeIds.SourceKind] = new(
                 ValueType: ResourceAttributeValueType.String),
@@ -168,6 +171,7 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
     private static bool RequiresRestart(ResourceChangeSet changes) =>
         changes.AttributeChanges.Any(change =>
             change.AttributeId == Attributes.ProjectPath ||
+            change.AttributeId == Attributes.ExecutablePath ||
             change.AttributeId == Attributes.ProjectArguments ||
             change.AttributeId == Attributes.HotReload ||
             change.AttributeId == Attributes.UseLaunchSettings ||
@@ -181,21 +185,66 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
 
     private static void ValidateSource(
         ResourceAttributeSet attributes,
-        List<ResourceDefinitionDiagnostic> diagnostics) =>
-        ApplicationArtifactResourceValidation.ValidateSource(
-            attributes,
-            Attributes.ProjectPath,
-            "application.aspNetCoreProject.pathRequired",
-            ".NET app path is required.",
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (ApplicationArtifactResourceValidation.UsesUploadedArtifact(attributes))
+        {
+            ApplicationArtifactResourceValidation.ValidateUploadedArtifact(attributes, diagnostics);
+            return;
+        }
+
+        ValidateLocalSource(
+            attributes.GetString(Attributes.ProjectPath),
+            attributes.GetString(Attributes.ExecutablePath),
             diagnostics);
+    }
 
     private static void ValidateSource(
         ResourceAttributeValueMap attributes,
-        List<ResourceDefinitionDiagnostic> diagnostics) =>
-        ApplicationArtifactResourceValidation.ValidateSource(
-            attributes,
-            Attributes.ProjectPath,
-            "application.aspNetCoreProject.pathRequired",
-            ".NET app path is required.",
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        if (ApplicationArtifactResourceValidation.UsesUploadedArtifact(attributes))
+        {
+            ApplicationArtifactResourceValidation.ValidateUploadedArtifact(attributes, diagnostics);
+            return;
+        }
+
+        ValidateLocalSource(
+            GetString(attributes, Attributes.ProjectPath),
+            GetString(attributes, Attributes.ExecutablePath),
             diagnostics);
+    }
+
+    private static void ValidateLocalSource(
+        string? projectPath,
+        string? executablePath,
+        List<ResourceDefinitionDiagnostic> diagnostics)
+    {
+        var hasProjectPath = !string.IsNullOrWhiteSpace(projectPath);
+        var hasExecutablePath = !string.IsNullOrWhiteSpace(executablePath);
+        if (!hasProjectPath && !hasExecutablePath)
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                "application.dotnetApp.sourceRequired",
+                ".NET app requires either a project path or executable path.",
+                Attributes.ProjectPath));
+            return;
+        }
+
+        if (hasProjectPath && hasExecutablePath)
+        {
+            diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                "application.dotnetApp.sourceConflict",
+                ".NET app local mode must use either project.path or executablePath, not both.",
+                Attributes.ExecutablePath));
+        }
+    }
+
+    private static string? GetString(
+        ResourceAttributeValueMap attributes,
+        ResourceAttributeId attributeId) =>
+        attributes.TryGetValue(attributeId, out var value) &&
+        value.TryGetScalarString(out var scalar)
+            ? scalar
+            : null;
 }

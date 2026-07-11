@@ -385,7 +385,8 @@ The application provider supports resource templates for
 configuration payload with the resource-type-specific configuration, such as:
 
 - executable path, arguments, and working directory
-- project path, project application arguments, and ASP.NET Core hot reload mode
+- .NET app project path or executable path, application arguments, and hot
+  reload mode when running from project source
 - JavaScript app project path, Node.js engine selection, package manager,
   development script, and application arguments
 - Java app project path, JVM command, artifact path, classpath/main-class

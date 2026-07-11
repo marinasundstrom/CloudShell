@@ -192,6 +192,13 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             return await StartArtifactAsync(resource, cancellationToken);
         }
 
+        var executablePath = resource.Attributes.GetString(
+            AspNetCoreProjectResourceTypeProvider.Attributes.ExecutablePath);
+        if (!string.IsNullOrWhiteSpace(executablePath))
+        {
+            return await StartExecutableAsync(resource, executablePath, cancellationToken);
+        }
+
         var projectPath = resource.Attributes.GetString(
             AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath);
         if (string.IsNullOrWhiteSpace(projectPath))
@@ -243,6 +250,38 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
         var startInfo = _commands.CreateStartInfo(
             resource,
             fullProjectPath,
+            derivedEnvironmentVariables);
+
+        return StartProcess(resource, startInfo, output);
+    }
+
+    private async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> StartExecutableAsync(
+        Resource resource,
+        string executablePath,
+        CancellationToken cancellationToken)
+    {
+        var fullExecutablePath = Path.GetFullPath(executablePath, Directory.GetCurrentDirectory());
+        if (!File.Exists(fullExecutablePath))
+        {
+            return
+            [
+                ResourceDefinitionDiagnostic.Error(
+                    "application.dotnetApp.executableFileMissing",
+                    $".NET app executable file '{fullExecutablePath}' does not exist.",
+                    AspNetCoreProjectResourceTypeProvider.Attributes.ExecutablePath)
+            ];
+        }
+
+        var output = _output.GetOrAdd(
+            resource.EffectiveResourceId,
+            _ => new BoundedRuntimeOutputBuffer());
+        output.Clear();
+
+        var derivedEnvironmentVariables =
+            await ResolveRuntimeEnvironmentVariablesAsync(resource, cancellationToken);
+        var startInfo = _commands.CreateExecutableStartInfo(
+            resource,
+            fullExecutablePath,
             derivedEnvironmentVariables);
 
         return StartProcess(resource, startInfo, output);
