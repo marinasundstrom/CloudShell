@@ -116,6 +116,11 @@ Notifications and toasts should therefore be related but not identical:
   actionable, or needs user attention.
 - A notification can suppress toast presentation when the item belongs only in
   history, is low urgency, or was already represented by another signal.
+- Passive facts, including ordinary in-progress operation feedback, can appear
+  briefly as toasts and remain in the notification center without requiring
+  acknowledgement or contributing to an unread/attention count. Warnings,
+  failures, needs-attention states, and notifications with actions are
+  attention-worthy by default.
 - A toast-only signal can exist for ephemeral feedback that should not create a
   notification-center item. The landed CoreShell reference path exposes this
   through `ICoreShellToastService`.

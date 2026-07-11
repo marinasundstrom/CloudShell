@@ -445,19 +445,40 @@ public sealed class CloudShellNotificationStoreTests
 
         var progress = rule.CreateNotification(new ResourceEvent(
             "application:api",
-            ResourceEventTypes.Events.Deployment.Applying,
-            "Applying deployment.",
+            ResourceEventTypes.Events.Lifecycle.Starting,
+            "Resource is starting.",
+            DateTimeOffset.UtcNow,
+            TriggeredBy: "operator"));
+        var success = rule.CreateNotification(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Lifecycle.Started,
+            "Resource started.",
             DateTimeOffset.UtcNow,
             TriggeredBy: "operator"));
         var failure = rule.CreateNotification(new ResourceEvent(
             "application:api",
-            ResourceEventTypes.Events.Deployment.Failed,
-            "Deployment failed.",
+            ResourceEventTypes.Events.Lifecycle.StartFailed,
+            "Resource failed to start.",
             DateTimeOffset.UtcNow,
-            TriggeredBy: "operator",
-            Severity: ResourceSignalSeverity.Error));
+            TriggeredBy: "operator"));
 
         Assert.Equal(CloudShellNotificationStatus.InProgress, progress!.Status);
+        Assert.Equal(CloudShellNotificationStatus.Succeeded, success!.Status);
         Assert.Equal(CloudShellNotificationStatus.Failed, failure!.Status);
+    }
+
+    [Fact]
+    public void DefaultResourceEventNotificationRule_SuppressesUnhandledTriggeredEvents()
+    {
+        var rule = new DefaultResourceEventNotificationRule();
+
+        var notification = rule.CreateNotification(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Deployment.Applied,
+            "Deployment applied.",
+            DateTimeOffset.UtcNow,
+            TriggeredBy: "operator"));
+
+        Assert.Null(notification);
     }
 }

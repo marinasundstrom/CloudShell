@@ -125,7 +125,7 @@
 
     private bool IsPanelOpen { get; set; }
 
-    private int UnreadCount => Items.Count(item => item.AcknowledgedAt is null);
+    private int UnreadCount => Items.Count(NeedsUserAttention);
 
     private IReadOnlyList<CoreShellNotificationInstance> ToastItems =>
         Items
@@ -249,6 +249,15 @@
     private static bool IsLoading(CoreShellNotificationInstance item) =>
         item.Status == CoreShellNotificationStatus.InProgress;
 
+    private static bool NeedsUserAttention(CoreShellNotificationInstance item) =>
+        item.AcknowledgedAt is null &&
+        item.DismissedAt is null &&
+        (GetActions(item).Count > 0 ||
+            item.Status is CoreShellNotificationStatus.NeedsAttention
+                or CoreShellNotificationStatus.Failed ||
+            item.Severity is CoreShellNotificationSeverity.Warning
+                or CoreShellNotificationSeverity.Error);
+
     private static bool ShouldToast(CoreShellNotificationInstance item, DateTimeOffset now)
     {
         if (item.AcknowledgedAt is not null ||
@@ -260,8 +269,7 @@
         }
 
         if (item.ToastBehavior == CoreShellNotificationToastBehavior.UntilAcknowledged ||
-            item.ToastAutoDismiss == CoreShellToastAutoDismissBehavior.Never ||
-            item.Status == CoreShellNotificationStatus.InProgress)
+            item.ToastAutoDismiss == CoreShellToastAutoDismissBehavior.Never)
         {
             return true;
         }

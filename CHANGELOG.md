@@ -60,6 +60,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added the first CloudShell notification UI surface for local development,
   with a topbar notification center and notification-backed toast cards over
   the in-memory Control Plane notification store.
+- Changed notification-backed toasts so default in-progress items age out by
+  the normal toast lifetime unless explicitly pinned, and passive plain,
+  progress, and completed facts no longer count as unread attention items.
 - Added Control Plane notification coalescing for lifecycle resource events so
   start, stop, pause, and restart progress updates one correlated notification
   instead of producing separate notification rows for each resource event.
@@ -76,6 +79,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Coalesced replica-management crash and repair progress into the same
   recovery notification while suppressing low-level slot observation and
   deferred-reconciliation events.
+- Suppressed unhandled triggered resource events from notification projection
+  so deployment/activity facts do not create extra generic startup toasts.
 - Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder
   helper from CloudShell Hosting into `CoreShell.Blazor` so common Blazor shell
   building blocks can be used by CoreShell apps without a CloudShell

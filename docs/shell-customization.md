@@ -99,8 +99,11 @@ be Control Plane-owned domain data; the UI owns how those records are adapted
 into Fluent UI notification-center rows, toasts, templates, icons, and action
 placement. The current CloudShell local-development path renders a topbar
 notification center and notification-backed toast cards over the in-memory
-Control Plane notification store. Toast-only signals use
-`ICoreShellToastService` and do not create notification instances.
+Control Plane notification store. Passive facts, including ordinary in-progress
+operation feedback, can remain in the center without contributing to the unread
+count; warnings, failures, needs-attention items, and notifications with actions
+are treated as attention-worthy. Toast-only signals use `ICoreShellToastService`
+and do not create notification instances.
 `samples/CompositionSandbox` remains the lower-level composition sandbox for
 graph and renderer experiments below CoreShell.
 

@@ -41,6 +41,11 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
         }
 
         var operation = GetOperation(resourceEvent.EventType);
+        if (operation is null)
+        {
+            return null;
+        }
+
         return new CreateCloudShellNotificationCommand(
             recipientKey,
             CreateTitle(resourceEvent),
@@ -51,12 +56,8 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             ResourceId: resourceEvent.ResourceId,
             EventType: resourceEvent.EventType,
             EventId: CreateEventId(resourceEvent),
-            CorrelationId: operation is null
-                ? resourceEvent.TraceId
-                : CreateOperationCorrelationId(resourceEvent, operation.Kind, operation.Id, recipientKey),
-            TemplateKey: operation is null
-                ? "cloudshell.resource-event"
-                : operation.TemplateKey,
+            CorrelationId: CreateOperationCorrelationId(resourceEvent, operation.Kind, operation.Id, recipientKey),
+            TemplateKey: operation.TemplateKey,
             Attributes: CreateAttributes(resourceEvent));
     }
 
@@ -81,6 +82,27 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
     private static CloudShellNotificationStatus? CreateOperationStatus(string eventType) =>
         eventType.Trim() switch
         {
+            ResourceEventTypes.Events.Lifecycle.Starting or
+            ResourceEventTypes.Events.Lifecycle.Stopping or
+            ResourceEventTypes.Events.Lifecycle.Pausing or
+            ResourceEventTypes.Events.Lifecycle.Restarting or
+            ResourceEventTypes.Events.Resource.Creating or
+            ResourceEventTypes.Events.Deployment.ImageUpdating or
+            ResourceEventTypes.Events.Deployment.ReplicasUpdating => CloudShellNotificationStatus.InProgress,
+            ResourceEventTypes.Events.Lifecycle.Started or
+            ResourceEventTypes.Events.Lifecycle.Stopped or
+            ResourceEventTypes.Events.Lifecycle.Paused or
+            ResourceEventTypes.Events.Lifecycle.Restarted or
+            ResourceEventTypes.Events.Resource.Created or
+            ResourceEventTypes.Events.Deployment.ImageUpdated or
+            ResourceEventTypes.Events.Deployment.ReplicasUpdated => CloudShellNotificationStatus.Succeeded,
+            ResourceEventTypes.Events.Lifecycle.StartFailed or
+            ResourceEventTypes.Events.Lifecycle.StopFailed or
+            ResourceEventTypes.Events.Lifecycle.PauseFailed or
+            ResourceEventTypes.Events.Lifecycle.RestartFailed or
+            ResourceEventTypes.Events.Resource.CreateFailed or
+            ResourceEventTypes.Events.Deployment.ImageUpdateFailed or
+            ResourceEventTypes.Events.Deployment.ReplicasUpdateFailed => CloudShellNotificationStatus.Failed,
             ResourceEventTypes.Events.Recovery.RestartScheduled or
             ResourceEventTypes.Events.Recovery.RestartAttempted or
             ResourceEventTypes.Events.ReplicaManagement.RestartScheduled or
