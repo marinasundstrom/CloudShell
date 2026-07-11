@@ -45,6 +45,8 @@ public static class AspNetCoreProjectResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IDeploymentArtifactLayoutProvider, AspNetCoreProjectArtifactLayoutProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IDeploymentArtifactValidationProvider, ApplicationArtifactValidationProvider>());
+        services.TryAddSingleton<IApplicationArtifactFolderResolver, ApplicationArtifactFolderResolver>();
+        services.TryAddSingleton<IApplicationArtifactMaterializer, ApplicationArtifactMaterializer>();
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceCapabilityProvider, VolumeConsumerCapabilityProvider>());
         services.TryAddEnumerable(

@@ -70,6 +70,47 @@ public sealed class AspNetCoreProjectProcessCommandFactory
         return startInfo;
     }
 
+    public ProcessStartInfo CreatePublishedOutputStartInfo(
+        Resource resource,
+        string applicationAssemblyPath,
+        IReadOnlyDictionary<string, string>? derivedEnvironmentVariables = null)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        ArgumentException.ThrowIfNullOrWhiteSpace(applicationAssemblyPath);
+
+        var arguments = new StringBuilder();
+        arguments.Append(Quote(applicationAssemblyPath));
+
+        var projectArguments = resource.Attributes.GetString(
+            AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments);
+        projectArguments = string.IsNullOrWhiteSpace(projectArguments)
+            ? CreateEndpointArguments(resource)
+            : projectArguments;
+        if (!string.IsNullOrWhiteSpace(projectArguments))
+        {
+            arguments.Append(' ');
+            arguments.Append(projectArguments);
+        }
+
+        var startInfo = new ProcessStartInfo("dotnet", arguments.ToString())
+        {
+            WorkingDirectory = Path.GetDirectoryName(applicationAssemblyPath) ?? Directory.GetCurrentDirectory(),
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+        startInfo.Environment[AspNetCoreProjectEnvironmentNames.ResourceId] =
+            resource.EffectiveResourceId;
+        startInfo.Environment[AspNetCoreProjectEnvironmentNames.ResourceName] =
+            resource.Name;
+
+        ApplyDerivedEnvironmentVariables(derivedEnvironmentVariables, startInfo);
+        ApplyEnvironmentVariables(resource, startInfo);
+
+        return startInfo;
+    }
+
     private static bool GetBoolean(
         Resource resource,
         ResourceAttributeId attributeId,

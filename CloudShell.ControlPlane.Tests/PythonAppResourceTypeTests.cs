@@ -179,7 +179,7 @@ public sealed class PythonAppResourceTypeTests
     }
 
     [Fact]
-    public async Task StartOperation_BlocksArtifactModeWithoutCurrentSource()
+    public async Task StartOperation_AllowsArtifactModeWithoutSourceMetadata()
     {
         var resource = Resolve(new ResourceDefinition(
             "api",
@@ -203,10 +203,8 @@ public sealed class PythonAppResourceTypeTests
                 operation,
                 new ResourceOperationProjectionContext()));
 
-        Assert.False(await projection.CanExecuteAsync());
-        Assert.Equal(
-            "This application resource has artifact storage enabled but no accepted artifact source.",
-            projection.UnavailableReason);
+        Assert.True(await projection.CanExecuteAsync());
+        Assert.Null(projection.UnavailableReason);
     }
 
     private static CloudShell.ResourceModel.Resource Resolve(ResourceDefinition definition)

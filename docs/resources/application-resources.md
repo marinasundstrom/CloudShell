@@ -176,6 +176,40 @@ Concrete runtime behavior is supplied by host/runtime adapters for local
 processes, project execution, Docker containers, sidecar services, and future
 orchestrator controllers.
 
+## Application Artifact Folders
+
+Application resources can opt into a host-managed artifact folder by setting
+`artifacts.enabled: true`. In that mode the provider does not use a
+host-readable project or executable path from the resource definition. Instead,
+the host allocates a resource artifact folder and the provider looks in that
+folder for runnable content by provider-owned convention.
+
+For Resource Manager-created artifact-mode resources, the create UI should
+require an acceptable upload before the resource is created. The Control Plane
+validates the package with the resource provider before accepting the resource
+definition. If a resource has `artifacts.enabled` but the resource artifact
+folder does not contain a valid runnable layout, start and restart fail with
+provider diagnostics instead of pretending the resource is ready.
+
+Uploading a package stages bytes in the host artifact store. Successfully
+applying an accepted package updates resource state and counts as a new
+resource revision; upload alone does not.
+
+`artifacts.source` is optional source metadata. It can describe where the host
+should pull or download artifact content from, such as a future GitHub release,
+remote folder, object store, Artifactory package, or CI artifact. Pulling or
+materializing that source happens when the resource is first started, and the
+result is placed in the resource artifact folder. Direct upload to the host
+does not require exposing the physical folder or artifact store path in
+resource state.
+
+The first built-in runtime support is for ASP.NET Core
+`dotnetPublishedOutput` ZIP artifacts. The provider validates that the package
+contains a `.runtimeconfig.json` file and matching DLL, materializes the source
+into the resource artifact folder when needed, and starts it with
+`dotnet <assembly>.dll`. Source-directory build layouts remain a separate
+provider behavior.
+
 Storage state is modeled separately from application resources. A volume
 resource owns the durable storage identity and provider-backed location, which
 can later be materialized, backed up, moved, or diagnosed by a storage

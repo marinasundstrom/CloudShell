@@ -179,7 +179,8 @@ else
         StoreStatus?.IsEnabled == true &&
         !string.IsNullOrWhiteSpace(ResourceIdInput) &&
         !string.IsNullOrWhiteSpace(EffectiveResourceTypeId) &&
-        Layouts.Count > 0;
+        Layouts.Count > 0 &&
+        SelectedFile is not null;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -309,10 +310,8 @@ else
             var resourceName = string.IsNullOrWhiteSpace(NameInput)
                 ? ResourceDisplayNameDefaults.Resolve(ResourceIdInput)
                 : NameInput.Trim();
-            var revision = SelectedFile is null
-                ? null
-                : await UploadAndValidateAsync(resourceId, resourceName);
-            if (SelectedFile is not null && revision is null)
+            var revision = await UploadAndValidateAsync(resourceId, resourceName);
+            if (revision is null)
             {
                 return;
             }
@@ -330,9 +329,7 @@ else
                 return;
             }
 
-            StatusMessage = revision is null
-                ? "Application resource created. Upload an artifact before starting it."
-                : $"Application resource created with artifact revision {revision.RevisionId}.";
+            StatusMessage = $"Application resource created with artifact revision {revision.RevisionId}.";
             Navigation.NavigateTo(
                 RegistrationNavigation?.GetReturnUrlOrDefault() ??
                 $"/resources/{Uri.EscapeDataString(resourceId)}");
@@ -398,7 +395,7 @@ else
                 : ResourceProcedureResult.CompletedWithRestartRequired(
                     "Application artifact accepted.",
                     ExistingResource.Id,
-                    "Restart the resource to materialize the accepted artifact revision.") with
+                    "Restart the resource to use the accepted artifact package.") with
                     {
                         Signals = signals
                     };

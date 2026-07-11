@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.IO.Compression;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Providers;
 using Microsoft.Extensions.Configuration;
@@ -382,6 +383,23 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
     }
 
     [Fact]
+    public void CommandFactory_CreatesPublishedOutputCommand()
+    {
+        var resource = CreateResource(
+            "src/Api/Api.csproj",
+            arguments: "--urls http://localhost:5229",
+            hotReload: true,
+            useLaunchSettings: true);
+        var command = new AspNetCoreProjectProcessCommandFactory()
+            .CreatePublishedOutputStartInfo(resource, "/repo/publish/Api.dll");
+
+        Assert.Equal("dotnet", command.FileName);
+        Assert.Equal("\"/repo/publish/Api.dll\" --urls http://localhost:5229", command.Arguments);
+        Assert.Equal("/repo/publish", command.WorkingDirectory);
+        Assert.False(command.Environment.ContainsKey(AspNetCoreProjectEnvironmentNames.DotNetWatchRestartOnRudeEdit));
+    }
+
+    [Fact]
     public async Task ExecuteAsync_ReturnsDiagnosticWhenProjectFileIsMissing()
     {
         var resource = CreateResource("missing/CloudShell.Missing.csproj");
@@ -395,6 +413,57 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal("application.aspNetCoreProject.projectFileMissing", diagnostic.Code);
         Assert.Equal(resource.EffectiveResourceId, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ReturnsDiagnosticWhenArtifactMaterializerIsUnavailable()
+    {
+        var resource = CreateArtifactResource(new ApplicationArtifactReference(
+            "deployment-artifact:application.aspnet-core-project:api",
+            "rev-1",
+            "zip",
+            "abc123",
+            128,
+            ".",
+            "dotnetPublishedOutput"));
+        var controller = new AspNetCoreProjectProcessRuntimeController();
+
+        var diagnostics = await controller.ExecuteAsync(
+            resource,
+            AspNetCoreProjectResourceTypeProvider.Operations.Start);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal("application.artifact.materializerUnavailable", diagnostic.Code);
+    }
+
+    [Fact]
+    public async Task ApplicationArtifactMaterializer_ExtractsZipRevisionAndResolvesEntryPath()
+    {
+        var resource = CreateArtifactResource(new ApplicationArtifactReference(
+            "deployment-artifact:application.aspnet-core-project:api",
+            "rev-1",
+            "zip",
+            Guid.NewGuid().ToString("N"),
+            128,
+            "publish",
+            "dotnetPublishedOutput"));
+        var store = new InMemoryDeploymentArtifactContentStore(CreateZip(
+            ("publish/Api.dll", "assembly"),
+            ("publish/Api.runtimeconfig.json", "{}")));
+        var materializer = new ApplicationArtifactMaterializer(store);
+        var artifactFolder = Path.Combine(
+            Path.GetTempPath(),
+            $"cloudshell-tests-{Guid.NewGuid():N}");
+
+        var result = await materializer.MaterializeAsync(
+            resource,
+            resource.Attributes.GetObject<ApplicationArtifactReference>(ApplicationArtifactAttributeIds.Source)!,
+            artifactFolder);
+
+        Assert.Equal(artifactFolder, result.RootDirectory);
+        Assert.Equal(Path.Combine(artifactFolder, "publish"), result.EntryPath);
+        Assert.True(File.Exists(Path.Combine(result.EntryPath, "Api.dll")));
     }
 
     [Fact]
@@ -486,7 +555,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
     }
 
     private static Resource CreateResource(
-        string projectPath,
+        string? projectPath,
         string name = "api",
         string? resourceId = null,
         string? arguments = null,
@@ -519,9 +588,40 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             serviceDiscoveryName));
     }
 
+    private static Resource CreateArtifactResource(
+        ApplicationArtifactReference artifact)
+    {
+        var resolver = new ResourceResolver(
+            [AspNetCoreProjectResourceTypeProvider.ClassDefinition],
+            [new AspNetCoreProjectResourceTypeProvider().TypeDefinition],
+            attributeValueShapeProviders:
+            [
+                new NetworkingEndpointShapeProvider(),
+                new AspNetCoreProjectShapeProvider()
+            ]);
+
+        return resolver.Resolve(new ResourceDefinition(
+            "api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            ResourceId: "application.aspnet-core-project:api",
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            Attributes: new ResourceAttributeValueMap(
+                new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+                {
+                    [ApplicationArtifactAttributeIds.SourceKind] =
+                        ResourceAttributeValue.String(DeploymentArtifactSourceKinds.UploadedArtifact),
+                    [ApplicationArtifactAttributeIds.SourceOwner] =
+                        ResourceAttributeValue.String(ApplicationArtifactAttributeIds.ResourceManagerUiSourceOwner),
+                    [ApplicationArtifactAttributeIds.Enabled] =
+                        ResourceAttributeValue.Boolean(true),
+                    [ApplicationArtifactAttributeIds.Source] =
+                        ResourceAttributeValue.FromObject(artifact)
+                })));
+    }
+
     private static ResourceGraphState CreateState(
         string name,
-        string projectPath,
+        string? projectPath,
         string? resourceId = null,
         string? arguments = null,
         bool? hotReload = null,
@@ -531,10 +631,12 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         IReadOnlyList<ResourceReference>? references = null,
         string? serviceDiscoveryName = null)
     {
-        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+        var attributes = new Dictionary<ResourceAttributeId, ResourceAttributeValue>();
+
+        if (projectPath is not null)
         {
-            [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] = projectPath
-        };
+            attributes[AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] = projectPath;
+        }
 
         if (arguments is not null)
         {
@@ -673,6 +775,22 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         }
     }
 
+    private static byte[] CreateZip(params (string Path, string Content)[] entries)
+    {
+        using var output = new MemoryStream();
+        using (var archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var (path, content) in entries)
+            {
+                var entry = archive.CreateEntry(path);
+                using var writer = new StreamWriter(entry.Open());
+                writer.Write(content);
+            }
+        }
+
+        return output.ToArray();
+    }
+
     private sealed class FixedAspNetCoreProjectRuntimeEnvironmentProvider(
         IReadOnlyDictionary<string, string> variables) : IAspNetCoreProjectRuntimeEnvironmentProvider
     {
@@ -680,6 +798,16 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             Resource resource,
             CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(variables);
+    }
+
+    private sealed class InMemoryDeploymentArtifactContentStore(byte[] content) : IDeploymentArtifactContentStore
+    {
+        public Task<Stream> OpenDeploymentArtifactContentAsync(
+            string resourceId,
+            string artifactId,
+            string revisionId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<Stream>(new MemoryStream(content));
     }
 
     private sealed class FixedConfigurationSettingReferenceResolver : IConfigurationSettingReferenceResolver

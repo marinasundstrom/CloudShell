@@ -139,3 +139,12 @@ public interface IDeploymentArtifactLayoutProvider
         DeploymentArtifactLayoutQuery query,
         CancellationToken cancellationToken = default);
 }
+
+public interface IDeploymentArtifactContentStore
+{
+    Task<Stream> OpenDeploymentArtifactContentAsync(
+        string resourceId,
+        string artifactId,
+        string revisionId,
+        CancellationToken cancellationToken = default);
+}

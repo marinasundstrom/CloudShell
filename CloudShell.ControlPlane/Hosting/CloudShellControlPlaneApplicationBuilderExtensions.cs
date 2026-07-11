@@ -120,6 +120,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
                 : serviceProvider.GetRequiredService<InMemoryUsageStore>();
         });
         builder.Services.TryAddSingleton<IDeploymentArtifactStore, FileSystemDeploymentArtifactStore>();
+        builder.Services.TryAddSingleton<IDeploymentArtifactContentStore>(
+            serviceProvider => serviceProvider.GetRequiredService<IDeploymentArtifactStore>());
         builder.Services.TryAddSingleton<ResourceHealthRefreshCoordinator>();
         builder.Services.TryAddSingleton<InMemoryResourceHealthStore>();
         builder.Services.TryAddSingleton<IResourceRecoveryStore, InMemoryResourceRecoveryStore>();

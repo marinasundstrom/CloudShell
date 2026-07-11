@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ResourceModel;
 
@@ -5,9 +6,6 @@ namespace CloudShell.ControlPlane.Providers;
 
 internal static class ApplicationArtifactResourceValidation
 {
-    private const string MissingArtifactSourceReason =
-        "This application resource has artifact storage enabled but no accepted artifact source.";
-
     public static bool UsesUploadedArtifact(ResourceAttributeValueMap attributes) =>
         HasApplicationArtifactsEnabled(attributes) ||
         string.Equals(
@@ -32,14 +30,7 @@ internal static class ApplicationArtifactResourceValidation
         Resource resource,
         ResourceOperationId operationId)
     {
-        if (operationId.ToString() is not ("start" or "restart") ||
-            !HasApplicationArtifactsEnabled(resource.Attributes) ||
-            resource.Attributes.GetObject<ApplicationArtifactReference>(ApplicationArtifactAttributeIds.Source) is not null)
-        {
-            return null;
-        }
-
-        return MissingArtifactSourceReason;
+        return null;
     }
 
     public static void ValidateSource(
@@ -127,8 +118,120 @@ internal static class ApplicationArtifactResourceValidation
             ]);
         }
 
+        if (string.Equals(
+                context.ResourceType,
+                AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
+                StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(
+                context.ArtifactLayoutKind,
+                "dotnetPublishedOutput",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return ValidateDotNetPublishedOutput(context, artifactContent);
+        }
+
         return ResourceDefinitionValidationResult.FromDiagnostics([]);
     }
+
+    private static ResourceDefinitionValidationResult ValidateDotNetPublishedOutput(
+        DeploymentArtifactValidationContext context,
+        Stream artifactContent)
+    {
+        if (!string.Equals(context.PackageKind, "zip", StringComparison.OrdinalIgnoreCase))
+        {
+            return ResourceDefinitionValidationResult.FromDiagnostics(
+            [
+                ResourceDefinitionDiagnostic.Error(
+                    "application.aspNetCoreProject.artifactPackageKindUnsupported",
+                    ".NET published output artifacts must be uploaded as a ZIP package.",
+                    context.ArtifactId)
+            ]);
+        }
+
+        try
+        {
+            using var archive = new ZipArchive(artifactContent, ZipArchiveMode.Read, leaveOpen: false);
+            return ContainsPublishedOutputAssembly(archive, context.EntryPath)
+                ? ResourceDefinitionValidationResult.FromDiagnostics([])
+                : ResourceDefinitionValidationResult.FromDiagnostics(
+                [
+                    ResourceDefinitionDiagnostic.Error(
+                        "application.aspNetCoreProject.publishedAssemblyMissing",
+                        ".NET published output artifacts must contain an application runtimeconfig.json file and matching DLL.",
+                        context.ArtifactId)
+                ]);
+        }
+        catch (InvalidDataException exception)
+        {
+            return ResourceDefinitionValidationResult.FromDiagnostics(
+            [
+                ResourceDefinitionDiagnostic.Error(
+                    "application.artifact.invalidZip",
+                    $"Application artifact ZIP package could not be read: {exception.Message}",
+                    context.ArtifactId)
+            ]);
+        }
+    }
+
+    private static bool ContainsPublishedOutputAssembly(
+        ZipArchive archive,
+        string? entryPath)
+    {
+        var prefix = NormalizeZipPrefix(entryPath);
+        var entries = archive.Entries
+            .Where(entry => !string.IsNullOrEmpty(entry.Name))
+            .ToArray();
+
+        if (!string.IsNullOrWhiteSpace(entryPath) &&
+            entryPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+        {
+            return entries.Any(entry =>
+                string.Equals(
+                    NormalizeZipPath(entry.FullName),
+                    NormalizeZipPath(entryPath),
+                    StringComparison.OrdinalIgnoreCase));
+        }
+
+        var files = entries
+            .Select(entry => NormalizeZipPath(entry.FullName))
+            .Where(path => string.IsNullOrEmpty(prefix) ||
+                path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var runtimeConfig in files.Where(path =>
+            path.EndsWith(".runtimeconfig.json", StringComparison.OrdinalIgnoreCase) &&
+            !Path.GetFileName(path).Contains("StaticWebAssets", StringComparison.OrdinalIgnoreCase)))
+        {
+            var directory = Path.GetDirectoryName(runtimeConfig)?.Replace('\\', '/') ?? string.Empty;
+            var assemblyName = Path.GetFileNameWithoutExtension(
+                Path.GetFileNameWithoutExtension(runtimeConfig)) + ".dll";
+            var assemblyPath = string.IsNullOrEmpty(directory)
+                ? assemblyName
+                : $"{directory}/{assemblyName}";
+            if (files.Contains(assemblyPath))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string NormalizeZipPrefix(string? entryPath)
+    {
+        if (string.IsNullOrWhiteSpace(entryPath) ||
+            string.Equals(entryPath.Trim(), ".", StringComparison.Ordinal))
+        {
+            return string.Empty;
+        }
+
+        var normalized = NormalizeZipPath(entryPath.Trim());
+        return normalized.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)
+            ? normalized
+            : normalized.TrimEnd('/') + "/";
+    }
+
+    private static string NormalizeZipPath(string value) =>
+        value.Replace('\\', '/').TrimStart('/');
 
     private static void ValidateLocalPath(
         string? projectPath,
@@ -151,7 +254,7 @@ internal static class ApplicationArtifactResourceValidation
         {
             diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                 "application.artifact.referenceRequired",
-                "Application artifact mode requires an uploaded artifact revision reference.",
+                "Application artifact source metadata is incomplete.",
                 ApplicationArtifactAttributeIds.Source));
             return;
         }

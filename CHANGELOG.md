@@ -32,15 +32,24 @@ on `git blame --follow`, and then by the broad type of change.
 - Added Resource Manager application artifact upload UI for .NET, Python,
   Java, JavaScript, and Go app resources, including provider-announced layout
   choices, resource-scoped upload/validate/apply flow, Resource Manager-owned
-  artifact allocation markers, optional current artifact revision references,
+  artifact allocation markers, optional artifact source metadata,
   and read-only source display for launcher-authored or host graph-builder
   resources.
-- Blocked start and restart readiness for application resources that have
-  `artifacts.enabled` without an accepted `artifacts.source`, so Resource
-  Manager reports a clear missing-artifact-source reason before execution.
+- Changed application artifact readiness so `artifacts.enabled` allocates a
+  provider-owned resource artifact folder without requiring `artifacts.source`;
+  providers now refuse start with runtime diagnostics when that folder does not
+  contain a valid runnable layout.
+- Added host-side ASP.NET Core `dotnetPublishedOutput` artifact support,
+  including ZIP package validation, resource artifact folder materialization on
+  start when source metadata is present, and `dotnet <assembly>.dll` process
+  startup from the materialized folder.
 - Preserved typed projected attributes when Resource Manager uploads a new
   application artifact for an existing resource, preventing scalar booleans
   such as .NET hot-reload settings from being reapplied as strings.
+- Required Resource Manager application artifact creation to upload and
+  validate an acceptable package before applying the resource definition.
+- Documented that successfully applying a new accepted application artifact
+  package advances the resource revision, while uploading bytes alone does not.
 
 ### 2026-07-10
 

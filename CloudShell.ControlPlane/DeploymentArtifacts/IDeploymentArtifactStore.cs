@@ -2,7 +2,7 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ControlPlane.DeploymentArtifacts;
 
-public interface IDeploymentArtifactStore
+public interface IDeploymentArtifactStore : IDeploymentArtifactContentStore
 {
     DeploymentArtifactStoreStatus GetStatus();
 
@@ -32,4 +32,11 @@ public interface IDeploymentArtifactStore
         string artifactId,
         string revisionId,
         CancellationToken cancellationToken = default);
+
+    Task<Stream> IDeploymentArtifactContentStore.OpenDeploymentArtifactContentAsync(
+        string resourceId,
+        string artifactId,
+        string revisionId,
+        CancellationToken cancellationToken) =>
+        OpenRevisionContentAsync(resourceId, artifactId, revisionId, cancellationToken);
 }

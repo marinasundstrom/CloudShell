@@ -26,14 +26,16 @@ creation or editing in hosted or team-owned environments where package bytes
 must be uploaded, stored, validated, versioned, and handed to the resource
 provider.
 
-CloudShell should store deployment artifacts and expose stable artifact
-revision references while keeping the physical artifact store behind Control
-Plane host configuration. The resource definition should choose either local
-source mode or deployment-artifact mode. In deployment-artifact mode, the
-definition carries an allocation flag for the host-managed artifact/data folder
-and may optionally reference the currently accepted artifact revision. The
-resource provider, not the generic artifact store, owns what that artifact
-means and how it is materialized during start, restart, or deployment.
+CloudShell should store deployment artifacts behind Control Plane host
+configuration while resource definitions expose only the selected artifact
+mode. The resource definition should choose either local source mode or
+deployment-artifact mode. In deployment-artifact mode, the definition carries
+an allocation flag for the host-managed artifact/data folder and the provider
+looks in that folder for runnable artifacts by convention.
+`artifacts.source` is optional source metadata for future pull/download flows,
+not a required pointer to the current local artifact. The resource provider,
+not the generic artifact store, owns what the folder layout means and how it is
+materialized during start, restart, or deployment.
 
 The public route shape is resource-scoped and uses `/resources/{resourceId}/artifacts/...`.
 The current contracts still use deployment-artifact names internally. A later
@@ -58,8 +60,8 @@ That assumption breaks in these scenarios:
 - A provider needs to validate package size, checksum, file type, artifact
   layout, or build requirements before replacing the currently running
   deployment input.
-- Restarting an app after upload must not disturb the previous running
-  revision if upload or validation fails.
+- Restarting an app after upload must not disturb the previous runnable
+  artifact folder contents if upload or validation fails.
 
 The deployment-artifact workflow must therefore be a Control Plane capability,
 not a UI-only convenience and not a path string in resource attributes.
@@ -74,11 +76,11 @@ not a UI-only convenience and not a path string in resource attributes.
   mode while requiring each resource definition to choose exactly one mode.
 - Keep the physical artifact store configured by the Control Plane host, not
   authored into resource definitions.
-- Give resources stable artifact references such as an artifact revision id,
-  content hash, package kind, provider-owned artifact layout kind, and optional
-  entry path, without exposing the store root path.
+- Give resources stable artifact-folder mode and optional source metadata
+  without exposing the store root path.
 - Make upload, validation, apply, and restart/deploy distinct domain steps so
-  failed uploads do not affect the currently accepted application revision.
+  failed uploads do not replace known-good runnable content in the resource
+  artifact folder.
 - Support split hosting and remote Control Plane clients through the same API
   shape the Resource Manager UI uses.
 - Keep artifact storage provider-extensible so local filesystem storage can be
@@ -108,8 +110,8 @@ modes for resource types that support both:
 | Mode | Meaning | Normal authoring surface |
 | --- | --- | --- |
 | Local source | The runtime host can read source, project, script, or build files directly from a path. The provider owns the path fields and local runner behavior. | Programmatic declarations, launchers, local-development host profiles, or trusted host-path automation. |
-| Application artifact | The resource activates host-managed artifact/data-folder allocation. The caller may provide package bytes through a Control Plane artifact upload flow, and the resource stores an accepted artifact revision reference when one exists. The provider owns artifact interpretation and materialization. | Resource Manager create/edit UI, remote clients, hosted/team-owned environments, and automation that cannot rely on host-local paths. |
-| External artifact source | The provider or Control Plane can later download or pull application artifacts from a supported source into a supported host target. | Future source-control, object-store, registry, or CI artifact integrations. |
+| Application artifact | The resource activates host-managed artifact/data-folder allocation. The provider looks in that folder for runnable content by convention. The caller may provide package bytes through a Control Plane artifact upload flow, and the host places or materializes those bytes into the resource artifact folder. | Resource Manager create/edit UI, remote clients, hosted/team-owned environments, and automation that cannot rely on host-local paths. |
+| External artifact source | Optional `artifacts.source` metadata can later tell the provider or Control Plane where to download or pull application artifacts before placing them in the resource artifact folder. | Future source-control, object-store, registry, Artifactory, or CI artifact integrations. |
 
 A resource type may support both modes, but a single resource definition should
 select one. For example, a .NET web app resource might run from a local
@@ -123,7 +125,7 @@ The common reference kinds should be:
 | Kind | Meaning | Resource state |
 | --- | --- | --- |
 | `localPath` | The runtime host can read a path directly. Best for combined-host local development and trusted host-local automation. It is allowed only when the host runs in local-development mode or the actor has explicit permission to reference host paths on the target host. | Relative or absolute path plus working directory rules owned by the provider. |
-| `uploadedArtifact` | The caller uploaded a package through the Control Plane artifact API. | Artifact revision reference, package kind, hash, and optional entry path. |
+| `uploadedArtifact` | The caller uploaded a package through the Control Plane artifact API. | `artifacts.enabled` plus host-managed folder content; optional source metadata only when the host needs to pull or materialize content later. |
 | `git` | The runtime/provider can fetch source from a repository. | Repository URL, ref, path, and credential reference when supported. |
 | `containerImage` | The app runs from an already built image. | Image reference and registry credential reference when supported. |
 
@@ -147,15 +149,19 @@ An artifact-mode resource can exist before the first artifact upload. That
 state is useful because the Control Plane can allocate the resource artifact
 folder and Resource Manager can later upload a replacement package through the
 same resource-scoped API. The resource definition is valid, but lifecycle
-operations that need runnable application bytes must fail or report not-ready
-until a valid artifact revision has been accepted.
+operations that need runnable application bytes must fail with provider-owned
+diagnostics when the resource artifact folder does not contain a valid layout.
+When `artifacts.source` is present, the provider should pull or materialize
+that source into the resource artifact folder when the resource is first
+started, not while the ResourceDefinition is merely accepted.
 
 The common resource attributes for this mode are:
 
 - `artifacts.enabled`: `true` when the resource uses a host-managed artifact or
   data folder instead of a provider-owned local source path.
-- `artifacts.source`: optional current artifact source reference, populated
-  after an artifact revision has been uploaded, validated, and accepted.
+- `artifacts.source`: optional source metadata describing where the host can
+  pull or download artifacts from before placing them in the resource artifact
+  folder. Direct upload to the host does not require this attribute.
 
 ## Package Kind and Artifact Layout
 
@@ -262,7 +268,7 @@ authoring permission.
 The same distinction can apply to other ecosystems. A Python project resource
 can remain useful for local source-on-disk development, while a hosted Python
 app resource can load from an uploaded deployment artifact or Git source and
-materialize that revision on the runtime host.
+materialize that content on the runtime host.
 
 ## Artifact Store Configuration
 
@@ -301,61 +307,57 @@ then enable or disable upload UI without knowing the concrete store path.
 ## ResourceDefinition Shape
 
 The resource definition should carry only the selected mode, the host-managed
-artifact allocation flag, and optional deployment artifact reference, not the
-store location. A sketch:
+artifact allocation flag, and optional source metadata, not the store
+location. The normal direct-upload shape is intentionally small:
 
 ```yaml
 resources:
-  - type: application.python-app
+  - type: application.aspnet-core-project
+    name: api
+    attributes:
+      application.source.kind: uploadedArtifact
+      application.source.owner: resource-manager-ui
+      artifacts.enabled: true
+    endpoints:
+      - name: http
+        targetPort: 8080
+```
+
+Advanced source metadata can be added later without changing the folder
+contract:
+
+```yaml
+resources:
+  - type: application.aspnet-core-project
     name: api
     attributes:
       application.source.kind: uploadedArtifact
       application.source.owner: resource-manager-ui
       artifacts.enabled: true
       artifacts.source:
-        artifactId: artifact-api
-        revisionId: 20260711T120000Z
-        packageKind: zip
-        artifactLayoutKind: pythonSourceDirectory
-        contentSha256: 4f6b...
-        sizeBytes: 20480
-        entryPath: .
-    python:
-      module: app
-    endpoints:
-      - name: http
-        targetPort: 8000
+        kind: githubRelease
+        repository: example/api
+        tag: v1.2.3
+        asset: api-linux-x64.zip
+        artifactLayoutKind: dotnetPublishedOutput
 ```
 
-Before the first upload, the same artifact-mode resource can omit
-`artifacts.source`:
-
-```yaml
-resources:
-  - type: application.python-app
-    name: api
-    attributes:
-      application.source.kind: uploadedArtifact
-      application.source.owner: resource-manager-ui
-      artifacts.enabled: true
-```
-
-The exact provider-specific fields can evolve while the common artifact
-reference is being proven. The important contract is that `artifacts.source`
-points to an artifact revision identity accepted by the Control Plane, not to
-`Data/deployment-artifacts/...`.
+The exact source fields can evolve while the common folder contract is being
+proven. The important contract is that neither `artifacts.enabled` nor
+`artifacts.source` exposes `Data/deployment-artifacts/...` or any other
+host-local store path.
 
 For app resources such as future .NET web apps or hosted Python apps, the
 deployment descriptor chooses the mode:
 
 - local source mode uses provider-owned path fields, such as project path,
   script path, or working directory
-- application artifact mode gives the provider an artifact revision and
-  optional artifact layout and entry path when an artifact has been accepted;
-  the physical host storage path remains Control Plane-owned
-- external artifact source mode is deferred and will describe where the host
-  can download or pull artifacts from before storing them in a supported host
-  target
+- application artifact mode gives the provider a resource artifact folder and
+  provider-owned conventions for locating executable content; the physical
+  host storage path remains Control Plane-owned
+- external artifact source metadata is deferred and will describe where the
+  host can download or pull artifacts from before placing them in the resource
+  artifact folder
 
 ## Upload API Flow
 
@@ -377,11 +379,11 @@ sequenceDiagram
     CP->>CP: Validate size, hash, package shape
     UI->>CP: Complete upload session
     CP->>Store: Commit artifact revision
-    CP->>UI: Artifact revision reference
-    UI->>CP: Apply ResourceDefinition with artifact revision
-    CP->>Provider: Validate artifact layout and accept deployment artifact
+    UI->>CP: Validate artifact layout
+    UI->>CP: Apply ResourceDefinition with artifacts.enabled and optional source
     UI->>CP: Optional Start, Restart, or Deploy
-    Provider->>Runtime: Materialize accepted revision
+    Provider->>Runtime: Pull or materialize source into resource artifact folder when needed
+    Provider->>Runtime: Look in resource artifact folder by convention
 ```
 
 The first HTTP API is resource-scoped and Control Plane-hosted:
@@ -419,25 +421,32 @@ The intended flow is:
 
 1. Upload package bytes.
 2. Complete and validate the upload.
-3. Apply a `ResourceDefinition` update that references the new artifact
-   revision.
+3. Apply a `ResourceDefinition` update that enables the resource artifact
+   folder and, when needed, records optional source metadata.
 4. Optionally start, restart, or deploy the resource.
+
+Uploading a package does not by itself create a new resource revision. A
+successful apply of a new accepted artifact package does count as a resource
+revision, even when the resource stays in artifact-folder mode. That revision
+is the audit and rollback boundary for “this resource now points at this
+accepted artifact package or source metadata.”
 
 Any accepted application artifact must eventually be materialized onto the
 runtime host or into the host's runtime substrate before the app can run. Direct
 upload only changes how bytes enter the host artifact store; provider
-materialization still owns how a revision becomes a runnable app.
+materialization still owns how stored or pulled content becomes a runnable app.
 
 Resource Manager can expose this as one guided workflow, but the domain steps
-should stay separate. This avoids replacing a known-good artifact revision with a
-failed upload and lets automation choose when to roll forward.
+should stay separate. This avoids replacing known-good resource artifact folder
+contents with a failed upload and lets automation choose when to roll forward.
 
-`Restart` should restart the currently accepted revision. Applying a new
-artifact revision and then restarting or deploying it is a separate update
-workflow. Container apps may route this through deployment planning and
-environment revision records. Process-backed app resources may initially stop
-and start after accepting the new artifact revision, but they should still
-record which artifact revision is running when that state is observable.
+`Restart` should restart whatever valid artifact content is present in the
+resource artifact folder. Uploading or pulling new content and then restarting
+or deploying it is a separate update workflow. Container apps may route this
+through deployment planning and environment revision records. Process-backed
+app resources may initially stop and start after new content is accepted, but
+they should still record the running artifact identity when that state is
+observable.
 
 ## Resource Manager Create and Edit UI
 
@@ -451,20 +460,21 @@ section:
   must be able to read them. Hide or disable this option unless the host is a
   local-development host or the actor has host-path authoring permission.
 - For upload package, show package selection, upload progress, validation
-  result, artifact revision, and whether the resource definition has been
-  updated to use it.
+  result, and whether the resource definition has `artifacts.enabled`. Resource
+  Manager-created artifact-mode resources should require an acceptable upload
+  before creation.
 - For image-backed apps, show image reference and registry credential
   reference where supported.
 - Keep start-after-create and restart-after-update as explicit options after
-  the artifact revision has been accepted.
+  the artifact package has been accepted.
 
 The UI should call domain/API operations. It should not inspect or write the
 artifact store path directly, even in a combined host.
 
 For resources declared by launchers or host graph builders, source settings are
 host-owned. Resource Manager should show the selected source mode, project path,
-or accepted artifact revision as read-only and must not offer upload or path
-editing unless the resource was created through Resource Manager artifact mode
+artifact folder mode, or optional source metadata as read-only and must not
+offer upload or path editing unless the resource was created through Resource Manager artifact mode
 or another caller explicitly marked the source as Resource Manager-owned.
 
 ## Security and Authorization
@@ -511,11 +521,11 @@ Resource providers that support uploaded deployment artifacts should document:
 - whether the provider builds from source, runs from source, or expects a
   prebuilt artifact inside the package
 - whether artifact updates can be applied while running or require restart
-- how the running artifact revision is projected
-- which diagnostics are returned for missing artifact revisions, incompatible
+- how the running artifact identity is projected
+- which diagnostics are returned for missing artifact content, incompatible
   package layout, build failure, and runtime materialization failure
 - how logs, traces, metrics, health, and deployment records identify the source
-  artifact revision when available
+  artifact identity when available
 
 ## Implementation Slices
 
@@ -537,8 +547,8 @@ Resource providers that support uploaded deployment artifacts should document:
    application artifact resources while keeping launcher/graph-builder sources
    read-only.
 8. Add runtime materialization and start/restart-after-update workflow wiring
-   while keeping upload,
-   apply, and lifecycle actions distinct.
+   so providers look in allocated resource artifact folders by convention while
+   keeping upload, apply, and lifecycle actions distinct.
 9. Add future external artifact source transfer modes for pulling artifacts
    from repositories, object stores, registries, or CI artifact systems into
    a supported host target.

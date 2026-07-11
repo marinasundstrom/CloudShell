@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ControlPlane.Providers;
 
@@ -64,10 +65,14 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
         StringComparer.OrdinalIgnoreCase);
     private readonly AspNetCoreProjectProcessCommandFactory _commands = new();
     private readonly IReadOnlyList<IAspNetCoreProjectRuntimeEnvironmentProvider> _environmentProviders;
+    private readonly IApplicationArtifactMaterializer? _artifactMaterializer;
+    private readonly IApplicationArtifactFolderResolver _artifactFolderResolver;
 
     public AspNetCoreProjectProcessRuntimeController(
         ResourceGraphModel? graphModel = null,
-        IEnumerable<IAspNetCoreProjectRuntimeEnvironmentProvider>? environmentProviders = null)
+        IEnumerable<IAspNetCoreProjectRuntimeEnvironmentProvider>? environmentProviders = null,
+        IApplicationArtifactMaterializer? artifactMaterializer = null,
+        IApplicationArtifactFolderResolver? artifactFolderResolver = null)
     {
         var providers = (environmentProviders ?? []).ToList();
         if (graphModel is not null &&
@@ -79,6 +84,8 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
         }
 
         _environmentProviders = providers;
+        _artifactMaterializer = artifactMaterializer;
+        _artifactFolderResolver = artifactFolderResolver ?? new ApplicationArtifactFolderResolver();
     }
 
     public AspNetCoreProjectRuntimeStatus GetStatus(Resource resource)
@@ -180,6 +187,11 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             return [];
         }
 
+        if (ApplicationArtifactResourceValidation.UsesUploadedArtifact(resource.Attributes))
+        {
+            return await StartArtifactAsync(resource, cancellationToken);
+        }
+
         var projectPath = resource.Attributes.GetString(
             AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath);
         if (string.IsNullOrWhiteSpace(projectPath))
@@ -232,6 +244,100 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             resource,
             fullProjectPath,
             derivedEnvironmentVariables);
+
+        return StartProcess(resource, startInfo, output);
+    }
+
+    private async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> StartArtifactAsync(
+        Resource resource,
+        CancellationToken cancellationToken)
+    {
+        var artifact = resource.Attributes.GetObject<ApplicationArtifactReference>(
+            ApplicationArtifactAttributeIds.Source);
+        var artifactFolder = _artifactFolderResolver.GetArtifactFolder(resource);
+
+        if (artifact is not null)
+        {
+            if (_artifactMaterializer is null)
+            {
+                return
+                [
+                    ResourceDefinitionDiagnostic.Error(
+                        "application.artifact.materializerUnavailable",
+                        "Application artifact source content is not available on this host.",
+                        resource.EffectiveResourceId)
+                ];
+            }
+
+            if (!string.Equals(
+                    artifact.ArtifactLayoutKind,
+                    "dotnetPublishedOutput",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return
+                [
+                    ResourceDefinitionDiagnostic.Error(
+                        "application.aspNetCoreProject.artifactLayoutUnsupported",
+                        $"ASP.NET Core artifact layout '{artifact.ArtifactLayoutKind ?? "default"}' cannot be started by the local runtime.",
+                        ApplicationArtifactAttributeIds.Source)
+                ];
+            }
+
+            try
+            {
+                var materialization = await _artifactMaterializer.MaterializeAsync(
+                    resource,
+                    artifact,
+                    artifactFolder,
+                    cancellationToken);
+                artifactFolder = materialization.EntryPath;
+            }
+            catch (Exception exception) when (exception is InvalidDataException or FileNotFoundException or InvalidOperationException)
+            {
+                return
+                [
+                    ResourceDefinitionDiagnostic.Error(
+                        "application.artifact.materializationFailed",
+                        exception.Message,
+                        ApplicationArtifactAttributeIds.Source)
+                ];
+            }
+        }
+
+        var applicationAssemblyPath = ResolvePublishedOutputAssembly(
+            artifactFolder,
+            resource);
+        if (applicationAssemblyPath is null)
+        {
+            return
+            [
+                ResourceDefinitionDiagnostic.Error(
+                    "application.aspNetCoreProject.publishedAssemblyMissing",
+                    $"ASP.NET Core resource artifact folder '{artifactFolder}' does not contain a runnable published output assembly.",
+                    ResourceAttributeNames.ArtifactsEnabled)
+            ];
+        }
+
+        var output = _output.GetOrAdd(
+            resource.EffectiveResourceId,
+            _ => new BoundedRuntimeOutputBuffer());
+        output.Clear();
+
+        var derivedEnvironmentVariables =
+            await ResolveRuntimeEnvironmentVariablesAsync(resource, cancellationToken);
+        var startInfo = _commands.CreatePublishedOutputStartInfo(
+            resource,
+            applicationAssemblyPath,
+            derivedEnvironmentVariables);
+
+        return StartProcess(resource, startInfo, output);
+    }
+
+    private IReadOnlyList<ResourceDefinitionDiagnostic> StartProcess(
+        Resource resource,
+        ProcessStartInfo startInfo,
+        BoundedRuntimeOutputBuffer output)
+    {
         var process = new Process
         {
             StartInfo = startInfo,
@@ -265,6 +371,48 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             });
 
         return [];
+    }
+
+    private static string? ResolvePublishedOutputAssembly(
+        string entryPath,
+        Resource resource)
+    {
+        if (File.Exists(entryPath) &&
+            string.Equals(Path.GetExtension(entryPath), ".dll", StringComparison.OrdinalIgnoreCase))
+        {
+            return entryPath;
+        }
+
+        if (!Directory.Exists(entryPath))
+        {
+            return null;
+        }
+
+        var runtimeConfigFiles = Directory
+            .EnumerateFiles(entryPath, "*.runtimeconfig.json", SearchOption.TopDirectoryOnly)
+            .Where(path => !Path.GetFileName(path).Contains("StaticWebAssets", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        foreach (var runtimeConfigFile in runtimeConfigFiles)
+        {
+            var candidate = Path.Combine(
+                entryPath,
+                Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(runtimeConfigFile)) + ".dll");
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        var resourceNamedAssembly = Path.Combine(entryPath, resource.Name + ".dll");
+        if (File.Exists(resourceNamedAssembly))
+        {
+            return resourceNamedAssembly;
+        }
+
+        var assemblies = Directory
+            .EnumerateFiles(entryPath, "*.dll", SearchOption.TopDirectoryOnly)
+            .ToArray();
+        return assemblies.Length == 1 ? assemblies[0] : null;
     }
 
     private static async ValueTask<IReadOnlyList<ResourceDefinitionDiagnostic>> BuildProjectAsync(
