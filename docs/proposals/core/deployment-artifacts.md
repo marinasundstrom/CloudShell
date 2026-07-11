@@ -240,30 +240,27 @@ for every resource type.
 
 ## Project Resources and Hosted App Resources
 
-The existing project resource types, such as
-`application.dotnet-app`, are still valuable for local development.
-They represent a project on a host-readable filesystem and can use development
+Project-backed declarations are still valuable for local development. They
+represent source on a host-readable filesystem and can use development
 behaviors such as `dotnet run`, `dotnet watch`, launch-settings endpoint
 loading, and source directories that change while the developer works.
 
-Hosted artifact loading should not force those project resources to become the
-general deployment model. CloudShell should introduce app resource types when
-the resource can represent an application loaded from an accepted deployment
-artifact rather than a live project directory. For .NET, that
-likely means separate types such as:
+Hosted artifact loading should not make local project paths the general UI
+deployment model. App resource types can support both local-source mode and
+application artifact mode, but Resource Manager-created app resources should
+default to artifact mode. For .NET, the intended type split is:
 
 | Type | Purpose |
 | --- | --- |
-| `application.dotnet-app` | A .NET application loaded from local source mode or from a provider-validated deployment artifact. |
+| `application.dotnet-app` | A .NET application loaded from local source mode or from a provider-validated application artifact. |
 | `application.dotnet-web-app` | A .NET web application loaded from local source mode or from a provider-validated deployment artifact, with web endpoint defaults and ASP.NET Core runtime conventions. |
-| `application.dotnet-app` | A local-development project resource that runs from a host-readable project path. |
 
 The exact type IDs should be confirmed when the provider is implemented. The
-product boundary should be clear: project resources are for project-on-disk
-development, while app resources can support deployment-artifact mode. A
-hosted create/edit UI should default to the app resource type. It may still
-expose local source mode in local-development hosts or to users with host-path
-authoring permission.
+product boundary should be clear: local-source attributes such as
+`project.path` and `executablePath` are for local development or explicitly
+trusted host-path automation, while Resource Manager create/edit UI uses
+application artifacts. Launcher-authored and graph-builder-authored paths are
+owned by that declaration source and are not edited through Resource Manager.
 
 The same distinction can apply to other ecosystems. A Python project resource
 can remain useful for local source-on-disk development, while a hosted Python
@@ -347,11 +344,13 @@ proven. The important contract is that neither `artifacts.enabled` nor
 `artifacts.source` exposes `Data/deployment-artifacts/...` or any other
 host-local store path.
 
-For app resources such as future .NET web apps or hosted Python apps, the
-deployment descriptor chooses the mode:
+For app resources such as .NET apps or hosted Python apps, the resource
+definition chooses the mode:
 
 - local source mode uses provider-owned path fields, such as project path,
-  script path, or working directory
+  executable path, script path, or working directory; these fields are
+  privileged host-readable inputs and are disabled on remote hosted Resource
+  Manager surfaces unless explicitly permitted
 - application artifact mode gives the provider a resource artifact folder and
   provider-owned conventions for locating executable content; the physical
   host storage path remains Control Plane-owned
@@ -485,9 +484,10 @@ runtime host or into the host's runtime substrate before the app can run. Direct
 upload only changes how bytes enter the host artifact store; provider
 materialization still owns how stored or pulled content becomes a runnable app.
 
-Resource Manager can expose this as one guided workflow, but the domain steps
-should stay separate. This avoids replacing known-good resource artifact folder
-contents with a failed upload and lets automation choose when to roll forward.
+Resource Manager can expose artifact upload or future source download as one
+guided workflow, but the domain steps should stay separate. This avoids
+replacing known-good resource artifact folder contents with a failed upload and
+lets automation choose when to roll forward.
 
 `Restart` should restart whatever valid artifact content is present in the
 resource artifact folder. Uploading or pulling new content and then restarting
@@ -499,15 +499,17 @@ observable.
 
 ## Resource Manager Create and Edit UI
 
-The application create/edit UI should present deployment mode as an explicit
-section:
+The application create/edit UI should treat application artifacts as the
+standard mode for UI-created resources:
 
-- Mode: local source, uploaded deployment artifact, image, or future Git.
+- Mode: uploaded application artifact or future provider-supported download
+  source such as Git, object storage, Artifactory, or CI artifact.
 - Upload layout: provider-supported layouts such as compiled/published app
   package or source directory package.
-- For host-readable paths, show path fields and a note that the target host
-  must be able to read them. Hide or disable this option unless the host is a
-  local-development host or the actor has host-path authoring permission.
+- Do not include host-readable local path fields in the standard Resource
+  Manager application create/edit flow. Local-source paths are authored by
+  launchers, graph builders, local-development host profiles, or trusted
+  automation outside the browser artifact workflow.
 - For upload package, show package selection, upload progress, validation
   result, and whether the resource definition has `artifacts.enabled`. Resource
   Manager-created artifact-mode resources should require an acceptable upload
@@ -521,10 +523,13 @@ The UI should call domain/API operations. It should not inspect or write the
 artifact store path directly, even in a combined host.
 
 For resources declared by launchers or host graph builders, source settings are
-host-owned. Resource Manager should show the selected source mode, project path,
-artifact folder mode, or optional source metadata as read-only and must not
-offer upload or path editing unless the resource was created through Resource Manager artifact mode
-or another caller explicitly marked the source as Resource Manager-owned.
+host-owned. Resource Manager should show artifact folder mode and optional
+artifact source metadata for artifact-mode resources, and may show local-source
+paths only as read-only diagnostic/source information where that is safe for
+the environment. It must not offer path editing for launcher-owned or
+graph-builder-owned resources. It must not offer artifact upload editing unless
+the resource was created through Resource Manager artifact mode or another
+caller explicitly marked the artifact source as Resource Manager-owned.
 
 ## Security and Authorization
 
@@ -534,14 +539,14 @@ the environment grants that capability.
 
 Local-path source also requires explicit gating. A user who can edit an
 application resource must not automatically be allowed to point a hosted
-runtime at arbitrary host filesystem paths. The Control Plane should accept
-`localPath` only when one of these is true:
-
-- the target host profile advertises local-development mode
-- the actor has a host-path authoring permission for the target host or
-  environment
-- a trusted automation identity with equivalent permission applies the
-  definition
+runtime at arbitrary host filesystem paths. The current Control Plane accepts
+local path attributes in ResourceDefinitions only when
+`ResourceManager:AllowLocalPathResourceDefinitions` is enabled. That option is
+for trusted local development hosts, such as `CloudShell.LocalDevelopmentHost`
+and `CloudShell.Host` development settings, where the launcher and host share
+the same filesystem trust boundary. Future host-path authoring can replace or
+extend this with per-host or per-environment permissions for trusted
+automation identities.
 
 The Control Plane should enforce:
 

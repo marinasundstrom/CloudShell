@@ -88,6 +88,11 @@ on `git blame --follow`, and then by the broad type of change.
 - Guarded `.NET app` YAML serialization so local-source `executablePath`
   remains a flat resource-type-local attribute, separate from application
   artifact upload semantics.
+- Added `ResourceManager:AllowLocalPathResourceDefinitions` to gate
+  host-readable local path attributes such as `project.path` and
+  `executablePath` during ResourceDefinition apply; hosted defaults keep it
+  disabled while local development hosts enable it for launcher-authored
+  graphs.
 - Clarified resource attribute naming guidance so resource-type-local
   attributes prefer flat lower-camel names and use dotted names only for
   intentional shared namespaces or ResourceDefinition document groups.

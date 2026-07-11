@@ -1049,6 +1049,7 @@ public static class ResourceDefinitionDiagnosticCodes
     public const string ResourceGraphResourceMissing = "resourceDefinition.graphResourceMissing";
     public const string ResourceGraphResourceAlreadyExists = "resourceDefinition.graphResourceAlreadyExists";
     public const string ResourceDefinitionTargetAmbiguous = "resourceDefinition.targetAmbiguous";
+    public const string LocalPathResourceDefinitionNotAllowed = "resourceDefinition.localPathNotAllowed";
     public const string ResourceDefinitionIdentityChangeNotAllowed = "resourceDefinition.identityChangeNotAllowed";
     public const string ResourceDependencyCycle = "resourceDefinition.dependencyCycle";
     public const string ResourceCapabilityProjectionMissing = "resourceDefinition.capabilityProjectionMissing";

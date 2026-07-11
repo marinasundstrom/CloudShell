@@ -9,4 +9,6 @@ public sealed class ResourceManagerOptions
     public int? HealthCheckIntervalSeconds { get; set; }
 
     public DependencyStartFailureBehavior? DependencyStartFailureBehavior { get; set; }
+
+    public bool AllowLocalPathResourceDefinitions { get; set; }
 }

@@ -14,10 +14,13 @@ using CloudShell.ControlPlane.ResourceManager.Platform;
 using CloudShell.ControlPlane.ResourceManager.Recovery;
 using CloudShell.ControlPlane.ResourceModel;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
 using System.Globalization;
 using System.Security.Claims;
 using System.Text.Json;
+using ResourceAttributeValue = CloudShell.ResourceModel.ResourceAttributeValue;
 using ResourceDefinition = CloudShell.ResourceModel.ResourceDefinition;
+using ResourceDefinitionDiagnosticCodes = CloudShell.ResourceModel.ResourceDefinitionDiagnosticCodes;
 using ResourceDefinitionDiagnostic = CloudShell.ResourceModel.ResourceDefinitionDiagnostic;
 using ResourceDefinitionDiagnosticSeverity = CloudShell.ResourceModel.ResourceDefinitionDiagnosticSeverity;
 using ResourceDefinitionTemplate = CloudShell.ResourceModel.ResourceTemplate;
@@ -56,15 +59,29 @@ public sealed class InProcessControlPlane(
     ResourceOrchestratorDeploymentCleanupCoordinator? deploymentCleanup = null,
     IDeploymentArtifactStore? deploymentArtifacts = null,
     IEnumerable<IDeploymentArtifactLayoutProvider>? deploymentArtifactLayoutProviders = null,
-    IEnumerable<IDeploymentArtifactValidationProvider>? deploymentArtifactValidationProviders = null) : IControlPlane
+    IEnumerable<IDeploymentArtifactValidationProvider>? deploymentArtifactValidationProviders = null,
+    IOptions<ResourceManagerOptions>? resourceManagerOptions = null) : IControlPlane
 {
     private const string PreferredUsernameClaimType = "preferred_username";
     private const string UnauthenticatedRequestActor = "user";
     private const string RecoveryTriggeredBy = "recovery";
     private const string LivenessTriggeredBy = "liveness";
     private const string ReplicaManagementTriggeredBy = "replica-management";
+    private const string ApplicationDotnetAppType = "application.dotnet-app";
+    private const string ApplicationPythonAppType = "application.python-app";
+    private const string ApplicationJavaAppType = "application.java-app";
+    private const string ApplicationJavaScriptAppType = "application.javascript-app";
+    private const string ApplicationGoAppType = "application.go-app";
+    private const string ApplicationExecutableType = "application.executable";
+    private const string ApplicationContainerAppType = "application.container-app";
+    private const string ProjectPathAttribute = "project.path";
+    private const string DotnetExecutablePathAttribute = "executablePath";
+    private const string ExecutablePathAttribute = "path";
 
     public event EventHandler<ResourceChangeNotification>? ResourcesChanged;
+
+    private readonly ResourceManagerOptions resourceManagerOptions =
+        resourceManagerOptions?.Value ?? new ResourceManagerOptions();
 
     private readonly ResourceIdentityProviderCatalog identityProviders =
         identityProviders ?? new ResourceIdentityProviderCatalog();
@@ -1104,6 +1121,15 @@ public sealed class InProcessControlPlane(
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(request.Template);
+        var localPathDiagnostics = ValidateLocalPathResourceDefinitions(request.Template);
+        if (localPathDiagnostics.Count > 0)
+        {
+            return new ResourceTemplateApplyResult(
+                request.Template,
+                IsCommitted: false,
+                localPathDiagnostics);
+        }
+
         var apply = await templates.ApplyTemplateAsync(
             request.Template,
             new ResourceGraphCommitContext(
@@ -1133,6 +1159,55 @@ public sealed class InProcessControlPlane(
             apply.IsCommitted,
             diagnostics);
     }
+
+    private IReadOnlyList<ResourceDefinitionDiagnostic> ValidateLocalPathResourceDefinitions(
+        ResourceDefinitionTemplate template)
+    {
+        if (resourceManagerOptions.AllowLocalPathResourceDefinitions)
+        {
+            return [];
+        }
+
+        var diagnostics = new List<ResourceDefinitionDiagnostic>();
+        foreach (var definition in template.Resources)
+        {
+            foreach (var (attributeId, value) in definition.ResourceAttributeValues)
+            {
+                if (!IsLocalPathAttribute(definition.TypeId.Value, attributeId.Value) ||
+                    !HasMeaningfulValue(value))
+                {
+                    continue;
+                }
+
+                diagnostics.Add(ResourceDefinitionDiagnostic.Error(
+                    ResourceDefinitionDiagnosticCodes.LocalPathResourceDefinitionNotAllowed,
+                    $"Resource definition '{definition.EffectiveResourceId}' uses host-local path attribute '{attributeId}', but this Control Plane host does not allow local path resource definitions. Use application artifacts or enable ResourceManager:AllowLocalPathResourceDefinitions for a trusted local development host.",
+                    attributeId));
+            }
+        }
+
+        return diagnostics;
+    }
+
+    private static bool IsLocalPathAttribute(string resourceTypeId, string attributeId) =>
+        string.Equals(attributeId, ProjectPathAttribute, StringComparison.OrdinalIgnoreCase) &&
+            IsProjectPathResourceType(resourceTypeId) ||
+        string.Equals(resourceTypeId, ApplicationDotnetAppType, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(attributeId, DotnetExecutablePathAttribute, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(resourceTypeId, ApplicationExecutableType, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(attributeId, ExecutablePathAttribute, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsProjectPathResourceType(string resourceTypeId) =>
+        string.Equals(resourceTypeId, ApplicationDotnetAppType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(resourceTypeId, ApplicationPythonAppType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(resourceTypeId, ApplicationJavaAppType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(resourceTypeId, ApplicationJavaScriptAppType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(resourceTypeId, ApplicationGoAppType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(resourceTypeId, ApplicationContainerAppType, StringComparison.OrdinalIgnoreCase);
+
+    private static bool HasMeaningfulValue(ResourceAttributeValue value) =>
+        !value.TryGetScalarString(out var scalarValue) ||
+        !string.IsNullOrWhiteSpace(scalarValue);
 
     public Task<DeploymentArtifactStoreStatus> GetDeploymentArtifactStoreStatusAsync(
         string resourceId,

@@ -1,9 +1,9 @@
 # Application Resources
 
-CloudShell includes application resource types for local development machines.
-They project host-local workloads into Resource Manager while keeping
-provider-owned configuration and runtime state behind provider and runtime
-adapter boundaries.
+CloudShell includes application resource types for local development and
+Resource Manager-created workloads. They keep provider-owned configuration and
+runtime state behind provider and runtime adapter boundaries while separating
+trusted local-source declarations from host-managed application artifacts.
 
 Resource-type-specific guidance:
 
@@ -24,10 +24,29 @@ Resource-type-specific guidance:
 - [SQL Server resources](sql-server.md) for `application.sql-server`
   container-backed database resources.
 
-Application resources are primarily intended for local development:
-ASP.NET Core APIs, frontend dev servers, emulators, workers, containerized
-services, and similar host-local tools. They are not a deployment abstraction
-for remote infrastructure.
+Application resources support two different authoring modes. Local development
+declarations can point at host-readable source, project, executable, script, or
+build files when the launcher, Control Plane, and runtime host share the same
+trusted filesystem. Resource Manager-created application resources should use
+application artifact mode by default: the UI uploads a package, or later asks
+the host to download/pull one from a supported source, and the provider runs
+from the host-managed resource artifact folder.
+
+Local path attributes such as `project.path`, `executablePath`, script paths,
+Dockerfile paths, and working directories are privileged host-readable inputs.
+They are for local development, launchers, graph builders, host profiles, or
+explicit host-path automation. A remote or team-owned CloudShell host must not
+offer ordinary users a browser UI that writes these paths, because doing so
+would let user-authored resource definitions select files on the runtime host.
+Hosted Resource Manager create and edit flows should use upload or future
+download/pull artifact sources instead.
+
+The Control Plane enforces this boundary for ResourceDefinition apply through
+`ResourceManager:AllowLocalPathResourceDefinitions`. The default hosted
+configuration leaves it disabled. `CloudShell.Host` development settings and
+`CloudShell.LocalDevelopmentHost` enable it so launchers can submit
+`project.path`, `executablePath`, and other supported local-source path
+attributes to a trusted local host.
 
 Container application resources represent managed services in CloudShell. A
 container app should be the normal configuration surface for service endpoints,
@@ -171,10 +190,10 @@ replicas, runtime services, and other materialized implementation artifacts.
 
 Application resources still use the same Resource Manager graph model as any
 other resource. Provider-specific attributes describe executable, project,
-container, endpoint, health, observability, storage, and dependency intent.
-Concrete runtime behavior is supplied by host/runtime adapters for local
-processes, project execution, Docker containers, sidecar services, and future
-orchestrator controllers.
+container, endpoint, health, observability, storage, artifact, and dependency
+intent. Concrete runtime behavior is supplied by host/runtime adapters for
+local processes, project execution, artifact materialization, Docker
+containers, sidecar services, and future orchestrator controllers.
 
 ## Application Artifact Folders
 
@@ -185,11 +204,14 @@ the host allocates a resource artifact folder and the provider looks in that
 folder for runnable content by provider-owned convention.
 
 For Resource Manager-created artifact-mode resources, the create UI should
-require an acceptable upload before the resource is created. The Control Plane
-validates the package with the resource provider before accepting the resource
-definition. If a resource has `artifacts.enabled` but the resource artifact
-folder does not contain a valid runnable layout, start and restart fail with
-provider diagnostics instead of pretending the resource is ready.
+require an acceptable artifact before the resource is created. In the current
+MVP that means uploading a package directly to the host-managed artifact store.
+Future create flows can offer provider-supported source download or pull modes
+such as source-control releases, object storage, or package repositories. The
+Control Plane validates the package with the resource provider before accepting
+the resource definition. If a resource has `artifacts.enabled` but the resource
+artifact folder does not contain a valid runnable layout, start and restart
+fail with provider diagnostics instead of pretending the resource is ready.
 
 Uploading a package stages bytes in the host artifact store. Successfully
 applying an accepted package updates resource state and counts as a new
@@ -214,6 +236,13 @@ Manager UI and remote-management scenarios. Local launchers and
 local-development graph builders normally use local source paths or
 programmatic declarations instead, and Resource Manager treats those
 launcher-authored source settings as read-only.
+
+Resource Manager artifact-mode editors must not expose `project.path`,
+`executablePath`, or other provider local-path attributes as editable fields.
+Those attributes describe local-source mode, not the artifact mode. In
+artifact mode, the provider determines the executable, project, script, or
+entrypoint inside the resource artifact folder through provider-specific
+artifact layout conventions and validation.
 
 For Resource Manager-owned artifact resources, the application artifact editor
 lists stored artifact revisions for the current resource. Users can apply a
@@ -254,8 +283,10 @@ The first built-in runtime support is for ASP.NET Core
 `dotnetPublishedOutput` ZIP artifacts. The provider validates that the package
 contains a `.runtimeconfig.json` file and matching DLL, materializes the source
 into the resource artifact folder when needed, and starts it with
-`dotnet <assembly>.dll`. Source-directory build layouts remain a separate
-provider behavior.
+`dotnet <assembly>.dll`. That assembly path is discovered from the validated
+artifact layout inside the resource artifact folder; it is not taken from
+`executablePath`. Source-directory build layouts remain a separate provider
+behavior.
 
 Storage state is modeled separately from application resources. A volume
 resource owns the durable storage identity and provider-backed location, which

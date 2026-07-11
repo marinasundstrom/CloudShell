@@ -30,9 +30,17 @@ using System.Security.Claims;
 using System.Text.Json;
 using GraphResource = CloudShell.ResourceModel.Resource;
 using GraphResourceAttributeId = CloudShell.ResourceModel.ResourceAttributeId;
+using GraphResourceAttributeValue = CloudShell.ResourceModel.ResourceAttributeValue;
+using GraphResourceDefinition = CloudShell.ResourceModel.ResourceDefinition;
 using GraphResourceDefinitionDiagnostic = CloudShell.ResourceModel.ResourceDefinitionDiagnostic;
+using GraphResourceDefinitionDiagnosticCodes = CloudShell.ResourceModel.ResourceDefinitionDiagnosticCodes;
+using GraphResourceDefinitionApplyProvider = CloudShell.ResourceModel.IResourceDefinitionApplyProvider;
+using GraphResourceAttributeValueMap = CloudShell.ResourceModel.ResourceAttributeValueMap;
+using GraphResourceChangeApplyProvider = CloudShell.ResourceModel.IResourceChangeApplyProvider;
 using GraphResourceOperationId = CloudShell.ResourceModel.ResourceOperationId;
 using GraphResourceState = CloudShell.ResourceModel.ResourceState;
+using GraphResourceTemplate = CloudShell.ResourceModel.ResourceTemplate;
+using GraphResourceTypeProvider = CloudShell.ResourceModel.IResourceTypeProvider;
 
 namespace CloudShell.ControlPlane.Tests;
 
@@ -3277,6 +3285,64 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ApplyResourceTemplateAsync_RejectsLocalPathAttributesWhenHostOptionDisabled()
+    {
+        var controlPlane = CreateControlPlane(
+            [],
+            allowLocalPathResourceDefinitions: false);
+
+        var result = await controlPlane.ApplyResourceTemplateAsync(
+            CreateDotnetAppTemplate(
+                new Dictionary<GraphResourceAttributeId, GraphResourceAttributeValue>
+                {
+                    [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] = "src/API/API.csproj"
+                }));
+
+        Assert.False(result.IsCommitted);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(GraphResourceDefinitionDiagnosticCodes.LocalPathResourceDefinitionNotAllowed, diagnostic.Code);
+        Assert.Equal(AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath, diagnostic.Target);
+    }
+
+    [Fact]
+    public async Task ApplyResourceTemplateAsync_AllowsLocalPathAttributesWhenHostOptionEnabled()
+    {
+        var controlPlane = CreateControlPlane(
+            [CreateResource("application.dotnet-app:api", ResourceState.Stopped)],
+            allowLocalPathResourceDefinitions: true);
+
+        var result = await controlPlane.ApplyResourceTemplateAsync(
+            CreateDotnetAppTemplate(
+                new Dictionary<GraphResourceAttributeId, GraphResourceAttributeValue>
+                {
+                    [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath] = "src/API/API.csproj"
+                }));
+
+        Assert.True(result.IsCommitted, string.Join("; ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+    }
+
+    [Fact]
+    public async Task ApplyResourceTemplateAsync_AllowsArtifactModeWhenLocalPathAttributesDisabled()
+    {
+        var controlPlane = CreateControlPlane(
+            [CreateResource("application.dotnet-app:api", ResourceState.Stopped)],
+            allowLocalPathResourceDefinitions: false);
+
+        var result = await controlPlane.ApplyResourceTemplateAsync(
+            CreateDotnetAppTemplate(
+                new Dictionary<GraphResourceAttributeId, GraphResourceAttributeValue>
+                {
+                    [ApplicationArtifactAttributeIds.Enabled] = true,
+                    [ApplicationArtifactAttributeIds.SourceKind] =
+                        DeploymentArtifactSourceKinds.UploadedArtifact,
+                    [ApplicationArtifactAttributeIds.SourceOwner] =
+                        ApplicationArtifactAttributeIds.ResourceManagerUiSourceOwner
+                }));
+
+        Assert.True(result.IsCommitted, string.Join("; ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+    }
+
+    [Fact]
     public async Task CreateResourceAsync_UsesResourceTypeClassWhenCreationClassIsOmitted()
     {
         var provider = new TestResourceCreationProvider();
@@ -3702,7 +3768,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         IReadOnlyList<IResourceProbeEvaluator>? probeEvaluators = null,
         IResourceRecoveryStore? resourceRecoveryStore = null,
         IResourceOrchestratorDeploymentStore? deploymentStore = null,
-        IDeploymentArtifactStore? deploymentArtifactStore = null)
+        IDeploymentArtifactStore? deploymentArtifactStore = null,
+        bool allowLocalPathResourceDefinitions = true)
     {
         provider ??= new TestResourceProvider();
         return CreateControlPlaneHost(
@@ -3730,7 +3797,8 @@ public sealed class InProcessControlPlaneResourceStateTests
             identityDirectoryProviders,
             permissionGrantStatusProviders,
             deploymentStore,
-            deploymentArtifactStore).ControlPlane;
+            deploymentArtifactStore,
+            allowLocalPathResourceDefinitions).ControlPlane;
     }
 
     private static ControlPlaneTestHost CreateControlPlaneHost(
@@ -3758,7 +3826,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         IReadOnlyList<IResourceIdentityDirectoryProvider>? identityDirectoryProviders = null,
         IReadOnlyList<IResourcePermissionGrantStatusProvider>? permissionGrantStatusProviders = null,
         IResourceOrchestratorDeploymentStore? deploymentStore = null,
-        IDeploymentArtifactStore? deploymentArtifactStore = null)
+        IDeploymentArtifactStore? deploymentArtifactStore = null,
+        bool allowLocalPathResourceDefinitions = true)
     {
         provider ??= new TestResourceProvider();
         var registrations = new TestResourceRegistrationStore(
@@ -3849,7 +3918,11 @@ public sealed class InProcessControlPlaneResourceStateTests
             new ResourceIdentityProviderCatalog(identityProviders ?? []),
             identityDirectoryProviders ?? [],
             permissionGrantStatusProviders ?? [],
-            deploymentArtifacts: deploymentArtifactStore);
+            deploymentArtifacts: deploymentArtifactStore,
+            resourceManagerOptions: Options.Create(new ResourceManagerOptions
+            {
+                AllowLocalPathResourceDefinitions = allowLocalPathResourceDefinitions
+            }));
 
         return new ControlPlaneTestHost(controlPlane, replicaGroupReconciliation);
     }
@@ -3861,10 +3934,28 @@ public sealed class InProcessControlPlaneResourceStateTests
     private static ResourceDefinitionTemplateService CreateResourceDefinitionTemplateService()
     {
         var services = new ServiceCollection();
+        var dotnetAppProvider = new AspNetCoreProjectResourceTypeProvider();
         services.AddInMemoryResourceModelGraph();
+        services.AddSingleton(AspNetCoreProjectResourceTypeProvider.ClassDefinition);
+        services.AddSingleton<GraphResourceTypeProvider>(dotnetAppProvider);
+        services.AddSingleton<GraphResourceChangeApplyProvider>(dotnetAppProvider);
+        services.AddSingleton<GraphResourceDefinitionApplyProvider>(dotnetAppProvider);
         services.AddResourceModelGraphServices();
         return services.BuildServiceProvider().GetRequiredService<ResourceDefinitionTemplateService>();
     }
+
+    private static GraphResourceTemplate CreateDotnetAppTemplate(
+        IReadOnlyDictionary<GraphResourceAttributeId, GraphResourceAttributeValue> attributes) =>
+        new(
+            "local",
+            [
+                new GraphResourceDefinition(
+                    "api",
+                    AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+                    ResourceId: "application.dotnet-app:api",
+                    ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+                    Attributes: new GraphResourceAttributeValueMap(attributes))
+            ]);
 
     private static IHttpContextAccessor CreateHttpContextAccessor(params Claim[] claims)
     {

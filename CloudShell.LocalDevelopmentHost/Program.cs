@@ -183,6 +183,11 @@ static void AddLocalDevelopmentAuthenticationDefaults(
         defaults["Authentication:BuiltInAuthority:Enabled"] = "true";
     }
 
+    if (string.IsNullOrWhiteSpace(configuration["ResourceManager:AllowLocalPathResourceDefinitions"]))
+    {
+        defaults["ResourceManager:AllowLocalPathResourceDefinitions"] = "true";
+    }
+
     if (!authorityEnabled)
     {
         if (defaults.Count > 0)

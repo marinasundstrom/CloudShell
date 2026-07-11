@@ -1,15 +1,26 @@
 # .NET Applications
 
-Use the .NET app resource type for local .NET web projects and published
-assemblies. These resources project as `application.dotnet-app` and support
-either project mode through `project.path` or executable mode through the flat
-`executablePath` attribute.
+Use the .NET app resource type for .NET web projects and published assemblies.
+These resources project as `application.dotnet-app`. Local-source declarations
+can use project mode through `project.path` or executable mode through the flat
+`executablePath` attribute. Resource Manager-created .NET app resources should
+use application artifact mode instead, where the provider finds the entry
+assembly inside the host-managed resource artifact folder by artifact layout
+convention.
 
 .NET app resources are not plain executable application resources. They are
-.NET-specific application resources with a provider-owned process runner.
-Resource Manager shows the selected source shape, while the provider hides the
-generated `dotnet build`, `dotnet run`, `dotnet watch`, or `dotnet <assembly>`
-command used to host the app.
+.NET-specific application resources with a provider-owned process runner. The
+provider hides the generated `dotnet build`, `dotnet run`, `dotnet watch`, or
+`dotnet <assembly>` command used to host the app.
+
+`project.path` and `executablePath` are local-development source inputs. They
+should be authored by launchers, graph builders, local-development host
+profiles, or explicitly trusted host-path automation. A remote CloudShell host
+must not let ordinary Resource Manager users set those attributes through the
+browser UI, because the path is resolved on the runtime host. Hosted Resource
+Manager create and edit flows use application artifacts instead: upload a
+published package today, or later configure a provider-supported source that
+the host downloads or pulls into the resource artifact folder.
 
 For shared application-provider behavior, see
 [Application resources](application-resources.md). For related resource types,
@@ -51,6 +62,10 @@ resources
     .WithExecutablePath("publish/CloudShell.ExampleWebApi.dll")
     .WithArguments("--urls http://localhost:5080");
 ```
+
+This executable path is only for local-source mode. In artifact mode, the .NET
+provider validates the uploaded or downloaded artifact layout and chooses the
+entry assembly from the contents of the resource artifact folder.
 
 By default, CloudShell serializes .NET app builds before launch and
 then starts each project with `dotnet run --no-build`:
