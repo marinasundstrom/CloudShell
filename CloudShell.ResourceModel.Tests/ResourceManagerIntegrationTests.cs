@@ -3668,6 +3668,65 @@ resources:
     }
 
     [Fact]
+    public async Task ResourceModelGraphDefinitionApplyService_AppliesAspNetCoreArtifactAsNewRevisionWithRestartWarning()
+    {
+        var services = new ServiceCollection();
+        services.AddInMemoryResourceModelGraph();
+        var runtimeController = new RecordingAspNetCoreProjectRuntimeController
+        {
+            Status = AspNetCoreProjectRuntimeStatus.Stopped
+        };
+        services.AddSingleton<IAspNetCoreProjectRuntimeController>(runtimeController);
+        services.AddAspNetCoreProjectResourceType();
+        services.AddResourceModelGraphServices();
+        using var serviceProvider = services.BuildServiceProvider();
+        var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
+        var initial = new ResourceDefinition(
+            "api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            "application.aspnet-core-project:api",
+            ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
+            Attributes: CreateArtifactAttributes("rev-1", "hash-one"));
+
+        var created = await service.ApplyTemplateAsync(
+            new ResourceTemplate(
+                "project-app",
+                [initial],
+                EnvironmentId: "local"),
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 7, 11, 16, 0, 0, TimeSpan.Zero)));
+        runtimeController.Status = AspNetCoreProjectRuntimeStatus.Running;
+
+        var changed = await service.ApplyDefinitionsAsync(
+            [
+                initial with
+                {
+                    Attributes = CreateArtifactAttributes("rev-2", "hash-two")
+                }
+            ],
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 7, 11, 16, 5, 0, TimeSpan.Zero)));
+
+        Assert.False(created.HasErrors, FormatDiagnostics(created.Diagnostics));
+        Assert.True(created.IsCommitted);
+        Assert.False(changed.HasErrors, FormatDiagnostics(changed.Diagnostics));
+        Assert.True(changed.IsCommitted);
+        var warning = Assert.Single(changed.Diagnostics);
+        Assert.Equal(ResourceDefinitionDiagnosticSeverity.Warning, warning.Severity);
+        Assert.Equal("application.aspNetCoreProject.restartRequired", warning.Code);
+
+        var committed = Assert.Single(changed.Commit.Snapshot!.Resources);
+        var source = committed.ResourceAttributeValues[ApplicationArtifactAttributeIds.Source]
+            .ToObject<ApplicationArtifactReference>()!;
+        Assert.Equal(new ResourceGraphVersion(2), changed.Commit.Version);
+        Assert.Equal(new ResourceRevision(2), committed.Revision);
+        Assert.Equal("rev-2", source.RevisionId);
+        Assert.Equal("hash-two", source.ContentSha256);
+    }
+
+    [Fact]
     public async Task ResourceModelGraphDefinitionApplyService_AppliesContainerHostAcrossProviderBoundaries()
     {
         var services = new ServiceCollection();
@@ -6595,6 +6654,28 @@ resources:
             name,
             LocalVolumeResourceTypeProvider.ResourceTypeId,
             ProviderId: LocalVolumeResourceTypeProvider.ProviderId);
+
+    private static ResourceAttributeValueMap CreateArtifactAttributes(
+        string revisionId,
+        string contentSha256) =>
+        new(new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+        {
+            [ApplicationArtifactAttributeIds.SourceKind] =
+                ResourceAttributeValue.String(DeploymentArtifactSourceKinds.UploadedArtifact),
+            [ApplicationArtifactAttributeIds.SourceOwner] =
+                ResourceAttributeValue.String(ApplicationArtifactAttributeIds.ResourceManagerUiSourceOwner),
+            [ApplicationArtifactAttributeIds.Enabled] =
+                ResourceAttributeValue.Boolean(true),
+            [ApplicationArtifactAttributeIds.Source] =
+                ResourceAttributeValue.FromObject(new ApplicationArtifactReference(
+                    "deployment-artifact:application.aspnet-core-project:api",
+                    revisionId,
+                    "zip",
+                    contentSha256,
+                    1024,
+                    ".",
+                    "dotnetPublishedOutput"))
+        });
 
     private static ResourceState CreateAspNetCoreProjectState(
         string name,

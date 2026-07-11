@@ -52,6 +52,9 @@ on `git blame --follow`, and then by the broad type of change.
   package advances the resource revision, while uploading bytes alone does not.
 - Deleted resource-scoped application artifact revisions from the configured
   artifact store after the containing resource is successfully deleted.
+- Treated ASP.NET Core artifact package changes as restart-required when the
+  app is running, and covered that applying a new artifact package advances
+  the resource revision.
 
 ### 2026-07-10
 

@@ -174,7 +174,10 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
             change.AttributeId == Attributes.EndpointRequests ||
             change.AttributeId == Attributes.EnvironmentVariables ||
             change.AttributeId == Attributes.ServiceDiscoveryName ||
-            change.AttributeId == Attributes.References);
+            change.AttributeId == Attributes.References ||
+            change.AttributeId == ApplicationArtifactAttributeIds.Enabled ||
+            change.AttributeId == ApplicationArtifactAttributeIds.SourceKind ||
+            change.AttributeId == ApplicationArtifactAttributeIds.Source);
 
     private static void ValidateSource(
         ResourceAttributeSet attributes,
