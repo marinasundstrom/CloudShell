@@ -27,6 +27,11 @@ public interface IDeploymentArtifactStore : IDeploymentArtifactContentStore
         string revisionId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<DeploymentArtifactRevision>> ListRevisionsAsync(
+        string resourceId,
+        string artifactId,
+        CancellationToken cancellationToken = default);
+
     Task<Stream> OpenRevisionContentAsync(
         string resourceId,
         string artifactId,

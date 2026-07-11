@@ -437,6 +437,19 @@ Resource revisions are accepted resource-state versions that record which
 artifact revision, source metadata, or local-source configuration the resource
 should use.
 
+Selecting an older artifact revision is a re-apply operation. It creates a new
+resource revision whose state points at the selected artifact revision and
+records restore-origin metadata. If the resource is running, Resource Manager
+should offer an apply-only path and an apply-and-restart path. This is similar
+in user shape to choosing a container application revision, but artifact
+revisions are not container app revisions: they are resource-owned package
+inputs that a provider later materializes into runtime state.
+
+This selection and restore workflow is primarily a Resource Manager UI and
+remote-management workflow. Launcher-authored local development resources
+normally use local source paths or programmatic declarations, and their source
+settings remain read-only in Resource Manager.
+
 Artifact revisions also need provenance. Direct uploads should be recorded as
 upload-sourced and non-rehydratable unless provider validation can discover a
 stable executable or package version. Source downloads should record the

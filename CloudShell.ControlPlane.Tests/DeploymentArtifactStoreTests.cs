@@ -101,6 +101,30 @@ public sealed class DeploymentArtifactStoreTests
     }
 
     [Fact]
+    public async Task ListRevisions_ReturnsResourceRevisionsNewestFirst()
+    {
+        var store = CreateStore(
+            new DeploymentArtifactOptions
+            {
+                Store = new()
+                {
+                    Kind = DeploymentArtifactStoreKinds.FileSystem,
+                    RootPath = "artifacts",
+                    MaxUploadBytes = 1024,
+                    AllowedPackageKinds = ["zip"]
+                }
+            });
+        var first = await UploadAsync(store, "api", "first package");
+        await Task.Delay(5);
+        var second = await UploadAsync(store, "api", "second package");
+        _ = await UploadAsync(store, "worker", "worker package");
+
+        var revisions = await store.ListRevisionsAsync("api", first.ArtifactId);
+
+        Assert.Equal([second.RevisionId, first.RevisionId], revisions.Select(revision => revision.RevisionId).ToArray());
+    }
+
+    [Fact]
     public async Task WriteUploadContent_RejectsContentPastConfiguredLimit()
     {
         var store = CreateStore(

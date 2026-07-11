@@ -20,6 +20,26 @@ public static class ApplicationArtifactAttributeIds
     public const string ResourceManagerUiSourceOwner = "resource-manager-ui";
 }
 
+public static class ApplicationArtifactRestoreMetadataNames
+{
+    public const string RestoredFromArtifactId = "application.artifact.restore.fromArtifactId";
+    public const string RestoredFromRevisionId = "application.artifact.restore.fromRevisionId";
+    public const string RestoredFromContentSha256 = "application.artifact.restore.fromContentSha256";
+    public const string RestoredFromSourceKind = "application.artifact.restore.fromSourceKind";
+    public const string RestoredFromSourceVersion = "application.artifact.restore.fromSourceVersion";
+
+    public static IReadOnlyDictionary<string, string> FromRevision(
+        DeploymentArtifactRevision revision) =>
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [RestoredFromArtifactId] = revision.ArtifactId,
+            [RestoredFromRevisionId] = revision.RevisionId,
+            [RestoredFromContentSha256] = revision.ContentSha256,
+            [RestoredFromSourceKind] = revision.SourceKind,
+            [RestoredFromSourceVersion] = revision.SourceVersion ?? string.Empty
+        };
+}
+
 public sealed record ApplicationArtifactReference(
     string ArtifactId,
     string RevisionId,

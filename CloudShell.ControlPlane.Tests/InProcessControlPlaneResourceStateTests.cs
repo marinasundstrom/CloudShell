@@ -4176,6 +4176,12 @@ public sealed class InProcessControlPlaneResourceStateTests
             CancellationToken cancellationToken = default) =>
             Task.FromResult<DeploymentArtifactRevision?>(null);
 
+        public Task<IReadOnlyList<DeploymentArtifactRevision>> ListRevisionsAsync(
+            string resourceId,
+            string artifactId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<DeploymentArtifactRevision>>([]);
+
         public Task<Stream> OpenRevisionContentAsync(
             string resourceId,
             string artifactId,

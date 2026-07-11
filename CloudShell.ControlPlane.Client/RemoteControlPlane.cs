@@ -629,6 +629,16 @@ public sealed class RemoteControlPlane : IControlPlane
         return response?.ToDeploymentArtifactRevision();
     }
 
+    public async Task<IReadOnlyList<DeploymentArtifactRevision>> ListDeploymentArtifactRevisionsAsync(
+        string resourceId,
+        string artifactId,
+        CancellationToken cancellationToken = default) =>
+        (await GetRequiredAsync<IReadOnlyList<DeploymentArtifactRevisionResponse>>(
+            BuildResourceArtifactPath(resourceId, $"{Escape(artifactId)}/revisions"),
+            cancellationToken))
+        .Select(response => response.ToDeploymentArtifactRevision())
+        .ToArray();
+
     public async Task<ResourceDefinitionValidationResult> ValidateDeploymentArtifactAsync(
         string resourceId,
         ValidateDeploymentArtifactCommand command,

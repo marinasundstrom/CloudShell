@@ -1364,6 +1364,9 @@ public sealed class RemoteControlPlaneContractTests
             resourceId,
             revision.ArtifactId,
             revision.RevisionId);
+        var revisions = await controlPlane.ListDeploymentArtifactRevisionsAsync(
+            resourceId,
+            revision.ArtifactId);
         var validation = await controlPlane.ValidateDeploymentArtifactAsync(
             resourceId,
             new ValidateDeploymentArtifactCommand(
@@ -1383,6 +1386,7 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(package.Length, revision.SizeBytes);
         Assert.False(string.IsNullOrWhiteSpace(revision.ContentSha256));
         Assert.Equal(revision, loaded);
+        Assert.Equal(revision, Assert.Single(revisions));
         Assert.Empty(validation.Diagnostics);
     }
 

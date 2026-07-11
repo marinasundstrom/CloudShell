@@ -201,6 +201,20 @@ which accepted artifact revision the resource should run. Applying a different
 artifact revision advances the resource revision because the runnable input for
 that resource changed.
 
+Restoring an earlier artifact revision follows the same rule. The resource is
+not rolled back in place; Resource Manager re-applies the selected artifact
+revision as current desired state, creating a new resource revision that
+records which artifact revision it was restored from. The user-facing flow can
+therefore look similar to choosing a container application revision, but it is
+not the same domain object: artifact revisions are package inputs, while
+container application revisions are runtime deployment revisions.
+
+This artifact revision selection and restore flow is primarily for Resource
+Manager UI and remote-management scenarios. Local launchers and
+local-development graph builders normally use local source paths or
+programmatic declarations instead, and Resource Manager treats those
+launcher-authored source settings as read-only.
+
 Artifact revisions also record provenance. Direct uploads are recorded as
 upload-sourced artifact revisions and are not rehydratable unless a provider
 can extract stable version metadata from the package. Future pull/download

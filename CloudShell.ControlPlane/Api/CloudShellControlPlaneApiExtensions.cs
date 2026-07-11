@@ -233,6 +233,12 @@ public static class CloudShellControlPlaneApiExtensions
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
             .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
 
+        api.MapGet("/resources/{resourceId}/artifacts/{artifactId}/revisions", ListDeploymentArtifactRevisions)
+            .WithName("CloudShellControlPlane_ListDeploymentArtifactRevisions")
+            .Produces<DeploymentArtifactRevisionResponse[]>(StatusCodes.Status200OK)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden);
+
         api.MapPost("/resources/{resourceId}/artifacts/validate", ValidateDeploymentArtifact)
             .WithName("CloudShellControlPlane_ValidateDeploymentArtifact")
             .Accepts<ValidateDeploymentArtifactRequest>("application/json")
@@ -1257,6 +1263,26 @@ public static class CloudShellControlPlaneApiExtensions
                 : Results.Ok(revision.ToResponse());
         }
         catch (Exception exception) when (exception is ControlPlaneException or ControlPlaneAccessDeniedException or ArgumentException or InvalidOperationException)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> ListDeploymentArtifactRevisions(
+        string resourceId,
+        string artifactId,
+        IDeploymentArtifactManager artifacts,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var revisions = await artifacts.ListDeploymentArtifactRevisionsAsync(
+                resourceId,
+                artifactId,
+                cancellationToken);
+            return Results.Ok(revisions.Select(revision => revision.ToResponse()).ToArray());
+        }
+        catch (Exception exception) when (exception is ControlPlaneException or ControlPlaneAccessDeniedException)
         {
             return ToProblem(exception);
         }

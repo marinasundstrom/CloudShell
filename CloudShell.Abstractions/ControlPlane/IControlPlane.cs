@@ -193,6 +193,11 @@ public interface IDeploymentArtifactManager
         string revisionId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<DeploymentArtifactRevision>> ListDeploymentArtifactRevisionsAsync(
+        string resourceId,
+        string artifactId,
+        CancellationToken cancellationToken = default);
+
     Task<ResourceDefinitionValidationResult> ValidateDeploymentArtifactAsync(
         string resourceId,
         ValidateDeploymentArtifactCommand command,

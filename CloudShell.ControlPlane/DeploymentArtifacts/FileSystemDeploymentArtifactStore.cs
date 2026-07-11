@@ -188,6 +188,52 @@ public sealed class FileSystemDeploymentArtifactStore(
             cancellationToken);
     }
 
+    public async Task<IReadOnlyList<DeploymentArtifactRevision>> ListRevisionsAsync(
+        string resourceId,
+        string artifactId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(artifactId);
+
+        RequireFileSystemStore();
+        if (!ArtifactMatchesResource(resourceId, artifactId))
+        {
+            return [];
+        }
+
+        var artifactDirectory = GetArtifactDirectory(artifactId);
+        if (!Directory.Exists(artifactDirectory))
+        {
+            return [];
+        }
+
+        var revisions = new List<DeploymentArtifactRevision>();
+        foreach (var revisionDirectory in Directory.EnumerateDirectories(artifactDirectory))
+        {
+            var path = Path.Combine(revisionDirectory, "revision.json");
+            if (!File.Exists(path))
+            {
+                continue;
+            }
+
+            await using var stream = File.OpenRead(path);
+            var revision = await JsonSerializer.DeserializeAsync<DeploymentArtifactRevision>(
+                stream,
+                SerializerOptions,
+                cancellationToken);
+            if (revision is not null)
+            {
+                revisions.Add(revision);
+            }
+        }
+
+        return revisions
+            .OrderByDescending(revision => revision.CreatedAt)
+            .ThenByDescending(revision => revision.RevisionId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     public async Task<Stream> OpenRevisionContentAsync(
         string resourceId,
         string artifactId,

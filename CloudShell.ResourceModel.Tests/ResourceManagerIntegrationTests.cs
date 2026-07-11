@@ -3708,6 +3708,25 @@ resources:
             new ResourceGraphCommitContext(
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 7, 11, 16, 5, 0, TimeSpan.Zero)));
+        var restoredRevision = new DeploymentArtifactRevision(
+            "deployment-artifact:application.aspnet-core-project:api",
+            "rev-1",
+            "zip",
+            "hash-one",
+            1024,
+            new DateTimeOffset(2026, 7, 11, 15, 55, 0, TimeSpan.Zero),
+            "dotnetPublishedOutput");
+        var restored = await service.ApplyDefinitionsAsync(
+            [
+                initial with
+                {
+                    Attributes = CreateArtifactAttributes("rev-1", "hash-one"),
+                    Metadata = ApplicationArtifactRestoreMetadataNames.FromRevision(restoredRevision)
+                }
+            ],
+            new ResourceGraphCommitContext(
+                PrincipalId: "developer",
+                Timestamp: new DateTimeOffset(2026, 7, 11, 16, 10, 0, TimeSpan.Zero)));
 
         Assert.False(created.HasErrors, FormatDiagnostics(created.Diagnostics));
         Assert.True(created.IsCommitted);
@@ -3724,6 +3743,18 @@ resources:
         Assert.Equal(new ResourceRevision(2), committed.Revision);
         Assert.Equal("rev-2", source.RevisionId);
         Assert.Equal("hash-two", source.ContentSha256);
+
+        Assert.False(restored.HasErrors, FormatDiagnostics(restored.Diagnostics));
+        Assert.True(restored.IsCommitted);
+        var restoredState = Assert.Single(restored.Commit.Snapshot!.Resources);
+        var restoredSource = restoredState.ResourceAttributeValues[ApplicationArtifactAttributeIds.Source]
+            .ToObject<ApplicationArtifactReference>()!;
+        Assert.Equal(new ResourceRevision(3), restoredState.Revision);
+        Assert.Equal("rev-1", restoredSource.RevisionId);
+        Assert.Equal("rev-1", restoredState.Metadata?[
+            ApplicationArtifactRestoreMetadataNames.RestoredFromRevisionId]);
+        Assert.Equal("hash-one", restoredState.Metadata?[
+            ApplicationArtifactRestoreMetadataNames.RestoredFromContentSha256]);
     }
 
     [Fact]

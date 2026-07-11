@@ -1208,6 +1208,17 @@ public sealed class InProcessControlPlane(
         return RequireDeploymentArtifactStore().GetRevisionAsync(resourceId, artifactId, revisionId, cancellationToken);
     }
 
+    public Task<IReadOnlyList<DeploymentArtifactRevision>> ListDeploymentArtifactRevisionsAsync(
+        string resourceId,
+        string artifactId,
+        CancellationToken cancellationToken = default)
+    {
+        RequireValue(resourceId, nameof(resourceId));
+        RequireValue(artifactId, nameof(artifactId));
+        EnsureCanReadDeploymentArtifacts();
+        return RequireDeploymentArtifactStore().ListRevisionsAsync(resourceId, artifactId, cancellationToken);
+    }
+
     public async Task<ResourceDefinitionValidationResult> ValidateDeploymentArtifactAsync(
         string resourceId,
         ValidateDeploymentArtifactCommand command,

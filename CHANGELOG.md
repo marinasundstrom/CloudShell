@@ -61,6 +61,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added artifact revision provenance metadata so upload revisions are recorded
   as non-rehydratable direct uploads while future source downloads can record
   the resolved source version and rehydration capability.
+- Added resource-scoped artifact revision listing and restore-origin metadata
+  so re-applying a selected artifact revision creates a new resource revision
+  that records which artifact revision it restored.
 
 ### 2026-07-10
 
