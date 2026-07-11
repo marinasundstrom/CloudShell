@@ -114,6 +114,11 @@ Notifications and toasts should therefore be related but not identical:
   `VisibleAt` or `VisibleIn`, default time-to-live dismissal, or
   never-auto-dismiss operation feedback. Unsupported scheduling should be an
   implementation decision, not a missing CoreShell field.
+- A notification or toast can request a specific presentation template when
+  the default title/message/actions layout is not enough. Template selection
+  should be data-driven, for example an optional template key plus structured
+  attributes, so CoreShell remains product-neutral while CloudShell or another
+  host can register richer renderers.
 - A toast should render notification actions when the backing item provides
   them. If the user ignores the toast, the same action remains available in
   the notification center.
@@ -128,7 +133,7 @@ CoreShell should own stable shell-level contracts such as:
 
 - notification event and per-recipient notification instance shapes
 - a notification query contract
-- publish/update contracts for hosts that allow shell-local producers
+- publish/update contracts for notification producers
 - producer publish methods that return the created notification or toast item,
   including the ID needed for later update or dismissal
 - acknowledge/dismiss contracts for per-recipient instances
@@ -138,7 +143,8 @@ CoreShell should own stable shell-level contracts such as:
 - a change subscription contract
 - audience descriptors that stay product-neutral
 - presentation data such as severity, status, route/href, source label, toast
-  eligibility, scheduled visibility, time-to-live, and auto-dismiss behavior
+  eligibility, scheduled visibility, time-to-live, auto-dismiss behavior, and
+  renderer/template selection
 
 CoreShell should not own:
 
@@ -155,6 +161,25 @@ for hosts that have not wired a notification source yet. A later sample slice
 can add an in-memory source for simple hosts. That implementation would be
 useful for proving the UI and extension model, but it should be documented as
 sample/default behavior, not as the only supported implementation.
+
+`ICoreShellNotificationProducer` is an adapter contract, not a statement that
+the producer must run in the Blazor UI host. A combined development host can
+implement it in-process. A split deployment can implement it as a client for a
+dedicated notifications service. A provider, worker, or Control Plane-adjacent
+process can publish through that service without referencing the UI app. The
+same request/update shapes should still apply so the service can return a
+notification reference that the producer can later update or dismiss.
+
+Notification and toast templates should follow the same boundary. CoreShell can
+define the neutral template-selection fields and the renderer registration
+contract, but CloudShell should own CloudShell-specific templates such as
+resource operation progress, approval requests, provider diagnostics, or
+deployment summaries. Templates should not replace the standard notification
+fields. They interpret additional item data in a specific way while the shell
+still understands the common title, message, severity, status, target, actions,
+acknowledgement, dismissal, visibility, and lifetime fields. A host can decide
+whether unknown template keys fall back to the default renderer, are hidden, or
+are shown with a reduced generic layout.
 
 ## Proposed CloudShell boundary
 
@@ -224,6 +249,13 @@ A typical resource-create flow should look like this:
 This keeps dependencies one-way: CloudShell UI and notification integrations
 can depend on Control Plane domain facts, but the Control Plane does not depend
 on CoreShell UI services or toast concepts.
+
+The producer of a notification may be outside the UI process. Resource Manager
+running in the UI host can publish directly through a registered
+`ICoreShellNotificationProducer`, while a background worker or separate app can
+publish to the same logical notification service over HTTP, a broker, or
+another host-owned transport. In those cases, the in-process CoreShell
+interface represents the local adapter surface for that remote capability.
 
 The first CloudShell adapter can be modest. For a combined development host,
 it may run in the UI host process and use an in-memory notification store while
@@ -336,7 +368,7 @@ A notification event should be small and stable:
 - optional correlation ID, operation ID, or resource ID
 - optional attributes for host-owned data
 - presentation data such as toast eligibility, scheduled visibility,
-  time-to-live, and auto-dismiss behavior
+  time-to-live, auto-dismiss behavior, and optional template key
 
 A per-recipient notification instance should include:
 
@@ -350,10 +382,37 @@ A per-recipient notification instance should include:
 - optional action descriptors and per-user action state
 - optional toast behavior, scheduled visibility, time-to-live, and
   auto-dismiss data
+- optional renderer/template key and the small structured data needed by that
+  renderer
 
 Records should carry enough context for the shell to render a useful item, but
 they should not embed large payloads, logs, provider-native operation data, or
 secrets.
+
+## Template and renderer model
+
+The default renderer should stay capable: title, message, severity, source,
+progress state, target link, actions, dismiss, and acknowledge. Templates are
+for cases where the host wants a richer or more compact presentation without
+changing the notification storage model.
+
+Examples include:
+
+- operation progress with a spinner, resource name, phase, and target link
+- completed operation summary with primary action and secondary diagnostics
+- approval or confirmation request with structured action buttons
+- provider diagnostic warning with affected resource and recommended action
+- deployment or artifact summary with revision, environment, and status
+
+CoreShell should avoid encoding these as CloudShell resource concepts. Instead,
+the item can carry a template key such as `operation-progress` or a
+host-qualified key such as `cloudshell.resource-operation`, plus small
+renderer data in attributes or a future typed payload. The renderer interprets
+that data for its known template and decides how to compose the toast or
+notification-center item. If the template is unknown, the standard fields
+should still be enough to render a useful generic notification. Action
+handling, default links, acknowledgement, dismissal, visibility, and lifetime
+behavior should remain common shell behavior around the template.
 
 ## Async operation feedback
 
@@ -414,8 +473,9 @@ visible to the current user and which actions or links are enabled.
   toast behavior hints.
 - Added `ICoreShellToastService` for toast-only transient signals that do not
   create notification instances.
-- Decide whether event and publish/update producer contracts belong in
-  CoreShell or only in host-specific notification services.
+- Added `ICoreShellNotificationProducer` as the CoreShell publish/update
+  adapter contract. Hosts can back it with an in-process implementation, a
+  remote client, or a dedicated notifications service.
 - Added a sample-owned in-memory implementation for the CoreShell Fluent UI
   sample.
 - Added a CoreShell Fluent UI sample notification center and toast presenter.
@@ -425,8 +485,7 @@ visible to the current user and which actions or links are enabled.
 - Added sample toast-only background task behavior that shows a linked toast
   without creating notification-center history.
 - Added focused CoreShell tests for the minimal UI contract and default
-  registration behavior. Producer-side record publication and update tests
-  should land with the durable producer contract.
+  registration behavior, including producer-side publish/update references.
 
 ### Slice 2: CloudShell adapter
 

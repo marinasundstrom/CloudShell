@@ -48,7 +48,10 @@ through `AddCoreShellModule(...)`:
   backing store or transport.
 - `ICoreShellNotificationProducer` for hosts or extension code that publish
   notification instances and need the returned instance ID to update or dismiss
-  operation feedback later.
+  operation feedback later. The producer does not have to run inside the UI
+  app; a host can implement this as an in-process service, a remote client, or
+  an adapter to a dedicated notifications service used by workers and other
+  apps.
 - `ICoreShellToastService` for transient toast-only signals that should not
   create notification-center history. `PublishAsync` returns the created toast
   so the caller can update, dismiss, or replace it by ID.
@@ -85,8 +88,12 @@ purely transient feedback. Visibility, time-to-live, and auto-dismiss behavior
 are part of the notification or toast data: the reference sample uses CoreShell
 defaults for short-lived toasts, supports `Never` auto-dismiss for long-running
 progress feedback, and lets notification-backed toast presentation expire
-without removing the notification-center item. Toast-only signals use
-`ICoreShellToastService` and do not create notification instances.
+without removing the notification-center item. Future hosts can also register
+different notification or toast renderers for template keys such as operation
+progress, approval, provider diagnostics, or deployment summaries while keeping
+the common CoreShell behaviors for actions, links, acknowledgement, dismissal,
+visibility, and lifetime. Toast-only signals use `ICoreShellToastService` and
+do not create notification instances.
 `samples/CompositionSandbox` remains the lower-level composition sandbox for
 graph and renderer experiments below CoreShell.
 
