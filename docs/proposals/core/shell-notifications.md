@@ -16,8 +16,8 @@ when background work starts, progresses, succeeds, fails, or needs attention.
   [Shell customization](../../shell-customization.md) and
   [UI composition](../../ui-composition.md) describe the landed CoreShell
   notification UI contract and sample reference path.
-- Remaining action: add CloudShell notification rules, operation producers,
-  audience resolution, and durable or remote notification adapters.
+- Remaining action: add Control Plane-owned notification projection, rules,
+  storage, APIs, audience resolution, and remote UI adapters.
 - Out of scope: full workflow orchestration, durable CloudShell activity
   history, email/push/device delivery, notification preferences UI, and
   cross-Control Plane federation.
@@ -33,9 +33,10 @@ when background work starts, progresses, succeeds, fails, or needs attention.
   read, acknowledge, dismiss, or later act on their own copy.
 - Provide a common UI placement for asynchronous operation feedback, including
   transient toasts and a longer-lived notification center.
-- Let CloudShell publish resource-operation notifications from Resource
-  Manager, Control Plane operations, providers, or extension-owned services
-  while keeping operation history and diagnostics in their owning systems.
+- Let CloudShell publish resource-operation notifications from Control Plane
+  facts created by Resource Manager commands, Control Plane operations,
+  providers, or extension-owned services while keeping operation history and
+  diagnostics in their owning systems.
 - Keep the initial CoreShell sample simple enough to be a reference app for
   future CoreShell development.
 
@@ -69,6 +70,16 @@ Notifications have four major concerns:
 4. **Recipient instance state**: each user's copy of a delivered notification,
    including read, acknowledged, dismissed, archived, action availability, and
    any future per-user action outcome.
+
+The CoreShell UI contract should stay flexible about that first concern. A
+simple CoreShell host can keep notifications in memory, store them in the UI
+process, fetch them from another service, or adapt any host-specific source.
+CoreShell presenters should only care that they can query current-user items,
+handle actions, acknowledge or dismiss records, and react to change signals.
+CloudShell makes a narrower product choice: because resource operations,
+authorization, events, and diagnostics are Control Plane-owned, CloudShell
+notification records should also use the Control Plane as their source of
+truth.
 
 The normal CloudShell shape should be per-user notification instances. A
 producer may publish one logical notification event to a group or to all users,
@@ -165,10 +176,12 @@ sample/default behavior, not as the only supported implementation.
 `ICoreShellNotificationProducer` is an adapter contract, not a statement that
 the producer must run in the Blazor UI host. A combined development host can
 implement it in-process. A split deployment can implement it as a client for a
-dedicated notifications service. A provider, worker, or Control Plane-adjacent
-process can publish through that service without referencing the UI app. The
-same request/update shapes should still apply so the service can return a
-notification reference that the producer can later update or dismiss.
+remote notification capability. In CloudShell, that remote capability should
+be the Control Plane notification API. A provider, worker, or
+Control Plane-adjacent process can publish through that API without referencing
+the UI app. The same request/update shapes should still apply so the Control
+Plane can return a notification reference that the producer can later update or
+dismiss.
 
 Notification and toast templates should follow the same boundary. CoreShell can
 define the neutral template-selection fields and the renderer registration
@@ -183,23 +196,35 @@ are shown with a reduced generic layout.
 
 ## Proposed CloudShell boundary
 
-CloudShell can later integrate with the CoreShell contracts by providing:
+CloudShell should integrate with the CoreShell contracts by adding a Control
+Plane-owned notification subsystem:
 
-- a database-backed notification store when notifications need to survive host
-  restarts or be shared across UI instances
-- a dedicated notifications service, or a UI-host adapter for simple
-  deployments, that publishes notifications for resource creates, updates,
-  starts, stops, artifact uploads, deployment attempts, provider failures, and
-  other asynchronous workflows
-- configurable notification rules that match Control Plane events and decide
+- a Control Plane notification projection service that subscribes to
+  resource-change notifications, resource events, operation/procedure records,
+  provider diagnostics, and other Control Plane facts
+- a Control Plane-owned notification store for notification events and
+  per-recipient instances, in-memory for local development and database-backed
+  when persistence or multiple UI hosts require it
+- Control Plane notification APIs for current-user queries, acknowledgement,
+  dismissal, action handling, producer publish/update, and change cursors or
+  signals
+- configurable notification rules that match Control Plane facts and decide
   whether to create, update, suppress, or route notification events
 - fan-out from event-level producer messages to per-user notification
   instances
 - user/group/all-users audience resolution using CloudShell identity and
   authorization services
-- a SignalR or polling change-signal adapter for connected UI clients
+- SignalR-backed change signals for split UI clients, with polling or
+  cursor-based recovery for reconnects and missed signals
 - Resource Manager links that take a notification to the relevant resource,
   operation, revision, log query, or diagnostics page
+
+In CloudShell, notification records are part of the Control Plane domain. The
+UI owns presentation. The Control Plane should store notification-safe fields,
+recipient state, actions, links, lifetime/visibility data, and optional
+renderer/template hints. The UI adapts those records into Fluent UI toast and
+notification-center presentations, including host-specific templates, icons,
+layout, action placement, and fallback rendering.
 
 CloudShell notifications should complement, not replace, existing operational
 records. A resource create operation might produce:
@@ -216,10 +241,13 @@ exists.
 ## CloudShell integration scenario
 
 The Control Plane should not need to know about notifications as UI objects.
-It owns resource state, accepted commands, operation/procedure records,
-resource events, logs, traces, diagnostics, and provider dispatch. A separate
-CloudShell notifications service can observe those domain facts and project
-them into CoreShell notification events and per-user instances.
+It already owns resource state, accepted commands, operation/procedure records,
+resource events, logs, traces, diagnostics, and provider dispatch. Notifications
+should live beside those concerns as a Control Plane-owned projection: a
+Control Plane notification service subscribes to domain facts and materializes
+notification events plus per-user instances. That keeps notification state
+close to the operation truth without making providers or resource managers
+depend on CoreShell UI components.
 
 A typical resource-create flow should look like this:
 
@@ -231,14 +259,15 @@ A typical resource-create flow should look like this:
    emits domain facts such as `operation accepted`, `provider dispatch
    started`, `operation succeeded`, `operation failed`, or `diagnostics
    available`.
-4. The notifications service consumes those domain facts through a deliberate
-   integration point. That integration point could be an in-process domain
-   event sink in combined hosts, a Control Plane event feed, operation-status
-   polling, a message broker, or a future environment service API.
+4. The Control Plane notification projection consumes those domain facts
+   through a deliberate subscription point. That integration point could start
+   as an in-process resource event/change observer, then grow into a durable
+   Control Plane event feed, operation-status projection, or broker-backed
+   adapter if deployment shape requires it.
 5. Configured notification rules match the Control Plane event, decide whether
    a user-facing notification should exist, map the event to notification-safe
    title/message/severity/status/link data, and choose the target audience.
-6. The notifications service resolves the audience, creates or updates
+6. The Control Plane notification service resolves the audience, creates or updates
    per-user notification instances, and stores only notification-safe text and
    links.
 7. The notification change signal tells connected shell clients to refresh
@@ -246,24 +275,66 @@ A typical resource-create flow should look like this:
 8. The shell renders a toast and notification-center item that links back to
    the durable resource, operation, activity, log, or diagnostics view.
 
-This keeps dependencies one-way: CloudShell UI and notification integrations
-can depend on Control Plane domain facts, but the Control Plane does not depend
+This keeps dependencies disciplined: Control Plane notification services can
+depend on Control Plane domain facts and expose notification records through a
+CoreShell-compatible shape. The UI adapts those records into a presentation,
+but resource execution, providers, and durable operation records do not depend
 on CoreShell UI services or toast concepts.
 
 The producer of a notification may be outside the UI process. Resource Manager
-running in the UI host can publish directly through a registered
-`ICoreShellNotificationProducer`, while a background worker or separate app can
-publish to the same logical notification service over HTTP, a broker, or
-another host-owned transport. In those cases, the in-process CoreShell
-interface represents the local adapter surface for that remote capability.
+running in the UI host can publish through a registered
+`ICoreShellNotificationProducer`, but the CloudShell implementation should
+route that call to the Control Plane notification API. A background worker or
+separate app can publish to the same Control Plane notification API over HTTP,
+a broker, or another host-owned transport. In those cases, the in-process
+CoreShell interface represents the local adapter surface for the Control
+Plane-owned capability.
+
+The integration must support both CloudShell hosting shapes:
+
+- **Combined UI and Control Plane host**: the notification integration can
+  subscribe to in-process Control Plane facts such as resource-change
+  notifications, resource events, operation/procedure records, and provider
+  diagnostics. The Control Plane notification store, projection service,
+  producer adapter, and UI `ICoreShellNotificationService` can all be
+  registered in the same DI container for a simple local-development path. The
+  UI adapter can react to in-process notification change events and re-query
+  the local Control Plane notification service.
+- **Split UI and Control Plane hosts**: the UI process cannot rely on
+  in-process Control Plane events or local notification storage. The Control
+  Plane must expose notification query, mutation, producer, and change-signal
+  APIs. SignalR should be the preferred change-signal transport for CloudShell:
+  the Control Plane owns the notification hub and sends lightweight
+  invalidation messages that tell UI clients to re-query. The UI host should
+  use remote adapters for notification queries, producer calls, and SignalR
+  change signals while keeping the same CoreShell UI-facing interfaces.
+  Polling or cursor-based reads should remain available for reconnect,
+  catch-up, and environments where SignalR is unavailable.
+
+The API surface should therefore separate three concerns inside the Control
+Plane boundary: facts that can be observed, notification projection rules that
+convert those facts into user-facing items, and notification APIs that expose
+query/mutation/change behavior to shell clients. Combined hosts can collapse
+those pieces into one process. Split hosts should use the same Control Plane
+notification APIs without changing the notification records or CoreShell
+presenters.
+
+The change-signal contract should be invalidation-oriented rather than
+state-transfer-oriented. A SignalR message can include a user notification
+cursor, affected notification IDs, unread count hints, or a broad
+refresh-required signal, but the UI should treat it as a prompt to query the
+Control Plane notification API. This keeps in-process events, SignalR, and
+future transports aligned with the same source-of-truth store.
 
 The first CloudShell adapter can be modest. For a combined development host,
-it may run in the UI host process and use an in-memory notification store while
+the Control Plane notification subsystem can use an in-memory store while
 subscribing to in-process operation events or polling operation status. A
-team-hosted or multi-UI deployment can replace that with a durable notification
-store and a remote change signal without changing CoreShell presenters.
+team-hosted or multi-UI deployment can replace that with a durable Control
+Plane notification store and a remote change signal without changing CoreShell
+presenters.
 
-The notification service is also the right place for product policy:
+The Control Plane notification subsystem is also the right place for product
+policy:
 
 - which operation types create notifications
 - whether a notification is transient, durable, or both
@@ -275,9 +346,10 @@ The notification service is also the right place for product policy:
 - which provider diagnostics are summarized and which are left behind a
   details link
 
-The Control Plane should expose enough operation identity and correlation for
-that service to do its job, but it should not phrase those facts as toasts,
-notification center rows, read state, or dismissible UI items.
+Resource and operation services should expose enough identity and correlation
+for the Control Plane notification subsystem to do its job, but they should
+not phrase those facts as toasts, notification center rows, read state, or
+dismissible UI items.
 
 ## Notification rules
 
@@ -301,13 +373,13 @@ A rule should be able to describe:
   under one notification event
 - optional throttling, coalescing, or deduplication policy
 
-Rules may start as code or host configuration. A later slice can decide whether
-administrators can edit them through the UI. The important boundary is that
-rules belong to the notification integration layer, not to the Control Plane
-domain model. The Control Plane emits domain events with stable identity,
-status, actor, resource, operation, and diagnostic references; notification
-rules decide which of those events should become user-facing shell
-notifications.
+Rules may start as code or Control Plane configuration. A later slice can
+decide whether administrators can edit them through the UI. The important
+boundary is that rules belong to the Control Plane notification subsystem, not
+to resource execution, provider, or orchestration logic. Resource and operation
+services emit domain facts with stable identity, status, actor, resource,
+operation, and diagnostic references; notification rules decide which of those
+facts should become user-facing shell notifications.
 
 The rule engine should fail closed for sensitive data. If a rule cannot safely
 map an event into notification-safe text and links, it should suppress the
@@ -448,8 +520,8 @@ for investigation.
 
 Extensions should be able to:
 
-- publish notification events through the host-provided notification
-  integration service when the host exposes one
+- publish notification events through the host-provided producer adapter. In
+  CloudShell, that adapter should write to the Control Plane notification API.
 - include source identity so the shell can label where a notification came
   from
 - target a user, group, role, all users, or a host-defined audience
@@ -474,8 +546,9 @@ visible to the current user and which actions or links are enabled.
 - Added `ICoreShellToastService` for toast-only transient signals that do not
   create notification instances.
 - Added `ICoreShellNotificationProducer` as the CoreShell publish/update
-  adapter contract. Hosts can back it with an in-process implementation, a
-  remote client, or a dedicated notifications service.
+  adapter contract. Hosts can back it with an in-process implementation or a
+  remote client. CloudShell should back it with the Control Plane notification
+  API.
 - Added a sample-owned in-memory implementation for the CoreShell Fluent UI
   sample.
 - Added a CoreShell Fluent UI sample notification center and toast presenter.
@@ -489,9 +562,14 @@ visible to the current user and which actions or links are enabled.
 
 ### Slice 2: CloudShell adapter
 
-- Register a CloudShell notification integration that can publish Resource
-  Manager and Control Plane operation notifications while CoreShell UI
-  presenters read the resulting instances through `ICoreShellNotificationService`.
+- Add a Control Plane notification subsystem with a projection service,
+  notification store, current-user query/mutation APIs, producer APIs, and a
+  change signal.
+- Register CloudShell UI adapters so CoreShell UI presenters read Control
+  Plane-owned notification instances through `ICoreShellNotificationService`.
+- Register producer adapters so Resource Manager, workers, and split-host
+  clients publish/update notifications through the Control Plane notification
+  API.
 - Add resource-operation notification producers for the first high-value
   workflows, such as create, upload/apply artifact, start, stop, and failed
   provider dispatch.
@@ -499,19 +577,22 @@ visible to the current user and which actions or links are enabled.
   CloudShell host has an authenticated user set or can resolve recipients.
 - Link notifications to the relevant resource or operation details.
 - Keep the initial storage choice explicit: in-memory for development,
-  database-backed only when persistence is required by the workflow.
+  database-backed only when persistence or split/multi-UI hosting requires it.
 
 ### Slice 3: Remote and multi-user behavior
 
-- Add a change-signal adapter for split hosts or multiple connected clients.
+- Add Control Plane notification APIs and a change-signal adapter for split
+  hosts or multiple connected clients, using SignalR as the preferred
+  CloudShell transport.
 - Add user/group/all-users audience resolution against CloudShell identity.
 - Add database persistence if notifications must survive restarts or be shared
   across UI host instances.
 - Add query cursors or checkpoints so clients can recover from missed signals.
 - Define how late-joining users receive group or all-users notifications that
   were published before their first connection.
-- Decide how CloudShell should map Control Plane events to notification
-  instances, notification-backed toasts, or toast-only signals.
+- Decide how the Control Plane notification subsystem should map Control Plane
+  facts to notification instances, notification-backed toasts, or toast-only
+  signals.
 
 ### Slice 4: Preference and retention policy
 
@@ -539,5 +620,5 @@ visible to the current user and which actions or links are enabled.
   occur eagerly at publish time or lazily when each user queries?
 - What minimum cursor/checkpoint shape is needed so remote clients can recover
   from missed change signals?
-- Where should notification persistence live in split-host CloudShell
-  deployments: UI host, Control Plane, or an environment-level service?
+- Which Control Plane storage and retention shape is needed for notification
+  events and per-recipient instances in split-host deployments?

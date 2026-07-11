@@ -45,13 +45,15 @@ through `AddCoreShellModule(...)`:
 - `ICoreShellNotificationService` for UI presenters that need to query the
   current user's notification instances, react to notification change signals,
   and acknowledge or dismiss notification instances without depending on the
-  backing store or transport.
+  backing store or transport. CoreShell hosts can back this with in-memory,
+  UI-local, remote, or custom notification sources.
 - `ICoreShellNotificationProducer` for hosts or extension code that publish
   notification instances and need the returned instance ID to update or dismiss
   operation feedback later. The producer does not have to run inside the UI
-  app; a host can implement this as an in-process service, a remote client, or
-  an adapter to a dedicated notifications service used by workers and other
-  apps.
+  app. CoreShell hosts can implement this locally or remotely. In CloudShell,
+  this should be backed by the Control Plane notification API so UI-host code,
+  workers, and separate apps publish to the same Control Plane-owned
+  notification store.
 - `ICoreShellToastService` for transient toast-only signals that should not
   create notification-center history. `PublishAsync` returns the created toast
   so the caller can update, dismiss, or replace it by ID.
@@ -92,8 +94,11 @@ without removing the notification-center item. Future hosts can also register
 different notification or toast renderers for template keys such as operation
 progress, approval, provider diagnostics, or deployment summaries while keeping
 the common CoreShell behaviors for actions, links, acknowledgement, dismissal,
-visibility, and lifetime. Toast-only signals use `ICoreShellToastService` and
-do not create notification instances.
+visibility, and lifetime. In CloudShell, persisted notification records should
+be Control Plane-owned domain data; the UI owns how those records are adapted
+into Fluent UI notification-center rows, toasts, templates, icons, and action
+placement. Toast-only signals use `ICoreShellToastService` and do not create
+notification instances.
 `samples/CompositionSandbox` remains the lower-level composition sandbox for
 graph and renderer experiments below CoreShell.
 

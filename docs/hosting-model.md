@@ -40,6 +40,19 @@ Clustered Control Plane deployments, multi-Control Plane UI/federation, and
 cross-language host bootstrapping are future hosting shapes; current host
 registration should avoid assumptions that would make those shapes impossible.
 
+Shell-level integrations that project Control Plane activity into UI state,
+such as notifications and toasts, must support both combined and split
+deployment shapes. A combined host can subscribe to Control Plane facts
+in-process and register the Control Plane notification projection, store,
+producer API, and UI query adapter in the same container. A split UI host must
+use remote adapters for Control Plane notification queries, producer calls, and
+change signals so the shell UI does not depend on in-process Control Plane
+services or local notification storage. SignalR should be the preferred split
+host notification change signal: the Control Plane owns the hub and emits
+lightweight invalidation events, while the UI re-queries notification state
+through the Control Plane notification API. Polling or cursor recovery can
+remain available for reconnect and missed-signal handling.
+
 The reusable shell UI and hosting helpers live in `CloudShell.Hosting`, a Razor
 class library that references ASP.NET Core. Web SDK projects reference
 `CloudShell.Hosting` and keep their own `Program.cs`, appsettings, environment,
