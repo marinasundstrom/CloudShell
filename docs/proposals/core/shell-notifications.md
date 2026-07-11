@@ -16,11 +16,11 @@ when background work starts, progresses, succeeds, fails, or needs attention.
   [Shell customization](../../shell-customization.md) and
   [UI composition](../../ui-composition.md) describe the landed CoreShell
   notification UI contract and sample reference path.
-- Remaining action: expand the first Control Plane notification projection
-  beyond in-memory lifecycle, resource-create, resource-update, and
-  health/recovery event
-  coalescing to durable storage, rule configuration, audience resolution,
-  producer update APIs, SignalR delivery, and additional operation producers.
+- Remaining action: expand the first local-development CloudShell UI and
+  Control Plane notification projection beyond in-memory lifecycle,
+  resource-create, resource-update, and health/recovery event coalescing to
+  durable storage, rule configuration, audience resolution, producer update
+  APIs, SignalR delivery, and additional operation producers.
 - Out of scope: full workflow orchestration, durable CloudShell activity
   history, email/push/device delivery, notification preferences UI, and
   cross-Control Plane federation.
@@ -420,7 +420,7 @@ cases here so implementation slices can stay narrow and deliberate.
 | 4 | Artifact upload, validation, and apply | Upload and validation workflows have obvious progress/failure states and useful diagnostic targets. | Use progress notifications while a package is uploaded, validated, committed, or applied. Update to failed with validation/provider diagnostics, or succeeded with the resulting revision/resource target. | Planned |
 | 5 | Deployment or replica reconciliation | Deployment records and replica slot states already expose runtime progress that users may need to know about after a command returns. | Update an existing operation notification when deployment records or replica slot states move from applying/reconciling to active, failed, or needs attention. Create a notification only when no parent operation notification exists. | Planned |
 | 6 | Provider dispatch failure | The Control Plane may accept work and then fail before the user can inspect a useful resource page. | Create or update a failure notification for the acting user with safe summary text and an operation/diagnostics target. | Planned |
-| 7 | Background health and recovery | These are useful only when actionable; routine health polling would be noisy. | Notify resource owners or operators for threshold-crossing liveness state changes, recovery attempts, recovery exhausted, or manual intervention required. Suppress routine healthy/probing transitions and repeated internal recovery-signal failures. The first slice projects liveness degradation/stopped-unexpectedly and recovery scheduled/attempted/succeeded/skipped/failed/exhausted events into one correlated recovery notification for the local default operator recipient. | First thresholded recovery event slice implemented |
+| 7 | Background health and recovery | These are useful only when actionable; routine health polling would be noisy. | Notify resource owners or operators for threshold-crossing liveness state changes, app/replica crashes, recovery or replica repair attempts, recovery exhausted, or manual intervention required. Suppress routine healthy/probing transitions, repeated internal recovery-signal failures, low-level slot observations, and deferred replica reconciliation. The first slice projects liveness degradation/stopped-unexpectedly, recovery scheduled/attempted/succeeded/skipped/failed/exhausted, and replica-management crash/repair/failure/exhausted events into one correlated recovery notification for the local default operator recipient. | First thresholded recovery event slice implemented |
 | 8 | Provider diagnostics available | Provider diagnostics can require user action, but may contain sensitive or verbose details. | Create warning notifications only for user-actionable, notification-safe diagnostics. Link to the owning diagnostics/logs view for details. | Planned |
 
 Update semantics should prefer one correlated notification for one user-visible

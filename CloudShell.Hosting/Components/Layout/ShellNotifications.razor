@@ -1,0 +1,287 @@
+@implements IDisposable
+@inject ICoreShellNotificationService Notifications
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> L
+
+<div class="shell-notifications">
+    <FluentButton Appearance="Appearance.Stealth"
+                  Class="shell-notifications-trigger"
+                  IconStart="@(new Icons.Regular.Size20.Alert())"
+                  OnClick="TogglePanelAsync"
+                  title="@L["Notifications"]"
+                  aria-label="@L["Notifications"]">
+        @if (UnreadCount > 0)
+        {
+            <span class="shell-notifications-count">@UnreadCount</span>
+        }
+    </FluentButton>
+
+    @if (IsPanelOpen)
+    {
+        <section class="shell-notifications-panel" aria-label="@L["Notifications"]">
+            <div class="shell-notifications-panel-header">
+                <strong>@L["Notifications"]</strong>
+                <FluentButton Appearance="Appearance.Stealth"
+                              IconStart="@(new Icons.Regular.Size16.Dismiss())"
+                              OnClick="ClosePanel">
+                    @L["Close"]
+                </FluentButton>
+            </div>
+
+            @if (Items.Count == 0)
+            {
+                <div class="shell-notifications-empty">@L["No notifications"]</div>
+            }
+            else
+            {
+                <div class="shell-notifications-list">
+                    @foreach (var item in Items)
+                    {
+                        <article class="@GetItemClass(item)">
+                            @if (GetActions(item).Count == 0)
+                            {
+                                <button type="button"
+                                        class="shell-notifications-body-button"
+                                        @onclick="@(() => HandleDefaultAsync(item))">
+                                    @RenderNotificationBody(item)
+                                </button>
+                            }
+                            else
+                            {
+                                <div class="shell-notifications-body">
+                                    @RenderNotificationBody(item)
+                                </div>
+                            }
+
+                            <div class="shell-notifications-meta">
+                                <span>@GetStatusText(item)</span>
+                                @foreach (var action in GetActions(item))
+                                {
+                                    <FluentButton Appearance="@(action.IsPrimary ? Appearance.Accent : Appearance.Stealth)"
+                                                  OnClick="@(() => HandleActionAsync(item, action))">
+                                        @action.Label
+                                    </FluentButton>
+                                }
+                                <FluentButton Appearance="Appearance.Stealth"
+                                              IconStart="@(new Icons.Regular.Size16.Dismiss())"
+                                              OnClick="@(() => DismissAsync(item.Id))">
+                                    @L["Dismiss"]
+                                </FluentButton>
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@if (ToastItems.Count > 0)
+{
+    <div class="shell-notifications-toast-stack" aria-live="polite">
+        @foreach (var item in ToastItems)
+        {
+            <article class="@GetToastClass(item)">
+                @if (GetActions(item).Count == 0)
+                {
+                    <button type="button"
+                            class="shell-notifications-toast-body-button"
+                            @onclick="@(() => HandleDefaultAsync(item))">
+                        @RenderNotificationBody(item)
+                    </button>
+                }
+                else
+                {
+                    <div class="shell-notifications-toast-body">
+                        @RenderNotificationBody(item)
+                    </div>
+                }
+
+                <div class="shell-notifications-toast-actions">
+                    @foreach (var action in GetActions(item))
+                    {
+                        <FluentButton Appearance="@(action.IsPrimary ? Appearance.Accent : Appearance.Stealth)"
+                                      OnClick="@(() => HandleActionAsync(item, action))">
+                            @action.Label
+                        </FluentButton>
+                    }
+                    <FluentButton Appearance="Appearance.Stealth"
+                                  IconStart="@(new Icons.Regular.Size16.Dismiss())"
+                                  OnClick="@(() => DismissAsync(item.Id))">
+                        @L["Dismiss"]
+                    </FluentButton>
+                </div>
+            </article>
+        }
+    </div>
+}
+
+@code {
+    private IReadOnlyList<CoreShellNotificationInstance> Items { get; set; } = [];
+
+    private PeriodicTimer? RefreshTimer { get; set; }
+
+    private CancellationTokenSource? RefreshTimerCancellation { get; set; }
+
+    private bool IsPanelOpen { get; set; }
+
+    private int UnreadCount => Items.Count(item => item.AcknowledgedAt is null);
+
+    private IReadOnlyList<CoreShellNotificationInstance> ToastItems =>
+        Items
+            .Where(item => ShouldToast(item, DateTimeOffset.UtcNow))
+            .Take(3)
+            .ToArray();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Notifications.NotificationsChanged += OnNotificationsChanged;
+        RefreshTimerCancellation = new CancellationTokenSource();
+        RefreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        _ = RunRefreshTimerAsync(RefreshTimer, RefreshTimerCancellation.Token);
+        await LoadAsync();
+    }
+
+    public void Dispose()
+    {
+        RefreshTimerCancellation?.Cancel();
+        RefreshTimer?.Dispose();
+        RefreshTimerCancellation?.Dispose();
+        Notifications.NotificationsChanged -= OnNotificationsChanged;
+    }
+
+    private async Task LoadAsync()
+    {
+        Items = await Notifications.GetNotificationsAsync(new CoreShellNotificationQuery(Limit: 10));
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RunRefreshTimerAsync(PeriodicTimer timer, CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(LoadAsync);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private async Task TogglePanelAsync()
+    {
+        IsPanelOpen = !IsPanelOpen;
+        await LoadAsync();
+    }
+
+    private void ClosePanel() =>
+        IsPanelOpen = false;
+
+    private async Task DismissAsync(string id)
+    {
+        await Notifications.DismissAsync(id);
+        await LoadAsync();
+    }
+
+    private async Task HandleDefaultAsync(CoreShellNotificationInstance item)
+    {
+        if (item.Target is not null)
+        {
+            await Notifications.AcknowledgeAsync(item.Id);
+            await LoadAsync();
+            Navigation.NavigateTo(item.Target.Href);
+            return;
+        }
+
+        await DismissAsync(item.Id);
+    }
+
+    private async Task HandleActionAsync(
+        CoreShellNotificationInstance item,
+        CoreShellNotificationAction action)
+    {
+        await Notifications.HandleActionAsync(item.Id, action.Id);
+        await LoadAsync();
+
+        if (action.Target is not null)
+        {
+            Navigation.NavigateTo(action.Target.Href);
+        }
+    }
+
+    private void OnNotificationsChanged(object? sender, CoreShellNotificationsChangedEventArgs args) =>
+        _ = InvokeAsync(LoadAsync);
+
+    private static string GetItemClass(CoreShellNotificationInstance item) =>
+        $"shell-notifications-item {GetToneClass(item)}";
+
+    private static string GetToastClass(CoreShellNotificationInstance item) =>
+        $"shell-notifications-toast {GetToneClass(item)}";
+
+    private static string GetToneClass(CoreShellNotificationInstance item) =>
+        item.Severity switch
+        {
+            CoreShellNotificationSeverity.Success => "is-success",
+            CoreShellNotificationSeverity.Warning => "is-warning",
+            CoreShellNotificationSeverity.Error => "is-error",
+            _ when item.Status == CoreShellNotificationStatus.InProgress => "is-progress",
+            _ => "is-info"
+        };
+
+    private string GetStatusText(CoreShellNotificationInstance item) =>
+        item.Status switch
+        {
+            CoreShellNotificationStatus.InProgress => L["In progress"],
+            CoreShellNotificationStatus.Succeeded => L["Succeeded"],
+            CoreShellNotificationStatus.Failed => L["Failed"],
+            CoreShellNotificationStatus.NeedsAttention => L["Needs attention"],
+            _ => item.Source ?? L["Notification"]
+        };
+
+    private static IReadOnlyList<CoreShellNotificationAction> GetActions(CoreShellNotificationInstance item) =>
+        item.Actions ?? [];
+
+    private static bool IsLoading(CoreShellNotificationInstance item) =>
+        item.Status == CoreShellNotificationStatus.InProgress;
+
+    private static bool ShouldToast(CoreShellNotificationInstance item, DateTimeOffset now)
+    {
+        if (item.AcknowledgedAt is not null ||
+            item.DismissedAt is not null ||
+            item.ToastBehavior == CoreShellNotificationToastBehavior.Suppressed ||
+            item.VisibleAt > now)
+        {
+            return false;
+        }
+
+        if (item.ToastBehavior == CoreShellNotificationToastBehavior.UntilAcknowledged ||
+            item.ToastAutoDismiss == CoreShellToastAutoDismissBehavior.Never ||
+            item.Status == CoreShellNotificationStatus.InProgress)
+        {
+            return true;
+        }
+
+        var timeToLive = item.ToastTimeToLive ?? CoreShellToastDefaults.NotificationTimeToLive;
+        return item.UpdatedAt.Add(timeToLive) > now;
+    }
+
+    private RenderFragment RenderNotificationBody(CoreShellNotificationInstance item) => @<div>
+        <strong>
+            @if (IsLoading(item))
+            {
+                <span class="shell-notifications-loading-indicator" aria-label="@L["In progress"]"></span>
+            }
+            @item.Title
+        </strong>
+        <span>@item.Message</span>
+        @if (item.Target is not null && GetActions(item).Count == 0)
+        {
+            <small>@(item.Target.Label ?? L["Open"])</small>
+        }
+    </div>;
+}

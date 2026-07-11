@@ -97,8 +97,10 @@ the common CoreShell behaviors for actions, links, acknowledgement, dismissal,
 visibility, and lifetime. In CloudShell, persisted notification records should
 be Control Plane-owned domain data; the UI owns how those records are adapted
 into Fluent UI notification-center rows, toasts, templates, icons, and action
-placement. Toast-only signals use `ICoreShellToastService` and do not create
-notification instances.
+placement. The current CloudShell local-development path renders a topbar
+notification center and notification-backed toast cards over the in-memory
+Control Plane notification store. Toast-only signals use
+`ICoreShellToastService` and do not create notification instances.
 `samples/CompositionSandbox` remains the lower-level composition sandbox for
 graph and renderer experiments below CoreShell.
 
@@ -189,10 +191,10 @@ remain global programmatic configuration today.
   hosted content areas as first-class contribution types.
 - Add a standardized settings surface where extensions can contribute settings
   pages without owning the whole settings route or layout.
-- Build out the shell notification system beyond the minimal CoreShell UI
-  contract, including durable or fetched backing stores, notification rules,
-  CloudShell operation producers, notification-center history, and toast-style
-  transient presentation. See the
+- Build out the shell notification system beyond the local-development
+  in-memory path, including durable or fetched backing stores, configurable
+  notification rules, richer CloudShell operation producers, custom templates,
+  and split-hosting change delivery. See the
   [shell notifications and toasts proposal](proposals/core/shell-notifications.md).
 - Define named extension areas so shell and Resource Manager pages can accept
   provider-owned content without replacing the whole page.

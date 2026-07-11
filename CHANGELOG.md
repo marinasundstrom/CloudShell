@@ -57,6 +57,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a CloudShell UI notification adapter that maps Control Plane-owned
   notification records into CoreShell's UI-facing notification service and
   forwards in-process notification change signals.
+- Added the first CloudShell notification UI surface for local development,
+  with a topbar notification center and notification-backed toast cards over
+  the in-memory Control Plane notification store.
 - Added Control Plane notification coalescing for lifecycle resource events so
   start, stop, pause, and restart progress updates one correlated notification
   instead of producing separate notification rows for each resource event.
@@ -70,6 +73,9 @@ on `git blame --follow`, and then by the broad type of change.
   threshold-crossing liveness failures and recovery attempts update one
   operator notification while suppressing repeated internal recovery-signal
   failures that would otherwise produce noisy polling updates.
+- Coalesced replica-management crash and repair progress into the same
+  recovery notification while suppressing low-level slot observation and
+  deferred-reconciliation events.
 - Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder
   helper from CloudShell Hosting into `CoreShell.Blazor` so common Blazor shell
   building blocks can be used by CoreShell apps without a CloudShell

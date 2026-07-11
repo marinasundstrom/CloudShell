@@ -1,0 +1,214 @@
+.shell-notifications {
+    position: relative;
+}
+
+::deep .shell-notifications-trigger {
+    position: relative;
+    width: 2.1rem;
+    min-width: 2.1rem;
+    height: 2.1rem;
+    padding: 0;
+}
+
+.shell-notifications-count {
+    position: absolute;
+    top: 2px;
+    right: 1px;
+    display: inline-grid;
+    min-width: 1rem;
+    min-height: 1rem;
+    place-items: center;
+    padding: 0 .2rem;
+    border: 1px solid var(--cloudshell-surface);
+    border-radius: 999px;
+    background: var(--cloudshell-danger-text);
+    color: #fff;
+    font-size: .65rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.shell-notifications-panel {
+    position: absolute;
+    top: calc(100% + .55rem);
+    right: 0;
+    z-index: 40;
+    width: min(28rem, calc(100vw - 2rem));
+    overflow: hidden;
+    border: 1px solid var(--cloudshell-stroke);
+    border-radius: 8px;
+    background: var(--cloudshell-surface);
+    box-shadow: 0 1rem 2.4rem rgb(0 0 0 / 18%);
+}
+
+.shell-notifications-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: .75rem;
+    padding: .75rem .9rem;
+    border-bottom: 1px solid var(--cloudshell-divider);
+}
+
+.shell-notifications-empty {
+    padding: 1.35rem .9rem;
+    color: var(--cloudshell-text-muted);
+}
+
+.shell-notifications-list {
+    display: grid;
+    max-height: 28rem;
+    overflow: auto;
+}
+
+.shell-notifications-item {
+    --shell-notifications-tone: var(--cloudshell-accent);
+
+    display: grid;
+    gap: .65rem;
+    padding: .85rem .9rem;
+    border-bottom: 1px solid var(--cloudshell-divider);
+    box-shadow: inset 4px 0 0 var(--shell-notifications-tone);
+}
+
+.shell-notifications-item:last-child {
+    border-bottom: 0;
+}
+
+.shell-notifications-body,
+.shell-notifications-body-button,
+.shell-notifications-toast-body,
+.shell-notifications-toast-body-button {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+}
+
+.shell-notifications-body-button,
+.shell-notifications-toast-body-button {
+    cursor: pointer;
+}
+
+.shell-notifications-body strong,
+.shell-notifications-body-button strong,
+.shell-notifications-toast-body strong,
+.shell-notifications-toast-body-button strong {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    color: var(--cloudshell-text);
+}
+
+.shell-notifications-body span,
+.shell-notifications-body small,
+.shell-notifications-body-button span,
+.shell-notifications-body-button small,
+.shell-notifications-toast-body span,
+.shell-notifications-toast-body small,
+.shell-notifications-toast-body-button span,
+.shell-notifications-toast-body-button small {
+    display: block;
+    margin-top: .25rem;
+    color: var(--cloudshell-text-muted);
+}
+
+.shell-notifications-body small,
+.shell-notifications-body-button small,
+.shell-notifications-toast-body small,
+.shell-notifications-toast-body-button small {
+    font-size: .75rem;
+    font-weight: 650;
+}
+
+.shell-notifications-meta,
+.shell-notifications-toast-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    align-items: center;
+}
+
+.shell-notifications-meta span {
+    margin: 0;
+    color: var(--cloudshell-text-muted);
+    font-size: .75rem;
+    font-weight: 650;
+}
+
+.shell-notifications-loading-indicator {
+    display: inline-block;
+    width: .9rem;
+    height: .9rem;
+    flex: 0 0 auto;
+    border: 2px solid color-mix(in srgb, var(--cloudshell-accent) 22%, var(--cloudshell-surface));
+    border-top-color: var(--cloudshell-accent);
+    border-radius: 50%;
+    animation: cloudshell-notification-spin 900ms linear infinite;
+}
+
+.shell-notifications-toast-stack {
+    position: fixed;
+    top: 5.2rem;
+    right: 1.25rem;
+    z-index: 50;
+    display: grid;
+    width: min(25rem, calc(100vw - 2rem));
+    gap: .65rem;
+}
+
+.shell-notifications-toast {
+    --shell-notifications-tone: var(--cloudshell-accent);
+
+    display: grid;
+    gap: .55rem;
+    padding: .9rem;
+    border: 1px solid var(--cloudshell-stroke);
+    border-radius: 8px;
+    background: var(--cloudshell-surface);
+    box-shadow:
+        inset 4px 0 0 var(--shell-notifications-tone),
+        0 .8rem 1.8rem rgb(0 0 0 / 16%);
+}
+
+.is-success {
+    --shell-notifications-tone: var(--cloudshell-success-text);
+}
+
+.is-warning {
+    --shell-notifications-tone: var(--cloudshell-warning-text);
+}
+
+.is-error {
+    --shell-notifications-tone: var(--cloudshell-danger-text);
+}
+
+.is-progress,
+.is-info {
+    --shell-notifications-tone: var(--cloudshell-accent);
+}
+
+@keyframes cloudshell-notification-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (max-width: 900px) {
+    .shell-notifications-panel {
+        right: auto;
+        left: 0;
+    }
+
+    .shell-notifications-toast-stack {
+        top: auto;
+        right: 1rem;
+        bottom: 1rem;
+        left: 1rem;
+        width: auto;
+    }
+}

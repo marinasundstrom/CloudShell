@@ -82,13 +82,22 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
         eventType.Trim() switch
         {
             ResourceEventTypes.Events.Recovery.RestartScheduled or
-            ResourceEventTypes.Events.Recovery.RestartAttempted => CloudShellNotificationStatus.InProgress,
-            ResourceEventTypes.Events.Recovery.RestartSucceeded => CloudShellNotificationStatus.Succeeded,
+            ResourceEventTypes.Events.Recovery.RestartAttempted or
+            ResourceEventTypes.Events.ReplicaManagement.RestartScheduled or
+            ResourceEventTypes.Events.ReplicaManagement.RestartAttempted or
+            ResourceEventTypes.Events.ReplicaManagement.ReplacementScheduled or
+            ResourceEventTypes.Events.ReplicaManagement.ReplacementMaterializing => CloudShellNotificationStatus.InProgress,
+            ResourceEventTypes.Events.Recovery.RestartSucceeded or
+            ResourceEventTypes.Events.ReplicaManagement.ReplacementMaterialized => CloudShellNotificationStatus.Succeeded,
             ResourceEventTypes.Events.Recovery.RestartFailed or
-            ResourceEventTypes.Events.Recovery.RestartExhausted => CloudShellNotificationStatus.Failed,
+            ResourceEventTypes.Events.Recovery.RestartExhausted or
+            ResourceEventTypes.Events.ReplicaManagement.ReconciliationFailed or
+            ResourceEventTypes.Events.ReplicaManagement.ReconciliationExhausted => CloudShellNotificationStatus.Failed,
             ResourceEventTypes.Events.Lifecycle.Degraded or
             ResourceEventTypes.Events.Lifecycle.StoppedUnexpectedly or
-            ResourceEventTypes.Events.Recovery.RestartSkipped => CloudShellNotificationStatus.NeedsAttention,
+            ResourceEventTypes.Events.Recovery.RestartSkipped or
+            ResourceEventTypes.Events.ReplicaManagement.OccupantCrashed or
+            ResourceEventTypes.Events.ReplicaManagement.SlotLeftVacant => CloudShellNotificationStatus.NeedsAttention,
             _ => null
         };
 
@@ -225,7 +234,8 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
 
     private static bool IsSystemRecoveryProducer(string triggeredBy) =>
         triggeredBy.Equals("liveness", StringComparison.OrdinalIgnoreCase) ||
-        triggeredBy.Equals("recovery", StringComparison.OrdinalIgnoreCase);
+        triggeredBy.Equals("recovery", StringComparison.OrdinalIgnoreCase) ||
+        triggeredBy.Equals("replica-management", StringComparison.OrdinalIgnoreCase);
 
     private static string CreateOperationCorrelationId(
         ResourceEvent resourceEvent,
@@ -329,7 +339,16 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             ResourceEventTypes.Events.Recovery.RestartSucceeded or
             ResourceEventTypes.Events.Recovery.RestartFailed or
             ResourceEventTypes.Events.Recovery.RestartSkipped or
-            ResourceEventTypes.Events.Recovery.RestartExhausted;
+            ResourceEventTypes.Events.Recovery.RestartExhausted or
+            ResourceEventTypes.Events.ReplicaManagement.OccupantCrashed or
+            ResourceEventTypes.Events.ReplicaManagement.RestartScheduled or
+            ResourceEventTypes.Events.ReplicaManagement.RestartAttempted or
+            ResourceEventTypes.Events.ReplicaManagement.ReplacementScheduled or
+            ResourceEventTypes.Events.ReplicaManagement.ReplacementMaterializing or
+            ResourceEventTypes.Events.ReplicaManagement.ReplacementMaterialized or
+            ResourceEventTypes.Events.ReplicaManagement.SlotLeftVacant or
+            ResourceEventTypes.Events.ReplicaManagement.ReconciliationFailed or
+            ResourceEventTypes.Events.ReplicaManagement.ReconciliationExhausted;
 
     private sealed record NotificationOperation(
         string Kind,

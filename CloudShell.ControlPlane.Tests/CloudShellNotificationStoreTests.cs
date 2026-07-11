@@ -325,6 +325,85 @@ public sealed class CloudShellNotificationStoreTests
     }
 
     [Fact]
+    public void ObservingResourceEventSink_CoalescesReplicaRepairProgressIntoOneOperatorNotification()
+    {
+        var resourceEvents = new InMemoryResourceEventStore();
+        var notifications = new InMemoryCloudShellNotificationStore();
+        var changes = new List<CloudShellNotificationChangeKind>();
+        notifications.NotificationsChanged += (_, args) => changes.Add(args.Kind);
+        var projector = new ResourceEventNotificationProjector(
+            notifications,
+            [new DefaultResourceEventNotificationRule()]);
+        var sink = new ObservingResourceEventSink(resourceEvents, [projector]);
+
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.ReplicaManagement.SlotUnhealthy,
+            "Replica group slot 2/3 is unhealthy.",
+            DateTimeOffset.Parse("2026-07-11T09:00:00+00:00"),
+            TriggeredBy: "replica-management",
+            Severity: ResourceSignalSeverity.Warning));
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.ReplicaManagement.ReconciliationDeferred,
+            "Replica slot has 1/2 unhealthy observations before repair.",
+            DateTimeOffset.Parse("2026-07-11T09:00:01+00:00"),
+            TriggeredBy: "replica-management",
+            Severity: ResourceSignalSeverity.Warning));
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.ReplicaManagement.OccupantCrashed,
+            "Replica group slot 2/3 occupant is not healthy.",
+            DateTimeOffset.Parse("2026-07-11T09:00:02+00:00"),
+            TriggeredBy: "replica-management",
+            Severity: ResourceSignalSeverity.Warning));
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.ReplicaManagement.ReplacementScheduled,
+            "Replica group slot 2/3 replacement was scheduled.",
+            DateTimeOffset.Parse("2026-07-11T09:00:03+00:00"),
+            TriggeredBy: "replica-management",
+            Severity: ResourceSignalSeverity.Warning));
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.ReplicaManagement.ReplacementMaterializing,
+            "Replica group slot 2/3 replacement is materializing.",
+            DateTimeOffset.Parse("2026-07-11T09:00:04+00:00"),
+            TriggeredBy: "replica-management",
+            Severity: ResourceSignalSeverity.Warning));
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.ReplicaManagement.ReplacementMaterialized,
+            "Replica group slot 2/3 replacement materialized.",
+            DateTimeOffset.Parse("2026-07-11T09:00:05+00:00"),
+            TriggeredBy: "replica-management",
+            Severity: ResourceSignalSeverity.Success));
+
+        Assert.Equal(6, resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "application:api")).Count);
+        Assert.Empty(notifications.GetNotifications(new CloudShellNotificationQuery(RecipientKey: "replica-management")));
+
+        var notification = Assert.Single(notifications.GetNotifications(new CloudShellNotificationQuery(
+            RecipientKey: "user")));
+        Assert.Equal("Resource recovery", notification.Title);
+        Assert.Equal("Replica group slot 2/3 replacement materialized.", notification.Message);
+        Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
+        Assert.Equal(ResourceEventTypes.Events.ReplicaManagement.ReplacementMaterialized, notification.EventType);
+        Assert.Equal("resource-recovery|application:api|runtime|user", notification.CorrelationId);
+        Assert.Equal("cloudshell.resource-recovery-operation", notification.TemplateKey);
+        Assert.Equal("recovery", notification.Attributes!["operationKind"]);
+        Assert.Equal("runtime", notification.Attributes!["recoveryKind"]);
+        Assert.Equal("replica-management", notification.Attributes!["triggeredBy"]);
+        Assert.Equal(
+            [
+                CloudShellNotificationChangeKind.Created,
+                CloudShellNotificationChangeKind.Updated,
+                CloudShellNotificationChangeKind.Updated,
+                CloudShellNotificationChangeKind.Updated
+            ],
+            changes);
+    }
+
+    [Fact]
     public void DefaultResourceEventNotificationRule_MapsRecoveryExhaustionToFailedOperatorNotification()
     {
         var rule = new DefaultResourceEventNotificationRule();
