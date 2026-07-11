@@ -8,14 +8,17 @@ public sealed record SampleNotificationDraft(
     CoreShellNotificationSeverity Severity = CoreShellNotificationSeverity.Info,
     CoreShellNotificationStatus Status = CoreShellNotificationStatus.Active,
     string? Source = null,
-    CoreShellNotificationTarget? Target = null);
+    CoreShellNotificationTarget? Target = null,
+    IReadOnlyList<CoreShellNotificationAction>? Actions = null,
+    CoreShellNotificationToastBehavior ToastBehavior = CoreShellNotificationToastBehavior.Default);
 
 public sealed record SampleNotificationUpdate(
     string? Title = null,
     string? Message = null,
     CoreShellNotificationSeverity? Severity = null,
     CoreShellNotificationStatus? Status = null,
-    CoreShellNotificationTarget? Target = null);
+    CoreShellNotificationTarget? Target = null,
+    IReadOnlyList<CoreShellNotificationAction>? Actions = null);
 
 public interface ISampleNotificationProducer
 {
@@ -81,7 +84,9 @@ public sealed class SampleNotificationService :
             now,
             now,
             Source: NormalizeOptional(draft.Source),
-            Target: draft.Target);
+            Target: draft.Target,
+            Actions: NormalizeActions(draft.Actions),
+            ToastBehavior: draft.ToastBehavior);
 
         lock (_gate)
         {
@@ -117,6 +122,9 @@ public sealed class SampleNotificationService :
                 Severity = update.Severity ?? _notifications[index].Severity,
                 Status = update.Status ?? _notifications[index].Status,
                 Target = update.Target ?? _notifications[index].Target,
+                Actions = update.Actions is null
+                    ? _notifications[index].Actions
+                    : NormalizeActions(update.Actions),
                 UpdatedAt = DateTimeOffset.UtcNow
             };
             _notifications[index] = notification;
@@ -180,6 +188,42 @@ public sealed class SampleNotificationService :
         return Task.CompletedTask;
     }
 
+    public Task HandleActionAsync(
+        string notificationId,
+        string actionId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(notificationId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(actionId);
+
+        var changed = false;
+        lock (_gate)
+        {
+            var index = _notifications.FindIndex(item =>
+                string.Equals(item.Id, notificationId, StringComparison.OrdinalIgnoreCase));
+            if (index >= 0
+                && _notifications[index].Actions?.Any(item =>
+                    string.Equals(item.Id, actionId, StringComparison.OrdinalIgnoreCase)) == true)
+            {
+                var now = DateTimeOffset.UtcNow;
+                _notifications[index] = _notifications[index] with
+                {
+                    AcknowledgedAt = _notifications[index].AcknowledgedAt ?? now,
+                    ReadAt = _notifications[index].ReadAt ?? now,
+                    UpdatedAt = now
+                };
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            RaiseChanged(CoreShellNotificationChangeKind.Acknowledged, notificationId);
+        }
+
+        return Task.CompletedTask;
+    }
+
     private bool UpdateInstance(
         string notificationId,
         Func<CoreShellNotificationInstance, CoreShellNotificationInstance> update)
@@ -209,4 +253,21 @@ public sealed class SampleNotificationService :
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static IReadOnlyList<CoreShellNotificationAction>? NormalizeActions(
+        IReadOnlyList<CoreShellNotificationAction>? actions)
+    {
+        if (actions is null || actions.Count == 0)
+        {
+            return null;
+        }
+
+        return actions
+            .Select(action => action with
+            {
+                Id = NormalizeRequired(action.Id, nameof(action.Id)),
+                Label = NormalizeRequired(action.Label, nameof(action.Label))
+            })
+            .ToArray();
+    }
 }

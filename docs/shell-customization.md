@@ -71,6 +71,10 @@ while using CoreShell for navigation, targets, section outlets, and extension
 modules. It also proves the first CoreShell notification UI reference surface:
 a topbar notification center, toast-style transient status cards, and a
 sample-owned in-memory provider behind `ICoreShellNotificationService`.
+Notification actions are optional, but when present the toast and notification
+center should both expose them so a user can act immediately or return to the
+item later. Toast-only signals that do not create notification instances remain
+future work.
 `samples/CompositionSandbox` remains the lower-level composition sandbox for
 graph and renderer experiments below CoreShell.
 

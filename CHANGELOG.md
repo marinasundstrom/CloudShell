@@ -38,6 +38,9 @@ on `git blame --follow`, and then by the broad type of change.
   sample in-memory notification provider, topbar notification center,
   toast-style status cards, and a simulated asynchronous create-resource
   action.
+- Added optional CoreShell notification actions and notification-side toast
+  behavior hints, with the sample rendering actions and loading indicators in
+  both toasts and the notification center.
 - Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder
   helper from CloudShell Hosting into `CoreShell.Blazor` so common Blazor shell
   building blocks can be used by CoreShell apps without a CloudShell

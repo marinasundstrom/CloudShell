@@ -21,9 +21,12 @@ public sealed class CoreShellNotificationServiceTests
         ICoreShellNotificationService service = new EmptyCoreShellNotificationService();
 
         await service.AcknowledgeAsync("notification-1");
+        await service.HandleActionAsync("notification-1", "open");
         await service.DismissAsync("notification-1");
 
         await Assert.ThrowsAsync<ArgumentException>(() => service.AcknowledgeAsync(""));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.HandleActionAsync("", "open"));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.HandleActionAsync("notification-1", ""));
         await Assert.ThrowsAsync<ArgumentException>(() => service.DismissAsync(" "));
     }
 
@@ -62,6 +65,12 @@ public sealed class CoreShellNotificationServiceTests
 
         public Task AcknowledgeAsync(
             string notificationId,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task HandleActionAsync(
+            string notificationId,
+            string actionId,
             CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 

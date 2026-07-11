@@ -45,7 +45,15 @@
             CoreShellNotificationSeverity.Info,
             CoreShellNotificationStatus.InProgress,
             Source: "CoreShell sample",
-            Target: new CoreShellNotificationTarget("/operations", "View operations")));
+            Target: new CoreShellNotificationTarget("/operations", "View operations"),
+            Actions:
+            [
+                new CoreShellNotificationAction(
+                    "view-operations",
+                    "View operations",
+                    new CoreShellNotificationTarget("/operations", "View operations"),
+                    IsPrimary: true)
+            ]));
 
         try
         {

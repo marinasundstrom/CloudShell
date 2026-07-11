@@ -91,9 +91,24 @@ cursor or checkpoint. That keeps a SignalR-backed implementation and a polling
 implementation compatible with the same UI contract.
 
 Toasts are presentation, not storage. A toast is a short-lived view over a
-notification instance or event update. A notification center is a longer-lived
-view over queryable per-recipient instances. The same notification may appear
-in both places, only one place, or neither place if the host filters it out.
+notification instance, event update, background task update, or transient UI
+signal. A notification center is a longer-lived view over queryable
+per-recipient instances. The same user-visible event may appear in both
+places, only one place, or neither place if the host filters it out.
+
+Notifications and toasts should therefore be related but not identical:
+
+- A notification can request toast presentation when the item is timely,
+  actionable, or needs user attention.
+- A notification can suppress toast presentation when the item belongs only in
+  history, is low urgency, or was already represented by another signal.
+- A toast-only signal can exist for ephemeral feedback that should not create a
+  notification-center item.
+- A toast should render notification actions when the backing item provides
+  them. If the user ignores the toast, the same action remains available in
+  the notification center.
+- A toast or notification can show a loading/progress indicator when it
+  represents in-progress background work.
 
 ## Proposed CoreShell boundary
 
@@ -103,6 +118,8 @@ CoreShell should own stable shell-level contracts such as:
 - a notification query contract
 - publish/update contracts for hosts that allow shell-local producers
 - acknowledge/dismiss contracts for per-recipient instances
+- optional notification action descriptors and action-handling hooks
+- notification toast behavior hints, including suppression
 - a change subscription contract
 - audience descriptors that stay product-neutral
 - presentation hints such as severity, status, route/href, source label, and
@@ -315,6 +332,7 @@ A per-recipient notification instance should include:
 - read, acknowledged, dismissed, and archived timestamps or flags
 - instance-created and instance-updated timestamps
 - optional action descriptors and per-user action state
+- optional toast behavior hint
 
 Records should carry enough context for the shell to render a useful item, but
 they should not embed large payloads, logs, provider-native operation data, or
@@ -366,13 +384,16 @@ visible to the current user and which actions or links are enabled.
 - Add CoreShell notification instance, query, acknowledge/dismiss, and
   change-subscription contracts. Initial minimal UI contract is implemented
   through `ICoreShellNotificationService`.
+- Added optional notification actions, action handling, and notification-side
+  toast behavior hints.
 - Decide whether event and publish/update producer contracts belong in
   CoreShell or only in host-specific notification services.
 - Added a sample-owned in-memory implementation for the CoreShell Fluent UI
   sample.
 - Added a CoreShell Fluent UI sample notification center and toast presenter.
 - Added a sample asynchronous action that publishes an in-progress
-  notification and then updates it to succeeded.
+  notification with an action and loading indicator, then updates it to
+  succeeded.
 - Added focused CoreShell tests for the minimal UI contract and default
   registration behavior. Producer-side record publication and update tests
   should land with the durable producer contract.
@@ -400,6 +421,8 @@ visible to the current user and which actions or links are enabled.
 - Add query cursors or checkpoints so clients can recover from missed signals.
 - Define how late-joining users receive group or all-users notifications that
   were published before their first connection.
+- Decide whether CoreShell should expose a separate toast-only service for
+  transient signals that should not create notification instances.
 
 ### Slice 4: Preference and retention policy
 

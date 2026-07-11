@@ -1,5 +1,6 @@
 @implements IDisposable
 @inject ICoreShellNotificationService Notifications
+@inject NavigationManager Navigation
 
 <div class="notification-host">
     <FluentButton Appearance="Appearance.Neutral"
@@ -36,12 +37,28 @@
                     {
                         <article class="@GetItemClass(item)">
                             <div>
-                                <strong>@item.Title</strong>
+                                <strong>
+                                    @if (IsLoading(item))
+                                    {
+                                        <span class="loading-indicator" aria-label="In progress"></span>
+                                    }
+                                    @item.Title
+                                </strong>
                                 <span>@item.Message</span>
                             </div>
                             <div class="notification-meta">
                                 <span>@GetStatusText(item)</span>
-                                @if (item.Target is not null)
+                                @if (GetActions(item).Count > 0)
+                                {
+                                    @foreach (var action in GetActions(item))
+                                    {
+                                        <FluentButton Appearance="@(action.IsPrimary ? Appearance.Accent : Appearance.Stealth)"
+                                                      OnClick="@(() => HandleActionAsync(item, action))">
+                                            @action.Label
+                                        </FluentButton>
+                                    }
+                                }
+                                else if (item.Target is not null)
                                 {
                                     <FluentAnchor Href="@item.Target.Href" Appearance="Appearance.Stealth">
                                         @(item.Target.Label ?? "Open")
@@ -74,13 +91,28 @@
         @foreach (var item in ToastItems)
         {
             <article class="@GetToastClass(item)">
-                <strong>@item.Title</strong>
+                <strong>
+                    @if (IsLoading(item))
+                    {
+                        <span class="loading-indicator" aria-label="In progress"></span>
+                    }
+                    @item.Title
+                </strong>
                 <span>@item.Message</span>
-                <FluentButton Appearance="Appearance.Stealth"
-                              IconStart="@(new Icons.Regular.Size16.Dismiss())"
-                              OnClick="@(() => DismissAsync(item.Id))">
-                    Dismiss
-                </FluentButton>
+                <div class="toast-actions">
+                    @foreach (var action in GetActions(item))
+                    {
+                        <FluentButton Appearance="@(action.IsPrimary ? Appearance.Accent : Appearance.Stealth)"
+                                      OnClick="@(() => HandleActionAsync(item, action))">
+                            @action.Label
+                        </FluentButton>
+                    }
+                    <FluentButton Appearance="Appearance.Stealth"
+                                  IconStart="@(new Icons.Regular.Size16.Dismiss())"
+                                  OnClick="@(() => DismissAsync(item.Id))">
+                        Dismiss
+                    </FluentButton>
+                </div>
             </article>
         }
     </div>
@@ -95,7 +127,7 @@
 
     private IReadOnlyList<CoreShellNotificationInstance> ToastItems =>
         Items
-            .Where(item => item.AcknowledgedAt is null)
+            .Where(ShouldToast)
             .Take(2)
             .ToArray();
 
@@ -135,6 +167,19 @@
         await LoadAsync();
     }
 
+    private async Task HandleActionAsync(
+        CoreShellNotificationInstance item,
+        CoreShellNotificationAction action)
+    {
+        await Notifications.HandleActionAsync(item.Id, action.Id);
+        await LoadAsync();
+
+        if (action.Target is not null)
+        {
+            Navigation.NavigateTo(action.Target.Href);
+        }
+    }
+
     private void OnNotificationsChanged(object? sender, CoreShellNotificationsChangedEventArgs args) =>
         _ = InvokeAsync(LoadAsync);
 
@@ -163,4 +208,14 @@
             CoreShellNotificationStatus.NeedsAttention => "Needs attention",
             _ => item.Source ?? "Notification"
         };
+
+    private static IReadOnlyList<CoreShellNotificationAction> GetActions(CoreShellNotificationInstance item) =>
+        item.Actions ?? [];
+
+    private static bool IsLoading(CoreShellNotificationInstance item) =>
+        item.Status == CoreShellNotificationStatus.InProgress;
+
+    private static bool ShouldToast(CoreShellNotificationInstance item) =>
+        item.AcknowledgedAt is null
+        && item.ToastBehavior != CoreShellNotificationToastBehavior.Suppressed;
 }

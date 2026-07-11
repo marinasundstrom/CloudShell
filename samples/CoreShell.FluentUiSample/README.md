@@ -15,6 +15,9 @@ It proves the extraction boundary for common shell building blocks:
 - The sample owns the reference notification UI surface: a topbar notification
   center, toast-style transient status cards, and a host-provided in-memory
   notification source behind `ICoreShellNotificationService`.
+- Notification actions are optional. When an instance supplies actions, the
+  toast renders them and the notification center renders them again if the
+  user ignores the toast.
 - A second CoreShell module contributes a dashboard section and navigation
   item without using CloudShell product services.
 
@@ -26,9 +29,9 @@ CloudShell depends on.
 
 The dashboard work queue includes a simulated asynchronous create-resource
 action. It publishes an in-progress notification and updates it to success,
-showing the CoreShell notification contract and Fluent UI presenter behavior
-before the equivalent CloudShell notification rules and Control Plane event
-integration are implemented.
+showing the CoreShell notification contract, optional actions, loading
+indicator, and Fluent UI presenter behavior before the equivalent CloudShell
+notification rules and Control Plane event integration are implemented.
 
 ## Run
 

@@ -26,6 +26,13 @@ public enum CoreShellNotificationChangeKind
     Dismissed = 4
 }
 
+public enum CoreShellNotificationToastBehavior
+{
+    Default = 0,
+    Suppressed = 1,
+    UntilAcknowledged = 2
+}
+
 public sealed record CoreShellNotificationQuery(
     bool IncludeDismissed = false,
     int? Limit = null);
@@ -33,6 +40,12 @@ public sealed record CoreShellNotificationQuery(
 public sealed record CoreShellNotificationTarget(
     string Href,
     string? Label = null);
+
+public sealed record CoreShellNotificationAction(
+    string Id,
+    string Label,
+    CoreShellNotificationTarget? Target = null,
+    bool IsPrimary = false);
 
 public sealed record CoreShellNotificationInstance(
     string Id,
@@ -48,7 +61,9 @@ public sealed record CoreShellNotificationInstance(
     DateTimeOffset? ReadAt = null,
     DateTimeOffset? AcknowledgedAt = null,
     DateTimeOffset? DismissedAt = null,
-    IReadOnlyDictionary<string, string>? Attributes = null);
+    IReadOnlyDictionary<string, string>? Attributes = null,
+    IReadOnlyList<CoreShellNotificationAction>? Actions = null,
+    CoreShellNotificationToastBehavior ToastBehavior = CoreShellNotificationToastBehavior.Default);
 
 public sealed class CoreShellNotificationsChangedEventArgs(
     CoreShellNotificationChangeKind kind = CoreShellNotificationChangeKind.RefreshRequired,
@@ -69,6 +84,11 @@ public interface ICoreShellNotificationService
 
     Task AcknowledgeAsync(
         string notificationId,
+        CancellationToken cancellationToken = default);
+
+    Task HandleActionAsync(
+        string notificationId,
+        string actionId,
         CancellationToken cancellationToken = default);
 
     Task DismissAsync(
@@ -94,6 +114,16 @@ public sealed class EmptyCoreShellNotificationService : ICoreShellNotificationSe
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(notificationId);
+        return Task.CompletedTask;
+    }
+
+    public Task HandleActionAsync(
+        string notificationId,
+        string actionId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(notificationId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(actionId);
         return Task.CompletedTask;
     }
 
