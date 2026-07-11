@@ -396,10 +396,12 @@ public sealed class ApplicationArtifactHostSmokeTests
 
             startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
             startInfo.Environment["Authentication__Enabled"] = "false";
+            startInfo.Environment["ApplicationResources__HostRunResourceTypesEnabled"] = "true";
             startInfo.Environment["Persistence__ConnectionString"] =
                 $"Data Source={Path.Combine(dataDirectory, "cloudshell.db")}";
             startInfo.Environment["Identity__BuiltIn__Persistence__ConnectionString"] =
                 $"Data Source={Path.Combine(dataDirectory, "identity.db")}";
+            startInfo.Environment["DeploymentArtifacts__Enabled"] = "true";
             startInfo.Environment["DeploymentArtifacts__Store__Kind"] = "FileSystem";
             startInfo.Environment["DeploymentArtifacts__Store__RootPath"] =
                 Path.Combine(dataDirectory, "deployment-artifacts");

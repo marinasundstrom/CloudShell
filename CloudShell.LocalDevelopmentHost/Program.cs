@@ -43,9 +43,15 @@ var serviceAuthenticationAudience =
     "cloudshell-control-plane";
 var serviceAuthenticationSigningKeyPem =
     builder.Configuration["Authentication:BuiltInAuthority:SigningKeyPem"];
+var hostRunApplicationResourceTypesEnabled =
+    builder.Configuration.GetValue<bool>("ApplicationResources:HostRunResourceTypesEnabled");
 
 var cloudShell = builder.AddCloudShellControlPlaneApplication(
-    configureBuiltInResourceModelProviders: null);
+    configureBuiltInResourceModelProviders: options =>
+    {
+        options.EnableHostRunApplicationResourceTypes =
+            hostRunApplicationResourceTypesEnabled;
+    });
 AddLocalDevelopmentIdentityProvider(builder, cloudShell);
 
 cloudShell
@@ -119,7 +125,11 @@ builder.AddCloudShellUi(ui =>
         .AddExtension<ResourceManagerExtension>()
         .AddExtension<TelemetryExtension>()
         .AddExtension<UsageExtension>();
-    ui.AddBuiltInProviderResourceManagerUi();
+    ui.AddBuiltInProviderResourceManagerUi(options =>
+    {
+        options.EnableHostRunApplicationResourceTypes =
+            hostRunApplicationResourceTypesEnabled;
+    });
 });
 
 var app = builder.Build();
@@ -186,6 +196,11 @@ static void AddLocalDevelopmentAuthenticationDefaults(
     if (string.IsNullOrWhiteSpace(configuration["ResourceManager:AllowLocalPathResourceDefinitions"]))
     {
         defaults["ResourceManager:AllowLocalPathResourceDefinitions"] = "true";
+    }
+
+    if (string.IsNullOrWhiteSpace(configuration["ApplicationResources:HostRunResourceTypesEnabled"]))
+    {
+        defaults["ApplicationResources:HostRunResourceTypesEnabled"] = "true";
     }
 
     if (!authorityEnabled)

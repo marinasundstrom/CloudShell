@@ -16,8 +16,17 @@ using ResourceManagerResourceClass = CloudShell.Abstractions.ResourceManager.Res
 
 namespace CloudShell.ControlPlane.Providers.UI;
 
-public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExtension
+public sealed class BuiltInProviderResourceManagerUiOptions
 {
+    public bool EnableHostRunApplicationResourceTypes { get; set; } = true;
+}
+
+public sealed class BuiltInProviderResourceManagerUiExtension(
+    BuiltInProviderResourceManagerUiOptions? options = null) : ICloudShellExtension
+{
+    private readonly BuiltInProviderResourceManagerUiOptions _options =
+        options ?? new BuiltInProviderResourceManagerUiOptions();
+
     public CloudShellExtensionManifest Manifest => new(
         "cloudshell.control-plane.providers.resource-manager-ui",
         "Control Plane Providers Resource Manager UI",
@@ -45,8 +54,11 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
         builder.Services.TryAddSingleton<IRabbitMQBrokerTopologyProvider, NoopRabbitMQBrokerTopologyProvider>();
         builder.Services.TryAddSingleton<IRabbitMQBrokerDashboardProvider, NoopRabbitMQBrokerDashboardProvider>();
 
-        builder
-            .AddResourceType<SharedPages.RegisterApplicationResource>(
+        var resourceTypes = builder;
+        if (_options.EnableHostRunApplicationResourceTypes)
+        {
+            resourceTypes = resourceTypes
+                .AddResourceType<SharedPages.RegisterApplicationResource>(
                 ExecutableApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 "Executable application",
                 "Inspect executable applications declared through Resource Manager.",
@@ -135,7 +147,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                             "http",
                             "liveness",
                             Source: ResourceProbeSource.ForHttp("/alive", "http"))
-                ]),
+                    ]),
                 resourceClass: ResourceManagerResourceClass.Project)
             .AddResourceType<ApplicationArtifactResourceEditor, ApplicationArtifactResourceEditor>(
                 PythonAppResourceTypeProvider.ResourceTypeId.ToString(),
@@ -157,7 +169,10 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                             "liveness",
                             Source: ResourceProbeSource.ForHttp("/alive", "http"))
                     ]),
-                resourceClass: ResourceManagerResourceClass.Project)
+                resourceClass: ResourceManagerResourceClass.Project);
+        }
+
+        resourceTypes
             .AddResourceType<ContainerAppPages.RegisterContainerApplicationResource>(
                 ContainerApplicationResourceTypeProvider.ResourceTypeId.ToString(),
                 "Container app",
@@ -634,10 +649,19 @@ public static class BuiltInProviderResourceManagerUiHostExtensions
 {
     public static ICloudShellBuilder AddBuiltInProviderResourceManagerUi(
         this ICloudShellBuilder builder,
+        Action<BuiltInProviderResourceManagerUiOptions>? configure,
         CloudShellExtensionActivationPolicy activationPolicy = CloudShellExtensionActivationPolicy.Enabled)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        return builder.AddExtension(new BuiltInProviderResourceManagerUiExtension(), activationPolicy);
+        var options = new BuiltInProviderResourceManagerUiOptions();
+        configure?.Invoke(options);
+
+        return builder.AddExtension(new BuiltInProviderResourceManagerUiExtension(options), activationPolicy);
     }
+
+    public static ICloudShellBuilder AddBuiltInProviderResourceManagerUi(
+        this ICloudShellBuilder builder,
+        CloudShellExtensionActivationPolicy activationPolicy = CloudShellExtensionActivationPolicy.Enabled) =>
+        AddBuiltInProviderResourceManagerUi(builder, configure: null, activationPolicy);
 }

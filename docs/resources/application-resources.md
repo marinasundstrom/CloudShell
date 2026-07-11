@@ -32,6 +32,48 @@ application artifact mode by default: the UI uploads a package, or later asks
 the host to download/pull one from a supported source, and the provider runs
 from the host-managed resource artifact folder.
 
+For shared or hosted CloudShell environments, prefer
+`application.container-app` for application workloads before choosing a
+language-specific app resource such as `.NET app`, Java app, JavaScript app,
+Go app, Python app, or executable app. Container apps give the host a clearer
+isolation and placement boundary, keep workload filesystem access inside the
+container runtime, and are safer for team-owned hosts. Language-specific app
+resources remain useful and supported, especially for local development and
+launcher-authored graphs. When they are created through Resource Manager on a
+hosted environment, use application artifacts rather than host-local source
+paths.
+
+Host-run application resource types are opt-in for hosted CloudShell
+environments. `CloudShell.Host` disables them by default so Resource Manager
+application creation naturally points users at container apps. A host that
+intentionally supports host-run application resources can enable them through
+configuration:
+
+```json
+{
+  "ApplicationResources": {
+    "HostRunResourceTypesEnabled": true
+  }
+}
+```
+
+This setting controls registration of the built-in host-run application
+resource providers and their Resource Manager UI entries:
+`application.executable`, `application.dotnet-app`,
+`application.javascript-app`, `application.java-app`, `application.go-app`,
+and `application.python-app`. It does not disable
+`application.container-app`. `CloudShell.LocalDevelopmentHost` enables the
+setting by default because it is the broadest built-in host profile for
+launcher-driven local development.
+
+This keeps the local-to-hosted flow explicit. During local development, a
+launcher can declare a host-run app resource for fast source-on-disk iteration.
+When the developer wants to validate the application as a container before
+deploying it to a hosted environment, the same declaration can use
+`AsContainerApp(...)` to project the workload as `application.container-app`.
+That container app shape is the preferred application deployment target for
+shared CloudShell hosts.
+
 Local path attributes such as `project.path`, `executablePath`, script paths,
 Dockerfile paths, and working directories are privileged host-readable inputs.
 They are for local development, launchers, graph builders, host profiles, or
@@ -47,6 +89,28 @@ configuration leaves it disabled. `CloudShell.Host` development settings and
 `CloudShell.LocalDevelopmentHost` enable it so launchers can submit
 `project.path`, `executablePath`, and other supported local-source path
 attributes to a trusted local host.
+
+Application artifact upload and revision operations are a separate opt-in
+feature. A host must enable the feature and configure a store before Resource
+Manager can upload packages:
+
+```json
+{
+  "DeploymentArtifacts": {
+    "Enabled": true,
+    "Store": {
+      "Kind": "FileSystem",
+      "RootPath": "Data/deployment-artifacts"
+    }
+  }
+}
+```
+
+When `DeploymentArtifacts:Enabled` is false, the Control Plane reports a
+disabled artifact store status and rejects artifact layout, upload, read,
+apply, and restore operations with the `featureDisabled` error code. The
+physical store path is host-owned configuration and is not part of a resource
+definition.
 
 Container application resources represent managed services in CloudShell. A
 container app should be the normal configuration surface for service endpoints,

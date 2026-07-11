@@ -279,6 +279,7 @@ An initial filesystem-backed configuration could look like:
 ```json
 {
   "DeploymentArtifacts": {
+    "Enabled": true,
     "Store": {
       "Kind": "FileSystem",
       "RootPath": "Data/deployment-artifacts",
@@ -288,6 +289,12 @@ An initial filesystem-backed configuration could look like:
   }
 }
 ```
+
+`DeploymentArtifacts:Enabled` is deliberately separate from the store
+settings. Hosted environments can keep upload and revision APIs disabled even
+when the host has a storage provider implementation available. When the flag
+is disabled, Resource Manager should not offer upload or artifact revision
+actions for application resources.
 
 The same logical store contract should allow later providers:
 

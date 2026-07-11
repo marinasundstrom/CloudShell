@@ -1599,6 +1599,7 @@ public sealed class RemoteControlPlaneContractTests
             ["Persistence:ConnectionString"] = "Data Source=Data/cloudshell-client-contract.db",
             ["Identity:BuiltIn:Persistence:Provider"] = "Sqlite",
             ["Identity:BuiltIn:Persistence:ConnectionString"] = "Data Source=Data/identity-client-contract.db",
+            ["DeploymentArtifacts:Enabled"] = "true",
             ["DeploymentArtifacts:Store:Kind"] = "FileSystem",
             ["DeploymentArtifacts:Store:RootPath"] = "Data/deployment-artifacts"
         });

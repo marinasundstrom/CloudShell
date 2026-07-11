@@ -23,9 +23,15 @@ var eventBrokerServiceProjectPath = Path.GetFullPath(
     "../CloudShell.EventBrokerService/CloudShell.EventBrokerService.csproj",
     builder.Environment.ContentRootPath);
 var repositoryRootPath = Path.GetFullPath("..", builder.Environment.ContentRootPath);
+var hostRunApplicationResourceTypesEnabled =
+    builder.Configuration.GetValue<bool>("ApplicationResources:HostRunResourceTypesEnabled");
 
 var cloudShell = builder.AddCloudShellControlPlaneApplication(
-    configureBuiltInResourceModelProviders: null,
+    configureBuiltInResourceModelProviders: options =>
+    {
+        options.EnableHostRunApplicationResourceTypes =
+            hostRunApplicationResourceTypesEnabled;
+    },
     configureControlPlane: controlPlane =>
     {
         controlPlane.DefineResources(resources =>
@@ -42,7 +48,11 @@ builder.AddCloudShellUi(ui =>
         .AddExtension<TelemetryExtension>()
         .AddExtension<UsageExtension>()
         .AddExtension<DevelopmentShellExtension>();
-    ui.AddBuiltInProviderResourceManagerUi();
+    ui.AddBuiltInProviderResourceManagerUi(options =>
+    {
+        options.EnableHostRunApplicationResourceTypes =
+            hostRunApplicationResourceTypesEnabled;
+    });
 });
 
 cloudShell

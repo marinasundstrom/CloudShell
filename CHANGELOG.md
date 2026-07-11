@@ -93,6 +93,14 @@ on `git blame --follow`, and then by the broad type of change.
   `executablePath` during ResourceDefinition apply; hosted defaults keep it
   disabled while local development hosts enable it for launcher-authored
   graphs.
+- Added `ApplicationResources:HostRunResourceTypesEnabled` so hosted
+  CloudShell profiles can keep host-run application resource types disabled by
+  default while leaving container apps as the normal application creation
+  mode; `CloudShell.LocalDevelopmentHost` enables them by default for
+  launcher-driven local development.
+- Added `DeploymentArtifacts:Enabled` so application artifact layout, upload,
+  validation, revision, apply, and restore operations are explicit host opt-in
+  features in addition to store configuration.
 - Fixed Resource Manager template export for launcher-authored resources that
   are not assigned to a resource group by adding an ungrouped export scope.
 - Stabilized resource model provider and sample smoke coverage after the

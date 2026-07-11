@@ -2589,6 +2589,68 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task GetDeploymentArtifactStoreStatusAsync_ReturnsDisabledWhenFeatureIsDisabled()
+    {
+        var deploymentArtifacts = new RecordingDeploymentArtifactStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            deploymentArtifactStore: deploymentArtifacts,
+            deploymentArtifactOptions: new DeploymentArtifactOptions
+            {
+                Enabled = false
+            });
+
+        var status = await controlPlane.GetDeploymentArtifactStoreStatusAsync("target");
+
+        Assert.False(status.IsEnabled);
+        Assert.Equal(DeploymentArtifactStoreKinds.Disabled, status.Kind);
+        Assert.Equal(0, status.MaxUploadBytes);
+        Assert.Empty(status.AllowedPackageKinds);
+    }
+
+    [Fact]
+    public async Task CreateDeploymentArtifactUploadSessionAsync_RejectsWhenFeatureIsDisabled()
+    {
+        var deploymentArtifacts = new RecordingDeploymentArtifactStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            deploymentArtifactStore: deploymentArtifacts,
+            deploymentArtifactOptions: new DeploymentArtifactOptions
+            {
+                Enabled = false
+            });
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.CreateDeploymentArtifactUploadSessionAsync(
+                new CreateDeploymentArtifactUploadSessionCommand(
+                    "application.dotnet-app",
+                    "target",
+                    "zip",
+                    ResourceId: "target")));
+
+        Assert.Equal(ControlPlaneErrorCodes.FeatureDisabled, exception.Error.Code);
+        Assert.Contains("Deployment artifact operations are disabled", exception.Message);
+    }
+
+    [Fact]
+    public async Task ListDeploymentArtifactLayoutsAsync_RejectsWhenFeatureIsDisabled()
+    {
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            deploymentArtifactOptions: new DeploymentArtifactOptions
+            {
+                Enabled = false
+            });
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.ListDeploymentArtifactLayoutsAsync(
+                "target",
+                new DeploymentArtifactLayoutQuery("application.dotnet-app")));
+
+        Assert.Equal(ControlPlaneErrorCodes.FeatureDisabled, exception.Error.Code);
+    }
+
+    [Fact]
     public async Task UpdateResourceImageAsync_RejectsUnknownResource()
     {
         var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
@@ -3769,6 +3831,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         IResourceRecoveryStore? resourceRecoveryStore = null,
         IResourceOrchestratorDeploymentStore? deploymentStore = null,
         IDeploymentArtifactStore? deploymentArtifactStore = null,
+        DeploymentArtifactOptions? deploymentArtifactOptions = null,
         bool allowLocalPathResourceDefinitions = true)
     {
         provider ??= new TestResourceProvider();
@@ -3798,6 +3861,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             permissionGrantStatusProviders,
             deploymentStore,
             deploymentArtifactStore,
+            deploymentArtifactOptions,
             allowLocalPathResourceDefinitions).ControlPlane;
     }
 
@@ -3827,6 +3891,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         IReadOnlyList<IResourcePermissionGrantStatusProvider>? permissionGrantStatusProviders = null,
         IResourceOrchestratorDeploymentStore? deploymentStore = null,
         IDeploymentArtifactStore? deploymentArtifactStore = null,
+        DeploymentArtifactOptions? deploymentArtifactOptions = null,
         bool allowLocalPathResourceDefinitions = true)
     {
         provider ??= new TestResourceProvider();
@@ -3922,7 +3987,8 @@ public sealed class InProcessControlPlaneResourceStateTests
             resourceManagerOptions: Options.Create(new ResourceManagerOptions
             {
                 AllowLocalPathResourceDefinitions = allowLocalPathResourceDefinitions
-            }));
+            }),
+            deploymentArtifactOptions: Options.Create(deploymentArtifactOptions ?? new DeploymentArtifactOptions()));
 
         return new ControlPlaneTestHost(controlPlane, replicaGroupReconciliation);
     }

@@ -60,7 +60,8 @@ public sealed class InProcessControlPlane(
     IDeploymentArtifactStore? deploymentArtifacts = null,
     IEnumerable<IDeploymentArtifactLayoutProvider>? deploymentArtifactLayoutProviders = null,
     IEnumerable<IDeploymentArtifactValidationProvider>? deploymentArtifactValidationProviders = null,
-    IOptions<ResourceManagerOptions>? resourceManagerOptions = null) : IControlPlane
+    IOptions<ResourceManagerOptions>? resourceManagerOptions = null,
+    IOptions<DeploymentArtifactOptions>? deploymentArtifactOptions = null) : IControlPlane
 {
     private const string PreferredUsernameClaimType = "preferred_username";
     private const string UnauthenticatedRequestActor = "user";
@@ -82,6 +83,8 @@ public sealed class InProcessControlPlane(
 
     private readonly ResourceManagerOptions resourceManagerOptions =
         resourceManagerOptions?.Value ?? new ResourceManagerOptions();
+    private readonly DeploymentArtifactOptions deploymentArtifactOptions =
+        deploymentArtifactOptions?.Value ?? new DeploymentArtifactOptions();
 
     private readonly ResourceIdentityProviderCatalog identityProviders =
         identityProviders ?? new ResourceIdentityProviderCatalog();
@@ -1215,6 +1218,15 @@ public sealed class InProcessControlPlane(
     {
         RequireValue(resourceId, nameof(resourceId));
         cancellationToken.ThrowIfCancellationRequested();
+        if (!deploymentArtifactOptions.Enabled)
+        {
+            return Task.FromResult(new DeploymentArtifactStoreStatus(
+                false,
+                DeploymentArtifactStoreKinds.Disabled,
+                0,
+                []));
+        }
+
         return Task.FromResult(RequireDeploymentArtifactStore().GetStatus());
     }
 
@@ -1226,6 +1238,7 @@ public sealed class InProcessControlPlane(
         RequireValue(resourceId, nameof(resourceId));
         ArgumentNullException.ThrowIfNull(query);
         cancellationToken.ThrowIfCancellationRequested();
+        EnsureDeploymentArtifactsEnabled();
 
         var layouts = new List<DeploymentArtifactLayoutDescriptor>();
         foreach (var provider in deploymentArtifactLayoutProviders.Where(provider =>
@@ -2924,6 +2937,8 @@ public sealed class InProcessControlPlane(
 
     private void EnsureCanUploadDeploymentArtifacts()
     {
+        EnsureDeploymentArtifactsEnabled();
+
         if (authorization.HasPermission(CloudShellPermissions.Deployments.Artifacts.Upload))
         {
             return;
@@ -2936,6 +2951,8 @@ public sealed class InProcessControlPlane(
 
     private void EnsureCanReadDeploymentArtifacts()
     {
+        EnsureDeploymentArtifactsEnabled();
+
         if (authorization.HasPermission(CloudShellPermissions.Deployments.Artifacts.Read) ||
             authorization.HasPermission(CloudShellPermissions.Deployments.Artifacts.Upload))
         {
@@ -2945,6 +2962,17 @@ public sealed class InProcessControlPlane(
         throw new ControlPlaneAccessDeniedException(new ControlPlaneError(
             ControlPlaneErrorCodes.InsufficientPermission,
             $"The '{CloudShellPermissions.Deployments.Artifacts.Read}' or '{CloudShellPermissions.Deployments.Artifacts.Upload}' permission is required to read deployment artifact revisions."));
+    }
+
+    private void EnsureDeploymentArtifactsEnabled()
+    {
+        if (deploymentArtifactOptions.Enabled)
+        {
+            return;
+        }
+
+        throw new ControlPlaneException(ControlPlaneError.FeatureDisabled(
+            "Deployment artifact operations are disabled for this Control Plane host. Set DeploymentArtifacts:Enabled to true and configure a deployment artifact store to enable application artifact upload and revision operations."));
     }
 
     private IDeploymentArtifactStore RequireDeploymentArtifactStore() =>

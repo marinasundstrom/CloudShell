@@ -11,6 +11,8 @@ public sealed class BuiltInResourceModelProviderOptions
 
     public string ResourceGraphProviderDisplayName { get; set; } = "Resource model";
 
+    public bool EnableHostRunApplicationResourceTypes { get; set; } = true;
+
     public ResourceDefinitionResolutionContext? ResourceDefinitionResolutionContext { get; set; }
 
     public ResourceModelResourceManagerProjectionOptions? ResourceManagerProjectionOptions { get; set; }
@@ -74,13 +76,18 @@ public static class BuiltInResourceModelProviderServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(options);
 
+        if (options.EnableHostRunApplicationResourceTypes)
+        {
+            services
+                .AddExecutableApplicationResourceType()
+                .AddDotnetAppResourceType()
+                .AddJavaScriptAppResourceType()
+                .AddJavaAppResourceType()
+                .AddGoAppResourceType()
+                .AddPythonAppResourceType();
+        }
+
         services
-            .AddExecutableApplicationResourceType()
-            .AddDotnetAppResourceType()
-            .AddJavaScriptAppResourceType()
-            .AddJavaAppResourceType()
-            .AddGoAppResourceType()
-            .AddPythonAppResourceType()
             .AddContainerApplicationResourceType()
             .AddDockerHostResourceType()
             .AddDockerContainerResourceType()

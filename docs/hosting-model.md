@@ -117,6 +117,16 @@ how to author and apply templates; the app project references whichever
 provider builder packages it needs, but the launcher package does not reference
 `CloudShell.ControlPlane`, `CloudShell.Hosting`, or provider runtime services:
 
+A launcher can run any CloudShell host profile, and that host profile can be
+configured with a narrow or broad resource/provider set. The default local
+development host is intentionally configured with the widest built-in support
+that is useful during development: host-run application resource types,
+trusted local path ResourceDefinition apply, local runtime adapters, and local
+identity defaults. A hosted or team-owned profile should normally be narrower,
+with container apps as the default application deployment mode and host-run
+application resource types enabled only when the host operator deliberately
+supports that workflow.
+
 ```csharp
 using CloudShell.AppHost.Launcher;
 using CloudShell.ControlPlane.Providers;
@@ -177,6 +187,53 @@ provider runtime settings, and local development identity users under
 `ResourceIdentity:BuiltIn:Users`. Custom host profiles can still choose their
 own provider set, authentication mode, persistence, identity provider, and UI
 extensions by composing the same hosting APIs directly.
+
+## Application Resource Host Settings
+
+Hosted CloudShell profiles should prefer container apps for application
+workloads. Host-run application resource types are available for local
+development and explicit artifact-backed hosting scenarios, but they are
+opt-in for a hosted profile:
+
+```json
+{
+  "ApplicationResources": {
+    "HostRunResourceTypesEnabled": false
+  }
+}
+```
+
+`ApplicationResources:HostRunResourceTypesEnabled` controls the built-in
+providers and Resource Manager UI entries for executable, .NET, JavaScript,
+Java, Go, and Python host-run app resources. It does not disable
+`application.container-app`.
+
+Application artifact uploads are gated separately:
+
+```json
+{
+  "DeploymentArtifacts": {
+    "Enabled": true,
+    "Store": {
+      "Kind": "FileSystem",
+      "RootPath": "Data/deployment-artifacts"
+    }
+  }
+}
+```
+
+`DeploymentArtifacts:Enabled` must be true before the Control Plane accepts
+application artifact layout, upload, validation, revision, apply, or restore
+operations. A store must also be configured for uploads. The physical store
+location is host configuration, not user-authored resource state.
+
+Local path ResourceDefinition apply remains a third, separate host setting:
+`ResourceManager:AllowLocalPathResourceDefinitions`. Hosted defaults keep it
+disabled. `CloudShell.LocalDevelopmentHost` enables it, along with
+`ApplicationResources:HostRunResourceTypesEnabled`, because launcher-authored
+local development graphs commonly contain `project.path`, `executablePath`,
+script paths, build contexts, and working directories that are meaningful only
+on a trusted local host.
 
 The launcher/profile split supports both local bootstrap and attach/update
 flows. A launcher can start the configured local host profile through the CLI,

@@ -85,6 +85,32 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
+    public void AddBuiltInResourceModelProviderTypes_CanDisableHostRunApplicationResourceTypes()
+    {
+        var services = new ServiceCollection();
+        services.AddBuiltInResourceModelProviderTypes(options =>
+        {
+            options.EnableHostRunApplicationResourceTypes = false;
+        });
+        using var serviceProvider = services.BuildServiceProvider();
+
+        var typeIds = serviceProvider
+            .GetServices<IResourceTypeProvider>()
+            .Select(provider => provider.TypeId)
+            .ToHashSet();
+
+        Assert.DoesNotContain(ExecutableApplicationResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.DoesNotContain(AspNetCoreProjectResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.DoesNotContain(JavaScriptAppResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.DoesNotContain(JavaAppResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.DoesNotContain(GoAppResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.DoesNotContain(PythonAppResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(ContainerApplicationResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(DockerHostResourceTypeProvider.ResourceTypeId, typeIds);
+        Assert.Contains(SqlServerResourceTypeProvider.ResourceTypeId, typeIds);
+    }
+
+    [Fact]
     public void AddBuiltInResourceModelRuntimeAdapters_RegistersProviderOwnedResourceModelRuntimeAdapters()
     {
         var services = new ServiceCollection();

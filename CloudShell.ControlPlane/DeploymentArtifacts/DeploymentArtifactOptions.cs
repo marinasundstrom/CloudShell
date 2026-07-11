@@ -4,6 +4,8 @@ public sealed class DeploymentArtifactOptions
 {
     public const string SectionName = "DeploymentArtifacts";
 
+    public bool Enabled { get; set; }
+
     public DeploymentArtifactStoreOptions Store { get; set; } = new();
 }
 

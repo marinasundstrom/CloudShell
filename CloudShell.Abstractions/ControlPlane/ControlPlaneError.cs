@@ -79,6 +79,9 @@ public sealed record ControlPlaneError(
         new(
             ControlPlaneErrorCodes.ResourceSelfDependency,
             $"Resource '{resourceId}' cannot depend on itself.");
+
+    public static ControlPlaneError FeatureDisabled(string message) =>
+        new(ControlPlaneErrorCodes.FeatureDisabled, message);
 }
 
 public static class ControlPlaneErrorCodes
@@ -101,6 +104,7 @@ public static class ControlPlaneErrorCodes
     public const string ResourceSelfDependency = "resourceSelfDependency";
     public const string DependentResourcesRunning = "dependentResourcesRunning";
     public const string DependencyAutoStartFailed = "dependencyAutoStartFailed";
+    public const string FeatureDisabled = "featureDisabled";
     public const string InsufficientPermission = "insufficientPermission";
     public const string OperationFailed = "operationFailed";
 }

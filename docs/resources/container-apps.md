@@ -5,6 +5,16 @@ resources project as `application.container-app`. The container app is the
 stable deployment target. It is not the same thing as a Docker container
 resource, even when the current host is Local Docker.
 
+For shared or hosted CloudShell environments, container apps are the preferred
+application resource shape before host-run language-specific app resources
+such as `.NET app`, Java app, JavaScript app, Go app, Python app, or executable
+app. Container apps give the host a stronger isolation and placement boundary.
+Language-specific app resources still exist for local development and for
+artifact-backed hosted workflows when the provider and host deliberately
+support that model. Hosted CloudShell profiles can disable built-in host-run
+application resource types while leaving `application.container-app` available
+as the default application creation path.
+
 Replicas are app-owned runtime resources materialized by the container app when
 replica mode is enabled. Docker or another container host provider may also
 project observed runtime containers as separate container resources for

@@ -220,6 +220,15 @@ else
 
         var resourceId = ResolveResourceIdForArtifactScope();
         StoreStatus = await Artifacts.GetDeploymentArtifactStoreStatusAsync(resourceId);
+        Layouts = [];
+        SelectedLayoutKind = string.Empty;
+        SelectedPackageKind = string.Empty;
+
+        if (StoreStatus.IsEnabled != true)
+        {
+            return;
+        }
+
         Layouts = await Artifacts.ListDeploymentArtifactLayoutsAsync(
             resourceId,
             new DeploymentArtifactLayoutQuery(resourceTypeId));
@@ -242,6 +251,11 @@ else
         ArtifactRevisions = [];
         SelectedRevisionId = string.Empty;
         if (IsCreateMode || ExistingResource is null || !CanEditExistingResource)
+        {
+            return;
+        }
+
+        if (StoreStatus?.IsEnabled != true)
         {
             return;
         }
