@@ -215,6 +215,11 @@ local-development graph builders normally use local source paths or
 programmatic declarations instead, and Resource Manager treats those
 launcher-authored source settings as read-only.
 
+For Resource Manager-owned artifact resources, the application artifact editor
+lists stored artifact revisions for the current resource. Users can apply a
+selected revision as the new desired artifact or apply it and immediately
+request a restart so the provider starts from the selected revision.
+
 Artifact revisions also record provenance. Direct uploads are recorded as
 upload-sourced artifact revisions and are not rehydratable unless a provider
 can extract stable version metadata from the package. Future pull/download

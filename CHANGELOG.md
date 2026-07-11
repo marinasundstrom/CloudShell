@@ -64,6 +64,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added resource-scoped artifact revision listing and restore-origin metadata
   so re-applying a selected artifact revision creates a new resource revision
   that records which artifact revision it restored.
+- Added Resource Manager artifact revision restore controls for UI-owned
+  application artifact resources, with apply-only and apply-and-restart
+  choices.
 
 ### 2026-07-10
 

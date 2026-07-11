@@ -83,6 +83,8 @@ else
 
             @UploadFields()
 
+            @RevisionHistoryFields()
+
             @if (StatusMessage is not null)
             {
                 <ProcedureMessage Compact="true">@StatusMessage</ProcedureMessage>
@@ -162,10 +164,13 @@ else
     private string SelectedLayoutKind { get; set; } = string.Empty;
     private string SelectedPackageKind { get; set; } = string.Empty;
     private string EntryPath { get; set; } = ".";
+    private IReadOnlyList<DeploymentArtifactRevision> ArtifactRevisions { get; set; } = [];
+    private string SelectedRevisionId { get; set; } = string.Empty;
     private string? StatusMessage { get; set; }
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<ResourceProcedureSignal> ValidationSignals { get; set; } = [];
     private bool IsBusy { get; set; }
+    private bool IsRestoring { get; set; }
 
     private bool CanEditExistingResource =>
         ExistingResource is not null &&
@@ -196,6 +201,7 @@ else
         }
 
         await LoadArtifactOptionsAsync();
+        await LoadArtifactRevisionsAsync();
 
         if (Configuration is not null &&
             CanEditExistingResource &&
@@ -231,6 +237,30 @@ else
         EntryPath = string.IsNullOrWhiteSpace(selectedLayout?.DefaultEntryPath)
             ? "."
             : selectedLayout.DefaultEntryPath;
+    }
+
+    private async Task LoadArtifactRevisionsAsync()
+    {
+        ArtifactRevisions = [];
+        SelectedRevisionId = string.Empty;
+        if (IsCreateMode || ExistingResource is null || !CanEditExistingResource)
+        {
+            return;
+        }
+
+        var current = GetCurrentArtifactReference();
+        if (current is null)
+        {
+            return;
+        }
+
+        ArtifactRevisions = await Artifacts.ListDeploymentArtifactRevisionsAsync(
+            ExistingResource.Id,
+            current.ArtifactId);
+        SelectedRevisionId = ArtifactRevisions.FirstOrDefault(revision =>
+            string.Equals(revision.RevisionId, current.RevisionId, StringComparison.OrdinalIgnoreCase))?.RevisionId ??
+            ArtifactRevisions.FirstOrDefault()?.RevisionId ??
+            string.Empty;
     }
 
     private RenderFragment UploadFields() => @<text>
@@ -288,6 +318,55 @@ else
         }
     </text>;
 
+    private RenderFragment RevisionHistoryFields() => @<text>
+        @if (!IsCreateMode)
+        {
+            <ResourceEditorSection Title="Artifact revisions">
+                @if (ArtifactRevisions.Count == 0)
+                {
+                    <ProcedureMessage Compact="true" Severity="ResourceSignalSeverity.Info">
+                        No stored artifact revisions are available for this resource.
+                    </ProcedureMessage>
+                }
+                else
+                {
+                    <label for="@($"{EditorId}-revision")">Revision</label>
+                    <FluentSelect TOption="string"
+                                  Id="@($"{EditorId}-revision")"
+                                  @bind-Value="SelectedRevisionId"
+                                  Appearance="Appearance.Outline">
+                        @foreach (var revision in ArtifactRevisions)
+                        {
+                            <FluentOption TOption="string" Value="@revision.RevisionId">
+                                @FormatRevisionOption(revision)
+                            </FluentOption>
+                        }
+                    </FluentSelect>
+
+                    <dl class="resource-summary-grid">
+                        <dt>Selected revision</dt>
+                        <dd>@GetSelectedRevisionLabel()</dd>
+                        <dt>Source</dt>
+                        <dd>@GetSelectedRevisionSourceLabel()</dd>
+                    </dl>
+
+                    <div class="inline-actions">
+                        <FluentButton Appearance="Appearance.Neutral"
+                                      Disabled="@(!CanRestoreSelectedRevision)"
+                                      OnClick="() => RestoreSelectedRevisionAsync(restart: false)">
+                            @(IsRestoring ? "Applying" : "Apply revision")
+                        </FluentButton>
+                        <FluentButton Appearance="Appearance.Accent"
+                                      Disabled="@(!CanRestoreSelectedRevision)"
+                                      OnClick="() => RestoreSelectedRevisionAsync(restart: true)">
+                            @(IsRestoring ? "Applying" : "Apply and restart")
+                        </FluentButton>
+                    </div>
+                }
+            </ResourceEditorSection>
+        }
+    </text>;
+
     private void SelectFile(InputFileChangeEventArgs args)
     {
         SelectedFile = args.File;
@@ -341,6 +420,72 @@ else
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    private bool CanRestoreSelectedRevision =>
+        !IsBusy &&
+        !IsRestoring &&
+        ExistingResource is not null &&
+        CanEditExistingResource &&
+        GetSelectedRevision() is not null;
+
+    private async Task RestoreSelectedRevisionAsync(bool restart)
+    {
+        if (!CanRestoreSelectedRevision || ExistingResource is null)
+        {
+            return;
+        }
+
+        var revision = GetSelectedRevision();
+        if (revision is null)
+        {
+            return;
+        }
+
+        IsRestoring = true;
+        StatusMessage = "Applying artifact revision...";
+        ErrorMessage = null;
+        ValidationSignals = [];
+        try
+        {
+            var template = CreateTemplate(
+                ExistingResource.Id,
+                ExistingResource.DisplayName ?? ExistingResource.Name,
+                revision,
+                ExistingResource,
+                ApplicationArtifactRestoreMetadataNames.FromRevision(revision));
+            var result = await Templates.ApplyResourceTemplateAsync(
+                new ResourceTemplateApplyRequest(template, ResourceDefinitionApplyMode.UpdateExisting));
+            ValidationSignals = ToSignals(result.Diagnostics);
+            if (result.HasErrors || !result.IsCommitted)
+            {
+                ErrorMessage = "Application artifact revision was not applied.";
+                return;
+            }
+
+            StatusMessage = $"Applied artifact revision {revision.RevisionId}.";
+            if (restart)
+            {
+                StatusMessage = "Restarting resource with selected artifact revision...";
+                var restartResult = await ResourceManager.RestartResourceAsync(
+                    ExistingResource.Id,
+                    ignoreDependentWarning: true);
+                ValidationSignals = restartResult.Signals;
+                StatusMessage = restartResult.Message;
+            }
+
+            ExistingResource = await ResourceManager.GetResourceAsync(ExistingResource.Id);
+            await LoadArtifactRevisionsAsync();
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            ErrorMessage = $"Application artifact revision restore failed: {exception.Message}";
+            ValidationSignals = [ResourceProcedureSignal.Error(exception.Message)];
+        }
+        finally
+        {
+            IsRestoring = false;
         }
     }
 
@@ -481,7 +626,8 @@ else
         string resourceId,
         string resourceName,
         DeploymentArtifactRevision? revision,
-        CloudShell.Abstractions.ResourceManager.Resource? existingResource = null)
+        CloudShell.Abstractions.ResourceManager.Resource? existingResource = null,
+        IReadOnlyDictionary<string, string>? resourceMetadata = null)
     {
         var attributes = existingResource is null
             ? new Dictionary<ResourceAttributeId, ResourceAttributeValue>()
@@ -510,7 +656,8 @@ else
                     resourceId,
                     GetProviderId(EffectiveResourceTypeId!),
                     resourceName,
-                    Attributes: new ResourceAttributeValueMap(attributes))
+                    Attributes: new ResourceAttributeValueMap(attributes),
+                    Metadata: resourceMetadata)
             ],
             Metadata: string.IsNullOrWhiteSpace(SelectedGroupId)
                 ? null
@@ -656,17 +803,51 @@ else
 
     private string GetCurrentArtifactLabel()
     {
+        var reference = GetCurrentArtifactReference();
+        return reference is null
+            ? "none"
+            : $"{reference.ArtifactId} / {reference.RevisionId}";
+    }
+
+    private ApplicationArtifactReference? GetCurrentArtifactReference()
+    {
         var artifact = ExistingResource?.ResourceAttributes.GetValueOrDefault(ArtifactsSourceAttribute);
         if (string.IsNullOrWhiteSpace(artifact))
+        {
+            return null;
+        }
+
+        return TryParseAttributeValue(artifact, out var value)
+            ? value.ToObject<ApplicationArtifactReference>()
+            : null;
+    }
+
+    private DeploymentArtifactRevision? GetSelectedRevision() =>
+        ArtifactRevisions.FirstOrDefault(revision =>
+            string.Equals(revision.RevisionId, SelectedRevisionId, StringComparison.OrdinalIgnoreCase));
+
+    private static string FormatRevisionOption(DeploymentArtifactRevision revision) =>
+        $"{revision.RevisionId} - {revision.CreatedAt.LocalDateTime:g}";
+
+    private string GetSelectedRevisionLabel()
+    {
+        var revision = GetSelectedRevision();
+        return revision is null
+            ? "none"
+            : $"{revision.RevisionId} ({revision.SizeBytes} bytes)";
+    }
+
+    private string GetSelectedRevisionSourceLabel()
+    {
+        var revision = GetSelectedRevision();
+        if (revision is null)
         {
             return "none";
         }
 
-        return TryParseAttributeValue(artifact, out var value)
-            ? value.ToObject<ApplicationArtifactReference>() is { } reference
-                ? $"{reference.ArtifactId} / {reference.RevisionId}"
-                : "not projected"
-            : artifact;
+        return string.IsNullOrWhiteSpace(revision.SourceVersion)
+            ? revision.SourceKind
+            : $"{revision.SourceKind} / {revision.SourceVersion}";
     }
 
     private string GetAttribute(string name, string fallback) =>

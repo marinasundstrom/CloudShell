@@ -450,6 +450,11 @@ remote-management workflow. Launcher-authored local development resources
 normally use local source paths or programmatic declarations, and their source
 settings remain read-only in Resource Manager.
 
+For Resource Manager-owned artifact resources, the editor should show stored
+artifact revisions for the current resource and offer apply-only and
+apply-and-restart choices. Both choices go through resource definition apply;
+the restart choice then invokes the normal resource Restart action.
+
 Artifact revisions also need provenance. Direct uploads should be recorded as
 upload-sourced and non-rehydratable unless provider validation can discover a
 stable executable or package version. Source downloads should record the
