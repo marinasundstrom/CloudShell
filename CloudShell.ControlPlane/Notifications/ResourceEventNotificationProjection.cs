@@ -25,9 +25,11 @@ public sealed class ResourceEventNotificationProjector(
 
 public sealed class DefaultResourceEventNotificationRule : IResourceEventNotificationRule
 {
+    private const string LocalSystemNotificationRecipientKey = "user";
+
     public CreateCloudShellNotificationCommand? CreateNotification(ResourceEvent resourceEvent)
     {
-        var recipientKey = NormalizeOptional(resourceEvent.TriggeredBy);
+        var recipientKey = ResolveRecipientKey(resourceEvent);
         if (recipientKey is null)
         {
             return null;
@@ -51,21 +53,43 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             EventId: CreateEventId(resourceEvent),
             CorrelationId: operation is null
                 ? resourceEvent.TraceId
-                : CreateOperationCorrelationId(resourceEvent, operation.Kind, operation.Id),
+                : CreateOperationCorrelationId(resourceEvent, operation.Kind, operation.Id, recipientKey),
             TemplateKey: operation is null
                 ? "cloudshell.resource-event"
                 : operation.TemplateKey,
             Attributes: CreateAttributes(resourceEvent));
     }
 
-    private static CloudShellNotificationStatus CreateStatus(ResourceEvent resourceEvent) =>
-        resourceEvent.Severity switch
+    private static CloudShellNotificationStatus CreateStatus(ResourceEvent resourceEvent)
+    {
+        var operationStatus = CreateOperationStatus(resourceEvent.EventType);
+        if (operationStatus is not null)
+        {
+            return operationStatus.Value;
+        }
+
+        return resourceEvent.Severity switch
         {
             ResourceSignalSeverity.Success => CloudShellNotificationStatus.Succeeded,
             ResourceSignalSeverity.Warning => CloudShellNotificationStatus.NeedsAttention,
             ResourceSignalSeverity.Error => CloudShellNotificationStatus.Failed,
             _ when IsProgressEvent(resourceEvent.EventType) => CloudShellNotificationStatus.InProgress,
             _ => CloudShellNotificationStatus.Active
+        };
+    }
+
+    private static CloudShellNotificationStatus? CreateOperationStatus(string eventType) =>
+        eventType.Trim() switch
+        {
+            ResourceEventTypes.Events.Recovery.RestartScheduled or
+            ResourceEventTypes.Events.Recovery.RestartAttempted => CloudShellNotificationStatus.InProgress,
+            ResourceEventTypes.Events.Recovery.RestartSucceeded => CloudShellNotificationStatus.Succeeded,
+            ResourceEventTypes.Events.Recovery.RestartFailed or
+            ResourceEventTypes.Events.Recovery.RestartExhausted => CloudShellNotificationStatus.Failed,
+            ResourceEventTypes.Events.Lifecycle.Degraded or
+            ResourceEventTypes.Events.Lifecycle.StoppedUnexpectedly or
+            ResourceEventTypes.Events.Recovery.RestartSkipped => CloudShellNotificationStatus.NeedsAttention,
+            _ => null
         };
 
     private static bool IsProgressEvent(string eventType)
@@ -102,6 +126,11 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             return updateKind == "image"
                 ? "Update resource image"
                 : "Update resource replicas";
+        }
+
+        if (IsRecoveryNotificationEvent(resourceEvent.EventType))
+        {
+            return "Resource recovery";
         }
 
         var name = resourceEvent.EventType
@@ -149,6 +178,16 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             attributes["operationKind"] = "update";
             attributes["updateKind"] = updateKind;
         }
+        else if (IsRecoveryNotificationEvent(resourceEvent.EventType))
+        {
+            attributes["operationKind"] = "recovery";
+            attributes["recoveryKind"] = "runtime";
+        }
+
+        if (!string.IsNullOrWhiteSpace(resourceEvent.TriggeredBy))
+        {
+            attributes["triggeredBy"] = resourceEvent.TriggeredBy.Trim();
+        }
 
         if (!string.IsNullOrWhiteSpace(resourceEvent.TraceId))
         {
@@ -166,16 +205,39 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
+    private static string? ResolveRecipientKey(ResourceEvent resourceEvent)
+    {
+        var triggeredBy = NormalizeOptional(resourceEvent.TriggeredBy);
+        if (triggeredBy is null)
+        {
+            return null;
+        }
+
+        if (!IsSystemRecoveryProducer(triggeredBy))
+        {
+            return triggeredBy;
+        }
+
+        return IsRecoveryNotificationEvent(resourceEvent.EventType)
+            ? LocalSystemNotificationRecipientKey
+            : null;
+    }
+
+    private static bool IsSystemRecoveryProducer(string triggeredBy) =>
+        triggeredBy.Equals("liveness", StringComparison.OrdinalIgnoreCase) ||
+        triggeredBy.Equals("recovery", StringComparison.OrdinalIgnoreCase);
+
     private static string CreateOperationCorrelationId(
         ResourceEvent resourceEvent,
         string operationKind,
-        string operationId) =>
+        string operationId,
+        string recipientKey) =>
         string.Join(
             "|",
             $"resource-{operationKind}",
             resourceEvent.ResourceId,
             operationId,
-            resourceEvent.TriggeredBy ?? string.Empty);
+            recipientKey);
 
     private static NotificationOperation? GetOperation(string eventType)
     {
@@ -188,16 +250,27 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
                 "cloudshell.resource-lifecycle-operation");
         }
 
-        return IsResourceCreateEvent(eventType)
+        if (IsResourceCreateEvent(eventType))
+        {
+            return new NotificationOperation(
+                "create",
+                "create",
+                "cloudshell.resource-create-operation");
+        }
+
+        if (GetDeploymentUpdateKind(eventType) is { } updateKind)
+        {
+            return new NotificationOperation(
+                "update",
+                updateKind,
+                "cloudshell.resource-update-operation");
+        }
+
+        return IsRecoveryNotificationEvent(eventType)
             ? new NotificationOperation(
-                "create",
-                "create",
-                "cloudshell.resource-create-operation")
-            : GetDeploymentUpdateKind(eventType) is { } updateKind
-                ? new NotificationOperation(
-                    "update",
-                    updateKind,
-                    "cloudshell.resource-update-operation")
+                "recovery",
+                "runtime",
+                "cloudshell.resource-recovery-operation")
             : null;
     }
 
@@ -246,6 +319,17 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             ResourceEventTypes.Events.Deployment.ReplicasUpdateFailed => "replicas",
             _ => null
         };
+
+    private static bool IsRecoveryNotificationEvent(string eventType) =>
+        eventType.Trim() is
+            ResourceEventTypes.Events.Lifecycle.Degraded or
+            ResourceEventTypes.Events.Lifecycle.StoppedUnexpectedly or
+            ResourceEventTypes.Events.Recovery.RestartScheduled or
+            ResourceEventTypes.Events.Recovery.RestartAttempted or
+            ResourceEventTypes.Events.Recovery.RestartSucceeded or
+            ResourceEventTypes.Events.Recovery.RestartFailed or
+            ResourceEventTypes.Events.Recovery.RestartSkipped or
+            ResourceEventTypes.Events.Recovery.RestartExhausted;
 
     private sealed record NotificationOperation(
         string Kind,

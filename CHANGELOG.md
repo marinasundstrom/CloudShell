@@ -66,6 +66,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Added Control Plane image and replica update progress events with
   notification coalescing so resource update operations start as in-progress
   notifications and update to succeeded or failed after provider dispatch.
+- Added Control Plane health/recovery notification coalescing so
+  threshold-crossing liveness failures and recovery attempts update one
+  operator notification while suppressing repeated internal recovery-signal
+  failures that would otherwise produce noisy polling updates.
 - Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder
   helper from CloudShell Hosting into `CoreShell.Blazor` so common Blazor shell
   building blocks can be used by CoreShell apps without a CloudShell

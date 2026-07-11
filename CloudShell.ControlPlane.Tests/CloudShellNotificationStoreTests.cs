@@ -260,6 +260,92 @@ public sealed class CloudShellNotificationStoreTests
     }
 
     [Fact]
+    public void ObservingResourceEventSink_CoalescesRecoveryProgressIntoOneOperatorNotification()
+    {
+        var resourceEvents = new InMemoryResourceEventStore();
+        var notifications = new InMemoryCloudShellNotificationStore();
+        var changes = new List<CloudShellNotificationChangeKind>();
+        notifications.NotificationsChanged += (_, args) => changes.Add(args.Kind);
+        var projector = new ResourceEventNotificationProjector(
+            notifications,
+            [new DefaultResourceEventNotificationRule()]);
+        var sink = new ObservingResourceEventSink(resourceEvents, [projector]);
+
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Lifecycle.StoppedUnexpectedly,
+            "Resource stopped unexpectedly.",
+            DateTimeOffset.Parse("2026-07-11T09:00:00+00:00"),
+            TriggeredBy: "liveness",
+            Severity: ResourceSignalSeverity.Error));
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Recovery.SignalFailed,
+            "Recovery signal failed.",
+            DateTimeOffset.Parse("2026-07-11T09:00:01+00:00"),
+            TriggeredBy: "recovery",
+            Severity: ResourceSignalSeverity.Warning));
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Recovery.RestartAttempted,
+            "Recovery restart attempt 1 started.",
+            DateTimeOffset.Parse("2026-07-11T09:00:02+00:00"),
+            TriggeredBy: "recovery",
+            Severity: ResourceSignalSeverity.Warning));
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Recovery.RestartSucceeded,
+            "Recovery restart attempt 1 completed.",
+            DateTimeOffset.Parse("2026-07-11T09:00:03+00:00"),
+            TriggeredBy: "recovery",
+            Severity: ResourceSignalSeverity.Success));
+
+        Assert.Equal(4, resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "application:api")).Count);
+        Assert.Empty(notifications.GetNotifications(new CloudShellNotificationQuery(RecipientKey: "liveness")));
+        Assert.Empty(notifications.GetNotifications(new CloudShellNotificationQuery(RecipientKey: "recovery")));
+
+        var notification = Assert.Single(notifications.GetNotifications(new CloudShellNotificationQuery(
+            RecipientKey: "user")));
+        Assert.Equal("Resource recovery", notification.Title);
+        Assert.Equal("Recovery restart attempt 1 completed.", notification.Message);
+        Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
+        Assert.Equal(ResourceEventTypes.Events.Recovery.RestartSucceeded, notification.EventType);
+        Assert.Equal("resource-recovery|application:api|runtime|user", notification.CorrelationId);
+        Assert.Equal("cloudshell.resource-recovery-operation", notification.TemplateKey);
+        Assert.Equal("recovery", notification.Attributes!["operationKind"]);
+        Assert.Equal("runtime", notification.Attributes!["recoveryKind"]);
+        Assert.Equal("recovery", notification.Attributes!["triggeredBy"]);
+        Assert.Equal(
+            [
+                CloudShellNotificationChangeKind.Created,
+                CloudShellNotificationChangeKind.Updated,
+                CloudShellNotificationChangeKind.Updated
+            ],
+            changes);
+    }
+
+    [Fact]
+    public void DefaultResourceEventNotificationRule_MapsRecoveryExhaustionToFailedOperatorNotification()
+    {
+        var rule = new DefaultResourceEventNotificationRule();
+
+        var notification = rule.CreateNotification(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Recovery.RestartExhausted,
+            "Maximum recovery attempts reached.",
+            DateTimeOffset.UtcNow,
+            TriggeredBy: "recovery",
+            Severity: ResourceSignalSeverity.Error));
+
+        Assert.NotNull(notification);
+        Assert.Equal("user", notification!.RecipientKey);
+        Assert.Equal("Resource recovery", notification.Title);
+        Assert.Equal(CloudShellNotificationStatus.Failed, notification.Status);
+        Assert.Equal("resource-recovery|application:api|runtime|user", notification.CorrelationId);
+        Assert.Equal("cloudshell.resource-recovery-operation", notification.TemplateKey);
+    }
+
+    [Fact]
     public void DefaultResourceEventNotificationRule_RequiresTriggeredByRecipient()
     {
         var rule = new DefaultResourceEventNotificationRule();
