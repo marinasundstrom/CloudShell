@@ -58,6 +58,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Materialized application artifact packages into revision-specific runnable
   directories so a newly accepted artifact does not delete files used by the
   currently running revision before restart.
+- Added artifact revision provenance metadata so upload revisions are recorded
+  as non-rehydratable direct uploads while future source downloads can record
+  the resolved source version and rehydration capability.
 
 ### 2026-07-10
 

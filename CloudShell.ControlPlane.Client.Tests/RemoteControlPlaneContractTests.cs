@@ -1377,6 +1377,9 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal("deployment-artifact:application.dotnet-web-app:api", revision.ArtifactId);
         Assert.Equal("zip", revision.PackageKind);
         Assert.Equal("dotnetPublishedOutput", revision.ArtifactLayoutKind);
+        Assert.Equal(DeploymentArtifactSourceKinds.UploadedArtifact, revision.SourceKind);
+        Assert.Null(revision.SourceVersion);
+        Assert.False(revision.CanRehydrate);
         Assert.Equal(package.Length, revision.SizeBytes);
         Assert.False(string.IsNullOrWhiteSpace(revision.ContentSha256));
         Assert.Equal(revision, loaded);

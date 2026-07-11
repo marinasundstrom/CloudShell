@@ -201,6 +201,13 @@ which accepted artifact revision the resource should run. Applying a different
 artifact revision advances the resource revision because the runnable input for
 that resource changed.
 
+Artifact revisions also record provenance. Direct uploads are recorded as
+upload-sourced artifact revisions and are not rehydratable unless a provider
+can extract stable version metadata from the package. Future pull/download
+sources should record the resolved source version, such as a commit, release,
+or package version, and can mark the artifact revision rehydratable when the
+same bytes can be obtained again from that source.
+
 Application artifact packages are owned by the containing resource. When the
 resource is deleted successfully, the Control Plane removes that resource's
 stored artifact revisions from the configured artifact store.
@@ -209,6 +216,12 @@ The host keeps artifact revisions separate while switching versions. Uploading
 and applying a new package does not delete files used by the currently running
 process; the provider materializes the accepted revision into its own runnable
 directory and a restart starts from that new revision.
+
+Retention policy can use this provenance. Uploaded package bytes may need a
+bounded retention policy because CloudShell may be the only remaining source
+for that package. Source-backed revisions can be pruned more aggressively once
+they are no longer referenced by active resource state or rollback policy,
+because the host can download them again.
 
 `artifacts.source` is optional source metadata. It can describe where the host
 should pull or download artifact content from, such as a future GitHub release,

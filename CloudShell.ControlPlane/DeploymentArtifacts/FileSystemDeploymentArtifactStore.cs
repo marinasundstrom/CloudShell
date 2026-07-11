@@ -146,7 +146,10 @@ public sealed class FileSystemDeploymentArtifactStore(
             hash,
             sizeBytes,
             createdAt,
-            metadata.ArtifactLayoutKind);
+            metadata.ArtifactLayoutKind,
+            DeploymentArtifactSourceKinds.UploadedArtifact,
+            SourceVersion: null,
+            CanRehydrate: false);
         await WriteJsonAsync(
             Path.Combine(revisionDirectory, "revision.json"),
             revision,

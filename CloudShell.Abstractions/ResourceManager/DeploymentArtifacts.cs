@@ -27,7 +27,10 @@ public sealed record ApplicationArtifactReference(
     string ContentSha256,
     long SizeBytes,
     string? EntryPath = null,
-    string? ArtifactLayoutKind = null)
+    string? ArtifactLayoutKind = null,
+    string SourceKind = DeploymentArtifactSourceKinds.UploadedArtifact,
+    string? SourceVersion = null,
+    bool CanRehydrate = false)
 {
     public static ApplicationArtifactReference FromRevision(
         DeploymentArtifactRevision revision,
@@ -39,7 +42,10 @@ public sealed record ApplicationArtifactReference(
             revision.ContentSha256,
             revision.SizeBytes,
             string.IsNullOrWhiteSpace(entryPath) ? null : entryPath.Trim(),
-            revision.ArtifactLayoutKind);
+            revision.ArtifactLayoutKind,
+            revision.SourceKind,
+            revision.SourceVersion,
+            revision.CanRehydrate);
 }
 
 public sealed record DeploymentArtifactStoreStatus(
@@ -98,7 +104,10 @@ public sealed record DeploymentArtifactRevision(
     string ContentSha256,
     long SizeBytes,
     DateTimeOffset CreatedAt,
-    string? ArtifactLayoutKind = null);
+    string? ArtifactLayoutKind = null,
+    string SourceKind = DeploymentArtifactSourceKinds.UploadedArtifact,
+    string? SourceVersion = null,
+    bool CanRehydrate = false);
 
 public sealed record DeploymentArtifactValidationContext(
     string ResourceType,

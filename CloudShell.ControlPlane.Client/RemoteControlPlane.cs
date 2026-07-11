@@ -1496,7 +1496,10 @@ file sealed record DeploymentArtifactRevisionResponse(
     string ContentSha256,
     long SizeBytes,
     DateTimeOffset CreatedAt,
-    string? ArtifactLayoutKind = null);
+    string? ArtifactLayoutKind = null,
+    string SourceKind = DeploymentArtifactSourceKinds.UploadedArtifact,
+    string? SourceVersion = null,
+    bool CanRehydrate = false);
 
 file sealed record ValidateDeploymentArtifactRequest(
     string ResourceType,
@@ -2027,7 +2030,10 @@ file static class RemoteControlPlaneMapper
             response.ContentSha256,
             response.SizeBytes,
             response.CreatedAt,
-            response.ArtifactLayoutKind);
+            response.ArtifactLayoutKind,
+            response.SourceKind,
+            response.SourceVersion,
+            response.CanRehydrate);
 
     public static LogSource ToLogSource(this LogSourceResponse response) =>
         new(

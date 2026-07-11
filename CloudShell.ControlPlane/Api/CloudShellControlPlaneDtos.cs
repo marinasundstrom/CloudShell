@@ -379,7 +379,10 @@ public sealed record DeploymentArtifactRevisionResponse(
     string ContentSha256,
     long SizeBytes,
     DateTimeOffset CreatedAt,
-    string? ArtifactLayoutKind = null);
+    string? ArtifactLayoutKind = null,
+    string SourceKind = DeploymentArtifactSourceKinds.UploadedArtifact,
+    string? SourceVersion = null,
+    bool CanRehydrate = false);
 
 public sealed record ValidateDeploymentArtifactRequest(
     string ResourceType,
@@ -864,7 +867,10 @@ internal static class CloudShellControlPlaneDtoMapper
             revision.ContentSha256,
             revision.SizeBytes,
             revision.CreatedAt,
-            revision.ArtifactLayoutKind);
+            revision.ArtifactLayoutKind,
+            revision.SourceKind,
+            revision.SourceVersion,
+            revision.CanRehydrate);
 
     public static LogSourceResponse ToResponse(this LogSource source) =>
         new(

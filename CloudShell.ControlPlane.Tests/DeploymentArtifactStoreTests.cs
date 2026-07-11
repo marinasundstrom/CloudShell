@@ -58,6 +58,9 @@ public sealed class DeploymentArtifactStoreTests
         Assert.Equal("deployment-artifact:api", revision.ArtifactId);
         Assert.Equal("zip", revision.PackageKind);
         Assert.Equal("pythonSourceDirectory", revision.ArtifactLayoutKind);
+        Assert.Equal(DeploymentArtifactSourceKinds.UploadedArtifact, revision.SourceKind);
+        Assert.Null(revision.SourceVersion);
+        Assert.False(revision.CanRehydrate);
         Assert.Equal(bytes.Length, revision.SizeBytes);
         Assert.Equal(
             "96f43d529af3430cb6b0e2c02f6b38ef1a121e8a31d2d09a3ebb716f2f35c9de",

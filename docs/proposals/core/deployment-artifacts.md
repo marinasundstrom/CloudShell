@@ -437,6 +437,13 @@ Resource revisions are accepted resource-state versions that record which
 artifact revision, source metadata, or local-source configuration the resource
 should use.
 
+Artifact revisions also need provenance. Direct uploads should be recorded as
+upload-sourced and non-rehydratable unless provider validation can discover a
+stable executable or package version. Source downloads should record the
+resolved version that was fetched, such as a commit SHA, release id, package
+version, or object version, and mark whether the same artifact can be
+rehydrated from that source later.
+
 Application artifact packages are resource-owned data. After a resource delete
 operation succeeds, the Control Plane deletes stored artifact revisions for
 that resource from the configured artifact store. If provider delete fails,
@@ -447,6 +454,13 @@ is switching versions. Upload and apply prepare the next revision; they do not
 delete files used by the current process. Runtime materialization should place
 each accepted revision in its own runnable directory and only start the new
 directory when lifecycle restart/deploy reaches the provider.
+
+Retention policy should respect provenance and live resource state. Uploaded
+artifact bytes may require bounded but conservative retention because
+CloudShell may be the only durable copy. Rehydratable source-backed revisions
+can be pruned after they are no longer referenced by accepted resource state,
+running materialization, or rollback policy, because they can be downloaded
+again.
 
 Any accepted application artifact must eventually be materialized onto the
 runtime host or into the host's runtime substrate before the app can run. Direct
