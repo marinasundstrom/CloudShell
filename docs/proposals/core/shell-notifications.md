@@ -103,10 +103,13 @@ Notifications and toasts should therefore be related but not identical:
 - A notification can suppress toast presentation when the item belongs only in
   history, is low urgency, or was already represented by another signal.
 - A toast-only signal can exist for ephemeral feedback that should not create a
-  notification-center item.
+  notification-center item. The landed CoreShell reference path exposes this
+  through `ICoreShellToastService`.
 - A toast should render notification actions when the backing item provides
   them. If the user ignores the toast, the same action remains available in
   the notification center.
+- If no actions are present, a toast or notification can fall back to a
+  whole-body target link, or to dismiss-on-click when no target exists.
 - A toast or notification can show a loading/progress indicator when it
   represents in-progress background work.
 
@@ -120,6 +123,7 @@ CoreShell should own stable shell-level contracts such as:
 - acknowledge/dismiss contracts for per-recipient instances
 - optional notification action descriptors and action-handling hooks
 - notification toast behavior hints, including suppression
+- a separate transient toast contract for toast-only signals
 - a change subscription contract
 - audience descriptors that stay product-neutral
 - presentation hints such as severity, status, route/href, source label, and
@@ -386,6 +390,8 @@ visible to the current user and which actions or links are enabled.
   through `ICoreShellNotificationService`.
 - Added optional notification actions, action handling, and notification-side
   toast behavior hints.
+- Added `ICoreShellToastService` for toast-only transient signals that do not
+  create notification instances.
 - Decide whether event and publish/update producer contracts belong in
   CoreShell or only in host-specific notification services.
 - Added a sample-owned in-memory implementation for the CoreShell Fluent UI
@@ -394,6 +400,8 @@ visible to the current user and which actions or links are enabled.
 - Added a sample asynchronous action that publishes an in-progress
   notification with an action and loading indicator, then updates it to
   succeeded.
+- Added sample toast-only background task behavior that shows a linked toast
+  without creating notification-center history.
 - Added focused CoreShell tests for the minimal UI contract and default
   registration behavior. Producer-side record publication and update tests
   should land with the durable producer contract.
@@ -421,8 +429,8 @@ visible to the current user and which actions or links are enabled.
 - Add query cursors or checkpoints so clients can recover from missed signals.
 - Define how late-joining users receive group or all-users notifications that
   were published before their first connection.
-- Decide whether CoreShell should expose a separate toast-only service for
-  transient signals that should not create notification instances.
+- Decide how CloudShell should map Control Plane events to notification
+  instances, notification-backed toasts, or toast-only signals.
 
 ### Slice 4: Preference and retention policy
 

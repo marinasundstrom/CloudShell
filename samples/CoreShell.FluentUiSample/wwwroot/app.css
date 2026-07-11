@@ -282,16 +282,46 @@ body {
     border-bottom: 0;
 }
 
+.notification-body,
+.notification-body-button,
+.toast-body,
+.toast-body-button {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+}
+
+.notification-body-button,
+.toast-body-button {
+    cursor: pointer;
+}
+
 .notification-item strong,
-.notification-item span {
+.notification-item span,
+.toast-card strong {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-.notification-item span {
+.notification-item span,
+.notification-item small,
+.toast-card span,
+.toast-card small {
+    display: block;
     margin-top: 4px;
     color: var(--sample-text-muted);
+}
+
+.notification-item small,
+.toast-card small {
+    font-size: 12px;
+    font-weight: 650;
 }
 
 .notification-meta {
@@ -343,12 +373,6 @@ body {
     border-radius: 8px;
     background: var(--sample-panel);
     box-shadow: 0 12px 28px rgb(0 0 0 / 16%);
-}
-
-.toast-card strong {
-    display: flex;
-    align-items: center;
-    gap: 8px;
 }
 
 .toast-card span {

@@ -18,6 +18,8 @@ It proves the extraction boundary for common shell building blocks:
 - Notification actions are optional. When an instance supplies actions, the
   toast renders them and the notification center renders them again if the
   user ignores the toast.
+- Toast-only signals use `ICoreShellToastService`, render in the same toast
+  stack, and do not create notification-center history.
 - A second CoreShell module contributes a dashboard section and navigation
   item without using CloudShell product services.
 
@@ -30,8 +32,9 @@ CloudShell depends on.
 The dashboard work queue includes a simulated asynchronous create-resource
 action. It publishes an in-progress notification and updates it to success,
 showing the CoreShell notification contract, optional actions, loading
-indicator, and Fluent UI presenter behavior before the equivalent CloudShell
-notification rules and Control Plane event integration are implemented.
+indicator, toast-only transient signal path, and Fluent UI presenter behavior
+before the equivalent CloudShell notification rules and Control Plane event
+integration are implemented.
 
 ## Run
 

@@ -1,5 +1,6 @@
 @implements IDisposable
 @inject ICoreShellNotificationService Notifications
+@inject ICoreShellToastService Toasts
 @inject NavigationManager Navigation
 
 <div class="notification-host">
@@ -36,16 +37,20 @@
                     @foreach (var item in Items)
                     {
                         <article class="@GetItemClass(item)">
-                            <div>
-                                <strong>
-                                    @if (IsLoading(item))
-                                    {
-                                        <span class="loading-indicator" aria-label="In progress"></span>
-                                    }
-                                    @item.Title
-                                </strong>
-                                <span>@item.Message</span>
-                            </div>
+                            @if (GetActions(item).Count == 0)
+                            {
+                                <button type="button"
+                                        class="notification-body-button"
+                                        @onclick="@(() => HandleDefaultAsync(item))">
+                                    @RenderNotificationBody(item)
+                                </button>
+                            }
+                            else
+                            {
+                                <div class="notification-body">
+                                    @RenderNotificationBody(item)
+                                </div>
+                            }
                             <div class="notification-meta">
                                 <span>@GetStatusText(item)</span>
                                 @if (GetActions(item).Count > 0)
@@ -57,12 +62,6 @@
                                             @action.Label
                                         </FluentButton>
                                     }
-                                }
-                                else if (item.Target is not null)
-                                {
-                                    <FluentAnchor Href="@item.Target.Href" Appearance="Appearance.Stealth">
-                                        @(item.Target.Label ?? "Open")
-                                    </FluentAnchor>
                                 }
                                 @if (item.AcknowledgedAt is null)
                                 {
@@ -85,20 +84,60 @@
     }
 </div>
 
-@if (ToastItems.Count > 0)
+@if (ToastOnlyItems.Count > 0 || ToastItems.Count > 0)
 {
     <div class="toast-stack" aria-live="polite">
+        @foreach (var item in ToastOnlyItems)
+        {
+            <article class="@GetToastClass(item)">
+                @if (GetActions(item).Count == 0)
+                {
+                    <button type="button"
+                            class="toast-body-button"
+                            @onclick="@(() => HandleToastDefaultAsync(item))">
+                        @RenderToastBody(item)
+                    </button>
+                }
+                else
+                {
+                    <div class="toast-body">
+                        @RenderToastBody(item)
+                    </div>
+                }
+                <div class="toast-actions">
+                    @foreach (var action in GetActions(item))
+                    {
+                        <FluentButton Appearance="@(action.IsPrimary ? Appearance.Accent : Appearance.Stealth)"
+                                      OnClick="@(() => HandleToastActionAsync(item, action))">
+                            @action.Label
+                        </FluentButton>
+                    }
+                    <FluentButton Appearance="Appearance.Stealth"
+                                  IconStart="@(new Icons.Regular.Size16.Dismiss())"
+                                  OnClick="@(() => DismissToastAsync(item.Id))">
+                        Dismiss
+                    </FluentButton>
+                </div>
+            </article>
+        }
+
         @foreach (var item in ToastItems)
         {
             <article class="@GetToastClass(item)">
-                <strong>
-                    @if (IsLoading(item))
-                    {
-                        <span class="loading-indicator" aria-label="In progress"></span>
-                    }
-                    @item.Title
-                </strong>
-                <span>@item.Message</span>
+                @if (GetActions(item).Count == 0)
+                {
+                    <button type="button"
+                            class="toast-body-button"
+                            @onclick="@(() => HandleDefaultAsync(item))">
+                        @RenderNotificationBody(item)
+                    </button>
+                }
+                else
+                {
+                    <div class="toast-body">
+                        @RenderNotificationBody(item)
+                    </div>
+                }
                 <div class="toast-actions">
                     @foreach (var action in GetActions(item))
                     {
@@ -121,6 +160,8 @@
 @code {
     private IReadOnlyList<CoreShellNotificationInstance> Items { get; set; } = [];
 
+    private IReadOnlyList<CoreShellToast> ToastOnlyItems { get; set; } = [];
+
     private bool IsPanelOpen { get; set; }
 
     private int UnreadCount => Items.Count(item => item.AcknowledgedAt is null);
@@ -134,15 +175,20 @@
     protected override async Task OnInitializedAsync()
     {
         Notifications.NotificationsChanged += OnNotificationsChanged;
+        Toasts.ToastsChanged += OnToastsChanged;
         await LoadAsync();
     }
 
-    public void Dispose() =>
+    public void Dispose()
+    {
         Notifications.NotificationsChanged -= OnNotificationsChanged;
+        Toasts.ToastsChanged -= OnToastsChanged;
+    }
 
     private async Task LoadAsync()
     {
         Items = await Notifications.GetNotificationsAsync(new CoreShellNotificationQuery(Limit: 8));
+        ToastOnlyItems = await Toasts.GetToastsAsync();
         await InvokeAsync(StateHasChanged);
     }
 
@@ -167,6 +213,38 @@
         await LoadAsync();
     }
 
+    private async Task DismissToastAsync(string id)
+    {
+        await Toasts.DismissAsync(id);
+        await LoadAsync();
+    }
+
+    private async Task HandleDefaultAsync(CoreShellNotificationInstance item)
+    {
+        if (item.Target is not null)
+        {
+            await Notifications.AcknowledgeAsync(item.Id);
+            await LoadAsync();
+            Navigation.NavigateTo(item.Target.Href);
+            return;
+        }
+
+        await DismissAsync(item.Id);
+    }
+
+    private async Task HandleToastDefaultAsync(CoreShellToast item)
+    {
+        if (item.Target is not null)
+        {
+            await Toasts.DismissAsync(item.Id);
+            await LoadAsync();
+            Navigation.NavigateTo(item.Target.Href);
+            return;
+        }
+
+        await DismissToastAsync(item.Id);
+    }
+
     private async Task HandleActionAsync(
         CoreShellNotificationInstance item,
         CoreShellNotificationAction action)
@@ -180,7 +258,23 @@
         }
     }
 
+    private async Task HandleToastActionAsync(
+        CoreShellToast item,
+        CoreShellNotificationAction action)
+    {
+        await Toasts.HandleActionAsync(item.Id, action.Id);
+        await LoadAsync();
+
+        if (action.Target is not null)
+        {
+            Navigation.NavigateTo(action.Target.Href);
+        }
+    }
+
     private void OnNotificationsChanged(object? sender, CoreShellNotificationsChangedEventArgs args) =>
+        _ = InvokeAsync(LoadAsync);
+
+    private void OnToastsChanged(object? sender, CoreShellToastsChangedEventArgs args) =>
         _ = InvokeAsync(LoadAsync);
 
     private static string GetItemClass(CoreShellNotificationInstance item) =>
@@ -189,7 +283,20 @@
     private static string GetToastClass(CoreShellNotificationInstance item) =>
         $"toast-card {GetToneClass(item)}";
 
+    private static string GetToastClass(CoreShellToast item) =>
+        $"toast-card {GetToneClass(item)}";
+
     private static string GetToneClass(CoreShellNotificationInstance item) =>
+        item.Severity switch
+        {
+            CoreShellNotificationSeverity.Success => "is-success",
+            CoreShellNotificationSeverity.Warning => "is-warning",
+            CoreShellNotificationSeverity.Error => "is-error",
+            _ when item.Status == CoreShellNotificationStatus.InProgress => "is-progress",
+            _ => "is-info"
+        };
+
+    private static string GetToneClass(CoreShellToast item) =>
         item.Severity switch
         {
             CoreShellNotificationSeverity.Success => "is-success",
@@ -212,10 +319,46 @@
     private static IReadOnlyList<CoreShellNotificationAction> GetActions(CoreShellNotificationInstance item) =>
         item.Actions ?? [];
 
+    private static IReadOnlyList<CoreShellNotificationAction> GetActions(CoreShellToast item) =>
+        item.Actions ?? [];
+
     private static bool IsLoading(CoreShellNotificationInstance item) =>
+        item.Status == CoreShellNotificationStatus.InProgress;
+
+    private static bool IsLoading(CoreShellToast item) =>
         item.Status == CoreShellNotificationStatus.InProgress;
 
     private static bool ShouldToast(CoreShellNotificationInstance item) =>
         item.AcknowledgedAt is null
         && item.ToastBehavior != CoreShellNotificationToastBehavior.Suppressed;
+
+    private RenderFragment RenderNotificationBody(CoreShellNotificationInstance item) => @<div>
+        <strong>
+            @if (IsLoading(item))
+            {
+                <span class="loading-indicator" aria-label="In progress"></span>
+            }
+            @item.Title
+        </strong>
+        <span>@item.Message</span>
+        @if (item.Target is not null && GetActions(item).Count == 0)
+        {
+            <small>@(item.Target.Label ?? "Open")</small>
+        }
+    </div>;
+
+    private RenderFragment RenderToastBody(CoreShellToast item) => @<div>
+        <strong>
+            @if (IsLoading(item))
+            {
+                <span class="loading-indicator" aria-label="In progress"></span>
+            }
+            @item.Title
+        </strong>
+        <span>@item.Message</span>
+        @if (item.Target is not null && GetActions(item).Count == 0)
+        {
+            <small>@(item.Target.Label ?? "Open")</small>
+        }
+    </div>;
 }

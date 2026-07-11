@@ -55,9 +55,10 @@ resolve a CoreShell page route into a renderable page descriptor, including
 the optional page component, page layout, section outlet layouts, and section
 component types. Fluent UI, Bootstrap, static SSR, interactive Blazor, or a
 custom host still decide how those descriptors are presented.
-It also registers an empty `ICoreShellNotificationService` by default so UI
-presenters can depend on the notification contract while hosts replace the
-source, storage, and change-signal implementation.
+It also registers empty `ICoreShellNotificationService` and
+`ICoreShellToastService` implementations by default so UI presenters can depend
+on notification and transient-toast contracts while hosts replace the source,
+storage, and change-signal implementations.
 It can also resolve a specific CoreShell page/outlet pair into Blazor section
 descriptors, which lets host presenters render a tabset, sidebar, accordion,
 or section stack without reading `CoreShell.Composition` projections.

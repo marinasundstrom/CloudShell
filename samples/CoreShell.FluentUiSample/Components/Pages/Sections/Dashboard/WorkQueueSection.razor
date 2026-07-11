@@ -1,4 +1,5 @@
 @inject ISampleNotificationProducer Notifications
+@inject ICoreShellToastService Toasts
 
 <div class="section-actions">
     <FluentButton Appearance="Appearance.Accent"
@@ -7,7 +8,13 @@
                   OnClick="CommitCreateResourceAsync">
         @(IsCreating ? "Creating resource" : "Commit create resource")
     </FluentButton>
-    <span>Publishes an in-progress notification, then updates it when the simulated operation completes.</span>
+    <FluentButton Appearance="Appearance.Neutral"
+                  Disabled="@IsRunningToastTask"
+                  IconStart="@(new Icons.Regular.Size20.Flash())"
+                  OnClick="RunToastOnlyTaskAsync">
+        @(IsRunningToastTask ? "Running toast task" : "Run toast-only task")
+    </FluentButton>
+    <span>Compares notification-backed operation feedback with a toast-only transient task.</span>
 </div>
 
 <FluentDataGrid Items="@Rows.AsQueryable()" GridTemplateColumns="1fr 120px 120px">
@@ -20,6 +27,8 @@
 
 @code {
     private bool IsCreating { get; set; }
+
+    private bool IsRunningToastTask { get; set; }
 
     private static readonly IReadOnlyList<Row> Rows =
     [
@@ -67,6 +76,36 @@
         finally
         {
             IsCreating = false;
+        }
+    }
+
+    private async Task RunToastOnlyTaskAsync()
+    {
+        if (IsRunningToastTask)
+        {
+            return;
+        }
+
+        IsRunningToastTask = true;
+        var toast = await Toasts.PublishAsync(new CoreShellToastRequest(
+            "Running sample check",
+            "This transient task is toast-only and will not appear in notification history.",
+            CoreShellNotificationSeverity.Info,
+            CoreShellNotificationStatus.InProgress,
+            Source: "CoreShell sample",
+            Target: new CoreShellNotificationTarget("/operations", "Open operations")));
+
+        try
+        {
+            await Task.Delay(1200);
+            await Toasts.UpdateAsync(toast.Id, new CoreShellToastUpdate(
+                Message: "The toast-only task finished.",
+                Severity: CoreShellNotificationSeverity.Success,
+                Status: CoreShellNotificationStatus.Succeeded));
+        }
+        finally
+        {
+            IsRunningToastTask = false;
         }
     }
 

@@ -46,6 +46,8 @@ through `AddCoreShellModule(...)`:
   current user's notification instances, react to notification change signals,
   and acknowledge or dismiss notification instances without depending on the
   backing store or transport.
+- `ICoreShellToastService` for transient toast-only signals that should not
+  create notification-center history.
 - `CoreShell.Blazor` helpers such as `CoreShellBlazorContent.For<TComponent>()`
   and `AddSection<TComponent>(...)` for Blazor-backed content.
 
@@ -73,8 +75,10 @@ a topbar notification center, toast-style transient status cards, and a
 sample-owned in-memory provider behind `ICoreShellNotificationService`.
 Notification actions are optional, but when present the toast and notification
 center should both expose them so a user can act immediately or return to the
-item later. Toast-only signals that do not create notification instances remain
-future work.
+item later. When no actions are present, a toast or notification can fall back
+to a whole-body link when it has a target, or to click-to-dismiss behavior for
+purely transient feedback. Toast-only signals use `ICoreShellToastService` and
+do not create notification instances.
 `samples/CompositionSandbox` remains the lower-level composition sandbox for
 graph and renderer experiments below CoreShell.
 
