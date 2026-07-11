@@ -73,6 +73,31 @@ public sealed class DeploymentArtifactStoreTests
     }
 
     [Fact]
+    public async Task DeleteResourceArtifacts_RemovesOnlyResourceRevisions()
+    {
+        var contentRoot = CreateTempDirectory();
+        var store = CreateStore(
+            new DeploymentArtifactOptions
+            {
+                Store = new()
+                {
+                    Kind = DeploymentArtifactStoreKinds.FileSystem,
+                    RootPath = "artifacts",
+                    MaxUploadBytes = 1024,
+                    AllowedPackageKinds = ["zip"]
+                }
+            },
+            contentRoot);
+        var apiRevision = await UploadAsync(store, "api", "api package");
+        var workerRevision = await UploadAsync(store, "worker", "worker package");
+
+        await store.DeleteResourceArtifactsAsync("api");
+
+        Assert.Null(await store.GetRevisionAsync("api", apiRevision.ArtifactId, apiRevision.RevisionId));
+        Assert.NotNull(await store.GetRevisionAsync("worker", workerRevision.ArtifactId, workerRevision.RevisionId));
+    }
+
+    [Fact]
     public async Task WriteUploadContent_RejectsContentPastConfiguredLimit()
     {
         var store = CreateStore(
@@ -145,6 +170,26 @@ public sealed class DeploymentArtifactStoreTests
             Options.Create(options),
             new ConfigurationBuilder().Build(),
             new TestHostEnvironment(contentRoot ?? CreateTempDirectory()));
+
+    private static async Task<DeploymentArtifactRevision> UploadAsync(
+        FileSystemDeploymentArtifactStore store,
+        string resourceId,
+        string content)
+    {
+        var bytes = Encoding.UTF8.GetBytes(content);
+        var upload = await store.CreateUploadSessionAsync(
+            new(
+                "application.python-app",
+                resourceId,
+                "zip",
+                ContentLength: bytes.Length,
+                ResourceId: resourceId));
+        await store.WriteUploadContentAsync(
+            resourceId,
+            upload.UploadId,
+            new MemoryStream(bytes));
+        return await store.CompleteUploadAsync(resourceId, new(upload.UploadId));
+    }
 
     private static string CreateTempDirectory()
     {

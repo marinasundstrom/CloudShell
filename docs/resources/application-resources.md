@@ -195,6 +195,10 @@ Uploading a package stages bytes in the host artifact store. Successfully
 applying an accepted package updates resource state and counts as a new
 resource revision; upload alone does not.
 
+Application artifact packages are owned by the containing resource. When the
+resource is deleted successfully, the Control Plane removes that resource's
+stored artifact revisions from the configured artifact store.
+
 `artifacts.source` is optional source metadata. It can describe where the host
 should pull or download artifact content from, such as a future GitHub release,
 remote folder, object store, Artifactory package, or CI artifact. Pulling or

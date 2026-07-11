@@ -6,6 +6,7 @@ using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Usage;
 using CloudShell.ControlPlane.Authentication;
+using CloudShell.ControlPlane.DeploymentArtifacts;
 using CloudShell.ControlPlane.Logs;
 using CloudShell.ControlPlane.Observability;
 using CloudShell.ControlPlane.ResourceManager;
@@ -2566,6 +2567,20 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task DeleteResourceAsync_DeletesDeploymentArtifactsAfterProviderDelete()
+    {
+        var deploymentArtifacts = new RecordingDeploymentArtifactStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            deploymentArtifactStore: deploymentArtifacts);
+
+        var result = await controlPlane.DeleteResourceAsync("target");
+
+        Assert.Equal("Deleted target.", result.Message);
+        Assert.Equal(["target"], deploymentArtifacts.DeletedResourceIds);
+    }
+
+    [Fact]
     public async Task UpdateResourceImageAsync_RejectsUnknownResource()
     {
         var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
@@ -3686,7 +3701,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         IUsageStore? usageStore = null,
         IReadOnlyList<IResourceProbeEvaluator>? probeEvaluators = null,
         IResourceRecoveryStore? resourceRecoveryStore = null,
-        IResourceOrchestratorDeploymentStore? deploymentStore = null)
+        IResourceOrchestratorDeploymentStore? deploymentStore = null,
+        IDeploymentArtifactStore? deploymentArtifactStore = null)
     {
         provider ??= new TestResourceProvider();
         return CreateControlPlaneHost(
@@ -3713,7 +3729,8 @@ public sealed class InProcessControlPlaneResourceStateTests
             identityProviderSetupHandlers,
             identityDirectoryProviders,
             permissionGrantStatusProviders,
-            deploymentStore).ControlPlane;
+            deploymentStore,
+            deploymentArtifactStore).ControlPlane;
     }
 
     private static ControlPlaneTestHost CreateControlPlaneHost(
@@ -3740,7 +3757,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         IReadOnlyList<IResourceIdentityProviderSetupHandler>? identityProviderSetupHandlers = null,
         IReadOnlyList<IResourceIdentityDirectoryProvider>? identityDirectoryProviders = null,
         IReadOnlyList<IResourcePermissionGrantStatusProvider>? permissionGrantStatusProviders = null,
-        IResourceOrchestratorDeploymentStore? deploymentStore = null)
+        IResourceOrchestratorDeploymentStore? deploymentStore = null,
+        IDeploymentArtifactStore? deploymentArtifactStore = null)
     {
         provider ??= new TestResourceProvider();
         var registrations = new TestResourceRegistrationStore(
@@ -3830,7 +3848,8 @@ public sealed class InProcessControlPlaneResourceStateTests
             httpContextAccessor,
             new ResourceIdentityProviderCatalog(identityProviders ?? []),
             identityDirectoryProviders ?? [],
-            permissionGrantStatusProviders ?? []);
+            permissionGrantStatusProviders ?? [],
+            deploymentArtifacts: deploymentArtifactStore);
 
         return new ControlPlaneTestHost(controlPlane, replicaGroupReconciliation);
     }
@@ -4122,6 +4141,54 @@ public sealed class InProcessControlPlaneResourceStateTests
                 "action.executed",
                 $"Test provider executed action '{action.Id}'.");
             return Task.FromResult(ResourceProcedureResult.Completed($"Executed {action.Id}."));
+        }
+    }
+
+    private sealed class RecordingDeploymentArtifactStore : IDeploymentArtifactStore
+    {
+        public List<string> DeletedResourceIds { get; } = [];
+
+        public DeploymentArtifactStoreStatus GetStatus() =>
+            new(false, DeploymentArtifactStoreKinds.Disabled, 0, []);
+
+        public Task<DeploymentArtifactUploadSession> CreateUploadSessionAsync(
+            CreateDeploymentArtifactUploadSessionCommand command,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task WriteUploadContentAsync(
+            string resourceId,
+            string uploadId,
+            Stream content,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<DeploymentArtifactRevision> CompleteUploadAsync(
+            string resourceId,
+            CompleteDeploymentArtifactUploadCommand command,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<DeploymentArtifactRevision?> GetRevisionAsync(
+            string resourceId,
+            string artifactId,
+            string revisionId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<DeploymentArtifactRevision?>(null);
+
+        public Task<Stream> OpenRevisionContentAsync(
+            string resourceId,
+            string artifactId,
+            string revisionId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task DeleteResourceArtifactsAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default)
+        {
+            DeletedResourceIds.Add(resourceId);
+            return Task.CompletedTask;
         }
     }
 

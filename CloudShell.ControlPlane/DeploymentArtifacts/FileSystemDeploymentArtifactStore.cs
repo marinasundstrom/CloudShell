@@ -200,6 +200,27 @@ public sealed class FileSystemDeploymentArtifactStore(
         return File.OpenRead(path);
     }
 
+    public Task DeleteResourceArtifactsAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+
+        if (!IsFileSystemStore(GetStoreOptions()))
+        {
+            return Task.CompletedTask;
+        }
+
+        var artifactId = CreateArtifactId(resourceId);
+        var artifactDirectory = GetArtifactDirectory(artifactId);
+        if (Directory.Exists(artifactDirectory))
+        {
+            Directory.Delete(artifactDirectory, recursive: true);
+        }
+
+        return Task.CompletedTask;
+    }
+
     private DeploymentArtifactStoreOptions GetStoreOptions() => options.Value.Store;
 
     private DeploymentArtifactStoreOptions RequireFileSystemStore()
@@ -248,10 +269,22 @@ public sealed class FileSystemDeploymentArtifactStore(
     private string GetRevisionDirectory(string artifactId, string revisionId, bool create = false)
     {
         var directory = Path.Combine(
+            GetArtifactDirectory(artifactId, create),
+            NormalizePathSegment(revisionId));
+        if (create)
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        return directory;
+    }
+
+    private string GetArtifactDirectory(string artifactId, bool create = false)
+    {
+        var directory = Path.Combine(
             GetRootDirectory(create),
             "revisions",
-            NormalizePathSegment(artifactId),
-            NormalizePathSegment(revisionId));
+            NormalizePathSegment(artifactId));
         if (create)
         {
             Directory.CreateDirectory(directory);

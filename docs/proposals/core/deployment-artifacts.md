@@ -431,6 +431,11 @@ revision, even when the resource stays in artifact-folder mode. That revision
 is the audit and rollback boundary for “this resource now points at this
 accepted artifact package or source metadata.”
 
+Application artifact packages are resource-owned data. After a resource delete
+operation succeeds, the Control Plane deletes stored artifact revisions for
+that resource from the configured artifact store. If provider delete fails,
+the artifact revisions remain available for retry and diagnostics.
+
 Any accepted application artifact must eventually be materialized onto the
 runtime host or into the host's runtime substrate before the app can run. Direct
 upload only changes how bytes enter the host artifact store; provider

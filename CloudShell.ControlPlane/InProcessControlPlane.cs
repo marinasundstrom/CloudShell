@@ -592,6 +592,11 @@ public sealed class InProcessControlPlane(
         }
 
         var result = await orchestration.DeleteAsync(resource, cancellationToken);
+        if (deploymentArtifacts is not null)
+        {
+            await deploymentArtifacts.DeleteResourceArtifactsAsync(resource.Id, cancellationToken);
+        }
+
         NotifyResourcesChanged(new ResourceChangeNotification(
             ResourceChangeKind.ResourceDeleted,
             resource.Id,

@@ -50,6 +50,8 @@ on `git blame --follow`, and then by the broad type of change.
   validate an acceptable package before applying the resource definition.
 - Documented that successfully applying a new accepted application artifact
   package advances the resource revision, while uploading bytes alone does not.
+- Deleted resource-scoped application artifact revisions from the configured
+  artifact store after the containing resource is successfully deleted.
 
 ### 2026-07-10
 

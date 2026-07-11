@@ -33,6 +33,10 @@ public interface IDeploymentArtifactStore : IDeploymentArtifactContentStore
         string revisionId,
         CancellationToken cancellationToken = default);
 
+    Task DeleteResourceArtifactsAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default);
+
     Task<Stream> IDeploymentArtifactContentStore.OpenDeploymentArtifactContentAsync(
         string resourceId,
         string artifactId,
