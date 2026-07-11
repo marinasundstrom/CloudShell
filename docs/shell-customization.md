@@ -68,8 +68,11 @@ CoreShell and the lower-level composition engine are documented in
 reference CoreShell-only Fluent UI app and future CoreShell development
 testbed. It shows that an app can own its own Blazor layout and presenters
 while using CoreShell for navigation, targets, section outlets, and extension
-modules. `samples/CompositionSandbox` remains the lower-level composition
-sandbox for graph and renderer experiments below CoreShell.
+modules. It also proves the first CoreShell notification UI reference surface:
+a topbar notification center, toast-style transient status cards, and a
+sample-owned in-memory provider behind `ICoreShellNotificationService`.
+`samples/CompositionSandbox` remains the lower-level composition sandbox for
+graph and renderer experiments below CoreShell.
 
 The built-in Overview item has the special navigation ID `overview`. A
 replacement changes the sidebar contribution and points to either a registered

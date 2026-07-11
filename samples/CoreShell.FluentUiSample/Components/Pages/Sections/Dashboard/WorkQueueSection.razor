@@ -1,3 +1,15 @@
+@inject ISampleNotificationProducer Notifications
+
+<div class="section-actions">
+    <FluentButton Appearance="Appearance.Accent"
+                  Disabled="@IsCreating"
+                  IconStart="@(new Icons.Regular.Size20.AddCircle())"
+                  OnClick="CommitCreateResourceAsync">
+        @(IsCreating ? "Creating resource" : "Commit create resource")
+    </FluentButton>
+    <span>Publishes an in-progress notification, then updates it when the simulated operation completes.</span>
+</div>
+
 <FluentDataGrid Items="@Rows.AsQueryable()" GridTemplateColumns="1fr 120px 120px">
     <PropertyColumn Property="@(row => row.Name)" Title="Work item" />
     <PropertyColumn Property="@(row => row.Owner)" Title="Owner" />
@@ -7,6 +19,8 @@
 </FluentDataGrid>
 
 @code {
+    private bool IsCreating { get; set; }
+
     private static readonly IReadOnlyList<Row> Rows =
     [
         new("Navigation presenter", "CoreShell", "Ready"),
@@ -16,6 +30,37 @@
 
     private static Appearance GetAppearance(string state) =>
         state == "Ready" ? Appearance.Accent : Appearance.Neutral;
+
+    private async Task CommitCreateResourceAsync()
+    {
+        if (IsCreating)
+        {
+            return;
+        }
+
+        IsCreating = true;
+        var notification = await Notifications.PublishAsync(new SampleNotificationDraft(
+            "Creating sample resource",
+            "The request was committed and is running in the background.",
+            CoreShellNotificationSeverity.Info,
+            CoreShellNotificationStatus.InProgress,
+            Source: "CoreShell sample",
+            Target: new CoreShellNotificationTarget("/operations", "View operations")));
+
+        try
+        {
+            await Task.Delay(1400);
+            await Notifications.UpdateAsync(notification.Id, new SampleNotificationUpdate(
+                Message: "Sample resource is ready.",
+                Severity: CoreShellNotificationSeverity.Success,
+                Status: CoreShellNotificationStatus.Succeeded,
+                Target: new CoreShellNotificationTarget("/operations", "View operations")));
+        }
+        finally
+        {
+            IsCreating = false;
+        }
+    }
 
     private sealed record Row(string Name, string Owner, string State);
 }

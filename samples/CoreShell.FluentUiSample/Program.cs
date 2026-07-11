@@ -19,6 +19,11 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddFluentUIComponents();
 builder.Services.AddCoreShellBlazor();
+builder.Services.AddSingleton<SampleNotificationService>();
+builder.Services.Replace(ServiceDescriptor.Singleton<ICoreShellNotificationService>(
+    serviceProvider => serviceProvider.GetRequiredService<SampleNotificationService>()));
+builder.Services.AddSingleton<ISampleNotificationProducer>(
+    serviceProvider => serviceProvider.GetRequiredService<SampleNotificationService>());
 
 builder.Services.AddSingleton(CoreShellModule.Create(
     SampleShellIds.HostModule,

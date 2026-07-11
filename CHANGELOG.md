@@ -34,6 +34,10 @@ on `git blame --follow`, and then by the broad type of change.
   `ICoreShellNotificationService`, per-user notification instance records,
   change notifications, acknowledge/dismiss methods, and an empty default
   service registered by `CoreShell.Blazor`.
+- Added the CoreShell Fluent UI sample notification reference surface with a
+  sample in-memory notification provider, topbar notification center,
+  toast-style status cards, and a simulated asynchronous create-resource
+  action.
 - Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder
   helper from CloudShell Hosting into `CoreShell.Blazor` so common Blazor shell
   building blocks can be used by CoreShell apps without a CloudShell

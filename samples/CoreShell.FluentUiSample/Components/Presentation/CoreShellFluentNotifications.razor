@@ -1,0 +1,166 @@
+@implements IDisposable
+@inject ICoreShellNotificationService Notifications
+
+<div class="notification-host">
+    <FluentButton Appearance="Appearance.Neutral"
+                  Class="notification-trigger"
+                  IconStart="@(new Icons.Regular.Size20.Alert())"
+                  OnClick="TogglePanel">
+        Notifications
+        @if (UnreadCount > 0)
+        {
+            <span class="notification-count">@UnreadCount</span>
+        }
+    </FluentButton>
+
+    @if (IsPanelOpen)
+    {
+        <section class="notification-panel" aria-label="Notifications">
+            <div class="notification-panel-header">
+                <strong>Notifications</strong>
+                <FluentButton Appearance="Appearance.Stealth"
+                              IconStart="@(new Icons.Regular.Size20.Dismiss())"
+                              OnClick="ClosePanel">
+                    Close
+                </FluentButton>
+            </div>
+
+            @if (Items.Count == 0)
+            {
+                <div class="notification-empty">No notifications</div>
+            }
+            else
+            {
+                <div class="notification-list">
+                    @foreach (var item in Items)
+                    {
+                        <article class="@GetItemClass(item)">
+                            <div>
+                                <strong>@item.Title</strong>
+                                <span>@item.Message</span>
+                            </div>
+                            <div class="notification-meta">
+                                <span>@GetStatusText(item)</span>
+                                @if (item.Target is not null)
+                                {
+                                    <FluentAnchor Href="@item.Target.Href" Appearance="Appearance.Stealth">
+                                        @(item.Target.Label ?? "Open")
+                                    </FluentAnchor>
+                                }
+                                @if (item.AcknowledgedAt is null)
+                                {
+                                    <FluentButton Appearance="Appearance.Stealth"
+                                                  OnClick="@(() => AcknowledgeAsync(item.Id))">
+                                        Acknowledge
+                                    </FluentButton>
+                                }
+                                <FluentButton Appearance="Appearance.Stealth"
+                                              IconStart="@(new Icons.Regular.Size16.Dismiss())"
+                                              OnClick="@(() => DismissAsync(item.Id))">
+                                    Dismiss
+                                </FluentButton>
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@if (ToastItems.Count > 0)
+{
+    <div class="toast-stack" aria-live="polite">
+        @foreach (var item in ToastItems)
+        {
+            <article class="@GetToastClass(item)">
+                <strong>@item.Title</strong>
+                <span>@item.Message</span>
+                <FluentButton Appearance="Appearance.Stealth"
+                              IconStart="@(new Icons.Regular.Size16.Dismiss())"
+                              OnClick="@(() => DismissAsync(item.Id))">
+                    Dismiss
+                </FluentButton>
+            </article>
+        }
+    </div>
+}
+
+@code {
+    private IReadOnlyList<CoreShellNotificationInstance> Items { get; set; } = [];
+
+    private bool IsPanelOpen { get; set; }
+
+    private int UnreadCount => Items.Count(item => item.AcknowledgedAt is null);
+
+    private IReadOnlyList<CoreShellNotificationInstance> ToastItems =>
+        Items
+            .Where(item => item.AcknowledgedAt is null)
+            .Take(2)
+            .ToArray();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Notifications.NotificationsChanged += OnNotificationsChanged;
+        await LoadAsync();
+    }
+
+    public void Dispose() =>
+        Notifications.NotificationsChanged -= OnNotificationsChanged;
+
+    private async Task LoadAsync()
+    {
+        Items = await Notifications.GetNotificationsAsync(new CoreShellNotificationQuery(Limit: 8));
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task TogglePanel()
+    {
+        IsPanelOpen = !IsPanelOpen;
+        await LoadAsync();
+    }
+
+    private void ClosePanel() =>
+        IsPanelOpen = false;
+
+    private async Task AcknowledgeAsync(string id)
+    {
+        await Notifications.AcknowledgeAsync(id);
+        await LoadAsync();
+    }
+
+    private async Task DismissAsync(string id)
+    {
+        await Notifications.DismissAsync(id);
+        await LoadAsync();
+    }
+
+    private void OnNotificationsChanged(object? sender, CoreShellNotificationsChangedEventArgs args) =>
+        _ = InvokeAsync(LoadAsync);
+
+    private static string GetItemClass(CoreShellNotificationInstance item) =>
+        $"notification-item {GetToneClass(item)}";
+
+    private static string GetToastClass(CoreShellNotificationInstance item) =>
+        $"toast-card {GetToneClass(item)}";
+
+    private static string GetToneClass(CoreShellNotificationInstance item) =>
+        item.Severity switch
+        {
+            CoreShellNotificationSeverity.Success => "is-success",
+            CoreShellNotificationSeverity.Warning => "is-warning",
+            CoreShellNotificationSeverity.Error => "is-error",
+            _ when item.Status == CoreShellNotificationStatus.InProgress => "is-progress",
+            _ => "is-info"
+        };
+
+    private static string GetStatusText(CoreShellNotificationInstance item) =>
+        item.Status switch
+        {
+            CoreShellNotificationStatus.InProgress => "In progress",
+            CoreShellNotificationStatus.Succeeded => "Succeeded",
+            CoreShellNotificationStatus.Failed => "Failed",
+            CoreShellNotificationStatus.NeedsAttention => "Needs attention",
+            _ => item.Source ?? "Notification"
+        };
+}

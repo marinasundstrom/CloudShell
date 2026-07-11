@@ -6,11 +6,15 @@ reference `CloudShell.Hosting`, Resource Manager, or the Control Plane.
 It proves the extraction boundary for common shell building blocks:
 
 - CoreShell owns modules, pages, menus, targets, section outlets, sections,
-  route resolution, navigation services, and section-address services.
+  route resolution, navigation services, section-address services, and the
+  minimal notification UI contract.
 - `CoreShell.Blazor` maps CoreShell content references to Blazor component
   types.
 - The sample owns the Fluent UI presenters for navigation, section stacks, and
   tabbed sections.
+- The sample owns the reference notification UI surface: a topbar notification
+  center, toast-style transient status cards, and a host-provided in-memory
+  notification source behind `ICoreShellNotificationService`.
 - A second CoreShell module contributes a dashboard section and navigation
   item without using CloudShell product services.
 
@@ -19,6 +23,12 @@ blocks before moving them into CloudShell. A CoreShell app can own its own
 Blazor layout and visual styling while still using the same CoreShell modules,
 navigation services, section outlets, route targets, and extension model that
 CloudShell depends on.
+
+The dashboard work queue includes a simulated asynchronous create-resource
+action. It publishes an in-progress notification and updates it to success,
+showing the CoreShell notification contract and Fluent UI presenter behavior
+before the equivalent CloudShell notification rules and Control Plane event
+integration are implemented.
 
 ## Run
 

@@ -12,12 +12,12 @@ when background work starts, progresses, succeeds, fails, or needs attention.
 - Strategy fit: Medium-high; supports Azure-like operation feedback and
   strengthens CoreShell as the common shell layer without forcing CloudShell
   resource semantics into CoreShell.
-- Canonical feature docs: none yet; planned feature docs are
+- Canonical feature docs:
   [Shell customization](../../shell-customization.md) and
-  [UI composition](../../ui-composition.md) after implementation lands.
-- Remaining action: build on the minimal `ICoreShellNotificationService`
-  contract by proving a CoreShell Fluent UI notification center and toast
-  presenter, then add CloudShell notification rules and producers.
+  [UI composition](../../ui-composition.md) describe the landed CoreShell
+  notification UI contract and sample reference path.
+- Remaining action: add CloudShell notification rules, operation producers,
+  audience resolution, and durable or remote notification adapters.
 - Out of scope: full workflow orchestration, durable CloudShell activity
   history, email/push/device delivery, notification preferences UI, and
   cross-Control Plane federation.
@@ -368,12 +368,14 @@ visible to the current user and which actions or links are enabled.
   through `ICoreShellNotificationService`.
 - Decide whether event and publish/update producer contracts belong in
   CoreShell or only in host-specific notification services.
-- Add an in-memory implementation for simple hosts and tests.
-- Add a CoreShell Fluent UI sample notification center and toast presenter.
-- Add a sample asynchronous action that publishes an in-progress notification
-  and then updates it to succeeded or failed.
-- Add focused CoreShell tests for record publication, updates, dismissal, and
-  change events, including per-recipient dismissal where practical.
+- Added a sample-owned in-memory implementation for the CoreShell Fluent UI
+  sample.
+- Added a CoreShell Fluent UI sample notification center and toast presenter.
+- Added a sample asynchronous action that publishes an in-progress
+  notification and then updates it to succeeded.
+- Added focused CoreShell tests for the minimal UI contract and default
+  registration behavior. Producer-side record publication and update tests
+  should land with the durable producer contract.
 
 ### Slice 2: CloudShell adapter
 
