@@ -85,6 +85,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added `.NET app` executable source mode through the flat `executablePath`
   attribute and `.WithExecutablePath(...)`, starting local assemblies with
   `dotnet <path>` while preserving the existing project mode.
+- Guarded `.NET app` YAML serialization so local-source `executablePath`
+  remains a flat resource-type-local attribute, separate from application
+  artifact upload semantics.
 - Clarified resource attribute naming guidance so resource-type-local
   attributes prefer flat lower-camel names and use dotted names only for
   intentional shared namespaces or ResourceDefinition document groups.

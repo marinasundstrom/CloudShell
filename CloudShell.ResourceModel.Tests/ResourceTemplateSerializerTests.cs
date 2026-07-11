@@ -376,6 +376,36 @@ resources:
     }
 
     [Fact]
+    public void SerializeDefinition_YamlKeepsDotnetExecutablePathFlat()
+    {
+        var definition = new ResourceDefinition(
+            "api",
+            AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ExecutablePath] =
+                    "artifacts/api/CloudShell.Api.dll",
+                [AspNetCoreProjectResourceTypeProvider.Attributes.ProjectArguments] =
+                    "--urls http://localhost:5080"
+            });
+
+        var yaml = ResourceTemplateSerializer.SerializeDefinition(definition);
+        var roundTripped = ResourceTemplateSerializer.DeserializeDefinition(yaml);
+
+        Assert.Contains("type: application.dotnet-app", yaml);
+        Assert.Contains("executablePath: artifacts/api/CloudShell.Api.dll", yaml);
+        Assert.Contains("project:", yaml);
+        Assert.Contains("arguments: --urls http://localhost:5080", yaml);
+        Assert.DoesNotContain("dotnet:", yaml);
+        Assert.Equal(
+            "artifacts/api/CloudShell.Api.dll",
+            roundTripped.ResourceAttributes["executablePath"]);
+        Assert.Equal(
+            "--urls http://localhost:5080",
+            roundTripped.ResourceAttributes["project.arguments"]);
+    }
+
+    [Fact]
     public void SerializeDefinition_YamlCompactsEmbeddedResourceIdReferences()
     {
         var definition = new ResourceDefinition(

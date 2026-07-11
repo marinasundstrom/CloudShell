@@ -49,10 +49,10 @@ else if (ExistingResource is null)
 else if (!CanEditExistingResource)
 {
     <ProcedureMessage Severity="ResourceSignalSeverity.Info">
-        This resource was declared by a launcher, graph builder, or host-owned resource graph. Its application source is read-only in Resource Manager.
+        This resource was declared by a launcher, graph builder, or host-owned resource graph. Its application artifact settings are read-only in Resource Manager.
     </ProcedureMessage>
     <FormPanel>
-        <ResourceEditorSection Title="Current source">
+        <ResourceEditorSection Title="Current artifact">
             <dl class="resource-summary-grid">
                 <dt>Source kind</dt>
                 <dd>@GetCurrentSourceKind()</dd>
@@ -60,8 +60,6 @@ else if (!CanEditExistingResource)
                 <dd>@GetCurrentArtifactsEnabled()</dd>
                 <dt>Artifact</dt>
                 <dd>@GetCurrentArtifactLabel()</dd>
-                <dt>Project path</dt>
-                <dd>@GetAttribute(ResourceAttributeNames.ProjectPath, "not projected")</dd>
             </dl>
         </ResourceEditorSection>
     </FormPanel>
