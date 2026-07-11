@@ -16,8 +16,10 @@ when background work starts, progresses, succeeds, fails, or needs attention.
   [Shell customization](../../shell-customization.md) and
   [UI composition](../../ui-composition.md) describe the landed CoreShell
   notification UI contract and sample reference path.
-- Remaining action: add Control Plane-owned notification projection, rules,
-  storage, APIs, audience resolution, and remote UI adapters.
+- Remaining action: expand the first Control Plane notification projection
+  beyond in-memory lifecycle event coalescing to durable storage, rule
+  configuration, audience resolution, producer update APIs, SignalR delivery,
+  and additional operation producers.
 - Out of scope: full workflow orchestration, durable CloudShell activity
   history, email/push/device delivery, notification preferences UI, and
   cross-Control Plane federation.
@@ -350,6 +352,81 @@ Resource and operation services should expose enough identity and correlation
 for the Control Plane notification subsystem to do its job, but they should
 not phrase those facts as toasts, notification center rows, read state, or
 dismissible UI items.
+
+## Async operation handoff model
+
+Notifications become most valuable when Control Plane requests accept work
+that continues after the HTTP request has returned. Resource creation,
+artifact validation, deployment application, start/stop actions, replica
+changes, and recovery work should not require the UI request to remain open
+until every provider and runtime step completes. The Control Plane should have
+a deliberate asynchronous operation handoff path for those workflows.
+
+The preferred shape is:
+
+1. The request handler validates authorization and command shape.
+2. The Control Plane creates or updates a durable operation record with a
+   stable operation ID, requested action, actor, resource correlation, and
+   initial status.
+3. The request returns an accepted response or domain result that includes the
+   operation ID and any immediately available resource reference.
+4. A background operation handler processes the accepted command outside the
+   request lifetime.
+5. The handler emits operation/resource facts as it moves through accepted,
+   queued, running, succeeded, failed, canceled, or needs-attention states.
+6. Notification rules map those facts to notification events and update the
+   correlated per-recipient notification instances.
+7. Connected shells receive a change signal and re-query the notification
+   source; resource detail, activity, and diagnostics views query the durable
+   operation/resource records.
+
+The background operation handler should be the owner of execution progress,
+retries, provider dispatch, and failure details. The notification subsystem
+should be a projection over that operation state, not the operation state
+itself. This keeps user feedback responsive without making notifications a
+workflow engine.
+
+Accepted operations should carry enough correlation for notifications to
+update one item instead of producing unrelated rows:
+
+- operation ID
+- resource ID when one exists, or a planned resource ID for create flows
+- operation kind, such as create, update, delete, start, stop, deploy,
+  validate artifact, reconcile, or recover
+- acting principal or producer identity
+- source request/correlation/trace identifiers
+- optional deployment, artifact revision, replica group, health, diagnostic,
+  or provider dispatch identifiers
+
+The first implementation can start in-process with a queue and background
+service. The important boundary is that the public Control Plane contract is
+operation-oriented: clients submit work, get an operation reference, and then
+observe state through the operation/resource APIs and notification projection.
+A later deployment can move handlers into separate worker processes if the
+same accepted-operation records and notification facts are preserved.
+
+## Producer backlog
+
+Initial notification producers should focus on workflows where the user has
+committed an action and the outcome is not immediately visible. Track producer
+cases here so implementation slices can stay narrow and deliberate.
+
+| Priority | Case | Why it matters | Create/update behavior | Status |
+| --- | --- | --- | --- | --- |
+| 1 | Lifecycle action progress | Start, stop, restart, and pause are already concrete user actions and can become long-running without changing the user workflow. This is the simplest useful case because the resource already exists and the target link is known. Delete should follow once delete has the same accepted-operation shape. | Create one in-progress notification for the acting user when the lifecycle event starts. Update the same notification to succeeded, failed, or needs attention when the correlated lifecycle result arrives. | First slice implemented for resource lifecycle events |
+| 2 | Resource create progress | Create flows are high-value because users leave the create form and need confidence that accepted work is still running. The harder part is handling planned resource IDs and failures before a detail page exists. | Create one in-progress notification for the acting user after command acceptance. Update it with a resource target on success, or with an operation/diagnostics target on failure. | Planned |
+| 3 | Resource update progress | Edit flows may trigger provider work, deployment apply, identity provisioning, endpoint mapping, or runtime reconciliation after save. | Create or update an in-progress notification for the acting user when save starts async work. Update the correlated notification on apply success, failure, or needs-attention diagnostics. | Planned |
+| 4 | Artifact upload, validation, and apply | Upload and validation workflows have obvious progress/failure states and useful diagnostic targets. | Use progress notifications while a package is uploaded, validated, committed, or applied. Update to failed with validation/provider diagnostics, or succeeded with the resulting revision/resource target. | Planned |
+| 5 | Deployment or replica reconciliation | Deployment records and replica slot states already expose runtime progress that users may need to know about after a command returns. | Update an existing operation notification when deployment records or replica slot states move from applying/reconciling to active, failed, or needs attention. Create a notification only when no parent operation notification exists. | Planned |
+| 6 | Provider dispatch failure | The Control Plane may accept work and then fail before the user can inspect a useful resource page. | Create or update a failure notification for the acting user with safe summary text and an operation/diagnostics target. | Planned |
+| 7 | Background health and recovery | These are useful only when actionable; routine health polling would be noisy. | Notify resource owners or operators for repeated liveness failure, recovery exhausted, or manual intervention required. Suppress routine healthy/probing transitions. | Planned |
+| 8 | Provider diagnostics available | Provider diagnostics can require user action, but may contain sensitive or verbose details. | Create warning notifications only for user-actionable, notification-safe diagnostics. Link to the owning diagnostics/logs view for details. | Planned |
+
+Update semantics should prefer one correlated notification for one user-visible
+operation. A long-running operation can move from in-progress to succeeded,
+failed, or needs-attention without creating a new notification for each
+progress event. New notifications should be reserved for distinct outcomes,
+different audiences, or follow-up work that is not the same operation.
 
 ## Notification rules
 

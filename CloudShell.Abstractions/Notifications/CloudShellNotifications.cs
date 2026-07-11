@@ -15,8 +15,9 @@ public enum CloudShellNotificationStatus
 public enum CloudShellNotificationChangeKind
 {
     Created = 0,
-    Acknowledged = 1,
-    Dismissed = 2
+    Updated = 1,
+    Acknowledged = 2,
+    Dismissed = 3
 }
 
 public sealed record CloudShellNotificationTarget(
@@ -87,6 +88,9 @@ public interface ICloudShellNotificationStore
         CloudShellNotificationQuery? query = null);
 
     CloudShellNotificationInstance CreateNotification(
+        CreateCloudShellNotificationCommand command);
+
+    CloudShellNotificationInstance CreateOrUpdateNotification(
         CreateCloudShellNotificationCommand command);
 
     CloudShellNotificationInstance? GetNotification(string notificationId);

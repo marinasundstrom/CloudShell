@@ -181,6 +181,7 @@ internal sealed class ControlPlaneCoreShellNotificationService : ICoreShellNotif
         kind switch
         {
             CloudShellNotificationChangeKind.Created => CoreShellNotificationChangeKind.Created,
+            CloudShellNotificationChangeKind.Updated => CoreShellNotificationChangeKind.Updated,
             CloudShellNotificationChangeKind.Acknowledged => CoreShellNotificationChangeKind.Acknowledged,
             CloudShellNotificationChangeKind.Dismissed => CoreShellNotificationChangeKind.Dismissed,
             _ => CoreShellNotificationChangeKind.RefreshRequired

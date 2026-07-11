@@ -61,6 +61,46 @@ public sealed class CloudShellNotificationStoreTests
     }
 
     [Fact]
+    public void InMemoryStore_UpdatesExistingNotificationByRecipientAndCorrelation()
+    {
+        var store = new InMemoryCloudShellNotificationStore();
+        var changes = new List<CloudShellNotificationChangeKind>();
+        store.NotificationsChanged += (_, args) => changes.Add(args.Kind);
+
+        var progress = store.CreateOrUpdateNotification(new CreateCloudShellNotificationCommand(
+            "operator",
+            "Start resource",
+            "Resource is starting.",
+            ResourceSignalSeverity.Info,
+            CloudShellNotificationStatus.InProgress,
+            ResourceId: "application:api",
+            CorrelationId: "resource-lifecycle|application:api|start|operator"));
+
+        var completed = store.CreateOrUpdateNotification(new CreateCloudShellNotificationCommand(
+            "operator",
+            "Start resource",
+            "Resource started.",
+            ResourceSignalSeverity.Success,
+            CloudShellNotificationStatus.Succeeded,
+            ResourceId: "application:api",
+            EventType: ResourceEventTypes.Events.Lifecycle.Started,
+            CorrelationId: "resource-lifecycle|application:api|start|operator"));
+
+        Assert.Equal(progress.Id, completed.Id);
+        var notification = Assert.Single(store.GetNotifications(new CloudShellNotificationQuery(
+            RecipientKey: "operator")));
+        Assert.Equal("Resource started.", notification.Message);
+        Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
+        Assert.Equal(ResourceEventTypes.Events.Lifecycle.Started, notification.EventType);
+        Assert.Equal(
+            [
+                CloudShellNotificationChangeKind.Created,
+                CloudShellNotificationChangeKind.Updated
+            ],
+            changes);
+    }
+
+    [Fact]
     public void ObservingResourceEventSink_ProjectsTriggeredResourceEventsToNotifications()
     {
         var resourceEvents = new InMemoryResourceEventStore();
@@ -90,11 +130,62 @@ public sealed class CloudShellNotificationStoreTests
         Assert.Equal("Control Plane", notification.Source);
         Assert.Equal("application:api", notification.ResourceId);
         Assert.Equal(ResourceEventTypes.Events.Lifecycle.Started, notification.EventType);
-        Assert.Equal("trace-1", notification.CorrelationId);
-        Assert.Equal("cloudshell.resource-event", notification.TemplateKey);
+        Assert.Equal("resource-lifecycle|application:api|start|operator", notification.CorrelationId);
+        Assert.Equal("cloudshell.resource-lifecycle-operation", notification.TemplateKey);
         Assert.NotEmpty(notification.EventId!);
         Assert.Equal("trace-1", notification.Attributes!["traceId"]);
         Assert.Equal("span-1", notification.Attributes!["spanId"]);
+        Assert.Equal("start", notification.Attributes!["actionId"]);
+    }
+
+    [Fact]
+    public void ObservingResourceEventSink_CoalescesLifecycleProgressIntoOneNotification()
+    {
+        var resourceEvents = new InMemoryResourceEventStore();
+        var notifications = new InMemoryCloudShellNotificationStore();
+        var changes = new List<CloudShellNotificationChangeKind>();
+        notifications.NotificationsChanged += (_, args) => changes.Add(args.Kind);
+        var projector = new ResourceEventNotificationProjector(
+            notifications,
+            [new DefaultResourceEventNotificationRule()]);
+        var sink = new ObservingResourceEventSink(resourceEvents, [projector]);
+
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Actions.Lifecycle.Start,
+            "Start was requested.",
+            DateTimeOffset.Parse("2026-07-11T09:00:00+00:00"),
+            TriggeredBy: "operator"));
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Lifecycle.Starting,
+            "Resource is starting.",
+            DateTimeOffset.Parse("2026-07-11T09:00:01+00:00"),
+            TriggeredBy: "operator"));
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Lifecycle.Started,
+            "Resource started.",
+            DateTimeOffset.Parse("2026-07-11T09:00:02+00:00"),
+            TriggeredBy: "operator",
+            Severity: ResourceSignalSeverity.Success));
+
+        Assert.Equal(3, resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "application:api")).Count);
+
+        var notification = Assert.Single(notifications.GetNotifications(new CloudShellNotificationQuery(
+            RecipientKey: "operator")));
+        Assert.Equal("Start resource", notification.Title);
+        Assert.Equal("Resource started.", notification.Message);
+        Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
+        Assert.Equal(ResourceEventTypes.Events.Lifecycle.Started, notification.EventType);
+        Assert.Equal("start", notification.Attributes!["actionId"]);
+        Assert.Equal("lifecycle", notification.Attributes!["operationKind"]);
+        Assert.Equal(
+            [
+                CloudShellNotificationChangeKind.Created,
+                CloudShellNotificationChangeKind.Updated
+            ],
+            changes);
     }
 
     [Fact]

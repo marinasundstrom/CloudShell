@@ -41,8 +41,64 @@ public sealed class InMemoryCloudShellNotificationStore : ICloudShellNotificatio
     {
         ArgumentNullException.ThrowIfNull(command);
 
+        var notification = CreateNotificationCore(command);
+        notifications[notification.Id] = notification;
+        NotificationsChanged?.Invoke(
+            this,
+            new CloudShellNotificationsChangedEventArgs(
+                CloudShellNotificationChangeKind.Created,
+                notification.Id));
+
+        return notification;
+    }
+
+    public CloudShellNotificationInstance CreateOrUpdateNotification(
+        CreateCloudShellNotificationCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var recipientKey = NormalizeRequired(command.RecipientKey, nameof(command.RecipientKey));
+        var correlationId = NormalizeOptional(command.CorrelationId);
+        if (correlationId is null)
+        {
+            return CreateNotification(command);
+        }
+
+        var existing = notifications.Values
+            .Where(notification =>
+                notification.DismissedAt is null &&
+                string.Equals(notification.RecipientKey, recipientKey, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(notification.CorrelationId, correlationId, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(notification => notification.UpdatedAt)
+            .FirstOrDefault();
+
+        if (existing is null)
+        {
+            return CreateNotification(command);
+        }
+
+        while (notifications.TryGetValue(existing.Id, out existing))
+        {
+            var updated = UpdateNotificationCore(existing, command, recipientKey, correlationId);
+            if (notifications.TryUpdate(existing.Id, updated, existing))
+            {
+                NotificationsChanged?.Invoke(
+                    this,
+                    new CloudShellNotificationsChangedEventArgs(
+                        CloudShellNotificationChangeKind.Updated,
+                        updated.Id));
+                return updated;
+            }
+        }
+
+        return CreateNotification(command);
+    }
+
+    private static CloudShellNotificationInstance CreateNotificationCore(
+        CreateCloudShellNotificationCommand command)
+    {
         var now = DateTimeOffset.UtcNow;
-        var notification = new CloudShellNotificationInstance(
+        return new CloudShellNotificationInstance(
             Guid.NewGuid().ToString("n"),
             NormalizeRequired(command.RecipientKey, nameof(command.RecipientKey)),
             NormalizeRequired(command.Title, nameof(command.Title)),
@@ -59,16 +115,30 @@ public sealed class InMemoryCloudShellNotificationStore : ICloudShellNotificatio
             TemplateKey: NormalizeOptional(command.TemplateKey),
             Actions: NormalizeActions(command.Actions),
             Attributes: NormalizeAttributes(command.Attributes));
-
-        notifications[notification.Id] = notification;
-        NotificationsChanged?.Invoke(
-            this,
-            new CloudShellNotificationsChangedEventArgs(
-                CloudShellNotificationChangeKind.Created,
-                notification.Id));
-
-        return notification;
     }
+
+    private static CloudShellNotificationInstance UpdateNotificationCore(
+        CloudShellNotificationInstance existing,
+        CreateCloudShellNotificationCommand command,
+        string recipientKey,
+        string correlationId) =>
+        existing with
+        {
+            RecipientKey = recipientKey,
+            Title = NormalizeRequired(command.Title, nameof(command.Title)),
+            Message = NormalizeRequired(command.Message, nameof(command.Message)),
+            Severity = command.Severity,
+            Status = command.Status,
+            UpdatedAt = DateTimeOffset.UtcNow,
+            Source = NormalizeOptional(command.Source),
+            ResourceId = NormalizeOptional(command.ResourceId),
+            EventType = NormalizeOptional(command.EventType),
+            EventId = NormalizeOptional(command.EventId),
+            CorrelationId = correlationId,
+            TemplateKey = NormalizeOptional(command.TemplateKey),
+            Actions = NormalizeActions(command.Actions),
+            Attributes = NormalizeAttributes(command.Attributes)
+        };
 
     public CloudShellNotificationInstance? GetNotification(string notificationId)
     {

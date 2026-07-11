@@ -17,7 +17,7 @@ public sealed class ResourceEventNotificationProjector(
             var notification = rule.CreateNotification(resourceEvent);
             if (notification is not null)
             {
-                notifications.CreateNotification(notification);
+                notifications.CreateOrUpdateNotification(notification);
             }
         }
     }
@@ -33,6 +33,12 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             return null;
         }
 
+        if (resourceEvent.EventType.StartsWith(ResourceEventTypes.Actions.Prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var lifecycleActionId = GetLifecycleActionId(resourceEvent.EventType);
         return new CreateCloudShellNotificationCommand(
             recipientKey,
             CreateTitle(resourceEvent),
@@ -43,8 +49,12 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             ResourceId: resourceEvent.ResourceId,
             EventType: resourceEvent.EventType,
             EventId: CreateEventId(resourceEvent),
-            CorrelationId: resourceEvent.TraceId,
-            TemplateKey: "cloudshell.resource-event",
+            CorrelationId: lifecycleActionId is null
+                ? resourceEvent.TraceId
+                : CreateLifecycleCorrelationId(resourceEvent, lifecycleActionId),
+            TemplateKey: lifecycleActionId is null
+                ? "cloudshell.resource-event"
+                : "cloudshell.resource-lifecycle-operation",
             Attributes: CreateAttributes(resourceEvent));
     }
 
@@ -74,6 +84,12 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
 
     private static string CreateTitle(ResourceEvent resourceEvent)
     {
+        var lifecycleActionId = GetLifecycleActionId(resourceEvent.EventType);
+        if (lifecycleActionId is not null)
+        {
+            return $"{GetLifecycleActionLabel(lifecycleActionId)} resource";
+        }
+
         var name = resourceEvent.EventType
             .Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .LastOrDefault() ?? "event";
@@ -104,6 +120,13 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             ["eventType"] = resourceEvent.EventType
         };
 
+        var lifecycleActionId = GetLifecycleActionId(resourceEvent.EventType);
+        if (lifecycleActionId is not null)
+        {
+            attributes["actionId"] = lifecycleActionId;
+            attributes["operationKind"] = "lifecycle";
+        }
+
         if (!string.IsNullOrWhiteSpace(resourceEvent.TraceId))
         {
             attributes["traceId"] = resourceEvent.TraceId;
@@ -119,4 +142,42 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string CreateLifecycleCorrelationId(
+        ResourceEvent resourceEvent,
+        string lifecycleActionId) =>
+        string.Join(
+            "|",
+            "resource-lifecycle",
+            resourceEvent.ResourceId,
+            lifecycleActionId,
+            resourceEvent.TriggeredBy ?? string.Empty);
+
+    private static string? GetLifecycleActionId(string eventType) =>
+        eventType.Trim() switch
+        {
+            ResourceEventTypes.Events.Lifecycle.Starting or
+            ResourceEventTypes.Events.Lifecycle.Started or
+            ResourceEventTypes.Events.Lifecycle.StartFailed => ResourceActionIds.Start,
+            ResourceEventTypes.Events.Lifecycle.Stopping or
+            ResourceEventTypes.Events.Lifecycle.Stopped or
+            ResourceEventTypes.Events.Lifecycle.StopFailed => ResourceActionIds.Stop,
+            ResourceEventTypes.Events.Lifecycle.Pausing or
+            ResourceEventTypes.Events.Lifecycle.Paused or
+            ResourceEventTypes.Events.Lifecycle.PauseFailed => ResourceActionIds.Pause,
+            ResourceEventTypes.Events.Lifecycle.Restarting or
+            ResourceEventTypes.Events.Lifecycle.Restarted or
+            ResourceEventTypes.Events.Lifecycle.RestartFailed => ResourceActionIds.Restart,
+            _ => null
+        };
+
+    private static string GetLifecycleActionLabel(string actionId) =>
+        actionId switch
+        {
+            ResourceActionIds.Start => "Start",
+            ResourceActionIds.Stop => "Stop",
+            ResourceActionIds.Pause => "Pause",
+            ResourceActionIds.Restart => "Restart",
+            _ => "Update"
+        };
 }
