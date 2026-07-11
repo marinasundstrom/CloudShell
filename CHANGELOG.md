@@ -21,6 +21,8 @@ on `git blame --follow`, and then by the broad type of change.
   reference shell and future CoreShell testbed, with a sample extension module
   contributing navigation and dashboard content without depending on
   CloudShell Hosting, Resource Manager, or the Control Plane.
+- Fixed the CoreShell Fluent UI sample startup path so it enables static web
+  assets and prerenders the shell content before Blazor interactivity connects.
 - Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder
   helper from CloudShell Hosting into `CoreShell.Blazor` so common Blazor shell
   building blocks can be used by CoreShell apps without a CloudShell

@@ -6,10 +6,14 @@ using CoreShell.FluentUiSample.Components.Layout;
 using CoreShell.FluentUiSample.Components.Pages.Sections.Dashboard;
 using CoreShell.FluentUiSample.Components.Pages.Sections.Operations;
 using CoreShell.FluentUiSample.Components.Pages.Sections.Settings;
+using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.FluentUI.AspNetCore.Components;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Configuration["ReloadStaticAssetsAtRuntime"] ??= "false";
+StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -124,6 +128,7 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseAntiforgery();
 
+app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
