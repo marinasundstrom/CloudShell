@@ -55,7 +55,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 resourceClass: ResourceManagerResourceClass.Executable)
             .AddResourceType<ApplicationArtifactResourceEditor, ApplicationArtifactResourceEditor>(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
-                ".NET Web App",
+                ".NET App",
                 "Create an application resource from an uploaded .NET artifact.",
                 "web",
                 21,

@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -83,6 +84,7 @@ public static class SqlServerResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<
                 IAspNetCoreProjectRuntimeEnvironmentProvider,
                 AspNetCoreProjectSqlServerCredentialEnvironmentResolver>());
+        services.TryAddSingleton<IConfiguration>(_ => new ConfigurationManager());
         services.TryAddSingleton<
             ISqlServerRuntimeHandler,
             NoopSqlServerRuntimeHandler>();

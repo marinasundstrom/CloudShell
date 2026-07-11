@@ -93,6 +93,10 @@ on `git blame --follow`, and then by the broad type of change.
   `executablePath` during ResourceDefinition apply; hosted defaults keep it
   disabled while local development hosts enable it for launcher-authored
   graphs.
+- Fixed Resource Manager template export for launcher-authored resources that
+  are not assigned to a resource group by adding an ungrouped export scope.
+- Stabilized resource model provider and sample smoke coverage after the
+  `.NET App` rename and local-path ResourceDefinition gate.
 - Clarified resource attribute naming guidance so resource-type-local
   attributes prefer flat lower-camel names and use dotted names only for
   intentional shared namespaces or ResourceDefinition document groups.

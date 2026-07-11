@@ -11,8 +11,8 @@
 <PageTitle>@L["Resource templates"]</PageTitle>
 
 @{
-    var selectedGroup = Groups.FirstOrDefault(group =>
-        string.Equals(group.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase));
+    var selectedExportScope = ExportScopes.FirstOrDefault(scope =>
+        string.Equals(scope.Id, SelectedExportScopeId, StringComparison.OrdinalIgnoreCase));
     var isReadOnly = ResourceManagerUiOptions.Value.ReadOnly;
     var canImport = !isReadOnly &&
         Authorization.HasPermission(CloudShellPermissions.Resources.Create) &&
@@ -38,8 +38,8 @@
 
 <section class="template-layout">
     <div class="panel template-panel">
-        <ShellPanelHeader Title="@L["Export group"].Value"
-                          Description="@L["CloudShell exports the selected group's resources as ResourceDefinition entries."].Value" />
+        <ShellPanelHeader Title="@L["Export resources"].Value"
+                          Description="@L["CloudShell exports the selected resource scope as ResourceDefinition entries."].Value" />
 
         <label for="template-format">@L["Template format"]</label>
         <FluentSelect TOption="string"
@@ -50,29 +50,29 @@
             <FluentOption TOption="string" Value="@ResourceTemplateFormat.Json.ToString()">JSON</FluentOption>
         </FluentSelect>
 
-        <label for="export-group">@L["Resource group"]</label>
+        <label for="export-scope">@L["Export scope"]</label>
         <FluentSelect TOption="string"
-                      Id="export-group"
-                      @bind-Value="SelectedGroupId"
+                      Id="export-scope"
+                      @bind-Value="SelectedExportScopeId"
                       Appearance="Appearance.Outline">
-            @foreach (var group in Groups)
+            @foreach (var scope in ExportScopes)
             {
-                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
+                <FluentOption TOption="string" Value="@scope.Id">@scope.Name</FluentOption>
             }
         </FluentSelect>
 
-        @if (selectedGroup is not null)
+        @if (selectedExportScope is not null)
         {
             <div class="template-summary">
-                <strong>@selectedGroup.Name</strong>
-                <span>@L["{0} registered resources", selectedGroup.ResourceIds.Count]</span>
+                <strong>@selectedExportScope.Name</strong>
+                <span>@L["{0} registered resources", selectedExportScope.ResourceIds.Count]</span>
             </div>
         }
 
         <FormPrimaryAction Text="@L["Export template"].Value"
                            IconStart="@(new Icons.Regular.Size20.DocumentSave())"
-                           Disabled="@(selectedGroup is null || IsBusy)"
-                           OnClick="ExportSelectedGroup" />
+                           Disabled="@(selectedExportScope is null || IsBusy)"
+                           OnClick="ExportSelectedScope" />
 
         @if (!string.IsNullOrWhiteSpace(ExportDocument))
         {
@@ -143,13 +143,16 @@
 }
 
 @code {
-    private string? SelectedGroupId { get; set; }
+    private const string UngroupedExportScopeId = "__ungrouped";
+
+    private string? SelectedExportScopeId { get; set; }
     private string SelectedTemplateFormatValue { get; set; } = ResourceTemplateFormat.Yaml.ToString();
     private string? ExportDocument { get; set; }
     private string? ImportDocument { get; set; }
     private string? StatusMessage { get; set; }
     private bool IsBusy { get; set; }
     private IReadOnlyList<ResourceGroup> Groups { get; set; } = [];
+    private IReadOnlyList<TemplateExportScope> ExportScopes { get; set; } = [];
     private List<ResourceDefinitionDiagnostic> Diagnostics { get; } = [];
     private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
     private ResourceTemplateFormat SelectedTemplateFormat =>
@@ -165,14 +168,13 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadGroupsAsync();
-        SelectedGroupId ??= Groups.FirstOrDefault()?.Id;
     }
 
     private void BackToResources() => Navigation.NavigateTo("/resources");
 
-    private async Task ExportSelectedGroup()
+    private async Task ExportSelectedScope()
     {
-        if (string.IsNullOrWhiteSpace(SelectedGroupId))
+        if (string.IsNullOrWhiteSpace(SelectedExportScopeId))
         {
             return;
         }
@@ -183,17 +185,20 @@
 
         try
         {
-            var group = Groups.FirstOrDefault(group =>
-                string.Equals(group.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase))
-                ?? throw new InvalidOperationException("The selected resource group could not be found.");
+            var scope = ExportScopes.FirstOrDefault(scope =>
+                string.Equals(scope.Id, SelectedExportScopeId, StringComparison.OrdinalIgnoreCase))
+                ?? throw new InvalidOperationException("The selected export scope could not be found.");
+            var metadata = string.IsNullOrWhiteSpace(scope.ResourceGroupId)
+                ? null
+                : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["resourceGroup.id"] = scope.ResourceGroupId
+                };
             var result = await Templates.ExportResourceTemplateAsync(
                 new ResourceTemplateExportRequest(
-                    group.Name,
-                    group.ResourceIds,
-                    Metadata: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        ["resourceGroup.id"] = group.Id
-                    }));
+                    scope.Name,
+                    scope.ResourceIds,
+                    Metadata: metadata));
             ExportDocument = ResourceTemplateSerializer.SerializeTemplate(
                 result.Template,
                 SelectedTemplateFormat);
@@ -267,5 +272,44 @@
     private async Task LoadGroupsAsync()
     {
         Groups = await ResourceManager.ListResourceGroupsAsync();
+        var resources = await ResourceManager.ListResourcesAsync();
+        var groupedResourceIds = Groups
+            .SelectMany(group => group.ResourceIds)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var exportScopes = Groups
+            .Select(group => new TemplateExportScope(
+                group.Id,
+                group.Name,
+                group.ResourceIds,
+                ResourceGroupId: group.Id))
+            .ToList();
+        var ungroupedResourceIds = resources
+            .Select(resource => resource.Id)
+            .Where(resourceId => !groupedResourceIds.Contains(resourceId))
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (ungroupedResourceIds.Length > 0)
+        {
+            exportScopes.Add(new TemplateExportScope(
+                UngroupedExportScopeId,
+                L["Ungrouped resources"].Value,
+                ungroupedResourceIds,
+                ResourceGroupId: null));
+        }
+
+        ExportScopes = exportScopes;
+        if (SelectedExportScopeId is null ||
+            ExportScopes.All(scope =>
+                !string.Equals(scope.Id, SelectedExportScopeId, StringComparison.OrdinalIgnoreCase)))
+        {
+            SelectedExportScopeId = ExportScopes.FirstOrDefault()?.Id;
+        }
     }
+
+    private sealed record TemplateExportScope(
+        string Id,
+        string Name,
+        IReadOnlyList<string> ResourceIds,
+        string? ResourceGroupId);
 }

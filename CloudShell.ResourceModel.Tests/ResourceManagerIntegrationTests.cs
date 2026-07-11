@@ -4124,7 +4124,8 @@ resources:
         Assert.Equal(HostConfigurationSourceResourceTypeProvider.ProviderId, projectedSource.Provider);
         Assert.Equal("host", projectedSource.ResourceAttributes["configuration.kind"]);
         Assert.Equal("host", projectedSource.ResourceAttributes["configuration.source"]);
-        Assert.Equal("0", projectedSource.ResourceAttributes["configuration.settings.count"]);
+        Assert.Equal("0", projectedSource.ResourceAttributes[
+            HostConfigurationSourceResourceTypeProvider.Attributes.EntryCount]);
         var inspect = Assert.Single(projectedSource.ResourceActions, action =>
             action.Id == HostConfigurationSourceResourceTypeProvider.Operations.Inspect.ToString());
 

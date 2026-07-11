@@ -1014,7 +1014,7 @@ public sealed class SampleSmokeTests
         var graphApiDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application.dotnet-app:application-topology-api")}/details");
         Assert.Contains("API", graphApiDetailsHtml);
-        Assert.Contains(".NET app", graphApiDetailsHtml);
+        Assert.Contains(".NET App", graphApiDetailsHtml);
         Assert.Contains("application.dotnet-app", graphApiDetailsHtml);
 
         var graphApiEndpointsHtml = await host.GetStringAsync(
@@ -1060,7 +1060,8 @@ public sealed class SampleSmokeTests
 
         var graphApplicationAddHtml = await host.GetStringAsync(
             "/resources/add?type=application.dotnet-app");
-        Assert.Contains("Resource model application resources", graphApplicationAddHtml);
+        Assert.Contains(".NET App", graphApplicationAddHtml);
+        Assert.Contains("Create an application resource from an uploaded .NET artifact.", graphApplicationAddHtml);
         Assert.DoesNotContain("Resource type not found", graphApplicationAddHtml);
 
         await StartGraphResourceIfAvailableAsync(host, graphSettings, "ApplicationTopology settings");
@@ -2797,7 +2798,8 @@ public sealed class SampleSmokeTests
             [
                 ("SignalRContainerApp__ApiPort", apiPort.ToString(CultureInfo.InvariantCulture)),
                 ("SignalRContainerApp__ReplicaPortStart", replicaPortStart.ToString(CultureInfo.InvariantCulture)),
-                ("SignalRContainerApp__FrontendEndpoint", $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}")
+                ("SignalRContainerApp__FrontendEndpoint", $"http://localhost:{frontendPort.ToString(CultureInfo.InvariantCulture)}"),
+                ("ResourceManager__AllowLocalPathResourceDefinitions", "true")
             ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
@@ -6097,6 +6099,18 @@ public sealed class SampleSmokeTests
                     "application.rabbitmq:rabbitmq",
                     "application.dotnet-app:rabbitmq-dotnet",
                     "application.java-app:rabbitmq-java"
+                ];
+            }
+
+            if (projectPath.Contains("/RoboticMowerIoT/", StringComparison.OrdinalIgnoreCase))
+            {
+                return
+                [
+                    "cloudshell.container-host:default",
+                    "network:host",
+                    "application.container-app:mower-backend",
+                    "application.javascript-app:mower-frontend",
+                    "iot.device-registry:park-devices"
                 ];
             }
 
