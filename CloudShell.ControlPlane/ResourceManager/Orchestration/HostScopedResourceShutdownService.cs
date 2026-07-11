@@ -2,6 +2,7 @@ using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logging;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Observability;
+using CloudShell.ControlPlane.ResourceManager.Recovery;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -30,6 +31,8 @@ public sealed class HostScopedResourceShutdownService(
         await using var scope = scopeFactory.CreateAsyncScope();
         var orchestration = scope.ServiceProvider.GetRequiredService<ResourceOrchestrationService>();
         var catalog = scope.ServiceProvider.GetRequiredService<IResourceOrchestrationCatalog>();
+        var recoveryStore = scope.ServiceProvider.GetService<IResourceRecoveryStore>();
+        var replicaGroupReconciliation = scope.ServiceProvider.GetService<ResourceReplicaGroupReconciliationService>();
         ResourceOrchestrationCatalogSnapshot snapshot;
         try
         {
@@ -76,6 +79,7 @@ public sealed class HostScopedResourceShutdownService(
                     cleanupToken,
                     triggeredBy: ShutdownTrigger,
                     cause: "Host shutdown");
+                ClearStoppedResourceRuntimeState(resource, candidate.Action, recoveryStore, replicaGroupReconciliation);
                 LogLifecycle(
                     resource,
                     "Stopped host-scoped resource {ResourceName} during Control Plane shutdown.",
@@ -95,6 +99,21 @@ public sealed class HostScopedResourceShutdownService(
                 }
             }
         }
+    }
+
+    private static void ClearStoppedResourceRuntimeState(
+        Resource resource,
+        ResourceAction action,
+        IResourceRecoveryStore? recoveryStore,
+        ResourceReplicaGroupReconciliationService? replicaGroupReconciliation)
+    {
+        if (action.Kind != ResourceActionKind.Stop)
+        {
+            return;
+        }
+
+        recoveryStore?.ClearRuntimeState(resource.Id);
+        replicaGroupReconciliation?.ClearReplicaSlotStates(resource.Id);
     }
 
     private void LogLifecycle(Resource resource, string message, params object?[] args)

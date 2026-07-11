@@ -3,6 +3,7 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Logs;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Orchestration;
+using CloudShell.ControlPlane.ResourceManager.Recovery;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
@@ -34,7 +35,21 @@ public sealed class HostScopedResourceShutdownServiceTests
             new Dictionary<string, ContainerHostDescriptor>(StringComparer.OrdinalIgnoreCase)));
         var orchestrator = new RecordingResourceOrchestrator();
         var resourceEvents = new InMemoryResourceEventStore();
-        using var services = CreateServices(catalog, orchestrator, resourceEvents);
+        var recoveryStore = new InMemoryResourceRecoveryStore();
+        var replicaStore = new InMemoryResourceReplicaGroupReconciliationStore();
+        recoveryStore.SetRuntimeState(api.Id, new ResourceRecoveryRuntimeState(ResourceRecoveryState.Failing));
+        replicaStore.SetRuntimeState(new ResourceReplicaSlotRuntimeState(
+            api.Id,
+            1,
+            ResourceReplicaSlotRuntimeStatus.Materialized,
+            "Replica slot 1 is materialized.",
+            DateTimeOffset.UtcNow));
+        using var services = CreateServices(
+            catalog,
+            orchestrator,
+            resourceEvents,
+            recoveryStore,
+            replicaStore);
 
         await services.GetRequiredService<HostScopedResourceShutdownService>()
             .StopAsync(CancellationToken.None);
@@ -54,6 +69,8 @@ public sealed class HostScopedResourceShutdownServiceTests
             resourceEvent =>
                 resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.Stopping &&
                 resourceEvent.Message.Contains("Cause: Host shutdown.", StringComparison.Ordinal));
+        Assert.Equal(ResourceRecoveryState.Disabled, recoveryStore.GetRuntimeState(api.Id).State);
+        Assert.Empty(replicaStore.ListRuntimeStates(api.Id));
     }
 
     [Fact]
@@ -148,11 +165,15 @@ public sealed class HostScopedResourceShutdownServiceTests
     private static ServiceProvider CreateServices(
         TestResourceOrchestrationCatalog catalog,
         RecordingResourceOrchestrator orchestrator,
-        InMemoryResourceEventStore resourceEvents)
+        InMemoryResourceEventStore resourceEvents,
+        InMemoryResourceRecoveryStore? recoveryStore = null,
+        InMemoryResourceReplicaGroupReconciliationStore? replicaStore = null)
     {
         var resourceStore = new TestResourceManagerStore(catalog.Snapshot.Resources);
         var registrations = new TestResourceRegistrationStore();
         var environment = new TestHostEnvironment();
+        recoveryStore ??= new InMemoryResourceRecoveryStore();
+        replicaStore ??= new InMemoryResourceReplicaGroupReconciliationStore();
         var selectionStore = new ResourceOrchestratorSelectionStore(
             environment,
             new TestOptionsMonitor<ResourceManagerOptions>(new ResourceManagerOptions()));
@@ -164,6 +185,8 @@ public sealed class HostScopedResourceShutdownServiceTests
             .AddSingleton<IResourceManagerStore>(resourceStore)
             .AddSingleton<IResourceRegistrationStore>(registrations)
             .AddSingleton<IResourceOrchestrationCatalog>(catalog)
+            .AddSingleton<IResourceRecoveryStore>(recoveryStore)
+            .AddSingleton<IResourceReplicaGroupReconciliationStore>(replicaStore)
             .AddSingleton(resourceEvents)
             .AddSingleton<IResourceEventSink>(resourceEvents)
             .AddSingleton(orchestrator)
@@ -176,6 +199,7 @@ public sealed class HostScopedResourceShutdownServiceTests
                     new ResourceDeclarationStore(),
                     selectionStore,
                     resourceEvents: serviceProvider.GetRequiredService<IResourceEventSink>()))
+            .AddScoped<ResourceReplicaGroupReconciliationService>()
             .AddSingleton<HostScopedResourceShutdownService>()
             .BuildServiceProvider();
     }

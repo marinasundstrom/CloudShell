@@ -103,6 +103,9 @@ on `git blame --follow`, and then by the broad type of change.
   container app stops can converge without repair racing the shutdown.
 - Cleared replica slot runtime state after successful resource stops so
   stopped container apps do not keep stale materialized-slot rows.
+- Cleared recovery and replica slot runtime bookkeeping during host-scoped
+  shutdown stops so local-dev restarts do not resurrect stale running replica
+  state.
 - Suppressed unhandled triggered resource events from notification projection
   so deployment/activity facts do not create extra generic startup toasts.
 - Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder
