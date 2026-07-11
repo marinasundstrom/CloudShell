@@ -1453,6 +1453,29 @@ public sealed class ResourceOrchestrationDeploymentTests
             resourceEvent => resourceEvent.Message.Contains("repair exhausted", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task ReplicaGroupReconciliationService_DropsPendingSlotRepairWhenResourceIsStopping()
+    {
+        var resource = CreateResource(state: ResourceState.Stopping);
+        var service = CreateDeployment(resource.Id, "default", replicas: 3).Spec.Service;
+        var provider = new RecordingServiceProcedureProvider(resource)
+        {
+            OrchestratorService = service
+        };
+        var (reconciliation, store) = CreateReplicaGroupReconciliation(resource, provider);
+        store.Enqueue(new ResourceReplicaSlotReconciliationRequest(
+            resource.Id,
+            2,
+            "Container exited while stop was requested.",
+            DateTimeOffset.UtcNow,
+            "replica-management"));
+
+        await reconciliation.ProcessPendingAsync();
+
+        Assert.Null(store.GetRuntimeState(resource.Id, 2));
+        Assert.Empty(provider.ExecutedInstanceActions);
+    }
+
     private static ResourceDeploymentService CreateDeployments(
         Resource resource,
         RecordingServiceProcedureProvider provider,

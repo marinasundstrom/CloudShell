@@ -98,6 +98,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.
+- Suppressed replica repair while a resource is starting, stopping, stopped,
+  paused, or otherwise outside the running/degraded repair window so manual
+  container app stops can converge without repair racing the shutdown.
 - Suppressed unhandled triggered resource events from notification projection
   so deployment/activity facts do not create extra generic startup toasts.
 - Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder

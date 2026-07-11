@@ -2233,6 +2233,65 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ProcessPendingAsync_DoesNotQueueMissingMaterializedReplicaSlotWhenResourceIsStopping()
+    {
+        var parent = CreateResource("application:api", ResourceState.Stopping);
+        var replica1 = CreateRuntimeReplicaResource(parent.Id, 1) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var service = new ResourceOrchestratorService(
+            parent.Id,
+            "cloudshell-application-api",
+            new ResourceWorkloadConfiguration(
+                ResourceWorkloadKind.ContainerImage,
+                "api",
+                Image: "example/api:latest",
+                Replicas: 2,
+                ReplicasEnabled: true));
+        var deployment = new ResourceOrchestratorDeployment(
+            "cloudshell-application-api-deployment",
+            "default",
+            parent.Id,
+            service.Name,
+            "revision-1",
+            new ResourceOrchestratorDeploymentSpec(service, "revision-1"),
+            ResourceOrchestratorDeploymentStatus.Active);
+        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var revision = deploymentStore.CreateRevision(
+            deployment,
+            DateTimeOffset.UtcNow,
+            ResourceOrchestratorRevisionStatus.Active,
+            replicaGroup);
+        deploymentStore.RecordApplying(deployment, DateTimeOffset.UtcNow, triggeredBy: "user");
+        deploymentStore.RecordApplied(
+            deployment,
+            revision,
+            DateTimeOffset.UtcNow,
+            "Applied deployment.",
+            triggeredBy: "user");
+        var provider = new TestOrchestratorServiceProvider(service);
+        var host = CreateControlPlaneHost(
+            [parent, replica1],
+            provider,
+            materializationProviders: [new StaticReplicaSlotMaterializationProvider(new HashSet<int> { 1 })],
+            deploymentStore: deploymentStore);
+
+        await host.ReplicaGroupReconciliation.ProcessPendingAsync();
+
+        Assert.DoesNotContain(
+            "stop:cloudshell-application-api-replica-2",
+            provider.ExecutedInstanceActions);
+        Assert.DoesNotContain(
+            "start:cloudshell-application-api-replica-2",
+            provider.ExecutedInstanceActions);
+        Assert.Empty(await host.ControlPlane.ListReplicaSlotStatesAsync(new ResourceReplicaSlotStateQuery(
+            ResourceId: parent.Id,
+            SlotOrdinal: 2)));
+    }
+
+    [Fact]
     public async Task ListResourcesAsync_ProjectsParentAsDegradedWhenRuntimeChildLivenessFails()
     {
         var parent = CreateResource("application:api", ResourceState.Running);

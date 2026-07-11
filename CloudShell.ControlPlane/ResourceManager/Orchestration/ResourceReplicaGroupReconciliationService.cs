@@ -51,6 +51,11 @@ public sealed class ResourceReplicaGroupReconciliationService(
             return;
         }
 
+        if (!IsReplicaRepairEligible(resource))
+        {
+            return;
+        }
+
         reconciliationStore.Enqueue(new ResourceReplicaSlotReconciliationRequest(
             resource.Id,
             slotOrdinal,
@@ -71,6 +76,12 @@ public sealed class ResourceReplicaGroupReconciliationService(
             var resource = resourceManager.GetResource(request.ResourceId);
             if (resource is null)
             {
+                continue;
+            }
+
+            if (!IsReplicaRepairEligible(resource))
+            {
+                reconciliationStore.DeleteRuntimeState(request.ResourceId, request.SlotOrdinal);
                 continue;
             }
 
@@ -218,7 +229,7 @@ public sealed class ResourceReplicaGroupReconciliationService(
 
             var resource = resourceManager.GetResource(record.SourceResourceId);
             if (resource is null ||
-                resource.State == ResourceState.Stopped)
+                !IsReplicaRepairEligible(resource))
             {
                 continue;
             }
@@ -252,6 +263,9 @@ public sealed class ResourceReplicaGroupReconciliationService(
 
     private static string Pluralize(int count) =>
         count == 1 ? string.Empty : "s";
+
+    private static bool IsReplicaRepairEligible(Resource resource) =>
+        resource.State is ResourceState.Running or ResourceState.Degraded;
 
     private static ResourceReplicaSlotState ToReplicaSlotState(
         ResourceReplicaSlotRuntimeState state) =>
