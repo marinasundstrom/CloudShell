@@ -47,7 +47,7 @@ like a managed service.
 
 Application resource authoring now flows through ResourceDefinition entries
 and the Resource graph. The current built-in providers expose builders such as
-`AddExecutableApplication(...)`, `AddDotnetApp(...)`,
+`AddExecutableApplication(...)`, `AddDotnetProject(...)`,
 `AddJavaScriptApp(...)`, `AddJavaApp(...)`, `AddGoApp(...)`,
 `AddPythonApp(...)`, and `AddContainerApplication(...)`, then map accepted
 resource intent to provider projection, actions, logs, health, endpoint, and
@@ -432,7 +432,7 @@ Use resource environment variables to set a collector endpoint:
 
 ```csharp
 resources
-    .AddDotnetApp("api", "src/Api/Api.csproj")
+    .AddDotnetProject("api", "src/Api/Api.csproj")
     .WithEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
     .WithEnvironmentVariable("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc");
 ```
@@ -441,7 +441,7 @@ Use fluent resource APIs to configure or disable a specific resource:
 
 ```csharp
 resources
-    .AddDotnetApp(
+    .AddDotnetProject(
         "application:example-web-api",
         "Example Web API",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")

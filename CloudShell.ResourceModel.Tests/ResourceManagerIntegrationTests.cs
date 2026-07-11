@@ -3473,7 +3473,7 @@ resources:
             LocalVolumeResourceTypeProvider.ResourceTypeId);
         graph.Add(volume);
         var project = graph
-            .AddDotnetApp("api", "src/Api/Api.csproj")
+            .AddDotnetProject("api", "src/Api/Api.csproj")
             .WithHotReload()
             .UseLaunchSettings(false)
             .WithHttpEndpoint(

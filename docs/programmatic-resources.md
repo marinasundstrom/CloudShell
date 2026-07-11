@@ -100,8 +100,9 @@ for their own resource types. Current provider methods include:
 - `AddDeviceRegistry(...)` from the Device Registry built-in provider.
 - `AddExecutableApplication(...)` from the executable application built-in
   provider.
-- `AddDotnetApp(...)` from the .NET app built-in
-  provider.
+- `AddDotnetApp(...)` and `AddDotnetProject(...)` from the .NET app built-in
+  provider. `AddDotnetProject(...)` is the project-backed shortcut used by
+  most samples; `AddDotnetApp(...)` returns the broader fluent builder.
 - `AddContainerApplication(...)` from the container application built-in
   provider.
 - `AddJavaApp(...)` from the Java app built-in provider.
@@ -280,9 +281,9 @@ typed `ResourceAccessPermissions` profiles when the intended level is
 resource reference, read, operate, or manage:
 
 ```csharp
-var frontend = resources.AddDotnetApp("frontend", "../Frontend/Frontend.csproj");
+var frontend = resources.AddDotnetProject("frontend", "../Frontend/Frontend.csproj");
 var api = resources
-    .AddDotnetApp("api", "../Api/Api.csproj")
+    .AddDotnetProject("api", "../Api/Api.csproj")
     .WithIdentity("development", name: "api-service");
 
 frontend.Allow(api, ResourceAccessPermissions.Reference);
@@ -317,7 +318,7 @@ can override provider defaults for a single resource.
 
 ```csharp
 resources
-    .AddDotnetApp(
+    .AddDotnetProject(
         "api",
         "src/API/API.csproj")
     .WithRuntimeMonitoring()
@@ -569,7 +570,7 @@ var redis = resources
     .DependsOn(database);
 
 resources
-    .AddDotnetApp(
+    .AddDotnetProject(
         "example-web-api",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
     .WithDisplayName("Example Web API")
@@ -749,7 +750,7 @@ Configure startup on individual resource builders with `WithAutoStart(...)`:
 controlPlane.DefineResources(resources =>
 {
     resources
-        .AddDotnetApp(
+        .AddDotnetProject(
             "api",
             "src/Api/Api.csproj")
         .WithAutoStart(false);
@@ -774,7 +775,7 @@ controlPlane.DefineResources(resources =>
         .WithDependencyAutoStart(true);
 
     resources
-        .AddDotnetApp(
+        .AddDotnetProject(
             "api",
             "src/Api/Api.csproj")
         .DependsOn(database);

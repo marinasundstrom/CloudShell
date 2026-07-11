@@ -315,17 +315,27 @@ public static class AspNetCoreProjectResourceDefinitionBuilderExtensions
 
     public static AspNetCoreProjectResourceDefinitionBuilder AddDotnetApp(
         this ResourceGraphBuilder graph,
+        string name)
+    {
+        ArgumentNullException.ThrowIfNull(graph);
+
+        var builder = new AspNetCoreProjectResourceDefinitionBuilder(name)
+            .WithRuntimeMonitoring()
+            .WithDefaultConsoleLogSource();
+        graph.Add(builder);
+        return builder;
+    }
+
+    public static AspNetCoreProjectResourceDefinitionBuilder AddDotnetProject(
+        this ResourceGraphBuilder graph,
         string name,
         string projectPath)
     {
         ArgumentNullException.ThrowIfNull(graph);
 
-        var builder = new AspNetCoreProjectResourceDefinitionBuilder(name)
-            .WithProjectPath(projectPath)
-            .WithRuntimeMonitoring()
-            .WithDefaultConsoleLogSource();
-        graph.Add(builder);
-        return builder;
+        return graph
+            .AddDotnetApp(name)
+            .WithProjectPath(projectPath);
     }
 
     private static int? ToMilliseconds(TimeSpan? value) =>

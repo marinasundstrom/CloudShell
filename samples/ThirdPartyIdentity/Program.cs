@@ -62,7 +62,7 @@ var cloudShell = builder.AddCloudShellControlPlaneApplication(
                     .WithEndpoint(configurationServiceEndpoint);
                 configurationResourceId = configurationResource.EffectiveResourceId;
                 var apiResource = resources
-                    .AddDotnetApp("keycloak-provisioned-api", apiProjectPath)
+                    .AddDotnetProject("keycloak-provisioned-api", apiProjectPath)
                     .WithDisplayName("Keycloak Provisioned API")
                     .DependsOn(configurationResource)
                     .WithReference(configurationResource)

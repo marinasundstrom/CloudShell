@@ -77,8 +77,11 @@ on `git blame --follow`, and then by the broad type of change.
   and API path used by host lifecycle actions.
 - Renamed the ASP.NET Core project resource type surface to `.NET app`,
   including the `application.dotnet-app` resource type id,
-  `applications.dotnet-app` provider id, and `AddDotnetApp(...)` launcher
-  builder entrypoint.
+  `applications.dotnet-app` provider id.
+- Renamed the project-path launcher helper to `AddDotnetProject(...)` so the
+  common project-backed samples use the explicit project shortcut, while
+  `AddDotnetApp(...)` remains the flexible `.NET app` builder entrypoint for
+  fluent project or future executable configuration.
 
 ### 2026-07-10
 

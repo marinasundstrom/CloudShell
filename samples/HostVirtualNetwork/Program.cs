@@ -42,7 +42,7 @@ builder.AddCloudShellControlPlaneApplication(
                 .WithHostReadiness("providerRequired")
                 .WithMappingProviders(hostNetworkingResource);
             var apiResource = resources
-                .AddDotnetApp(
+                .AddDotnetProject(
                     "vnet-api",
                     "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
                 .WithDisplayName("VNet API")
@@ -62,7 +62,7 @@ builder.AddCloudShellControlPlaneApplication(
                     network: virtualNetwork,
                     assignment: "Manual");
             var workerResource = resources
-                .AddDotnetApp(
+                .AddDotnetProject(
                     "vnet-worker",
                     "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
                 .WithDisplayName("VNet Worker")

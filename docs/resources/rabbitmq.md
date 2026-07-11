@@ -209,7 +209,7 @@ var broker = resources
     .WithVirtualHost("cloudshell_sample");
 
 var api = resources
-    .AddDotnetApp("api", apiProjectPath)
+    .AddDotnetProject("api", apiProjectPath)
     .WithIdentity(identityProviderId, name: "api")
     .ProvisionIdentityOnStartup()
     .WithReference(broker)

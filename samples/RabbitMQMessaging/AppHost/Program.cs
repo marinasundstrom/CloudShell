@@ -57,7 +57,7 @@ app.DefineResources(resources =>
         .MountVolume(brokerData, RabbitMQResourceDefaults.DataPath);
 
     var dotNet = resources
-        .AddDotnetApp("rabbitmq-dotnet", dotNetProjectPath)
+        .AddDotnetProject("rabbitmq-dotnet", dotNetProjectPath)
         .WithDisplayName(".NET Publisher")
         .WithHotReload(false)
         .UseLaunchSettings(false)

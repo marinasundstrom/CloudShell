@@ -17,18 +17,29 @@ see [Executable applications](executable-applications.md) and
 
 ## Declaration
 
-Programmatic declarations use `AddDotnetApp(...)` with a scoped
-resource name. The provider derives the canonical resource ID from that name.
-Apply an optional display label with `.WithDisplayName(...)` when it helps the
-local development experience:
+Project-backed programmatic declarations usually use `AddDotnetProject(...)`
+with a scoped resource name. The provider derives the canonical resource ID
+from that name. Apply an optional display label with `.WithDisplayName(...)`
+when it helps the local development experience:
 
 ```csharp
 resources
-    .AddDotnetApp(
+    .AddDotnetProject(
         "example-web-api",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
     .WithDisplayName("Example Web API")
     .WithReference(configuration);
+```
+
+`AddDotnetApp(...)` is the broader fluent entrypoint for the same
+`application.dotnet-app` resource type. Use it when code needs to choose the
+source mode through fluent configuration, for example project mode today and
+executable mode in a later slice:
+
+```csharp
+resources
+    .AddDotnetApp("example-web-api")
+    .WithProjectPath("samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj");
 ```
 
 By default, CloudShell serializes .NET app builds before launch and
@@ -60,7 +71,7 @@ instead of a process-backed .NET app:
 
 ```csharp
 resources
-    .AddDotnetApp(
+    .AddDotnetProject(
         "example-web-api",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
     .WithDisplayName("Example Web API")
@@ -127,7 +138,7 @@ Use endpoint builder methods to model additional or named endpoints:
 
 ```csharp
 resources
-    .AddDotnetApp(
+    .AddDotnetProject(
         "example-web-api",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
         applicationArguments: "--seed")
@@ -147,7 +158,7 @@ its local endpoint shape from the ASP.NET Core development profile:
 
 ```csharp
 resources
-    .AddDotnetApp(
+    .AddDotnetProject(
         "example-web-api",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
     .WithDisplayName("Example Web API")

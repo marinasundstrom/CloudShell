@@ -168,7 +168,7 @@ var cloudShell = builder.AddCloudShellControlPlaneApplication(
                 .WithAutoStart(false)
                 .WithSource("application-topology");
             var apiResource = resources
-                .AddDotnetApp("application-topology-api", apiProjectPath);
+                .AddDotnetProject("application-topology-api", apiProjectPath);
             apiResource
                 .WithDisplayName("API")
                 .WithResourceGroup(resourceGroup)
@@ -220,7 +220,7 @@ var cloudShell = builder.AddCloudShellControlPlaneApplication(
                     name: "alive");
 
             var frontendResource = resources
-                .AddDotnetApp("application-topology-frontend", frontendProjectPath)
+                .AddDotnetProject("application-topology-frontend", frontendProjectPath)
                 .WithDisplayName("Frontend")
                 .WithResourceGroup(resourceGroup)
                 .WithAutoStart(false)

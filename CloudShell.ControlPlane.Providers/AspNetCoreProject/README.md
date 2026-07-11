@@ -35,8 +35,11 @@
   SQL credential endpoint projected from the graph SQL Server reference.
 - ApplicationTopology Docker-backed graph frontend `/upstream` coverage through
   the graph API, graph settings, and graph SQL credential flow.
-- Manual `ResourceGraphBuilder.AddDotnetApp(...)` builder
-  for code-first project definition authoring with endpoint requests,
+- Manual `ResourceGraphBuilder.AddDotnetApp(...)` and
+  `ResourceGraphBuilder.AddDotnetProject(...)` builders for code-first .NET
+  app definition authoring. `AddDotnetProject(...)` is the project-backed
+  shortcut for most samples; `AddDotnetApp(...)` returns the broader fluent
+  builder for choosing the source mode. The builder supports endpoint requests,
   environment variables, service-discovery references, volume mounts, log
   sources, and health-check attributes. Environment variables are authored as a
   keyed map and may use literal values, configuration-setting references, or

@@ -239,7 +239,7 @@ the credential endpoint and SQL target metadata to the workload:
 
 ```csharp
 var api = resources
-    .AddDotnetApp("api", apiProjectPath)
+    .AddDotnetProject("api", apiProjectPath)
     .WithIdentity("identity:built-in", name: "api")
     .ProvisionIdentityOnStartup()
     .WithReference(sqlServerResource)

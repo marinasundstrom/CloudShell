@@ -577,7 +577,7 @@ public sealed class ResourceGraphBuilderTests
     public void ResourceDefinitionBuilder_ProjectsIdentityAuthoringReferences()
     {
         var graph = new ResourceGraphBuilder();
-        var api = graph.AddDotnetApp("api", "src/Api/Api.csproj");
+        var api = graph.AddDotnetProject("api", "src/Api/Api.csproj");
 
         var identity = api.Identity("api-service");
         var principal = api.Principal(
@@ -595,6 +595,28 @@ public sealed class ResourceGraphBuilderTests
         Assert.Equal("api-service", principal.SourceIdentityName);
         Assert.Equal("API service", principal.DisplayName);
         Assert.Equal("identity:development", principal.ProviderId);
+    }
+
+    [Fact]
+    public void ResourceGraphBuilder_AddDotnetAppSupportsFluentProjectConfiguration()
+    {
+        var graph = new ResourceGraphBuilder();
+
+        graph
+            .AddDotnetApp("api")
+            .WithProjectPath("src/Api/Api.csproj")
+            .UseLaunchSettings(false);
+
+        var resource = Assert.Single(graph.BuildTemplate("local").Resources);
+
+        Assert.Equal("application.dotnet-app:api", resource.EffectiveResourceId);
+        Assert.Equal(AspNetCoreProjectResourceTypeProvider.ResourceTypeId, resource.TypeId);
+        Assert.Equal("src/Api/Api.csproj", resource.ResourceAttributeValues[
+            AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath].StringValue);
+        Assert.Equal(false, resource.ResourceAttributeValues[
+            AspNetCoreProjectResourceTypeProvider.Attributes.UseLaunchSettings].BooleanValue);
+        Assert.True(resource.ResourceAttributeValues.ContainsKey(
+            ResourceLogSourceAttributeIds.LogSources));
     }
 
     [Fact]
@@ -1226,7 +1248,7 @@ public sealed class ResourceGraphBuilderTests
             .WithCommand("dotnet", "run --project src/Worker/Worker.csproj", "src/Worker")
             .MountVolume(volume, "App_Data");
         graph
-            .AddDotnetApp("api", "src/Api/Api.csproj")
+            .AddDotnetProject("api", "src/Api/Api.csproj")
             .WithHotReload()
             .UseLaunchSettings(false)
             .WithServiceDiscovery()
@@ -1329,7 +1351,7 @@ public sealed class ResourceGraphBuilderTests
             .WithDisplayName("App Network");
 
         graph
-            .AddDotnetApp("api", "src/Api/Api.csproj")
+            .AddDotnetProject("api", "src/Api/Api.csproj")
             .WithHttpEndpoint(
                 name: "vnet-http",
                 port: 80,
@@ -1946,7 +1968,7 @@ public sealed class ResourceGraphBuilderTests
             .WithHostReadiness("ready")
             .WithNetworkingMode("localProxy");
         var api = graph
-            .AddDotnetApp("api", "src/Api/Api.csproj")
+            .AddDotnetProject("api", "src/Api/Api.csproj")
             .UseLaunchSettings(false);
 
         var networkBuilder = graph

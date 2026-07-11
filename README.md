@@ -141,7 +141,7 @@ Control Plane model:
 
 ```csharp
 resources
-    .AddDotnetApp(...)
+    .AddDotnetProject(...)
     .AddContainerApplication(...)
     .AddVirtualNetwork(...);
 ```

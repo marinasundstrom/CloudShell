@@ -486,7 +486,7 @@ endpoint discovery:
 
 ```csharp
 var api = resources
-    .AddDotnetApp("api", "../Api/Api.csproj")
+    .AddDotnetProject("api", "../Api/Api.csproj")
     .WithReference(sql)
     .DependsOn(sql);
 ```
@@ -496,7 +496,7 @@ target explicit:
 
 ```csharp
 var api = resources
-    .AddDotnetApp("api", "../Api/Api.csproj")
+    .AddDotnetProject("api", "../Api/Api.csproj")
     .RequireIdentity(name: "api-service");
 
 var orders = sql.DeclareDatabase("orders");

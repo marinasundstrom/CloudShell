@@ -34,7 +34,7 @@ public sealed class HostVirtualNetworkEndpointMappingReconcilerTests
             .AddLocalHostNetwork("host-local")
             .WithResourceId(hostNetworkingResourceId);
         var api = graph
-            .AddDotnetApp(
+            .AddDotnetProject(
                 "vnet-api",
                 "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
             .WithResourceId(apiResourceId)

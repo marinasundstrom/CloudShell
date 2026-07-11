@@ -86,7 +86,7 @@ var cloudShell = builder.AddCloudShellControlPlaneApplication(
                 .WithEndpoint(secretsServiceEndpoint);
             secretsResourceId = secretsResource.EffectiveResourceId;
             var api = resources
-                .AddDotnetApp("settings-secrets-api", apiProjectPath);
+                .AddDotnetProject("settings-secrets-api", apiProjectPath);
             var apiIdentityClientId = api.IdentityClientId(apiIdentityName);
 
             api

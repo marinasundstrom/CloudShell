@@ -74,7 +74,7 @@ var cloudShell = builder.AddCloudShellControlPlane(controlPlane =>
                 name: "alive");
 
         resources
-            .AddDotnetApp("signalr-frontend", frontendProjectPath)
+            .AddDotnetProject("signalr-frontend", frontendProjectPath)
             .WithDisplayName("SignalR Frontend")
             .WithResourceGroup(resourceGroup)
             .WithAutoStart(false)
