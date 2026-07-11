@@ -116,11 +116,12 @@ Notifications and toasts should therefore be related but not identical:
   actionable, or needs user attention.
 - A notification can suppress toast presentation when the item belongs only in
   history, is low urgency, or was already represented by another signal.
-- Passive facts, including ordinary in-progress operation feedback, can appear
-  briefly as toasts and remain in the notification center without requiring
-  acknowledgement or contributing to an unread/attention count. Warnings,
-  failures, needs-attention states, and notifications with actions are
-  attention-worthy by default.
+- Passive facts can appear briefly as toasts and remain in the notification
+  center without requiring acknowledgement or contributing to an
+  unread/attention count. In-progress feedback stays visible while the backing
+  operation is in progress, then uses the normal toast lifetime after the item
+  moves to a terminal state. Warnings, failures, needs-attention states, and
+  notifications with actions are attention-worthy by default.
 - A toast-only signal can exist for ephemeral feedback that should not create a
   notification-center item. The landed CoreShell reference path exposes this
   through `ICoreShellToastService`.
@@ -131,8 +132,11 @@ Notifications and toasts should therefore be related but not identical:
 - Visibility, lifetime, and auto-dismiss behavior are notification/toast data.
   A service may support immediate visibility, scheduled visibility through
   `VisibleAt` or `VisibleIn`, default time-to-live dismissal, or
-  never-auto-dismiss operation feedback. Unsupported scheduling should be an
-  implementation decision, not a missing CoreShell field.
+  never-auto-dismiss operation feedback. Plain toasts use time-to-live
+  dismissal by default; in-progress toasts stay visible until the producer
+  updates or dismisses the progress item, then terminal feedback uses the
+  normal time-to-live unless explicitly pinned. Unsupported scheduling should
+  be an implementation decision, not a missing CoreShell field.
 - A notification or toast can request a specific presentation template when
   the default title/message/actions layout is not enough. Template selection
   should be data-driven, for example an optional template key plus structured

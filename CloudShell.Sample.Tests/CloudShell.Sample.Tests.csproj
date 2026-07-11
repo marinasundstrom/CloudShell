@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\samples\CloudShell.ContainerHost\CloudShell.ContainerHost.csproj" />
+    <ProjectReference Include="..\samples\CoreShell.FluentUiSample\CoreShell.FluentUiSample.csproj" />
     <ProjectReference Include="..\samples\CloudShell.ResourceHost\CloudShell.ResourceHost.csproj" />
     <ProjectReference Include="..\samples\CertificateLoadBalancer\CloudShell.CertificateLoadBalancer.csproj" />
     <ProjectReference Include="..\samples\ContainerAppDeployment\CloudShell.ContainerAppDeployment.csproj" />

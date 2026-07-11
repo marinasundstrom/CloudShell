@@ -60,9 +60,13 @@ on `git blame --follow`, and then by the broad type of change.
 - Added the first CloudShell notification UI surface for local development,
   with a topbar notification center and notification-backed toast cards over
   the in-memory Control Plane notification store.
-- Changed notification-backed toasts so default in-progress items age out by
-  the normal toast lifetime unless explicitly pinned, and passive plain,
-  progress, and completed facts no longer count as unread attention items.
+- Changed notification-backed toasts so plain and terminal items age out by the
+  normal toast lifetime while in-progress items remain visible until the
+  backing operation leaves the in-progress state. Passive plain, progress, and
+  completed facts no longer count as unread attention items.
+- Changed CoreShell Fluent UI sample toast-only cleanup so plain toasts expire
+  by their time-to-live while progress toasts stay visible until they leave the
+  in-progress state.
 - Added Control Plane notification coalescing for lifecycle resource events so
   start, stop, pause, and restart progress updates one correlated notification
   instead of producing separate notification rows for each resource event.

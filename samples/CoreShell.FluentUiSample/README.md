@@ -24,8 +24,9 @@ It proves the extraction boundary for common shell building blocks:
 - Visibility, time-to-live, and auto-dismiss behavior are part of the
   notification or toast data. The sample supports default auto-dismiss,
   per-item time-to-live overrides, scheduled notification visibility, and
-  `Never` auto-dismiss for progress feedback that should stay visible until
-  the producer closes it.
+  in-progress feedback that stays visible until the producer updates or closes
+  it. Terminal and plain toasts then use the normal time-to-live unless
+  explicitly marked as `Never` auto-dismiss.
 - Toast-only signals use `ICoreShellToastService`, render in the same toast
   stack, and do not create notification-center history.
 - A second CoreShell module contributes a dashboard section and navigation

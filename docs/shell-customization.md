@@ -88,21 +88,23 @@ item later. When no actions are present, a toast or notification can fall back
 to a whole-body link when it has a target, or to click-to-dismiss behavior for
 purely transient feedback. Visibility, time-to-live, and auto-dismiss behavior
 are part of the notification or toast data: the reference sample uses CoreShell
-defaults for short-lived toasts, supports `Never` auto-dismiss for long-running
-progress feedback, and lets notification-backed toast presentation expire
-without removing the notification-center item. Future hosts can also register
-different notification or toast renderers for template keys such as operation
-progress, approval, provider diagnostics, or deployment summaries while keeping
-the common CoreShell behaviors for actions, links, acknowledgement, dismissal,
-visibility, and lifetime. In CloudShell, persisted notification records should
-be Control Plane-owned domain data; the UI owns how those records are adapted
-into Fluent UI notification-center rows, toasts, templates, icons, and action
-placement. The current CloudShell local-development path renders a topbar
-notification center and notification-backed toast cards over the in-memory
-Control Plane notification store. Passive facts, including ordinary in-progress
-operation feedback, can remain in the center without contributing to the unread
-count; warnings, failures, needs-attention items, and notifications with actions
-are treated as attention-worthy. Toast-only signals use `ICoreShellToastService`
+defaults for short-lived plain toasts, keeps in-progress feedback visible until
+the producer updates or dismisses it, and lets terminal toast presentation
+expire without removing the notification-center item. Future hosts can also
+register different notification or toast renderers for template keys such as
+operation progress, approval, provider diagnostics, or deployment summaries
+while keeping the common CoreShell behaviors for actions, links,
+acknowledgement, dismissal, visibility, and lifetime. In CloudShell, persisted
+notification records should be Control Plane-owned domain data; the UI owns how
+those records are adapted into Fluent UI notification-center rows, toasts,
+templates, icons, and action placement. The current CloudShell local-development
+path renders a topbar notification center and notification-backed toast cards
+over the in-memory Control Plane notification store. Passive facts can remain
+in the center without contributing to the unread count; in-progress toast
+feedback remains visible while the backing operation is in progress and then
+uses the normal toast lifetime after the item reaches a terminal state.
+Warnings, failures, needs-attention items, and notifications with actions are
+treated as attention-worthy. Toast-only signals use `ICoreShellToastService`
 and do not create notification instances.
 `samples/CompositionSandbox` remains the lower-level composition sandbox for
 graph and renderer experiments below CoreShell.

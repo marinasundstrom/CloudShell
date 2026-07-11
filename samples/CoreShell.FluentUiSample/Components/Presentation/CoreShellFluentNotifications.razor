@@ -373,6 +373,11 @@
             return true;
         }
 
+        if (item.Status == CoreShellNotificationStatus.InProgress)
+        {
+            return true;
+        }
+
         var timeToLive = item.ToastTimeToLive ?? CoreShellToastDefaults.NotificationTimeToLive;
         return item.UpdatedAt.Add(timeToLive) > now;
     }
