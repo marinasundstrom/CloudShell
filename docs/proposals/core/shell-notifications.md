@@ -17,9 +17,9 @@ when background work starts, progresses, succeeds, fails, or needs attention.
   [UI composition](../../ui-composition.md) describe the landed CoreShell
   notification UI contract and sample reference path.
 - Remaining action: expand the first Control Plane notification projection
-  beyond in-memory lifecycle event coalescing to durable storage, rule
-  configuration, audience resolution, producer update APIs, SignalR delivery,
-  and additional operation producers.
+  beyond in-memory lifecycle and resource-create event coalescing to durable
+  storage, rule configuration, audience resolution, producer update APIs,
+  SignalR delivery, and additional operation producers.
 - Out of scope: full workflow orchestration, durable CloudShell activity
   history, email/push/device delivery, notification preferences UI, and
   cross-Control Plane federation.
@@ -414,7 +414,7 @@ cases here so implementation slices can stay narrow and deliberate.
 | Priority | Case | Why it matters | Create/update behavior | Status |
 | --- | --- | --- | --- | --- |
 | 1 | Lifecycle action progress | Start, stop, restart, and pause are already concrete user actions and can become long-running without changing the user workflow. This is the simplest useful case because the resource already exists and the target link is known. Delete should follow once delete has the same accepted-operation shape. | Create one in-progress notification for the acting user when the lifecycle event starts. Update the same notification to succeeded, failed, or needs attention when the correlated lifecycle result arrives. | First slice implemented for resource lifecycle events |
-| 2 | Resource create progress | Create flows are high-value because users leave the create form and need confidence that accepted work is still running. The harder part is handling planned resource IDs and failures before a detail page exists. | Create one in-progress notification for the acting user after command acceptance. Update it with a resource target on success, or with an operation/diagnostics target on failure. | Planned |
+| 2 | Resource create progress | Create flows are high-value because users leave the create form and need confidence that accepted work is still running. The harder part is handling planned resource IDs and failures before a detail page exists. | Create one in-progress notification for the acting user when Control Plane resource creation starts. Update it with success or failure when provider creation completes. Future accepted-operation support should return an operation reference and keep updating the same notification outside the request lifetime. | First Control Plane event slice implemented |
 | 3 | Resource update progress | Edit flows may trigger provider work, deployment apply, identity provisioning, endpoint mapping, or runtime reconciliation after save. | Create or update an in-progress notification for the acting user when save starts async work. Update the correlated notification on apply success, failure, or needs-attention diagnostics. | Planned |
 | 4 | Artifact upload, validation, and apply | Upload and validation workflows have obvious progress/failure states and useful diagnostic targets. | Use progress notifications while a package is uploaded, validated, committed, or applied. Update to failed with validation/provider diagnostics, or succeeded with the resulting revision/resource target. | Planned |
 | 5 | Deployment or replica reconciliation | Deployment records and replica slot states already expose runtime progress that users may need to know about after a command returns. | Update an existing operation notification when deployment records or replica slot states move from applying/reconciling to active, failed, or needs attention. Create a notification only when no parent operation notification exists. | Planned |

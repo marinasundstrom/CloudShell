@@ -189,6 +189,41 @@ public sealed class CloudShellNotificationStoreTests
     }
 
     [Fact]
+    public void ObservingResourceEventSink_CoalescesResourceCreateProgressIntoOneNotification()
+    {
+        var resourceEvents = new InMemoryResourceEventStore();
+        var notifications = new InMemoryCloudShellNotificationStore();
+        var projector = new ResourceEventNotificationProjector(
+            notifications,
+            [new DefaultResourceEventNotificationRule()]);
+        var sink = new ObservingResourceEventSink(resourceEvents, [projector]);
+
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Resource.Creating,
+            "Creating resource 'API'.",
+            DateTimeOffset.Parse("2026-07-11T09:00:00+00:00"),
+            TriggeredBy: "operator"));
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Resource.Created,
+            "Resource 'API' created.",
+            DateTimeOffset.Parse("2026-07-11T09:00:01+00:00"),
+            TriggeredBy: "operator",
+            Severity: ResourceSignalSeverity.Success));
+
+        var notification = Assert.Single(notifications.GetNotifications(new CloudShellNotificationQuery(
+            RecipientKey: "operator")));
+        Assert.Equal("Create resource", notification.Title);
+        Assert.Equal("Resource 'API' created.", notification.Message);
+        Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
+        Assert.Equal(ResourceEventTypes.Events.Resource.Created, notification.EventType);
+        Assert.Equal("resource-create|application:api|create|operator", notification.CorrelationId);
+        Assert.Equal("cloudshell.resource-create-operation", notification.TemplateKey);
+        Assert.Equal("create", notification.Attributes!["operationKind"]);
+    }
+
+    [Fact]
     public void DefaultResourceEventNotificationRule_RequiresTriggeredByRecipient()
     {
         var rule = new DefaultResourceEventNotificationRule();

@@ -60,6 +60,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added Control Plane notification coalescing for lifecycle resource events so
   start, stop, pause, and restart progress updates one correlated notification
   instead of producing separate notification rows for each resource event.
+- Added Control Plane resource-create events and notification coalescing so
+  resource creation starts as an in-progress notification and updates to
+  succeeded or failed when provider creation completes.
 - Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder
   helper from CloudShell Hosting into `CoreShell.Blazor` so common Blazor shell
   building blocks can be used by CoreShell apps without a CloudShell

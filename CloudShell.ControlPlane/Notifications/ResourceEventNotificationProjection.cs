@@ -38,7 +38,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             return null;
         }
 
-        var lifecycleActionId = GetLifecycleActionId(resourceEvent.EventType);
+        var operation = GetOperation(resourceEvent.EventType);
         return new CreateCloudShellNotificationCommand(
             recipientKey,
             CreateTitle(resourceEvent),
@@ -49,12 +49,12 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             ResourceId: resourceEvent.ResourceId,
             EventType: resourceEvent.EventType,
             EventId: CreateEventId(resourceEvent),
-            CorrelationId: lifecycleActionId is null
+            CorrelationId: operation is null
                 ? resourceEvent.TraceId
-                : CreateLifecycleCorrelationId(resourceEvent, lifecycleActionId),
-            TemplateKey: lifecycleActionId is null
+                : CreateOperationCorrelationId(resourceEvent, operation.Kind, operation.Id),
+            TemplateKey: operation is null
                 ? "cloudshell.resource-event"
-                : "cloudshell.resource-lifecycle-operation",
+                : operation.TemplateKey,
             Attributes: CreateAttributes(resourceEvent));
     }
 
@@ -72,6 +72,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
     {
         var normalized = eventType.Trim().ToLowerInvariant();
         return normalized.EndsWith(".starting", StringComparison.Ordinal)
+            || normalized.EndsWith(".creating", StringComparison.Ordinal)
             || normalized.EndsWith(".stopping", StringComparison.Ordinal)
             || normalized.EndsWith(".pausing", StringComparison.Ordinal)
             || normalized.EndsWith(".restarting", StringComparison.Ordinal)
@@ -88,6 +89,11 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
         if (lifecycleActionId is not null)
         {
             return $"{GetLifecycleActionLabel(lifecycleActionId)} resource";
+        }
+
+        if (IsResourceCreateEvent(resourceEvent.EventType))
+        {
+            return "Create resource";
         }
 
         var name = resourceEvent.EventType
@@ -126,6 +132,10 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             attributes["actionId"] = lifecycleActionId;
             attributes["operationKind"] = "lifecycle";
         }
+        else if (IsResourceCreateEvent(resourceEvent.EventType))
+        {
+            attributes["operationKind"] = "create";
+        }
 
         if (!string.IsNullOrWhiteSpace(resourceEvent.TraceId))
         {
@@ -143,15 +153,35 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private static string CreateLifecycleCorrelationId(
+    private static string CreateOperationCorrelationId(
         ResourceEvent resourceEvent,
-        string lifecycleActionId) =>
+        string operationKind,
+        string operationId) =>
         string.Join(
             "|",
-            "resource-lifecycle",
+            $"resource-{operationKind}",
             resourceEvent.ResourceId,
-            lifecycleActionId,
+            operationId,
             resourceEvent.TriggeredBy ?? string.Empty);
+
+    private static NotificationOperation? GetOperation(string eventType)
+    {
+        var lifecycleActionId = GetLifecycleActionId(eventType);
+        if (lifecycleActionId is not null)
+        {
+            return new NotificationOperation(
+                "lifecycle",
+                lifecycleActionId,
+                "cloudshell.resource-lifecycle-operation");
+        }
+
+        return IsResourceCreateEvent(eventType)
+            ? new NotificationOperation(
+                "create",
+                "create",
+                "cloudshell.resource-create-operation")
+            : null;
+    }
 
     private static string? GetLifecycleActionId(string eventType) =>
         eventType.Trim() switch
@@ -180,4 +210,15 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             ResourceActionIds.Restart => "Restart",
             _ => "Update"
         };
+
+    private static bool IsResourceCreateEvent(string eventType) =>
+        eventType.Trim() is
+            ResourceEventTypes.Events.Resource.Creating or
+            ResourceEventTypes.Events.Resource.Created or
+            ResourceEventTypes.Events.Resource.CreateFailed;
+
+    private sealed record NotificationOperation(
+        string Kind,
+        string Id,
+        string TemplateKey);
 }

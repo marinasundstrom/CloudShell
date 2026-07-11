@@ -41,6 +41,13 @@ public static class ResourceEventTypes
                 $"{Prefix}{NormalizeEventTypeSegment(providerId)}.{NormalizeEventTypeSegment(eventName)}";
         }
 
+        public static class Resource
+        {
+            public const string Creating = "event.resource.creating";
+            public const string Created = "event.resource.created";
+            public const string CreateFailed = "event.resource.create.failed";
+        }
+
         public static class Lifecycle
         {
             public const string Starting = "event.lifecycle.starting";

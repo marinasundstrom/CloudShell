@@ -63,6 +63,7 @@ public sealed class InProcessControlPlane(
     IEnumerable<IDeploymentArtifactValidationProvider>? deploymentArtifactValidationProviders = null,
     IOptions<ResourceManagerOptions>? resourceManagerOptions = null,
     IOptions<DeploymentArtifactOptions>? deploymentArtifactOptions = null,
+    IResourceEventSink? resourceEventSink = null,
     ICloudShellNotificationStore? notifications = null,
     IEnumerable<ICloudShellNotificationActionHandler>? notificationActionHandlers = null) : IControlPlane
 {
@@ -105,6 +106,7 @@ public sealed class InProcessControlPlane(
         (deploymentArtifactValidationProviders ?? []).ToArray();
     private readonly IReadOnlyList<ICloudShellNotificationActionHandler> notificationActionHandlers =
         (notificationActionHandlers ?? []).ToArray();
+    private readonly IResourceEventSink? resourceEventWriter = resourceEventSink ?? resourceEvents;
 
     public Task<IReadOnlyList<ResourceGroup>> ListResourceGroupsAsync(
         CancellationToken cancellationToken = default)
@@ -202,10 +204,37 @@ public sealed class InProcessControlPlane(
             ?? throw new ControlPlaneException(
                 ControlPlaneError.ResourceProviderCannotCreate(providerId, resourceType));
 
-        await provider.CreateAsync(
-            request,
-            new ResourceCreationContext(registrations),
-            cancellationToken);
+        var triggeredBy = ResolveTriggeredBy(null);
+        AppendResourceEvent(
+            resourceId,
+            ResourceEventTypes.Events.Resource.Creating,
+            $"Creating resource '{name}'.",
+            triggeredBy);
+
+        try
+        {
+            await provider.CreateAsync(
+                request,
+                new ResourceCreationContext(registrations),
+                cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            AppendResourceEvent(
+                resourceId,
+                ResourceEventTypes.Events.Resource.CreateFailed,
+                $"Resource '{name}' creation failed. Reason: {exception.Message}",
+                triggeredBy,
+                ResourceSignalSeverity.Error);
+            throw;
+        }
+
+        AppendResourceEvent(
+            resourceId,
+            ResourceEventTypes.Events.Resource.Created,
+            $"Resource '{name}' created.",
+            triggeredBy,
+            ResourceSignalSeverity.Success);
 
         if (command.StartAfterCreate)
         {
@@ -703,13 +732,12 @@ public sealed class InProcessControlPlane(
         string permission,
         string? triggeredBy)
     {
-        resourceEvents?.Append(new ResourceEvent(
+        AppendResourceEvent(
             resource.Id,
             ResourceEventTypes.Actions.ForFailedAction(action.Id),
             $"{action.DisplayName} action was denied. The '{FormatPermissionRequirement(permission)}' permission is required for resource '{ResourceDisplayLabels.GetName(resource)}'.",
-            DateTimeOffset.UtcNow,
             triggeredBy,
-            Severity: ResourceSignalSeverity.Warning));
+            ResourceSignalSeverity.Warning);
     }
 
     private string? ResolveTriggeredBy(string? explicitTriggeredBy)
@@ -730,6 +758,20 @@ public sealed class InProcessControlPlane(
             ? null
             : explicitTriggeredBy.Trim();
     }
+
+    private void AppendResourceEvent(
+        string resourceId,
+        string eventType,
+        string message,
+        string? triggeredBy,
+        ResourceSignalSeverity severity = ResourceSignalSeverity.Info) =>
+        resourceEventWriter?.Append(new ResourceEvent(
+            resourceId,
+            eventType,
+            message,
+            DateTimeOffset.UtcNow,
+            triggeredBy,
+            severity));
 
     private static string? FindActorClaim(ClaimsPrincipal user, string claimType) =>
         user.Claims
@@ -791,14 +833,13 @@ public sealed class InProcessControlPlane(
 
         var updatedResource = resourceManager.GetResource(resource.Id);
         var revision = updatedResource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerRevision);
-        resourceEvents?.Append(new ResourceEvent(
+        AppendResourceEvent(
             resource.Id,
             ResourceEventTypes.Events.Deployment.ImageUpdated,
             string.IsNullOrWhiteSpace(revision)
                 ? $"Updated image to '{image}'."
                 : $"Updated image to '{image}' and produced revision '{revision}'. Requested replicas: {FormatRequestedReplicas(command.RequestedReplicas)}.",
-            DateTimeOffset.UtcNow,
-            triggeredBy));
+            triggeredBy);
 
         NotifyResourcesChanged(new ResourceChangeNotification(
             ResourceChangeKind.ResourceImageUpdated,
@@ -966,12 +1007,11 @@ public sealed class InProcessControlPlane(
                 exception);
         }
 
-        resourceEvents?.Append(new ResourceEvent(
+        AppendResourceEvent(
             resource.Id,
             ResourceEventTypes.Events.Deployment.ReplicasUpdated,
             $"Updated replicas to '{command.Replicas}'. Restart if running: {command.RestartIfRunning.ToString().ToLowerInvariant()}.",
-            DateTimeOffset.UtcNow,
-            triggeredBy));
+            triggeredBy);
 
         NotifyResourcesChanged(new ResourceChangeNotification(
             ResourceChangeKind.ResourceReplicasUpdated,
@@ -2680,13 +2720,12 @@ public sealed class InProcessControlPlane(
         string message,
         ResourceSignalSeverity severity)
     {
-        resourceEvents?.Append(new ResourceEvent(
+        AppendResourceEvent(
             resource.Id,
             eventType,
             message,
-            DateTimeOffset.UtcNow,
             RecoveryTriggeredBy,
-            severity));
+            severity);
     }
 
     private static TimeSpan CalculateRecoveryBackoff(ResourceRecoveryPolicy policy, int attempt)
@@ -2848,13 +2887,12 @@ public sealed class InProcessControlPlane(
                 ? $"Resource stopped unexpectedly. {FormatLivenessCause(projection.Result)}"
                 : $"Resource degraded. {FormatLivenessCause(projection.Result)}";
 
-            resourceEvents?.Append(new ResourceEvent(
+            AppendResourceEvent(
                 resource.Id,
                 eventType,
                 message,
-                DateTimeOffset.UtcNow,
                 LivenessTriggeredBy,
-                severity));
+                severity);
         }
     }
 

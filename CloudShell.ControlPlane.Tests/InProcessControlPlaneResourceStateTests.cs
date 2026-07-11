@@ -2,12 +2,14 @@ using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Notifications;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Usage;
 using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.DeploymentArtifacts;
 using CloudShell.ControlPlane.Logs;
+using CloudShell.ControlPlane.Notifications;
 using CloudShell.ControlPlane.Observability;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Deployment;
@@ -3448,6 +3450,90 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task CreateResourceAsync_ProjectsCreateProgressToNotification()
+    {
+        var provider = new TestResourceCreationProvider();
+        var resourceEvents = new InMemoryResourceEventStore();
+        var notifications = new InMemoryCloudShellNotificationStore();
+        var sink = new ObservingResourceEventSink(
+            resourceEvents,
+            [new ResourceEventNotificationProjector(notifications, [new DefaultResourceEventNotificationRule()])]);
+        var controlPlane = CreateControlPlane(
+            [],
+            provider,
+            resourceEvents: resourceEvents,
+            resourceEventSink: sink,
+            notifications: notifications,
+            httpContextAccessor: CreateHttpContextAccessor(new Claim(ClaimTypes.Name, "operator")));
+
+        await controlPlane.CreateResourceAsync(
+            new CreateResourceCommand(
+                "test",
+                "test.resource",
+                "target",
+                "Target",
+                JsonSerializer.SerializeToElement(new { enabled = true })));
+
+        Assert.Equal(
+            [
+                ResourceEventTypes.Events.Resource.Creating,
+                ResourceEventTypes.Events.Resource.Created
+            ],
+            resourceEvents
+                .GetEvents(new ResourceEventQuery(ResourceId: "target"))
+                .OrderBy(resourceEvent => resourceEvent.Timestamp)
+                .Select(resourceEvent => resourceEvent.EventType)
+                .ToArray());
+
+        var notification = Assert.Single(await controlPlane.ListNotificationsAsync(
+            new CloudShellNotificationQuery(RecipientKey: "operator")));
+        Assert.Equal("Create resource", notification.Title);
+        Assert.Equal("Resource 'Target' created.", notification.Message);
+        Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
+        Assert.Equal(ResourceEventTypes.Events.Resource.Created, notification.EventType);
+        Assert.Equal("resource-create|target|create|operator", notification.CorrelationId);
+        Assert.Equal("cloudshell.resource-create-operation", notification.TemplateKey);
+        Assert.Equal("create", notification.Attributes!["operationKind"]);
+    }
+
+    [Fact]
+    public async Task CreateResourceAsync_UpdatesCreateNotificationWhenProviderFails()
+    {
+        var provider = new TestResourceCreationProvider
+        {
+            FailCreate = true
+        };
+        var resourceEvents = new InMemoryResourceEventStore();
+        var notifications = new InMemoryCloudShellNotificationStore();
+        var sink = new ObservingResourceEventSink(
+            resourceEvents,
+            [new ResourceEventNotificationProjector(notifications, [new DefaultResourceEventNotificationRule()])]);
+        var controlPlane = CreateControlPlane(
+            [],
+            provider,
+            resourceEvents: resourceEvents,
+            resourceEventSink: sink,
+            notifications: notifications,
+            httpContextAccessor: CreateHttpContextAccessor(new Claim(ClaimTypes.Name, "operator")));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            controlPlane.CreateResourceAsync(
+                new CreateResourceCommand(
+                    "test",
+                    "test.resource",
+                    "target",
+                    "Target",
+                    JsonSerializer.SerializeToElement(new { enabled = true }))));
+
+        var notification = Assert.Single(await controlPlane.ListNotificationsAsync(
+            new CloudShellNotificationQuery(RecipientKey: "operator")));
+        Assert.Equal("Create resource", notification.Title);
+        Assert.Equal(CloudShellNotificationStatus.Failed, notification.Status);
+        Assert.Equal(ResourceEventTypes.Events.Resource.CreateFailed, notification.EventType);
+        Assert.Contains("creation failed", notification.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task CreateResourceAsync_RejectsStorageOwnedVolumeWithoutStorageManagePermission()
     {
         var options = new PlatformResourceOptions();
@@ -3832,6 +3918,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         IResourceOrchestratorDeploymentStore? deploymentStore = null,
         IDeploymentArtifactStore? deploymentArtifactStore = null,
         DeploymentArtifactOptions? deploymentArtifactOptions = null,
+        IResourceEventSink? resourceEventSink = null,
+        ICloudShellNotificationStore? notifications = null,
         bool allowLocalPathResourceDefinitions = true)
     {
         provider ??= new TestResourceProvider();
@@ -3862,6 +3950,8 @@ public sealed class InProcessControlPlaneResourceStateTests
             deploymentStore,
             deploymentArtifactStore,
             deploymentArtifactOptions,
+            resourceEventSink,
+            notifications,
             allowLocalPathResourceDefinitions).ControlPlane;
     }
 
@@ -3892,6 +3982,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         IResourceOrchestratorDeploymentStore? deploymentStore = null,
         IDeploymentArtifactStore? deploymentArtifactStore = null,
         DeploymentArtifactOptions? deploymentArtifactOptions = null,
+        IResourceEventSink? resourceEventSink = null,
+        ICloudShellNotificationStore? notifications = null,
         bool allowLocalPathResourceDefinitions = true)
     {
         provider ??= new TestResourceProvider();
@@ -3938,21 +4030,21 @@ public sealed class InProcessControlPlaneResourceStateTests
             selectionStore,
             containerHostProviders ?? [],
             actionAvailabilityProviders: actionAvailabilityProviders ?? [],
-            resourceEvents: resourceEvents,
+            resourceEvents: resourceEventSink ?? resourceEvents,
             deploymentStore: deploymentStore);
         var replicaGroupReconciliation = new ResourceReplicaGroupReconciliationService(
             orchestration,
             resourceManager,
             replicaReconciliationStore,
             deploymentStore,
-            resourceEvents);
+            resourceEventSink ?? resourceEvents);
         var deployments = new ResourceDeploymentService(
             orchestrators,
             deploymentAppliers,
             resourceManager,
             registrations,
             selectionStore,
-            resourceEvents,
+            resourceEventSink ?? resourceEvents,
             deploymentStore);
 
         var controlPlane = new InProcessControlPlane(
@@ -3988,7 +4080,9 @@ public sealed class InProcessControlPlaneResourceStateTests
             {
                 AllowLocalPathResourceDefinitions = allowLocalPathResourceDefinitions
             }),
-            deploymentArtifactOptions: Options.Create(deploymentArtifactOptions ?? new DeploymentArtifactOptions()));
+            deploymentArtifactOptions: Options.Create(deploymentArtifactOptions ?? new DeploymentArtifactOptions()),
+            resourceEventSink: resourceEventSink,
+            notifications: notifications);
 
         return new ControlPlaneTestHost(controlPlane, replicaGroupReconciliation);
     }
@@ -4836,6 +4930,8 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public List<string> ExecutedActions { get; } = [];
 
+        public bool FailCreate { get; init; }
+
         public IReadOnlyList<Resource> GetResources() =>
             CreatedRequest is null
                 ? []
@@ -4852,6 +4948,11 @@ public sealed class InProcessControlPlaneResourceStateTests
             ResourceCreationContext context,
             CancellationToken cancellationToken = default)
         {
+            if (FailCreate)
+            {
+                throw new InvalidOperationException("Create failed.");
+            }
+
             CreatedRequest = request;
             return context.Registrations.RegisterAsync(
                 Id,
