@@ -55,6 +55,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Treated ASP.NET Core artifact package changes as restart-required when the
   app is running, and covered that applying a new artifact package advances
   the resource revision.
+- Materialized application artifact packages into revision-specific runnable
+  directories so a newly accepted artifact does not delete files used by the
+  currently running revision before restart.
 
 ### 2026-07-10
 

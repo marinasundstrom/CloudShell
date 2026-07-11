@@ -76,9 +76,13 @@ public sealed class ApplicationArtifactMaterializer(
                 $"Application artifact package kind '{artifact.PackageKind}' is not supported by the local materializer.");
         }
 
-        var rootDirectory = Path.GetFullPath(artifactFolder);
-        var markerPath = Path.Combine(rootDirectory, ".cloudshell-artifact-materialized");
-        var materializationLock = MaterializationLocks.GetOrAdd(rootDirectory, _ => new SemaphoreSlim(1, 1));
+        var artifactRootDirectory = Path.GetFullPath(artifactFolder);
+        var revisionDirectory = Path.Combine(
+            artifactRootDirectory,
+            "revisions",
+            CreateRevisionDirectoryName(artifact));
+        var markerPath = Path.Combine(revisionDirectory, ".cloudshell-artifact-materialized");
+        var materializationLock = MaterializationLocks.GetOrAdd(artifactRootDirectory, _ => new SemaphoreSlim(1, 1));
 
         await materializationLock.WaitAsync(cancellationToken);
         try
@@ -88,22 +92,40 @@ public sealed class ApplicationArtifactMaterializer(
                 : null;
             if (!string.Equals(marker, artifact.ContentSha256, StringComparison.OrdinalIgnoreCase))
             {
-                if (Directory.Exists(rootDirectory))
+                if (Directory.Exists(revisionDirectory))
                 {
-                    Directory.Delete(rootDirectory, recursive: true);
+                    throw new InvalidDataException(
+                        $"Application artifact revision '{artifact.RevisionId}' is already materialized but does not match the expected content hash.");
                 }
 
-                Directory.CreateDirectory(rootDirectory);
-                await using var content = await contentStore.OpenDeploymentArtifactContentAsync(
-                    resource.EffectiveResourceId,
-                    artifact.ArtifactId,
-                    artifact.RevisionId,
-                    cancellationToken);
-                ExtractZip(content, rootDirectory);
-                await File.WriteAllTextAsync(
-                    markerPath,
-                    artifact.ContentSha256,
-                    cancellationToken);
+                var stagingDirectory = Path.Combine(
+                    artifactRootDirectory,
+                    ".staging",
+                    $"{CreateRevisionDirectoryName(artifact)}-{Guid.NewGuid():N}");
+                try
+                {
+                    Directory.CreateDirectory(stagingDirectory);
+                    await using var content = await contentStore.OpenDeploymentArtifactContentAsync(
+                        resource.EffectiveResourceId,
+                        artifact.ArtifactId,
+                        artifact.RevisionId,
+                        cancellationToken);
+                    ExtractZip(content, stagingDirectory);
+                    await File.WriteAllTextAsync(
+                        Path.Combine(stagingDirectory, ".cloudshell-artifact-materialized"),
+                        artifact.ContentSha256,
+                        cancellationToken);
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(revisionDirectory)!);
+                    Directory.Move(stagingDirectory, revisionDirectory);
+                }
+                finally
+                {
+                    if (Directory.Exists(stagingDirectory))
+                    {
+                        Directory.Delete(stagingDirectory, recursive: true);
+                    }
+                }
             }
         }
         finally
@@ -112,9 +134,18 @@ public sealed class ApplicationArtifactMaterializer(
         }
 
         return new(
-            rootDirectory,
-            ResolveEntryPath(rootDirectory, artifact.EntryPath),
+            revisionDirectory,
+            ResolveEntryPath(revisionDirectory, artifact.EntryPath),
             artifact);
+    }
+
+    private static string CreateRevisionDirectoryName(ApplicationArtifactReference artifact)
+    {
+        var hashPrefix = artifact.ContentSha256.Length > 12
+            ? artifact.ContentSha256[..12]
+            : artifact.ContentSha256;
+        return ApplicationArtifactFolderResolver.NormalizePathSegment(
+            $"{artifact.RevisionId}-{hashPrefix}");
     }
 
     private static void ExtractZip(

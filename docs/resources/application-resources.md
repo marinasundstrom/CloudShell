@@ -195,9 +195,20 @@ Uploading a package stages bytes in the host artifact store. Successfully
 applying an accepted package updates resource state and counts as a new
 resource revision; upload alone does not.
 
+This creates two related version boundaries. The artifact store can hold many
+artifact revisions for the resource. The versioned resource state records
+which accepted artifact revision the resource should run. Applying a different
+artifact revision advances the resource revision because the runnable input for
+that resource changed.
+
 Application artifact packages are owned by the containing resource. When the
 resource is deleted successfully, the Control Plane removes that resource's
 stored artifact revisions from the configured artifact store.
+
+The host keeps artifact revisions separate while switching versions. Uploading
+and applying a new package does not delete files used by the currently running
+process; the provider materializes the accepted revision into its own runnable
+directory and a restart starts from that new revision.
 
 `artifacts.source` is optional source metadata. It can describe where the host
 should pull or download artifact content from, such as a future GitHub release,

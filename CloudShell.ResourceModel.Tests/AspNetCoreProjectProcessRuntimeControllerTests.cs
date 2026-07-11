@@ -444,7 +444,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             "deployment-artifact:application.aspnet-core-project:api",
             "rev-1",
             "zip",
-            Guid.NewGuid().ToString("N"),
+            "hash-one",
             128,
             "publish",
             "dotnetPublishedOutput"));
@@ -460,10 +460,26 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             resource,
             resource.Attributes.GetObject<ApplicationArtifactReference>(ApplicationArtifactAttributeIds.Source)!,
             artifactFolder);
+        var secondArtifact = new ApplicationArtifactReference(
+            "deployment-artifact:application.aspnet-core-project:api",
+            "rev-2",
+            "zip",
+            "hash-two",
+            128,
+            "publish",
+            "dotnetPublishedOutput");
+        var second = await materializer.MaterializeAsync(
+            resource,
+            secondArtifact,
+            artifactFolder);
 
-        Assert.Equal(artifactFolder, result.RootDirectory);
-        Assert.Equal(Path.Combine(artifactFolder, "publish"), result.EntryPath);
+        Assert.NotEqual(artifactFolder, result.RootDirectory);
+        Assert.StartsWith(Path.Combine(artifactFolder, "revisions"), result.RootDirectory, StringComparison.Ordinal);
+        Assert.Equal(Path.Combine(result.RootDirectory, "publish"), result.EntryPath);
         Assert.True(File.Exists(Path.Combine(result.EntryPath, "Api.dll")));
+        Assert.NotEqual(result.RootDirectory, second.RootDirectory);
+        Assert.True(File.Exists(Path.Combine(result.EntryPath, "Api.dll")));
+        Assert.True(File.Exists(Path.Combine(second.EntryPath, "Api.dll")));
     }
 
     [Fact]

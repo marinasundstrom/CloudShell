@@ -431,10 +431,22 @@ revision, even when the resource stays in artifact-folder mode. That revision
 is the audit and rollback boundary for “this resource now points at this
 accepted artifact package or source metadata.”
 
+The model therefore has artifact revisions within a versioned resource.
+Artifact revisions are stored package/content versions scoped to the resource.
+Resource revisions are accepted resource-state versions that record which
+artifact revision, source metadata, or local-source configuration the resource
+should use.
+
 Application artifact packages are resource-owned data. After a resource delete
 operation succeeds, the Control Plane deletes stored artifact revisions for
 that resource from the configured artifact store. If provider delete fails,
 the artifact revisions remain available for retry and diagnostics.
+
+Accepted artifact revisions must be able to coexist while a running resource
+is switching versions. Upload and apply prepare the next revision; they do not
+delete files used by the current process. Runtime materialization should place
+each accepted revision in its own runnable directory and only start the new
+directory when lifecycle restart/deploy reaches the provider.
 
 Any accepted application artifact must eventually be materialized onto the
 runtime host or into the host's runtime substrate before the app can run. Direct
