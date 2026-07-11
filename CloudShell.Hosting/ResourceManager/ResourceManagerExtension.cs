@@ -183,42 +183,7 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 "Create or update a DNS-style name mapping owned by a DNS Zone.",
                 "network",
                 11,
-                resourceClass: ResourceClass.Network)
-            .AddResourceType<ApplicationArtifactResourceEditor, ApplicationArtifactResourceEditor>(
-                "application.aspnet-core-project",
-                ".NET Web App",
-                "Create an application resource from an uploaded .NET artifact.",
-                "web",
-                20,
-                resourceClass: ResourceClass.Project)
-            .AddResourceType<ApplicationArtifactResourceEditor, ApplicationArtifactResourceEditor>(
-                "application.python-app",
-                "Python App",
-                "Create an application resource from an uploaded Python artifact.",
-                "application",
-                21,
-                resourceClass: ResourceClass.Project)
-            .AddResourceType<ApplicationArtifactResourceEditor, ApplicationArtifactResourceEditor>(
-                "application.java-app",
-                "Java App",
-                "Create an application resource from an uploaded Java artifact.",
-                "application",
-                22,
-                resourceClass: ResourceClass.Project)
-            .AddResourceType<ApplicationArtifactResourceEditor, ApplicationArtifactResourceEditor>(
-                "application.javascript-app",
-                "JavaScript App",
-                "Create an application resource from an uploaded JavaScript artifact.",
-                "application",
-                23,
-                resourceClass: ResourceClass.Project)
-            .AddResourceType<ApplicationArtifactResourceEditor, ApplicationArtifactResourceEditor>(
-                "application.go-app",
-                "Go App",
-                "Create an application resource from an uploaded Go artifact.",
-                "application",
-                24,
-                resourceClass: ResourceClass.Project);
+                resourceClass: ResourceClass.Network);
 
         if (includeSettings)
         {

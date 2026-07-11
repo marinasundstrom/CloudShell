@@ -3,6 +3,7 @@ using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Providers;
+using CloudShell.Hosting.Components.Pages.Resources;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ContainerAppPages = CloudShell.ControlPlane.Providers.UI.ContainerApplication.Pages;
 using ConfigurationPages = CloudShell.ControlPlane.Providers.UI.Configuration.Pages;
@@ -52,10 +53,10 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                 "application",
                 20,
                 resourceClass: ResourceManagerResourceClass.Executable)
-            .AddResourceType<SharedPages.RegisterApplicationResource>(
+            .AddResourceType<ApplicationArtifactResourceEditor, ApplicationArtifactResourceEditor>(
                 AspNetCoreProjectResourceTypeProvider.ResourceTypeId.ToString(),
-                "ASP.NET Core project",
-                "Inspect ASP.NET Core projects declared through Resource Manager.",
+                ".NET Web App",
+                "Create an application resource from an uploaded .NET artifact.",
                 "web",
                 21,
                 probeOptions: new ResourceTypeProbeOptions(
@@ -73,10 +74,10 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                             Source: ResourceProbeSource.ForHttp("/alive", "http"))
                     ]),
                 resourceClass: ResourceManagerResourceClass.Project)
-            .AddResourceType<SharedPages.RegisterApplicationResource>(
+            .AddResourceType<ApplicationArtifactResourceEditor, ApplicationArtifactResourceEditor>(
                 JavaScriptAppResourceTypeProvider.ResourceTypeId.ToString(),
-                "JavaScript app",
-                "Inspect JavaScript and Node.js applications declared through Resource Manager.",
+                "JavaScript App",
+                "Create an application resource from an uploaded JavaScript artifact.",
                 "javascript",
                 22,
                 probeOptions: new ResourceTypeProbeOptions(
@@ -94,10 +95,10 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                             Source: ResourceProbeSource.ForHttp("/alive", "http"))
                     ]),
                 resourceClass: ResourceManagerResourceClass.Project)
-            .AddResourceType<SharedPages.RegisterApplicationResource>(
+            .AddResourceType<ApplicationArtifactResourceEditor, ApplicationArtifactResourceEditor>(
                 JavaAppResourceTypeProvider.ResourceTypeId.ToString(),
-                "Java app",
-                "Inspect Java and JVM applications declared through Resource Manager.",
+                "Java App",
+                "Create an application resource from an uploaded Java artifact.",
                 "application",
                 23,
                 probeOptions: new ResourceTypeProbeOptions(
@@ -115,10 +116,10 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                             Source: ResourceProbeSource.ForHttp("/alive", "http"))
                     ]),
                 resourceClass: ResourceManagerResourceClass.Project)
-            .AddResourceType<SharedPages.RegisterApplicationResource>(
+            .AddResourceType<ApplicationArtifactResourceEditor, ApplicationArtifactResourceEditor>(
                 GoAppResourceTypeProvider.ResourceTypeId.ToString(),
-                "Go app",
-                "Inspect Go applications declared through Resource Manager.",
+                "Go App",
+                "Create an application resource from an uploaded Go artifact.",
                 "application",
                 24,
                 probeOptions: new ResourceTypeProbeOptions(
@@ -136,10 +137,10 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
                             Source: ResourceProbeSource.ForHttp("/alive", "http"))
                 ]),
                 resourceClass: ResourceManagerResourceClass.Project)
-            .AddResourceType<SharedPages.RegisterApplicationResource>(
+            .AddResourceType<ApplicationArtifactResourceEditor, ApplicationArtifactResourceEditor>(
                 PythonAppResourceTypeProvider.ResourceTypeId.ToString(),
-                "Python app",
-                "Inspect Python applications declared through Resource Manager.",
+                "Python App",
+                "Create an application resource from an uploaded Python artifact.",
                 "application",
                 25,
                 probeOptions: new ResourceTypeProbeOptions(

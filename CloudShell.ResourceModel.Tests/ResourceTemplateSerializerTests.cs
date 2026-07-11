@@ -206,6 +206,47 @@ resources:
     }
 
     [Fact]
+    public void ResourceTemplateApplyRequest_JsonRoundTripPreservesApplicationArtifactSource()
+    {
+        var artifact = new ApplicationArtifactReference(
+            "application.aspnet-core-project_api",
+            "rev-1",
+            "zip",
+            new string('a', 64),
+            1024,
+            ".",
+            "dotnetPublishedOutput");
+        var definition = new ResourceDefinition(
+            "api",
+            ResourceTypeId.Create("application.aspnet-core-project"),
+            Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
+            {
+                [ApplicationArtifactAttributeIds.Enabled] = true,
+                [ApplicationArtifactAttributeIds.SourceKind] =
+                    DeploymentArtifactSourceKinds.UploadedArtifact,
+                [ApplicationArtifactAttributeIds.Source] =
+                    ResourceAttributeValue.FromObject(artifact)
+            });
+        var request = new ResourceTemplateApplyRequest(
+            new ResourceTemplate("local", [definition]));
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+
+        var json = JsonSerializer.Serialize(request, options);
+        var roundTripped = JsonSerializer.Deserialize<ResourceTemplateApplyRequest>(json, options);
+
+        var resource = Assert.Single(roundTripped!.Template.Resources);
+        Assert.True(resource.ResourceAttributeValues.ContainsKey(ApplicationArtifactAttributeIds.Source));
+        Assert.False(resource.ResourceAttributeValues.ContainsKey(
+            ResourceAttributeId.Create("artifacts.source.artifactId")));
+
+        var source = resource.ResourceAttributeValues[ApplicationArtifactAttributeIds.Source]
+            .ToObject<ApplicationArtifactReference>()!;
+        Assert.Equal(artifact.ArtifactId, source.ArtifactId);
+        Assert.Equal(artifact.RevisionId, source.RevisionId);
+        Assert.Equal(artifact.ArtifactLayoutKind, source.ArtifactLayoutKind);
+    }
+
+    [Fact]
     public void DeserializeTemplate_YamlStillSupportsAttributesWrapper()
     {
         const string yaml = """

@@ -67,6 +67,14 @@ on `git blame --follow`, and then by the broad type of change.
 - Added Resource Manager artifact revision restore controls for UI-owned
   application artifact resources, with apply-only and apply-and-restart
   choices.
+- Moved built-in application artifact editor registrations into the provider
+  UI extension, enabled a development host filesystem artifact store by
+  default, and added a real `CloudShell.Host` smoke test covering Resource
+  Manager create UI, direct upload, provider validation, template apply,
+  ASP.NET Core artifact materialization, startup, and revision listing.
+- Preserved `artifacts.source` as a structured attribute across JSON template
+  apply requests so uploaded application artifact references survive the UI
+  and API path used by host lifecycle actions.
 
 ### 2026-07-10
 

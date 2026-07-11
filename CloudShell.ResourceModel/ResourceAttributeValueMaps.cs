@@ -90,6 +90,7 @@ internal sealed class ResourceAttributeValueMapJsonConverter :
     JsonConverter<ResourceAttributeValueMap>
 {
     private static readonly ResourceAttributeId HealthChecksAttributeId = ResourceAttributeId.Create("health.checks");
+    private static readonly ResourceAttributeId ApplicationArtifactsSourceAttributeId = ResourceAttributeId.Create("artifacts.source");
     private static readonly ResourceAttributeId LogSourcesAttributeId = ResourceAttributeId.Create("logs.sources");
 
     public override ResourceAttributeValueMap Read(
@@ -224,6 +225,8 @@ internal sealed class ResourceAttributeValueMapJsonConverter :
     private static bool IsDirectCollectionAttribute(IReadOnlyList<string> path)
     {
         var attributeId = ResourceAttributeId.Create(string.Join('.', path));
-        return attributeId == LogSourcesAttributeId || attributeId == HealthChecksAttributeId;
+        return attributeId == LogSourcesAttributeId ||
+            attributeId == HealthChecksAttributeId ||
+            attributeId == ApplicationArtifactsSourceAttributeId;
     }
 }
