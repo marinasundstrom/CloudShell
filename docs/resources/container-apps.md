@@ -66,7 +66,7 @@ Dockerfile supplied by the app:
 
 ```csharp
 resources
-    .AddAspNetCoreProject(
+    .AddDotnetApp(
         "application:api",
         "API",
         "src/API/API.csproj")

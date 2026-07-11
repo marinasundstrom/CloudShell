@@ -14,15 +14,15 @@ public sealed class ProjectResourceIdentityEnvironmentResolverTests
     [Fact]
     public async Task ResolveAsync_DerivesAspNetCoreIdentityEnvironmentFromDeclaration()
     {
-        var declarations = CreateDeclarations("application.aspnet-core-project:api", "api");
+        var declarations = CreateDeclarations("application.dotnet-app:api", "api");
         var resolver = CreateResolver(declarations);
         var resource = CreateAspNetCoreProject("api");
 
         var variables = await resolver.ResolveAsync(resource);
 
         Assert.Equal("https://identity.example.test/token", variables["CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT"]);
-        Assert.Equal("application.aspnet-core-project:api/api", variables["CLOUDSHELL_IDENTITY_CLIENT_ID"]);
-        Assert.Equal("secret-application.aspnet-core-project:api/api", variables["CLOUDSHELL_IDENTITY_CLIENT_SECRET"]);
+        Assert.Equal("application.dotnet-app:api/api", variables["CLOUDSHELL_IDENTITY_CLIENT_ID"]);
+        Assert.Equal("secret-application.dotnet-app:api/api", variables["CLOUDSHELL_IDENTITY_CLIENT_SECRET"]);
         Assert.Equal("ControlPlane.Access", variables["CLOUDSHELL_IDENTITY_SCOPE"]);
     }
 
@@ -171,8 +171,8 @@ public sealed class ProjectResourceIdentityEnvironmentResolverTests
         var variables = await resolver.ResolveAsync(resource);
 
         Assert.Equal("https://identity.example.test/token", variables["CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT"]);
-        Assert.Equal("application.aspnet-core-project:api/api", variables["CLOUDSHELL_IDENTITY_CLIENT_ID"]);
-        Assert.Equal("secret-application.aspnet-core-project:api/api", variables["CLOUDSHELL_IDENTITY_CLIENT_SECRET"]);
+        Assert.Equal("application.dotnet-app:api/api", variables["CLOUDSHELL_IDENTITY_CLIENT_ID"]);
+        Assert.Equal("secret-application.dotnet-app:api/api", variables["CLOUDSHELL_IDENTITY_CLIENT_SECRET"]);
         Assert.Equal("ControlPlane.Access", variables["CLOUDSHELL_IDENTITY_SCOPE"]);
     }
 
@@ -221,7 +221,7 @@ public sealed class ProjectResourceIdentityEnvironmentResolverTests
         var definition = new ResourceDefinition(
             name,
             AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
-            ResourceId: $"application.aspnet-core-project:{name}",
+            ResourceId: $"application.dotnet-app:{name}",
             ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {

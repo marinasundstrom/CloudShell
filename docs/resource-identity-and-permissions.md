@@ -121,7 +121,7 @@ controlPlane.AddIdentityProvider(
 controlPlane.DefineResources(resources =>
 {
     var api = resources
-        .Declare("applications.aspnet-core-project", "application:api")
+        .Declare("applications.dotnet-app", "application:api")
         .RequireIdentity();
 });
 ```
@@ -141,7 +141,7 @@ controlPlane.DefineResources(resources =>
     var identityProvider = resources.GetIdentityProvider("identity:dev");
 
     resources
-        .AddAspNetCoreProject("api", apiProjectPath)
+        .AddDotnetApp("api", apiProjectPath)
         .WithIdentity(identityProvider);
 });
 ```
@@ -212,7 +212,7 @@ identity binding per resource:
 
 ```csharp
 var api = resources
-    .AddAspNetCoreProject("api", "../Api/Api.csproj")
+    .AddDotnetApp("api", "../Api/Api.csproj")
     .WithDisplayName("API")
     .WithIdentity(identity =>
     {
@@ -294,7 +294,7 @@ the declaring resource through `Principal`; it is separate from the resource's
 
 ```csharp
 var api = resources
-    .AddAspNetCoreProject("api", "../Api/Api.csproj")
+    .AddDotnetApp("api", "../Api/Api.csproj")
     .WithDisplayName("API")
     .WithIdentity("development", name: "api-service");
 
@@ -438,7 +438,7 @@ calling `ProvisionIdentityOnStartup()` after declaring an identity:
 
 ```csharp
 var api = resources
-    .AddAspNetCoreProject("api", "../Api/Api.csproj")
+    .AddDotnetApp("api", "../Api/Api.csproj")
     .WithDisplayName("API")
     .WithIdentity("development", name: "api-service")
     .ProvisionIdentityOnStartup();

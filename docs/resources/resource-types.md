@@ -46,7 +46,7 @@ state and omitted from accepted graph state and normal exports.
 | Type | Class | Provider id | Authoring status |
 | --- | --- | --- | --- |
 | `application.executable` | `executable` | `applications.executable` | User-authored local executable. |
-| `application.aspnet-core-project` | `project` | `applications.aspnet-core-project` | User-authored ASP.NET Core project. |
+| `application.dotnet-app` | `project` | `applications.dotnet-app` | User-authored .NET app. |
 | `application.javascript-app` | `project` | `applications.javascript-app` | User-authored JavaScript/Node.js project. |
 | `application.java-app` | `project` | `applications.java-app` | User-authored Java/JVM project. |
 | `application.go-app` | `project` | `applications.go-app` | User-authored Go project. |
@@ -370,9 +370,9 @@ resources:
       workingDirectory: ./src/Worker
 ```
 
-### `application.aspnet-core-project`
+### `application.dotnet-app`
 
-Use for a local ASP.NET Core project launched through the project runtime.
+Use for a local .NET app launched through the project runtime.
 
 Required authoring:
 
@@ -391,7 +391,7 @@ Common optional attributes:
 
 ```yaml
 resources:
-  - type: application.aspnet-core-project
+  - type: application.dotnet-app
     name: api
     project:
       path: ./src/Api/Api.csproj

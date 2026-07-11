@@ -10,7 +10,7 @@ namespace CloudShell.ResourceModel.Tests;
 public sealed class RabbitMQCredentialResolverTests
 {
     private const string BrokerResourceId = "application.rabbitmq:rabbitmq";
-    private const string AppResourceId = "application.aspnet-core-project:api";
+    private const string AppResourceId = "application.dotnet-app:api";
     private const string IdentityName = "api";
     private const string Subject = $"{AppResourceId}/{IdentityName}";
 

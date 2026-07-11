@@ -28,8 +28,8 @@ The host declares these Resource Definitions-backed resources:
 - `configuration.store:application-topology-settings`
 - `secrets.vault:application-topology-secrets`
 - `configuration.host:application-topology-host-settings`
-- `application.aspnet-core-project:application-topology-api`
-- `application.aspnet-core-project:application-topology-frontend`
+- `application.dotnet-app:application-topology-api`
+- `application.dotnet-app:application-topology-frontend`
 - `cloudshell.dnsZone:application-topology-local`
 
 The old application, configuration, secrets, storage, volume, and SQL resource

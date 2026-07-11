@@ -100,7 +100,7 @@ for their own resource types. Current provider methods include:
 - `AddDeviceRegistry(...)` from the Device Registry built-in provider.
 - `AddExecutableApplication(...)` from the executable application built-in
   provider.
-- `AddAspNetCoreProject(...)` from the ASP.NET Core project built-in
+- `AddDotnetApp(...)` from the .NET app built-in
   provider.
 - `AddContainerApplication(...)` from the container application built-in
   provider.
@@ -229,7 +229,7 @@ networking, Configuration Store, Secrets Vault, storage, CloudShell
 storage-backed volumes, local volumes, SQL Server, SQL Database, generic
 container hosts, Docker hosts, Docker containers, container applications,
 RabbitMQ brokers,
-executable applications, ASP.NET Core projects, JavaScript apps, Java apps,
+executable applications, .NET apps, JavaScript apps, Java apps,
 identity provisioning, services, DNS zones, name mappings, load balancers, and
 host configuration sources. They are useful for test setup as well as host
 authoring because provider tests can compose realistic resource templates
@@ -240,7 +240,7 @@ The SQL builders cover declared database configuration, typed server
 dependencies, and volume mount capability setup. Container and Docker builders
 cover host dependencies, endpoint requests, replicas, image settings, registry
 and container metadata, and volume mount capability setup. Executable,
-ASP.NET Core project, JavaScript, and Java app builders cover command/project
+.NET app, JavaScript, and Java app builders cover command/project
 settings, endpoint requests, environment variables, service-discovery
 references, volume mounts, and health-check payloads. Identity provisioning
 builders cover provider identity and provider-kind attributes used by the
@@ -259,10 +259,10 @@ Resource names and item names can be structured when users want a logical
 hierarchy. See [Naming conventions](naming-conventions.md) for optional
 resource name, configuration key, and secret naming guidance.
 
-Executable applications and ASP.NET Core projects have one additional
+Executable applications and .NET apps have one additional
 Aspire-compatible concept: endpoint references. `WithReference(resource)`
 records that the application wants endpoint/configuration values for another
-resource. For ASP.NET Core project resources, `WithReference(...)` also enables
+resource. For .NET app resources, `WithReference(...)` also enables
 service discovery configuration for the referenced resource. For generic
 executable applications and container apps, `WithServiceDiscovery()` remains
 the explicit opt-in that maps referenced resource endpoints into the .NET
@@ -280,9 +280,9 @@ typed `ResourceAccessPermissions` profiles when the intended level is
 resource reference, read, operate, or manage:
 
 ```csharp
-var frontend = resources.AddAspNetCoreProject("frontend", "../Frontend/Frontend.csproj");
+var frontend = resources.AddDotnetApp("frontend", "../Frontend/Frontend.csproj");
 var api = resources
-    .AddAspNetCoreProject("api", "../Api/Api.csproj")
+    .AddDotnetApp("api", "../Api/Api.csproj")
     .WithIdentity("development", name: "api-service");
 
 frontend.Allow(api, ResourceAccessPermissions.Reference);
@@ -297,7 +297,7 @@ action-specific operation access, and `Manage` grants administrative resource
 management.
 
 Programmatic application declarations default to host-scoped lifetime for local
-development. Executable applications, ASP.NET Core projects, and container apps
+development. Executable applications, .NET apps, and container apps
 are stopped with the CloudShell host and reconciled on the next Control Plane
 startup. Use `.WithLifetime(ResourceLifetime.Detached)` when a declaration is a
 longer-lived service that should keep running after the host exits. UI-created
@@ -317,7 +317,7 @@ can override provider defaults for a single resource.
 
 ```csharp
 resources
-    .AddAspNetCoreProject(
+    .AddDotnetApp(
         "api",
         "src/API/API.csproj")
     .WithRuntimeMonitoring()
@@ -466,7 +466,7 @@ var appNetwork = resources
     .AddNetwork("app", isDefault: true)
     .WithDisplayName("App Network");
 
-var api = resources.Declare("applications.aspnet-core-project", "application:example-web-api");
+var api = resources.Declare("applications.dotnet-app", "application:example-web-api");
 var gateway = resources.Declare("networking", "networking:gateway");
 var publicEndpoint = appNetwork.RequestHttpEndpoint("api");
 
@@ -569,7 +569,7 @@ var redis = resources
     .DependsOn(database);
 
 resources
-    .AddAspNetCoreProject(
+    .AddDotnetApp(
         "example-web-api",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
     .WithDisplayName("Example Web API")
@@ -595,7 +595,7 @@ resources
         exposure: ResourceExposureScope.Public);
 ```
 
-ASP.NET Core project declarations serialize their build step before launch and
+.NET app declarations serialize their build step before launch and
 then run without triggering another build:
 
 ```bash
@@ -607,7 +607,7 @@ Set `hotReload: true` when you want `dotnet watch` for a project resource.
 CloudShell runs watch mode as non-interactive and asks `dotnet watch` to restart
 on rude edits instead of prompting.
 
-ASP.NET Core project endpoint sources are resolved in a fixed order:
+.NET app endpoint sources are resolved in a fixed order:
 
 1. Programmatic endpoints declared with `endpoint`, `WithEndpoint(...)`,
    `WithHttpEndpoint(...)`, `WithHttpsEndpoint(...)`, or
@@ -749,7 +749,7 @@ Configure startup on individual resource builders with `WithAutoStart(...)`:
 controlPlane.DefineResources(resources =>
 {
     resources
-        .AddAspNetCoreProject(
+        .AddDotnetApp(
             "api",
             "src/Api/Api.csproj")
         .WithAutoStart(false);
@@ -774,7 +774,7 @@ controlPlane.DefineResources(resources =>
         .WithDependencyAutoStart(true);
 
     resources
-        .AddAspNetCoreProject(
+        .AddDotnetApp(
             "api",
             "src/Api/Api.csproj")
         .DependsOn(database);

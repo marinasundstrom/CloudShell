@@ -320,7 +320,7 @@ var data = resources
     .WithDisplayName("Uploads");
 
 resources
-    .AddAspNetCoreProject("application:web", "../Web/Web.csproj")
+    .AddDotnetApp("application:web", "../Web/Web.csproj")
     .WithDisplayName("Web")
     .MountVolume(data, "/app/uploads");
 ```

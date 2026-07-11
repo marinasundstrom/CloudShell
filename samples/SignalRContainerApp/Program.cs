@@ -74,7 +74,7 @@ var cloudShell = builder.AddCloudShellControlPlane(controlPlane =>
                 name: "alive");
 
         resources
-            .AddAspNetCoreProject("signalr-frontend", frontendProjectPath)
+            .AddDotnetApp("signalr-frontend", frontendProjectPath)
             .WithDisplayName("SignalR Frontend")
             .WithResourceGroup(resourceGroup)
             .WithAutoStart(false)
@@ -103,7 +103,7 @@ var cloudShell = builder.AddCloudShellControlPlane(controlPlane =>
 builder.Services
     .AddLocalContainerApplicationResourceTypes()
     .AddLocalDockerContainerApplicationRuntime()
-    .AddAspNetCoreProjectResourceType();
+    .AddDotnetAppResourceType();
 cloudShell.UseResourceGraphIntegration();
 
 builder.AddCloudShellUi(ui =>

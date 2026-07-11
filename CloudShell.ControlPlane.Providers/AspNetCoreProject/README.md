@@ -2,9 +2,9 @@
 
 ## Overview
 
-- Resource type: `application.aspnet-core-project`
-- Provider id: `applications.aspnet-core-project`
-- Purpose: declares a local ASP.NET Core project resource in the Resource model and projects it into Resource Manager as a project resource.
+- Resource type: `application.dotnet-app`
+- Provider id: `applications.dotnet-app`
+- Purpose: declares a local .NET app resource in the Resource model and projects it into Resource Manager as a project resource.
 
 ## Ported
 
@@ -35,7 +35,7 @@
   SQL credential endpoint projected from the graph SQL Server reference.
 - ApplicationTopology Docker-backed graph frontend `/upstream` coverage through
   the graph API, graph settings, and graph SQL credential flow.
-- Manual `ResourceGraphBuilder.AddAspNetCoreProject(...)` builder
+- Manual `ResourceGraphBuilder.AddDotnetApp(...)` builder
   for code-first project definition authoring with endpoint requests,
   environment variables, service-discovery references, volume mounts, log
   sources, and health-check attributes. Environment variables are authored as a
@@ -45,16 +45,16 @@
 
 ## Example ResourceDefinition
 
-This is the interchange shape for an ASP.NET Core project resource.
+This is the interchange shape for an .NET app resource.
 `project.references` is the service-discovery input; `dependsOn` remains an
 explicit startup-order hint and should not be used as the discovery mechanism.
 
 ```json
 {
   "name": "api",
-  "typeId": "application.aspnet-core-project",
-  "resourceId": "application.aspnet-core-project:api",
-  "providerId": "applications.aspnet-core-project",
+  "typeId": "application.dotnet-app",
+  "resourceId": "application.dotnet-app:api",
+  "providerId": "applications.dotnet-app",
   "displayName": "API",
   "attributes": {
     "project.path": "./Api/CloudShell.Sample.Api.csproj",
@@ -148,7 +148,7 @@ explicit startup-order hint and should not be used as the discovery mechanism.
 
 ## Switch-over status
 
-Ready to integrate for graph-declared ASP.NET Core project resources in the
+Ready to integrate for graph-declared .NET app resources in the
 selected samples. The graph path starts, stops, restarts, projects endpoints,
 projects logs/monitoring/observability, and resolves explicit graph
 `project.references` without old application-provider records. Full editable

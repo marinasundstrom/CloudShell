@@ -60,7 +60,7 @@ Plane API.
 
 | Application type | Resource type | Status |
 | --- | --- | --- |
-| ASP.NET Core project | `application.aspnet-core-project` | Implemented; most complete project-backed app path. |
+| .NET app | `application.dotnet-app` | Implemented; most complete project-backed app path. |
 | JavaScript/TypeScript app | `application.javascript-app` | Implemented for Node.js/package-manager local apps; framework-specific helpers are future work. |
 | Java/JVM app | `application.java-app` | Implemented for local JVM processes and samples; Java service-client and launcher support remain experimental. |
 | Go app | `application.go-app` | Implemented for local Go services through the C# provider model; Go launcher support is experimental. |
@@ -141,7 +141,7 @@ Control Plane model:
 
 ```csharp
 resources
-    .AddAspNetCoreProject(...)
+    .AddDotnetApp(...)
     .AddContainerApplication(...)
     .AddVirtualNetwork(...);
 ```
@@ -231,7 +231,7 @@ Local-development host and launcher samples are also available:
 - `samples/RoboticMowerIoT`: declares a robotic mower IoT app from a C# launcher, with a React frontend, a SignalR container backend, Device Registry enrollment, and a simulated mower device.
 - `samples/CloudShell.UiExtensionHost`: hosts only the CloudShell UI and a custom UI extension.
 - `samples/CloudShell.ResourceHost`: hosts CloudShell UI and Control Plane together with a sample resource provider.
-- `samples/ProjectReference`: declares two ASP.NET Core project resources from a C# launcher where one references the other in an Aspire-style dev loop.
+- `samples/ProjectReference`: declares two .NET app resources from a C# launcher where one references the other in an Aspire-style dev loop.
 
 ## Test
 

@@ -100,7 +100,7 @@ public sealed class ThirdPartyIdentityResourceModelSetupHandlerTests
         declarations.Declare(
             builder,
             "resource-model",
-            "application.aspnet-core-project:keycloak-provisioned-api",
+            "application.dotnet-app:keycloak-provisioned-api",
             identity: new ResourceIdentityBinding(
                 provider.Id,
                 Subject: "client:keycloak-provisioned-api",
@@ -117,7 +117,7 @@ public sealed class ThirdPartyIdentityResourceModelSetupHandlerTests
             "https://identity.example/token",
             variables[EnvironmentCloudShellResourceCredential.TokenEndpointEnvironmentVariable]);
         Assert.Equal(
-            "application.aspnet-core-project:keycloak-provisioned-api/keycloak-provisioned-api",
+            "application.dotnet-app:keycloak-provisioned-api/keycloak-provisioned-api",
             variables[EnvironmentCloudShellResourceCredential.ClientIdEnvironmentVariable]);
         Assert.Equal(
             "openid",
@@ -164,7 +164,7 @@ public sealed class ThirdPartyIdentityResourceModelSetupHandlerTests
         return resolver.Resolve(new GraphResourceState(
             "keycloak-provisioned-api",
             AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
-            ResourceId: "application.aspnet-core-project:keycloak-provisioned-api",
+            ResourceId: "application.dotnet-app:keycloak-provisioned-api",
             ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {

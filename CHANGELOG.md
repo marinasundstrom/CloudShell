@@ -75,6 +75,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Preserved `artifacts.source` as a structured attribute across JSON template
   apply requests so uploaded application artifact references survive the UI
   and API path used by host lifecycle actions.
+- Renamed the ASP.NET Core project resource type surface to `.NET app`,
+  including the `application.dotnet-app` resource type id,
+  `applications.dotnet-app` provider id, and `AddDotnetApp(...)` launcher
+  builder entrypoint.
 
 ### 2026-07-10
 
@@ -1447,7 +1451,7 @@ on `git blame --follow`, and then by the broad type of change.
   instead of temporary `graph-` sample naming.
 - HostVirtualNetwork Resource Definitions projection now uses stable sample
   identities such as `cloudshell.hostNetworking.local:host-local`,
-  `application.aspnet-core-project:vnet-api`, and `cloudshell.virtualNetwork:sample-vnet`, and
+  `application.dotnet-app:vnet-api`, and `cloudshell.virtualNetwork:sample-vnet`, and
   its public sample setting is now `HostVirtualNetwork:VirtualNetworkPort`.
 - CloudShell.ContainerHost Resource Definitions projection now uses stable
   sample identities such as `cloudshell.storage:local`,
@@ -1461,20 +1465,20 @@ on `git blame --follow`, and then by the broad type of change.
   `ContainerAppDeployment:EnableDockerRuntime`.
 - ProjectReference now uses only Resource Definitions-backed ASP.NET Core
   project resources with stable sample identities
-  (`application.aspnet-core-project:project-reference-api` and
-  `application.aspnet-core-project:project-reference-frontend`) and removes
+  (`application.dotnet-app:project-reference-api` and
+  `application.dotnet-app:project-reference-frontend`) and removes
   the old `GraphOnly` comparison seam plus old application-provider records.
 - SettingsAndSecrets now uses only Resource Definitions-backed Configuration
   Store, Secrets Vault, and ASP.NET Core project resources with stable sample
   identities (`configuration.store:sample-app`, `secrets.vault:sample-app`,
-  and `application.aspnet-core-project:settings-secrets-api`) and removes the
+  and `application.dotnet-app:settings-secrets-api`) and removes the
   old `GraphOnly` comparison seam plus old application/configuration/secrets
   provider records.
 - ThirdPartyIdentity now uses only Resource Definitions-backed identity
   provisioning, Configuration Store, and ASP.NET Core project resources with
   stable sample identities (`cloudshell.identity-provisioning:keycloak`,
   `configuration.store:third-party-identity`, and
-  `application.aspnet-core-project:keycloak-provisioned-api`) and removes the
+  `application.dotnet-app:keycloak-provisioned-api`) and removes the
   old `GraphOnly` comparison seam plus old application/configuration provider
   records.
 - LoadBalancer now uses only Resource Definitions-backed Docker host,
@@ -1493,7 +1497,7 @@ on `git blame --follow`, and then by the broad type of change.
   host-configuration source, API, frontend, and local DNS resources with
   stable sample identities such as
   `application.sql-server:application-topology-sql-server` and
-  `application.aspnet-core-project:application-topology-api`. The old
+  `application.dotnet-app:application-topology-api`. The old
   side-by-side comparison setting, old workload records, old SQL Resource
   Manager bridge, and graph-prefixed sample names were removed while the
   sample-local SQL Docker runtime and SQL credential endpoint seams remain

@@ -9,8 +9,8 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
     IResourceDefinitionApplyProvider
 {
     public static readonly ResourceClassId ClassId = "project";
-    public static readonly ResourceTypeId ResourceTypeId = "application.aspnet-core-project";
-    public const string ProviderId = "applications.aspnet-core-project";
+    public static readonly ResourceTypeId ResourceTypeId = "application.dotnet-app";
+    public const string ProviderId = "applications.dotnet-app";
     public const string ConfigurationSection = "aspNetCoreProject";
 
     public static ResourceClassDefinition ClassDefinition { get; } = new(ClassId);
@@ -138,13 +138,13 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
                     resource.EffectiveResourceId,
                     ResourceTypeId,
                     ResourceDefinitionApplyStepKind.AcceptDefinition,
-                    "Accept ASP.NET Core project definition.",
+                    "Accept .NET app definition.",
                     resource.ToDefinition()),
                 new(
                     resource.EffectiveResourceId,
                     ResourceTypeId,
                     ResourceDefinitionApplyStepKind.MaterializeRuntime,
-                    $"Materialize ASP.NET Core project resource '{resource.Name}'.")
+                    $"Materialize .NET app resource '{resource.Name}'.")
             ],
             []));
 
@@ -161,7 +161,7 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
 
         diagnostics.Add(ResourceDefinitionDiagnostic.Warning(
             "application.aspNetCoreProject.restartRequired",
-            "The ASP.NET Core project graph change was saved, but the running project must be restarted before it materializes the changed runtime configuration.",
+            "The .NET app graph change was saved, but the running project must be restarted before it materializes the changed runtime configuration.",
             changes.Resource.EffectiveResourceId));
     }
 
@@ -186,7 +186,7 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
             attributes,
             Attributes.ProjectPath,
             "application.aspNetCoreProject.pathRequired",
-            "ASP.NET Core project path is required.",
+            ".NET app path is required.",
             diagnostics);
 
     private static void ValidateSource(
@@ -196,6 +196,6 @@ public sealed class AspNetCoreProjectResourceTypeProvider(
             attributes,
             Attributes.ProjectPath,
             "application.aspNetCoreProject.pathRequired",
-            "ASP.NET Core project path is required.",
+            ".NET app path is required.",
             diagnostics);
 }

@@ -34,7 +34,7 @@ public sealed class AspNetCoreProjectReferenceGraphValidator : IResourceDefiniti
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                     ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid,
-                    $"ASP.NET Core project '{resource.EffectiveResourceId}' declares service reference '{reference.Value}' with relationship '{reference.Relationship}', expected '{ResourceReferenceRelationships.Reference}'.",
+                    $".NET app '{resource.EffectiveResourceId}' declares service reference '{reference.Value}' with relationship '{reference.Relationship}', expected '{ResourceReferenceRelationships.Reference}'.",
                     resource.EffectiveResourceId));
                 continue;
             }
@@ -43,7 +43,7 @@ public sealed class AspNetCoreProjectReferenceGraphValidator : IResourceDefiniti
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                     ResourceDefinitionDiagnosticCodes.ResourceCapabilityReferenceInvalid,
-                    $"ASP.NET Core project '{resource.EffectiveResourceId}' declares service reference '{reference.Value}' with addressing mode '{reference.AddressingMode}', expected '{ResourceReferenceAddressingModes.ResourceId}'.",
+                    $".NET app '{resource.EffectiveResourceId}' declares service reference '{reference.Value}' with addressing mode '{reference.AddressingMode}', expected '{ResourceReferenceAddressingModes.ResourceId}'.",
                     resource.EffectiveResourceId));
                 continue;
             }
@@ -53,7 +53,7 @@ public sealed class AspNetCoreProjectReferenceGraphValidator : IResourceDefiniti
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                     ResourceDefinitionDiagnosticCodes.ResourceReferenceMissing,
-                    $"ASP.NET Core project '{resource.EffectiveResourceId}' references missing service resource '{resourceId}'.",
+                    $".NET app '{resource.EffectiveResourceId}' references missing service resource '{resourceId}'.",
                     resource.EffectiveResourceId));
                 continue;
             }
@@ -63,7 +63,7 @@ public sealed class AspNetCoreProjectReferenceGraphValidator : IResourceDefiniti
             {
                 diagnostics.Add(ResourceDefinitionDiagnostic.Error(
                     ResourceDefinitionDiagnosticCodes.ResourceReferenceTypeMismatch,
-                    $"ASP.NET Core project '{resource.EffectiveResourceId}' references resource '{target.EffectiveResourceId}' with type '{target.Type.TypeId}', expected '{reference.TypeId.Value}'.",
+                    $".NET app '{resource.EffectiveResourceId}' references resource '{target.EffectiveResourceId}' with type '{target.Type.TypeId}', expected '{reference.TypeId.Value}'.",
                     resource.EffectiveResourceId));
             }
         }

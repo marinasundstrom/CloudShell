@@ -8,8 +8,8 @@ app_host_project="${CLOUDSHELL_APP_HOST_PROJECT:-$script_dir/AppHost/CloudShell.
 cli_project="${CLOUDSHELL_CLI_PROJECT:-$repo_root/CloudShell.Cli/CloudShell.Cli.csproj}"
 state_dir="${CLOUDSHELL_STATE_DIR:-$script_dir/.cloudshell}"
 control_plane_url="${CLOUDSHELL_CONTROL_PLANE_URL:-http://127.0.0.1:5104}"
-api_resource_id="${CLOUDSHELL_API_RESOURCE_ID:-application.aspnet-core-project:project-reference-api}"
-frontend_resource_id="${CLOUDSHELL_FRONTEND_RESOURCE_ID:-application.aspnet-core-project:project-reference-frontend}"
+api_resource_id="${CLOUDSHELL_API_RESOURCE_ID:-application.dotnet-app:project-reference-api}"
+frontend_resource_id="${CLOUDSHELL_FRONTEND_RESOURCE_ID:-application.dotnet-app:project-reference-frontend}"
 
 usage() {
   cat <<USAGE

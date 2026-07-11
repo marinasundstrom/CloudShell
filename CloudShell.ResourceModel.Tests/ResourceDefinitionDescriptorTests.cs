@@ -298,7 +298,7 @@ public sealed class ResourceDefinitionDescriptorTests
             "Local");
         var definition = new ResourceDefinition(
             "api",
-            "application.aspnet-core-project",
+            "application.dotnet-app",
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 ["endpoints"] = ResourceAttributeValue.FromObject(new[] { endpoint })
@@ -326,8 +326,8 @@ public sealed class ResourceDefinitionDescriptorTests
                 "public-http"),
             new NetworkingEndpointReferenceValue(
                 ResourceReference.DependsOnResourceId(
-                    "application.aspnet-core-project:api",
-                    typeId: "application.aspnet-core-project"),
+                    "application.dotnet-app:api",
+                    typeId: "application.dotnet-app"),
                 "http"));
 
         var value = ResourceAttributeValue.FromObject(mapping);
@@ -337,7 +337,7 @@ public sealed class ResourceDefinitionDescriptorTests
         Assert.NotNull(projected);
         Assert.Equal(mapping.Target.EndpointName, projected.Target.EndpointName);
         Assert.True(projected.Target.Resource.TryGetDependsOnResourceId(out var targetResourceId));
-        Assert.Equal("application.aspnet-core-project:api", targetResourceId);
+        Assert.Equal("application.dotnet-app:api", targetResourceId);
         Assert.Equal(
             JsonSerializer.Serialize(value, JsonSerializerOptions.Web),
             JsonSerializer.Serialize(roundTrip, JsonSerializerOptions.Web));

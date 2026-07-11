@@ -1010,7 +1010,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         var services = new ServiceCollection();
         services.AddSingleton<IAspNetCoreProjectRuntimeController>(runtimeController);
         services.AddInMemoryResourceModelGraph([graphState]);
-        services.AddAspNetCoreProjectResourceType();
+        services.AddDotnetAppResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider(
             ResourceModelResourceProvider.DefaultProviderId,
@@ -1051,7 +1051,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         var services = new ServiceCollection();
         services.AddSingleton<IAspNetCoreProjectRuntimeController>(runtimeController);
         services.AddInMemoryResourceModelGraph([graphState]);
-        services.AddAspNetCoreProjectResourceType();
+        services.AddDotnetAppResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider(
             ResourceModelResourceProvider.DefaultProviderId,

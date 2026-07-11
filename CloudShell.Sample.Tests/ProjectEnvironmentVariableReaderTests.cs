@@ -88,7 +88,7 @@ public sealed class ProjectEnvironmentVariableReaderTests
         var provider = new AspNetCoreProjectResourceTypeProvider();
         return CreateResource(
             "test-api",
-            "application.aspnet-core-project:test-api",
+            "application.dotnet-app:test-api",
             AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
             AspNetCoreProjectResourceTypeProvider.ClassDefinition,
             provider.TypeDefinition,

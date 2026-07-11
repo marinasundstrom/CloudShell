@@ -239,7 +239,7 @@ the credential endpoint and SQL target metadata to the workload:
 
 ```csharp
 var api = resources
-    .AddAspNetCoreProject("api", apiProjectPath)
+    .AddDotnetApp("api", apiProjectPath)
     .WithIdentity("identity:built-in", name: "api")
     .ProvisionIdentityOnStartup()
     .WithReference(sqlServerResource)
@@ -307,7 +307,7 @@ The response contains the SQL-native connection string and optional expiry:
 The SQL Server provider exposes the credential endpoint at
 `/api/sql-server/v1/credentials`. The broad `ApplicationTopology` sample uses
 that route as the current managed-identity-shaped SQL access proof. When an
-ASP.NET Core project references a SQL Server resource, the SQL Server provider
+.NET app references a SQL Server resource, the SQL Server provider
 injects `CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT` plus resource-specific
 `CLOUDSHELL_SQL_<RESOURCE>_CREDENTIAL_ENDPOINT` aliases into the project
 runtime environment. CloudShell validates the resource identity, checks

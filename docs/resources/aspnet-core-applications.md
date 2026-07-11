@@ -1,10 +1,10 @@
-# ASP.NET Core Applications
+# .NET Applications
 
-Use the ASP.NET Core project resource type for local .NET web projects. These
-resources project as `application.aspnet-core-project` and expose project-shaped
+Use the .NET app resource type for local .NET web projects. These
+resources project as `application.dotnet-app` and expose project-shaped
 attributes such as project path, application arguments, and hot reload mode.
 
-ASP.NET Core project resources are not plain executable application resources.
+.NET app resources are not plain executable application resources.
 They are project resources with a provider-owned process runner. Resource
 Manager shows the project shape, while the provider hides the generated
 `dotnet build`, `dotnet run`, or `dotnet watch` command used to host the
@@ -17,21 +17,21 @@ see [Executable applications](executable-applications.md) and
 
 ## Declaration
 
-Programmatic declarations use `AddAspNetCoreProject(...)` with a scoped
+Programmatic declarations use `AddDotnetApp(...)` with a scoped
 resource name. The provider derives the canonical resource ID from that name.
 Apply an optional display label with `.WithDisplayName(...)` when it helps the
 local development experience:
 
 ```csharp
 resources
-    .AddAspNetCoreProject(
+    .AddDotnetApp(
         "example-web-api",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
     .WithDisplayName("Example Web API")
     .WithReference(configuration);
 ```
 
-By default, CloudShell serializes ASP.NET Core project builds before launch and
+By default, CloudShell serializes .NET app builds before launch and
 then starts each project with `dotnet run --no-build`:
 
 ```bash
@@ -56,11 +56,11 @@ arguments. CloudShell appends those arguments after the hidden `dotnet` runner
 arguments.
 
 Use `AsContainerApp(...)` when the project should be modeled as a container app
-instead of a process-backed ASP.NET Core project:
+instead of a process-backed .NET app:
 
 ```csharp
 resources
-    .AddAspNetCoreProject(
+    .AddDotnetApp(
         "example-web-api",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
     .WithDisplayName("Example Web API")
@@ -80,7 +80,7 @@ tag.
 
 ## Endpoints
 
-ASP.NET Core project endpoint sources are resolved in this order:
+.NET app endpoint sources are resolved in this order:
 
 1. Programmatic endpoints declared with `endpoint`, `WithEndpoint(...)`,
    `WithHttpEndpoint(...)`, `WithHttpsEndpoint(...)`, or
@@ -91,7 +91,7 @@ ASP.NET Core project endpoint sources are resolved in this order:
 
 The third case covers the common local development case where the project needs
 an HTTP endpoint but the caller does not care which concrete address Resource
-Manager or the local network provider assigns. It is an ASP.NET Core project
+Manager or the local network provider assigns. It is an .NET app
 provider rule, not a generic rule for all resource types.
 
 Explicit endpoint declarations always win. If endpoints are declared manually,
@@ -127,7 +127,7 @@ Use endpoint builder methods to model additional or named endpoints:
 
 ```csharp
 resources
-    .AddAspNetCoreProject(
+    .AddDotnetApp(
         "example-web-api",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
         applicationArguments: "--seed")
@@ -147,7 +147,7 @@ its local endpoint shape from the ASP.NET Core development profile:
 
 ```csharp
 resources
-    .AddAspNetCoreProject(
+    .AddDotnetApp(
         "example-web-api",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
     .WithDisplayName("Example Web API")
@@ -156,14 +156,14 @@ resources
 
 ## Service Discovery
 
-ASP.NET Core project references follow the Aspire model:
+.NET app references follow the Aspire model:
 `WithReference(...)` adds service discovery configuration for the referenced
 resource and enables the service discovery environment variable mapping. A
 client can use logical URIs such as `https+http://example-web-api` or
 `https+http://_dashboard.example-web-api` when service discovery is enabled in
 the consuming app.
 
-Resource model ASP.NET Core project resources keep the same distinction through
+Resource model .NET app resources keep the same distinction through
 provider-owned `project.references`
 `ResourceReference` values. `DependsOn` remains startup ordering and is not
 used to derive service discovery configuration.

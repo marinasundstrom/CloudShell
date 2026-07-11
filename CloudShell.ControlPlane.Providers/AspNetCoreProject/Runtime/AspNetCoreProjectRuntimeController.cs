@@ -172,7 +172,7 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
         [
             ResourceDefinitionDiagnostic.Error(
                 "application.aspNetCoreProject.operationUnsupported",
-                $"ASP.NET Core project runtime does not support operation '{operationId}'.",
+                $".NET app runtime does not support operation '{operationId}'.",
                 resource.EffectiveResourceId)
         ];
     }
@@ -200,7 +200,7 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             [
                 ResourceDefinitionDiagnostic.Error(
                     "application.aspNetCoreProject.pathRequired",
-                    "ASP.NET Core project path is required.",
+                    ".NET app path is required.",
                     AspNetCoreProjectResourceTypeProvider.Attributes.ProjectPath)
             ];
         }
@@ -212,7 +212,7 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             [
                 ResourceDefinitionDiagnostic.Error(
                     "application.aspNetCoreProject.projectFileMissing",
-                    $"ASP.NET Core project file '{fullProjectPath}' does not exist.",
+                    $".NET app file '{fullProjectPath}' does not exist.",
                     resource.EffectiveResourceId)
             ];
         }
@@ -354,7 +354,7 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
             [
                 ResourceDefinitionDiagnostic.Error(
                     "application.aspNetCoreProject.processStartFailed",
-                    $"ASP.NET Core project process for '{resource.EffectiveResourceId}' did not start.",
+                    $".NET app process for '{resource.EffectiveResourceId}' did not start.",
                     resource.EffectiveResourceId)
             ];
         }
@@ -453,7 +453,7 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
                 [
                     ResourceDefinitionDiagnostic.Error(
                         "application.aspNetCoreProject.buildStartFailed",
-                        $"ASP.NET Core project build for '{resource.EffectiveResourceId}' did not start.",
+                        $".NET app build for '{resource.EffectiveResourceId}' did not start.",
                         resource.EffectiveResourceId)
                 ];
             }
@@ -468,7 +468,7 @@ public sealed class AspNetCoreProjectProcessRuntimeController :
                 [
                     ResourceDefinitionDiagnostic.Error(
                         "application.aspNetCoreProject.buildFailed",
-                        $"ASP.NET Core project '{fullProjectPath}' failed to build before starting '{resource.Name}'.",
+                        $".NET app '{fullProjectPath}' failed to build before starting '{resource.Name}'.",
                         resource.EffectiveResourceId)
                 ];
             }

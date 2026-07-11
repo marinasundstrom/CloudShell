@@ -25,7 +25,7 @@ public sealed class BuiltInProviderResourceManagerUiExtension : ICloudShellExten
         "0.1.0",
         [
             "resource-ui.application.executable",
-            "resource-ui.application.aspnet-core-project",
+            "resource-ui.application.dotnet-app",
             "resource-ui.application.javascript-app",
             "resource-ui.application.java-app",
             "resource-ui.application.go-app",

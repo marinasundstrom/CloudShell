@@ -115,7 +115,7 @@ else
     private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValueType>> ProjectedAttributeTypesByResourceType =
         new Dictionary<string, IReadOnlyDictionary<ResourceAttributeId, ResourceAttributeValueType>>(StringComparer.OrdinalIgnoreCase)
         {
-            ["application.aspnet-core-project"] = new Dictionary<ResourceAttributeId, ResourceAttributeValueType>
+            ["application.dotnet-app"] = new Dictionary<ResourceAttributeId, ResourceAttributeValueType>
             {
                 [ApplicationArtifactAttributeIds.Enabled] = ResourceAttributeValueType.Boolean,
                 ["project.hotReload"] = ResourceAttributeValueType.Boolean,
@@ -859,7 +859,7 @@ else
     private static string GetProviderId(string resourceTypeId) =>
         resourceTypeId switch
         {
-            "application.aspnet-core-project" => "applications.aspnet-core-project",
+            "application.dotnet-app" => "applications.dotnet-app",
             "application.python-app" => "applications.python-app",
             "application.java-app" => "applications.java-app",
             "application.javascript-app" => "applications.javascript-app",

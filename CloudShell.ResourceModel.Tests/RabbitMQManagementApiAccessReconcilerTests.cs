@@ -27,7 +27,7 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
             new FixedRabbitMQPrincipalCredentialProvider("cloudshell-api", "broker-secret"));
         var resource = CreateRabbitMQResource(withManagementEndpoint: true);
         var principal = ResourcePrincipalReference.ForResourceIdentity(
-            "application.aspnet-core-project:api",
+            "application.dotnet-app:api",
             "default");
         var grants = new[]
         {
@@ -105,7 +105,7 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
             new FixedRabbitMQPrincipalCredentialProvider("cloudshell-api", "broker-secret"));
         var resource = CreateRabbitMQResource(withManagementEndpoint: false);
         var principal = ResourcePrincipalReference.ForResourceIdentity(
-            "application.aspnet-core-project:api",
+            "application.dotnet-app:api",
             "default");
 
         var diagnostics = await reconciler.ReconcileAccessAsync(
@@ -132,7 +132,7 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
             new FixedRabbitMQPrincipalCredentialProvider("cloudshell-api", "broker-secret"));
         var resource = CreateRabbitMQResource(withManagementEndpoint: true);
         var principal = ResourcePrincipalReference.ForResourceIdentity(
-            "application.aspnet-core-project:api",
+            "application.dotnet-app:api",
             "default");
 
         var diagnostics = await reconciler.ReconcileAccessAsync(
@@ -191,7 +191,7 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
             withManagementEndpoint: true,
             builder => builder.WithVirtualHost("my_vhost"));
         var principal = ResourcePrincipalReference.ForResourceIdentity(
-            "application.aspnet-core-project:api",
+            "application.dotnet-app:api",
             "default");
 
         var diagnostics = await reconciler.ReconcileAccessAsync(
@@ -815,7 +815,7 @@ public sealed class RabbitMQManagementApiAccessReconcilerTests
         string permission) =>
         new(
             ResourcePrincipalReference.ForResourceIdentity(
-                "application.aspnet-core-project:api",
+                "application.dotnet-app:api",
                 "default"),
             resource.Id,
             permission);

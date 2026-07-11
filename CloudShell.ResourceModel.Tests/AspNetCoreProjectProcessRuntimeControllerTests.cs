@@ -154,7 +154,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
     [Fact]
     public async Task ServiceDiscoveryResolver_DerivesVariablesFromGraphReferences()
     {
-        const string apiResourceId = "application.aspnet-core-project:graph-project-reference-api";
+        const string apiResourceId = "application.dotnet-app:graph-project-reference-api";
         var apiState = CreateState(
             "graph-project-reference-api",
             "src/Api/Api.csproj",
@@ -191,7 +191,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             variables["services__graph-project-reference-api__http__0"]);
         Assert.Equal(
             "http://127.0.0.1:5229",
-            variables["services__application.aspnet-core-project-graph-project-reference-api__http__0"]);
+            variables["services__application.dotnet-app-graph-project-reference-api__http__0"]);
     }
 
     [Fact]
@@ -419,7 +419,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
     public async Task ExecuteAsync_ReturnsDiagnosticWhenArtifactMaterializerIsUnavailable()
     {
         var resource = CreateArtifactResource(new ApplicationArtifactReference(
-            "deployment-artifact:application.aspnet-core-project:api",
+            "deployment-artifact:application.dotnet-app:api",
             "rev-1",
             "zip",
             "abc123",
@@ -441,7 +441,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
     public async Task ApplicationArtifactMaterializer_ExtractsZipRevisionAndResolvesEntryPath()
     {
         var resource = CreateArtifactResource(new ApplicationArtifactReference(
-            "deployment-artifact:application.aspnet-core-project:api",
+            "deployment-artifact:application.dotnet-app:api",
             "rev-1",
             "zip",
             "hash-one",
@@ -461,7 +461,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
             resource.Attributes.GetObject<ApplicationArtifactReference>(ApplicationArtifactAttributeIds.Source)!,
             artifactFolder);
         var secondArtifact = new ApplicationArtifactReference(
-            "deployment-artifact:application.aspnet-core-project:api",
+            "deployment-artifact:application.dotnet-app:api",
             "rev-2",
             "zip",
             "hash-two",
@@ -619,7 +619,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         return resolver.Resolve(new ResourceDefinition(
             "api",
             AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
-            ResourceId: "application.aspnet-core-project:api",
+            ResourceId: "application.dotnet-app:api",
             ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
             Attributes: new ResourceAttributeValueMap(
                 new Dictionary<ResourceAttributeId, ResourceAttributeValue>
@@ -736,7 +736,7 @@ public sealed class AspNetCoreProjectProcessRuntimeControllerTests
         }
 
         throw new TimeoutException(
-            $"Timed out waiting for ASP.NET Core project health endpoint '{requestUri}'.",
+            $"Timed out waiting for .NET app health endpoint '{requestUri}'.",
             lastException);
     }
 

@@ -23,7 +23,7 @@ var frontendProjectPath = app.ResolvePath("..", "Frontend", "CloudShell.ProjectR
 app.DefineResources(resources =>
 {
     var apiResource = resources
-        .AddAspNetCoreProject("project-reference-api", apiProjectPath)
+        .AddDotnetApp("project-reference-api", apiProjectPath)
         .WithDisplayName("Project Reference API")
         .WithHotReload(false)
         .UseLaunchSettings(false)
@@ -48,7 +48,7 @@ app.DefineResources(resources =>
             endpointName: "http");
 
     resources
-        .AddAspNetCoreProject("project-reference-frontend", frontendProjectPath)
+        .AddDotnetApp("project-reference-frontend", frontendProjectPath)
         .WithDisplayName("Project Reference Frontend")
         .WithHotReload(false)
         .UseLaunchSettings(false)

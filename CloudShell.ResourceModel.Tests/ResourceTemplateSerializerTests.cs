@@ -209,7 +209,7 @@ resources:
     public void ResourceTemplateApplyRequest_JsonRoundTripPreservesApplicationArtifactSource()
     {
         var artifact = new ApplicationArtifactReference(
-            "application.aspnet-core-project_api",
+            "application.dotnet-app_api",
             "rev-1",
             "zip",
             new string('a', 64),
@@ -218,7 +218,7 @@ resources:
             "dotnetPublishedOutput");
         var definition = new ResourceDefinition(
             "api",
-            ResourceTypeId.Create("application.aspnet-core-project"),
+            ResourceTypeId.Create("application.dotnet-app"),
             Attributes: new Dictionary<ResourceAttributeId, ResourceAttributeValue>
             {
                 [ApplicationArtifactAttributeIds.Enabled] = true,

@@ -31,7 +31,7 @@ Executable applications support two lifetimes:
 
 The Resource Manager UI defaults executable applications to `Detached` because
 UI-created resources usually represent longer-lived services that should keep
-running if the shell restarts. Programmatic executable and ASP.NET Core project
+running if the shell restarts. Programmatic executable and .NET app
 declarations default to `ControlPlaneScoped` for Aspire-like local development
 flows. Use `.WithLifetime(ResourceLifetime.Detached)` when a code-first
 declaration should intentionally survive the CloudShell host.

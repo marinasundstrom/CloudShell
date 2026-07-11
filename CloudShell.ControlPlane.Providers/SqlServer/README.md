@@ -34,7 +34,7 @@
 - Provider-owned `/api/sql-server/v1/credentials` endpoint that validates graph
   resource identity grants and materializes SQL login/user access for the graph
   API `/database` path.
-- ASP.NET Core project runtime environment projection of
+- .NET app runtime environment projection of
   `CLOUDSHELL_SQL_CREDENTIAL_ENDPOINT` for projects that reference a graph SQL
   Server resource.
 - Manual `ResourceGraphBuilder.AddSqlServer(...)` builder for

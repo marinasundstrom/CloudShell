@@ -742,7 +742,7 @@ public sealed class ResourceManagerStoreProjectionTests
         services.AddSqlDatabaseResourceType();
         services.AddConfigurationStoreResourceType();
         services.AddSecretsVaultResourceType();
-        services.AddAspNetCoreProjectResourceType();
+        services.AddDotnetAppResourceType();
         services.AddResourceModelGraphServices();
         services.AddInMemoryResourceModelGraphRecords(
             states.Select(DefinitionResourceRecord.FromState).ToArray());
@@ -769,7 +769,7 @@ public sealed class ResourceManagerStoreProjectionTests
         var resources = store.GetResources().ToDictionary(
             resource => resource.Id,
             StringComparer.OrdinalIgnoreCase);
-        var api = resources["application.aspnet-core-project:application-topology-api"];
+        var api = resources["application.dotnet-app:application-topology-api"];
         var database = resources["application.sql-database:application-topology-db"];
         var sqlServer = resources["application.sql-server:application-topology-sql-server"];
 
@@ -801,7 +801,7 @@ public sealed class ResourceManagerStoreProjectionTests
         services.AddIdentityProvisioningResourceType();
         services.AddConfigurationStoreResourceType();
         services.AddSecretsVaultResourceType();
-        services.AddAspNetCoreProjectResourceType();
+        services.AddDotnetAppResourceType();
         services.AddResourceModelGraphServices();
         services.AddInMemoryResourceModelGraphRecords(
             states.Select(DefinitionResourceRecord.FromState).ToArray());
@@ -831,7 +831,7 @@ public sealed class ResourceManagerStoreProjectionTests
         var identity = resources["cloudshell.identity-provisioning:settings-secrets-identity"];
         var settings = resources["configuration.store:settings-secrets-settings"];
         var secrets = resources["secrets.vault:settings-secrets-secrets"];
-        var api = resources["application.aspnet-core-project:settings-secrets-api"];
+        var api = resources["application.dotnet-app:settings-secrets-api"];
 
         Assert.Equal(4, resources.Count);
         Assert.Empty(store.GetResourceModelDiagnostics());
@@ -1025,7 +1025,7 @@ public sealed class ResourceManagerStoreProjectionTests
         services.AddIdentityProvisioningResourceType();
         services.AddConfigurationStoreResourceType();
         services.AddSecretsVaultResourceType();
-        services.AddAspNetCoreProjectResourceType();
+        services.AddDotnetAppResourceType();
         services.AddResourceModelGraphServices();
         services.AddInMemoryResourceModelGraphRecords(
             states.Select(DefinitionResourceRecord.FromState).ToArray());

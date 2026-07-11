@@ -53,7 +53,7 @@ that depends on an explicit storage resource.
 
 For Local Storage, `storage.volume.subPath` identifies the folder mapping under
 the local storage resource. A consuming resource still chooses its own mount
-target path, for example `App_Data` for an ASP.NET Core project or
+target path, for example `App_Data` for an .NET app or
 `/var/opt/mssql` for SQL Server.
 
 ```json

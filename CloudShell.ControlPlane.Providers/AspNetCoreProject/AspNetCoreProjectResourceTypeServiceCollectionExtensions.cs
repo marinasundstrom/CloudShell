@@ -12,13 +12,13 @@ public static class AspNetCoreProjectResourceTypeServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        builder.Services.AddAspNetCoreProjectResourceType();
+        builder.Services.AddDotnetAppResourceType();
         builder.Services.AddResourceGraphIntegration();
 
         return builder;
     }
 
-    public static IServiceCollection AddAspNetCoreProjectResourceType(
+    public static IServiceCollection AddDotnetAppResourceType(
         this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);

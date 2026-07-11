@@ -515,7 +515,7 @@ The authoring shape is:
 controlPlane.DefineResources(resources =>
 {
     var hostNetworking = resources.AddLocalHostNetwork("host-local");
-    var api = resources.Declare("applications.aspnet-core-project", "application:api");
+    var api = resources.Declare("applications.dotnet-app", "application:api");
 
     var network = resources
         .AddVirtualNetwork("app")

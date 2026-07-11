@@ -289,9 +289,9 @@ public sealed class ResourceManagerIntegrationTests
         };
         var provider = new AspNetCoreProjectResourceManagerMonitoringProvider(runtime);
         var resource = new ResourceManagerResource(
-            "application.aspnet-core-project:api",
+            "application.dotnet-app:api",
             "api",
-            "application.aspnet-core-project",
+            "application.dotnet-app",
             "Resource model",
             "local",
             ResourceManagerResourceState.Running,
@@ -305,7 +305,7 @@ public sealed class ResourceManagerIntegrationTests
 
         Assert.NotNull(snapshot);
         Assert.Equal(resource.Id, snapshot.ResourceId);
-        Assert.Equal("ASP.NET Core project", snapshot.Provider);
+        Assert.Equal(".NET app", snapshot.Provider);
         Assert.Equal("Available", snapshot.Status);
         Assert.Contains(snapshot.Metrics, metric =>
             metric.Name == "resource.cpu.usage" &&
@@ -3462,7 +3462,7 @@ resources:
         services.AddSingleton<IAspNetCoreProjectRuntimeController>(runtimeController);
         services.AddLocalVolumeResourceType();
         services.AddNetworkResourceType();
-        services.AddAspNetCoreProjectResourceType();
+        services.AddDotnetAppResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
@@ -3473,7 +3473,7 @@ resources:
             LocalVolumeResourceTypeProvider.ResourceTypeId);
         graph.Add(volume);
         var project = graph
-            .AddAspNetCoreProject("api", "src/Api/Api.csproj")
+            .AddDotnetApp("api", "src/Api/Api.csproj")
             .WithHotReload()
             .UseLaunchSettings(false)
             .WithHttpEndpoint(
@@ -3612,7 +3612,7 @@ resources:
             Status = AspNetCoreProjectRuntimeStatus.Stopped
         };
         services.AddSingleton<IAspNetCoreProjectRuntimeController>(runtimeController);
-        services.AddAspNetCoreProjectResourceType();
+        services.AddDotnetAppResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
@@ -3677,14 +3677,14 @@ resources:
             Status = AspNetCoreProjectRuntimeStatus.Stopped
         };
         services.AddSingleton<IAspNetCoreProjectRuntimeController>(runtimeController);
-        services.AddAspNetCoreProjectResourceType();
+        services.AddDotnetAppResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
         var service = serviceProvider.GetRequiredService<ResourceModelGraphDefinitionApplyService>();
         var initial = new ResourceDefinition(
             "api",
             AspNetCoreProjectResourceTypeProvider.ResourceTypeId,
-            "application.aspnet-core-project:api",
+            "application.dotnet-app:api",
             ProviderId: AspNetCoreProjectResourceTypeProvider.ProviderId,
             Attributes: CreateArtifactAttributes("rev-1", "hash-one"));
 
@@ -3709,7 +3709,7 @@ resources:
                 PrincipalId: "developer",
                 Timestamp: new DateTimeOffset(2026, 7, 11, 16, 5, 0, TimeSpan.Zero)));
         var restoredRevision = new DeploymentArtifactRevision(
-            "deployment-artifact:application.aspnet-core-project:api",
+            "deployment-artifact:application.dotnet-app:api",
             "rev-1",
             "zip",
             "hash-one",
@@ -4536,7 +4536,7 @@ resources:
         services.AddInMemoryResourceModelGraph();
         services.AddLocalHostNetworkResourceType();
         services.AddVirtualNetworkResourceType();
-        services.AddAspNetCoreProjectResourceType();
+        services.AddDotnetAppResourceType();
         services.AddResourceModelGraphServices();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
         using var serviceProvider = services.BuildServiceProvider();
@@ -5724,7 +5724,7 @@ resources:
 
         var grant = new ResourcePermissionGrant(
             ResourcePrincipalReference.ForResourceIdentity(
-                "application.aspnet-core-project:api",
+                "application.dotnet-app:api",
                 "default"),
             broker.EffectiveResourceId,
             RabbitMQResourceOperationPermissions.Publish);
@@ -6213,7 +6213,7 @@ resources:
         services.AddSqlDatabaseResourceType();
         services.AddConfigurationStoreResourceType();
         services.AddSecretsVaultResourceType();
-        services.AddAspNetCoreProjectResourceType();
+        services.AddDotnetAppResourceType();
         services.AddResourceModelGraphServices();
         services.AddBuiltInProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
@@ -6405,7 +6405,7 @@ resources:
         services.AddIdentityProvisioningResourceType();
         services.AddConfigurationStoreResourceType();
         services.AddSecretsVaultResourceType();
-        services.AddAspNetCoreProjectResourceType();
+        services.AddDotnetAppResourceType();
         services.AddResourceModelGraphServices();
         services.AddBuiltInProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
@@ -6699,7 +6699,7 @@ resources:
                 ResourceAttributeValue.Boolean(true),
             [ApplicationArtifactAttributeIds.Source] =
                 ResourceAttributeValue.FromObject(new ApplicationArtifactReference(
-                    "deployment-artifact:application.aspnet-core-project:api",
+                    "deployment-artifact:application.dotnet-app:api",
                     revisionId,
                     "zip",
                     contentSha256,

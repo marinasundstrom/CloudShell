@@ -80,7 +80,7 @@ The sample also declares the external resource identity boundary:
 
 - `cloudshell.identity-provisioning:keycloak` is the provisioning resource boundary.
 - `identity:keycloak` is the CloudShell resource identity provider definition.
-- `application.aspnet-core-project:keycloak-provisioned-api` declares a
+- `application.dotnet-app:keycloak-provisioned-api` declares a
   resource identity bound to that provider.
 - `configuration.store:third-party-identity` grants that API identity
   configuration read access.
@@ -155,7 +155,7 @@ API audiences and set `Authentication:ServiceBearer:Audience`.
 ## Workload validation
 
 The sample declares
-`application.aspnet-core-project:keycloak-provisioned-api` as the ASP.NET Core
+`application.dotnet-app:keycloak-provisioned-api` as the ASP.NET Core
 project resource. It is not autostarted. After Keycloak and the CloudShell host
 are running, start the API from Resource Manager with its dependencies. The API
 listens on `http://localhost:5235` by default.

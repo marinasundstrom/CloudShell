@@ -14,7 +14,7 @@ resources through the Resource model provider:
 - `Project Reference API` on `http://localhost:5229`
 - `Project Reference Frontend` on `http://localhost:5230`
 
-Those resources use the `application.aspnet-core-project` resource type
+Those resources use the `application.dotnet-app` resource type
 provider and provider-owned process runtime controller. The frontend declares a
 provider-owned resource reference to the API. The ASP.NET Core runtime resolver
 derives Aspire-style service discovery configuration from that reference, the

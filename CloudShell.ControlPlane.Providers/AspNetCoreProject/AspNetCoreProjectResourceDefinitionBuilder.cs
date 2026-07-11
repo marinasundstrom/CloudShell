@@ -313,7 +313,7 @@ public static class AspNetCoreProjectResourceDefinitionBuilderExtensions
             ToSeconds(interval)));
     }
 
-    public static AspNetCoreProjectResourceDefinitionBuilder AddAspNetCoreProject(
+    public static AspNetCoreProjectResourceDefinitionBuilder AddDotnetApp(
         this ResourceGraphBuilder graph,
         string name,
         string projectPath)

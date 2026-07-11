@@ -12,7 +12,7 @@ public sealed class HostVirtualNetworkEndpointMappingReconcilerTests
     public async Task ReconcileEndpointMappings_ProvisionsMappingThroughHostNetworkingProvisioner()
     {
         const string hostNetworkingResourceId = "cloudshell.hostNetworking.local:host-local";
-        const string apiResourceId = "application.aspnet-core-project:vnet-api";
+        const string apiResourceId = "application.dotnet-app:vnet-api";
         const string networkResourceId = "cloudshell.virtualNetwork:sample-vnet";
         var provisioner = new RecordingEndpointMappingProvisioner();
         var services = new ServiceCollection();
@@ -24,7 +24,7 @@ public sealed class HostVirtualNetworkEndpointMappingReconcilerTests
         services.AddNetworkResourceType();
         services.AddLocalHostNetworkResourceType();
         services.AddVirtualNetworkResourceType();
-        services.AddAspNetCoreProjectResourceType();
+        services.AddDotnetAppResourceType();
         services.AddResourceModelGraphServices();
         services.AddBuiltInProviderResourceManagerProjections();
         services.AddResourceModelGraphProcedureProvider("resource-model", "Resource model");
@@ -34,7 +34,7 @@ public sealed class HostVirtualNetworkEndpointMappingReconcilerTests
             .AddLocalHostNetwork("host-local")
             .WithResourceId(hostNetworkingResourceId);
         var api = graph
-            .AddAspNetCoreProject(
+            .AddDotnetApp(
                 "vnet-api",
                 "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
             .WithResourceId(apiResourceId)

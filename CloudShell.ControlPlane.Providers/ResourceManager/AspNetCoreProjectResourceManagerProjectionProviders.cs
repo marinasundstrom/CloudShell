@@ -153,7 +153,7 @@ public sealed class AspNetCoreProjectResourceManagerObservabilityProvider :
 public sealed class AspNetCoreProjectResourceManagerMonitoringProvider(
     IAspNetCoreProjectRuntimeMonitor? runtimeMonitor = null) : IResourceMonitoringProvider
 {
-    private const string ProviderDisplayName = "ASP.NET Core project";
+    private const string ProviderDisplayName = ".NET app";
     private readonly IAspNetCoreProjectRuntimeMonitor _runtimeMonitor =
         runtimeMonitor ?? new NoopAspNetCoreProjectRuntimeController();
 
@@ -184,7 +184,7 @@ public sealed class AspNetCoreProjectResourceManagerMonitoringProvider(
                 timestamp,
                 [],
                 "Unavailable",
-                "The ASP.NET Core project process could not be observed.");
+                "The .NET app process could not be observed.");
         }
 
         return new ResourceMonitoringSnapshot(
@@ -193,9 +193,9 @@ public sealed class AspNetCoreProjectResourceManagerMonitoringProvider(
             snapshot.Timestamp,
             ResourceProcessMonitoringMetricSamples.Create(
                 snapshot,
-                "ASP.NET Core project process"),
+                ".NET app process"),
             "Available",
-            "ASP.NET Core project process metrics.");
+            ".NET app process metrics.");
     }
 }
 
@@ -207,7 +207,7 @@ public sealed class AspNetCoreProjectResourceManagerLogProvider(
 
     public string Id => "resource-model.aspnet-core-project.logs";
 
-    public string DisplayName => "ASP.NET Core project logs";
+    public string DisplayName => ".NET app logs";
 
     public IReadOnlyList<LogSource> GetLogSources() => [];
 

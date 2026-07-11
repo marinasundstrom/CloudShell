@@ -201,11 +201,11 @@ public sealed class ResourceProviderDispatcherTests
     }
 
     [Fact]
-    public async Task AddAspNetCoreProjectResourceType_RegistersCompleteResourceTypeBoundary()
+    public async Task AddDotnetAppResourceType_RegistersCompleteResourceTypeBoundary()
     {
         var services = new ServiceCollection();
         services.AddLocalVolumeResourceType();
-        services.AddAspNetCoreProjectResourceType();
+        services.AddDotnetAppResourceType();
         services.AddResourceModelGraphServices();
         using var serviceProvider = services.BuildServiceProvider();
         var volume = new ResourceDefinition(

@@ -32,7 +32,7 @@ public static class AspNetCoreProjectShapes
                     ValueType: ResourceAttributeValueType.ComplexType,
                     ValueShapeId: AspNetCoreProjectShapeIds.SecretReference)
             }),
-        "ASP.NET Core project process environment variable value shape.");
+        ".NET app process environment variable value shape.");
 
     public static ResourceAttributeValueShapeDefinition ConfigurationSettingReference { get; } = new(
         new(

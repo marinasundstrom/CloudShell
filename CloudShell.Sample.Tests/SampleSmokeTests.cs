@@ -619,8 +619,8 @@ public sealed class SampleSmokeTests
         var frontendPort = await GetFreePortAsync();
         var apiEndpoint = $"http://127.0.0.1:{apiPort}";
         var frontendEndpoint = $"http://127.0.0.1:{frontendPort}";
-        const string apiResourceId = "application.aspnet-core-project:project-reference-api";
-        const string frontendResourceId = "application.aspnet-core-project:project-reference-frontend";
+        const string apiResourceId = "application.dotnet-app:project-reference-api";
+        const string frontendResourceId = "application.dotnet-app:project-reference-frontend";
         using var host = await SampleProcess.StartLauncherAsync(
             "samples/ProjectReference/AppHost/CloudShell.ProjectReferenceAppHost.csproj",
             await GetFreePortAsync(),
@@ -763,7 +763,7 @@ public sealed class SampleSmokeTests
         Assert.DoesNotContain(">Create group<", resourcesHtml);
 
         var resourceDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:project-reference-api")}/details");
+            $"/resources/{Uri.EscapeDataString("application.dotnet-app:project-reference-api")}/details");
         Assert.Contains("Stop unavailable. Resource Manager is in read-only mode.", resourceDetailsHtml);
 
         var addResourceHtml = await host.GetStringAsync("/resources/add");
@@ -821,7 +821,7 @@ public sealed class SampleSmokeTests
         var graphSecrets = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "secrets.vault:application-topology-secrets");
         var graphApi = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.aspnet-core-project:application-topology-api");
+            resource.GetProperty("id").GetString() == "application.dotnet-app:application-topology-api");
 
         var graphSettingsEndpoint = GetEndpointAddress(graphSettings, "settings");
         var graphSecretsEndpointAddress = GetEndpointAddress(graphSecrets, "secrets");
@@ -853,7 +853,7 @@ public sealed class SampleSmokeTests
             StartupTimeout);
 
         var graphResourceToken = await host.GetClientCredentialsTokenAsync(
-            "application.aspnet-core-project:application-topology-api/application-topology-api",
+            "application.dotnet-app:application-topology-api/application-topology-api",
             "local-development-application-topology-api-secret",
             "ControlPlane.Access");
         var graphSettingsJson = await host.GetAbsoluteStringAsync(
@@ -936,9 +936,9 @@ public sealed class SampleSmokeTests
         var graphSecrets = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "secrets.vault:application-topology-secrets");
         var graphApi = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.aspnet-core-project:application-topology-api");
+            resource.GetProperty("id").GetString() == "application.dotnet-app:application-topology-api");
         var graphFrontend = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.aspnet-core-project:application-topology-frontend");
+            resource.GetProperty("id").GetString() == "application.dotnet-app:application-topology-frontend");
         var graphHostConfiguration = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "configuration.host:application-topology-host-settings");
         var graphDnsZone = Assert.Single(resources, resource =>
@@ -971,7 +971,7 @@ public sealed class SampleSmokeTests
         }
 
         Assert.Equal(
-            "application.aspnet-core-project:application-topology-frontend",
+            "application.dotnet-app:application-topology-frontend",
             nameMapping.GetProperty("attributes")
                 .GetProperty("nameMapping.targetResourceId")
                 .GetString());
@@ -1012,24 +1012,24 @@ public sealed class SampleSmokeTests
                 .TryGetProperty(HostConfigurationSourceResourceTypeProvider.Operations.Inspect.ToString(), out _));
 
         var graphApiDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:application-topology-api")}/details");
+            $"/resources/{Uri.EscapeDataString("application.dotnet-app:application-topology-api")}/details");
         Assert.Contains("API", graphApiDetailsHtml);
-        Assert.Contains("ASP.NET Core project", graphApiDetailsHtml);
-        Assert.Contains("application.aspnet-core-project", graphApiDetailsHtml);
+        Assert.Contains(".NET app", graphApiDetailsHtml);
+        Assert.Contains("application.dotnet-app", graphApiDetailsHtml);
 
         var graphApiEndpointsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");
+            $"/resources/{Uri.EscapeDataString("application.dotnet-app:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");
         Assert.Contains("Application exposure", graphApiEndpointsHtml);
         Assert.Contains("Add DNS name", graphApiEndpointsHtml);
 
         var graphApiConfigurationHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Configuration.Value)}");
+            $"/resources/{Uri.EscapeDataString("application.dotnet-app:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Configuration.Value)}");
         Assert.Contains("Resource model", graphApiConfigurationHtml);
         Assert.Contains("project.path", graphApiConfigurationHtml);
         Assert.Contains("Capabilities and operations", graphApiConfigurationHtml);
 
         var graphApiEnvironmentHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application.aspnet-core-project:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Environment.Value)}");
+            $"/resources/{Uri.EscapeDataString("application.dotnet-app:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Environment.Value)}");
         Assert.Contains("Environment variables", graphApiEnvironmentHtml);
         Assert.Contains("CLOUDSHELL_TRACE_INGEST_ENDPOINT", graphApiEnvironmentHtml);
         Assert.DoesNotContain("CLOUDSHELL_IDENTITY_CLIENT_SECRET", graphApiEnvironmentHtml);
@@ -1059,7 +1059,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("mount target unavailable", graphSqlStorageHtml);
 
         var graphApplicationAddHtml = await host.GetStringAsync(
-            "/resources/add?type=application.aspnet-core-project");
+            "/resources/add?type=application.dotnet-app");
         Assert.Contains("Resource model application resources", graphApplicationAddHtml);
         Assert.DoesNotContain("Resource type not found", graphApplicationAddHtml);
 
@@ -1160,11 +1160,11 @@ public sealed class SampleSmokeTests
             var graphApi = Assert.Single(
                 resources,
                 resource => resource.GetProperty("id").GetString() ==
-                    "application.aspnet-core-project:application-topology-api");
+                    "application.dotnet-app:application-topology-api");
             var graphFrontend = Assert.Single(
                 resources,
                 resource => resource.GetProperty("id").GetString() ==
-                    "application.aspnet-core-project:application-topology-frontend");
+                    "application.dotnet-app:application-topology-frontend");
             Assert.DoesNotContain(
                 resources,
                 resource => resource.GetProperty("id").GetString() ==
@@ -1235,8 +1235,8 @@ public sealed class SampleSmokeTests
             Assert.Equal("mssql", graphUpstream.GetProperty("database").GetProperty("provider").GetString());
             Assert.Equal("application_topology", graphUpstream.GetProperty("database").GetProperty("database").GetString());
 
-            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:application-topology-frontend");
-            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:application-topology-api");
+            await StopResourceIfRunningAsync(host, "application.dotnet-app:application-topology-frontend");
+            await StopResourceIfRunningAsync(host, "application.dotnet-app:application-topology-api");
             await StopResourceIfRunningAsync(host, "application.sql-server:application-topology-sql-server");
             await WaitForResourceStateAsync(
                 host,
@@ -1250,8 +1250,8 @@ public sealed class SampleSmokeTests
         }
         finally
         {
-            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:application-topology-frontend");
-            await StopResourceIfRunningAsync(host, "application.aspnet-core-project:application-topology-api");
+            await StopResourceIfRunningAsync(host, "application.dotnet-app:application-topology-frontend");
+            await StopResourceIfRunningAsync(host, "application.dotnet-app:application-topology-api");
             await StopResourceIfRunningAsync(host, "application.sql-server:application-topology-sql-server");
             if (shouldCleanupSqlContainer)
             {
@@ -1335,7 +1335,7 @@ public sealed class SampleSmokeTests
         var apiEndpoint = $"http://127.0.0.1:{await GetFreePortAsync()}";
         const string settingsResourceId = "configuration.store:sample-app";
         const string secretsResourceId = "secrets.vault:sample-app";
-        const string apiResourceId = "application.aspnet-core-project:settings-secrets-api";
+        const string apiResourceId = "application.dotnet-app:settings-secrets-api";
         using var host = await SampleProcess.StartAsync(
             "samples/SettingsAndSecrets/CloudShell.SettingsAndSecrets.csproj",
             await GetFreePortAsync(),
@@ -2110,7 +2110,7 @@ public sealed class SampleSmokeTests
         var settings = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "configuration.store:third-party-identity");
         var api = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.aspnet-core-project:keycloak-provisioned-api");
+            resource.GetProperty("id").GetString() == "application.dotnet-app:keycloak-provisioned-api");
         var attributes = provisioning.GetProperty("attributes");
         var settingsAttributes = settings.GetProperty("attributes");
         var apiAttributes = api.GetProperty("attributes");
@@ -2129,7 +2129,7 @@ public sealed class SampleSmokeTests
         Assert.Equal("Third-party Identity Settings", settings.GetProperty("displayName").GetString());
         Assert.Equal("http://localhost:5138", settingsAttributes.GetProperty("endpoint").GetString());
         Assert.Equal("1", settingsAttributes.GetProperty("settingCount").GetString());
-        Assert.Equal("application.aspnet-core-project", api.GetProperty("typeId").GetString());
+        Assert.Equal("application.dotnet-app", api.GetProperty("typeId").GetString());
         Assert.Equal("Keycloak Provisioned API", api.GetProperty("displayName").GetString());
         Assert.EndsWith(
             "/samples/ThirdPartyIdentity/Api/CloudShell.ThirdPartyIdentity.Api.csproj",
@@ -2214,7 +2214,7 @@ public sealed class SampleSmokeTests
         var settings = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "configuration.store:third-party-identity");
         var api = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.aspnet-core-project:keycloak-provisioned-api");
+            resource.GetProperty("id").GetString() == "application.dotnet-app:keycloak-provisioned-api");
 
         Assert.DoesNotContain(resources, resource =>
             resource.GetProperty("id").GetString() == "configuration:third-party-identity");
@@ -2806,7 +2806,7 @@ public sealed class SampleSmokeTests
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
         var frontend = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "application.aspnet-core-project:signalr-frontend");
+            resource.GetProperty("id").GetString() == "application.dotnet-app:signalr-frontend");
         var api = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application.container-app:signalr-api");
         var containerHost = Assert.Single(resources, resource =>
@@ -2815,7 +2815,7 @@ public sealed class SampleSmokeTests
         var frontendAttributes = frontend.GetProperty("attributes");
         var containerHostAttributes = containerHost.GetProperty("attributes");
 
-        Assert.Equal("application.aspnet-core-project", frontend.GetProperty("typeId").GetString());
+        Assert.Equal("application.dotnet-app", frontend.GetProperty("typeId").GetString());
         Assert.Equal("application.container-app", api.GetProperty("typeId").GetString());
         Assert.Equal("cloudshell.container-host", containerHost.GetProperty("typeId").GetString());
         Assert.Equal("SignalR Frontend", frontend.GetProperty("displayName").GetString());
@@ -2952,7 +2952,7 @@ public sealed class SampleSmokeTests
                 "SignalR Container App",
                 [
                     "application.container-app:signalr-api",
-                    "application.aspnet-core-project:signalr-frontend"
+                    "application.dotnet-app:signalr-frontend"
                 ],
                 Metadata: new Dictionary<string, string>
                 {
@@ -3609,8 +3609,8 @@ public sealed class SampleSmokeTests
     [Fact]
     public async Task HostVirtualNetworkSample_ReconcilesEndpointMappingThroughRuntimeBridge()
     {
-        const string apiResourceId = "application.aspnet-core-project:vnet-api";
-        const string workerResourceId = "application.aspnet-core-project:vnet-worker";
+        const string apiResourceId = "application.dotnet-app:vnet-api";
+        const string workerResourceId = "application.dotnet-app:vnet-worker";
         const string networkResourceId = "cloudshell.virtualNetwork:sample-vnet";
         const string dnsZoneResourceId = "cloudshell.dnsZone:sample-vnet-internal";
         var targetPort = await GetFreePortAsync();
@@ -6054,8 +6054,8 @@ public sealed class SampleSmokeTests
             {
                 return
                 [
-                    "application.aspnet-core-project:project-reference-api",
-                    "application.aspnet-core-project:project-reference-frontend"
+                    "application.dotnet-app:project-reference-api",
+                    "application.dotnet-app:project-reference-frontend"
                 ];
             }
 
@@ -6095,7 +6095,7 @@ public sealed class SampleSmokeTests
                 [
                     "cloudshell.volume:rabbitmq-messaging-data",
                     "application.rabbitmq:rabbitmq",
-                    "application.aspnet-core-project:rabbitmq-dotnet",
+                    "application.dotnet-app:rabbitmq-dotnet",
                     "application.java-app:rabbitmq-java"
                 ];
             }

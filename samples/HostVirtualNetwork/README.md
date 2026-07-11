@@ -8,10 +8,10 @@ that can be written as CoreDNS configuration.
 The resource graph declares:
 
 - `cloudshell.hostNetworking.local:host-local`: the local host networking provider.
-- `application.aspnet-core-project:vnet-api`: a stopped ASP.NET Core target app endpoint at
+- `application.dotnet-app:vnet-api`: a stopped ASP.NET Core target app endpoint at
   `http://localhost:5291`, plus the private virtual-network endpoint
   `http://10.42.0.10:80`.
-- `application.aspnet-core-project:vnet-worker`: a second stopped ASP.NET Core
+- `application.dotnet-app:vnet-worker`: a second stopped ASP.NET Core
   resource with the private virtual-network endpoint `http://10.42.0.11:80`.
 - `cloudshell.virtualNetwork:sample-vnet`: a virtual network with public endpoint
   `http://localhost:5292`.
@@ -56,7 +56,7 @@ The sample now declares only Resource Definitions-backed resources. The old
 direct Resource Manager comparison path and sample-local endpoint-mapping
 bridge have been removed. The sample validates that
 `cloudshell.hostNetworking.local:host-local`,
-`application.aspnet-core-project:vnet-api`, and
+`application.dotnet-app:vnet-api`, and
 `cloudshell.virtualNetwork:sample-vnet` can start the API and materialize the
 public ingress without the old application-provider aggregate.
 

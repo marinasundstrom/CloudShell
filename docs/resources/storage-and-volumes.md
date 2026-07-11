@@ -191,7 +191,7 @@ Storage and volume resources can also project runtime status with
 Current Resource Manager behavior includes:
 
 - volume selectors for resources that can attach volumes
-- a Storage tab for container apps, executable apps, ASP.NET Core projects,
+- a Storage tab for container apps, executable apps, .NET apps,
   SQL Server, and other volume-capable resources
 - direct `cloudshell.volume` create/configure/overview flows
 - storage resource pages that list owned volumes and consumer counts

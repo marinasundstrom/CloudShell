@@ -182,7 +182,7 @@ Draft output:
 - Optional starter workspace with API and frontend project skeletons, when the
   user is starting from an empty directory and has selected templates that
   CloudShell can safely create.
-- `application.aspnet-core-project` resource for the API.
+- `application.dotnet-app` resource for the API.
 - JavaScript or container application resource for the frontend, depending on
   repository context and available providers.
 - `sql.server` plus database child resource when the SQL provider is

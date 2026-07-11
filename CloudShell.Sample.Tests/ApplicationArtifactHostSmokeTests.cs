@@ -37,14 +37,14 @@ public sealed class ApplicationArtifactHostSmokeTests
         {
             await host.WaitForHttpOkAsync("/", StartupTimeout);
             var addPageHtml = await host.GetStringAsync(
-                "/resources/add?type=application.aspnet-core-project");
+                "/resources/add?type=application.dotnet-app");
             Assert.Contains("Artifact layout", addPageHtml);
             Assert.Contains("Package kind", addPageHtml);
             Assert.Contains("Package", addPageHtml);
             Assert.DoesNotContain("Application artifact upload is not enabled", addPageHtml);
 
             const string resourceName = "artifact-smoke-api";
-            const string resourceType = "application.aspnet-core-project";
+            const string resourceType = "application.dotnet-app";
             const string resourceId = $"{resourceType}:{resourceName}";
 
             var status = await host.GetJsonAsync<DeploymentArtifactStoreStatus>(

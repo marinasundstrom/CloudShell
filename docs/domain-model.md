@@ -559,7 +559,7 @@ future provider push channel unless the provider itself raises a resource
 manager mutation.
 
 `ResourceClass` describes the projected domain shape, not the provider's
-internal runtime mechanics. For example, an ASP.NET Core project resource can be
+internal runtime mechanics. For example, an .NET app resource can be
 process-backed and still project as `ResourceClass.Project` with project-shaped
 attributes rather than executable command attributes.
 
@@ -624,7 +624,7 @@ Base resource model -> ResourceClass -> resource type/kind -> resource instance
 Base resource metadata applies to every resource. `ResourceClass` metadata
 describes portable class-level concerns, such as storage-capable resources or
 network-capable resources. Resource type or kind metadata refines that class
-for a specific user-facing type, such as `application.aspnet-core-project` or
+for a specific user-facing type, such as `application.dotnet-app` or
 `application.sql-server`. Resource instance configuration is the final layer
 and can override or materialize the inherited defaults when the provider and
 environment allow it.

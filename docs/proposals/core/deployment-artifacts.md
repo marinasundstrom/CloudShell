@@ -241,7 +241,7 @@ for every resource type.
 ## Project Resources and Hosted App Resources
 
 The existing project resource types, such as
-`application.aspnet-core-project`, are still valuable for local development.
+`application.dotnet-app`, are still valuable for local development.
 They represent a project on a host-readable filesystem and can use development
 behaviors such as `dotnet run`, `dotnet watch`, launch-settings endpoint
 loading, and source directories that change while the developer works.
@@ -256,7 +256,7 @@ likely means separate types such as:
 | --- | --- |
 | `application.dotnet-app` | A .NET application loaded from local source mode or from a provider-validated deployment artifact. |
 | `application.dotnet-web-app` | A .NET web application loaded from local source mode or from a provider-validated deployment artifact, with web endpoint defaults and ASP.NET Core runtime conventions. |
-| `application.aspnet-core-project` | A local-development project resource that runs from a host-readable project path. |
+| `application.dotnet-app` | A local-development project resource that runs from a host-readable project path. |
 
 The exact type IDs should be confirmed when the provider is implemented. The
 product boundary should be clear: project resources are for project-on-disk
@@ -312,7 +312,7 @@ location. The normal direct-upload shape is intentionally small:
 
 ```yaml
 resources:
-  - type: application.aspnet-core-project
+  - type: application.dotnet-app
     name: api
     attributes:
       application.source.kind: uploadedArtifact
@@ -328,7 +328,7 @@ contract:
 
 ```yaml
 resources:
-  - type: application.aspnet-core-project
+  - type: application.dotnet-app
     name: api
     attributes:
       application.source.kind: uploadedArtifact

@@ -103,7 +103,7 @@ public sealed class ResourceDefinitionGraphValidationPipelineTests
             references:
             [
                 ResourceReference.ReferenceResourceId(
-                    "application.aspnet-core-project:missing-api",
+                    "application.dotnet-app:missing-api",
                     typeId: AspNetCoreProjectResourceTypeProvider.ResourceTypeId)
             ]);
 

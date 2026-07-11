@@ -9,7 +9,7 @@ cli_project="${CLOUDSHELL_CLI_PROJECT:-$repo_root/CloudShell.Cli/CloudShell.Cli.
 state_dir="${CLOUDSHELL_STATE_DIR:-$script_dir/.cloudshell}"
 control_plane_url="${CLOUDSHELL_CONTROL_PLANE_URL:-http://127.0.0.1:5112}"
 rabbitmq_resource_id="${CLOUDSHELL_RABBITMQ_RESOURCE_ID:-application.rabbitmq:rabbitmq}"
-dotnet_resource_id="${CLOUDSHELL_DOTNET_RESOURCE_ID:-application.aspnet-core-project:rabbitmq-dotnet}"
+dotnet_resource_id="${CLOUDSHELL_DOTNET_RESOURCE_ID:-application.dotnet-app:rabbitmq-dotnet}"
 java_resource_id="${CLOUDSHELL_JAVA_RESOURCE_ID:-application.java-app:rabbitmq-java}"
 
 usage() {

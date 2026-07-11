@@ -76,7 +76,7 @@ public static class BuiltInResourceModelProviderServiceCollectionExtensions
 
         services
             .AddExecutableApplicationResourceType()
-            .AddAspNetCoreProjectResourceType()
+            .AddDotnetAppResourceType()
             .AddJavaScriptAppResourceType()
             .AddJavaAppResourceType()
             .AddGoAppResourceType()

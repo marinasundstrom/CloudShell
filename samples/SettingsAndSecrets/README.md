@@ -90,7 +90,7 @@ built-in identity client is registered before the API resource is started. You
 can inspect provider-owned provisioning status with:
 
 ```bash
-curl http://localhost:5011/api/control-plane/v1/resources/application.aspnet-core-project%3Asettings-secrets-api/identity/provisioning-status
+curl http://localhost:5011/api/control-plane/v1/resources/application.dotnet-app%3Asettings-secrets-api/identity/provisioning-status
 ```
 
 Then start the Web API resource and open `/configuration`. If the API was already

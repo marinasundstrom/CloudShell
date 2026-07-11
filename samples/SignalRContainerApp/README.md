@@ -5,7 +5,7 @@ SignalR backend through a CloudShell container app.
 
 The declared CloudShell resources are intentionally small:
 
-- `application.aspnet-core-project:signalr-frontend` hosts the Blazor
+- `application.dotnet-app:signalr-frontend` hosts the Blazor
   WebAssembly app.
 - `application.container-app:signalr-api` runs the SignalR backend with three
   replica slots and cookie session affinity.

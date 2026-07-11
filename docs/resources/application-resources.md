@@ -10,7 +10,7 @@ Resource-type-specific guidance:
 - [Executable applications](executable-applications.md) for
   `application.executable` command resources.
 - [ASP.NET Core applications](aspnet-core-applications.md) for
-  `application.aspnet-core-project` project resources.
+  `application.dotnet-app` project resources.
 - [JavaScript applications](javascript-applications.md) for
   `application.javascript-app` Node.js-backed project resources.
 - [Java applications](java-applications.md) for `application.java-app`
@@ -47,7 +47,7 @@ like a managed service.
 
 Application resource authoring now flows through ResourceDefinition entries
 and the Resource graph. The current built-in providers expose builders such as
-`AddExecutableApplication(...)`, `AddAspNetCoreProject(...)`,
+`AddExecutableApplication(...)`, `AddDotnetApp(...)`,
 `AddJavaScriptApp(...)`, `AddJavaApp(...)`, `AddGoApp(...)`,
 `AddPythonApp(...)`, and `AddContainerApplication(...)`, then map accepted
 resource intent to provider projection, actions, logs, health, endpoint, and
@@ -55,7 +55,7 @@ runtime adapter contracts.
 The earlier application-definition provider package was part of the old
 provider model and has been removed from the active solution.
 
-Executable apps, ASP.NET Core projects, JavaScript apps, Java apps, Go apps,
+Executable apps, .NET apps, JavaScript apps, Java apps, Go apps,
 Python apps, container apps, and SQL Server each have their own resource type and
 provider-owned semantics. They can still share provider-neutral helpers for
 common concerns such as local process execution, container-backed startup,
@@ -81,7 +81,7 @@ flowchart TB
 
     subgraph Providers["Application built-in providers"]
         Executable["application.executable"]
-        AspNet["application.aspnet-core-project"]
+        AspNet["application.dotnet-app"]
         JavaScript["application.javascript-app"]
         Java["application.java-app"]
         Go["application.go-app"]
@@ -260,7 +260,7 @@ provider behavior.
 Storage state is modeled separately from application resources. A volume
 resource owns the durable storage identity and provider-backed location, which
 can later be materialized, backed up, moved, or diagnosed by a storage
-provider. Executable, ASP.NET Core project, JavaScript app, container app, and
+provider. Executable, .NET app, JavaScript app, container app, and
 SQL Server resources only declare `ResourceVolumeMount` attachments to those
 volumes. For local process-backed resources, `FileSystem` volume mounts are
 materialized by linking the resolved volume source into the application target
@@ -378,7 +378,7 @@ container-host CLI process as the workload identity.
 ## Resource Templates
 
 The application provider supports resource templates for
-`application.executable`, `application.aspnet-core-project`,
+`application.executable`, `application.dotnet-app`,
 `application.javascript-app`, `application.java-app`,
 `application.container-app`, and
 `application.sql-server` resources. Export writes a provider-owned
@@ -404,7 +404,7 @@ See [Resource templates](../resource-templates.md).
 ## Observability
 
 Application resources have Aspire-compatible observability metadata. By default,
-executable, ASP.NET Core project, JavaScript app, and container app resources
+executable, .NET app, JavaScript app, and container app resources
 declare support for logs, traces, and metrics. Process-backed runtime providers
 add OpenTelemetry environment variables before user-configured environment
 variables are applied, so explicit resource variables can override generated
@@ -432,7 +432,7 @@ Use resource environment variables to set a collector endpoint:
 
 ```csharp
 resources
-    .AddAspNetCoreProject("api", "src/Api/Api.csproj")
+    .AddDotnetApp("api", "src/Api/Api.csproj")
     .WithEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
     .WithEnvironmentVariable("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc");
 ```
@@ -441,7 +441,7 @@ Use fluent resource APIs to configure or disable a specific resource:
 
 ```csharp
 resources
-    .AddAspNetCoreProject(
+    .AddDotnetApp(
         "application:example-web-api",
         "Example Web API",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
@@ -477,7 +477,7 @@ See [Service discovery](../service-discovery.md) for the current Microsoft
 service discovery package requirements, generated configuration shape, and the
 line between application-level discovery and future network-level discovery.
 
-ASP.NET Core project resources enable that mapping automatically when
+.NET app resources enable that mapping automatically when
 `WithReference(...)` is used.
 
 Configuration Store and Secrets Vault resources follow the same rule as other
