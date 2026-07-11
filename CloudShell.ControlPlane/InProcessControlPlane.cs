@@ -63,7 +63,8 @@ public sealed class InProcessControlPlane(
     IEnumerable<IDeploymentArtifactValidationProvider>? deploymentArtifactValidationProviders = null,
     IOptions<ResourceManagerOptions>? resourceManagerOptions = null,
     IOptions<DeploymentArtifactOptions>? deploymentArtifactOptions = null,
-    ICloudShellNotificationStore? notifications = null) : IControlPlane
+    ICloudShellNotificationStore? notifications = null,
+    IEnumerable<ICloudShellNotificationActionHandler>? notificationActionHandlers = null) : IControlPlane
 {
     private const string PreferredUsernameClaimType = "preferred_username";
     private const string UnauthenticatedRequestActor = "user";
@@ -102,6 +103,8 @@ public sealed class InProcessControlPlane(
         (deploymentArtifactLayoutProviders ?? []).ToArray();
     private readonly IReadOnlyList<IDeploymentArtifactValidationProvider> deploymentArtifactValidationProviders =
         (deploymentArtifactValidationProviders ?? []).ToArray();
+    private readonly IReadOnlyList<ICloudShellNotificationActionHandler> notificationActionHandlers =
+        (notificationActionHandlers ?? []).ToArray();
 
     public Task<IReadOnlyList<ResourceGroup>> ListResourceGroupsAsync(
         CancellationToken cancellationToken = default)
@@ -1539,6 +1542,35 @@ public sealed class InProcessControlPlane(
         return Task.FromResult(notifications?.GetNotifications(query) ?? []);
     }
 
+    public event EventHandler<CloudShellNotificationsChangedEventArgs>? NotificationsChanged
+    {
+        add
+        {
+            if (notifications is not null)
+            {
+                notifications.NotificationsChanged += value;
+            }
+        }
+        remove
+        {
+            if (notifications is not null)
+            {
+                notifications.NotificationsChanged -= value;
+            }
+        }
+    }
+
+    public Task<CloudShellNotificationInstance> CreateNotificationAsync(
+        CreateCloudShellNotificationCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(command);
+
+        return Task.FromResult(notifications?.CreateNotification(command)
+            ?? throw new InvalidOperationException("Notifications are not configured."));
+    }
+
     public Task AcknowledgeNotificationAsync(
         string notificationId,
         CancellationToken cancellationToken = default)
@@ -1547,6 +1579,28 @@ public sealed class InProcessControlPlane(
         ArgumentException.ThrowIfNullOrWhiteSpace(notificationId);
         notifications?.AcknowledgeNotification(notificationId);
         return Task.CompletedTask;
+    }
+
+    public async Task HandleNotificationActionAsync(
+        string notificationId,
+        string actionId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentException.ThrowIfNullOrWhiteSpace(notificationId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(actionId);
+
+        var notification = notifications?.GetNotification(notificationId)
+            ?? throw new ArgumentException("Notification was not found.", nameof(notificationId));
+        if (notification.Actions?.Any(action => string.Equals(action.Id, actionId, StringComparison.OrdinalIgnoreCase)) != true)
+        {
+            throw new ArgumentException("Notification action was not found.", nameof(actionId));
+        }
+
+        foreach (var handler in notificationActionHandlers)
+        {
+            await handler.HandleNotificationActionAsync(notification, actionId.Trim(), cancellationToken);
+        }
     }
 
     public Task DismissNotificationAsync(

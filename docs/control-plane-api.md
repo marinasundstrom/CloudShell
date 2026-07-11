@@ -119,6 +119,28 @@ completion message. For example, a start action can complete while dependency
 auto-start runs in warn-and-continue mode and returns a warning signal for the
 dependency that failed to start.
 
+Notifications are Control Plane-owned user-facing records that a shell can
+render as notifications, toasts, or both. The first API surface supports
+querying per-recipient notification instances, creating producer-owned
+notifications, and acknowledging or dismissing individual instances:
+
+```text
+GET  /api/control-plane/v1/notifications
+POST /api/control-plane/v1/notifications
+POST /api/control-plane/v1/notifications/{notificationId}/acknowledge
+POST /api/control-plane/v1/notifications/{notificationId}/actions/{actionId}
+POST /api/control-plane/v1/notifications/{notificationId}/dismiss
+```
+
+`GET /notifications` accepts `recipientKey`, `includeDismissed`, and
+`maxNotifications`. Notification records carry title, message, severity,
+status, recipient, source, optional resource/event/correlation identifiers,
+an optional `templateKey`, lifecycle timestamps, optional action descriptors,
+and string attributes. `acknowledge` is a notification state transition;
+custom notification commands are modeled as action descriptors and invoked
+through the action route. The Control Plane owns the notification record and
+state transitions; the shell owns how records are presented.
+
 Application telemetry remains resource-owned. `ResourceResponse.observability`
 projects the stable signal declarations, provider-declared telemetry sources,
 and selectable telemetry scopes for a resource. Consumers can list retained

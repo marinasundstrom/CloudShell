@@ -1,6 +1,7 @@
 using CloudShell.Client.Authentication;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Notifications;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Usage;
@@ -697,6 +698,87 @@ public sealed class RemoteControlPlane : IControlPlane
             ("maxEvents", (query?.MaxEvents ?? 200).ToString())))
         .Select(response => response.ToResourceEvent())
         .ToArray();
+
+    public event EventHandler<CloudShellNotificationsChangedEventArgs>? NotificationsChanged
+    {
+        add { }
+        remove { }
+    }
+
+    public async Task<IReadOnlyList<CloudShellNotificationInstance>> ListNotificationsAsync(
+        CloudShellNotificationQuery? query = null,
+        CancellationToken cancellationToken = default) =>
+        (await GetRequiredAsync<IReadOnlyList<CloudShellNotificationResponse>>(
+            "notifications",
+            cancellationToken,
+            ("recipientKey", query?.RecipientKey),
+            ("includeDismissed", (query?.IncludeDismissed ?? false).ToString()),
+            ("maxNotifications", (query?.MaxNotifications ?? 200).ToString(CultureInfo.InvariantCulture))))
+        .Select(response => response.ToNotification())
+        .ToArray();
+
+    public async Task<CloudShellNotificationInstance> CreateNotificationAsync(
+        CreateCloudShellNotificationCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsJsonAsync(
+            BuildUri("notifications"),
+            new CreateCloudShellNotificationRequest(
+                command.RecipientKey,
+                command.Title,
+                command.Message,
+                ResourceSignalSeverityParser.ToLevel(command.Severity),
+                command.Status,
+                command.Source,
+                command.ResourceId,
+                command.EventType,
+                command.EventId,
+                command.CorrelationId,
+                command.TemplateKey,
+                command.Actions?
+                    .Select(action => action.ToRequest())
+                    .ToArray(),
+                command.Attributes),
+            SerializerOptions,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await ReadRequiredAsync<CloudShellNotificationResponse>(response, cancellationToken))
+            .ToNotification();
+    }
+
+    public async Task AcknowledgeNotificationAsync(
+        string notificationId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsync(
+            BuildUri($"notifications/{Escape(RequireValue(notificationId, nameof(notificationId)))}/acknowledge"),
+            null,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    public async Task HandleNotificationActionAsync(
+        string notificationId,
+        string actionId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsync(
+            BuildUri($"notifications/{Escape(RequireValue(notificationId, nameof(notificationId)))}/actions/{Escape(RequireValue(actionId, nameof(actionId)))}"),
+            null,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    public async Task DismissNotificationAsync(
+        string notificationId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsync(
+            BuildUri($"notifications/{Escape(RequireValue(notificationId, nameof(notificationId)))}/dismiss"),
+            null,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+    }
 
     public async Task<IReadOnlyList<ResourceDeploymentRecord>> ListResourceDeploymentsAsync(
         ResourceDeploymentQuery? query = null,
@@ -1550,6 +1632,62 @@ file sealed record ResourceEventResponse(
     string? TraceId,
     string? SpanId);
 
+file sealed record CloudShellNotificationResponse(
+    string Id,
+    string RecipientKey,
+    string Title,
+    string Message,
+    string Severity,
+    CloudShellNotificationStatus Status,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    string? Source,
+    string? ResourceId,
+    string? EventType,
+    string? EventId,
+    string? CorrelationId,
+    string? TemplateKey,
+    DateTimeOffset? ReadAt,
+    DateTimeOffset? AcknowledgedAt,
+    DateTimeOffset? DismissedAt,
+    IReadOnlyList<CloudShellNotificationActionResponse>? Actions,
+    IReadOnlyDictionary<string, string>? Attributes);
+
+file sealed record CreateCloudShellNotificationRequest(
+    string RecipientKey,
+    string Title,
+    string Message,
+    string Severity,
+    CloudShellNotificationStatus Status,
+    string? Source = null,
+    string? ResourceId = null,
+    string? EventType = null,
+    string? EventId = null,
+    string? CorrelationId = null,
+    string? TemplateKey = null,
+    IReadOnlyList<CloudShellNotificationActionRequest>? Actions = null,
+    IReadOnlyDictionary<string, string>? Attributes = null);
+
+file sealed record CloudShellNotificationActionResponse(
+    string Id,
+    string Label,
+    CloudShellNotificationTargetResponse? Target,
+    bool IsPrimary);
+
+file sealed record CloudShellNotificationTargetResponse(
+    string Href,
+    string? Label = null);
+
+file sealed record CloudShellNotificationActionRequest(
+    string Id,
+    string Label,
+    CloudShellNotificationTargetRequest? Target = null,
+    bool IsPrimary = false);
+
+file sealed record CloudShellNotificationTargetRequest(
+    string Href,
+    string? Label = null);
+
 file sealed record ResourceDeploymentRecordResponse(
     string DeploymentId,
     string OrchestratorId,
@@ -2091,6 +2229,55 @@ file static class RemoteControlPlaneMapper
             ResourceSignalSeverityParser.FromName(response.Severity),
             response.TraceId,
             response.SpanId);
+
+    public static CloudShellNotificationInstance ToNotification(
+        this CloudShellNotificationResponse response) =>
+        new(
+            response.Id,
+            response.RecipientKey,
+            response.Title,
+            response.Message,
+            ResourceSignalSeverityParser.FromName(response.Severity),
+            response.Status,
+            response.CreatedAt,
+            response.UpdatedAt,
+            response.Source,
+            response.ResourceId,
+            response.EventType,
+            response.EventId,
+            response.CorrelationId,
+            response.TemplateKey,
+            response.ReadAt,
+            response.AcknowledgedAt,
+            response.DismissedAt,
+            response.Actions?
+                .Select(action => action.ToNotificationAction())
+                .ToArray(),
+            response.Attributes);
+
+    public static CloudShellNotificationAction ToNotificationAction(
+        this CloudShellNotificationActionResponse response) =>
+        new(
+            response.Id,
+            response.Label,
+            response.Target?.ToNotificationTarget(),
+            response.IsPrimary);
+
+    public static CloudShellNotificationTarget ToNotificationTarget(
+        this CloudShellNotificationTargetResponse response) =>
+        new(response.Href, response.Label);
+
+    public static CloudShellNotificationActionRequest ToRequest(
+        this CloudShellNotificationAction action) =>
+        new(
+            action.Id,
+            action.Label,
+            action.Target?.ToRequest(),
+            action.IsPrimary);
+
+    public static CloudShellNotificationTargetRequest ToRequest(
+        this CloudShellNotificationTarget target) =>
+        new(target.Href, target.Label);
 
     public static ResourceDeploymentRecord ToResourceDeploymentRecord(
         this ResourceDeploymentRecordResponse response) =>

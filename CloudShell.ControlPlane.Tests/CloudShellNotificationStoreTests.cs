@@ -21,11 +21,24 @@ public sealed class CloudShellNotificationStoreTests
             "The resource started.",
             ResourceSignalSeverity.Success,
             CloudShellNotificationStatus.Succeeded,
-            ResourceId: "application:api"));
+            ResourceId: "application:api",
+            Actions:
+            [
+                new CloudShellNotificationAction(
+                    "open",
+                    "Open resource",
+                    new CloudShellNotificationTarget("/resources/application%3Aapi", "Open"),
+                    IsPrimary: true)
+            ]));
 
         Assert.NotEmpty(notification.Id);
         Assert.Equal("operator", notification.RecipientKey);
         Assert.Equal("application:api", notification.ResourceId);
+        Assert.Same(notification, store.GetNotification(notification.Id));
+        var action = Assert.Single(notification.Actions!);
+        Assert.Equal("open", action.Id);
+        Assert.True(action.IsPrimary);
+        Assert.Equal("/resources/application%3Aapi", action.Target!.Href);
 
         Assert.True(store.AcknowledgeNotification(notification.Id));
         Assert.True(store.DismissNotification(notification.Id));

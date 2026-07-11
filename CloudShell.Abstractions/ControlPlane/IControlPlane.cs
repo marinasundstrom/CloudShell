@@ -243,12 +243,23 @@ public interface IResourceDeploymentManager
 
 public interface ICloudShellNotificationManager
 {
+    event EventHandler<CloudShellNotificationsChangedEventArgs>? NotificationsChanged;
+
     Task<IReadOnlyList<CloudShellNotificationInstance>> ListNotificationsAsync(
         CloudShellNotificationQuery? query = null,
         CancellationToken cancellationToken = default);
 
+    Task<CloudShellNotificationInstance> CreateNotificationAsync(
+        CreateCloudShellNotificationCommand command,
+        CancellationToken cancellationToken = default);
+
     Task AcknowledgeNotificationAsync(
         string notificationId,
+        CancellationToken cancellationToken = default);
+
+    Task HandleNotificationActionAsync(
+        string notificationId,
+        string actionId,
         CancellationToken cancellationToken = default);
 
     Task DismissNotificationAsync(

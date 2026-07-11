@@ -57,6 +57,7 @@ public sealed class InMemoryCloudShellNotificationStore : ICloudShellNotificatio
             EventId: NormalizeOptional(command.EventId),
             CorrelationId: NormalizeOptional(command.CorrelationId),
             TemplateKey: NormalizeOptional(command.TemplateKey),
+            Actions: NormalizeActions(command.Actions),
             Attributes: NormalizeAttributes(command.Attributes));
 
         notifications[notification.Id] = notification;
@@ -67,6 +68,12 @@ public sealed class InMemoryCloudShellNotificationStore : ICloudShellNotificatio
                 notification.Id));
 
         return notification;
+    }
+
+    public CloudShellNotificationInstance? GetNotification(string notificationId)
+    {
+        notificationId = NormalizeRequired(notificationId, nameof(notificationId));
+        return notifications.GetValueOrDefault(notificationId);
     }
 
     public bool AcknowledgeNotification(string notificationId) =>
@@ -145,4 +152,32 @@ public sealed class InMemoryCloudShellNotificationStore : ICloudShellNotificatio
                 pair => pair.Value.Trim(),
                 StringComparer.OrdinalIgnoreCase);
     }
+
+    private static IReadOnlyList<CloudShellNotificationAction>? NormalizeActions(
+        IReadOnlyList<CloudShellNotificationAction>? actions)
+    {
+        if (actions is null || actions.Count == 0)
+        {
+            return null;
+        }
+
+        return actions
+            .Where(action => !string.IsNullOrWhiteSpace(action.Id) && !string.IsNullOrWhiteSpace(action.Label))
+            .Select(action => action with
+            {
+                Id = action.Id.Trim(),
+                Label = action.Label.Trim(),
+                Target = NormalizeTarget(action.Target)
+            })
+            .ToArray();
+    }
+
+    private static CloudShellNotificationTarget? NormalizeTarget(CloudShellNotificationTarget? target) =>
+        target is null || string.IsNullOrWhiteSpace(target.Href)
+            ? null
+            : target with
+            {
+                Href = target.Href.Trim(),
+                Label = NormalizeOptional(target.Label)
+            };
 }

@@ -81,6 +81,7 @@ public static class CloudShellHostApplicationBuilderExtensions
             builder.Configuration.GetSection(MetricVisualizationOptions.SectionName));
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
+        builder.Services.TryAddScoped<ICoreShellNotificationService, ControlPlaneCoreShellNotificationService>();
         builder.Services.AddCoreShellBlazorHost();
         builder.Services.TryAddSingleton<ShellHostContext>();
         builder.Services.TryAddSingleton<CoreShellModuleCatalog>();

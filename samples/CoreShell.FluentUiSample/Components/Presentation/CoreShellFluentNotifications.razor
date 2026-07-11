@@ -63,13 +63,6 @@
                                         </FluentButton>
                                     }
                                 }
-                                @if (item.AcknowledgedAt is null)
-                                {
-                                    <FluentButton Appearance="Appearance.Stealth"
-                                                  OnClick="@(() => AcknowledgeAsync(item.Id))">
-                                        Acknowledge
-                                    </FluentButton>
-                                }
                                 <FluentButton Appearance="Appearance.Stealth"
                                               IconStart="@(new Icons.Regular.Size16.Dismiss())"
                                               OnClick="@(() => DismissAsync(item.Id))">

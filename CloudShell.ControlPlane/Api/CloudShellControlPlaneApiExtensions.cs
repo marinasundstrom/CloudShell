@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Notifications;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Shell;
@@ -191,6 +192,31 @@ public static class CloudShellControlPlaneApiExtensions
         api.MapGet("/resource-events", ListResourceEvents)
             .WithName("CloudShellControlPlane_ListResourceEvents")
             .Produces<ResourceEventResponse[]>(StatusCodes.Status200OK);
+
+        api.MapGet("/notifications", ListNotifications)
+            .WithName("CloudShellControlPlane_ListNotifications")
+            .Produces<CloudShellNotificationResponse[]>(StatusCodes.Status200OK);
+
+        api.MapPost("/notifications", CreateNotification)
+            .WithName("CloudShellControlPlane_CreateNotification")
+            .Accepts<CreateCloudShellNotificationRequest>("application/json")
+            .Produces<CloudShellNotificationResponse>(StatusCodes.Status201Created)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
+
+        api.MapPost("/notifications/{notificationId}/acknowledge", AcknowledgeNotification)
+            .WithName("CloudShellControlPlane_AcknowledgeNotification")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
+
+        api.MapPost("/notifications/{notificationId}/actions/{actionId}", HandleNotificationAction)
+            .WithName("CloudShellControlPlane_HandleNotificationAction")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
+
+        api.MapPost("/notifications/{notificationId}/dismiss", DismissNotification)
+            .WithName("CloudShellControlPlane_DismissNotification")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
 
         api.MapGet("/deployments", ListResourceDeployments)
             .WithName("CloudShellControlPlane_ListResourceDeployments")
@@ -1108,6 +1134,101 @@ public static class CloudShellControlPlaneApiExtensions
                 cancellationToken))
             .Select(resourceEvent => resourceEvent.ToResponse())
             .ToArray());
+
+    private static async Task<IResult> ListNotifications(
+        string? recipientKey,
+        bool? includeDismissed,
+        int? maxNotifications,
+        ICloudShellNotificationManager notifications,
+        CancellationToken cancellationToken) =>
+        Results.Ok((await notifications.ListNotificationsAsync(
+                new CloudShellNotificationQuery(
+                    RecipientKey: NormalizeOptional(recipientKey),
+                    IncludeDismissed: includeDismissed ?? false,
+                    MaxNotifications: Math.Clamp(maxNotifications ?? 200, 1, 1000)),
+                cancellationToken))
+            .Select(notification => notification.ToResponse())
+            .ToArray());
+
+    private static async Task<IResult> CreateNotification(
+        CreateCloudShellNotificationRequest request,
+        ICloudShellNotificationManager notifications,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var notification = await notifications.CreateNotificationAsync(
+                request.ToCommand(),
+                cancellationToken);
+
+            return Results.Created(
+                $"{CloudShellControlPlaneApiDefaults.RoutePrefix}/notifications/{Uri.EscapeDataString(notification.Id)}",
+                notification.ToResponse());
+        }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> AcknowledgeNotification(
+        string notificationId,
+        ICloudShellNotificationManager notifications,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await notifications.AcknowledgeNotificationAsync(
+                RequireValue(notificationId, nameof(notificationId)),
+                cancellationToken);
+
+            return Results.NoContent();
+        }
+        catch (ArgumentException exception)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> HandleNotificationAction(
+        string notificationId,
+        string actionId,
+        ICloudShellNotificationManager notifications,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await notifications.HandleNotificationActionAsync(
+                RequireValue(notificationId, nameof(notificationId)),
+                RequireValue(actionId, nameof(actionId)),
+                cancellationToken);
+
+            return Results.NoContent();
+        }
+        catch (ArgumentException exception)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> DismissNotification(
+        string notificationId,
+        ICloudShellNotificationManager notifications,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await notifications.DismissNotificationAsync(
+                RequireValue(notificationId, nameof(notificationId)),
+                cancellationToken);
+
+            return Results.NoContent();
+        }
+        catch (ArgumentException exception)
+        {
+            return ToProblem(exception);
+        }
+    }
 
     private static async Task<IResult> ListResourceDeployments(
         string? sourceResourceId,

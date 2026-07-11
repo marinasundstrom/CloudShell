@@ -51,6 +51,12 @@ on `git blame --follow`, and then by the broad type of change.
 - Added the first Control Plane-owned notification record and in-memory store
   contracts, plus resource-event observer projection that maps triggered
   resource events into per-recipient notification instances.
+- Added the first Control Plane notification API and remote client surface for
+  listing, creating, acknowledging, dismissing, and invoking custom actions on
+  notification instances.
+- Added a CloudShell UI notification adapter that maps Control Plane-owned
+  notification records into CoreShell's UI-facing notification service and
+  forwards in-process notification change signals.
 - Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder
   helper from CloudShell Hosting into `CoreShell.Blazor` so common Blazor shell
   building blocks can be used by CoreShell apps without a CloudShell

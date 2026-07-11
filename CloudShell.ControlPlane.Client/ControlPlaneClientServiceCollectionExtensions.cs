@@ -1,5 +1,6 @@
 using CloudShell.Client.Authentication;
 using CloudShell.Abstractions.ControlPlane;
+using CloudShell.Abstractions.Notifications;
 using CloudShell.Abstractions.Shell;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -131,6 +132,8 @@ public static class ControlPlaneClientServiceCollectionExtensions
         services.AddScoped<IResourceDeploymentManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         services.AddScoped<IResourceReplicaSlotStateManager>(
+            serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
+        services.AddScoped<ICloudShellNotificationManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         services.AddScoped<ILogManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());

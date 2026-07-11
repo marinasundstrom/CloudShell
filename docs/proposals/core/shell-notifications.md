@@ -565,10 +565,14 @@ visible to the current user and which actions or links are enabled.
 - Added the first Control Plane notification records, in-memory notification
   store, notification manager surface, resource-event observer hook, and
   default resource-event projection into per-recipient notification instances.
-- Add Control Plane notification query/mutation APIs, producer APIs, and a
-  change signal.
-- Register CloudShell UI adapters so CoreShell UI presenters read Control
-  Plane-owned notification instances through `ICoreShellNotificationService`.
+- Added Control Plane notification query/mutation APIs and producer APIs for
+  listing, creating, acknowledging, dismissing, and invoking custom
+  notification actions on notification instances.
+- Added the first Control Plane notification change signal for in-process
+  hosts.
+- Registered the first CloudShell UI adapter so CoreShell UI presenters read
+  Control Plane-owned notification instances through
+  `ICoreShellNotificationService`.
 - Register producer adapters so Resource Manager, workers, and split-host
   clients publish/update notifications through the Control Plane notification
   API.

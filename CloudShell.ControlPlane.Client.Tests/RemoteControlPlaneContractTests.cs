@@ -2,6 +2,7 @@ using CloudShell.Abstractions.Authorization;
 using System.Text.Json;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Notifications;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Shell;
@@ -829,6 +830,69 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal("Information", resourceEvent.GetProperty("severity").GetString());
         Assert.False(resourceEvent.TryGetProperty("level", out _));
         Assert.Contains("example/api:20260609", resourceEvent.GetProperty("message").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RemoteControlPlane_ManagesNotifications()
+    {
+        await using var app = await CreateAppAsync();
+        var controlPlane = CreateClient(app);
+
+        var created = await controlPlane.CreateNotificationAsync(
+            new CreateCloudShellNotificationCommand(
+                "operator",
+                "Resource created",
+                "The API resource is ready.",
+                ResourceSignalSeverity.Success,
+                CloudShellNotificationStatus.Succeeded,
+                Source: "Control Plane",
+                ResourceId: "application:api",
+                EventType: "resource.created",
+                EventId: "event-1",
+                CorrelationId: "trace-1",
+                TemplateKey: "cloudshell.resource-event",
+                Actions:
+                [
+                    new CloudShellNotificationAction(
+                        "open",
+                        "Open resource",
+                        new CloudShellNotificationTarget("/resources/application%3Aapi", "Open"),
+                        IsPrimary: true)
+                ],
+                Attributes: new Dictionary<string, string>
+                {
+                    ["traceId"] = "trace-1"
+                }));
+
+        Assert.NotEmpty(created.Id);
+        Assert.Equal("operator", created.RecipientKey);
+        Assert.Equal(ResourceSignalSeverity.Success, created.Severity);
+        Assert.Equal(CloudShellNotificationStatus.Succeeded, created.Status);
+
+        var listed = Assert.Single(await controlPlane.ListNotificationsAsync(
+            new CloudShellNotificationQuery(RecipientKey: "operator", MaxNotifications: 10)));
+        Assert.Equal(created.Id, listed.Id);
+        Assert.Equal("application:api", listed.ResourceId);
+        Assert.Equal("cloudshell.resource-event", listed.TemplateKey);
+        Assert.Equal("trace-1", listed.Attributes!["traceId"]);
+        var action = Assert.Single(listed.Actions!);
+        Assert.Equal("open", action.Id);
+        Assert.True(action.IsPrimary);
+        Assert.Equal("/resources/application%3Aapi", action.Target!.Href);
+
+        await controlPlane.HandleNotificationActionAsync(created.Id, "open");
+        await controlPlane.AcknowledgeNotificationAsync(created.Id);
+        await controlPlane.DismissNotificationAsync(created.Id);
+
+        Assert.Empty(await controlPlane.ListNotificationsAsync(
+            new CloudShellNotificationQuery(RecipientKey: "operator", MaxNotifications: 10)));
+        var dismissed = Assert.Single(await controlPlane.ListNotificationsAsync(
+            new CloudShellNotificationQuery(
+                RecipientKey: "operator",
+                IncludeDismissed: true,
+                MaxNotifications: 10)));
+        Assert.NotNull(dismissed.AcknowledgedAt);
+        Assert.NotNull(dismissed.DismissedAt);
     }
 
     [Fact]

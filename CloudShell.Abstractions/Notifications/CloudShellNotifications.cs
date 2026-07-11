@@ -19,6 +19,16 @@ public enum CloudShellNotificationChangeKind
     Dismissed = 2
 }
 
+public sealed record CloudShellNotificationTarget(
+    string Href,
+    string? Label = null);
+
+public sealed record CloudShellNotificationAction(
+    string Id,
+    string Label,
+    CloudShellNotificationTarget? Target = null,
+    bool IsPrimary = false);
+
 public sealed record CloudShellNotificationQuery(
     string? RecipientKey = null,
     bool IncludeDismissed = false,
@@ -36,6 +46,7 @@ public sealed record CreateCloudShellNotificationCommand(
     string? EventId = null,
     string? CorrelationId = null,
     string? TemplateKey = null,
+    IReadOnlyList<CloudShellNotificationAction>? Actions = null,
     IReadOnlyDictionary<string, string>? Attributes = null);
 
 public sealed record CloudShellNotificationInstance(
@@ -56,6 +67,7 @@ public sealed record CloudShellNotificationInstance(
     DateTimeOffset? ReadAt = null,
     DateTimeOffset? AcknowledgedAt = null,
     DateTimeOffset? DismissedAt = null,
+    IReadOnlyList<CloudShellNotificationAction>? Actions = null,
     IReadOnlyDictionary<string, string>? Attributes = null);
 
 public sealed class CloudShellNotificationsChangedEventArgs(
@@ -77,9 +89,19 @@ public interface ICloudShellNotificationStore
     CloudShellNotificationInstance CreateNotification(
         CreateCloudShellNotificationCommand command);
 
+    CloudShellNotificationInstance? GetNotification(string notificationId);
+
     bool AcknowledgeNotification(string notificationId);
 
     bool DismissNotification(string notificationId);
+}
+
+public interface ICloudShellNotificationActionHandler
+{
+    Task HandleNotificationActionAsync(
+        CloudShellNotificationInstance notification,
+        string actionId,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IResourceEventNotificationRule
