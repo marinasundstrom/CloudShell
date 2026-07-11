@@ -104,8 +104,12 @@ public static class ResourceEventTypes
         public static class Deployment
         {
             public const string Prefix = "event.deployment.";
+            public const string ImageUpdating = "event.deployment.image.updating";
             public const string ImageUpdated = "event.deployment.image.updated";
+            public const string ImageUpdateFailed = "event.deployment.image.update.failed";
+            public const string ReplicasUpdating = "event.deployment.replicas.updating";
             public const string ReplicasUpdated = "event.deployment.replicas.updated";
+            public const string ReplicasUpdateFailed = "event.deployment.replicas.update.failed";
             public const string Applying = "event.deployment.applying";
             public const string ServiceReconciling = "event.deployment.service.reconciling";
             public const string ServiceReconciled = "event.deployment.service.reconciled";

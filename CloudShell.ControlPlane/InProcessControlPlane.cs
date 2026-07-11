@@ -813,6 +813,12 @@ public sealed class InProcessControlPlane(
         }
 
         var triggeredBy = ResolveTriggeredBy(command.TriggeredBy);
+        AppendResourceEvent(
+            resource.Id,
+            ResourceEventTypes.Events.Deployment.ImageUpdating,
+            $"Updating image to '{image}'. Requested replicas: {FormatRequestedReplicas(command.RequestedReplicas)}.",
+            triggeredBy);
+
         ResourceProcedureResult result;
         try
         {
@@ -826,9 +832,25 @@ public sealed class InProcessControlPlane(
         }
         catch (InvalidOperationException exception) when (exception is not ControlPlaneException)
         {
+            AppendResourceEvent(
+                resource.Id,
+                ResourceEventTypes.Events.Deployment.ImageUpdateFailed,
+                $"Image update to '{image}' failed. Reason: {exception.Message}",
+                triggeredBy,
+                ResourceSignalSeverity.Error);
             throw new ControlPlaneException(
                 ControlPlaneError.ResourceImageUpdateUnavailable(exception.Message),
                 exception);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            AppendResourceEvent(
+                resource.Id,
+                ResourceEventTypes.Events.Deployment.ImageUpdateFailed,
+                $"Image update to '{image}' failed. Reason: {exception.Message}",
+                triggeredBy,
+                ResourceSignalSeverity.Error);
+            throw;
         }
 
         var updatedResource = resourceManager.GetResource(resource.Id);
@@ -839,7 +861,8 @@ public sealed class InProcessControlPlane(
             string.IsNullOrWhiteSpace(revision)
                 ? $"Updated image to '{image}'."
                 : $"Updated image to '{image}' and produced revision '{revision}'. Requested replicas: {FormatRequestedReplicas(command.RequestedReplicas)}.",
-            triggeredBy);
+            triggeredBy,
+            ResourceSignalSeverity.Success);
 
         NotifyResourcesChanged(new ResourceChangeNotification(
             ResourceChangeKind.ResourceImageUpdated,
@@ -987,6 +1010,12 @@ public sealed class InProcessControlPlane(
         }
 
         var triggeredBy = ResolveTriggeredBy(command.TriggeredBy);
+        AppendResourceEvent(
+            resource.Id,
+            ResourceEventTypes.Events.Deployment.ReplicasUpdating,
+            $"Updating replicas to '{command.Replicas}'. Restart if running: {command.RestartIfRunning.ToString().ToLowerInvariant()}.",
+            triggeredBy);
+
         ResourceProcedureResult result;
         try
         {
@@ -1002,16 +1031,33 @@ public sealed class InProcessControlPlane(
         }
         catch (InvalidOperationException exception) when (exception is not ControlPlaneException)
         {
+            AppendResourceEvent(
+                resource.Id,
+                ResourceEventTypes.Events.Deployment.ReplicasUpdateFailed,
+                $"Replica update to '{command.Replicas}' failed. Reason: {exception.Message}",
+                triggeredBy,
+                ResourceSignalSeverity.Error);
             throw new ControlPlaneException(
                 ControlPlaneError.ResourceReplicasUpdateUnavailable(exception.Message),
                 exception);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            AppendResourceEvent(
+                resource.Id,
+                ResourceEventTypes.Events.Deployment.ReplicasUpdateFailed,
+                $"Replica update to '{command.Replicas}' failed. Reason: {exception.Message}",
+                triggeredBy,
+                ResourceSignalSeverity.Error);
+            throw;
         }
 
         AppendResourceEvent(
             resource.Id,
             ResourceEventTypes.Events.Deployment.ReplicasUpdated,
             $"Updated replicas to '{command.Replicas}'. Restart if running: {command.RestartIfRunning.ToString().ToLowerInvariant()}.",
-            triggeredBy);
+            triggeredBy,
+            ResourceSignalSeverity.Success);
 
         NotifyResourcesChanged(new ResourceChangeNotification(
             ResourceChangeKind.ResourceReplicasUpdated,

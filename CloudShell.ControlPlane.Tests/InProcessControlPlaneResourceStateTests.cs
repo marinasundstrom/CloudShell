@@ -2748,6 +2748,86 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task UpdateResourceImageAsync_ProjectsImageUpdateProgressToNotification()
+    {
+        var provider = new TestImageUpdateResourceProvider();
+        var resourceEvents = new InMemoryResourceEventStore();
+        var notifications = new InMemoryCloudShellNotificationStore();
+        var sink = new ObservingResourceEventSink(
+            resourceEvents,
+            [new ResourceEventNotificationProjector(notifications, [new DefaultResourceEventNotificationRule()])]);
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            resourceEvents: resourceEvents,
+            resourceEventSink: sink,
+            notifications: notifications);
+
+        await controlPlane.UpdateResourceImageAsync(
+            new UpdateResourceImageCommand(
+                "target",
+                "example/api:20260608",
+                TriggeredBy: "build-server",
+                RequestedReplicas: 2));
+
+        Assert.Equal(
+            [
+                ResourceEventTypes.Events.Deployment.ImageUpdating,
+                ResourceEventTypes.Events.Deployment.ImageUpdated
+            ],
+            resourceEvents
+                .GetEvents(new ResourceEventQuery(ResourceId: "target"))
+                .Where(resourceEvent => resourceEvent.EventType.StartsWith("event.deployment.image.", StringComparison.Ordinal))
+                .OrderBy(resourceEvent => resourceEvent.Timestamp)
+                .Select(resourceEvent => resourceEvent.EventType)
+                .ToArray());
+
+        var notification = Assert.Single(await controlPlane.ListNotificationsAsync(
+            new CloudShellNotificationQuery(RecipientKey: "build-server")));
+        Assert.Equal("Update resource image", notification.Title);
+        Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
+        Assert.Equal(ResourceEventTypes.Events.Deployment.ImageUpdated, notification.EventType);
+        Assert.Equal("resource-update|target|image|build-server", notification.CorrelationId);
+        Assert.Equal("cloudshell.resource-update-operation", notification.TemplateKey);
+        Assert.Equal("update", notification.Attributes!["operationKind"]);
+        Assert.Equal("image", notification.Attributes!["updateKind"]);
+    }
+
+    [Fact]
+    public async Task UpdateResourceImageAsync_UpdatesImageNotificationWhenProviderFails()
+    {
+        var provider = new TestImageUpdateResourceProvider
+        {
+            FailureMessage = "Image update failed."
+        };
+        var resourceEvents = new InMemoryResourceEventStore();
+        var notifications = new InMemoryCloudShellNotificationStore();
+        var sink = new ObservingResourceEventSink(
+            resourceEvents,
+            [new ResourceEventNotificationProjector(notifications, [new DefaultResourceEventNotificationRule()])]);
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            resourceEvents: resourceEvents,
+            resourceEventSink: sink,
+            notifications: notifications);
+
+        await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.UpdateResourceImageAsync(
+                new UpdateResourceImageCommand(
+                    "target",
+                    "example/api:20260608",
+                    TriggeredBy: "build-server")));
+
+        var notification = Assert.Single(await controlPlane.ListNotificationsAsync(
+            new CloudShellNotificationQuery(RecipientKey: "build-server")));
+        Assert.Equal("Update resource image", notification.Title);
+        Assert.Equal(CloudShellNotificationStatus.Failed, notification.Status);
+        Assert.Equal(ResourceEventTypes.Events.Deployment.ImageUpdateFailed, notification.EventType);
+        Assert.Contains("failed", notification.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task UpdateResourceImageAsync_AppliesDescribedDeploymentWhenRuntimeReconciliationRequired()
     {
         var provider = new TestDeploymentImageUpdateResourceProvider();
@@ -3083,6 +3163,51 @@ public sealed class InProcessControlPlaneResourceStateTests
             EventType: ResourceEventTypes.Events.Deployment.ReplicasUpdated,
             TriggeredBy: "load-balancer")));
         Assert.Contains("3", resourceEvent.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task UpdateResourceReplicasAsync_ProjectsReplicaUpdateProgressToNotification()
+    {
+        var provider = new TestReplicaUpdateResourceProvider();
+        var resourceEvents = new InMemoryResourceEventStore();
+        var notifications = new InMemoryCloudShellNotificationStore();
+        var sink = new ObservingResourceEventSink(
+            resourceEvents,
+            [new ResourceEventNotificationProjector(notifications, [new DefaultResourceEventNotificationRule()])]);
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            resourceEvents: resourceEvents,
+            resourceEventSink: sink,
+            notifications: notifications);
+
+        await controlPlane.UpdateResourceReplicasAsync(
+            new UpdateResourceReplicasCommand(
+                "target",
+                3,
+                TriggeredBy: "operator"));
+
+        Assert.Equal(
+            [
+                ResourceEventTypes.Events.Deployment.ReplicasUpdating,
+                ResourceEventTypes.Events.Deployment.ReplicasUpdated
+            ],
+            resourceEvents
+                .GetEvents(new ResourceEventQuery(ResourceId: "target"))
+                .Where(resourceEvent => resourceEvent.EventType.StartsWith("event.deployment.replicas.", StringComparison.Ordinal))
+                .OrderBy(resourceEvent => resourceEvent.Timestamp)
+                .Select(resourceEvent => resourceEvent.EventType)
+                .ToArray());
+
+        var notification = Assert.Single(await controlPlane.ListNotificationsAsync(
+            new CloudShellNotificationQuery(RecipientKey: "operator")));
+        Assert.Equal("Update resource replicas", notification.Title);
+        Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
+        Assert.Equal(ResourceEventTypes.Events.Deployment.ReplicasUpdated, notification.EventType);
+        Assert.Equal("resource-update|target|replicas|operator", notification.CorrelationId);
+        Assert.Equal("cloudshell.resource-update-operation", notification.TemplateKey);
+        Assert.Equal("update", notification.Attributes!["operationKind"]);
+        Assert.Equal("replicas", notification.Attributes!["updateKind"]);
     }
 
     [Fact]

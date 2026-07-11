@@ -96,6 +96,14 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             return "Create resource";
         }
 
+        var updateKind = GetDeploymentUpdateKind(resourceEvent.EventType);
+        if (updateKind is not null)
+        {
+            return updateKind == "image"
+                ? "Update resource image"
+                : "Update resource replicas";
+        }
+
         var name = resourceEvent.EventType
             .Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .LastOrDefault() ?? "event";
@@ -135,6 +143,11 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
         else if (IsResourceCreateEvent(resourceEvent.EventType))
         {
             attributes["operationKind"] = "create";
+        }
+        else if (GetDeploymentUpdateKind(resourceEvent.EventType) is { } updateKind)
+        {
+            attributes["operationKind"] = "update";
+            attributes["updateKind"] = updateKind;
         }
 
         if (!string.IsNullOrWhiteSpace(resourceEvent.TraceId))
@@ -180,6 +193,11 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
                 "create",
                 "create",
                 "cloudshell.resource-create-operation")
+            : GetDeploymentUpdateKind(eventType) is { } updateKind
+                ? new NotificationOperation(
+                    "update",
+                    updateKind,
+                    "cloudshell.resource-update-operation")
             : null;
     }
 
@@ -216,6 +234,18 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             ResourceEventTypes.Events.Resource.Creating or
             ResourceEventTypes.Events.Resource.Created or
             ResourceEventTypes.Events.Resource.CreateFailed;
+
+    private static string? GetDeploymentUpdateKind(string eventType) =>
+        eventType.Trim() switch
+        {
+            ResourceEventTypes.Events.Deployment.ImageUpdating or
+            ResourceEventTypes.Events.Deployment.ImageUpdated or
+            ResourceEventTypes.Events.Deployment.ImageUpdateFailed => "image",
+            ResourceEventTypes.Events.Deployment.ReplicasUpdating or
+            ResourceEventTypes.Events.Deployment.ReplicasUpdated or
+            ResourceEventTypes.Events.Deployment.ReplicasUpdateFailed => "replicas",
+            _ => null
+        };
 
     private sealed record NotificationOperation(
         string Kind,

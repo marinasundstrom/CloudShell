@@ -770,7 +770,7 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(ContractImageResourceProvider.ResourceId, resourceEvent.ResourceId);
         Assert.Equal(ResourceEventTypes.Events.Deployment.ImageUpdated, resourceEvent.EventType);
         Assert.Equal("user", resourceEvent.TriggeredBy);
-        Assert.Equal(ResourceSignalSeverity.Info, resourceEvent.Severity);
+        Assert.Equal(ResourceSignalSeverity.Success, resourceEvent.Severity);
         Assert.False(string.IsNullOrWhiteSpace(resourceEvent.TraceId));
         Assert.False(string.IsNullOrWhiteSpace(resourceEvent.SpanId));
         Assert.Contains("example/api:20260608", resourceEvent.Message, StringComparison.Ordinal);
@@ -798,8 +798,10 @@ public sealed class RemoteControlPlaneContractTests
             $"/api/control-plane/v1/log-sources/{Uri.EscapeDataString(eventLog.Id)}/entries");
         Assert.Equal(HttpStatusCode.OK, logResponse.StatusCode);
         using var logDocument = JsonDocument.Parse(await logResponse.Content.ReadAsStringAsync());
-        var logEntry = Assert.Single(logDocument.RootElement.EnumerateArray());
-        Assert.Equal("Information", logEntry.GetProperty("severity").GetString());
+        var logEntry = Assert.Single(
+            logDocument.RootElement.EnumerateArray(),
+            entry => entry.GetProperty("eventId").GetString() == ResourceEventTypes.Events.Deployment.ImageUpdated);
+        Assert.Equal("Success", logEntry.GetProperty("severity").GetString());
         Assert.Equal(ResourceEventTypes.Events.Deployment.ImageUpdated, logEntry.GetProperty("eventId").GetString());
         Assert.False(logEntry.TryGetProperty("level", out _));
     }
@@ -827,7 +829,7 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(ContractImageResourceProvider.ResourceId, resourceEvent.GetProperty("resourceId").GetString());
         Assert.Equal(ResourceEventTypes.Events.Deployment.ImageUpdated, resourceEvent.GetProperty("eventType").GetString());
         Assert.Equal("user", resourceEvent.GetProperty("triggeredBy").GetString());
-        Assert.Equal("Information", resourceEvent.GetProperty("severity").GetString());
+        Assert.Equal("Success", resourceEvent.GetProperty("severity").GetString());
         Assert.False(resourceEvent.TryGetProperty("level", out _));
         Assert.Contains("example/api:20260609", resourceEvent.GetProperty("message").GetString(), StringComparison.Ordinal);
     }

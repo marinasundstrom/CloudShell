@@ -224,6 +224,42 @@ public sealed class CloudShellNotificationStoreTests
     }
 
     [Fact]
+    public void ObservingResourceEventSink_CoalescesDeploymentUpdateProgressIntoOneNotification()
+    {
+        var resourceEvents = new InMemoryResourceEventStore();
+        var notifications = new InMemoryCloudShellNotificationStore();
+        var projector = new ResourceEventNotificationProjector(
+            notifications,
+            [new DefaultResourceEventNotificationRule()]);
+        var sink = new ObservingResourceEventSink(resourceEvents, [projector]);
+
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Deployment.ImageUpdating,
+            "Updating image to 'example/api:2'.",
+            DateTimeOffset.Parse("2026-07-11T09:00:00+00:00"),
+            TriggeredBy: "operator"));
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Deployment.ImageUpdated,
+            "Updated image to 'example/api:2'.",
+            DateTimeOffset.Parse("2026-07-11T09:00:01+00:00"),
+            TriggeredBy: "operator",
+            Severity: ResourceSignalSeverity.Success));
+
+        var notification = Assert.Single(notifications.GetNotifications(new CloudShellNotificationQuery(
+            RecipientKey: "operator")));
+        Assert.Equal("Update resource image", notification.Title);
+        Assert.Equal("Updated image to 'example/api:2'.", notification.Message);
+        Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
+        Assert.Equal(ResourceEventTypes.Events.Deployment.ImageUpdated, notification.EventType);
+        Assert.Equal("resource-update|application:api|image|operator", notification.CorrelationId);
+        Assert.Equal("cloudshell.resource-update-operation", notification.TemplateKey);
+        Assert.Equal("update", notification.Attributes!["operationKind"]);
+        Assert.Equal("image", notification.Attributes!["updateKind"]);
+    }
+
+    [Fact]
     public void DefaultResourceEventNotificationRule_RequiresTriggeredByRecipient()
     {
         var rule = new DefaultResourceEventNotificationRule();
