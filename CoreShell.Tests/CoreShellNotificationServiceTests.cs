@@ -206,6 +206,65 @@ public sealed class CoreShellNotificationServiceTests
     }
 
     [Fact]
+    public void NotificationPresentation_ExpiresPlainToastOnlyItemsAfterTimeToLive()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var toast = CreateToast(
+            updatedAt: now.Subtract(TimeSpan.FromSeconds(9)),
+            timeToLive: TimeSpan.FromSeconds(8));
+
+        Assert.False(CoreShellNotificationPresentation.ShouldShowToast(toast, now));
+    }
+
+    [Fact]
+    public void NotificationPresentation_KeepsInProgressToastOnlyItemsUntilUpdatedOrDismissed()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var toast = CreateToast(
+            status: CoreShellNotificationStatus.InProgress,
+            updatedAt: now.Subtract(TimeSpan.FromMinutes(5)),
+            timeToLive: TimeSpan.Zero);
+
+        Assert.True(CoreShellNotificationPresentation.ShouldShowToast(toast, now));
+    }
+
+    [Fact]
+    public void NotificationPresentation_KeepsNeverAutoDismissToastOnlyItemsVisible()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var toast = CreateToast(
+            updatedAt: now.Subtract(TimeSpan.FromMinutes(5)),
+            timeToLive: TimeSpan.Zero,
+            autoDismiss: CoreShellToastAutoDismissBehavior.Never);
+
+        Assert.True(CoreShellNotificationPresentation.ShouldShowToast(toast, now));
+    }
+
+    [Fact]
+    public void NotificationPresentation_FiltersToastOnlyItemsBeforeApplyingToastLimit()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var expired = Enumerable
+            .Range(0, 20)
+            .Select(index => CreateToast(
+                id: $"expired-{index}",
+                updatedAt: now.Subtract(TimeSpan.FromMinutes(index + 1)),
+                timeToLive: TimeSpan.FromSeconds(1)));
+        var inProgress = CreateToast(
+            id: "in-progress",
+            status: CoreShellNotificationStatus.InProgress,
+            updatedAt: now.Subtract(TimeSpan.FromHours(1)));
+
+        var toasts = CoreShellNotificationPresentation.SelectToastItems(
+            expired.Concat([inProgress]),
+            now,
+            maxItems: 1);
+
+        var toast = Assert.Single(toasts);
+        Assert.Equal("in-progress", toast.Id);
+    }
+
+    [Fact]
     public void AddCoreShellBlazor_RegistersEmptyNotificationProducerByDefault()
     {
         var services = new ServiceCollection();
@@ -319,6 +378,23 @@ public sealed class CoreShellNotificationServiceTests
             ToastTimeToLive: toastTimeToLive,
             ToastAutoDismiss: toastAutoDismiss,
             VisibleAt: visibleAt);
+
+    private static CoreShellToast CreateToast(
+        string id = "toast-1",
+        CoreShellNotificationStatus status = CoreShellNotificationStatus.Active,
+        DateTimeOffset? updatedAt = null,
+        TimeSpan? timeToLive = null,
+        CoreShellToastAutoDismissBehavior autoDismiss = CoreShellToastAutoDismissBehavior.AfterTimeToLive) =>
+        new(
+            id,
+            "Toast",
+            "Toast message.",
+            CoreShellNotificationSeverity.Info,
+            status,
+            DateTimeOffset.UtcNow,
+            updatedAt ?? DateTimeOffset.UtcNow,
+            TimeToLive: timeToLive,
+            AutoDismiss: autoDismiss);
 
     private sealed class TestNotificationService : ICoreShellNotificationService
     {

@@ -159,7 +159,7 @@
 
     private IReadOnlyList<CoreShellNotificationInstance> ToastCandidates { get; set; } = [];
 
-    private IReadOnlyList<CoreShellToast> ToastOnlyItems { get; set; } = [];
+    private IReadOnlyList<CoreShellToast> ToastOnlyCandidates { get; set; } = [];
 
     private bool IsPanelOpen { get; set; }
 
@@ -172,6 +172,12 @@
     private IReadOnlyList<CoreShellNotificationInstance> ToastItems =>
         CoreShellNotificationPresentation.SelectToastItems(
             ToastCandidates,
+            DateTimeOffset.UtcNow,
+            NotificationToastLimit);
+
+    private IReadOnlyList<CoreShellToast> ToastOnlyItems =>
+        CoreShellNotificationPresentation.SelectToastItems(
+            ToastOnlyCandidates,
             DateTimeOffset.UtcNow,
             NotificationToastLimit);
 
@@ -202,7 +208,7 @@
         Items = notifications
             .Take(NotificationCenterItemLimit)
             .ToArray();
-        ToastOnlyItems = await Toasts.GetToastsAsync();
+        ToastOnlyCandidates = await Toasts.GetToastsAsync();
         await InvokeAsync(StateHasChanged);
     }
 

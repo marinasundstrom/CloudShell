@@ -446,10 +446,7 @@ public sealed class SampleToastService : ICoreShellToastService
     private void RemoveExpired(DateTimeOffset now)
     {
         var removed = _toasts.RemoveAll(toast =>
-            toast.AutoDismiss == CoreShellToastAutoDismissBehavior.AfterTimeToLive
-            && toast.TimeToLive is { } ttl
-            && toast.Status != CoreShellNotificationStatus.InProgress
-            && toast.UpdatedAt.Add(ttl) <= now);
+            !CoreShellNotificationPresentation.ShouldShowToast(toast, now));
 
         if (removed > 0)
         {

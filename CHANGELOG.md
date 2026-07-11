@@ -95,6 +95,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added shared CoreShell notification-toast presentation selection so
   notification centers can stay compact without crowding active in-progress
   toasts out of the toast stack.
+- Added shared CoreShell toast-only presentation selection so plain transient
+  toasts expire by time-to-live, in-progress toasts stay visible while active,
+  and `Never` auto-dismiss toasts remain until explicitly dismissed.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.

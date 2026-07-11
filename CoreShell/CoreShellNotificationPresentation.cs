@@ -20,6 +20,24 @@ public static class CoreShellNotificationPresentation
             .ToArray();
     }
 
+    public static IReadOnlyList<CoreShellToast> SelectToastItems(
+        IEnumerable<CoreShellToast> toasts,
+        DateTimeOffset now,
+        int maxItems)
+    {
+        ArgumentNullException.ThrowIfNull(toasts);
+
+        if (maxItems <= 0)
+        {
+            return [];
+        }
+
+        return toasts
+            .Where(toast => ShouldShowToast(toast, now))
+            .Take(maxItems)
+            .ToArray();
+    }
+
     public static bool ShouldShowToast(
         CoreShellNotificationInstance notification,
         DateTimeOffset now)
@@ -47,5 +65,25 @@ public static class CoreShellNotificationPresentation
 
         var timeToLive = notification.ToastTimeToLive ?? CoreShellToastDefaults.NotificationTimeToLive;
         return notification.UpdatedAt.Add(timeToLive) > now;
+    }
+
+    public static bool ShouldShowToast(
+        CoreShellToast toast,
+        DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(toast);
+
+        if (toast.AutoDismiss == CoreShellToastAutoDismissBehavior.Never)
+        {
+            return true;
+        }
+
+        if (toast.Status == CoreShellNotificationStatus.InProgress)
+        {
+            return true;
+        }
+
+        var timeToLive = toast.TimeToLive ?? CoreShellToastDefaults.DefaultTimeToLive;
+        return toast.UpdatedAt.Add(timeToLive) > now;
     }
 }
