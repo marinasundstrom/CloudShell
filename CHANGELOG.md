@@ -28,8 +28,8 @@ on `git blame --follow`, and then by the broad type of change.
   parameter for the Settings action.
 - Added a shell notifications and toasts proposal covering CoreShell
   notification event/instance contracts, per-user notification instances,
-  Control Plane event-driven notification rules, and the future CloudShell
-  notifications service integration boundary.
+  Control Plane-owned notification records, event-driven notification rules,
+  and the future CloudShell notification API integration boundary.
 - Added the minimal CoreShell notification UI contract with
   `ICoreShellNotificationService`, per-user notification instance records,
   change notifications, acknowledge/dismiss methods, and an empty default
@@ -48,6 +48,9 @@ on `git blame --follow`, and then by the broad type of change.
   visibility and auto-dismiss data, default toast lifetime behavior, and
   reference sample coverage for returned item IDs that can update, dismiss, or
   replace long-running progress feedback.
+- Added the first Control Plane-owned notification record and in-memory store
+  contracts, plus resource-event observer projection that maps triggered
+  resource events into per-recipient notification instances.
 - Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder
   helper from CloudShell Hosting into `CoreShell.Blazor` so common Blazor shell
   building blocks can be used by CoreShell apps without a CloudShell

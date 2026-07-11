@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Notifications;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Usage;
@@ -61,7 +62,8 @@ public sealed class InProcessControlPlane(
     IEnumerable<IDeploymentArtifactLayoutProvider>? deploymentArtifactLayoutProviders = null,
     IEnumerable<IDeploymentArtifactValidationProvider>? deploymentArtifactValidationProviders = null,
     IOptions<ResourceManagerOptions>? resourceManagerOptions = null,
-    IOptions<DeploymentArtifactOptions>? deploymentArtifactOptions = null) : IControlPlane
+    IOptions<DeploymentArtifactOptions>? deploymentArtifactOptions = null,
+    ICloudShellNotificationStore? notifications = null) : IControlPlane
 {
     private const string PreferredUsernameClaimType = "preferred_username";
     private const string UnauthenticatedRequestActor = "user";
@@ -1527,6 +1529,34 @@ public sealed class InProcessControlPlane(
             .ToArray();
 
         return Task.FromResult<IReadOnlyList<ResourceEvent>>(events);
+    }
+
+    public Task<IReadOnlyList<CloudShellNotificationInstance>> ListNotificationsAsync(
+        CloudShellNotificationQuery? query = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(notifications?.GetNotifications(query) ?? []);
+    }
+
+    public Task AcknowledgeNotificationAsync(
+        string notificationId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentException.ThrowIfNullOrWhiteSpace(notificationId);
+        notifications?.AcknowledgeNotification(notificationId);
+        return Task.CompletedTask;
+    }
+
+    public Task DismissNotificationAsync(
+        string notificationId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentException.ThrowIfNullOrWhiteSpace(notificationId);
+        notifications?.DismissNotification(notificationId);
+        return Task.CompletedTask;
     }
 
     public Task<IReadOnlyList<ResourceDeploymentRecord>> ListResourceDeploymentsAsync(

@@ -562,8 +562,10 @@ visible to the current user and which actions or links are enabled.
 
 ### Slice 2: CloudShell adapter
 
-- Add a Control Plane notification subsystem with a projection service,
-  notification store, current-user query/mutation APIs, producer APIs, and a
+- Added the first Control Plane notification records, in-memory notification
+  store, notification manager surface, resource-event observer hook, and
+  default resource-event projection into per-recipient notification instances.
+- Add Control Plane notification query/mutation APIs, producer APIs, and a
   change signal.
 - Register CloudShell UI adapters so CoreShell UI presenters read Control
   Plane-owned notification instances through `ICoreShellNotificationService`.

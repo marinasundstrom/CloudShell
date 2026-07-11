@@ -44,6 +44,11 @@ public interface IResourceEventSink
     void Append(ResourceEvent resourceEvent);
 }
 
+public interface IResourceEventObserver
+{
+    void OnResourceEvent(ResourceEvent resourceEvent);
+}
+
 public interface IResourceEventStore : IResourceEventSink
 {
     IReadOnlyList<ResourceEvent> GetEvents(ResourceEventQuery? query = null);

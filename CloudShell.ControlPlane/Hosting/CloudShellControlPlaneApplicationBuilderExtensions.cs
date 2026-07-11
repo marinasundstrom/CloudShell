@@ -3,6 +3,7 @@ using CloudShell.Abstractions.Logging;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ControlPlane;
+using CloudShell.Abstractions.Notifications;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Shell;
 using CloudShell.Abstractions.Usage;
@@ -11,6 +12,7 @@ using CloudShell.ControlPlane.DeploymentArtifacts;
 using CloudShell.ControlPlane.Api;
 using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Logs;
+using CloudShell.ControlPlane.Notifications;
 using CloudShell.ControlPlane.Observability;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager.Deployment;
@@ -81,8 +83,13 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.TryAddSingleton<InMemoryResourceEventStore>();
         builder.Services.TryAddSingleton<IResourceEventStore>(
             serviceProvider => serviceProvider.GetRequiredService<InMemoryResourceEventStore>());
-        builder.Services.TryAddSingleton<IResourceEventSink>(
-            serviceProvider => serviceProvider.GetRequiredService<InMemoryResourceEventStore>());
+        builder.Services.RemoveAll<IResourceEventSink>();
+        builder.Services.AddSingleton<IResourceEventSink, ObservingResourceEventSink>();
+        builder.Services.TryAddSingleton<ICloudShellNotificationStore, InMemoryCloudShellNotificationStore>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceEventNotificationRule, DefaultResourceEventNotificationRule>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceEventObserver, ResourceEventNotificationProjector>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<ILogProvider, ResourceEventLogProvider>());
         builder.Services.AddSingleton<InMemoryTraceStore>();
@@ -212,6 +219,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddScoped<IResourceDeploymentManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         builder.Services.AddScoped<IResourceReplicaSlotStateManager>(
+            serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
+        builder.Services.AddScoped<ICloudShellNotificationManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         builder.Services.AddScoped<ILogManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());

@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Notifications;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Usage;
@@ -14,6 +15,7 @@ public interface IControlPlane :
     IResourceEventManager,
     IResourceDeploymentManager,
     IResourceReplicaSlotStateManager,
+    ICloudShellNotificationManager,
     ILogManager,
     ITraceManager,
     IMetricManager,
@@ -236,6 +238,21 @@ public interface IResourceDeploymentManager
 {
     Task<IReadOnlyList<ResourceDeploymentRecord>> ListResourceDeploymentsAsync(
         ResourceDeploymentQuery? query = null,
+        CancellationToken cancellationToken = default);
+}
+
+public interface ICloudShellNotificationManager
+{
+    Task<IReadOnlyList<CloudShellNotificationInstance>> ListNotificationsAsync(
+        CloudShellNotificationQuery? query = null,
+        CancellationToken cancellationToken = default);
+
+    Task AcknowledgeNotificationAsync(
+        string notificationId,
+        CancellationToken cancellationToken = default);
+
+    Task DismissNotificationAsync(
+        string notificationId,
         CancellationToken cancellationToken = default);
 }
 
