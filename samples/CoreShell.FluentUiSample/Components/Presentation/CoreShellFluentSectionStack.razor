@@ -1,0 +1,63 @@
+@inject ICoreShellBlazorSectionOutletProjectionService SectionOutlets
+@inject ICoreShellRouteService Routes
+
+@if (Resolved is null)
+{
+    <FluentCard Class="empty-card">
+        <FluentIcon Value="@(new Icons.Regular.Size24.PanelLeft())" />
+        <h2>No outlet registered</h2>
+        <p>The requested CoreShell section outlet is not available.</p>
+    </FluentCard>
+}
+else
+{
+    <div class="section-stack">
+        @foreach (var section in Resolved.Sections)
+        {
+            <FluentCard Class="section-card" id="@section.Section.Id.Value">
+                <div class="section-card-heading">
+                    <FluentIcon Value="@CoreShellSampleIcons.FromName(GetIconName(section.Section))" />
+                    <div>
+                        <h2>@section.Section.Title</h2>
+                        <a href="@SectionHrefs.GetValueOrDefault(section.Section.Id.Value, "#")">
+                            @section.Section.Id.Value
+                        </a>
+                    </div>
+                </div>
+                <DynamicComponent Type="@section.ContentType" />
+            </FluentCard>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public CoreShellPageId Page { get; set; }
+
+    [Parameter, EditorRequired]
+    public CoreShellSectionOutletId Outlet { get; set; }
+
+    private CoreShellBlazorResolvedSectionOutlet? Resolved { get; set; }
+
+    private Dictionary<string, string> SectionHrefs { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Resolved = await SectionOutlets.ResolveSectionOutletAsync(Page, Outlet);
+        SectionHrefs.Clear();
+
+        if (Resolved is null)
+        {
+            return;
+        }
+
+        foreach (var section in Resolved.Sections)
+        {
+            SectionHrefs[section.Section.Id.Value] =
+                (await Routes.ResolveTargetAsync(CoreShellTarget.ForSection(section.Section.Id))).Href;
+        }
+    }
+
+    private static string GetIconName(CoreShellSectionContribution section) =>
+        section.Attributes.GetValueOrDefault(CoreShellAttributeNames.Icon) ?? string.Empty;
+}

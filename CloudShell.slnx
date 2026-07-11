@@ -17,6 +17,9 @@
   <Folder Name="/samples/CompositionSandbox/">
     <Project Path="samples/CompositionSandbox/CloudShell.CompositionSandbox.csproj" />
   </Folder>
+  <Folder Name="/samples/CoreShell.FluentUiSample/">
+    <Project Path="samples/CoreShell.FluentUiSample/CoreShell.FluentUiSample.csproj" />
+  </Folder>
   <Folder Name="/samples/CloudShell.ContainerHost/">
     <Project Path="samples/CloudShell.ContainerHost/CloudShell.ContainerHost.csproj" />
   </Folder>

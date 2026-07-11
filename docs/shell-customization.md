@@ -1,14 +1,17 @@
 # Shell customization design goals
 
-CloudShell's core value proposition is a configurable cloud-portal shell. The
-shell should provide controlled extension points for UI integration while
-letting teams decide which product areas they want to install, remove, or
-replace.
+CloudShell's core value proposition is a configurable cloud-portal shell built
+on CoreShell. CoreShell provides the common shell building blocks: pages,
+menus, navigation targets, sections, section outlets, route resolution, and
+extension modules. CloudShell composes those blocks with its own product
+services, Fluent UI presenters, Resource Manager, Observability, Usage, and
+Control Plane-backed integrations.
 
-The long-term direction is to make the CloudShell UI a standalone extensible
-shell platform. Resource Manager, Logs, settings, provider workspaces, and
-future product areas should plug into the same composition model instead of
-being hard-coded assumptions in the shell chrome.
+The direction is to keep CoreShell product-neutral while letting CloudShell
+customize its UI and add CloudShell-specific extension points. Resource
+Manager, Logs, settings, provider workspaces, and future product areas should
+plug into CoreShell-backed shell surfaces instead of being hard-coded
+assumptions in the shell chrome.
 
 ## Objectives
 
@@ -29,7 +32,20 @@ being hard-coded assumptions in the shell chrome.
 
 ## Current scope
 
-The current implementation supports programmatic customization:
+The current implementation supports programmatic customization. New shell
+navigation, settings, and page contributions should prefer CoreShell modules
+through `AddCoreShellModule(...)`:
+
+- `CoreShellModule` for extension-owned pages, menus, menu groups, menu items,
+  section outlets, and sections.
+- `CoreShellTarget` for page, section, or href navigation.
+- `ICoreShellNavigationService`, `ICoreShellRouteService`,
+  `ICoreShellSectionService`, and `ICoreShellSectionAddressService` for
+  shell-owned rendering and linking.
+- `CoreShell.Blazor` helpers such as `CoreShellBlazorContent.For<TComponent>()`
+  and `AddSection<TComponent>(...)` for Blazor-backed content.
+
+CloudShell also keeps product-specific extension points:
 
 - `RegisterView<TComponent>()` for extension-owned routable pages keyed by component type.
 - `AddNavigationItem` for navigation menu items with explicit view or href targets.
@@ -43,13 +59,13 @@ The current implementation supports programmatic customization:
 - User-scoped CloudShell environment preferences through
   `ICloudShellUserSettingsProvider`.
 
-CloudShell also has an experimental UI composition engine documented in
-[UI composition](ui-composition.md). It is currently proven through a
-standalone Blazor sample rather than the CloudShell extension model. That
-engine provides typed IDs, a registry, page/menu/section registrations, link
-resolution, and plain Blazor rendering components. CloudShell extension
-integration will be layered on later after the standalone composition shape is
-stable.
+CoreShell and the lower-level composition engine are documented in
+[UI composition](ui-composition.md). `samples/CoreShell.FluentUiSample` is the
+reference CoreShell-only Fluent UI app and future CoreShell development
+testbed. It shows that an app can own its own Blazor layout and presenters
+while using CoreShell for navigation, targets, section outlets, and extension
+modules. `samples/CompositionSandbox` remains the lower-level composition
+sandbox for graph and renderer experiments below CoreShell.
 
 The built-in Overview item has the special navigation ID `overview`. A
 replacement changes the sidebar contribution and points to either a registered
@@ -75,12 +91,23 @@ should be named, ordered, and navigated like any other view.
 An extension can add a small shell-hosted view to demonstrate this pattern:
 
 ```csharp
-builder
-    .RegisterView<SampleWorkspaceOverview>()
-    .AddNavigationItem<SampleWorkspaceOverview>(
-        text: "Sample workspace",
-        icon: "pulse",
-        order: 10);
+builder.AddCoreShellModule(
+    CoreShellModuleId.Create("sample.workspace"),
+    module =>
+    {
+        module.AddPage(SamplePages.Workspace, "Sample workspace", "/workspace")
+            .AddSections(SampleOutlets.WorkspaceMain)
+            .AddSection<SampleWorkspaceOverview>(
+                SampleSections.Overview,
+                "Overview",
+                10);
+
+        module.AddMenu(ShellIds.MainMenu, "Main")
+            .AddGroup(ShellIds.WorkspaceMenuGroup, "Workspace", 10)
+            .AddItem(SampleMenuItems.Workspace, "Sample workspace", 10)
+            .WithAttribute(CoreShellAttributeNames.Icon, "pulse")
+            .Target(SamplePages.Workspace);
+    });
 ```
 
 CloudShell does not currently support per-user customization. Start-route and view/menu contributions are global for the installed extension set.

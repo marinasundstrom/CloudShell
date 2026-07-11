@@ -1,0 +1,72 @@
+@inject ICoreShellNavigationService Navigation
+@inject ICoreShellRouteService Routes
+
+@if (Menu is not null)
+{
+    <FluentNavMenu Class="sample-nav-menu" Title="@Menu.Title" Margin="0">
+        @foreach (var item in Menu.Items.Where(item => item.ParentId is null))
+        {
+            @RenderItem(item)
+        }
+
+        @foreach (var group in Menu.Groups)
+        {
+            if (group.Items.Count == 0)
+            {
+                continue;
+            }
+
+            <section class="sample-nav-group">
+                <div class="sample-nav-group-title">@group.Title</div>
+                @foreach (var item in group.Items.Where(item => item.ParentId is null))
+                {
+                    @RenderItem(item)
+                }
+            </section>
+        }
+    </FluentNavMenu>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public CoreShellMenuId Id { get; set; }
+
+    private CoreShellMenuContribution? Menu { get; set; }
+
+    private Dictionary<string, string> Hrefs { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Menu = await Navigation.GetMenuAsync(Id);
+        Hrefs.Clear();
+
+        if (Menu is null)
+        {
+            return;
+        }
+
+        foreach (var item in Menu.Items.Concat(Menu.Groups.SelectMany(group => group.Items)))
+        {
+            Hrefs[item.Id.Value] = (await Routes.ResolveTargetAsync(item.Target)).Href;
+        }
+    }
+
+    private RenderFragment RenderItem(CoreShellMenuItemContribution item) => @<FluentNavLink
+        Class="sample-nav-link"
+        Href="@Hrefs.GetValueOrDefault(item.Id.Value, "#")"
+        Match="@GetMatch(item)"
+        Icon="@CoreShellSampleIcons.FromName(GetIconName(item))"
+        Tooltip="@item.Title"
+        ActiveClass="active">
+        <span>@item.Title</span>
+    </FluentNavLink>;
+
+    private NavLinkMatch GetMatch(CoreShellMenuItemContribution item)
+    {
+        var href = Hrefs.GetValueOrDefault(item.Id.Value, "#");
+        return href == "/" ? NavLinkMatch.All : NavLinkMatch.Prefix;
+    }
+
+    private static string GetIconName(CoreShellMenuItemContribution item) =>
+        item.Attributes.GetValueOrDefault(CoreShellAttributeNames.Icon) ?? string.Empty;
+}

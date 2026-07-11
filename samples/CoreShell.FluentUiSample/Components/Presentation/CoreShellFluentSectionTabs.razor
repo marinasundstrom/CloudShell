@@ -1,0 +1,106 @@
+@inject ICoreShellBlazorSectionOutletProjectionService SectionOutlets
+@inject ICoreShellRouteService Routes
+@inject ICoreShellSectionAddressService SectionAddresses
+@inject NavigationManager Navigation
+
+@if (Resolved is null)
+{
+    <FluentCard Class="empty-card">
+        <FluentIcon Value="@(new Icons.Regular.Size24.PanelLeft())" />
+        <h2>No outlet registered</h2>
+        <p>The requested CoreShell section outlet is not available.</p>
+    </FluentCard>
+}
+else
+{
+    <div class="tabs-layout">
+        <FluentTabs ActiveTabId="@SelectedSectionId"
+                    ActiveTabIdChanged="SelectSection">
+            @foreach (var section in Resolved.Sections)
+            {
+                <FluentTab Id="@section.Section.Id.Value">
+                    <Header>
+                        <FluentIcon Value="@CoreShellSampleIcons.FromName(GetIconName(section.Section))" />
+                        @section.Section.Title
+                    </Header>
+                    <Content>
+                        <FluentCard Class="section-card">
+                            <DynamicComponent Type="@section.ContentType" />
+                        </FluentCard>
+                    </Content>
+                </FluentTab>
+            }
+        </FluentTabs>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public CoreShellPageId Page { get; set; }
+
+    [Parameter, EditorRequired]
+    public CoreShellSectionOutletId Outlet { get; set; }
+
+    [Parameter]
+    public string? Section { get; set; }
+
+    private CoreShellBlazorResolvedSectionOutlet? Resolved { get; set; }
+
+    private string? SelectedSectionId { get; set; }
+
+    private Dictionary<string, string> SectionHrefs { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Resolved = await SectionOutlets.ResolveSectionOutletAsync(Page, Outlet);
+        SectionHrefs.Clear();
+
+        if (Resolved is null)
+        {
+            SelectedSectionId = null;
+            return;
+        }
+
+        foreach (var section in Resolved.Sections)
+        {
+            SectionHrefs[section.Section.Id.Value] =
+                (await Routes.ResolveTargetAsync(CoreShellTarget.ForSection(section.Section.Id))).Href;
+        }
+
+        SelectedSectionId = ResolveSelectedSection()?.Section.Id.Value;
+    }
+
+    private CoreShellBlazorSection? ResolveSelectedSection()
+    {
+        if (Resolved is null)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(Section) &&
+            SectionAddresses.TryResolveSectionRequest(
+                Resolved.Outlet.Outlet,
+                Resolved.Sections.Select(section => section.Section).ToArray(),
+                Section,
+                out var requested))
+        {
+            return Resolved.Sections.First(section => section.Section.Id == requested.Id);
+        }
+
+        return Resolved.Sections.FirstOrDefault();
+    }
+
+    private void SelectSection(string? sectionId)
+    {
+        if (sectionId is null ||
+            !SectionHrefs.TryGetValue(sectionId, out var href))
+        {
+            return;
+        }
+
+        Navigation.NavigateTo(href);
+    }
+
+    private static string GetIconName(CoreShellSectionContribution section) =>
+        section.Attributes.GetValueOrDefault(CoreShellAttributeNames.Icon) ?? string.Empty;
+}

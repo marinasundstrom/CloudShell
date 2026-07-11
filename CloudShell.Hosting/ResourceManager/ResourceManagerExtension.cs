@@ -3,6 +3,7 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Hosting.Components.Pages.Resources;
 using CloudShell.Hosting.Shell;
 using CoreShell;
+using CoreShell.Blazor;
 
 namespace CloudShell.Hosting.ResourceManager;
 

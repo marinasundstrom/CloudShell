@@ -28,6 +28,11 @@ separate CoreShell adapter above them:
 The Blazor components render ordinary HTML elements and can be styled by the
 host app with normal CSS. The `samples/CompositionSandbox` app demonstrates
 this with plain Bootstrap CSS and a small app stylesheet.
+`samples/CoreShell.FluentUiSample` is the reference app for CoreShell-level
+Fluent UI shell building blocks: it consumes CoreShell and CoreShell.Blazor
+directly, owns its own Blazor layout, and mounts a sample extension module
+without referencing CloudShell Hosting, Resource Manager, or the Control
+Plane.
 
 Framework-specific presentation belongs in host adapters. The base Blazor
 package should keep standard, render-mode-neutral components that emit normal
@@ -858,8 +863,6 @@ conflicts, permission metadata, and route conflicts.
 
 The current composition engine does not yet include:
 
-- CoreShell adapter APIs that project shell-owned contribution
-  contracts into composition modules
 - Resource Manager adapters that project resource-specific contracts into
   composition modules
 - persisted composition graph metadata

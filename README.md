@@ -13,8 +13,10 @@ those users one shared resource graph across code, Resource Manager, the CLI,
 and the Control Plane API instead of binding the platform to one programming
 language or one public cloud.
 
-The Resource Manager UI is built with Blazor, Fluent UI, and .NET 11 preview,
-with an operational experience inspired by the .NET Aspire Dashboard.
+The CloudShell UI is a Fluent UI shell built on CoreShell, the generic shell
+contribution model for pages, navigation, sections, settings, and extension
+surfaces. Resource Manager is the first major CloudShell extension in that
+shell, with an operational experience inspired by the .NET Aspire Dashboard.
 
 **Resources view:**
 
@@ -81,8 +83,9 @@ Plane API.
   balancing, identity, logs, traces, and usage.
 - Resource-scoped authorization, configurable authentication, and EF Core
   persistence with SQLite or SQL Server.
-- Extension points for resource providers, Resource Manager UI, shell views,
-  diagnostics, runtime adapters, and client helpers.
+- CoreShell-backed extension points for shell pages, navigation, settings, and
+  sections, plus CloudShell-specific extension points for resource providers,
+  Resource Manager UI, diagnostics, runtime adapters, and client helpers.
 
 ## Core Concepts
 
@@ -154,6 +157,8 @@ represented through the same resource graph. For full launcher examples, see
 ## Projects
 
 - `CloudShell.Hosting`: Razor class library for the Blazor shell, layout, static assets, built-in Resource Manager, Extensions, and Observability views.
+- `CoreShell`: framework-neutral shell contribution model for pages, menus, targets, sections, and shell services.
+- `CoreShell.Blazor`: Blazor adapter for CoreShell content and section projection.
 - `CloudShell.AppHost`: combined-host composition helpers that wire the CloudShell UI and Control Plane into one ASP.NET Core process.
 - `Launchers/`: language-specific app-host launcher packages that emit ResourceTemplates and ask the CLI or Control Plane API to apply them.
 - `CloudShell.Host`: development sample host that wires CloudShell UI, Control Plane, and local provider extensions together.
@@ -229,6 +234,7 @@ Local-development host and launcher samples are also available:
 - `samples/PythonAppHost`: declares a Python app, Configuration Store, and Secrets Vault from a Python launcher script, then applies the template through the CLI.
 - `samples/JavaScriptContainerApp`: wraps a JavaScript app as a Dockerfile-backed container app with replica scaling.
 - `samples/RoboticMowerIoT`: declares a robotic mower IoT app from a C# launcher, with a React frontend, a SignalR container backend, Device Registry enrollment, and a simulated mower device.
+- `samples/CoreShell.FluentUiSample`: reference CoreShell-only Fluent UI shell with a sample extension module; use it as the testbed for common shell building blocks before CloudShell-specific integration.
 - `samples/CloudShell.UiExtensionHost`: hosts only the CloudShell UI and a custom UI extension.
 - `samples/CloudShell.ResourceHost`: hosts CloudShell UI and Control Plane together with a sample resource provider.
 - `samples/ProjectReference`: declares two .NET app resources from a C# launcher where one references the other in an Aspire-style dev loop.

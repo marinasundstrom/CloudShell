@@ -55,12 +55,13 @@ shared folder.
 
 ### Shared shell components
 
-The common shell infrastructure is expected to move toward a CoreShell shape:
-framework-neutral shell contracts and services in a CoreShell extensibility
-layer, Fluent UI presenters in a CoreShell Fluent UI layer, and CloudShell as
-the product host that assembles the default presenters and predefined
-integrations. Until the projects are split, use that logical boundary when
-deciding where a component belongs.
+The common shell infrastructure uses CoreShell as its logical boundary:
+framework-neutral shell contracts and services in CoreShell, Fluent UI
+presenters over those contracts, and CloudShell as the product shell that
+assembles the default presenters, CloudShell-specific services, and predefined
+integrations. Some Fluent presenters still live in `CloudShell.Hosting`; use
+the CoreShell boundary when deciding whether a component is generic shell
+infrastructure, CloudShell product UI, or Resource Manager UI.
 
 Place a component in `CloudShell.Components` only when:
 
@@ -84,8 +85,8 @@ types unless the integration package explicitly owns that adapter boundary.
 
 Avoid making Fluent UI or the current CloudShell host implementation part of
 an extension-facing contract unless the package is explicitly a Fluent
-presenter package. A future `CoreShell.FluentUI` package can be the default
-CloudShell look and feel while `CoreShell.Extensibility` remains the
+presenter package. A future dedicated CoreShell Fluent UI package can carry
+the default CloudShell look and feel while the CoreShell contracts remain the
 framework-neutral extension surface. Another CloudShell UI implementation
 should be able to use the same public abstractions and services, then provide
 its own presenters.

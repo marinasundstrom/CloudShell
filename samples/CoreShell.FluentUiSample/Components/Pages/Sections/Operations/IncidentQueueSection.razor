@@ -1,0 +1,16 @@
+<FluentDataGrid Items="@Rows.AsQueryable()" GridTemplateColumns="1fr 120px 120px">
+    <PropertyColumn Property="@(row => row.Service)" Title="Service" />
+    <PropertyColumn Property="@(row => row.Severity)" Title="Severity" />
+    <PropertyColumn Property="@(row => row.Age)" Title="Age" />
+</FluentDataGrid>
+
+@code {
+    private static readonly IReadOnlyList<Row> Rows =
+    [
+        new("Portal API", "Warning", "12m"),
+        new("Search worker", "Info", "19m"),
+        new("Audit stream", "Info", "24m")
+    ];
+
+    private sealed record Row(string Service, string Severity, string Age);
+}

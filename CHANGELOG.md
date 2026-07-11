@@ -17,6 +17,14 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added `samples/CoreShell.FluentUiSample` as the CoreShell-only Fluent UI
+  reference shell and future CoreShell testbed, with a sample extension module
+  contributing navigation and dashboard content without depending on
+  CloudShell Hosting, Resource Manager, or the Control Plane.
+- Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder
+  helper from CloudShell Hosting into `CoreShell.Blazor` so common Blazor shell
+  building blocks can be used by CoreShell apps without a CloudShell
+  dependency.
 - Added a proposed deployment-artifact contract for Resource Manager-created
   or edited workloads, distinguishing local-source mode from
   deployment-artifact mode, and introduced the first disabled-by-default

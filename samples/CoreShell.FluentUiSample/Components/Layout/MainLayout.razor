@@ -1,0 +1,27 @@
+@inherits LayoutComponentBase
+
+<div class="app-shell">
+    <aside class="app-sidebar">
+        <div class="brand">
+            <span class="brand-mark">CS</span>
+            <div>
+                <strong>CoreShell</strong>
+                <span>Fluent UI sample</span>
+            </div>
+        </div>
+
+        <CoreShellFluentNavMenu Id="@SampleShellIds.MainMenu" />
+    </aside>
+
+    <div class="app-main">
+        <header class="topbar">
+            <div>
+                <span class="topbar-eyebrow">Standalone shell</span>
+                <strong>CoreShell building blocks</strong>
+            </div>
+            <FluentBadge Appearance="Appearance.Accent">No CloudShell.Hosting</FluentBadge>
+        </header>
+
+        @Body
+    </div>
+</div>

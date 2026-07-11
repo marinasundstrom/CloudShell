@@ -1,8 +1,6 @@
-using CoreShell;
-using CoreShell.Blazor;
 using Microsoft.AspNetCore.Components;
 
-namespace CloudShell.Hosting.Shell;
+namespace CoreShell.Blazor;
 
 public static class CoreShellBlazorBuilderExtensions
 {
@@ -11,7 +9,9 @@ public static class CoreShellBlazorBuilderExtensions
         CoreShellSectionId id,
         string title,
         int order,
-        IReadOnlyDictionary<string, string>? attributes = null)
+        IReadOnlyDictionary<string, string>? attributes = null,
+        CoreShellAuthorizationRequirements? authorization = null,
+        CoreShellLayoutReference? layout = null)
         where TComponent : IComponent
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -21,6 +21,8 @@ public static class CoreShellBlazorBuilderExtensions
             title,
             CoreShellBlazorContent.For<TComponent>(),
             order,
-            attributes: attributes);
+            authorization,
+            attributes,
+            layout);
     }
 }

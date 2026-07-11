@@ -47,20 +47,28 @@ request pipeline follows the same rule: map `UseCloudShellControlPlaneAsync()`
 and `MapCloudShellControlPlane()` for the backend, and
 `UseCloudShellUiAsync()` plus `MapCloudShellUi<TRootComponent>()` for the UI.
 
-CoreShell provides the generic UI extension model and shell services that a
-shell uses to accept integrations. It owns reusable shell concepts:
+CoreShell provides the generic shell contribution model and shell services that
+a shell uses to accept integrations. It owns reusable shell concepts:
 
-- main layout and navigation
-- top bar and user/session affordances
-- common Settings
-- notification surfaces
+- pages, menus, menu groups, menu items, sections, and section outlets
+- route, navigation, section-address, and page-materialization services
+- shared shell service contracts such as settings and notification surfaces
 - shell composition adapters
 - presenter contracts
 - shell-level extension areas
 
-CoreShell should not be defined by Resource Manager or CloudShell. Resource
-Manager is the first major built-in integration in CloudShell, but the
-CoreShell toolkit must stay useful for other shells, product areas, and
+CoreShell should not be defined by Resource Manager or CloudShell. CloudShell
+is a domain shell built on CoreShell: it installs the default shell chrome,
+Fluent UI presenters, user/session affordances, CloudShell settings, extension
+catalog surfaces, Resource Manager, Observability, Usage, and adapters for
+Control Plane-backed services. CloudShell may add CloudShell-specific extension
+points, such as Resource Manager resource type UI, resource tabs, provider
+detail views, and shell settings sections, but those product extensions should
+project into CoreShell pages, navigation, sections, and services rather than
+becoming a second shell model.
+
+Resource Manager is the first major built-in integration in CloudShell, but
+the CoreShell toolkit must stay useful for other shells, product areas, and
 extension-owned experiences.
 Architecturally, Resource Manager is still an integration into CloudShell. It
 is larger and more central than most extensions, but it is on the same side of
@@ -96,10 +104,12 @@ normal product services, such as a notification manager or layout manager,
 even though the active shell decides how the result is rendered.
 
 Fluent UI is the default CloudShell look and feel, not the shell contract.
-CoreShell extension points should live in a framework-neutral layer such as
-`CoreShell.Extensibility`. Fluent-specific presenters should live behind a
-separate layer such as `CoreShell.FluentUI`, which CloudShell can use as its
-default presenter implementation. `CoreShell.FluentUI` should expose concrete
+CoreShell extension points should stay in framework-neutral CoreShell
+contracts. Fluent-specific presenters should live behind a separate presenter
+layer over those contracts. Today those presenters live mainly in
+`CloudShell.Hosting`; as the boundary hardens, they are candidates for a
+dedicated CoreShell Fluent UI package that CloudShell can consume as its
+default presenter implementation. That presenter layer should expose concrete
 host-usable components and integrations such as navigation menu presenters,
 settings presenters, section/tab layouts, notification surfaces, and other
 Fluent UI renderers over CoreShell contracts.

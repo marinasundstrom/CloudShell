@@ -1,0 +1,21 @@
+<FluentDataGrid Items="@Rows.AsQueryable()" GridTemplateColumns="1fr 120px 120px">
+    <PropertyColumn Property="@(row => row.Name)" Title="Work item" />
+    <PropertyColumn Property="@(row => row.Owner)" Title="Owner" />
+    <TemplateColumn Title="State">
+        <FluentBadge Appearance="@GetAppearance(context.State)">@context.State</FluentBadge>
+    </TemplateColumn>
+</FluentDataGrid>
+
+@code {
+    private static readonly IReadOnlyList<Row> Rows =
+    [
+        new("Navigation presenter", "CoreShell", "Ready"),
+        new("Settings outlet", "CoreShell", "Ready"),
+        new("CloudShell adapters", "CloudShell", "Next")
+    ];
+
+    private static Appearance GetAppearance(string state) =>
+        state == "Ready" ? Appearance.Accent : Appearance.Neutral;
+
+    private sealed record Row(string Name, string Owner, string State);
+}

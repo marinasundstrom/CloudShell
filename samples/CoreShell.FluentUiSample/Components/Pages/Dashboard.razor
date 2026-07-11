@@ -1,0 +1,18 @@
+@page "/"
+
+<main class="sample-page">
+    <section class="page-heading">
+        <div>
+            <span>CoreShell sample</span>
+            <h1>Dashboard</h1>
+            <p>A Fluent UI host rendering CoreShell pages, navigation, and extension-contributed sections without CloudShell product services.</p>
+        </div>
+        <FluentAnchor Appearance="Appearance.Accent" Href="/settings">
+            <FluentIcon Slot="start" Value="@(new Icons.Regular.Size20.Settings())" />
+            Settings
+        </FluentAnchor>
+    </section>
+
+    <CoreShellFluentSectionStack Page="@SampleShellIds.DashboardPage"
+                                 Outlet="@SampleShellIds.DashboardMainOutlet" />
+</main>

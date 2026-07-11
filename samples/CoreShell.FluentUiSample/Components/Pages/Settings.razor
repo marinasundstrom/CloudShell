@@ -1,0 +1,20 @@
+@page "/settings/{Section?}"
+
+<main class="sample-page">
+    <section class="page-heading">
+        <div>
+            <span>CoreShell sections</span>
+            <h1>Settings</h1>
+            <p>The settings outlet uses CoreShell child section addresses such as <code>/settings/appearance</code>.</p>
+        </div>
+    </section>
+
+    <CoreShellFluentSectionTabs Page="@SampleShellIds.SettingsPage"
+                                Outlet="@SampleShellIds.SettingsMainOutlet"
+                                Section="@Section" />
+</main>
+
+@code {
+    [Parameter]
+    public string? Section { get; set; }
+}

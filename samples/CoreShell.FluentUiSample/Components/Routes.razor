@@ -1,0 +1,17 @@
+<Router AppAssembly="@typeof(Program).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="@typeof(Layout.MainLayout)">
+            <main class="sample-page">
+                <FluentCard Class="empty-card">
+                    <FluentIcon Value="@(new Icons.Regular.Size24.DocumentDismiss())" />
+                    <h1>Page not found</h1>
+                    <p>The route is not registered by this CoreShell sample.</p>
+                </FluentCard>
+            </main>
+        </LayoutView>
+    </NotFound>
+</Router>

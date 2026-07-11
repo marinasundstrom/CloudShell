@@ -2,6 +2,7 @@ using CloudShell.Abstractions.Extensions;
 using CloudShell.Hosting.Components.Pages;
 using CloudShell.Hosting.Components.Pages.Settings;
 using CoreShell;
+using CoreShell.Blazor;
 
 namespace CloudShell.Hosting.Shell;
 
