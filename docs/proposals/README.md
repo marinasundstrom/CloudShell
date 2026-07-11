@@ -71,10 +71,11 @@ keep only the delta that affects remaining work.
 | 17 | [Provider-created and runtime-managed resources](core/provider-created-and-runtime-managed-resources.md) | In progress | High; supports replica/resource diagnostics and cleanup. | Use [Provider-created and runtime-managed resources](../runtime-managed-resources.md) as the landed spec. Continue provider-observed IDs, health, placement, ownership traversal, and materialization diagnostics. |
 | 18 | [Orchestrator deployments and environment revisions](deployment/deployments-and-revisions.md) | In progress | High for container app internals; later for public rollout history. | Finish controller/reconciliation boundary for first start, routing rebinding, service tear-down, and cleanup. Keep rich rollout history deferred. |
 | 19 | [UI composition library](core/ui-composition.md) | Current implementation working document | Medium-high; active only where it stabilizes current UI surfaces. | Avoid broadening for MVP. Use it to reduce current shell, Settings, and Resource Manager drift; keep generic library behavior in [UI composition](../ui-composition.md). |
-| 20 | [Resource graph and runtime separation](core/resource-graph-and-runtime-separation.md) | Migration in progress; active migration anchor | High; foundational to templates, graph apply, and orchestration. | Continue ResourceDefinition-based templates, graph-backed provider migration, and retirement of obsolete provider-template paths. |
-| 21 | [Cross-language local development](core/cross-language-local-development.md) | In progress | High; required to keep CloudShell ecosystem-neutral. | Prioritize the installed CLI plus default local-development host daemon path, then keep launcher/profile, TypeScript/JavaScript, Java, and SDK hardening aligned with that boundary. |
-| 22 | [Managed SQL Server resource](resources/managed-sql-server.md) | Partially implemented | Medium-high; valuable after MVP storage, identity, and database access stabilize. | Keep current SQL Server local-development bridge stable. Defer full managed database surface until provider-backed grants, storage, and backup/restore value are clear. |
-| 23 | [Intent-first resource authoring](core/intent-first-resource-authoring.md) | Proposed | Medium-high; broadens authoring without making CloudShell code-centric. | Defer until ResourceDefinition apply, provider diagnostics, and Resource Manager review/apply surfaces are stable; then start with draft-template review rather than autonomous apply. |
+| 20 | [Shell notifications and toasts](core/shell-notifications.md) | Proposed | Medium-high; supports Azure-like operation feedback and strengthens CoreShell as a common shell layer. | Define CoreShell notification event/instance contracts and prove them in the CoreShell Fluent UI sample before adding CloudShell adapters. |
+| 21 | [Resource graph and runtime separation](core/resource-graph-and-runtime-separation.md) | Migration in progress; active migration anchor | High; foundational to templates, graph apply, and orchestration. | Continue ResourceDefinition-based templates, graph-backed provider migration, and retirement of obsolete provider-template paths. |
+| 22 | [Cross-language local development](core/cross-language-local-development.md) | In progress | High; required to keep CloudShell ecosystem-neutral. | Prioritize the installed CLI plus default local-development host daemon path, then keep launcher/profile, TypeScript/JavaScript, Java, and SDK hardening aligned with that boundary. |
+| 23 | [Managed SQL Server resource](resources/managed-sql-server.md) | Partially implemented | Medium-high; valuable after MVP storage, identity, and database access stabilize. | Keep current SQL Server local-development bridge stable. Defer full managed database surface until provider-backed grants, storage, and backup/restore value are clear. |
+| 24 | [Intent-first resource authoring](core/intent-first-resource-authoring.md) | Proposed | Medium-high; broadens authoring without making CloudShell code-centric. | Defer until ResourceDefinition apply, provider diagnostics, and Resource Manager review/apply surfaces are stable; then start with draft-template review rather than autonomous apply. |
 
 ## Deferred Strategy Notes
 
@@ -176,20 +177,24 @@ hardening.
     regressions or directly supports the current shell, Resource Manager, and
     Settings experience. Broader CoreShell shell contracts and Resource Manager
     project restructuring remain [future directions](../future/).
-14. Cross-language local-development hardening through
+14. [Shell notifications and toasts](core/shell-notifications.md), starting
+    with a CoreShell contract and sample proof for per-user notification
+    instances, a notification center, and toast presentation before adding
+    CloudShell Resource Manager and Control Plane producers.
+15. Cross-language local-development hardening through
     [Cross-language local development](core/cross-language-local-development.md)
     only where it keeps the local-development model ecosystem-neutral without
     distracting from MVP stabilization. The first distribution slice is the
     installed CLI starting or reusing the default local-development host
     daemon; launcher packages remain optional authoring layers over that same
     CLI/API path.
-15. Deployment artifact loading through
+16. Deployment artifact loading through
     [Deployment artifacts](core/deployment-artifacts.md) before
     broad Resource Manager create/edit UI for application resources. The first
     provider/UI slice should use the Control Plane artifact-store setting,
     resource-scoped upload API, artifact revision reference, and local mode
     versus deployment artifact UX boundary already defined by the proposal.
-16. Intent-first resource authoring through
+17. Intent-first resource authoring through
     [Intent-first resource authoring](core/intent-first-resource-authoring.md)
     only after the ResourceDefinition apply, provider diagnostics, and
     Resource Manager review/apply path are stable enough to make generated

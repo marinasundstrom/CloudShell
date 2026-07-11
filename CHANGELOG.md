@@ -26,6 +26,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Fixed the CoreShell Fluent UI sample chrome so it loads Fluent component
   scoped styles for the navigation menu and uses the supported anchor icon
   parameter for the Settings action.
+- Added a shell notifications and toasts proposal covering CoreShell
+  notification event/instance contracts, per-user notification instances,
+  Control Plane event-driven notification rules, and the future CloudShell
+  notifications service integration boundary.
 - Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder
   helper from CloudShell Hosting into `CoreShell.Blazor` so common Blazor shell
   building blocks can be used by CoreShell apps without a CloudShell
