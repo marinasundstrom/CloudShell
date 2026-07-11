@@ -110,6 +110,102 @@ public sealed class CoreShellNotificationServiceTests
     }
 
     [Fact]
+    public void NotificationPresentation_ExpiresPlainToastsAfterTimeToLive()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var notification = CreateNotification(
+            updatedAt: now.Subtract(TimeSpan.FromSeconds(9)),
+            toastTimeToLive: TimeSpan.FromSeconds(8));
+
+        Assert.False(CoreShellNotificationPresentation.ShouldShowToast(notification, now));
+    }
+
+    [Fact]
+    public void NotificationPresentation_KeepsTerminalToastsDuringTimeToLiveAfterUpdate()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var notification = CreateNotification(
+            status: CoreShellNotificationStatus.Succeeded,
+            updatedAt: now.Subtract(TimeSpan.FromSeconds(2)),
+            toastTimeToLive: TimeSpan.FromSeconds(8));
+
+        Assert.True(CoreShellNotificationPresentation.ShouldShowToast(notification, now));
+    }
+
+    [Fact]
+    public void NotificationPresentation_KeepsInProgressToastsUntilUpdatedOrDismissed()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var notification = CreateNotification(
+            status: CoreShellNotificationStatus.InProgress,
+            updatedAt: now.Subtract(TimeSpan.FromMinutes(5)),
+            toastTimeToLive: TimeSpan.FromSeconds(8));
+
+        Assert.True(CoreShellNotificationPresentation.ShouldShowToast(notification, now));
+        Assert.False(CoreShellNotificationPresentation.ShouldShowToast(
+            notification with { DismissedAt = now },
+            now));
+    }
+
+    [Fact]
+    public void NotificationPresentation_HonorsSuppressedScheduledAndAcknowledgedState()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        Assert.False(CoreShellNotificationPresentation.ShouldShowToast(
+            CreateNotification(toastBehavior: CoreShellNotificationToastBehavior.Suppressed),
+            now));
+        Assert.False(CoreShellNotificationPresentation.ShouldShowToast(
+            CreateNotification(visibleAt: now.AddSeconds(1)),
+            now));
+        Assert.False(CoreShellNotificationPresentation.ShouldShowToast(
+            CreateNotification(acknowledgedAt: now),
+            now));
+    }
+
+    [Fact]
+    public void NotificationPresentation_KeepsNeverDismissAndUntilAcknowledgedToastsVisible()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var updatedAt = now.Subtract(TimeSpan.FromMinutes(5));
+
+        Assert.True(CoreShellNotificationPresentation.ShouldShowToast(
+            CreateNotification(
+                updatedAt: updatedAt,
+                toastAutoDismiss: CoreShellToastAutoDismissBehavior.Never),
+            now));
+        Assert.True(CoreShellNotificationPresentation.ShouldShowToast(
+            CreateNotification(
+                updatedAt: updatedAt,
+                toastBehavior: CoreShellNotificationToastBehavior.UntilAcknowledged),
+            now));
+    }
+
+    [Fact]
+    public void NotificationPresentation_FiltersBeforeApplyingToastLimit()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var expired = Enumerable
+            .Range(0, 20)
+            .Select(index => CreateNotification(
+                id: $"expired-{index}",
+                updatedAt: now.Subtract(TimeSpan.FromMinutes(index + 1)),
+                toastTimeToLive: TimeSpan.FromSeconds(1)));
+        var inProgress = CreateNotification(
+            id: "in-progress",
+            status: CoreShellNotificationStatus.InProgress,
+            updatedAt: now.Subtract(TimeSpan.FromHours(1)));
+
+        var toasts = CoreShellNotificationPresentation.SelectToastItems(
+            expired.Concat([inProgress]),
+            now,
+            maxItems: 1);
+
+        var toast = Assert.Single(toasts);
+        Assert.Equal("in-progress", toast.Id);
+    }
+
+    [Fact]
     public void AddCoreShellBlazor_RegistersEmptyNotificationProducerByDefault()
     {
         var services = new ServiceCollection();
@@ -200,6 +296,29 @@ public sealed class CoreShellNotificationServiceTests
         var provider = services.BuildServiceProvider();
         Assert.IsType<TestToastService>(provider.GetRequiredService<ICoreShellToastService>());
     }
+
+    private static CoreShellNotificationInstance CreateNotification(
+        string id = "notification-1",
+        CoreShellNotificationStatus status = CoreShellNotificationStatus.Active,
+        DateTimeOffset? updatedAt = null,
+        TimeSpan? toastTimeToLive = null,
+        CoreShellToastAutoDismissBehavior toastAutoDismiss = CoreShellToastAutoDismissBehavior.AfterTimeToLive,
+        CoreShellNotificationToastBehavior toastBehavior = CoreShellNotificationToastBehavior.Default,
+        DateTimeOffset? visibleAt = null,
+        DateTimeOffset? acknowledgedAt = null) =>
+        new(
+            id,
+            "Notification",
+            "Notification message.",
+            CoreShellNotificationSeverity.Info,
+            status,
+            DateTimeOffset.UtcNow,
+            updatedAt ?? DateTimeOffset.UtcNow,
+            AcknowledgedAt: acknowledgedAt,
+            ToastBehavior: toastBehavior,
+            ToastTimeToLive: toastTimeToLive,
+            ToastAutoDismiss: toastAutoDismiss,
+            VisibleAt: visibleAt);
 
     private sealed class TestNotificationService : ICoreShellNotificationService
     {

@@ -92,6 +92,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Mapped CloudShell notification-backed toasts to CoreShell's normal
   time-to-live auto-dismiss behavior so passive startup and completed
   progress facts do not stay pinned as toasts.
+- Added shared CoreShell notification-toast presentation selection so
+  notification centers can stay compact without crowding active in-progress
+  toasts out of the toast stack.
 - Suppressed unhandled triggered resource events from notification projection
   so deployment/activity facts do not create extra generic startup toasts.
 - Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder

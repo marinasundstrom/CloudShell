@@ -151,7 +151,13 @@
 }
 
 @code {
+    private const int NotificationCenterItemLimit = 8;
+    private const int NotificationToastCandidateLimit = 100;
+    private const int NotificationToastLimit = 2;
+
     private IReadOnlyList<CoreShellNotificationInstance> Items { get; set; } = [];
+
+    private IReadOnlyList<CoreShellNotificationInstance> ToastCandidates { get; set; } = [];
 
     private IReadOnlyList<CoreShellToast> ToastOnlyItems { get; set; } = [];
 
@@ -164,10 +170,10 @@
     private int UnreadCount => Items.Count(NeedsUserAttention);
 
     private IReadOnlyList<CoreShellNotificationInstance> ToastItems =>
-        Items
-            .Where(item => ShouldToast(item, DateTimeOffset.UtcNow))
-            .Take(2)
-            .ToArray();
+        CoreShellNotificationPresentation.SelectToastItems(
+            ToastCandidates,
+            DateTimeOffset.UtcNow,
+            NotificationToastLimit);
 
     protected override async Task OnInitializedAsync()
     {
@@ -190,7 +196,12 @@
 
     private async Task LoadAsync()
     {
-        Items = await Notifications.GetNotificationsAsync(new CoreShellNotificationQuery(Limit: 8));
+        var notifications = await Notifications.GetNotificationsAsync(
+            new CoreShellNotificationQuery(Limit: NotificationToastCandidateLimit));
+        ToastCandidates = notifications;
+        Items = notifications
+            .Take(NotificationCenterItemLimit)
+            .ToArray();
         ToastOnlyItems = await Toasts.GetToastsAsync();
         await InvokeAsync(StateHasChanged);
     }
@@ -356,31 +367,6 @@
 
     private static bool IsLoading(CoreShellToast item) =>
         item.Status == CoreShellNotificationStatus.InProgress;
-
-    private static bool ShouldToast(CoreShellNotificationInstance item, DateTimeOffset now)
-    {
-        if (item.AcknowledgedAt is not null
-            || item.DismissedAt is not null
-            || item.ToastBehavior == CoreShellNotificationToastBehavior.Suppressed
-            || item.VisibleAt > now)
-        {
-            return false;
-        }
-
-        if (item.ToastBehavior == CoreShellNotificationToastBehavior.UntilAcknowledged
-            || item.ToastAutoDismiss == CoreShellToastAutoDismissBehavior.Never)
-        {
-            return true;
-        }
-
-        if (item.Status == CoreShellNotificationStatus.InProgress)
-        {
-            return true;
-        }
-
-        var timeToLive = item.ToastTimeToLive ?? CoreShellToastDefaults.NotificationTimeToLive;
-        return item.UpdatedAt.Add(timeToLive) > now;
-    }
 
     private RenderFragment RenderNotificationBody(CoreShellNotificationInstance item) => @<div>
         <strong>
