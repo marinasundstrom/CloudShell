@@ -310,10 +310,10 @@ public sealed class CloudShellNotificationStoreTests
         Assert.Equal("Recovery restart attempt 1 completed.", notification.Message);
         Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
         Assert.Equal(ResourceEventTypes.Events.Recovery.RestartSucceeded, notification.EventType);
-        Assert.Equal("resource-recovery|application:api|runtime|user", notification.CorrelationId);
+        Assert.Equal("resource-recovery|application:api|resource|user", notification.CorrelationId);
         Assert.Equal("cloudshell.resource-recovery-operation", notification.TemplateKey);
         Assert.Equal("recovery", notification.Attributes!["operationKind"]);
-        Assert.Equal("runtime", notification.Attributes!["recoveryKind"]);
+        Assert.Equal("resource", notification.Attributes!["recoveryKind"]);
         Assert.Equal("recovery", notification.Attributes!["triggeredBy"]);
         Assert.Equal(
             [
@@ -384,14 +384,14 @@ public sealed class CloudShellNotificationStoreTests
 
         var notification = Assert.Single(notifications.GetNotifications(new CloudShellNotificationQuery(
             RecipientKey: "user")));
-        Assert.Equal("Resource recovery", notification.Title);
+        Assert.Equal("Replica repair", notification.Title);
         Assert.Equal("Replica group slot 2/3 replacement materialized.", notification.Message);
         Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
         Assert.Equal(ResourceEventTypes.Events.ReplicaManagement.ReplacementMaterialized, notification.EventType);
-        Assert.Equal("resource-recovery|application:api|runtime|user", notification.CorrelationId);
-        Assert.Equal("cloudshell.resource-recovery-operation", notification.TemplateKey);
-        Assert.Equal("recovery", notification.Attributes!["operationKind"]);
-        Assert.Equal("runtime", notification.Attributes!["recoveryKind"]);
+        Assert.Equal("resource-replica-repair|application:api|replica|user", notification.CorrelationId);
+        Assert.Equal("cloudshell.replica-repair-operation", notification.TemplateKey);
+        Assert.Equal("replicaRepair", notification.Attributes!["operationKind"]);
+        Assert.Equal("replica", notification.Attributes!["repairKind"]);
         Assert.Equal("replica-management", notification.Attributes!["triggeredBy"]);
         Assert.Equal(
             [
@@ -420,7 +420,7 @@ public sealed class CloudShellNotificationStoreTests
         Assert.Equal("user", notification!.RecipientKey);
         Assert.Equal("Resource recovery", notification.Title);
         Assert.Equal(CloudShellNotificationStatus.Failed, notification.Status);
-        Assert.Equal("resource-recovery|application:api|runtime|user", notification.CorrelationId);
+        Assert.Equal("resource-recovery|application:api|resource|user", notification.CorrelationId);
         Assert.Equal("cloudshell.resource-recovery-operation", notification.TemplateKey);
     }
 
@@ -518,9 +518,17 @@ public sealed class CloudShellNotificationStoreTests
             notification =>
             {
                 Assert.Equal("user", notification!.RecipientKey);
-                Assert.Equal("Resource recovery", notification.Title);
-                Assert.Equal("resource-recovery|application:api|runtime|user", notification.CorrelationId);
             });
+        Assert.Equal("Resource recovery", degraded!.Title);
+        Assert.Equal("Resource recovery", stoppedUnexpectedly!.Title);
+        Assert.Equal("Replica repair", restartAttempted!.Title);
+        Assert.Equal("Replica repair", restartSucceeded!.Title);
+        Assert.Equal("Replica repair", restartExhausted!.Title);
+        Assert.Equal("resource-recovery|application:api|resource|user", degraded.CorrelationId);
+        Assert.Equal("resource-recovery|application:api|resource|user", stoppedUnexpectedly.CorrelationId);
+        Assert.Equal("resource-replica-repair|application:api|replica|user", restartAttempted.CorrelationId);
+        Assert.Equal("resource-replica-repair|application:api|replica|user", restartSucceeded.CorrelationId);
+        Assert.Equal("resource-replica-repair|application:api|replica|user", restartExhausted.CorrelationId);
     }
 
     [Fact]

@@ -80,11 +80,18 @@ on `git blame --follow`, and then by the broad type of change.
   threshold-crossing liveness failures and recovery attempts update one
   operator notification while suppressing repeated internal recovery-signal
   failures that would otherwise produce noisy polling updates.
-- Coalesced replica-management crash and repair progress into the same
-  recovery notification while suppressing low-level slot observation and
-  deferred-reconciliation events.
+- Coalesced replica-management crash and repair progress into a distinct
+  replica-repair notification while suppressing low-level slot observation and
+  deferred-reconciliation events, keeping parent resource recovery separate
+  from replica-slot repair.
 - Added a successful replica restart event so container app notifications can
   show when a running-failure recovery attempt completed successfully.
+- Added a provider-reported replica-slot materialization hook so local Docker
+  container apps can repair a missing replica container without treating every
+  provider-hidden runtime child as missing.
+- Mapped CloudShell notification-backed toasts to CoreShell's normal
+  time-to-live auto-dismiss behavior so passive startup and completed
+  progress facts do not stay pinned as toasts.
 - Suppressed unhandled triggered resource events from notification projection
   so deployment/activity facts do not create extra generic startup toasts.
 - Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder

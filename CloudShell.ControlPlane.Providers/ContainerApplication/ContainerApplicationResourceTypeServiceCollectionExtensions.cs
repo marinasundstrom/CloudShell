@@ -180,6 +180,8 @@ public static class ContainerApplicationResourceTypeServiceCollectionExtensions
             ServiceDescriptor.Singleton<IResourceOrchestrationDescriptorProvider, LocalDockerContainerApplicationOrchestrationDescriptorProvider>());
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IResourceProvider, LocalDockerContainerApplicationRuntimeResourceProvider>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceReplicaSlotMaterializationProvider, LocalDockerContainerApplicationReplicaSlotMaterializationProvider>());
         services.AddDelegatingContainerApplicationRuntime();
 
         return services;

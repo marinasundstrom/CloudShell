@@ -160,9 +160,14 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
                 : "Update resource replicas";
         }
 
-        if (IsRecoveryNotificationEvent(resourceEvent.EventType))
+        if (IsResourceRecoveryNotificationEvent(resourceEvent.EventType))
         {
             return "Resource recovery";
+        }
+
+        if (IsReplicaRepairNotificationEvent(resourceEvent.EventType))
+        {
+            return "Replica repair";
         }
 
         var name = resourceEvent.EventType
@@ -210,10 +215,15 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             attributes["operationKind"] = "update";
             attributes["updateKind"] = updateKind;
         }
-        else if (IsRecoveryNotificationEvent(resourceEvent.EventType))
+        else if (IsResourceRecoveryNotificationEvent(resourceEvent.EventType))
         {
             attributes["operationKind"] = "recovery";
-            attributes["recoveryKind"] = "runtime";
+            attributes["recoveryKind"] = "resource";
+        }
+        else if (IsReplicaRepairNotificationEvent(resourceEvent.EventType))
+        {
+            attributes["operationKind"] = "replicaRepair";
+            attributes["repairKind"] = "replica";
         }
 
         if (!string.IsNullOrWhiteSpace(resourceEvent.TriggeredBy))
@@ -299,11 +309,19 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
                 "cloudshell.resource-update-operation");
         }
 
-        return IsRecoveryNotificationEvent(eventType)
-            ? new NotificationOperation(
+        if (IsResourceRecoveryNotificationEvent(eventType))
+        {
+            return new NotificationOperation(
                 "recovery",
-                "runtime",
-                "cloudshell.resource-recovery-operation")
+                "resource",
+                "cloudshell.resource-recovery-operation");
+        }
+
+        return IsReplicaRepairNotificationEvent(eventType)
+            ? new NotificationOperation(
+                "replica-repair",
+                "replica",
+                "cloudshell.replica-repair-operation")
             : null;
     }
 
@@ -354,6 +372,10 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
         };
 
     private static bool IsRecoveryNotificationEvent(string eventType) =>
+        IsResourceRecoveryNotificationEvent(eventType) ||
+        IsReplicaRepairNotificationEvent(eventType);
+
+    private static bool IsResourceRecoveryNotificationEvent(string eventType) =>
         eventType.Trim() is
             ResourceEventTypes.Events.Lifecycle.Degraded or
             ResourceEventTypes.Events.Lifecycle.StoppedUnexpectedly or
@@ -362,7 +384,10 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             ResourceEventTypes.Events.Recovery.RestartSucceeded or
             ResourceEventTypes.Events.Recovery.RestartFailed or
             ResourceEventTypes.Events.Recovery.RestartSkipped or
-            ResourceEventTypes.Events.Recovery.RestartExhausted or
+            ResourceEventTypes.Events.Recovery.RestartExhausted;
+
+    private static bool IsReplicaRepairNotificationEvent(string eventType) =>
+        eventType.Trim() is
             ResourceEventTypes.Events.ReplicaManagement.OccupantCrashed or
             ResourceEventTypes.Events.ReplicaManagement.RestartScheduled or
             ResourceEventTypes.Events.ReplicaManagement.RestartAttempted or

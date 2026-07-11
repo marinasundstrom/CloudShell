@@ -139,7 +139,9 @@ internal sealed class ControlPlaneCoreShellNotificationService : ICoreShellNotif
             Actions: notification.Actions?
                 .Select(ToCoreShellAction)
                 .ToArray(),
-            ToastBehavior: CoreShellNotificationToastBehavior.Default);
+            ToastBehavior: CoreShellNotificationToastBehavior.Default,
+            ToastTimeToLive: CoreShellToastDefaults.NotificationTimeToLive,
+            ToastAutoDismiss: CoreShellToastAutoDismissBehavior.AfterTimeToLive);
 
     private static CoreShellNotificationTarget? CreateTarget(CloudShellNotificationInstance notification) =>
         string.IsNullOrWhiteSpace(notification.ResourceId)

@@ -103,6 +103,10 @@ over the in-memory Control Plane notification store. Passive facts can remain
 in the center without contributing to the unread count; in-progress toast
 feedback remains visible while the backing operation is in progress and then
 uses the normal toast lifetime after the item reaches a terminal state.
+Resource recovery notifications describe recovery for the stable resource,
+while replica-slot crash and replacement progress is projected as replica
+repair so runtime-managed replica concerns do not masquerade as resource
+recovery.
 Warnings, failures, needs-attention items, and notifications with actions are
 treated as attention-worthy. Toast-only signals use `ICoreShellToastService`
 and do not create notification instances.

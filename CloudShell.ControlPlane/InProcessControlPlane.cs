@@ -2974,7 +2974,7 @@ public sealed class InProcessControlPlane(
         result.Check.Type == ResourceProbeType.Liveness
             ? result.ScopeObservations.Where(observation =>
                 string.Equals(observation.ScopeKind, ResourceHealthScopeKinds.Runtime, StringComparison.OrdinalIgnoreCase) &&
-                observation.Status == ResourceHealthStatus.Unhealthy)
+                observation.Status != ResourceHealthStatus.Healthy)
             : [];
 
     private static bool TryGetReplicaSlotOrdinal(

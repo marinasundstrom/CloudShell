@@ -11,8 +11,13 @@ public sealed class ResourceReplicaGroupReconciliationService(
     IResourceManagerStore resourceManager,
     IResourceReplicaGroupReconciliationStore reconciliationStore,
     IResourceOrchestratorDeploymentStore? deploymentStore = null,
-    IResourceEventSink? resourceEvents = null)
+    IResourceEventSink? resourceEvents = null,
+    IEnumerable<IResourceReplicaSlotMaterializationProvider>? materializationProviders = null)
 {
+    private const string ReplicaManagementTriggeredBy = "replica-management";
+    private readonly IReadOnlyList<IResourceReplicaSlotMaterializationProvider> materializationProviders =
+        (materializationProviders ?? []).ToArray();
+
     public Task<IReadOnlyList<ResourceReplicaSlotState>> ListReplicaSlotStatesAsync(
         ResourceReplicaSlotStateQuery? query = null,
         CancellationToken cancellationToken = default)
@@ -58,6 +63,8 @@ public sealed class ResourceReplicaGroupReconciliationService(
         int maxCount = 32,
         CancellationToken cancellationToken = default)
     {
+        await ObserveMissingMaterializedReplicaSlotsAsync(cancellationToken);
+
         foreach (var request in reconciliationStore.DequeuePending(maxCount))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -189,6 +196,56 @@ public sealed class ResourceReplicaGroupReconciliationService(
                     DateTimeOffset.UtcNow,
                     request.TriggeredBy,
                     ResourceSignalSeverity.Error));
+            }
+        }
+    }
+
+    private async Task ObserveMissingMaterializedReplicaSlotsAsync(CancellationToken cancellationToken)
+    {
+        if (deploymentStore is null)
+        {
+            return;
+        }
+
+        foreach (var record in deploymentStore.List(new ResourceOrchestratorDeploymentQuery(MaxRecords: 1_000)))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (record.Status != ResourceOrchestratorDeploymentStatus.Active ||
+                record.ReplicaGroup is not { } replicaGroup)
+            {
+                continue;
+            }
+
+            var resource = resourceManager.GetResource(record.SourceResourceId);
+            if (resource is null ||
+                resource.State == ResourceState.Stopped)
+            {
+                continue;
+            }
+
+            var materializationProvider = materializationProviders.FirstOrDefault(provider =>
+                provider.CanGetMaterializedReplicaSlots(resource, replicaGroup));
+            if (materializationProvider is null)
+            {
+                continue;
+            }
+
+            var materializedSlots = await materializationProvider.GetMaterializedReplicaSlotsAsync(
+                resource,
+                replicaGroup,
+                cancellationToken);
+            foreach (var slot in replicaGroup.Slots.Where(slot => slot.IsOccupied))
+            {
+                if (materializedSlots.Contains(slot.Ordinal))
+                {
+                    continue;
+                }
+
+                ObserveUnhealthyReplicaSlot(
+                    resource,
+                    slot.Ordinal,
+                    $"Replica group '{replicaGroup.Id}' slot {slot.Ordinal.ToString(CultureInfo.InvariantCulture)}/{slot.SlotCount.ToString(CultureInfo.InvariantCulture)} has no materialized runtime resource.",
+                    ReplicaManagementTriggeredBy);
             }
         }
     }

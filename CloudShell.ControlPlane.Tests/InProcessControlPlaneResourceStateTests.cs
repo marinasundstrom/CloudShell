@@ -2103,6 +2103,136 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task RefreshResourceHealthAsync_QueuesUnresolvedReplicaSlotWhenParentIsAlreadyDegraded()
+    {
+        var parent = CreateResource("application:api", ResourceState.Running);
+        var replica1 = CreateRuntimeReplicaResource(parent.Id, 1) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var replica2 = CreateRuntimeReplicaResource(parent.Id, 2) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var provider = new TestOrchestratorServiceProvider(new ResourceOrchestratorService(
+            parent.Id,
+            "cloudshell-application-api",
+            new ResourceWorkloadConfiguration(
+                ResourceWorkloadKind.ContainerImage,
+                "api",
+                Image: "example/api:latest",
+                Replicas: 2,
+                ReplicasEnabled: true)));
+        var host = CreateControlPlaneHost(
+            [parent, replica1, replica2],
+            provider,
+            probeEvaluators:
+            [
+                new ResourceSpecificProbeEvaluator(
+                    new Dictionary<string, ResourceHealthStatus>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [replica1.Id] = ResourceHealthStatus.Healthy,
+                        [replica2.Id] = ResourceHealthStatus.Unhealthy
+                    },
+                    new Dictionary<string, ResourceHealthCheckOutcome>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        [replica2.Id] = ResourceHealthCheckOutcome.Unresolved
+                    })
+            ]);
+
+        await host.ControlPlane.RefreshResourceHealthAsync(parent.Id);
+        await host.ControlPlane.RefreshResourceHealthAsync(parent.Id);
+        await host.ControlPlane.RefreshResourceHealthAsync(parent.Id);
+        provider.ExecutedInstanceActions.Clear();
+        provider.PreparedActions.Clear();
+
+        await host.ControlPlane.RefreshResourceHealthAsync(parent.Id);
+
+        Assert.Empty(provider.ExecutedInstanceActions);
+        var observedState = Assert.Single(await host.ControlPlane.ListReplicaSlotStatesAsync(
+            new ResourceReplicaSlotStateQuery(ResourceId: parent.Id, SlotOrdinal: 2)));
+        Assert.Equal(ResourceReplicaSlotReconciliationStatus.Unhealthy, observedState.Status);
+        Assert.Equal(0, observedState.AttemptCount);
+
+        await host.ReplicaGroupReconciliation.ProcessPendingAsync();
+
+        Assert.Contains(
+            "stop:cloudshell-application-api-replica-2",
+            provider.ExecutedInstanceActions);
+        Assert.Contains(
+            "start:cloudshell-application-api-replica-2",
+            provider.ExecutedInstanceActions);
+        var repairedState = Assert.Single(await host.ControlPlane.ListReplicaSlotStatesAsync(
+            new ResourceReplicaSlotStateQuery(
+                ResourceId: parent.Id,
+                SlotOrdinal: 2,
+                Status: ResourceReplicaSlotReconciliationStatus.Repaired)));
+        Assert.Equal(1, repairedState.AttemptCount);
+    }
+
+    [Fact]
+    public async Task ProcessPendingAsync_QueuesMissingMaterializedReplicaSlotFromDeploymentState()
+    {
+        var parent = CreateResource("application:api", ResourceState.Running);
+        var replica1 = CreateRuntimeReplicaResource(parent.Id, 1) with
+        {
+            HealthChecks = [CreateLivenessCheck()]
+        };
+        var service = new ResourceOrchestratorService(
+            parent.Id,
+            "cloudshell-application-api",
+            new ResourceWorkloadConfiguration(
+                ResourceWorkloadKind.ContainerImage,
+                "api",
+                Image: "example/api:latest",
+                Replicas: 2,
+                ReplicasEnabled: true));
+        var deployment = new ResourceOrchestratorDeployment(
+            "cloudshell-application-api-deployment",
+            "default",
+            parent.Id,
+            service.Name,
+            "revision-1",
+            new ResourceOrchestratorDeploymentSpec(service, "revision-1"),
+            ResourceOrchestratorDeploymentStatus.Active);
+        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service);
+        var deploymentStore = new InMemoryResourceOrchestratorDeploymentStore();
+        var revision = deploymentStore.CreateRevision(
+            deployment,
+            DateTimeOffset.UtcNow,
+            ResourceOrchestratorRevisionStatus.Active,
+            replicaGroup);
+        deploymentStore.RecordApplying(deployment, DateTimeOffset.UtcNow, triggeredBy: "user");
+        deploymentStore.RecordApplied(
+            deployment,
+            revision,
+            DateTimeOffset.UtcNow,
+            "Applied deployment.",
+            triggeredBy: "user");
+        var provider = new TestOrchestratorServiceProvider(service);
+        var host = CreateControlPlaneHost(
+            [parent, replica1],
+            provider,
+            materializationProviders: [new StaticReplicaSlotMaterializationProvider(new HashSet<int> { 1 })],
+            deploymentStore: deploymentStore);
+
+        await host.ReplicaGroupReconciliation.ProcessPendingAsync();
+
+        Assert.Contains(
+            "stop:cloudshell-application-api-replica-2",
+            provider.ExecutedInstanceActions);
+        Assert.Contains(
+            "start:cloudshell-application-api-replica-2",
+            provider.ExecutedInstanceActions);
+        var repairedState = Assert.Single(await host.ControlPlane.ListReplicaSlotStatesAsync(
+            new ResourceReplicaSlotStateQuery(
+                ResourceId: parent.Id,
+                SlotOrdinal: 2,
+                Status: ResourceReplicaSlotReconciliationStatus.Repaired)));
+        Assert.Equal(1, repairedState.AttemptCount);
+    }
+
+    [Fact]
     public async Task ListResourcesAsync_ProjectsParentAsDegradedWhenRuntimeChildLivenessFails()
     {
         var parent = CreateResource("application:api", ResourceState.Running);
@@ -4040,6 +4170,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         IUsageStore? usageStore = null,
         IReadOnlyList<IResourceProbeEvaluator>? probeEvaluators = null,
         IResourceRecoveryStore? resourceRecoveryStore = null,
+        IReadOnlyList<IResourceReplicaSlotMaterializationProvider>? materializationProviders = null,
         IResourceOrchestratorDeploymentStore? deploymentStore = null,
         IDeploymentArtifactStore? deploymentArtifactStore = null,
         DeploymentArtifactOptions? deploymentArtifactOptions = null,
@@ -4072,6 +4203,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             identityProviderSetupHandlers,
             identityDirectoryProviders,
             permissionGrantStatusProviders,
+            materializationProviders,
             deploymentStore,
             deploymentArtifactStore,
             deploymentArtifactOptions,
@@ -4104,6 +4236,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         IReadOnlyList<IResourceIdentityProviderSetupHandler>? identityProviderSetupHandlers = null,
         IReadOnlyList<IResourceIdentityDirectoryProvider>? identityDirectoryProviders = null,
         IReadOnlyList<IResourcePermissionGrantStatusProvider>? permissionGrantStatusProviders = null,
+        IReadOnlyList<IResourceReplicaSlotMaterializationProvider>? materializationProviders = null,
         IResourceOrchestratorDeploymentStore? deploymentStore = null,
         IDeploymentArtifactStore? deploymentArtifactStore = null,
         DeploymentArtifactOptions? deploymentArtifactOptions = null,
@@ -4162,7 +4295,8 @@ public sealed class InProcessControlPlaneResourceStateTests
             resourceManager,
             replicaReconciliationStore,
             deploymentStore,
-            resourceEventSink ?? resourceEvents);
+            resourceEventSink ?? resourceEvents,
+            materializationProviders);
         var deployments = new ResourceDeploymentService(
             orchestrators,
             deploymentAppliers,
@@ -5504,6 +5638,20 @@ public sealed class InProcessControlPlaneResourceStateTests
                     string.Equals(sample.Name, usageName, StringComparison.OrdinalIgnoreCase))
                 .Where(sample => from is null || sample.Timestamp >= from)
                 .Where(sample => to is null || sample.Timestamp <= to);
+    }
+
+    private sealed class StaticReplicaSlotMaterializationProvider(
+        IReadOnlySet<int> slots) : IResourceReplicaSlotMaterializationProvider
+    {
+        public bool CanGetMaterializedReplicaSlots(
+            Resource resource,
+            ResourceOrchestratorReplicaGroup replicaGroup) => true;
+
+        public Task<IReadOnlySet<int>> GetMaterializedReplicaSlotsAsync(
+            Resource resource,
+            ResourceOrchestratorReplicaGroup replicaGroup,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(slots);
     }
 
     private sealed class TestHttpClientFactory : IHttpClientFactory

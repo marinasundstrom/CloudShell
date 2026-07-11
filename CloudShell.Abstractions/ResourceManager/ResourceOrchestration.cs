@@ -28,6 +28,18 @@ public sealed record ResourceOrchestrationDescriptorContext(
     ResourceGroup? ResourceGroup,
     IResourceManagerStore ResourceManager);
 
+public interface IResourceReplicaSlotMaterializationProvider
+{
+    bool CanGetMaterializedReplicaSlots(
+        Resource resource,
+        ResourceOrchestratorReplicaGroup replicaGroup);
+
+    Task<IReadOnlySet<int>> GetMaterializedReplicaSlotsAsync(
+        Resource resource,
+        ResourceOrchestratorReplicaGroup replicaGroup,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed record ResourceOrchestratorDeployment(
     string Id,
     string OrchestratorId,
