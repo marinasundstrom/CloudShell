@@ -1,4 +1,4 @@
-@inject ISampleNotificationProducer Notifications
+@inject ICoreShellNotificationProducer Notifications
 @inject ICoreShellToastService Toasts
 
 <div class="section-actions">
@@ -48,7 +48,7 @@
         }
 
         IsCreating = true;
-        var notification = await Notifications.PublishAsync(new SampleNotificationDraft(
+        var notification = await Notifications.PublishAsync(new CoreShellNotificationRequest(
             "Creating sample resource",
             "The request was committed and is running in the background.",
             CoreShellNotificationSeverity.Info,
@@ -62,12 +62,13 @@
                     "View operations",
                     new CoreShellNotificationTarget("/operations", "View operations"),
                     IsPrimary: true)
-            ]));
+            ],
+            ToastTimeToLive: TimeSpan.FromSeconds(6)));
 
         try
         {
             await Task.Delay(1400);
-            await Notifications.UpdateAsync(notification.Id, new SampleNotificationUpdate(
+            await Notifications.UpdateAsync(notification.Id, new CoreShellNotificationUpdate(
                 Message: "Sample resource is ready.",
                 Severity: CoreShellNotificationSeverity.Success,
                 Status: CoreShellNotificationStatus.Succeeded,
@@ -93,15 +94,20 @@
             CoreShellNotificationSeverity.Info,
             CoreShellNotificationStatus.InProgress,
             Source: "CoreShell sample",
-            Target: new CoreShellNotificationTarget("/operations", "Open operations")));
+            AutoDismiss: CoreShellToastAutoDismissBehavior.Never));
 
         try
         {
             await Task.Delay(1200);
-            await Toasts.UpdateAsync(toast.Id, new CoreShellToastUpdate(
-                Message: "The toast-only task finished.",
+            await Toasts.DismissAsync(toast.Id);
+            await Toasts.PublishAsync(new CoreShellToastRequest(
+                "Sample check completed",
+                "The progress toast was closed by ID and replaced with this completion toast.",
                 Severity: CoreShellNotificationSeverity.Success,
-                Status: CoreShellNotificationStatus.Succeeded));
+                Status: CoreShellNotificationStatus.Succeeded,
+                Source: "CoreShell sample",
+                Target: new CoreShellNotificationTarget("/operations", "Open operations"),
+                TimeToLive: TimeSpan.FromSeconds(5)));
         }
         finally
         {

@@ -18,6 +18,14 @@ It proves the extraction boundary for common shell building blocks:
 - Notification actions are optional. When an instance supplies actions, the
   toast renders them and the notification center renders them again if the
   user ignores the toast.
+- Notification and toast publishing returns the created item. The sample uses
+  the returned ID to update notification-backed operation feedback and to close
+  a long-running progress toast before publishing a separate completion toast.
+- Visibility, time-to-live, and auto-dismiss behavior are part of the
+  notification or toast data. The sample supports default auto-dismiss,
+  per-item time-to-live overrides, scheduled notification visibility, and
+  `Never` auto-dismiss for progress feedback that should stay visible until
+  the producer closes it.
 - Toast-only signals use `ICoreShellToastService`, render in the same toast
   stack, and do not create notification-center history.
 - A second CoreShell module contributes a dashboard section and navigation
@@ -32,8 +40,9 @@ CloudShell depends on.
 The dashboard work queue includes a simulated asynchronous create-resource
 action. It publishes an in-progress notification and updates it to success,
 showing the CoreShell notification contract, optional actions, loading
-indicator, toast-only transient signal path, and Fluent UI presenter behavior
-before the equivalent CloudShell notification rules and Control Plane event
+indicator, returned item references, toast-only transient signal path, default
+and explicit toast lifetime behavior, and Fluent UI presenter behavior before
+the equivalent CloudShell notification rules and Control Plane event
 integration are implemented.
 
 ## Run

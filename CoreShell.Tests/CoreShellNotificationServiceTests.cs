@@ -55,6 +55,85 @@ public sealed class CoreShellNotificationServiceTests
     }
 
     [Fact]
+    public async Task EmptyNotificationProducer_ReturnsCreatedReferenceAndValidatesInputs()
+    {
+        ICoreShellNotificationProducer producer = new EmptyCoreShellNotificationProducer();
+        var visibleAt = DateTimeOffset.UtcNow.AddMinutes(5);
+
+        var notification = await producer.PublishAsync(new CoreShellNotificationRequest(
+            "Creating resource",
+            "The operation is running.",
+            CoreShellNotificationSeverity.Info,
+            CoreShellNotificationStatus.InProgress,
+            Source: "Test",
+            VisibleAt: visibleAt));
+
+        Assert.NotEmpty(notification.Id);
+        Assert.Equal("Creating resource", notification.Title);
+        Assert.Equal(CoreShellToastAutoDismissBehavior.AfterTimeToLive, notification.ToastAutoDismiss);
+        Assert.Equal(CoreShellToastDefaults.NotificationTimeToLive, notification.ToastTimeToLive);
+        Assert.Equal(visibleAt, notification.VisibleAt);
+        Assert.Null(await producer.UpdateAsync(notification.Id, new CoreShellNotificationUpdate()));
+        await producer.DismissAsync(notification.Id);
+
+        await Assert.ThrowsAsync<ArgumentNullException>(() => producer.PublishAsync(null!));
+        await Assert.ThrowsAsync<ArgumentException>(() => producer.PublishAsync(new CoreShellNotificationRequest("", "Message")));
+        await Assert.ThrowsAsync<ArgumentException>(() => producer.PublishAsync(new CoreShellNotificationRequest("Title", " ")));
+        await Assert.ThrowsAsync<ArgumentException>(() => producer.PublishAsync(new CoreShellNotificationRequest(
+            "Title",
+            "Message",
+            VisibleAt: visibleAt,
+            VisibleIn: TimeSpan.FromSeconds(1))));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => producer.PublishAsync(new CoreShellNotificationRequest(
+            "Title",
+            "Message",
+            VisibleIn: TimeSpan.FromSeconds(-1))));
+        await Assert.ThrowsAsync<ArgumentException>(() => producer.UpdateAsync("", new CoreShellNotificationUpdate()));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => producer.UpdateAsync(notification.Id, null!));
+        await Assert.ThrowsAsync<ArgumentException>(() => producer.DismissAsync(" "));
+    }
+
+    [Fact]
+    public async Task EmptyNotificationProducer_CanReturnNeverAutoDismissReference()
+    {
+        ICoreShellNotificationProducer producer = new EmptyCoreShellNotificationProducer();
+
+        var notification = await producer.PublishAsync(new CoreShellNotificationRequest(
+            "Creating resource",
+            "The operation is running.",
+            CoreShellNotificationSeverity.Info,
+            CoreShellNotificationStatus.InProgress,
+            ToastAutoDismiss: CoreShellToastAutoDismissBehavior.Never));
+
+        Assert.Equal(CoreShellToastAutoDismissBehavior.Never, notification.ToastAutoDismiss);
+        Assert.Null(notification.ToastTimeToLive);
+    }
+
+    [Fact]
+    public void AddCoreShellBlazor_RegistersEmptyNotificationProducerByDefault()
+    {
+        var services = new ServiceCollection();
+
+        services.AddCoreShellBlazor();
+
+        var provider = services.BuildServiceProvider();
+        var service = provider.GetRequiredService<ICoreShellNotificationProducer>();
+        Assert.IsType<EmptyCoreShellNotificationProducer>(service);
+    }
+
+    [Fact]
+    public void AddCoreShellBlazor_PreservesHostNotificationProducer()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<ICoreShellNotificationProducer, TestNotificationProducer>();
+
+        services.AddCoreShellBlazor();
+
+        var provider = services.BuildServiceProvider();
+        Assert.IsType<TestNotificationProducer>(provider.GetRequiredService<ICoreShellNotificationProducer>());
+    }
+
+    [Fact]
     public async Task EmptyToastService_ReturnsNoToastsAndValidatesInputs()
     {
         ICoreShellToastService service = new EmptyCoreShellToastService();
@@ -65,6 +144,8 @@ public sealed class CoreShellNotificationServiceTests
 
         Assert.NotEmpty(toast.Id);
         Assert.Equal("Saved", toast.Title);
+        Assert.Equal(CoreShellToastAutoDismissBehavior.AfterTimeToLive, toast.AutoDismiss);
+        Assert.Equal(CoreShellToastDefaults.DefaultTimeToLive, toast.TimeToLive);
         Assert.Empty(await service.GetToastsAsync());
 
         await service.HandleActionAsync("toast-1", "open");
@@ -78,6 +159,22 @@ public sealed class CoreShellNotificationServiceTests
         await Assert.ThrowsAsync<ArgumentException>(() => service.HandleActionAsync("", "open"));
         await Assert.ThrowsAsync<ArgumentException>(() => service.HandleActionAsync("toast-1", ""));
         await Assert.ThrowsAsync<ArgumentException>(() => service.DismissAsync(" "));
+    }
+
+    [Fact]
+    public async Task EmptyToastService_CanReturnNeverAutoDismissReference()
+    {
+        ICoreShellToastService service = new EmptyCoreShellToastService();
+
+        var toast = await service.PublishAsync(new CoreShellToastRequest(
+            "Running",
+            "The task is running.",
+            CoreShellNotificationSeverity.Info,
+            CoreShellNotificationStatus.InProgress,
+            AutoDismiss: CoreShellToastAutoDismissBehavior.Never));
+
+        Assert.Equal(CoreShellToastAutoDismissBehavior.Never, toast.AutoDismiss);
+        Assert.Null(toast.TimeToLive);
     }
 
     [Fact]
@@ -131,6 +228,32 @@ public sealed class CoreShellNotificationServiceTests
 
         public void RaiseChanged() =>
             NotificationsChanged?.Invoke(this, new CoreShellNotificationsChangedEventArgs());
+    }
+
+    private sealed class TestNotificationProducer : ICoreShellNotificationProducer
+    {
+        public Task<CoreShellNotificationInstance> PublishAsync(
+            CoreShellNotificationRequest request,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new CoreShellNotificationInstance(
+                "notification-1",
+                request.Title,
+                request.Message,
+                request.Severity,
+                request.Status,
+                DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow));
+
+        public Task<CoreShellNotificationInstance?> UpdateAsync(
+            string notificationId,
+            CoreShellNotificationUpdate update,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<CoreShellNotificationInstance?>(null);
+
+        public Task DismissAsync(
+            string notificationId,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 
     private sealed class TestToastService : ICoreShellToastService

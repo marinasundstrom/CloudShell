@@ -105,6 +105,15 @@ Notifications and toasts should therefore be related but not identical:
 - A toast-only signal can exist for ephemeral feedback that should not create a
   notification-center item. The landed CoreShell reference path exposes this
   through `ICoreShellToastService`.
+- Publishing a notification or toast should return the created item. The
+  returned `Id` is the controller reference that background work can use to
+  update, dismiss, or replace progress feedback when the operation changes
+  state.
+- Visibility, lifetime, and auto-dismiss behavior are notification/toast data.
+  A service may support immediate visibility, scheduled visibility through
+  `VisibleAt` or `VisibleIn`, default time-to-live dismissal, or
+  never-auto-dismiss operation feedback. Unsupported scheduling should be an
+  implementation decision, not a missing CoreShell field.
 - A toast should render notification actions when the backing item provides
   them. If the user ignores the toast, the same action remains available in
   the notification center.
@@ -120,14 +129,16 @@ CoreShell should own stable shell-level contracts such as:
 - notification event and per-recipient notification instance shapes
 - a notification query contract
 - publish/update contracts for hosts that allow shell-local producers
+- producer publish methods that return the created notification or toast item,
+  including the ID needed for later update or dismissal
 - acknowledge/dismiss contracts for per-recipient instances
 - optional notification action descriptors and action-handling hooks
 - notification toast behavior hints, including suppression
 - a separate transient toast contract for toast-only signals
 - a change subscription contract
 - audience descriptors that stay product-neutral
-- presentation hints such as severity, status, route/href, source label, and
-  toast eligibility
+- presentation data such as severity, status, route/href, source label, toast
+  eligibility, scheduled visibility, time-to-live, and auto-dismiss behavior
 
 CoreShell should not own:
 
@@ -189,7 +200,7 @@ A typical resource-create flow should look like this:
 
 1. The user commits a create-resource flow in Resource Manager.
 2. Resource Manager sends the create command to the Control Plane with the
-   acting principal and requested operation metadata.
+   acting principal and requested operation data.
 3. The Control Plane validates the command, accepts or rejects it, records the
    durable operation/procedure state when the workflow is asynchronous, and
    emits domain facts such as `operation accepted`, `provider dispatch
@@ -323,8 +334,9 @@ A notification event should be small and stable:
 - optional audience descriptors
 - optional route or href target
 - optional correlation ID, operation ID, or resource ID
-- optional attributes for host-owned metadata
-- presentation hints such as toast eligibility or expiration
+- optional attributes for host-owned data
+- presentation data such as toast eligibility, scheduled visibility,
+  time-to-live, and auto-dismiss behavior
 
 A per-recipient notification instance should include:
 
@@ -336,7 +348,8 @@ A per-recipient notification instance should include:
 - read, acknowledged, dismissed, and archived timestamps or flags
 - instance-created and instance-updated timestamps
 - optional action descriptors and per-user action state
-- optional toast behavior hint
+- optional toast behavior, scheduled visibility, time-to-live, and
+  auto-dismiss data
 
 Records should carry enough context for the shell to render a useful item, but
 they should not embed large payloads, logs, provider-native operation data, or
@@ -351,13 +364,22 @@ after a user commits a create-resource flow:
    notification event targeted to the acting user, group, or environment
    audience.
 2. The notification provider resolves the audience and creates per-user
-   instances.
+   instances, returning the instance reference or operation-specific
+   equivalent to the producer.
 3. The shell shows a toast and adds the current user's instance to the
    notification center.
 4. The operation producer updates the event, and the provider updates matching
    user instances when the operation succeeds, fails, or needs attention.
 5. The notification links to the resource, operation details, activity log, or
    diagnostics view when that target exists.
+
+For progress-only feedback, a producer can publish a toast with
+`AutoDismiss = Never`, keep the returned `CoreShellToast.Id`, dismiss that toast
+when the operation completes, and then publish a separate success or failure
+toast with the default time-to-live. Notification-backed toasts use the same
+idea, except dismissing or acknowledging the toast presentation does not have
+to delete the notification-center item unless the implementation chooses that
+behavior.
 
 This mirrors the Azure-style pattern: the user gets immediate feedback in a
 specific shell location while the durable operation record remains available

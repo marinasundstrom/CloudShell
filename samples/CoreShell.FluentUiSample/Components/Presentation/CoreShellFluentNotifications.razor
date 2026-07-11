@@ -164,11 +164,15 @@
 
     private bool IsPanelOpen { get; set; }
 
+    private PeriodicTimer? RefreshTimer { get; set; }
+
+    private CancellationTokenSource? RefreshTimerCancellation { get; set; }
+
     private int UnreadCount => Items.Count(item => item.AcknowledgedAt is null);
 
     private IReadOnlyList<CoreShellNotificationInstance> ToastItems =>
         Items
-            .Where(ShouldToast)
+            .Where(item => ShouldToast(item, DateTimeOffset.UtcNow))
             .Take(2)
             .ToArray();
 
@@ -176,11 +180,17 @@
     {
         Notifications.NotificationsChanged += OnNotificationsChanged;
         Toasts.ToastsChanged += OnToastsChanged;
+        RefreshTimerCancellation = new CancellationTokenSource();
+        RefreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        _ = RunRefreshTimerAsync(RefreshTimer, RefreshTimerCancellation.Token);
         await LoadAsync();
     }
 
     public void Dispose()
     {
+        RefreshTimerCancellation?.Cancel();
+        RefreshTimer?.Dispose();
+        RefreshTimerCancellation?.Dispose();
         Notifications.NotificationsChanged -= OnNotificationsChanged;
         Toasts.ToastsChanged -= OnToastsChanged;
     }
@@ -190,6 +200,23 @@
         Items = await Notifications.GetNotificationsAsync(new CoreShellNotificationQuery(Limit: 8));
         ToastOnlyItems = await Toasts.GetToastsAsync();
         await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RunRefreshTimerAsync(PeriodicTimer timer, CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(LoadAsync);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
     }
 
     private async Task TogglePanel()
@@ -328,9 +355,26 @@
     private static bool IsLoading(CoreShellToast item) =>
         item.Status == CoreShellNotificationStatus.InProgress;
 
-    private static bool ShouldToast(CoreShellNotificationInstance item) =>
-        item.AcknowledgedAt is null
-        && item.ToastBehavior != CoreShellNotificationToastBehavior.Suppressed;
+    private static bool ShouldToast(CoreShellNotificationInstance item, DateTimeOffset now)
+    {
+        if (item.AcknowledgedAt is not null
+            || item.DismissedAt is not null
+            || item.ToastBehavior == CoreShellNotificationToastBehavior.Suppressed
+            || item.VisibleAt > now)
+        {
+            return false;
+        }
+
+        if (item.ToastBehavior == CoreShellNotificationToastBehavior.UntilAcknowledged
+            || item.ToastAutoDismiss == CoreShellToastAutoDismissBehavior.Never
+            || item.Status == CoreShellNotificationStatus.InProgress)
+        {
+            return true;
+        }
+
+        var timeToLive = item.ToastTimeToLive ?? CoreShellToastDefaults.NotificationTimeToLive;
+        return item.UpdatedAt.Add(timeToLive) > now;
+    }
 
     private RenderFragment RenderNotificationBody(CoreShellNotificationInstance item) => @<div>
         <strong>

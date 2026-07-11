@@ -33,6 +33,13 @@ public enum CoreShellNotificationToastBehavior
     UntilAcknowledged = 2
 }
 
+public enum CoreShellToastAutoDismissBehavior
+{
+    Default = 0,
+    AfterTimeToLive = 1,
+    Never = 2
+}
+
 public enum CoreShellToastChangeKind
 {
     RefreshRequired = 0,
@@ -41,9 +48,17 @@ public enum CoreShellToastChangeKind
     Dismissed = 3
 }
 
+public static class CoreShellToastDefaults
+{
+    public static TimeSpan DefaultTimeToLive { get; } = TimeSpan.FromSeconds(8);
+
+    public static TimeSpan NotificationTimeToLive { get; } = TimeSpan.FromSeconds(8);
+}
+
 public sealed record CoreShellNotificationQuery(
     bool IncludeDismissed = false,
-    int? Limit = null);
+    int? Limit = null,
+    bool IncludeScheduled = false);
 
 public sealed record CoreShellNotificationTarget(
     string Href,
@@ -55,6 +70,34 @@ public sealed record CoreShellNotificationAction(
     CoreShellNotificationTarget? Target = null,
     bool IsPrimary = false);
 
+public sealed record CoreShellNotificationRequest(
+    string Title,
+    string Message,
+    CoreShellNotificationSeverity Severity = CoreShellNotificationSeverity.Info,
+    CoreShellNotificationStatus Status = CoreShellNotificationStatus.Active,
+    string? Source = null,
+    CoreShellNotificationTarget? Target = null,
+    string? EventId = null,
+    IReadOnlyDictionary<string, string>? Attributes = null,
+    IReadOnlyList<CoreShellNotificationAction>? Actions = null,
+    CoreShellNotificationToastBehavior ToastBehavior = CoreShellNotificationToastBehavior.Default,
+    TimeSpan? ToastTimeToLive = null,
+    CoreShellToastAutoDismissBehavior ToastAutoDismiss = CoreShellToastAutoDismissBehavior.Default,
+    DateTimeOffset? VisibleAt = null,
+    TimeSpan? VisibleIn = null);
+
+public sealed record CoreShellNotificationUpdate(
+    string? Title = null,
+    string? Message = null,
+    CoreShellNotificationSeverity? Severity = null,
+    CoreShellNotificationStatus? Status = null,
+    CoreShellNotificationTarget? Target = null,
+    IReadOnlyDictionary<string, string>? Attributes = null,
+    IReadOnlyList<CoreShellNotificationAction>? Actions = null,
+    TimeSpan? ToastTimeToLive = null,
+    CoreShellToastAutoDismissBehavior? ToastAutoDismiss = null,
+    DateTimeOffset? VisibleAt = null);
+
 public sealed record CoreShellToastRequest(
     string Title,
     string Message,
@@ -64,7 +107,8 @@ public sealed record CoreShellToastRequest(
     CoreShellNotificationTarget? Target = null,
     IReadOnlyList<CoreShellNotificationAction>? Actions = null,
     TimeSpan? TimeToLive = null,
-    string? Id = null);
+    string? Id = null,
+    CoreShellToastAutoDismissBehavior AutoDismiss = CoreShellToastAutoDismissBehavior.Default);
 
 public sealed record CoreShellToastUpdate(
     string? Title = null,
@@ -72,7 +116,9 @@ public sealed record CoreShellToastUpdate(
     CoreShellNotificationSeverity? Severity = null,
     CoreShellNotificationStatus? Status = null,
     CoreShellNotificationTarget? Target = null,
-    IReadOnlyList<CoreShellNotificationAction>? Actions = null);
+    IReadOnlyList<CoreShellNotificationAction>? Actions = null,
+    TimeSpan? TimeToLive = null,
+    CoreShellToastAutoDismissBehavior? AutoDismiss = null);
 
 public sealed record CoreShellToast(
     string Id,
@@ -85,7 +131,8 @@ public sealed record CoreShellToast(
     string? Source = null,
     CoreShellNotificationTarget? Target = null,
     IReadOnlyList<CoreShellNotificationAction>? Actions = null,
-    TimeSpan? TimeToLive = null);
+    TimeSpan? TimeToLive = null,
+    CoreShellToastAutoDismissBehavior AutoDismiss = CoreShellToastAutoDismissBehavior.Default);
 
 public sealed record CoreShellNotificationInstance(
     string Id,
@@ -103,7 +150,10 @@ public sealed record CoreShellNotificationInstance(
     DateTimeOffset? DismissedAt = null,
     IReadOnlyDictionary<string, string>? Attributes = null,
     IReadOnlyList<CoreShellNotificationAction>? Actions = null,
-    CoreShellNotificationToastBehavior ToastBehavior = CoreShellNotificationToastBehavior.Default);
+    CoreShellNotificationToastBehavior ToastBehavior = CoreShellNotificationToastBehavior.Default,
+    TimeSpan? ToastTimeToLive = null,
+    CoreShellToastAutoDismissBehavior ToastAutoDismiss = CoreShellToastAutoDismissBehavior.Default,
+    DateTimeOffset? VisibleAt = null);
 
 public sealed class CoreShellNotificationsChangedEventArgs(
     CoreShellNotificationChangeKind kind = CoreShellNotificationChangeKind.RefreshRequired,
@@ -138,6 +188,22 @@ public interface ICoreShellNotificationService
     Task HandleActionAsync(
         string notificationId,
         string actionId,
+        CancellationToken cancellationToken = default);
+
+    Task DismissAsync(
+        string notificationId,
+        CancellationToken cancellationToken = default);
+}
+
+public interface ICoreShellNotificationProducer
+{
+    Task<CoreShellNotificationInstance> PublishAsync(
+        CoreShellNotificationRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<CoreShellNotificationInstance?> UpdateAsync(
+        string notificationId,
+        CoreShellNotificationUpdate update,
         CancellationToken cancellationToken = default);
 
     Task DismissAsync(
@@ -211,6 +277,91 @@ public sealed class EmptyCoreShellNotificationService : ICoreShellNotificationSe
     }
 }
 
+public sealed class EmptyCoreShellNotificationProducer : ICoreShellNotificationProducer
+{
+    public Task<CoreShellNotificationInstance> PublishAsync(
+        CoreShellNotificationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var now = DateTimeOffset.UtcNow;
+        var autoDismiss = request.ToastAutoDismiss == CoreShellToastAutoDismissBehavior.Default
+            ? CoreShellToastAutoDismissBehavior.AfterTimeToLive
+            : request.ToastAutoDismiss;
+
+        return Task.FromResult(new CoreShellNotificationInstance(
+            Guid.NewGuid().ToString("n"),
+            NormalizeRequired(request.Title, nameof(request.Title)),
+            NormalizeRequired(request.Message, nameof(request.Message)),
+            request.Severity,
+            request.Status,
+            now,
+            now,
+            Source: NormalizeOptional(request.Source),
+            Target: request.Target,
+            EventId: NormalizeOptional(request.EventId),
+            Attributes: request.Attributes,
+            Actions: request.Actions,
+            ToastBehavior: request.ToastBehavior,
+            ToastTimeToLive: autoDismiss == CoreShellToastAutoDismissBehavior.Never
+                ? null
+                : request.ToastTimeToLive ?? CoreShellToastDefaults.NotificationTimeToLive,
+            ToastAutoDismiss: autoDismiss,
+            VisibleAt: ResolveVisibleAt(now, request.VisibleAt, request.VisibleIn)));
+    }
+
+    public Task<CoreShellNotificationInstance?> UpdateAsync(
+        string notificationId,
+        CoreShellNotificationUpdate update,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(notificationId);
+        ArgumentNullException.ThrowIfNull(update);
+        return Task.FromResult<CoreShellNotificationInstance?>(null);
+    }
+
+    public Task DismissAsync(
+        string notificationId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(notificationId);
+        return Task.CompletedTask;
+    }
+
+    private static string NormalizeRequired(string value, string parameterName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value, parameterName);
+        return value.Trim();
+    }
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static DateTimeOffset? ResolveVisibleAt(
+        DateTimeOffset now,
+        DateTimeOffset? visibleAt,
+        TimeSpan? visibleIn)
+    {
+        if (visibleAt.HasValue && visibleIn.HasValue)
+        {
+            throw new ArgumentException("Specify either VisibleAt or VisibleIn, not both.");
+        }
+
+        if (visibleIn is { } delay)
+        {
+            if (delay < TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(visibleIn), delay, "VisibleIn cannot be negative.");
+            }
+
+            return now.Add(delay);
+        }
+
+        return visibleAt;
+    }
+}
+
 public sealed class EmptyCoreShellToastService : ICoreShellToastService
 {
     public event EventHandler<CoreShellToastsChangedEventArgs>? ToastsChanged
@@ -230,6 +381,10 @@ public sealed class EmptyCoreShellToastService : ICoreShellToastService
         ArgumentNullException.ThrowIfNull(request);
 
         var now = DateTimeOffset.UtcNow;
+        var autoDismiss = request.AutoDismiss == CoreShellToastAutoDismissBehavior.Default
+            ? CoreShellToastAutoDismissBehavior.AfterTimeToLive
+            : request.AutoDismiss;
+
         return Task.FromResult(new CoreShellToast(
             request.Id ?? Guid.NewGuid().ToString("n"),
             NormalizeRequired(request.Title, nameof(request.Title)),
@@ -241,7 +396,10 @@ public sealed class EmptyCoreShellToastService : ICoreShellToastService
             Source: NormalizeOptional(request.Source),
             Target: request.Target,
             Actions: request.Actions,
-            TimeToLive: request.TimeToLive));
+            TimeToLive: autoDismiss == CoreShellToastAutoDismissBehavior.Never
+                ? null
+                : request.TimeToLive ?? CoreShellToastDefaults.DefaultTimeToLive,
+            AutoDismiss: autoDismiss));
     }
 
     public Task<CoreShellToast?> UpdateAsync(

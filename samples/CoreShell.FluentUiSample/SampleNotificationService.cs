@@ -2,39 +2,9 @@ using CoreShell;
 
 namespace CoreShell.FluentUiSample;
 
-public sealed record SampleNotificationDraft(
-    string Title,
-    string Message,
-    CoreShellNotificationSeverity Severity = CoreShellNotificationSeverity.Info,
-    CoreShellNotificationStatus Status = CoreShellNotificationStatus.Active,
-    string? Source = null,
-    CoreShellNotificationTarget? Target = null,
-    IReadOnlyList<CoreShellNotificationAction>? Actions = null,
-    CoreShellNotificationToastBehavior ToastBehavior = CoreShellNotificationToastBehavior.Default);
-
-public sealed record SampleNotificationUpdate(
-    string? Title = null,
-    string? Message = null,
-    CoreShellNotificationSeverity? Severity = null,
-    CoreShellNotificationStatus? Status = null,
-    CoreShellNotificationTarget? Target = null,
-    IReadOnlyList<CoreShellNotificationAction>? Actions = null);
-
-public interface ISampleNotificationProducer
-{
-    Task<CoreShellNotificationInstance> PublishAsync(
-        SampleNotificationDraft draft,
-        CancellationToken cancellationToken = default);
-
-    Task<CoreShellNotificationInstance?> UpdateAsync(
-        string notificationId,
-        SampleNotificationUpdate update,
-        CancellationToken cancellationToken = default);
-}
-
 public sealed class SampleNotificationService :
     ICoreShellNotificationService,
-    ISampleNotificationProducer
+    ICoreShellNotificationProducer
 {
     private readonly object _gate = new();
     private readonly List<CoreShellNotificationInstance> _notifications = [];
@@ -49,10 +19,17 @@ public sealed class SampleNotificationService :
 
         lock (_gate)
         {
+            var now = DateTimeOffset.UtcNow;
             IEnumerable<CoreShellNotificationInstance> notifications = _notifications;
             if (!query.IncludeDismissed)
             {
                 notifications = notifications.Where(notification => notification.DismissedAt is null);
+            }
+
+            if (!query.IncludeScheduled)
+            {
+                notifications = notifications.Where(notification =>
+                    notification.VisibleAt is null || notification.VisibleAt <= now);
             }
 
             notifications = notifications
@@ -69,24 +46,32 @@ public sealed class SampleNotificationService :
     }
 
     public Task<CoreShellNotificationInstance> PublishAsync(
-        SampleNotificationDraft draft,
+        CoreShellNotificationRequest request,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(draft);
+        ArgumentNullException.ThrowIfNull(request);
 
         var now = DateTimeOffset.UtcNow;
+        var autoDismiss = NormalizeAutoDismiss(request.ToastAutoDismiss);
         var notification = new CoreShellNotificationInstance(
             Guid.NewGuid().ToString("n"),
-            NormalizeRequired(draft.Title, nameof(draft.Title)),
-            NormalizeRequired(draft.Message, nameof(draft.Message)),
-            draft.Severity,
-            draft.Status,
+            NormalizeRequired(request.Title, nameof(request.Title)),
+            NormalizeRequired(request.Message, nameof(request.Message)),
+            request.Severity,
+            request.Status,
             now,
             now,
-            Source: NormalizeOptional(draft.Source),
-            Target: draft.Target,
-            Actions: NormalizeActions(draft.Actions),
-            ToastBehavior: draft.ToastBehavior);
+            Source: NormalizeOptional(request.Source),
+            Target: request.Target,
+            EventId: NormalizeOptional(request.EventId),
+            Attributes: request.Attributes,
+            Actions: NormalizeActions(request.Actions),
+            ToastBehavior: request.ToastBehavior,
+            ToastTimeToLive: autoDismiss == CoreShellToastAutoDismissBehavior.Never
+                ? null
+                : request.ToastTimeToLive,
+            ToastAutoDismiss: autoDismiss,
+            VisibleAt: ResolveVisibleAt(now, request.VisibleAt, request.VisibleIn));
 
         lock (_gate)
         {
@@ -99,7 +84,7 @@ public sealed class SampleNotificationService :
 
     public Task<CoreShellNotificationInstance?> UpdateAsync(
         string notificationId,
-        SampleNotificationUpdate update,
+        CoreShellNotificationUpdate update,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(notificationId);
@@ -122,9 +107,15 @@ public sealed class SampleNotificationService :
                 Severity = update.Severity ?? _notifications[index].Severity,
                 Status = update.Status ?? _notifications[index].Status,
                 Target = update.Target ?? _notifications[index].Target,
+                Attributes = update.Attributes ?? _notifications[index].Attributes,
                 Actions = update.Actions is null
                     ? _notifications[index].Actions
                     : NormalizeActions(update.Actions),
+                ToastTimeToLive = update.ToastTimeToLive ?? _notifications[index].ToastTimeToLive,
+                ToastAutoDismiss = update.ToastAutoDismiss.HasValue
+                    ? NormalizeAutoDismiss(update.ToastAutoDismiss.Value)
+                    : _notifications[index].ToastAutoDismiss,
+                VisibleAt = update.VisibleAt ?? _notifications[index].VisibleAt,
                 UpdatedAt = DateTimeOffset.UtcNow
             };
             _notifications[index] = notification;
@@ -254,6 +245,35 @@ public sealed class SampleNotificationService :
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
+    private static CoreShellToastAutoDismissBehavior NormalizeAutoDismiss(
+        CoreShellToastAutoDismissBehavior autoDismiss) =>
+        autoDismiss == CoreShellToastAutoDismissBehavior.Default
+            ? CoreShellToastAutoDismissBehavior.AfterTimeToLive
+            : autoDismiss;
+
+    private static DateTimeOffset? ResolveVisibleAt(
+        DateTimeOffset now,
+        DateTimeOffset? visibleAt,
+        TimeSpan? visibleIn)
+    {
+        if (visibleAt.HasValue && visibleIn.HasValue)
+        {
+            throw new ArgumentException("Specify either VisibleAt or VisibleIn, not both.");
+        }
+
+        if (visibleIn is { } delay)
+        {
+            if (delay < TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(visibleIn), delay, "VisibleIn cannot be negative.");
+            }
+
+            return now.Add(delay);
+        }
+
+        return visibleAt;
+    }
+
     private static IReadOnlyList<CoreShellNotificationAction>? NormalizeActions(
         IReadOnlyList<CoreShellNotificationAction>? actions)
     {
@@ -274,7 +294,6 @@ public sealed class SampleNotificationService :
 
 public sealed class SampleToastService : ICoreShellToastService
 {
-    private static readonly TimeSpan DefaultTimeToLive = TimeSpan.FromSeconds(8);
     private readonly object _gate = new();
     private readonly List<CoreShellToast> _toasts = [];
 
@@ -301,6 +320,7 @@ public sealed class SampleToastService : ICoreShellToastService
         ArgumentNullException.ThrowIfNull(request);
 
         var now = DateTimeOffset.UtcNow;
+        var autoDismiss = NormalizeAutoDismiss(request.AutoDismiss);
         var toast = new CoreShellToast(
             NormalizeOptional(request.Id) ?? Guid.NewGuid().ToString("n"),
             NormalizeRequired(request.Title, nameof(request.Title)),
@@ -312,7 +332,10 @@ public sealed class SampleToastService : ICoreShellToastService
             Source: NormalizeOptional(request.Source),
             Target: request.Target,
             Actions: NormalizeActions(request.Actions),
-            TimeToLive: request.TimeToLive ?? DefaultTimeToLive);
+            TimeToLive: autoDismiss == CoreShellToastAutoDismissBehavior.Never
+                ? null
+                : request.TimeToLive ?? CoreShellToastDefaults.DefaultTimeToLive,
+            AutoDismiss: autoDismiss);
 
         lock (_gate)
         {
@@ -351,6 +374,10 @@ public sealed class SampleToastService : ICoreShellToastService
                 Actions = update.Actions is null
                     ? _toasts[index].Actions
                     : NormalizeActions(update.Actions),
+                TimeToLive = update.TimeToLive ?? _toasts[index].TimeToLive,
+                AutoDismiss = update.AutoDismiss.HasValue
+                    ? NormalizeAutoDismiss(update.AutoDismiss.Value)
+                    : _toasts[index].AutoDismiss,
                 UpdatedAt = DateTimeOffset.UtcNow
             };
             _toasts[index] = toast;
@@ -419,7 +446,8 @@ public sealed class SampleToastService : ICoreShellToastService
     private void RemoveExpired(DateTimeOffset now)
     {
         var removed = _toasts.RemoveAll(toast =>
-            toast.TimeToLive is { } ttl
+            toast.AutoDismiss == CoreShellToastAutoDismissBehavior.AfterTimeToLive
+            && toast.TimeToLive is { } ttl
             && toast.Status != CoreShellNotificationStatus.InProgress
             && toast.UpdatedAt.Add(ttl) <= now);
 
@@ -440,6 +468,12 @@ public sealed class SampleToastService : ICoreShellToastService
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static CoreShellToastAutoDismissBehavior NormalizeAutoDismiss(
+        CoreShellToastAutoDismissBehavior autoDismiss) =>
+        autoDismiss == CoreShellToastAutoDismissBehavior.Default
+            ? CoreShellToastAutoDismissBehavior.AfterTimeToLive
+            : autoDismiss;
 
     private static IReadOnlyList<CoreShellNotificationAction>? NormalizeActions(
         IReadOnlyList<CoreShellNotificationAction>? actions)

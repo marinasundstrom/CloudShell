@@ -25,7 +25,7 @@ builder.Services.Replace(ServiceDescriptor.Singleton<ICoreShellNotificationServi
     serviceProvider => serviceProvider.GetRequiredService<SampleNotificationService>()));
 builder.Services.Replace(ServiceDescriptor.Singleton<ICoreShellToastService>(
     serviceProvider => serviceProvider.GetRequiredService<SampleToastService>()));
-builder.Services.AddSingleton<ISampleNotificationProducer>(
+builder.Services.AddSingleton<ICoreShellNotificationProducer>(
     serviceProvider => serviceProvider.GetRequiredService<SampleNotificationService>());
 
 builder.Services.AddSingleton(CoreShellModule.Create(

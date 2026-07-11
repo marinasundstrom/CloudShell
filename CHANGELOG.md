@@ -44,6 +44,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Added `ICoreShellToastService` for transient toast-only signals that do not
   create notification instances, plus CoreShell Fluent UI sample coverage for
   linked/dismissible toast bodies and fallback notification body behavior.
+- Added CoreShell notification producer contracts, notification/toast
+  visibility and auto-dismiss data, default toast lifetime behavior, and
+  reference sample coverage for returned item IDs that can update, dismiss, or
+  replace long-running progress feedback.
 - Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder
   helper from CloudShell Hosting into `CoreShell.Blazor` so common Blazor shell
   building blocks can be used by CoreShell apps without a CloudShell

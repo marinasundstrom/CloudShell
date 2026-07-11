@@ -14,6 +14,7 @@ public static class CoreShellBlazorServiceCollectionExtensions
         services.TryAddSingleton<ICoreShellContentResolver, BlazorCoreShellContentResolver>();
         services.TryAddSingleton<ICoreShellLayoutResolver, BlazorCoreShellLayoutResolver>();
         services.TryAddSingleton<ICoreShellNotificationService, EmptyCoreShellNotificationService>();
+        services.TryAddSingleton<ICoreShellNotificationProducer, EmptyCoreShellNotificationProducer>();
         services.TryAddSingleton<ICoreShellToastService, EmptyCoreShellToastService>();
         services.TryAddSingleton<ICoreShellBlazorPageProjectionService, CoreShellBlazorPageProjectionService>();
         services.TryAddSingleton<
