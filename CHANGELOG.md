@@ -30,6 +30,10 @@ on `git blame --follow`, and then by the broad type of change.
   notification event/instance contracts, per-user notification instances,
   Control Plane event-driven notification rules, and the future CloudShell
   notifications service integration boundary.
+- Added the minimal CoreShell notification UI contract with
+  `ICoreShellNotificationService`, per-user notification instance records,
+  change notifications, acknowledge/dismiss methods, and an empty default
+  service registered by `CoreShell.Blazor`.
 - Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder
   helper from CloudShell Hosting into `CoreShell.Blazor` so common Blazor shell
   building blocks can be used by CoreShell apps without a CloudShell

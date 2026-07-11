@@ -45,15 +45,19 @@ these composition primitives directly. Direct use of
 packages, compatibility adapters, and sandbox hosts. Domain shells such as
 CloudShell can build their own extension points on top of CoreShell.
 CoreShell adds the shell-facing layer above this graph: pages, navigation,
-sections, content references, layout references, target resolution, and page
-materialization services. The Blazor-specific mapping from CoreShell content
-or layout references to component types belongs in the host adapter, not in
-the foundational CoreShell contracts.
+sections, content references, layout references, target resolution, page
+materialization services, and the minimal notification UI abstraction. The
+Blazor-specific mapping from CoreShell content or layout references to
+component types belongs in the host adapter, not in the foundational CoreShell
+contracts.
 `CoreShell.Blazor` provides that first adapter boundary. A Blazor shell can
 resolve a CoreShell page route into a renderable page descriptor, including
 the optional page component, page layout, section outlet layouts, and section
 component types. Fluent UI, Bootstrap, static SSR, interactive Blazor, or a
 custom host still decide how those descriptors are presented.
+It also registers an empty `ICoreShellNotificationService` by default so UI
+presenters can depend on the notification contract while hosts replace the
+source, storage, and change-signal implementation.
 It can also resolve a specific CoreShell page/outlet pair into Blazor section
 descriptors, which lets host presenters render a tabset, sidebar, accordion,
 or section stack without reading `CoreShell.Composition` projections.

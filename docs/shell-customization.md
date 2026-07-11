@@ -42,6 +42,10 @@ through `AddCoreShellModule(...)`:
 - `ICoreShellNavigationService`, `ICoreShellRouteService`,
   `ICoreShellSectionService`, and `ICoreShellSectionAddressService` for
   shell-owned rendering and linking.
+- `ICoreShellNotificationService` for UI presenters that need to query the
+  current user's notification instances, react to notification change signals,
+  and acknowledge or dismiss notification instances without depending on the
+  backing store or transport.
 - `CoreShell.Blazor` helpers such as `CoreShellBlazorContent.For<TComponent>()`
   and `AddSection<TComponent>(...)` for Blazor-backed content.
 
@@ -154,10 +158,10 @@ remain global programmatic configuration today.
   hosted content areas as first-class contribution types.
 - Add a standardized settings surface where extensions can contribute settings
   pages without owning the whole settings route or layout.
-- Add a shell notification system with per-user notification instances,
-  acknowledgement/dismiss state, durable or fetched backing stores, change
-  signals, notification-center history, and toast-style transient
-  presentation. See the
+- Build out the shell notification system beyond the minimal CoreShell UI
+  contract, including durable or fetched backing stores, notification rules,
+  CloudShell operation producers, notification-center history, and toast-style
+  transient presentation. See the
   [shell notifications and toasts proposal](proposals/core/shell-notifications.md).
 - Define named extension areas so shell and Resource Manager pages can accept
   provider-owned content without replacing the whole page.

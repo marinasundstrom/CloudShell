@@ -8,16 +8,16 @@ when background work starts, progresses, succeeds, fails, or needs attention.
 
 ## Status
 
-- Status: Proposed
+- Status: Partially implemented
 - Strategy fit: Medium-high; supports Azure-like operation feedback and
   strengthens CoreShell as the common shell layer without forcing CloudShell
   resource semantics into CoreShell.
 - Canonical feature docs: none yet; planned feature docs are
   [Shell customization](../../shell-customization.md) and
   [UI composition](../../ui-composition.md) after implementation lands.
-- Remaining action: define the CoreShell notification contracts and prove them
-  in `samples/CoreShell.FluentUiSample` with an in-memory provider, a
-  notification center, and toast presentation for a sample asynchronous action.
+- Remaining action: build on the minimal `ICoreShellNotificationService`
+  contract by proving a CoreShell Fluent UI notification center and toast
+  presenter, then add CloudShell notification rules and producers.
 - Out of scope: full workflow orchestration, durable CloudShell activity
   history, email/push/device delivery, notification preferences UI, and
   cross-Control Plane federation.
@@ -117,10 +117,12 @@ CoreShell should not own:
 - remote transport details such as SignalR hub route names
 - CloudShell notification production policy
 
-The initial CoreShell implementation can provide an in-memory service for
-samples and simple embedded hosts. That service is useful for proving the UI
-and extension model, but it should be documented as sample/default behavior,
-not as the only supported implementation.
+The initial CoreShell implementation provides the UI-facing
+`ICoreShellNotificationService` contract and an empty default implementation
+for hosts that have not wired a notification source yet. A later sample slice
+can add an in-memory source for simple hosts. That implementation would be
+useful for proving the UI and extension model, but it should be documented as
+sample/default behavior, not as the only supported implementation.
 
 ## Proposed CloudShell boundary
 
@@ -343,13 +345,15 @@ for investigation.
 
 Extensions should be able to:
 
-- publish notifications through the host-provided CoreShell service
+- publish notification events through the host-provided notification
+  integration service when the host exposes one
 - include source identity so the shell can label where a notification came
   from
 - target a user, group, role, all users, or a host-defined audience
 - provide a route/href into an extension-owned page
 - update a logical event while the provider owns per-user instance state
-- listen for notification changes when they host their own focused surfaces
+- listen for notification changes through `ICoreShellNotificationService` when
+  they host their own focused surfaces
 
 Extensions should not bypass the host's audience and authorization filtering.
 The host remains responsible for deciding which notification records are
@@ -359,8 +363,11 @@ visible to the current user and which actions or links are enabled.
 
 ### Slice 1: CoreShell sample proof
 
-- Add CoreShell notification event, notification instance, audience, query,
-  publish/update/dismiss, and change-subscription contracts.
+- Add CoreShell notification instance, query, acknowledge/dismiss, and
+  change-subscription contracts. Initial minimal UI contract is implemented
+  through `ICoreShellNotificationService`.
+- Decide whether event and publish/update producer contracts belong in
+  CoreShell or only in host-specific notification services.
 - Add an in-memory implementation for simple hosts and tests.
 - Add a CoreShell Fluent UI sample notification center and toast presenter.
 - Add a sample asynchronous action that publishes an in-progress notification
@@ -370,8 +377,9 @@ visible to the current user and which actions or links are enabled.
 
 ### Slice 2: CloudShell adapter
 
-- Register a CloudShell implementation that can publish Resource Manager and
-  Control Plane operation notifications through the CoreShell contract.
+- Register a CloudShell notification integration that can publish Resource
+  Manager and Control Plane operation notifications while CoreShell UI
+  presenters read the resulting instances through `ICoreShellNotificationService`.
 - Add resource-operation notification producers for the first high-value
   workflows, such as create, upload/apply artifact, start, stop, and failed
   provider dispatch.
