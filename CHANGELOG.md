@@ -83,6 +83,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Coalesced replica-management crash and repair progress into the same
   recovery notification while suppressing low-level slot observation and
   deferred-reconciliation events.
+- Added a successful replica restart event so container app notifications can
+  show when a running-failure recovery attempt completed successfully.
 - Suppressed unhandled triggered resource events from notification projection
   so deployment/activity facts do not create extra generic startup toasts.
 - Moved the Blazor `AddSection<TComponent>(...)` CoreShell section-builder

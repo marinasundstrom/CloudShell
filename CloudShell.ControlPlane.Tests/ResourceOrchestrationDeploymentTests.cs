@@ -1115,6 +1115,55 @@ public sealed class ResourceOrchestrationDeploymentTests
     }
 
     [Fact]
+    public async Task ReconcileReplicaSlotAsync_RecordsSuccessfulRestartRepair()
+    {
+        var resource = CreateResource();
+        var resourceEvents = new InMemoryResourceEventStore();
+        var service = CreateDeployment(resource.Id, "default", replicas: 3).Spec.Service;
+        var replicaGroup = ResourceOrchestratorReplicaGroups.CreateDefaultReplicaGroup(service) with
+        {
+            ManagementPolicy = new ResourceOrchestratorReplicaManagementPolicy(
+                ResourceOrchestratorReplicaRestartMode.RestartOccupant)
+        };
+        var provider = new RecordingServiceProcedureProvider(resource)
+        {
+            OrchestratorService = service
+        };
+        var orchestration = CreateOrchestration(resource, provider, resourceEvents);
+
+        var result = await orchestration.ReconcileReplicaSlotAsync(
+            resource,
+            service,
+            replicaGroup,
+            2,
+            "Connection refused.",
+            triggeredBy: "tests");
+
+        Assert.Equal(
+            "Restarted replica group 'cloudshell-application-api-replicas' slot 2/3 occupant 'cloudshell-application-api-replica-2'.",
+            result.Message);
+        Assert.Equal(
+            ["Start:cloudshell-application-api-replica-2"],
+            provider.ExecutedInstanceActions.ToArray());
+
+        var events = resourceEvents
+            .GetEvents(new ResourceEventQuery(ResourceId: resource.Id))
+            .Reverse()
+            .ToArray();
+        Assert.Equal(
+            [
+                ResourceEventTypes.Events.ReplicaManagement.SlotUnhealthy,
+                ResourceEventTypes.Events.ReplicaManagement.OccupantCrashed,
+                ResourceEventTypes.Events.ReplicaManagement.RestartScheduled,
+                ResourceEventTypes.Events.ReplicaManagement.RestartAttempted,
+                ResourceEventTypes.Events.ReplicaManagement.RestartSucceeded
+            ],
+            events.Select(resourceEvent => resourceEvent.EventType).ToArray());
+        Assert.Equal(ResourceSignalSeverity.Success, events[^1].Severity);
+        Assert.Contains("restarted", events[^1].Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ReconcileReplicaSlotAsync_UsesActiveMaterializedReplicaGroup()
     {
         var resource = CreateResource();

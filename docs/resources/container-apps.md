@@ -515,6 +515,15 @@ management, recorded as replica-management activity, and replaced by the
 orchestration service according to the latest active materialized replica
 group when deployment history is available.
 
+Container app notifications should stay focused on operationally meaningful
+state changes. The user-visible notification path should cover resource startup
+progress, successful startup, startup failure, failures observed after the app
+was running, recovery or replica repair attempts, and whether those recovery
+attempts succeeded, failed, were skipped, or exhausted. Routine health polling,
+healthy observations, low-level slot observations, and deferred reconciliation
+thresholds should remain activity/diagnostic facts without creating notification
+noise.
+
 When multiple local containers are materialized, they are named by convention
 from the parent container app, for example with a `-replica-{n}` suffix. Docker
 Compose maps the same desired count to `deploy.replicas`; future orchestrators

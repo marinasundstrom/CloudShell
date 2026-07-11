@@ -468,6 +468,62 @@ public sealed class CloudShellNotificationStoreTests
     }
 
     [Fact]
+    public void DefaultResourceEventNotificationRule_MapsContainerAppRuntimeFailureAndRecoveryStatus()
+    {
+        var rule = new DefaultResourceEventNotificationRule();
+
+        var degraded = rule.CreateNotification(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Lifecycle.Degraded,
+            "Resource degraded.",
+            DateTimeOffset.UtcNow,
+            TriggeredBy: "liveness",
+            Severity: ResourceSignalSeverity.Warning));
+        var stoppedUnexpectedly = rule.CreateNotification(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Lifecycle.StoppedUnexpectedly,
+            "Resource stopped unexpectedly.",
+            DateTimeOffset.UtcNow,
+            TriggeredBy: "liveness",
+            Severity: ResourceSignalSeverity.Error));
+        var restartAttempted = rule.CreateNotification(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.ReplicaManagement.RestartAttempted,
+            "Replica restart started.",
+            DateTimeOffset.UtcNow,
+            TriggeredBy: "replica-management",
+            Severity: ResourceSignalSeverity.Warning));
+        var restartSucceeded = rule.CreateNotification(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.ReplicaManagement.RestartSucceeded,
+            "Replica restarted.",
+            DateTimeOffset.UtcNow,
+            TriggeredBy: "replica-management",
+            Severity: ResourceSignalSeverity.Success));
+        var restartExhausted = rule.CreateNotification(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.ReplicaManagement.ReconciliationExhausted,
+            "Replica repair exhausted.",
+            DateTimeOffset.UtcNow,
+            TriggeredBy: "replica-management",
+            Severity: ResourceSignalSeverity.Error));
+
+        Assert.Equal(CloudShellNotificationStatus.NeedsAttention, degraded!.Status);
+        Assert.Equal(CloudShellNotificationStatus.NeedsAttention, stoppedUnexpectedly!.Status);
+        Assert.Equal(CloudShellNotificationStatus.InProgress, restartAttempted!.Status);
+        Assert.Equal(CloudShellNotificationStatus.Succeeded, restartSucceeded!.Status);
+        Assert.Equal(CloudShellNotificationStatus.Failed, restartExhausted!.Status);
+        Assert.All(
+            [degraded, stoppedUnexpectedly, restartAttempted, restartSucceeded, restartExhausted],
+            notification =>
+            {
+                Assert.Equal("user", notification!.RecipientKey);
+                Assert.Equal("Resource recovery", notification.Title);
+                Assert.Equal("resource-recovery|application:api|runtime|user", notification.CorrelationId);
+            });
+    }
+
+    [Fact]
     public void DefaultResourceEventNotificationRule_SuppressesUnhandledTriggeredEvents()
     {
         var rule = new DefaultResourceEventNotificationRule();

@@ -86,6 +86,7 @@ public static class ResourceEventTypes
             public const string OccupantCrashed = "event.replica.occupant.crashed";
             public const string RestartScheduled = "event.replica.restart.scheduled";
             public const string RestartAttempted = "event.replica.restart.attempted";
+            public const string RestartSucceeded = "event.replica.restart.succeeded";
             public const string ReplacementScheduled = "event.replica.replacement.scheduled";
             public const string ReplacementMaterializing = "event.replica.replacement.materializing";
             public const string ReplacementMaterialized = "event.replica.replacement.materialized";

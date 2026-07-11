@@ -110,6 +110,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             ResourceEventTypes.Events.ReplicaManagement.ReplacementScheduled or
             ResourceEventTypes.Events.ReplicaManagement.ReplacementMaterializing => CloudShellNotificationStatus.InProgress,
             ResourceEventTypes.Events.Recovery.RestartSucceeded or
+            ResourceEventTypes.Events.ReplicaManagement.RestartSucceeded or
             ResourceEventTypes.Events.ReplicaManagement.ReplacementMaterialized => CloudShellNotificationStatus.Succeeded,
             ResourceEventTypes.Events.Recovery.RestartFailed or
             ResourceEventTypes.Events.Recovery.RestartExhausted or
@@ -365,6 +366,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             ResourceEventTypes.Events.ReplicaManagement.OccupantCrashed or
             ResourceEventTypes.Events.ReplicaManagement.RestartScheduled or
             ResourceEventTypes.Events.ReplicaManagement.RestartAttempted or
+            ResourceEventTypes.Events.ReplicaManagement.RestartSucceeded or
             ResourceEventTypes.Events.ReplicaManagement.ReplacementScheduled or
             ResourceEventTypes.Events.ReplicaManagement.ReplacementMaterializing or
             ResourceEventTypes.Events.ReplicaManagement.ReplacementMaterialized or

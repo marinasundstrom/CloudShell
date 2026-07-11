@@ -925,6 +925,12 @@ public sealed class ResourceOrchestrationService(
                 new ResourceOrchestratorServiceInstanceContext(resourceContext, service, occupant, replicaGroup),
                 ResourceAction.Start,
                 cancellationToken);
+            AppendReplicaManagementEvent(
+                resourceContext.Resource,
+                ResourceEventTypes.Events.ReplicaManagement.RestartSucceeded,
+                $"Replica group '{replicaGroup.Id}' slot {FormatReplicaSlot(slot)} occupant '{occupant.Name}' restarted.",
+                triggeredBy,
+                ResourceSignalSeverity.Success);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
