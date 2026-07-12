@@ -123,6 +123,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added canonical notification/toast scenario guidance for CloudShell,
   including Control Plane-owned notification-backed producers, UI-local
   toast-only cases, progress patterns, and current gaps.
+- Projected generic deployment apply resource events into one correlated
+  notification so apply progress, success, and failure update the same
+  Control Plane-owned item.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.

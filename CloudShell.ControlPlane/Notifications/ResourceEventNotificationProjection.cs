@@ -96,6 +96,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             ResourceEventTypes.Events.Lifecycle.Pausing or
             ResourceEventTypes.Events.Lifecycle.Restarting or
             ResourceEventTypes.Events.Resource.Creating or
+            ResourceEventTypes.Events.Deployment.Applying or
             ResourceEventTypes.Events.Deployment.ImageUpdating or
             ResourceEventTypes.Events.Deployment.ReplicasUpdating => CloudShellNotificationStatus.InProgress,
             ResourceEventTypes.Events.Lifecycle.Started or
@@ -103,6 +104,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             ResourceEventTypes.Events.Lifecycle.Paused or
             ResourceEventTypes.Events.Lifecycle.Restarted or
             ResourceEventTypes.Events.Resource.Created or
+            ResourceEventTypes.Events.Deployment.Applied or
             ResourceEventTypes.Events.Deployment.ImageUpdated or
             ResourceEventTypes.Events.Deployment.ReplicasUpdated => CloudShellNotificationStatus.Succeeded,
             ResourceEventTypes.Events.Lifecycle.StartFailed or
@@ -110,6 +112,7 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             ResourceEventTypes.Events.Lifecycle.PauseFailed or
             ResourceEventTypes.Events.Lifecycle.RestartFailed or
             ResourceEventTypes.Events.Resource.CreateFailed or
+            ResourceEventTypes.Events.Deployment.Failed or
             ResourceEventTypes.Events.Deployment.ImageUpdateFailed or
             ResourceEventTypes.Events.Deployment.ReplicasUpdateFailed => CloudShellNotificationStatus.Failed,
             ResourceEventTypes.Events.Recovery.RestartScheduled or
@@ -171,6 +174,11 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
                 : "Update resource replicas";
         }
 
+        if (IsDeploymentApplyEvent(resourceEvent.EventType))
+        {
+            return "Apply deployment";
+        }
+
         if (IsResourceRecoveryNotificationEvent(resourceEvent.EventType))
         {
             return "Resource recovery";
@@ -226,6 +234,11 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
         {
             attributes["operationKind"] = "update";
             attributes["updateKind"] = updateKind;
+        }
+        else if (IsDeploymentApplyEvent(resourceEvent.EventType))
+        {
+            attributes["operationKind"] = "deployment";
+            attributes["deploymentKind"] = "apply";
         }
         else if (IsResourceRecoveryNotificationEvent(resourceEvent.EventType))
         {
@@ -329,6 +342,14 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
                 "cloudshell.resource-update-operation");
         }
 
+        if (IsDeploymentApplyEvent(resourceEvent.EventType))
+        {
+            return new NotificationOperation(
+                "deployment",
+                "apply",
+                "cloudshell.deployment-apply-operation");
+        }
+
         if (IsResourceRecoveryNotificationEvent(resourceEvent.EventType))
         {
             return new NotificationOperation(
@@ -390,6 +411,12 @@ public sealed class DefaultResourceEventNotificationRule : IResourceEventNotific
             ResourceEventTypes.Events.Deployment.ReplicasUpdateFailed => "replicas",
             _ => null
         };
+
+    private static bool IsDeploymentApplyEvent(string eventType) =>
+        eventType.Trim() is
+            ResourceEventTypes.Events.Deployment.Applying or
+            ResourceEventTypes.Events.Deployment.Applied or
+            ResourceEventTypes.Events.Deployment.Failed;
 
     private static bool IsStartMaterializationDeploymentEvent(ResourceEvent resourceEvent) =>
         IsDeploymentMaterializationProgressEvent(resourceEvent.EventType) &&

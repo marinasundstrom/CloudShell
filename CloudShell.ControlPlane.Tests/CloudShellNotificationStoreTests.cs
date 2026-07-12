@@ -227,7 +227,7 @@ public sealed class CloudShellNotificationStoreTests
         sink.Append(new ResourceEvent(
             "application:api",
             ResourceEventTypes.Events.Deployment.Applied,
-            "Applied deployment 'api-deployment' for revision 'revision-1'. Result: Applied deployment 'api-deployment' for runtime revision 'revision-1'.",
+            "Applied deployment 'api-deployment' for revision 'revision-1'. Result: Applied deployment 'api-deployment' for runtime revision 'revision-1'. Cause: Resource start requested runtime materialization.",
             DateTimeOffset.Parse("2026-07-11T09:00:04+00:00"),
             TriggeredBy: "operator"));
         sink.Append(new ResourceEvent(
@@ -250,7 +250,7 @@ public sealed class CloudShellNotificationStoreTests
         Assert.Equal("cloudshell.resource-lifecycle-operation", notification.TemplateKey);
         Assert.Equal("start", notification.Attributes!["actionId"]);
         Assert.Equal("lifecycle", notification.Attributes!["operationKind"]);
-        Assert.Equal(5, changes.Count);
+        Assert.Equal(6, changes.Count);
         Assert.Equal(CloudShellNotificationChangeKind.Created, changes[0]);
         Assert.All(changes.Skip(1), change => Assert.Equal(CloudShellNotificationChangeKind.Updated, change));
     }
@@ -324,6 +324,49 @@ public sealed class CloudShellNotificationStoreTests
         Assert.Equal("cloudshell.resource-update-operation", notification.TemplateKey);
         Assert.Equal("update", notification.Attributes!["operationKind"]);
         Assert.Equal("image", notification.Attributes!["updateKind"]);
+    }
+
+    [Fact]
+    public void ObservingResourceEventSink_CoalescesDeploymentApplyProgressIntoOneNotification()
+    {
+        var resourceEvents = new InMemoryResourceEventStore();
+        var notifications = new InMemoryCloudShellNotificationStore();
+        var changes = new List<CloudShellNotificationChangeKind>();
+        notifications.NotificationsChanged += (_, args) => changes.Add(args.Kind);
+        var projector = new ResourceEventNotificationProjector(
+            notifications,
+            [new DefaultResourceEventNotificationRule()]);
+        var sink = new ObservingResourceEventSink(resourceEvents, [projector]);
+
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Deployment.Applying,
+            "Applying deployment 'api-deployment' for revision 'revision-2'.",
+            DateTimeOffset.Parse("2026-07-11T09:00:00+00:00"),
+            TriggeredBy: "operator"));
+        sink.Append(new ResourceEvent(
+            "application:api",
+            ResourceEventTypes.Events.Deployment.Applied,
+            "Applied deployment 'api-deployment' for revision 'revision-2'.",
+            DateTimeOffset.Parse("2026-07-11T09:00:01+00:00"),
+            TriggeredBy: "operator"));
+
+        var notification = Assert.Single(notifications.GetNotifications(new CloudShellNotificationQuery(
+            RecipientKey: "operator")));
+        Assert.Equal("Apply deployment", notification.Title);
+        Assert.Equal("Applied deployment 'api-deployment' for revision 'revision-2'.", notification.Message);
+        Assert.Equal(CloudShellNotificationStatus.Succeeded, notification.Status);
+        Assert.Equal(ResourceEventTypes.Events.Deployment.Applied, notification.EventType);
+        Assert.Equal("resource-deployment|application:api|apply|operator", notification.CorrelationId);
+        Assert.Equal("cloudshell.deployment-apply-operation", notification.TemplateKey);
+        Assert.Equal("deployment", notification.Attributes!["operationKind"]);
+        Assert.Equal("apply", notification.Attributes!["deploymentKind"]);
+        Assert.Equal(
+            [
+                CloudShellNotificationChangeKind.Created,
+                CloudShellNotificationChangeKind.Updated
+            ],
+            changes);
     }
 
     [Fact]
@@ -605,8 +648,8 @@ public sealed class CloudShellNotificationStoreTests
 
         var notification = rule.CreateNotification(new ResourceEvent(
             "application:api",
-            ResourceEventTypes.Events.Deployment.Applied,
-            "Deployment applied.",
+            ResourceEventTypes.Events.Configuration.AppSettingsUpdated,
+            "Application settings updated.",
             DateTimeOffset.UtcNow,
             TriggeredBy: "operator"));
 

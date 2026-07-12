@@ -146,7 +146,7 @@ public sealed class ResourceDeploymentService(
             AppendResourceActionEvent(
                 resource,
                 ResourceEventTypes.Events.Deployment.Applied,
-                $"Applied deployment '{deployment.Id}' for revision '{result.Deployment.RevisionId}'. Result: {result.ProcedureResult.Message}",
+                $"Applied deployment '{deployment.Id}' for revision '{result.Deployment.RevisionId}'. Result: {result.ProcedureResult.Message}{FormatCause(cause)}",
                 triggeredBy);
             return result;
         }
@@ -161,7 +161,7 @@ public sealed class ResourceDeploymentService(
             AppendResourceActionEvent(
                 resource,
                 ResourceEventTypes.Events.Deployment.Failed,
-                $"Failed deployment '{deployment.Id}' for revision '{deployment.RevisionId}'. Reason: {exception.Message}",
+                $"Failed deployment '{deployment.Id}' for revision '{deployment.RevisionId}'. Reason: {exception.Message}{FormatCause(cause)}",
                 triggeredBy,
                 ResourceSignalSeverity.Error);
             throw;
