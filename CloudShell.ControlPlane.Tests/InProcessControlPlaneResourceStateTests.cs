@@ -3783,6 +3783,22 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Equal("templateApply", notification.Attributes!["operationKind"]);
         Assert.Equal("CreateOrUpdate", notification.Attributes!["applyMode"]);
         Assert.Equal("1", notification.Attributes!["resourceCount"]);
+        Assert.NotNull(notification.Actions);
+        var actions = notification.Actions;
+        Assert.Collection(
+            actions,
+            action =>
+            {
+                Assert.Equal("open-resource", action.Id);
+                Assert.Equal("/resources/application.dotnet-app%3Aapi", action.Target!.Href);
+                Assert.True(action.IsPrimary);
+            },
+            action =>
+            {
+                Assert.Equal("view-activity", action.Id);
+                Assert.Equal("/resources/application.dotnet-app%3Aapi/activity", action.Target!.Href);
+                Assert.False(action.IsPrimary);
+            });
         Assert.Equal(
             [
                 CloudShellNotificationChangeKind.Created,
@@ -3814,7 +3830,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Equal("Resource template 'local' was not applied.", notification.Message);
         Assert.Equal(ResourceSignalSeverity.Error, notification.Severity);
         Assert.Equal(CloudShellNotificationStatus.Failed, notification.Status);
-        Assert.Equal("application.dotnet-app:api", notification.ResourceId);
+        Assert.Null(notification.ResourceId);
+        Assert.Null(notification.Actions);
         Assert.Equal("templateApply", notification.Attributes!["operationKind"]);
         Assert.Equal("local", notification.Attributes!["templateName"]);
     }

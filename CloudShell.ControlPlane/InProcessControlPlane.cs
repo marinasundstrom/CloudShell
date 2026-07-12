@@ -1317,6 +1317,7 @@ public sealed class InProcessControlPlane(
             attributes["environmentId"] = request.Template.EnvironmentId.Trim();
         }
 
+        var resourceId = ResolveTemplateNotificationResourceId(request, status);
         notifications.CreateOrUpdateNotification(new CreateCloudShellNotificationCommand(
             triggeredBy.Trim(),
             "Apply resource template",
@@ -1324,12 +1325,57 @@ public sealed class InProcessControlPlane(
             severity,
             status,
             Source: ResourceTemplateApplySource,
-            ResourceId: resourceCount == 1
-                ? request.Template.Resources[0].EffectiveResourceId
-                : null,
+            ResourceId: resourceId,
             CorrelationId: CreateTemplateApplyCorrelationId(operationId, triggeredBy),
             TemplateKey: ResourceTemplateApplyTemplateKey,
+            Actions: CreateTemplateApplyActions(resourceId, status),
             Attributes: attributes));
+    }
+
+    private string? ResolveTemplateNotificationResourceId(
+        ResourceTemplateApplyRequest request,
+        CloudShellNotificationStatus status)
+    {
+        if (request.Template.Resources.Count != 1)
+        {
+            return null;
+        }
+
+        var resourceId = request.Template.Resources[0].EffectiveResourceId;
+        return status == CloudShellNotificationStatus.Succeeded ||
+            resourceManager.GetResource(resourceId) is not null
+                ? resourceId
+                : null;
+    }
+
+    private static IReadOnlyList<CloudShellNotificationAction>? CreateTemplateApplyActions(
+        string? resourceId,
+        CloudShellNotificationStatus status)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId) ||
+            status == CloudShellNotificationStatus.InProgress)
+        {
+            return null;
+        }
+
+        return
+        [
+            new CloudShellNotificationAction(
+                "open-resource",
+                "Open resource",
+                new CloudShellNotificationTarget(
+                    ResourceManagerRoutes.ResourceOverview(resourceId),
+                    "Open resource"),
+                IsPrimary: true),
+            new CloudShellNotificationAction(
+                "view-activity",
+                "View activity",
+                new CloudShellNotificationTarget(
+                    ResourceManagerRoutes.ResourceDetails(
+                        resourceId,
+                        ResourcePredefinedViewIds.Activity),
+                    "View activity"))
+        ];
     }
 
     private static string CreateTemplateApplyCorrelationId(

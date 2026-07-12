@@ -138,6 +138,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Changed shell notification target actions so navigation-only actions
   acknowledge or dismiss locally before navigating instead of requiring a
   Control Plane action handler.
+- Added resource actions to successful single-resource template apply
+  notifications and suppressed resource targets for rejected single-resource
+  applies when the target resource does not exist.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.
