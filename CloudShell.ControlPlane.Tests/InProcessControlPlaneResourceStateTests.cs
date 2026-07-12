@@ -3808,6 +3808,45 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ApplyResourceTemplateAsync_ProjectsApplicationArtifactApplyNotification()
+    {
+        var notifications = new InMemoryCloudShellNotificationStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("application.dotnet-app:api", ResourceState.Stopped)],
+            notifications: notifications,
+            allowLocalPathResourceDefinitions: false);
+
+        var result = await controlPlane.ApplyResourceTemplateAsync(
+            CreateDotnetAppTemplate(
+                new Dictionary<GraphResourceAttributeId, GraphResourceAttributeValue>
+                {
+                    [ApplicationArtifactAttributeIds.Enabled] = true,
+                    [ApplicationArtifactAttributeIds.SourceKind] =
+                        DeploymentArtifactSourceKinds.UploadedArtifact,
+                    [ApplicationArtifactAttributeIds.SourceOwner] =
+                        ApplicationArtifactAttributeIds.ResourceManagerUiSourceOwner,
+                    [ApplicationArtifactAttributeIds.Source] =
+                        GraphResourceAttributeValue.FromObject(new ApplicationArtifactReference(
+                            "artifact-api",
+                            "revision-1",
+                            "zip",
+                            new string('a', 64),
+                            1024,
+                            ArtifactLayoutKind: "dotnetPublishedOutput"))
+                },
+                templateName: "application-artifact:application.dotnet-app:api"));
+
+        Assert.True(result.IsCommitted, string.Join("; ", result.Diagnostics.Select(diagnostic => diagnostic.Message)));
+        var notification = Assert.Single(await controlPlane.ListNotificationsAsync(
+            new CloudShellNotificationQuery(RecipientKey: "user")));
+        Assert.Equal("Apply application artifact", notification.Title);
+        Assert.Equal("cloudshell.application-artifact-apply-operation", notification.TemplateKey);
+        Assert.Equal("applicationArtifactApply", notification.Attributes!["operationKind"]);
+        Assert.Equal("application-artifact:application.dotnet-app:api", notification.Attributes["templateName"]);
+        Assert.Equal("application.dotnet-app:api", notification.ResourceId);
+    }
+
+    [Fact]
     public async Task ApplyResourceTemplateAsync_ProjectsRejectedApplyNotification()
     {
         var notifications = new InMemoryCloudShellNotificationStore();
@@ -4540,9 +4579,10 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     private static GraphResourceTemplate CreateDotnetAppTemplate(
-        IReadOnlyDictionary<GraphResourceAttributeId, GraphResourceAttributeValue> attributes) =>
+        IReadOnlyDictionary<GraphResourceAttributeId, GraphResourceAttributeValue> attributes,
+        string templateName = "local") =>
         new(
-            "local",
+            templateName,
             [
                 new GraphResourceDefinition(
                     "api",

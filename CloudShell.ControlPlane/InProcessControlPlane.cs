@@ -74,6 +74,7 @@ public sealed class InProcessControlPlane(
     private const string ReplicaManagementTriggeredBy = "replica-management";
     private const string ResourceTemplateApplySource = "Control Plane";
     private const string ResourceTemplateApplyTemplateKey = "cloudshell.resource-template-apply-operation";
+    private const string ApplicationArtifactApplyTemplateKey = "cloudshell.application-artifact-apply-operation";
     private const string ApplicationDotnetAppType = "application.dotnet-app";
     private const string ApplicationPythonAppType = "application.python-app";
     private const string ApplicationJavaAppType = "application.java-app";
@@ -1304,9 +1305,12 @@ public sealed class InProcessControlPlane(
         }
 
         var resourceCount = request.Template.Resources.Count;
+        var isApplicationArtifactApply = IsApplicationArtifactApply(request);
         var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["operationKind"] = "templateApply",
+            ["operationKind"] = isApplicationArtifactApply
+                ? "applicationArtifactApply"
+                : "templateApply",
             ["operationId"] = operationId,
             ["templateName"] = request.Template.Name,
             ["applyMode"] = request.Mode.ToString(),
@@ -1320,17 +1324,27 @@ public sealed class InProcessControlPlane(
         var resourceId = ResolveTemplateNotificationResourceId(request, status);
         notifications.CreateOrUpdateNotification(new CreateCloudShellNotificationCommand(
             triggeredBy.Trim(),
-            "Apply resource template",
+            isApplicationArtifactApply
+                ? "Apply application artifact"
+                : "Apply resource template",
             message,
             severity,
             status,
             Source: ResourceTemplateApplySource,
             ResourceId: resourceId,
             CorrelationId: CreateTemplateApplyCorrelationId(operationId, triggeredBy),
-            TemplateKey: ResourceTemplateApplyTemplateKey,
+            TemplateKey: isApplicationArtifactApply
+                ? ApplicationArtifactApplyTemplateKey
+                : ResourceTemplateApplyTemplateKey,
             Actions: CreateTemplateApplyActions(resourceId, status),
             Attributes: attributes));
     }
+
+    private static bool IsApplicationArtifactApply(ResourceTemplateApplyRequest request) =>
+        request.Template.Name.StartsWith("application-artifact:", StringComparison.OrdinalIgnoreCase) ||
+        request.Template.Resources.Any(resource =>
+            resource.ResourceAttributeValues.ContainsKey(ApplicationArtifactAttributeIds.Source) ||
+            resource.Metadata?.ContainsKey(ApplicationArtifactRestoreMetadataNames.RestoredFromRevisionId) == true);
 
     private string? ResolveTemplateNotificationResourceId(
         ResourceTemplateApplyRequest request,

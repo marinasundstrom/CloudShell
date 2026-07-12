@@ -141,6 +141,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added resource actions to successful single-resource template apply
   notifications and suppressed resource targets for rejected single-resource
   applies when the target resource does not exist.
+- Distinguished Resource Manager application artifact apply notifications
+  from generic resource template applies with an artifact-specific operation
+  kind and template key.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.
