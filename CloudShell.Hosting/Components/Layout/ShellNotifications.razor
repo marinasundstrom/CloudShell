@@ -282,26 +282,32 @@
         CoreShellNotificationInstance item,
         CoreShellNotificationAction action)
     {
-        await Notifications.HandleActionAsync(item.Id, action.Id);
-        await LoadAsync();
-
         if (action.Target is not null)
         {
+            await Notifications.AcknowledgeAsync(item.Id);
+            await LoadAsync();
             Navigation.NavigateTo(action.Target.Href);
+            return;
         }
+
+        await Notifications.HandleActionAsync(item.Id, action.Id);
+        await LoadAsync();
     }
 
     private async Task HandleToastActionAsync(
         CoreShellToast item,
         CoreShellNotificationAction action)
     {
-        await Toasts.HandleActionAsync(item.Id, action.Id);
-        await LoadAsync();
-
         if (action.Target is not null)
         {
+            await Toasts.DismissAsync(item.Id);
+            await LoadAsync();
             Navigation.NavigateTo(action.Target.Href);
+            return;
         }
+
+        await Toasts.HandleActionAsync(item.Id, action.Id);
+        await LoadAsync();
     }
 
     private void OnNotificationsChanged(object? sender, CoreShellNotificationsChangedEventArgs args) =>

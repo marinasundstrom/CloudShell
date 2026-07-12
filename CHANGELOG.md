@@ -135,6 +135,9 @@ on `git blame --follow`, and then by the broad type of change.
   operator recipient while preserving the template-apply commit principal.
 - Added standard `Open resource` and `View activity` actions to failed or
   needs-attention notifications for existing resource operations.
+- Changed shell notification target actions so navigation-only actions
+  acknowledge or dismiss locally before navigating instead of requiring a
+  Control Plane action handler.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.
