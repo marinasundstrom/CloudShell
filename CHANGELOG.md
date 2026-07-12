@@ -120,6 +120,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Changed the reusable in-memory CoreShell toast service so a pinned
   in-progress toast returns to normal time-to-live auto-dismiss when it is
   updated to a terminal status without an explicit auto-dismiss override.
+- Added canonical notification/toast scenario guidance for CloudShell,
+  including Control Plane-owned notification-backed producers, UI-local
+  toast-only cases, progress patterns, and current gaps.
 - Coalesced start-driven deployment materialization progress into the
   lifecycle start notification so container app startup remains one
   in-progress toast until the resource reaches started or failed.

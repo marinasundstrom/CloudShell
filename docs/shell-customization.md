@@ -125,6 +125,8 @@ recovery.
 Warnings, failures, needs-attention items, and notifications with actions are
 treated as attention-worthy. Toast-only signals use `ICoreShellToastService`
 and do not create notification instances.
+Scenario ownership and producer rules are documented in
+[Notifications and toasts](notifications-and-toasts.md).
 `samples/CompositionSandbox` remains the lower-level composition sandbox for
 graph and renderer experiments below CoreShell.
 

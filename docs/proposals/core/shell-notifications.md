@@ -13,9 +13,11 @@ when background work starts, progresses, succeeds, fails, or needs attention.
   strengthens CoreShell as the common shell layer without forcing CloudShell
   resource semantics into CoreShell.
 - Canonical feature docs:
-  [Shell customization](../../shell-customization.md) and
-  [UI composition](../../ui-composition.md) describe the landed CoreShell
-  notification UI contract and sample reference path.
+  [Shell customization](../../shell-customization.md),
+  [UI composition](../../ui-composition.md), and
+  [Notifications and toasts](../../notifications-and-toasts.md) describe the
+  landed CoreShell notification UI contract, sample reference path, and
+  CloudShell notification/toast scenario rules.
 - Remaining action: expand the first local-development CloudShell UI and
   Control Plane notification projection beyond in-memory lifecycle,
   resource-create, resource-update, and health/recovery event coalescing to

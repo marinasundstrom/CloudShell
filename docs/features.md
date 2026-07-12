@@ -103,7 +103,7 @@ Use these terms when summarizing feature and proposal state:
 
 | Area | Canonical docs | Current scope |
 | --- | --- | --- |
-| Shell and UI structure | [UI structure](ui-structure.md), [Shell customization](shell-customization.md), [UI composition](ui-composition.md) | Current shell layout, settings/navigation patterns, reusable composition primitives, and product UI boundaries. |
+| Shell and UI structure | [UI structure](ui-structure.md), [Shell customization](shell-customization.md), [UI composition](ui-composition.md), [Notifications and toasts](notifications-and-toasts.md) | Current shell layout, settings/navigation patterns, reusable composition primitives, notification/toast contracts, and product UI boundaries. |
 | Extensions | [Extensions](extensions.md), [Control Plane resource providers](extensions/control-plane-resource-providers.md), [Resource Manager UI extensions](extensions/resource-manager-ui.md), [UI extensions](extensions/ui.md) | Extension contracts, provider boundaries, Resource Manager UI contributions, and shell extension guidance. |
 | Localization | [Localization](localization.md) | User-facing text and localization guidance. |
 
